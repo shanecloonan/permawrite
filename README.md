@@ -15,15 +15,15 @@ The Next.js demo site, in-browser executable specification (TypeScript reference
 
 | Layer                      | Crate           | Tests | State                                           |
 | -------------------------- | --------------- | :---: | ----------------------------------------------- |
-| ed25519 primitives + ZK    | `mfn-crypto`    |  130  | All Tier-1 primitives ported, clippy clean.     |
+| ed25519 primitives + ZK    | `mfn-crypto`    |  145  | All Tier-1 primitives ported, plus binary Merkle. Clippy clean. |
 | BLS12-381 sig aggregation  | `mfn-bls`       |   16  | BLS done; KZG pending.                          |
-| Confidential tx + coinbase | `mfn-consensus` |   40  | Emission, storage commitment, RingCT-style tx, coinbase — live. Block/consensus/slashing pending. |
+| Chain state machine        | `mfn-consensus` |   68  | Emission, RingCT-style tx, coinbase, **block + finality + slashing — live** (incl. an end-to-end 2-block chain test with stake-zeroing). Storage-proof verification + endowment-burden enforcement land with `mfn-storage`. |
 | Storage prover (SPoRA)     | `mfn-storage`   |   —   | Planned.                                        |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned.                                        |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned.                                        |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the demo page).            |
-| **Total**                  |                 | **191** | Zero `unsafe`. Zero clippy warnings.          |
+| **Total**                  |                 | **229** | Zero `unsafe`. Zero clippy warnings.          |
 
 Detailed module-level tracking lives in [`PORTING.md`](./PORTING.md).
 
@@ -75,8 +75,22 @@ The lego pieces become a chain here:
   `sign_transaction` / `verify_transaction` round-trip lives here.
 - **`coinbase`** — synthetic block-reward transaction with a deterministic
   ephemeral key so any node can replay history byte-for-byte.
+- **`consensus`** — slot-based PoS engine: stake-weighted VRF leader election
+  (ed25519), BLS12-381 committee finality with bitmap-aggregated signatures,
+  quorum verification in basis points (default 6667 = 2/3 + 1bp).
+- **`slashing`** — on-chain equivocation evidence: two BLS-signed headers
+  at the same slot from the same validator → stake slashed to zero, anyone
+  can submit, deterministic verification.
+- **`block`** — header, body, `ChainState`, deterministic `apply_block` that
+  verifies the producer's finality proof, walks the tx list (coinbase at
+  position 0 + regular RingCT spends), enforces cross-block key-image
+  uniqueness, applies slashing evidence, and re-derives the post-block
+  UTXO accumulator root. The end-to-end integration test drives a 2-block
+  chain through stake zeroing.
 
-Block + slot-leader / VRF-driven consensus / slashing are next.
+The remaining storage layer (`mfn-storage`) is next: per-block SPoRA proof
+verification, endowment-burden enforcement on uploads, treasury → storage
+reward routing.
 
 ---
 

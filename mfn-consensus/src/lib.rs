@@ -16,9 +16,12 @@
 //!   amounts.
 //! - [`coinbase`] — synthetic block-reward transaction, deterministic so any
 //!   node can replay history byte-for-byte.
-//!
-//! Block + consensus-engine modules (validators, slot leader election,
-//! finality, slashing) are next on the roadmap.
+//! - [`consensus`] — slot-based PoS engine: stake-weighted VRF leader
+//!   election (ed25519), BLS12-381 committee finality, and the
+//!   [`consensus::FinalityProof`] that becomes a block header's
+//!   `producer_proof`.
+//! - [`slashing`] — on-chain equivocation evidence: two BLS-signed headers
+//!   at the same slot from the same validator → stake slashed to zero.
 //!
 //! ## Byte-for-byte parity
 //!
@@ -37,19 +40,40 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod block;
 pub mod coinbase;
+pub mod consensus;
 pub mod emission;
+pub mod slashing;
 pub mod storage;
 pub mod transaction;
 
+pub use block::{
+    apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
+    header_signing_bytes, header_signing_hash, seal_block, storage_merkle_root, tx_merkle_root,
+    ApplyOutcome, Block, BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig,
+    GenesisOutput, UtxoEntry, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+};
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,
     CoinbaseError, CoinbaseVerifyResult, PayoutAddress,
+};
+pub use consensus::{
+    cast_vote, decode_committee_aggregate, decode_finality_proof, decode_producer_proof,
+    eligibility_threshold, encode_committee_aggregate, encode_finality_proof,
+    encode_producer_proof, finalize, is_eligible, pick_winner, slot_seed, try_produce_slot,
+    verify_finality_proof, verify_producer_proof, ConsensusCheck, ConsensusDecodeError,
+    ConsensusError, FinalityProof, ProducerProof, SlotContext, Validator, ValidatorPayout,
+    ValidatorSecrets,
 };
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, cumulative_emission, emission_at_height,
     pre_tail_supply_cap, validate_emission_params, EmissionError, EmissionParams,
     DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
+};
+pub use slashing::{
+    canonicalize, decode_evidence, encode_evidence, verify_evidence, EvidenceCheck,
+    SlashDecodeError, SlashEvidence,
 };
 pub use storage::{storage_commitment_hash, StorageCommitment};
 pub use transaction::{

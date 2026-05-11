@@ -1,0 +1,1039 @@
+//! Block + chain-state machine.
+//!
+//! Port of `cloonan-group/lib/network/block.ts`. This module turns the
+//! crate's other primitives — transactions, coinbase, emission, slashing,
+//! consensus finality — into an **actual chain** with a deterministic
+//! state-transition function.
+//!
+//! Three concepts:
+//!
+//! - [`BlockHeader`] / [`Block`] — header + body, deterministically hashed.
+//! - [`ChainState`] — known UTXOs, spent key images, storage registry,
+//!   validator set, treasury, accumulator root, and the block-id chain.
+//! - [`apply_block`] — pure function that validates a candidate block
+//!   against the current state and returns either a new state or a list
+//!   of errors. Same inputs always produce the same outputs (modulo
+//!   hashing the same bytes).
+//!
+//! ## v0.1 scope
+//!
+//! This is the consensus-critical subset. The rest of the TS reference
+//! (storage proof verification, endowment-based per-tx burden, treasury
+//! drain → storage reward routing, storage proof reward bonuses) lives
+//! gated behind the future [`mfn-storage`](https://github.com/...)
+//! crate. Block application here:
+//!
+//! - verifies header sanity (height, prev hash);
+//! - checks the tx Merkle root;
+//! - verifies the producer's [`crate::consensus::FinalityProof`] when
+//!   the chain has a validator set;
+//! - walks the tx list: position 0 may be a coinbase, all others go
+//!   through [`crate::transaction::verify_transaction`];
+//! - rejects cross-tx and cross-chain double-spends;
+//! - inserts new UTXOs into both the map and the cryptographic
+//!   accumulator;
+//! - registers new storage commitments (without enforcing endowment);
+//! - applies slashing evidence (stake zeroed);
+//! - verifies the coinbase against `emission(height) + producer_fee` when
+//!   the producer has a payout address;
+//! - checks the storage Merkle root + the UTXO accumulator root.
+//!
+//! When the storage layer lands, the per-block apply function will gain
+//! storage-proof verification, endowment-burden enforcement, and the
+//! two-sided treasury/emission settlement. The wire format is forward-
+//! compatible: blocks produced today will still validate then.
+
+use std::collections::{HashMap, HashSet};
+
+use curve25519_dalek::edwards::EdwardsPoint;
+
+use mfn_crypto::codec::Writer;
+use mfn_crypto::domain::{BLOCK_HEADER, BLOCK_ID};
+use mfn_crypto::hash::dhash;
+use mfn_crypto::merkle::merkle_root_or_zero;
+use mfn_crypto::utxo_tree::{
+    append_utxo, empty_utxo_tree, utxo_leaf_hash, utxo_tree_root, UtxoTreeState,
+};
+
+use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
+use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
+use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
+use crate::slashing::{canonicalize, verify_evidence, EvidenceCheck, SlashEvidence};
+use crate::storage::{storage_commitment_hash, StorageCommitment};
+use crate::transaction::{tx_id, verify_transaction, TransactionWire};
+
+/* ----------------------------------------------------------------------- *
+ *  Header + Block                                                          *
+ * ----------------------------------------------------------------------- */
+
+/// Current block header version. Bumped on hard fork only.
+pub const HEADER_VERSION: u32 = 1;
+
+/// Block header — the consensus-critical, hash-committed metadata.
+#[derive(Clone, Debug)]
+pub struct BlockHeader {
+    /// MFBN codec version.
+    pub version: u32,
+    /// Hash of the previous block's header (32 zeros at genesis).
+    pub prev_hash: [u8; 32],
+    /// Block height (genesis = 0).
+    pub height: u32,
+    /// Slot number this block was produced for.
+    pub slot: u32,
+    /// Wall-clock timestamp (seconds since UNIX epoch).
+    pub timestamp: u64,
+    /// Merkle root of the block's transactions (all-zero if empty).
+    pub tx_root: [u8; 32],
+    /// Merkle root of newly-anchored storage commitments (all-zero if
+    /// none).
+    pub storage_root: [u8; 32],
+    /// MFBN-encoded [`crate::consensus::FinalityProof`]. Empty for genesis
+    /// and for chains running in legacy/centralized mode (no validator
+    /// set).
+    pub producer_proof: Vec<u8>,
+    /// 32-byte cryptographic UTXO accumulator root **after** this block's
+    /// outputs are appended. Light clients use this to verify membership
+    /// without downloading the full UTXO set; log-size ring signatures
+    /// prove inputs against it. Mandatory in v0.1.
+    pub utxo_root: [u8; 32],
+}
+
+/// A full block: header + body.
+#[derive(Clone, Debug)]
+pub struct Block {
+    /// Header.
+    pub header: BlockHeader,
+    /// Transactions. `txs[0]` MAY be a coinbase (no inputs); all others
+    /// must be regular RingCT-style spends.
+    pub txs: Vec<TransactionWire>,
+    /// Slashing evidence accumulated since the previous block. Each piece
+    /// zeros one offending validator's stake in the next state.
+    pub slashings: Vec<SlashEvidence>,
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Hashing                                                                 *
+ * ----------------------------------------------------------------------- */
+
+/// Canonical encoding of a header (excluding the trailing `producer_proof`
+/// blob). What [`header_signing_hash`] hashes; what producer and committee
+/// BLS-sign over.
+pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.varint(u64::from(h.version));
+    w.push(&h.prev_hash);
+    w.u32(h.height);
+    w.u32(h.slot);
+    w.u64(h.timestamp);
+    w.push(&h.tx_root);
+    w.push(&h.storage_root);
+    w.into_bytes()
+}
+
+/// Hash of the header **without** `producer_proof`. The message the
+/// producer + committee BLS-sign — must be deterministic and exclude the
+/// signature it's signing.
+pub fn header_signing_hash(h: &BlockHeader) -> [u8; 32] {
+    dhash(BLOCK_HEADER, &[&header_signing_bytes(h)])
+}
+
+/// Full header bytes including the `producer_proof` blob, length-prefixed.
+pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.varint(u64::from(h.version));
+    w.push(&h.prev_hash);
+    w.u32(h.height);
+    w.u32(h.slot);
+    w.u64(h.timestamp);
+    w.push(&h.tx_root);
+    w.push(&h.storage_root);
+    w.blob(&h.producer_proof);
+    w.push(&h.utxo_root);
+    w.into_bytes()
+}
+
+/// Block id = `dhash(BLOCK_ID, full_header_bytes)`.
+pub fn block_id(h: &BlockHeader) -> [u8; 32] {
+    dhash(BLOCK_ID, &[&block_header_bytes(h)])
+}
+
+/// Merkle root over the tx ids of the block. Empty list → 32-byte zero
+/// (matches the TS reference's sentinel).
+pub fn tx_merkle_root(txs: &[TransactionWire]) -> [u8; 32] {
+    if txs.is_empty() {
+        return [0u8; 32];
+    }
+    let leaves: Vec<[u8; 32]> = txs.iter().map(tx_id).collect();
+    merkle_root_or_zero(&leaves)
+}
+
+/// Merkle root over the storage commitments newly anchored in the block.
+/// Returns 32 zeros if `commits` is empty.
+pub fn storage_merkle_root(commits: &[StorageCommitment]) -> [u8; 32] {
+    if commits.is_empty() {
+        return [0u8; 32];
+    }
+    let leaves: Vec<[u8; 32]> = commits.iter().map(storage_commitment_hash).collect();
+    merkle_root_or_zero(&leaves)
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Chain state                                                             *
+ * ----------------------------------------------------------------------- */
+
+/// An unspent transaction output's record in the chain's UTXO set.
+#[derive(Clone, Debug)]
+pub struct UtxoEntry {
+    /// Pedersen commitment to the output's hidden amount. Future spenders
+    /// include this in their CLSAG ring's `C` column.
+    pub commit: EdwardsPoint,
+    /// Block height at which this output was anchored. Drives the gamma
+    /// decoy-selection age weighting.
+    pub height: u32,
+}
+
+/// Consensus parameters baked into the chain at genesis. Changing any of
+/// these is a hard fork.
+#[derive(Clone, Copy, Debug)]
+pub struct ConsensusParams {
+    /// Average number of validators eligible to propose per slot. Typical
+    /// configs: `1.0` (Algorand-style) or `1.5` (extra liveness slack).
+    pub expected_proposers_per_slot: f64,
+    /// Stake-weighted quorum threshold in basis points. `6667` = 2/3 + 1bp.
+    pub quorum_stake_bps: u32,
+}
+
+impl Default for ConsensusParams {
+    fn default() -> Self {
+        Self {
+            expected_proposers_per_slot: 1.5,
+            quorum_stake_bps: 6667,
+        }
+    }
+}
+
+/// Canonical default consensus parameters.
+pub const DEFAULT_CONSENSUS_PARAMS: ConsensusParams = ConsensusParams {
+    expected_proposers_per_slot: 1.5,
+    quorum_stake_bps: 6667,
+};
+
+/// The mutable state of a Permawrite chain.
+#[derive(Clone, Debug)]
+pub struct ChainState {
+    /// Height of the last applied block (`None` before genesis).
+    pub height: Option<u32>,
+    /// Live UTXO set, keyed by compressed one-time-address bytes.
+    pub utxo: HashMap<[u8; 32], UtxoEntry>,
+    /// Spent key images, keyed by compressed point bytes. Cross-block
+    /// double-spend gate.
+    pub spent_key_images: HashSet<[u8; 32]>,
+    /// Storage commitments anchored on-chain, keyed by commitment hash.
+    /// Full per-commitment state (last-proven slot, pending PPB yield)
+    /// lands when the storage layer ships; v0.1 only tracks the binding.
+    pub storage: HashMap<[u8; 32], StorageCommitment>,
+    /// Block-id chain: `[genesis_id, block1_id, ...]`.
+    pub block_ids: Vec<[u8; 32]>,
+    /// Active validator set. Frozen at genesis in v0.1; epoch reconfig
+    /// is a future upgrade.
+    pub validators: Vec<Validator>,
+    /// Consensus parameters.
+    pub params: ConsensusParams,
+    /// Emission schedule (defaults to [`DEFAULT_EMISSION_PARAMS`]).
+    pub emission_params: EmissionParams,
+    /// Permanence treasury, in base units (gains the fee→treasury share
+    /// of every regular tx).
+    pub treasury: u128,
+    /// Cryptographic UTXO accumulator. Every output the chain ever
+    /// anchors is appended in deterministic order.
+    pub utxo_tree: UtxoTreeState,
+}
+
+impl ChainState {
+    /// Empty pre-genesis state.
+    pub fn empty() -> Self {
+        Self {
+            height: None,
+            utxo: HashMap::new(),
+            spent_key_images: HashSet::new(),
+            storage: HashMap::new(),
+            block_ids: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            treasury: 0,
+            utxo_tree: empty_utxo_tree(),
+        }
+    }
+
+    /// The block id of the chain's current tip (`None` before genesis).
+    pub fn tip_id(&self) -> Option<&[u8; 32]> {
+        self.block_ids.last()
+    }
+}
+
+impl Default for ChainState {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Genesis                                                                 *
+ * ----------------------------------------------------------------------- */
+
+/// One initial output baked into genesis (no signatures — genesis is
+/// trusted setup).
+#[derive(Clone, Debug)]
+pub struct GenesisOutput {
+    /// Stealth one-time address.
+    pub one_time_addr: EdwardsPoint,
+    /// Pedersen commitment to the hidden amount.
+    pub amount: EdwardsPoint,
+}
+
+/// Configuration for the genesis block (height 0).
+#[derive(Clone, Debug)]
+pub struct GenesisConfig {
+    /// Wall-clock timestamp at chain start.
+    pub timestamp: u64,
+    /// Initial UTXO set.
+    pub initial_outputs: Vec<GenesisOutput>,
+    /// Initial storage commitments.
+    pub initial_storage: Vec<StorageCommitment>,
+    /// Validator set at genesis. Empty ⇒ chain runs without consensus
+    /// validation (tests only).
+    pub validators: Vec<Validator>,
+    /// Consensus parameters (defaults if omitted at type level).
+    pub params: ConsensusParams,
+    /// Emission schedule (defaults if omitted at type level).
+    pub emission_params: EmissionParams,
+}
+
+/// Build the genesis [`Block`].
+pub fn build_genesis(cfg: &GenesisConfig) -> Block {
+    let mut tree = empty_utxo_tree();
+    for o in &cfg.initial_outputs {
+        let leaf = utxo_leaf_hash(&o.one_time_addr, &o.amount, 0);
+        tree = append_utxo(&tree, leaf).expect("genesis output count fits in accumulator");
+    }
+    let storage_root = storage_merkle_root(&cfg.initial_storage);
+    let header = BlockHeader {
+        version: HEADER_VERSION,
+        prev_hash: [0u8; 32],
+        height: 0,
+        slot: 0,
+        timestamp: cfg.timestamp,
+        tx_root: [0u8; 32],
+        storage_root,
+        producer_proof: Vec::new(),
+        utxo_root: utxo_tree_root(&tree),
+    };
+    Block {
+        header,
+        txs: Vec::new(),
+        slashings: Vec::new(),
+    }
+}
+
+/// Apply genesis to an empty state.
+pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState, BlockError> {
+    if genesis.header.height != 0 {
+        return Err(BlockError::GenesisHeightNotZero);
+    }
+    let mut state = ChainState::empty();
+    state.params = cfg.params;
+    state.emission_params = cfg.emission_params;
+    state.validators = cfg.validators.clone();
+
+    for o in &cfg.initial_outputs {
+        let key = o.one_time_addr.compress().to_bytes();
+        state.utxo.insert(
+            key,
+            UtxoEntry {
+                commit: o.amount,
+                height: 0,
+            },
+        );
+        let leaf = utxo_leaf_hash(&o.one_time_addr, &o.amount, 0);
+        state.utxo_tree =
+            append_utxo(&state.utxo_tree, leaf).expect("genesis output count fits");
+    }
+    for s in &cfg.initial_storage {
+        state
+            .storage
+            .insert(storage_commitment_hash(s), s.clone());
+    }
+
+    state.height = Some(0);
+    state.block_ids.push(block_id(&genesis.header));
+    Ok(state)
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Block builder (producer-side)                                           *
+ * ----------------------------------------------------------------------- */
+
+/// Build an unsealed (no `producer_proof`) header for the next block.
+/// Producers compute the [`header_signing_hash`] over this header to know
+/// what to BLS-sign; once they have a [`crate::consensus::FinalityProof`],
+/// they call [`seal_block`] to produce the final `Block`.
+///
+/// `slot` is the explicit slot timer value; tests can default it to
+/// `height`.
+pub fn build_unsealed_header(
+    state: &ChainState,
+    txs: &[TransactionWire],
+    slot: u32,
+    timestamp: u64,
+) -> BlockHeader {
+    let next_height = state.height.map(|h| h + 1).unwrap_or(0);
+
+    // Storage commitments newly introduced this block (in tx-output
+    // declaration order). Duplicates of already-anchored commitments do
+    // NOT contribute (they were paid for by the original anchor).
+    let mut new_storages: Vec<StorageCommitment> = Vec::new();
+    let mut seen: HashSet<[u8; 32]> = HashSet::new();
+    for tx in txs {
+        for out in &tx.outputs {
+            if let Some(sc) = &out.storage {
+                let h = storage_commitment_hash(sc);
+                if state.storage.contains_key(&h) || !seen.insert(h) {
+                    continue;
+                }
+                new_storages.push(sc.clone());
+            }
+        }
+    }
+
+    // Project the post-block accumulator: every tx output appended in
+    // tx-by-tx, output-by-output order.
+    let mut projected_tree = state.utxo_tree.clone();
+    for tx in txs {
+        for out in &tx.outputs {
+            let leaf = utxo_leaf_hash(&out.one_time_addr, &out.amount, next_height);
+            projected_tree = append_utxo(&projected_tree, leaf)
+                .expect("realistic block fits in accumulator");
+        }
+    }
+
+    let prev_hash = state.tip_id().copied().unwrap_or([0u8; 32]);
+
+    BlockHeader {
+        version: HEADER_VERSION,
+        prev_hash,
+        height: next_height,
+        slot,
+        timestamp,
+        tx_root: tx_merkle_root(txs),
+        storage_root: storage_merkle_root(&new_storages),
+        producer_proof: Vec::new(),
+        utxo_root: utxo_tree_root(&projected_tree),
+    }
+}
+
+/// Attach an encoded finality proof to a header.
+pub fn seal_block(
+    mut header: BlockHeader,
+    txs: Vec<TransactionWire>,
+    producer_proof: Vec<u8>,
+    slashings: Vec<SlashEvidence>,
+) -> Block {
+    header.producer_proof = producer_proof;
+    Block {
+        header,
+        txs,
+        slashings,
+    }
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Block application                                                      *
+ * ----------------------------------------------------------------------- */
+
+/// Either the new state (on success) or a structured list of errors.
+///
+/// Boxed-state variants would obscure the natural shape; the `Ok` arm
+/// carries a `ChainState` directly. The size disparity between the
+/// variants is fine because successful application is overwhelmingly the
+/// common path and the `Err` variant is small anyway.
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+pub enum ApplyOutcome {
+    /// All checks passed; `state` is the new tip state.
+    Ok {
+        /// New state.
+        state: ChainState,
+        /// Id of the applied block.
+        block_id: [u8; 32],
+    },
+    /// One or more checks failed; the input state is unchanged.
+    Err {
+        /// Structured error list (one per failed check).
+        errors: Vec<BlockError>,
+        /// Id of the proposed block (so callers can log it).
+        block_id: [u8; 32],
+    },
+}
+
+impl ApplyOutcome {
+    /// `true` iff application succeeded.
+    pub fn is_ok(&self) -> bool {
+        matches!(self, ApplyOutcome::Ok { .. })
+    }
+
+    /// Block id of the applied/proposed block.
+    pub fn block_id(&self) -> &[u8; 32] {
+        match self {
+            ApplyOutcome::Ok { block_id, .. } | ApplyOutcome::Err { block_id, .. } => block_id,
+        }
+    }
+
+    /// Move out the new state, if successful.
+    pub fn into_state(self) -> Option<ChainState> {
+        match self {
+            ApplyOutcome::Ok { state, .. } => Some(state),
+            ApplyOutcome::Err { .. } => None,
+        }
+    }
+}
+
+/// Apply a candidate block to a chain state.
+///
+/// Performs every consensus check, in order:
+///
+/// 1. Header sanity: height = `state.height + 1`, `prev_hash` = current
+///    tip id (none ⇒ genesis-only chain).
+/// 2. Tx Merkle root matches the recomputed root.
+/// 3. (If validators present) the [`crate::consensus::FinalityProof`]
+///    verifies — producer was eligible at this slot, committee quorum
+///    signed the header.
+/// 4. Each tx verifies; cross-tx and cross-chain key images do not
+///    collide; outputs are added to the UTXO set + accumulator.
+/// 5. Storage commitments newly introduced by tx outputs are registered.
+/// 6. Slashing evidence verifies; offending validators have their stake
+///    zeroed in the new state.
+/// 7. When a producer has a [`crate::consensus::ValidatorPayout`], the
+///    block must include a coinbase (in `tx[0]`) paying
+///    `emission(height) + producer_fee`.
+/// 8. Storage Merkle root matches.
+/// 9. UTXO accumulator root matches.
+///
+/// Returns [`ApplyOutcome::Ok`] with the new state, or
+/// [`ApplyOutcome::Err`] with a list of [`BlockError`]s and the original
+/// state untouched.
+pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
+    let proposed_id = block_id(&block.header);
+    let mut errors: Vec<BlockError> = Vec::new();
+
+    // ---- Header sanity ----
+    let expected_height = state.height.map(|h| h + 1).unwrap_or(0);
+    if block.header.height != expected_height {
+        errors.push(BlockError::BadHeight {
+            expected: expected_height,
+            got: block.header.height,
+        });
+    }
+    if let Some(tip) = state.tip_id() {
+        if &block.header.prev_hash != tip {
+            errors.push(BlockError::PrevHashMismatch);
+        }
+    } else if block.header.prev_hash != [0u8; 32] {
+        errors.push(BlockError::PrevHashMismatch);
+    }
+
+    // ---- Tx merkle root ----
+    let expected_tx_root = tx_merkle_root(&block.txs);
+    if expected_tx_root != block.header.tx_root {
+        errors.push(BlockError::TxRootMismatch);
+    }
+
+    // ---- Producer/finality proof ----
+    let mut producer_idx: Option<u32> = None;
+    if !state.validators.is_empty() {
+        if block.header.producer_proof.is_empty() {
+            errors.push(BlockError::MissingProducerProof);
+        } else {
+            match decode_finality_proof(&block.header.producer_proof) {
+                Ok(fin) => {
+                    let ctx = SlotContext {
+                        height: block.header.height,
+                        slot: block.header.slot,
+                        prev_hash: block.header.prev_hash,
+                    };
+                    let header_hash = header_signing_hash(&block.header);
+                    let chk = verify_finality_proof(
+                        &ctx,
+                        &fin,
+                        &state.validators,
+                        state.params.expected_proposers_per_slot,
+                        state.params.quorum_stake_bps,
+                        &header_hash,
+                    );
+                    if !chk.is_ok() {
+                        errors.push(BlockError::FinalityInvalid(chk));
+                    } else {
+                        producer_idx = Some(fin.producer.validator_index);
+                    }
+                }
+                Err(e) => errors.push(BlockError::FinalityDecode(format!("{e}"))),
+            }
+        }
+    }
+
+    // ---- Tentative state copy (only kept on success). ----
+    let mut next = state.clone();
+    next.height = Some(block.header.height);
+
+    // Storage commitments newly anchored this block (in declaration order),
+    // for the post-block storage-root check.
+    let mut new_storages: Vec<StorageCommitment> = Vec::new();
+
+    // Producer + coinbase policy.
+    let producer = producer_idx.and_then(|idx| {
+        state
+            .validators
+            .iter()
+            .find(|v| v.index == idx)
+            .cloned()
+    });
+    let require_coinbase = producer.as_ref().map(|p| p.payout.is_some()).unwrap_or(false);
+
+    // ---- Walk txs ----
+    // A coinbase-shaped tx anywhere past position 0 is a protocol
+    // violation. Catch up front.
+    for (i, tx) in block.txs.iter().enumerate().skip(1) {
+        if is_coinbase_shaped(tx) {
+            errors.push(BlockError::CoinbaseOutOfPosition(i));
+        }
+    }
+
+    let mut coinbase_tx: Option<&TransactionWire> = None;
+    let mut fee_sum: u128 = 0;
+
+    for (ti, tx) in block.txs.iter().enumerate() {
+        let is_coinbase_pos = ti == 0 && is_coinbase_shaped(tx);
+
+        if is_coinbase_pos {
+            coinbase_tx = Some(tx);
+            // Coinbase output goes into UTXO + accumulator. The actual
+            // amount/balance check happens below after fee_sum is known.
+            for out in &tx.outputs {
+                let key = out.one_time_addr.compress().to_bytes();
+                next.utxo.insert(
+                    key,
+                    UtxoEntry {
+                        commit: out.amount,
+                        height: block.header.height,
+                    },
+                );
+                let leaf = utxo_leaf_hash(&out.one_time_addr, &out.amount, block.header.height);
+                match append_utxo(&next.utxo_tree, leaf) {
+                    Ok(t) => next.utxo_tree = t,
+                    Err(e) => errors.push(BlockError::AccumulatorFull(format!("{e}"))),
+                }
+                // Coinbase outputs cannot anchor storage; verify_coinbase
+                // enforces this, so we skip storage handling here.
+            }
+            continue;
+        }
+
+        if ti == 0 && require_coinbase {
+            errors.push(BlockError::MissingCoinbase {
+                got_inputs: tx.inputs.len(),
+            });
+        }
+
+        // Regular tx path.
+        let v = verify_transaction(tx);
+        if !v.ok {
+            errors.push(BlockError::TxInvalid {
+                index: ti,
+                errors: v.errors,
+            });
+            continue;
+        }
+
+        // Fees accrue to the producer via the coinbase.
+        fee_sum += u128::from(tx.fee);
+
+        // Cross-tx + cross-chain key image gate.
+        for ki in &v.key_images {
+            let ki_bytes = ki.compress().to_bytes();
+            if next.spent_key_images.contains(&ki_bytes) {
+                errors.push(BlockError::DoubleSpend {
+                    index: ti,
+                    key_image: hex_short(&ki_bytes),
+                });
+            } else {
+                next.spent_key_images.insert(ki_bytes);
+            }
+        }
+
+        // New outputs → UTXO map + accumulator + storage registry.
+        for out in &tx.outputs {
+            let key = out.one_time_addr.compress().to_bytes();
+            next.utxo.insert(
+                key,
+                UtxoEntry {
+                    commit: out.amount,
+                    height: block.header.height,
+                },
+            );
+            let leaf = utxo_leaf_hash(&out.one_time_addr, &out.amount, block.header.height);
+            match append_utxo(&next.utxo_tree, leaf) {
+                Ok(t) => next.utxo_tree = t,
+                Err(e) => errors.push(BlockError::AccumulatorFull(format!("{e}"))),
+            }
+
+            if let Some(sc) = &out.storage {
+                let h = storage_commitment_hash(sc);
+                if let std::collections::hash_map::Entry::Vacant(e) = next.storage.entry(h) {
+                    e.insert(sc.clone());
+                    new_storages.push(sc.clone());
+                }
+            }
+        }
+    }
+
+    // ---- Slashing evidence ----
+    let mut slashed_this_block: HashSet<u32> = HashSet::new();
+    for (si, ev_raw) in block.slashings.iter().enumerate() {
+        let ev = canonicalize(ev_raw);
+        if !slashed_this_block.insert(ev.voter_index) {
+            errors.push(BlockError::DuplicateSlash {
+                index: si,
+                voter_index: ev.voter_index,
+            });
+            continue;
+        }
+        let chk = verify_evidence(&ev, &next.validators);
+        match chk {
+            EvidenceCheck::Valid => {
+                let idx = ev.voter_index as usize;
+                if idx < next.validators.len() {
+                    next.validators[idx].stake = 0;
+                }
+            }
+            other => errors.push(BlockError::SlashInvalid {
+                index: si,
+                reason: other,
+            }),
+        }
+    }
+
+    // ---- Coinbase verification (v0.1: subsidy + producer_fee) ----
+    let emission_params = next.emission_params;
+    let producer_fee: u64 = u64::try_from(fee_sum).unwrap_or(u64::MAX);
+    let subsidy = emission_at_height(u64::from(block.header.height), &emission_params);
+    let expected_reward = subsidy.saturating_add(producer_fee);
+
+    if require_coinbase {
+        let producer = producer
+            .as_ref()
+            .expect("require_coinbase implies producer present");
+        let payout = producer
+            .payout
+            .as_ref()
+            .expect("require_coinbase implies payout present");
+        match coinbase_tx {
+            None => errors.push(BlockError::CoinbaseRequiredButAbsent),
+            Some(cb) => {
+                let cv = verify_coinbase(
+                    cb,
+                    u64::from(block.header.height),
+                    expected_reward,
+                    &crate::coinbase::PayoutAddress {
+                        view_pub: payout.view_pub,
+                        spend_pub: payout.spend_pub,
+                    },
+                );
+                if !cv.ok {
+                    errors.push(BlockError::CoinbaseInvalid(cv.errors));
+                }
+            }
+        }
+    } else if coinbase_tx.is_some() {
+        errors.push(BlockError::UnexpectedCoinbase);
+    }
+
+    // ---- Storage root ----
+    let expected_storage_root = storage_merkle_root(&new_storages);
+    if expected_storage_root != block.header.storage_root {
+        errors.push(BlockError::StorageRootMismatch);
+    }
+
+    // ---- UTXO accumulator root ----
+    let computed_root = utxo_tree_root(&next.utxo_tree);
+    if computed_root != block.header.utxo_root {
+        errors.push(BlockError::UtxoRootMismatch);
+    }
+
+    if !errors.is_empty() {
+        return ApplyOutcome::Err {
+            errors,
+            block_id: proposed_id,
+        };
+    }
+
+    next.block_ids.push(proposed_id);
+    ApplyOutcome::Ok {
+        state: next,
+        block_id: proposed_id,
+    }
+}
+
+fn hex_short(b: &[u8]) -> String {
+    let mut s = String::with_capacity(13);
+    for byte in b.iter().take(6) {
+        s.push_str(&format!("{byte:02x}"));
+    }
+    s.push('…');
+    s
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Errors                                                                  *
+ * ----------------------------------------------------------------------- */
+
+/// Block-application errors. Surfaced via [`ApplyOutcome::Err`].
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum BlockError {
+    /// Genesis block must have `height == 0`.
+    #[error("genesis height must be 0")]
+    GenesisHeightNotZero,
+    /// Header height didn't match `state.height + 1`.
+    #[error("bad height: expected {expected}, got {got}")]
+    BadHeight {
+        /// Expected (current tip + 1).
+        expected: u32,
+        /// What the header carried.
+        got: u32,
+    },
+    /// `prev_hash` didn't match the chain tip.
+    #[error("prev_hash does not match tip")]
+    PrevHashMismatch,
+    /// Header `tx_root` didn't match the locally-recomputed root.
+    #[error("tx_root mismatch")]
+    TxRootMismatch,
+    /// Chain has a validator set but the header lacks a producer proof.
+    #[error("missing producer proof")]
+    MissingProducerProof,
+    /// The producer proof failed to decode.
+    #[error("producer proof decode failed: {0}")]
+    FinalityDecode(String),
+    /// The producer proof decoded but failed verification.
+    #[error("finality invalid: {0:?}")]
+    FinalityInvalid(crate::consensus::ConsensusCheck),
+    /// A tx past index 0 was coinbase-shaped (no inputs).
+    #[error("tx[{0}]: coinbase-shaped tx not allowed past position 0")]
+    CoinbaseOutOfPosition(usize),
+    /// The chain expected a coinbase at position 0 but got a non-coinbase
+    /// (real-input tx).
+    #[error("tx[0]: expected coinbase but got {got_inputs}-input tx")]
+    MissingCoinbase {
+        /// Number of inputs in the bogus first tx.
+        got_inputs: usize,
+    },
+    /// `verify_transaction` rejected the tx.
+    #[error("tx[{index}] invalid: {errors:?}")]
+    TxInvalid {
+        /// Position in `block.txs`.
+        index: usize,
+        /// Per-error strings from `verify_transaction`.
+        errors: Vec<String>,
+    },
+    /// A key image already exists in the chain or this block.
+    #[error("tx[{index}] double-spend: key image {key_image}")]
+    DoubleSpend {
+        /// Position of the offending tx.
+        index: usize,
+        /// Hex prefix of the duplicate key image.
+        key_image: String,
+    },
+    /// The UTXO accumulator is full (depth-32 tree exhausted).
+    #[error("utxo accumulator full: {0}")]
+    AccumulatorFull(String),
+    /// Two slashing pieces target the same validator.
+    #[error("slashings[{index}]: duplicate evidence for validator {voter_index}")]
+    DuplicateSlash {
+        /// Index in `block.slashings`.
+        index: usize,
+        /// Validator index referenced twice.
+        voter_index: u32,
+    },
+    /// A piece of slashing evidence failed verification.
+    #[error("slashings[{index}]: {reason:?}")]
+    SlashInvalid {
+        /// Index in `block.slashings`.
+        index: usize,
+        /// Reason from the slashing verifier.
+        reason: EvidenceCheck,
+    },
+    /// Producer has a payout but the block has no coinbase tx.
+    #[error("coinbase required (producer has payout) but absent")]
+    CoinbaseRequiredButAbsent,
+    /// `verify_coinbase` rejected the tx.
+    #[error("coinbase invalid: {0:?}")]
+    CoinbaseInvalid(Vec<String>),
+    /// Block has a coinbase but the producer has no payout (or there is
+    /// no producer at all).
+    #[error("unexpected coinbase: producer has no payout")]
+    UnexpectedCoinbase,
+    /// Storage Merkle root mismatch.
+    #[error("storage_root mismatch")]
+    StorageRootMismatch,
+    /// UTXO accumulator root mismatch.
+    #[error("utxo_root mismatch")]
+    UtxoRootMismatch,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::StorageCommitment;
+
+    fn genesis_state() -> ChainState {
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        apply_genesis(&g, &cfg).unwrap()
+    }
+
+    #[test]
+    fn build_apply_genesis_matches() {
+        let cfg = GenesisConfig {
+            timestamp: 42,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        let st = apply_genesis(&g, &cfg).unwrap();
+        assert_eq!(st.height, Some(0));
+        assert_eq!(st.block_ids.len(), 1);
+        assert_eq!(st.block_ids[0], block_id(&g.header));
+    }
+
+    #[test]
+    fn empty_block_applies_in_legacy_mode() {
+        let st = genesis_state();
+        let header = build_unsealed_header(&st, &[], 1, 100);
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(state.height, Some(1));
+                assert_eq!(state.block_ids.len(), 2);
+            }
+            ApplyOutcome::Err { errors, .. } => panic!("expected ok, got: {errors:?}"),
+        }
+    }
+
+    #[test]
+    fn bad_height_is_rejected() {
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        header.height = 99;
+        // Have to recompute prev_hash + utxo_root for the bad height since
+        // they're independent... actually no, only height is wrong here, so
+        // the locally-computed expected_tx_root and utxo_root will still
+        // match. Just check that BadHeight surfaces.
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BadHeight { .. })));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn bad_prev_hash_is_rejected() {
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        header.prev_hash = [9u8; 32];
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::PrevHashMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn tx_root_mismatch_is_rejected() {
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        header.tx_root[0] ^= 0xff;
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors.iter().any(|e| matches!(e, BlockError::TxRootMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn utxo_root_mismatch_is_rejected() {
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        header.utxo_root[0] ^= 0xff;
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::UtxoRootMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn header_signing_hash_excludes_producer_proof() {
+        let st = genesis_state();
+        let h0 = build_unsealed_header(&st, &[], 1, 100);
+        let hash0 = header_signing_hash(&h0);
+        let mut h1 = h0.clone();
+        h1.producer_proof = b"this is whatever the producer attaches".to_vec();
+        let hash1 = header_signing_hash(&h1);
+        assert_eq!(hash0, hash1, "signing hash must not depend on producer_proof");
+        // But the full block id DOES depend on producer_proof.
+        assert_ne!(block_id(&h0), block_id(&h1));
+    }
+
+    #[test]
+    fn storage_root_uses_zero_when_empty() {
+        assert_eq!(storage_merkle_root(&[]), [0u8; 32]);
+    }
+
+    #[test]
+    fn storage_merkle_root_is_stable_under_no_op_storage() {
+        use mfn_crypto::point::generator_g;
+        let sc = StorageCommitment {
+            data_root: [1u8; 32],
+            size_bytes: 1_000,
+            chunk_size: 256,
+            num_chunks: 4,
+            replication: 3,
+            endowment: generator_g(),
+        };
+        let r1 = storage_merkle_root(std::slice::from_ref(&sc));
+        let r2 = storage_merkle_root(&[sc]);
+        assert_eq!(r1, r2);
+    }
+}

@@ -13,6 +13,7 @@ all = "warn"
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
+mfn-bls = { path = "../mfn-bls" }
 
 curve25519-dalek = { workspace = true }
 sha2 = { workspace = true }

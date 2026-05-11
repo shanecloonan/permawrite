@@ -28,6 +28,7 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `vrf.ts`                   | `vrf.rs`                        | [x] live    |
 | `decoy.ts`                 | `decoy.rs`                      | [x] live    |
 | `utxo-tree.ts`             | `utxo_tree.rs`                  | [x] live    |
+| `storage.ts` (merkle subset) | `merkle.rs`                   | [x] live    |
 
 ### `mfn-bls` — BLS12-381 signatures (planned crate)
 
@@ -57,9 +58,9 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `storage.ts` (commitment only) | `storage.rs` | [x] live (minimal subset; full SPoRA lives in `mfn-storage`) |
 | `transaction.ts` | `transaction.rs`  | [x] live    |
 | `coinbase.ts`    | `coinbase.rs`     | [x] live    |
-| `block.ts`       | `block.rs`        | [ ] pending |
-| `consensus.ts`   | `consensus.rs`    | [ ] pending |
-| `slashing.ts`    | `slashing.rs`     | [ ] pending |
+| `consensus.ts`   | `consensus.rs`    | [x] live    |
+| `slashing.ts`    | `slashing.rs`     | [x] live    |
+| `block.ts`       | `block.rs`        | [x] live (consensus-critical subset; storage-proof verification + endowment-burden enforcement land with `mfn-storage`) |
 
 ### `mfn-node` — daemon binary (planned crate)
 

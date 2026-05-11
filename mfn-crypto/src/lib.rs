@@ -28,6 +28,7 @@
 //! - [`decoy`] — Gamma-distributed decoy selection (Monero v0.13 heuristic resistance).
 //! - [`bulletproofs`] — log-size range proofs (Bünz et al. 2017, no trusted setup).
 //! - [`utxo_tree`] — append-only UTXO accumulator (sparse Merkle, depth 32).
+//! - [`merkle`] — binary Merkle tree over already-hashed leaves (txRoot, storageRoot).
 //!
 //! ## Safety contract
 //!
@@ -49,6 +50,7 @@ pub mod domain;
 pub mod encrypted_amount;
 pub mod hash;
 pub mod lsag;
+pub mod merkle;
 pub mod oom;
 pub mod pedersen;
 pub mod point;
@@ -75,6 +77,10 @@ pub use domain::Domain;
 pub use encrypted_amount::{decrypt_output_amount, encrypt_output_amount, ENC_AMOUNT_BYTES};
 pub use hash::{dhash, dhash64, hash_to_point, hash_to_scalar};
 pub use lsag::{lsag_linked, lsag_sign, lsag_verify, LsagSignature};
+pub use merkle::{
+    merkle_proof, merkle_root_or_zero, merkle_tree_from_leaves, verify_merkle_proof, MerkleError,
+    MerkleProof, MerkleTree,
+};
 pub use oom::{
     decode_oom_proof, encode_oom_proof, oom_proof_size, oom_prove, oom_verify, OomProof,
 };

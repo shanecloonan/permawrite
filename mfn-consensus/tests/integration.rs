@@ -131,7 +131,9 @@ fn end_to_end_block_flow() {
     // Recipients B and C scan: derive their one-time stealth address from
     // the tx-level R, confirm it matches the on-chain output, and open the
     // encrypted amount blob to learn the value.
-    for (idx, (wallet, expected_value)) in [(&wallet_b, v_b), (&wallet_c, v_c)].iter().enumerate() {
+    for (idx, (wallet, expected_value)) in
+        [(&wallet_b, v_b), (&wallet_c, v_c)].iter().enumerate()
+    {
         let one_time_priv = indexed_stealth_spend_key(&signed.tx.r_pub, idx as u32, wallet);
         let derived = generator_g() * one_time_priv;
         assert_eq!(
@@ -170,6 +172,346 @@ fn end_to_end_block_flow() {
         res.key_images[0],
         curve25519_dalek::edwards::EdwardsPoint::default()
     );
+}
+
+/// Full block-application test: genesis → block 1 with a privacy tx +
+/// coinbase + BLS-quorum finality → block 2 with slashing evidence that
+/// zeros a validator's stake.
+#[test]
+fn chain_genesis_block1_block2_with_slashing() {
+    use mfn_bls::{bls_keygen_from_seed, bls_sign};
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
+        encode_finality_proof, finalize, header_signing_hash, seal_block, try_produce_slot,
+        ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlashEvidence,
+        SlotContext, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+
+    /* ----- 3 validators (each with VRF + BLS) ----- */
+    let mk_validator = |i: u32, stake: u64| -> (Validator, ValidatorSecrets, _) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: wallet.view_pub,
+            spend_pub: wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets, wallet)
+    };
+
+    let (v0, s0, w0) = mk_validator(0, 100);
+    let (v1, s1, _w1) = mk_validator(1, 100);
+    let (v2, s2, _w2) = mk_validator(2, 100);
+    let validators = vec![v0.clone(), v1.clone(), v2.clone()];
+    let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0, // oversample to make every validator always eligible
+        quorum_stake_bps: 6667,
+    };
+
+    /* ----- Genesis with one initial UTXO that wallet_a controls ----- */
+    let wallet_a = stealth_gen();
+    let init_value = 1_000_000_000u64;
+    let init_blinding = random_scalar();
+    let one_time_addr =
+        generator_g() * mfn_crypto::stealth::indexed_stealth_spend_key(&generator_g(), 0, &wallet_a);
+    // We're not bothering with proper stealth derivation for the seed UTXO —
+    // wallet_a will sign the spend with `signer_spend` directly.
+    let _ = one_time_addr;
+
+    // Use a synthetic input controlled directly by spend_priv.
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: signer_p,
+            amount: signer_c,
+        }],
+        initial_storage: Vec::new(),
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+    };
+    let genesis = build_genesis(&cfg);
+    let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
+    assert_eq!(state0.height, Some(0));
+
+    /* ----- Build block 1: one privacy tx (spends the genesis UTXO) +
+            coinbase paying producer (validator 0). ----- */
+    let recipient_wallet = stealth_gen();
+    let r = Recipient {
+        view_pub: recipient_wallet.view_pub,
+        spend_pub: recipient_wallet.spend_pub,
+    };
+    let send_value = 500_000_000u64;
+    let change_value = 499_900_000u64;
+    let fee = 100_000u64;
+    assert_eq!(send_value + change_value + fee, init_value);
+
+    // Hand-rolled InputSpec (ring of 11, signer at slot 5; other ring members
+    // are random points). The signer's real input is the genesis UTXO.
+    let ring_size = 11usize;
+    let signer_idx = 5usize;
+    let (ring_p, ring_c) = {
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        for i in 0..ring_size {
+            if i == signer_idx {
+                p.push(signer_p);
+                c.push(signer_c);
+            } else {
+                let sp = random_scalar();
+                let bp = random_scalar();
+                let vp = random_scalar();
+                p.push(generator_g() * sp);
+                c.push((generator_g() * bp) + (generator_h() * vp));
+            }
+        }
+        (p, c)
+    };
+    let priv_in = InputSpec {
+        ring: ClsagRing {
+            p: ring_p,
+            c: ring_c,
+        },
+        signer_idx,
+        spend_priv: signer_spend,
+        value: init_value,
+        blinding: init_blinding,
+    };
+    let signed = sign_transaction(
+        vec![priv_in],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: change_value,
+                storage: None,
+            },
+        ],
+        fee,
+        b"block-1".to_vec(),
+    )
+    .expect("sign");
+
+    // Coinbase paying validator 0.
+    let v0_payout = v0.payout.as_ref().unwrap();
+    let cb_payout = PayoutAddress {
+        view_pub: v0_payout.view_pub,
+        spend_pub: v0_payout.spend_pub,
+    };
+    let emission_b1 = emission_at_height(1, &DEFAULT_EMISSION_PARAMS);
+    let cb_amount_b1 = emission_b1 + fee;
+    let coinbase_b1 = build_coinbase(1, cb_amount_b1, &cb_payout).expect("coinbase b1");
+
+    let txs_b1: Vec<_> = vec![coinbase_b1.clone(), signed.tx.clone()];
+
+    // Unsealed header → produce finality → seal.
+    let unsealed = build_unsealed_header(&state0, &txs_b1, 1, 100);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx_b1 = SlotContext {
+        height: 1,
+        slot: 1,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer_proof = try_produce_slot(
+        &ctx_b1,
+        &s0,
+        &v0,
+        total_stake,
+        params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("eligible at F=10");
+
+    // All 3 validators sign.
+    let votes = vec![
+        cast_vote(
+            &header_hash,
+            &s0,
+            &ctx_b1,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash,
+            &s1,
+            &ctx_b1,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash,
+            &s2,
+            &ctx_b1,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+    ];
+    let agg = finalize(&header_hash, &votes, validators.len()).expect("agg");
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: agg,
+        signing_stake: total_stake,
+    };
+
+    let block1 = seal_block(unsealed, txs_b1, encode_finality_proof(&fin), Vec::new());
+
+    let outcome = apply_block(&state0, &block1);
+    let state1 = match outcome {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(state1.height, Some(1));
+    assert_eq!(state1.block_ids.len(), 2);
+    // Validator 0's coinbase output is decryptable.
+    let cb_dec = decrypt_output_amount(
+        &block1.txs[0].r_pub,
+        0,
+        w0.view_priv,
+        &block1.txs[0].outputs[0].enc_amount,
+    )
+    .expect("decrypt cb");
+    assert_eq!(cb_dec.value, cb_amount_b1);
+
+    /* ----- Block 2: validator 1 equivocates. Construct slashing evidence,
+            produce block 2 with only the slash + coinbase. ----- */
+
+    // Two distinct header hashes signed by validator 1 (the actual headers
+    // don't need to be realistic — what matters is that v1's BLS pubkey
+    // verifies both).
+    let evil_a = [0xAAu8; 32];
+    let evil_b = [0xBBu8; 32];
+    let sig_a = bls_sign(&evil_a, &s1.bls.sk);
+    let sig_b = bls_sign(&evil_b, &s1.bls.sk);
+    let evidence = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: 1,
+        header_hash_a: evil_a,
+        sig_a,
+        header_hash_b: evil_b,
+        sig_b,
+    };
+
+    let coinbase_b2 = {
+        let emission_b2 = emission_at_height(2, &DEFAULT_EMISSION_PARAMS);
+        // No fees in block 2.
+        build_coinbase(2, emission_b2, &cb_payout).expect("coinbase b2")
+    };
+
+    let txs_b2 = vec![coinbase_b2];
+    let unsealed_b2 = build_unsealed_header(&state1, &txs_b2, 2, 200);
+    let header_hash_b2 = header_signing_hash(&unsealed_b2);
+    let ctx_b2 = SlotContext {
+        height: 2,
+        slot: 2,
+        prev_hash: unsealed_b2.prev_hash,
+    };
+    let prop_b2 = try_produce_slot(
+        &ctx_b2,
+        &s0,
+        &v0,
+        total_stake,
+        params.expected_proposers_per_slot,
+        &header_hash_b2,
+    )
+    .expect("produce b2")
+    .expect("eligible");
+    let votes_b2 = vec![
+        cast_vote(
+            &header_hash_b2,
+            &s0,
+            &ctx_b2,
+            &prop_b2,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash_b2,
+            &s1,
+            &ctx_b2,
+            &prop_b2,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash_b2,
+            &s2,
+            &ctx_b2,
+            &prop_b2,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+    ];
+    let agg_b2 = finalize(&header_hash_b2, &votes_b2, validators.len()).expect("agg b2");
+    let fin_b2 = FinalityProof {
+        producer: prop_b2,
+        finality: agg_b2,
+        signing_stake: total_stake,
+    };
+
+    let block2 = seal_block(
+        unsealed_b2,
+        txs_b2,
+        encode_finality_proof(&fin_b2),
+        vec![evidence],
+    );
+
+    let outcome_b2 = apply_block(&state1, &block2);
+    let state2 = match outcome_b2 {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block2 rejected: {errors:?}"),
+    };
+    assert_eq!(state2.height, Some(2));
+    assert_eq!(state2.block_ids.len(), 3);
+    // Validator 1's stake is now zero.
+    assert_eq!(state2.validators[1].stake, 0);
+    // V0 and V2 retain their stake.
+    assert_eq!(state2.validators[0].stake, 100);
+    assert_eq!(state2.validators[2].stake, 100);
+
+    // The genesis UTXO is now spent — verify its key image is recorded.
+    let priv_tx_res = verify_transaction(&block1.txs[1]);
+    assert!(priv_tx_res.ok);
+    let ki_bytes = priv_tx_res.key_images[0].compress().to_bytes();
+    assert!(state2.spent_key_images.contains(&ki_bytes));
 }
 
 #[test]

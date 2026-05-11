@@ -235,6 +235,7 @@ version = "0.1.0"
 dependencies = [
  "curve25519-dalek",
  "hex",
+ "mfn-bls",
  "mfn-crypto",
  "rand_core",
  "sha2",
