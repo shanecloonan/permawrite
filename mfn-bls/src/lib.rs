@@ -46,7 +46,7 @@ pub use sig::{
     aggregate_committee_votes, aggregate_public_keys, aggregate_signatures, bitmap_indices,
     bls_keygen, bls_keygen_from_seed, bls_sign, bls_verify, decode_public_key, decode_signature,
     encode_public_key, encode_signature, hash_msg_to_g2, verify_aggregate_batch,
-    verify_aggregate_same_message, verify_committee_aggregate, BlsAggregate, BlsError,
-    BlsKeypair, BlsPublicKey, BlsResult, BlsSecretKey, BlsSignature, CommitteeAggregate,
-    CommitteeVote, BLS_PUBLIC_KEY_BYTES, BLS_SIGNATURE_BYTES,
+    verify_aggregate_same_message, verify_committee_aggregate, BlsAggregate, BlsError, BlsKeypair,
+    BlsPublicKey, BlsResult, BlsSecretKey, BlsSignature, CommitteeAggregate, CommitteeVote,
+    BLS_PUBLIC_KEY_BYTES, BLS_SIGNATURE_BYTES,
 };

@@ -95,10 +95,7 @@ pub fn pedersen_sum(commits: &[PedersenCommitment]) -> PedersenCommitment {
 /// Verify that the sum of input commitments equals the sum of output
 /// commitments. Used in RingCT to prove no value was created or destroyed
 /// without revealing any individual amount.
-pub fn pedersen_balance(
-    inputs: &[PedersenCommitment],
-    outputs: &[PedersenCommitment],
-) -> bool {
+pub fn pedersen_balance(inputs: &[PedersenCommitment], outputs: &[PedersenCommitment]) -> bool {
     let sum_in = pedersen_sum(inputs).c;
     let sum_out = pedersen_sum(outputs).c;
     sum_in == sum_out

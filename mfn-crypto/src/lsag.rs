@@ -150,11 +150,7 @@ pub fn lsag_verify(msg: &[u8], ring: &[EdwardsPoint], sig: &LsagSignature) -> bo
         };
         let l_i = (generator_g() * s_i) + (ring_i * c);
         let r_i = (hp_i * s_i) + (sig.key_image * c);
-        c = hash_to_scalar(&[
-            msg,
-            &l_i.compress().to_bytes(),
-            &r_i.compress().to_bytes(),
-        ]);
+        c = hash_to_scalar(&[msg, &l_i.compress().to_bytes(), &r_i.compress().to_bytes()]);
     }
     c == sig.c0
 }

@@ -81,11 +81,11 @@ pub use oom::{
 pub use pedersen::{
     pedersen_balance, pedersen_commit, pedersen_sum, pedersen_verify, PedersenCommitment,
 };
+pub use point::{generator_g, generator_h, point_from_bytes, point_to_bytes};
 pub use range::{
     decode_range_proof, encode_range_proof, range_prove, range_verify, RangeProof,
     RangeProveOutput, RANGE_N_BITS_DEFAULT,
 };
-pub use point::{generator_g, generator_h, point_from_bytes, point_to_bytes};
 pub use scalar::{bytes_to_scalar, random_scalar, scalar_to_bytes};
 pub use schnorr::{schnorr_keygen, schnorr_sign, schnorr_verify, SchnorrKeypair, SchnorrSignature};
 pub use stealth::{

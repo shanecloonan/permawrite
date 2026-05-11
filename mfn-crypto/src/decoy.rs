@@ -256,8 +256,7 @@ where
 
     // 4) Uniform-fallback top-up.
     if out.len() < count {
-        let mut remaining: Vec<usize> =
-            (0..pool.len()).filter(|i| !chosen[*i]).collect();
+        let mut remaining: Vec<usize> = (0..pool.len()).filter(|i| !chosen[*i]).collect();
         while out.len() < count && !remaining.is_empty() {
             let i = (rand() * remaining.len() as f64) as usize;
             let i = i.min(remaining.len() - 1);
@@ -354,13 +353,10 @@ mod tests {
             samples.push(sample_normal(&mut r));
         }
         let mean: f64 = samples.iter().sum::<f64>() / samples.len() as f64;
-        let var: f64 = samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>()
-            / samples.len() as f64;
+        let var: f64 =
+            samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / samples.len() as f64;
         assert!(mean.abs() < 0.05, "mean ≈ 0, got {mean}");
-        assert!(
-            (var - 1.0).abs() < 0.05,
-            "variance ≈ 1, got {var}"
-        );
+        assert!((var - 1.0).abs() < 0.05, "variance ≈ 1, got {var}");
     }
 
     #[test]
@@ -407,8 +403,7 @@ mod tests {
     fn select_returns_requested_count() {
         let pool = synthetic_pool(10_000);
         let mut r = seeded_rng(0xc0ffee);
-        let picks =
-            select_gamma_decoys(&pool, 16, 10_000, &mut r, &DEFAULT_GAMMA_PARAMS).unwrap();
+        let picks = select_gamma_decoys(&pool, 16, 10_000, &mut r, &DEFAULT_GAMMA_PARAMS).unwrap();
         assert_eq!(picks.len(), 16);
         // No duplicates.
         let mut heights: Vec<u64> = picks.iter().map(|p| p.height).collect();
@@ -450,10 +445,7 @@ mod tests {
                 height: 10,
                 data: 0,
             },
-            DecoyCandidate {
-                height: 5,
-                data: 1,
-            },
+            DecoyCandidate { height: 5, data: 1 },
         ];
         let mut r = seeded_rng(0);
         assert!(matches!(

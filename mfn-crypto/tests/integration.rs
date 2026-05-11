@@ -4,9 +4,9 @@
 //! `scripts/smoke-network.ts` on the TS side: send → detect →
 //! decrypt-amount → derive-spend-key → balance.
 
+use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
-use curve25519_dalek::edwards::EdwardsPoint;
 
 use mfn_crypto::{
     decrypt_output_amount, encrypt_output_amount, generator_g, indexed_stealth_address,

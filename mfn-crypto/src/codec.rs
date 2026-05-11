@@ -264,9 +264,7 @@ mod tests {
     #[test]
     fn fixed_width_round_trip() {
         let mut w = Writer::new();
-        w.u8(0x42)
-            .u32(0xdead_beef)
-            .u64(0x1122_3344_5566_7788);
+        w.u8(0x42).u32(0xdead_beef).u64(0x1122_3344_5566_7788);
         let mut r = Reader::new(w.bytes());
         assert_eq!(r.u8().unwrap(), 0x42);
         assert_eq!(r.u32().unwrap(), 0xdead_beef);

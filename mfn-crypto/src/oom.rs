@@ -152,7 +152,13 @@ fn fs_challenge(
     let mut parts: Vec<Vec<u8>> = Vec::new();
     // 4-byte big-endian ring length.
     parts.push((ring.len() as u32).to_be_bytes().to_vec());
-    for p in ring.iter().chain(a.iter()).chain(b.iter()).chain(c.iter()).chain(g_k.iter()) {
+    for p in ring
+        .iter()
+        .chain(a.iter())
+        .chain(b.iter())
+        .chain(c.iter())
+        .chain(g_k.iter())
+    {
         parts.push(p.compress().to_bytes().to_vec());
     }
     let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
@@ -352,11 +358,7 @@ pub fn oom_verify(ring: &[EdwardsPoint], proof: &OomProof) -> bool {
         let mut hit_zero = false;
         for j in 0..n {
             let ij = (i >> j) & 1;
-            let factor = if ij == 1 {
-                proof.f[j]
-            } else {
-                x - proof.f[j]
-            };
+            let factor = if ij == 1 { proof.f[j] } else { x - proof.f[j] };
             s *= factor;
             if s == Scalar::ZERO {
                 hit_zero = true;

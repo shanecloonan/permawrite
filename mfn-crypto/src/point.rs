@@ -98,10 +98,7 @@ mod tests {
         let mut bad = [0u8; 32];
         for hi in 0u8..=255 {
             bad[31] = hi;
-            if matches!(
-                point_from_bytes(&bad),
-                Err(CryptoError::InvalidPoint)
-            ) {
+            if matches!(point_from_bytes(&bad), Err(CryptoError::InvalidPoint)) {
                 found = true;
                 break;
             }

@@ -410,10 +410,7 @@ pub fn bp_prove(value: u64, blinding: &Scalar, n: u32) -> Result<BpProveOutput> 
     let big_t2 = (h_pt * t2) + (g * tau2);
 
     // x challenge.
-    let x = hs(&[
-        &big_t1.compress().to_bytes(),
-        &big_t2.compress().to_bytes(),
-    ]);
+    let x = hs(&[&big_t1.compress().to_bytes(), &big_t2.compress().to_bytes()]);
 
     let l = vec_add(&l0, &vec_scalar_mul(&l1, &x));
     let r = vec_add(&r0, &vec_scalar_mul(&r1, &x));
@@ -487,10 +484,7 @@ pub fn bp_verify(p: &BulletproofRange) -> bool {
     let s_bytes = p.s.compress().to_bytes();
     let y = hs(&[&v_bytes, &a_bytes, &s_bytes, &[0u8]]);
     let z = hs(&[&v_bytes, &a_bytes, &s_bytes, &[1u8]]);
-    let x = hs(&[
-        &p.t1.compress().to_bytes(),
-        &p.t2.compress().to_bytes(),
-    ]);
+    let x = hs(&[&p.t1.compress().to_bytes(), &p.t2.compress().to_bytes()]);
 
     let y_n = pow_vec(&y, big_n);
     let two_n = pow_vec(&Scalar::from(2u64), big_n);

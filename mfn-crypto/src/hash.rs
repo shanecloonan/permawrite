@@ -131,7 +131,10 @@ mod tests {
     fn hash_to_point_returns_valid_subgroup_member() {
         for msg in [b"abc".as_slice(), b"the quick brown fox", b""] {
             let p = hash_to_point(msg).expect("hash_to_point");
-            assert!(p.is_torsion_free(), "hash_to_point output must be torsion-free");
+            assert!(
+                p.is_torsion_free(),
+                "hash_to_point output must be torsion-free"
+            );
         }
     }
 
