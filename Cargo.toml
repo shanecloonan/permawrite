@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "mfn-crypto",
     "mfn-bls",
+    "mfn-consensus",
 ]
 
 [workspace.package]

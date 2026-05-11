@@ -230,6 +230,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-consensus"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "hex",
+ "mfn-crypto",
+ "rand_core",
+ "sha2",
+ "subtle",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "mfn-crypto"
 version = "0.1.0"
 dependencies = [

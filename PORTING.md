@@ -49,15 +49,16 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `storage.ts`   | `spora.rs`        | [ ] pending |
 | `endowment.ts` | `endowment.rs`    | [ ] pending |
 
-### `mfn-consensus` — state transition function (planned crate)
+### `mfn-consensus` — state transition function
 
 | TS file          | Rust module       | Status      |
 | ---------------- | ----------------- | ----------- |
+| `emission.ts`    | `emission.rs`     | [x] live    |
+| `storage.ts` (commitment only) | `storage.rs` | [x] live (minimal subset; full SPoRA lives in `mfn-storage`) |
+| `transaction.ts` | `transaction.rs`  | [x] live    |
+| `coinbase.ts`    | `coinbase.rs`     | [x] live    |
 | `block.ts`       | `block.rs`        | [ ] pending |
-| `transaction.ts` | `transaction.rs`  | [ ] pending |
-| `coinbase.ts`    | `coinbase.rs`     | [ ] pending |
 | `consensus.ts`   | `consensus.rs`    | [ ] pending |
-| `emission.ts`    | `emission.rs`     | [ ] pending |
 | `slashing.ts`    | `slashing.rs`     | [ ] pending |
 
 ### `mfn-node` — daemon binary (planned crate)

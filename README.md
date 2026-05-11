@@ -17,13 +17,13 @@ The Next.js demo site, in-browser executable specification (TypeScript reference
 | -------------------------- | --------------- | :---: | ----------------------------------------------- |
 | ed25519 primitives + ZK    | `mfn-crypto`    |  130  | All Tier-1 primitives ported, clippy clean.     |
 | BLS12-381 sig aggregation  | `mfn-bls`       |   16  | BLS done; KZG pending.                          |
-| Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
-| State transition function  | `mfn-consensus` |   —   | Planned.                                        |
+| Confidential tx + coinbase | `mfn-consensus` |   40  | Emission, storage commitment, RingCT-style tx, coinbase — live. Block/consensus/slashing pending. |
 | Storage prover (SPoRA)     | `mfn-storage`   |   —   | Planned.                                        |
+| Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned.                                        |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned.                                        |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the demo page).            |
-| **Total**                  |                 | **151** | Zero `unsafe`. Zero clippy warnings.          |
+| **Total**                  |                 | **191** | Zero `unsafe`. Zero clippy warnings.          |
 
 Detailed module-level tracking lives in [`PORTING.md`](./PORTING.md).
 
@@ -57,6 +57,26 @@ BLS12-381 via [`bls12_381_plus`](https://crates.io/crates/bls12_381_plus):
 - **Committee voting** helpers: validator-set + bitmap → single aggregate verification (the core primitive for the eventual consensus layer)
 
 KZG polynomial commitments are next on this crate; they're the substrate for log-size UTXO Merkle witnesses (Verkle-style accumulator).
+
+### `mfn-consensus` — the state transition function
+
+The lego pieces become a chain here:
+
+- **`emission`** — Bitcoin-like halving curve asymptoting to a permanent
+  tail (Monero design), plus EIP-1559-style fee split routing most of the
+  priority fee to a storage treasury.
+- **`storage`** — `StorageCommitment` struct + canonical hash, the minimal
+  subset transactions need to anchor permanent data. (Full SPoRA prover +
+  Merkle tree go to `mfn-storage`.)
+- **`transaction`** — RingCT-style confidential transaction: CLSAG-signed
+  inputs over decoy rings, Pedersen-committed amounts, Bulletproof range
+  proofs, stealth addresses derived from the tx-level pubkey, pseudo-output
+  blindings that prove balance without revealing amounts. The complete
+  `sign_transaction` / `verify_transaction` round-trip lives here.
+- **`coinbase`** — synthetic block-reward transaction with a deterministic
+  ephemeral key so any node can replay history byte-for-byte.
+
+Block + slot-leader / VRF-driven consensus / slashing are next.
 
 ---
 
