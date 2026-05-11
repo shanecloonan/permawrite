@@ -54,12 +54,16 @@ use mfn_crypto::merkle::merkle_root_or_zero;
 use mfn_crypto::utxo_tree::{
     append_utxo, empty_utxo_tree, utxo_leaf_hash, utxo_tree_root, UtxoTreeState,
 };
+use mfn_storage::{
+    accrue_proof_reward, required_endowment, storage_commitment_hash, verify_storage_proof,
+    AccrueArgs, EndowmentParams, StorageCommitment, StorageProof, StorageProofCheck,
+    DEFAULT_ENDOWMENT_PARAMS,
+};
 
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
 use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
 use crate::slashing::{canonicalize, verify_evidence, EvidenceCheck, SlashEvidence};
-use crate::storage::{storage_commitment_hash, StorageCommitment};
 use crate::transaction::{tx_id, verify_transaction, TransactionWire};
 
 /* ----------------------------------------------------------------------- *
@@ -109,6 +113,10 @@ pub struct Block {
     /// Slashing evidence accumulated since the previous block. Each piece
     /// zeros one offending validator's stake in the next state.
     pub slashings: Vec<SlashEvidence>,
+    /// SPoRA storage proofs answering this block's deterministic
+    /// per-commitment chunk challenges. Empty when no proofs are produced
+    /// this block — commitments simply stay unproven longer.
+    pub storage_proofs: Vec<StorageProof>,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -192,6 +200,24 @@ pub struct UtxoEntry {
     pub height: u32,
 }
 
+/// Per-storage-commitment chain state.
+#[derive(Clone, Debug)]
+pub struct StorageEntry {
+    /// The anchored commitment.
+    pub commit: StorageCommitment,
+    /// Height of the most recent successful storage proof (or anchoring
+    /// height on first registration).
+    pub last_proven_height: u32,
+    /// Slot of the most recent successful storage proof. Drives
+    /// per-proof yield accrual (slots, not heights, are the natural unit
+    /// because misses make `slot >= height`).
+    pub last_proven_slot: u64,
+    /// Sub-base-unit yield accumulator, in PPB. Carries the fractional
+    /// per-slot yield across proofs so even commitments whose per-slot
+    /// payout is `<< 1` base unit eventually earn integer base units.
+    pub pending_yield_ppb: u128,
+}
+
 /// Consensus parameters baked into the chain at genesis. Changing any of
 /// these is a hard fork.
 #[derive(Clone, Copy, Debug)]
@@ -229,9 +255,10 @@ pub struct ChainState {
     /// double-spend gate.
     pub spent_key_images: HashSet<[u8; 32]>,
     /// Storage commitments anchored on-chain, keyed by commitment hash.
-    /// Full per-commitment state (last-proven slot, pending PPB yield)
-    /// lands when the storage layer ships; v0.1 only tracks the binding.
-    pub storage: HashMap<[u8; 32], StorageCommitment>,
+    /// Each entry carries the commitment plus per-commitment proof state
+    /// (last-proven slot, pending PPB yield) updated by each accepted
+    /// SPoRA proof.
+    pub storage: HashMap<[u8; 32], StorageEntry>,
     /// Block-id chain: `[genesis_id, block1_id, ...]`.
     pub block_ids: Vec<[u8; 32]>,
     /// Active validator set. Frozen at genesis in v0.1; epoch reconfig
@@ -241,6 +268,8 @@ pub struct ChainState {
     pub params: ConsensusParams,
     /// Emission schedule (defaults to [`DEFAULT_EMISSION_PARAMS`]).
     pub emission_params: EmissionParams,
+    /// Endowment schedule (defaults to [`DEFAULT_ENDOWMENT_PARAMS`]).
+    pub endowment_params: EndowmentParams,
     /// Permanence treasury, in base units (gains the fee→treasury share
     /// of every regular tx).
     pub treasury: u128,
@@ -261,6 +290,7 @@ impl ChainState {
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             treasury: 0,
             utxo_tree: empty_utxo_tree(),
         }
@@ -308,6 +338,8 @@ pub struct GenesisConfig {
     pub params: ConsensusParams,
     /// Emission schedule (defaults if omitted at type level).
     pub emission_params: EmissionParams,
+    /// Endowment schedule (defaults if omitted at type level).
+    pub endowment_params: EndowmentParams,
 }
 
 /// Build the genesis [`Block`].
@@ -333,6 +365,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         header,
         txs: Vec::new(),
         slashings: Vec::new(),
+        storage_proofs: Vec::new(),
     }
 }
 
@@ -344,6 +377,7 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
     let mut state = ChainState::empty();
     state.params = cfg.params;
     state.emission_params = cfg.emission_params;
+    state.endowment_params = cfg.endowment_params;
     state.validators = cfg.validators.clone();
 
     for o in &cfg.initial_outputs {
@@ -356,13 +390,18 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
             },
         );
         let leaf = utxo_leaf_hash(&o.one_time_addr, &o.amount, 0);
-        state.utxo_tree =
-            append_utxo(&state.utxo_tree, leaf).expect("genesis output count fits");
+        state.utxo_tree = append_utxo(&state.utxo_tree, leaf).expect("genesis output count fits");
     }
     for s in &cfg.initial_storage {
-        state
-            .storage
-            .insert(storage_commitment_hash(s), s.clone());
+        state.storage.insert(
+            storage_commitment_hash(s),
+            StorageEntry {
+                commit: s.clone(),
+                last_proven_height: 0,
+                last_proven_slot: 0,
+                pending_yield_ppb: 0,
+            },
+        );
     }
 
     state.height = Some(0);
@@ -412,8 +451,8 @@ pub fn build_unsealed_header(
     for tx in txs {
         for out in &tx.outputs {
             let leaf = utxo_leaf_hash(&out.one_time_addr, &out.amount, next_height);
-            projected_tree = append_utxo(&projected_tree, leaf)
-                .expect("realistic block fits in accumulator");
+            projected_tree =
+                append_utxo(&projected_tree, leaf).expect("realistic block fits in accumulator");
         }
     }
 
@@ -438,12 +477,14 @@ pub fn seal_block(
     txs: Vec<TransactionWire>,
     producer_proof: Vec<u8>,
     slashings: Vec<SlashEvidence>,
+    storage_proofs: Vec<StorageProof>,
 ) -> Block {
     header.producer_proof = producer_proof;
     Block {
         header,
         txs,
         slashings,
+        storage_proofs,
     }
 }
 
@@ -590,14 +631,12 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let mut new_storages: Vec<StorageCommitment> = Vec::new();
 
     // Producer + coinbase policy.
-    let producer = producer_idx.and_then(|idx| {
-        state
-            .validators
-            .iter()
-            .find(|v| v.index == idx)
-            .cloned()
-    });
-    let require_coinbase = producer.as_ref().map(|p| p.payout.is_some()).unwrap_or(false);
+    let producer =
+        producer_idx.and_then(|idx| state.validators.iter().find(|v| v.index == idx).cloned());
+    let require_coinbase = producer
+        .as_ref()
+        .map(|p| p.payout.is_some())
+        .unwrap_or(false);
 
     // ---- Walk txs ----
     // A coinbase-shaped tx anywhere past position 0 is a protocol
@@ -689,9 +728,82 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             if let Some(sc) = &out.storage {
                 let h = storage_commitment_hash(sc);
                 if let std::collections::hash_map::Entry::Vacant(e) = next.storage.entry(h) {
-                    e.insert(sc.clone());
+                    e.insert(StorageEntry {
+                        commit: sc.clone(),
+                        last_proven_height: block.header.height,
+                        last_proven_slot: u64::from(block.header.slot),
+                        pending_yield_ppb: 0,
+                    });
                     new_storages.push(sc.clone());
                 }
+            }
+        }
+
+        // ---- Storage upload endowment enforcement ----
+        //
+        // For every NEW storage commitment in this tx's outputs, sum the
+        // protocol-required endowment burden. The tx's treasury-bound
+        // share of fees must cover the burden, otherwise the upload is
+        // under-funded and the permanence guarantee breaks. Replication
+        // bounds (min/max) are also enforced here.
+        let mut tx_burden: u128 = 0;
+        let mut tx_storage_ok = true;
+        let mut seen_in_tx: HashSet<[u8; 32]> = HashSet::new();
+        for (oi, out) in tx.outputs.iter().enumerate() {
+            let sc = match &out.storage {
+                Some(s) => s,
+                None => continue,
+            };
+            let h = storage_commitment_hash(sc);
+            // Only NEW anchors incur burden — duplicates are inert.
+            if state.storage.contains_key(&h) || !seen_in_tx.insert(h) {
+                continue;
+            }
+            let repl = sc.replication;
+            if repl < next.endowment_params.min_replication {
+                errors.push(BlockError::StorageReplicationTooLow {
+                    tx: ti,
+                    output: oi,
+                    got: repl,
+                    min: next.endowment_params.min_replication,
+                });
+                tx_storage_ok = false;
+                break;
+            }
+            if repl > next.endowment_params.max_replication {
+                errors.push(BlockError::StorageReplicationTooHigh {
+                    tx: ti,
+                    output: oi,
+                    got: repl,
+                    max: next.endowment_params.max_replication,
+                });
+                tx_storage_ok = false;
+                break;
+            }
+            match required_endowment(sc.size_bytes, repl, &next.endowment_params) {
+                Ok(b) => tx_burden = tx_burden.saturating_add(b),
+                Err(e) => {
+                    errors.push(BlockError::EndowmentMathFailed {
+                        tx: ti,
+                        output: oi,
+                        reason: format!("{e}"),
+                    });
+                    tx_storage_ok = false;
+                    break;
+                }
+            }
+        }
+        if tx_storage_ok && tx_burden > 0 {
+            let tx_treasury_share: u128 =
+                u128::from(tx.fee) * u128::from(next.emission_params.fee_to_treasury_bps) / 10_000;
+            if tx_treasury_share < tx_burden {
+                errors.push(BlockError::UploadUnderfunded {
+                    tx: ti,
+                    burden: tx_burden,
+                    treasury_share: tx_treasury_share,
+                    fee: tx.fee,
+                    fee_to_treasury_bps: next.emission_params.fee_to_treasury_bps,
+                });
             }
         }
     }
@@ -722,11 +834,103 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
     }
 
-    // ---- Coinbase verification (v0.1: subsidy + producer_fee) ----
+    // ---- Storage proofs: per-block SPoRA audit + endowment-proportional
+    //      reward accrual via the PPB accumulator ----
+    let mut seen_proofs: HashSet<[u8; 32]> = HashSet::new();
+    let mut accepted_storage_proofs: u128 = 0;
+    let mut storage_bonus_total: u128 = 0;
+    let current_slot = u64::from(block.header.slot);
+    for (pi, proof) in block.storage_proofs.iter().enumerate() {
+        if !seen_proofs.insert(proof.commit_hash) {
+            errors.push(BlockError::DuplicateStorageProof {
+                index: pi,
+                commit_hash: hex_short(&proof.commit_hash),
+            });
+            continue;
+        }
+        let entry = match next.storage.get(&proof.commit_hash).cloned() {
+            Some(e) => e,
+            None => {
+                errors.push(BlockError::StorageProofUnknownCommit {
+                    index: pi,
+                    commit_hash: hex_short(&proof.commit_hash),
+                });
+                continue;
+            }
+        };
+        let verdict = verify_storage_proof(
+            &entry.commit,
+            &block.header.prev_hash,
+            block.header.slot,
+            proof,
+        );
+        if !verdict.is_valid() {
+            errors.push(BlockError::StorageProofInvalid {
+                index: pi,
+                reason: verdict,
+            });
+            continue;
+        }
+        match accrue_proof_reward(AccrueArgs {
+            size_bytes: entry.commit.size_bytes,
+            replication: entry.commit.replication,
+            pending_ppb: entry.pending_yield_ppb,
+            last_proven_slot: entry.last_proven_slot,
+            current_slot,
+            params: &next.endowment_params,
+        }) {
+            Ok(accrual) => {
+                next.storage.insert(
+                    proof.commit_hash,
+                    StorageEntry {
+                        commit: entry.commit,
+                        last_proven_height: block.header.height,
+                        last_proven_slot: current_slot,
+                        pending_yield_ppb: accrual.new_pending_ppb,
+                    },
+                );
+                accepted_storage_proofs += 1;
+                storage_bonus_total = storage_bonus_total.saturating_add(accrual.payout);
+            }
+            Err(e) => errors.push(BlockError::EndowmentMathFailed {
+                tx: 0,
+                output: pi,
+                reason: format!("accrue: {e}"),
+            }),
+        }
+    }
+
+    // ---- Two-sided economic settlement ----
+    //
+    //   1. treasury_fee = fee_sum · fee_to_treasury_bps / 10000
+    //      producer_fee = fee_sum − treasury_fee
+    //   2. Treasury gains treasury_fee.
+    //   3. Storage rewards = storage_proof_reward · N_accepted + Σ bonus.
+    //      Treasury drains first; any shortfall is minted via emission
+    //      as a backstop. Treasury balance never goes negative.
+    //   4. Coinbase pays producer = subsidy + producer_fee + storage_rewards.
     let emission_params = next.emission_params;
-    let producer_fee: u64 = u64::try_from(fee_sum).unwrap_or(u64::MAX);
+    let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
+    let producer_fee_u128 = fee_sum - treasury_fee;
+    let producer_fee: u64 = u64::try_from(producer_fee_u128).unwrap_or(u64::MAX);
+
+    let storage_reward_total: u128 = u128::from(emission_params.storage_proof_reward)
+        .saturating_mul(accepted_storage_proofs)
+        .saturating_add(storage_bonus_total);
+
+    let mut pending_treasury = next.treasury.saturating_add(treasury_fee);
+    let storage_from_treasury = pending_treasury.min(storage_reward_total);
+    pending_treasury -= storage_from_treasury;
+    next.treasury = pending_treasury;
+    // The remaining `storage_reward_total - storage_from_treasury` is the
+    // emission backstop; it's part of the producer's coinbase amount but
+    // not subtracted from the treasury.
+
     let subsidy = emission_at_height(u64::from(block.header.height), &emission_params);
-    let expected_reward = subsidy.saturating_add(producer_fee);
+    let expected_reward = u128::from(subsidy)
+        .saturating_add(u128::from(producer_fee))
+        .saturating_add(storage_reward_total);
+    let expected_reward = u64::try_from(expected_reward).unwrap_or(u64::MAX);
 
     if require_coinbase {
         let producer = producer
@@ -886,6 +1090,85 @@ pub enum BlockError {
     /// UTXO accumulator root mismatch.
     #[error("utxo_root mismatch")]
     UtxoRootMismatch,
+    /// A storage commitment declared replication below the configured
+    /// `min_replication`.
+    #[error("tx[{tx}].outputs[{output}]: storage replication {got} < min {min}")]
+    StorageReplicationTooLow {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending output within the tx.
+        output: usize,
+        /// Caller-supplied replication factor.
+        got: u8,
+        /// Configured minimum.
+        min: u8,
+    },
+    /// A storage commitment declared replication above the configured
+    /// `max_replication`.
+    #[error("tx[{tx}].outputs[{output}]: storage replication {got} > max {max}")]
+    StorageReplicationTooHigh {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending output within the tx.
+        output: usize,
+        /// Caller-supplied replication factor.
+        got: u8,
+        /// Configured maximum.
+        max: u8,
+    },
+    /// A tx introduced new storage commitments but didn't contribute
+    /// enough treasury-fee to cover the protocol's required endowment.
+    #[error(
+        "tx[{tx}]: storage endowment burden {burden} exceeds tx treasury share {treasury_share} \
+         (fee={fee}, fee_to_treasury_bps={fee_to_treasury_bps})"
+    )]
+    UploadUnderfunded {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Total required endowment for this tx's new storage commitments.
+        burden: u128,
+        /// Treasury-bound share of the tx fee available to cover it.
+        treasury_share: u128,
+        /// The tx's declared fee (base units).
+        fee: u64,
+        /// Chain's `fee_to_treasury_bps`.
+        fee_to_treasury_bps: u16,
+    },
+    /// Underlying endowment math returned an error (overflow, validation).
+    #[error("tx[{tx}].outputs[{output}]: endowment math failed: {reason}")]
+    EndowmentMathFailed {
+        /// Position of the related tx (or `0` for non-tx contexts).
+        tx: usize,
+        /// Position within outputs/proofs.
+        output: usize,
+        /// Stringified upstream error.
+        reason: String,
+    },
+    /// Two storage proofs in the block target the same commitment.
+    #[error("storage_proofs[{index}]: duplicate proof for {commit_hash}")]
+    DuplicateStorageProof {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Hex prefix of the duplicated commit hash.
+        commit_hash: String,
+    },
+    /// A storage proof referenced a commitment that isn't anchored in the
+    /// chain's storage registry.
+    #[error("storage_proofs[{index}]: commit {commit_hash} not in storage registry")]
+    StorageProofUnknownCommit {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Hex prefix of the unknown commit hash.
+        commit_hash: String,
+    },
+    /// A storage proof failed verification.
+    #[error("storage_proofs[{index}]: {reason:?}")]
+    StorageProofInvalid {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Structured reason from the SPoRA verifier.
+        reason: StorageProofCheck,
+    },
 }
 
 #[cfg(test)]
@@ -901,6 +1184,7 @@ mod tests {
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         };
         let g = build_genesis(&cfg);
         apply_genesis(&g, &cfg).unwrap()
@@ -915,6 +1199,7 @@ mod tests {
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         };
         let g = build_genesis(&cfg);
         let st = apply_genesis(&g, &cfg).unwrap();
@@ -927,7 +1212,7 @@ mod tests {
     fn empty_block_applies_in_legacy_mode() {
         let st = genesis_state();
         let header = build_unsealed_header(&st, &[], 1, 100);
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Ok { state, .. } => {
                 assert_eq!(state.height, Some(1));
@@ -946,7 +1231,7 @@ mod tests {
         // they're independent... actually no, only height is wrong here, so
         // the locally-computed expected_tx_root and utxo_root will still
         // match. Just check that BadHeight surfaces.
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -962,7 +1247,7 @@ mod tests {
         let st = genesis_state();
         let mut header = build_unsealed_header(&st, &[], 1, 100);
         header.prev_hash = [9u8; 32];
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -978,10 +1263,12 @@ mod tests {
         let st = genesis_state();
         let mut header = build_unsealed_header(&st, &[], 1, 100);
         header.tx_root[0] ^= 0xff;
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
-                assert!(errors.iter().any(|e| matches!(e, BlockError::TxRootMismatch)));
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::TxRootMismatch)));
             }
             ApplyOutcome::Ok { .. } => panic!("expected err"),
         }
@@ -992,7 +1279,7 @@ mod tests {
         let st = genesis_state();
         let mut header = build_unsealed_header(&st, &[], 1, 100);
         header.utxo_root[0] ^= 0xff;
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -1011,7 +1298,10 @@ mod tests {
         let mut h1 = h0.clone();
         h1.producer_proof = b"this is whatever the producer attaches".to_vec();
         let hash1 = header_signing_hash(&h1);
-        assert_eq!(hash0, hash1, "signing hash must not depend on producer_proof");
+        assert_eq!(
+            hash0, hash1,
+            "signing hash must not depend on producer_proof"
+        );
         // But the full block id DOES depend on producer_proof.
         assert_ne!(block_id(&h0), block_id(&h1));
     }
@@ -1035,5 +1325,155 @@ mod tests {
         let r1 = storage_merkle_root(std::slice::from_ref(&sc));
         let r2 = storage_merkle_root(&[sc]);
         assert_eq!(r1, r2);
+    }
+
+    /* --------- Endowment burden + storage proof gating ---------- *
+     *                                                              *
+     *  These tests run apply_block end-to-end against a no-         *
+     *  validator chain. With validators.is_empty(), the finality    *
+     *  + coinbase machinery is bypassed, so we get clean coverage   *
+     *  of the upload-burden + SPoRA proof paths.                    *
+     * ------------------------------------------------------------ */
+
+    fn empty_genesis_with_endowment(ep: EndowmentParams) -> ChainState {
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: ep,
+        };
+        let g = build_genesis(&cfg);
+        apply_genesis(&g, &cfg).unwrap()
+    }
+
+    #[test]
+    fn duplicate_storage_proof_in_one_block_rejected() {
+        let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+        let built = mfn_storage::build_storage_commitment(
+            &payload,
+            1_000,
+            Some(4096),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: vec![built.commit.clone()],
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).unwrap();
+        let unsealed = build_unsealed_header(&state0, &[], 5_000, 1_000);
+        let p = mfn_storage::build_storage_proof(
+            &built.commit,
+            &unsealed.prev_hash,
+            5_000,
+            &payload,
+            &built.tree,
+        )
+        .unwrap();
+        let block = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![p.clone(), p],
+        );
+        match apply_block(&state0, &block) {
+            ApplyOutcome::Err { errors, .. } => assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProof { .. })),
+                "expected DuplicateStorageProof, got {errors:?}"
+            ),
+            ApplyOutcome::Ok { .. } => panic!("duplicate proof must reject the block"),
+        }
+    }
+
+    #[test]
+    fn storage_proof_for_unknown_commit_rejected() {
+        let state0 = empty_genesis_with_endowment(DEFAULT_ENDOWMENT_PARAMS);
+        let payload = b"unanchored".to_vec();
+        let built = mfn_storage::build_storage_commitment(
+            &payload,
+            1,
+            Some(64), // 64-byte chunks → many small chunks
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let unsealed = build_unsealed_header(&state0, &[], 1, 100);
+        let p = mfn_storage::build_storage_proof(
+            &built.commit,
+            &unsealed.prev_hash,
+            1,
+            &payload,
+            &built.tree,
+        )
+        .unwrap();
+        let block = seal_block(unsealed, Vec::new(), Vec::new(), Vec::new(), vec![p]);
+        match apply_block(&state0, &block) {
+            ApplyOutcome::Err { errors, .. } => assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofUnknownCommit { .. })),
+                "expected StorageProofUnknownCommit, got {errors:?}"
+            ),
+            ApplyOutcome::Ok { .. } => panic!("unanchored proof must reject the block"),
+        }
+    }
+
+    #[test]
+    fn storage_proof_with_wrong_chunk_rejected() {
+        let payload: Vec<u8> = (0..256u32).map(|i| (i % 251) as u8).collect();
+        let built = mfn_storage::build_storage_commitment(
+            &payload,
+            1,
+            Some(64),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: vec![built.commit.clone()],
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).unwrap();
+        let unsealed = build_unsealed_header(&state0, &[], 1, 100);
+        let mut p = mfn_storage::build_storage_proof(
+            &built.commit,
+            &unsealed.prev_hash,
+            1,
+            &payload,
+            &built.tree,
+        )
+        .unwrap();
+        if !p.chunk.is_empty() {
+            p.chunk[0] ^= 0xff;
+        }
+        let block = seal_block(unsealed, Vec::new(), Vec::new(), Vec::new(), vec![p]);
+        match apply_block(&state0, &block) {
+            ApplyOutcome::Err { errors, .. } => assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofInvalid { .. })),
+                "expected StorageProofInvalid, got {errors:?}"
+            ),
+            ApplyOutcome::Ok { .. } => panic!("corrupt proof must reject the block"),
+        }
     }
 }

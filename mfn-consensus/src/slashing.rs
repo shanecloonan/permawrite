@@ -227,10 +227,7 @@ mod tests {
         let (val, bls) = fresh_validator(0, 100);
         let mut ev = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);
         ev.voter_index = 99;
-        assert_eq!(
-            verify_evidence(&ev, &[val]),
-            EvidenceCheck::IndexOutOfRange
-        );
+        assert_eq!(verify_evidence(&ev, &[val]), EvidenceCheck::IndexOutOfRange);
     }
 
     #[test]

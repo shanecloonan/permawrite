@@ -17,13 +17,13 @@ The Next.js demo site, in-browser executable specification (TypeScript reference
 | -------------------------- | --------------- | :---: | ----------------------------------------------- |
 | ed25519 primitives + ZK    | `mfn-crypto`    |  145  | All Tier-1 primitives ported, plus binary Merkle. Clippy clean. |
 | BLS12-381 sig aggregation  | `mfn-bls`       |   16  | BLS done; KZG pending.                          |
-| Chain state machine        | `mfn-consensus` |   68  | Emission, RingCT-style tx, coinbase, **block + finality + slashing — live** (incl. an end-to-end 2-block chain test with stake-zeroing). Storage-proof verification + endowment-burden enforcement land with `mfn-storage`. |
-| Storage prover (SPoRA)     | `mfn-storage`   |   —   | Planned.                                        |
+| Permanent-storage primitives | `mfn-storage` |   32  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator. |
+| Chain state machine        | `mfn-consensus` |   70  | Emission, RingCT-style tx, coinbase, finality + slashing, **storage-proof verification + endowment-burden enforcement + two-sided treasury settlement — live**. End-to-end tests: 2-block chain with stake-zeroing; storage upload anchored at genesis + SPoRA proof in block 1. |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned.                                        |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned.                                        |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the demo page).            |
-| **Total**                  |                 | **229** | Zero `unsafe`. Zero clippy warnings.          |
+| **Total**                  |                 | **263** | Zero `unsafe`. Zero clippy warnings.          |
 
 Detailed module-level tracking lives in [`PORTING.md`](./PORTING.md).
 
@@ -58,6 +58,26 @@ BLS12-381 via [`bls12_381_plus`](https://crates.io/crates/bls12_381_plus):
 
 KZG polynomial commitments are next on this crate; they're the substrate for log-size UTXO Merkle witnesses (Verkle-style accumulator).
 
+### `mfn-storage` — permanent-storage primitives
+
+The permanence half of the chain — what makes Permawrite different from
+Monero:
+
+- **`commitment`** — `StorageCommitment` struct + canonical hash. The
+  content-addressed binding a transaction output uses to anchor a
+  permanent data payload. Hidden endowment amount (Pedersen-committed).
+- **`spora`** — Succinct Proofs of Random Access. Chunk + Merkle-tree the
+  upload, deterministically derive `chunk_index_for_challenge` per
+  block, build/verify `StorageProof` against the commitment's
+  `data_root`. Operators who can't respond fail their per-block
+  audit; over enough misses the chain can evict / slash.
+- **`endowment`** — the monetary policy of permanence:
+  `E₀ = C₀·(1+i)/(r−i)` evaluated on-chain in PPB-precision integer
+  math, plus a per-commitment **PPB-precision yield accumulator** so
+  even tiny uploads whose per-slot yield is `<< 1 base unit`
+  eventually pay out integer base units. Anti-hoarding cap on the
+  per-proof reward window prevents farming yield by going dormant.
+
 ### `mfn-consensus` — the state transition function
 
 The lego pieces become a chain here:
@@ -65,9 +85,9 @@ The lego pieces become a chain here:
 - **`emission`** — Bitcoin-like halving curve asymptoting to a permanent
   tail (Monero design), plus EIP-1559-style fee split routing most of the
   priority fee to a storage treasury.
-- **`storage`** — `StorageCommitment` struct + canonical hash, the minimal
-  subset transactions need to anchor permanent data. (Full SPoRA prover +
-  Merkle tree go to `mfn-storage`.)
+- **`storage`** — thin re-export of `mfn-storage::commitment` so existing
+  `use mfn_consensus::storage::*` patterns keep working while the
+  canonical owner of the type lives downstream.
 - **`transaction`** — RingCT-style confidential transaction: CLSAG-signed
   inputs over decoy rings, Pedersen-committed amounts, Bulletproof range
   proofs, stealth addresses derived from the tx-level pubkey, pseudo-output
@@ -81,16 +101,17 @@ The lego pieces become a chain here:
 - **`slashing`** — on-chain equivocation evidence: two BLS-signed headers
   at the same slot from the same validator → stake slashed to zero, anyone
   can submit, deterministic verification.
-- **`block`** — header, body, `ChainState`, deterministic `apply_block` that
-  verifies the producer's finality proof, walks the tx list (coinbase at
-  position 0 + regular RingCT spends), enforces cross-block key-image
-  uniqueness, applies slashing evidence, and re-derives the post-block
-  UTXO accumulator root. The end-to-end integration test drives a 2-block
-  chain through stake zeroing.
-
-The remaining storage layer (`mfn-storage`) is next: per-block SPoRA proof
-verification, endowment-burden enforcement on uploads, treasury → storage
-reward routing.
+- **`block`** — header, body, `ChainState`, deterministic `apply_block`
+  that verifies the producer's finality proof, walks the tx list
+  (coinbase at position 0 + regular RingCT spends), enforces cross-block
+  key-image uniqueness, applies slashing evidence, **verifies SPoRA
+  storage proofs against per-commitment chain state**, **enforces that
+  new storage uploads cover the protocol's required endowment via the
+  treasury-bound fee share**, and **performs a two-sided treasury
+  settlement** that drains the treasury for storage rewards before
+  minting an emission backstop, all before re-deriving the post-block
+  UTXO accumulator root. The integration suite drives both a 2-block
+  chain with stake-zeroing and a SPoRA proof flow.
 
 ---
 

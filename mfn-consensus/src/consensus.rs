@@ -238,11 +238,8 @@ pub fn try_produce_slot(
     }
     let seed = slot_seed(ctx);
     let res = vrf_prove(&secrets.vrf, &seed).map_err(ConsensusError::Crypto)?;
-    let threshold = eligibility_threshold(
-        validator.stake,
-        total_stake,
-        expected_proposers_per_slot,
-    );
+    let threshold =
+        eligibility_threshold(validator.stake, total_stake, expected_proposers_per_slot);
     if !is_eligible(&res.output, threshold) {
         return Ok(None);
     }
@@ -276,11 +273,8 @@ pub fn verify_producer_proof(
     if v.output != proof.beta {
         return ConsensusCheck::VrfOutputMismatch;
     }
-    let threshold = eligibility_threshold(
-        validator.stake,
-        total_stake,
-        expected_proposers_per_slot,
-    );
+    let threshold =
+        eligibility_threshold(validator.stake, total_stake, expected_proposers_per_slot);
     if !is_eligible(&proof.beta, threshold) {
         return ConsensusCheck::NotEligible;
     }
@@ -394,9 +388,7 @@ pub fn verify_finality_proof(
     for (i, v) in validators.iter().enumerate() {
         let byte = i >> 3;
         let bit = i & 7;
-        if byte < proof.finality.bitmap.len()
-            && (proof.finality.bitmap[byte] & (1u8 << bit)) != 0
-        {
+        if byte < proof.finality.bitmap.len() && (proof.finality.bitmap[byte] & (1u8 << bit)) != 0 {
             signed += u128::from(v.stake);
         }
     }
@@ -405,8 +397,7 @@ pub fn verify_finality_proof(
     }
 
     // quorum_stake_bps is in basis points (10000 = 100%). 6667 = 2/3 + 1bp.
-    let required: u128 =
-        (total_stake * u128::from(quorum_stake_bps)).div_ceil(10_000u128);
+    let required: u128 = (total_stake * u128::from(quorum_stake_bps)).div_ceil(10_000u128);
     if signed < required {
         return ConsensusCheck::QuorumNotMet;
     }
@@ -455,7 +446,9 @@ pub fn encode_committee_aggregate(c: &CommitteeAggregate) -> Vec<u8> {
 }
 
 /// Decode a [`CommitteeAggregate`] from its bytes.
-pub fn decode_committee_aggregate(bytes: &[u8]) -> Result<CommitteeAggregate, ConsensusDecodeError> {
+pub fn decode_committee_aggregate(
+    bytes: &[u8],
+) -> Result<CommitteeAggregate, ConsensusDecodeError> {
     let mut r = Reader::new(bytes);
     let msg = r.blob()?.to_vec();
     let bitmap = r.blob()?.to_vec();
@@ -661,23 +654,21 @@ mod tests {
         let prop = try_produce_slot(&ctx, &s0, &v0, total_stake, 10.0, &header_hash)
             .expect("propose")
             .expect("eligible");
-        let vote_1 = cast_vote(&header_hash, &s1, &ctx, &prop, &v0, total_stake, 10.0)
-            .expect("vote 1");
-        let vote_2 = cast_vote(&header_hash, &s2, &ctx, &prop, &v0, total_stake, 10.0)
-            .expect("vote 2");
-        let vote_p = cast_vote(&header_hash, &s0, &ctx, &prop, &v0, total_stake, 10.0)
-            .expect("vote p");
+        let vote_1 =
+            cast_vote(&header_hash, &s1, &ctx, &prop, &v0, total_stake, 10.0).expect("vote 1");
+        let vote_2 =
+            cast_vote(&header_hash, &s2, &ctx, &prop, &v0, total_stake, 10.0).expect("vote 2");
+        let vote_p =
+            cast_vote(&header_hash, &s0, &ctx, &prop, &v0, total_stake, 10.0).expect("vote p");
 
-        let agg = finalize(&header_hash, &[vote_p, vote_1, vote_2], validators.len())
-            .expect("agg");
+        let agg = finalize(&header_hash, &[vote_p, vote_1, vote_2], validators.len()).expect("agg");
 
         let fin = FinalityProof {
             producer: prop,
             finality: agg,
             signing_stake: 300,
         };
-        let chk =
-            verify_finality_proof(&ctx, &fin, &validators, 10.0, 6667, &header_hash);
+        let chk = verify_finality_proof(&ctx, &fin, &validators, 10.0, 6667, &header_hash);
         assert_eq!(chk, ConsensusCheck::Ok);
     }
 
@@ -700,10 +691,10 @@ mod tests {
             .expect("eligible");
         // Only producer + one other vote (200/300 = 66.67%, BELOW 6667 bps
         // quorum which is 66.67% strict).
-        let vote_1 = cast_vote(&header_hash, &s1, &ctx, &prop, &v0, total_stake, 10.0)
-            .expect("vote 1");
-        let vote_p = cast_vote(&header_hash, &s0, &ctx, &prop, &v0, total_stake, 10.0)
-            .expect("vote p");
+        let vote_1 =
+            cast_vote(&header_hash, &s1, &ctx, &prop, &v0, total_stake, 10.0).expect("vote 1");
+        let vote_p =
+            cast_vote(&header_hash, &s0, &ctx, &prop, &v0, total_stake, 10.0).expect("vote p");
 
         let agg = finalize(&header_hash, &[vote_p, vote_1], validators.len()).expect("agg");
 
@@ -712,8 +703,7 @@ mod tests {
             finality: agg,
             signing_stake: 200,
         };
-        let chk =
-            verify_finality_proof(&ctx, &fin, &validators, 10.0, 6667, &header_hash);
+        let chk = verify_finality_proof(&ctx, &fin, &validators, 10.0, 6667, &header_hash);
         assert_eq!(chk, ConsensusCheck::QuorumNotMet);
     }
 
@@ -748,8 +738,7 @@ mod tests {
 
         let bytes = encode_finality_proof(&fin);
         let dec = decode_finality_proof(&bytes).expect("decode");
-        let chk =
-            verify_finality_proof(&ctx, &dec, &validators, 10.0, 6667, &header_hash);
+        let chk = verify_finality_proof(&ctx, &dec, &validators, 10.0, 6667, &header_hash);
         assert_eq!(chk, ConsensusCheck::Ok);
     }
 

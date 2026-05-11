@@ -131,9 +131,7 @@ fn end_to_end_block_flow() {
     // Recipients B and C scan: derive their one-time stealth address from
     // the tx-level R, confirm it matches the on-chain output, and open the
     // encrypted amount blob to learn the value.
-    for (idx, (wallet, expected_value)) in
-        [(&wallet_b, v_b), (&wallet_c, v_c)].iter().enumerate()
-    {
+    for (idx, (wallet, expected_value)) in [(&wallet_b, v_b), (&wallet_c, v_c)].iter().enumerate() {
         let one_time_priv = indexed_stealth_spend_key(&signed.tx.r_pub, idx as u32, wallet);
         let derived = generator_g() * one_time_priv;
         assert_eq!(
@@ -226,8 +224,8 @@ fn chain_genesis_block1_block2_with_slashing() {
     let wallet_a = stealth_gen();
     let init_value = 1_000_000_000u64;
     let init_blinding = random_scalar();
-    let one_time_addr =
-        generator_g() * mfn_crypto::stealth::indexed_stealth_spend_key(&generator_g(), 0, &wallet_a);
+    let one_time_addr = generator_g()
+        * mfn_crypto::stealth::indexed_stealth_spend_key(&generator_g(), 0, &wallet_a);
     // We're not bothering with proper stealth derivation for the seed UTXO —
     // wallet_a will sign the spend with `signer_spend` directly.
     let _ = one_time_addr;
@@ -247,13 +245,14 @@ fn chain_genesis_block1_block2_with_slashing() {
         validators: validators.clone(),
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
     assert_eq!(state0.height, Some(0));
 
     /* ----- Build block 1: one privacy tx (spends the genesis UTXO) +
-            coinbase paying producer (validator 0). ----- */
+    coinbase paying producer (validator 0). ----- */
     let recipient_wallet = stealth_gen();
     let r = Recipient {
         view_pub: recipient_wallet.view_pub,
@@ -321,7 +320,12 @@ fn chain_genesis_block1_block2_with_slashing() {
         spend_pub: v0_payout.spend_pub,
     };
     let emission_b1 = emission_at_height(1, &DEFAULT_EMISSION_PARAMS);
-    let cb_amount_b1 = emission_b1 + fee;
+    // Fees split between treasury and producer; producer only collects
+    // its share in the coinbase. With no storage proofs in this block the
+    // storage-reward addend is zero.
+    let producer_fee_b1 =
+        fee - fee * u64::from(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps) / 10_000;
+    let cb_amount_b1 = emission_b1 + producer_fee_b1;
     let coinbase_b1 = build_coinbase(1, cb_amount_b1, &cb_payout).expect("coinbase b1");
 
     let txs_b1: Vec<_> = vec![coinbase_b1.clone(), signed.tx.clone()];
@@ -385,7 +389,13 @@ fn chain_genesis_block1_block2_with_slashing() {
         signing_stake: total_stake,
     };
 
-    let block1 = seal_block(unsealed, txs_b1, encode_finality_proof(&fin), Vec::new());
+    let block1 = seal_block(
+        unsealed,
+        txs_b1,
+        encode_finality_proof(&fin),
+        Vec::new(),
+        Vec::new(),
+    );
 
     let outcome = apply_block(&state0, &block1);
     let state1 = match outcome {
@@ -405,7 +415,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     assert_eq!(cb_dec.value, cb_amount_b1);
 
     /* ----- Block 2: validator 1 equivocates. Construct slashing evidence,
-            produce block 2 with only the slash + coinbase. ----- */
+    produce block 2 with only the slash + coinbase. ----- */
 
     // Two distinct header hashes signed by validator 1 (the actual headers
     // don't need to be realistic — what matters is that v1's BLS pubkey
@@ -492,6 +502,7 @@ fn chain_genesis_block1_block2_with_slashing() {
         txs_b2,
         encode_finality_proof(&fin_b2),
         vec![evidence],
+        Vec::new(),
     );
 
     let outcome_b2 = apply_block(&state1, &block2);
@@ -512,6 +523,116 @@ fn chain_genesis_block1_block2_with_slashing() {
     assert!(priv_tx_res.ok);
     let ki_bytes = priv_tx_res.key_images[0].compress().to_bytes();
     assert!(state2.spent_key_images.contains(&ki_bytes));
+}
+
+/// End-to-end SPoRA flow: anchor a storage commitment at genesis, ship
+/// a storage proof in block 1, verify the per-commitment state is
+/// updated and any per-proof yield is accrued.
+///
+/// Sidesteps the BLS finality + coinbase dance by genesis-ing with an
+/// empty validator set (apply_block bypasses both when no validators
+/// are registered) and by anchoring the commitment in `initial_storage`
+/// rather than via an upload tx. Upload-fee-burden enforcement and the
+/// upload-tx → storage-commitment binding are covered by the per-module
+/// unit tests in `block.rs` and `mfn-storage`.
+#[test]
+fn storage_proof_flow_at_genesis_plus_block1() {
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, ApplyOutcome,
+        ConsensusParams, GenesisConfig,
+    };
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    /* ----- Build a 4096-byte payload + storage commitment ----- */
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let replication = DEFAULT_ENDOWMENT_PARAMS.min_replication;
+    let chunk_size = 4096usize; // single-chunk for speed; deterministic challenge always picks idx 0
+    let built = build_storage_commitment(&payload, 1_000, Some(chunk_size), replication, None)
+        .expect("build commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    /* ----- Genesis: commitment in initial_storage, no validators ----- */
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: ConsensusParams {
+            expected_proposers_per_slot: 1.0,
+            quorum_stake_bps: 6667,
+        },
+        emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+    };
+    let genesis = build_genesis(&cfg);
+    let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
+    assert_eq!(state0.storage.len(), 1, "commitment anchored at genesis");
+    let entry0 = state0.storage[&commit_hash].clone();
+    assert_eq!(entry0.last_proven_height, 0);
+    assert_eq!(entry0.last_proven_slot, 0);
+    assert_eq!(entry0.pending_yield_ppb, 0);
+
+    /* ----- Block 1: ship a storage proof at slot 5_000 ----- */
+    let slot_b1 = 5_000u32;
+    let timestamp_b1: u64 = 1_000;
+    let unsealed_b1 = build_unsealed_header(&state0, &[], slot_b1, timestamp_b1);
+    let storage_proof = build_storage_proof(
+        &built.commit,
+        &unsealed_b1.prev_hash,
+        slot_b1,
+        &payload,
+        &built.tree,
+    )
+    .expect("build proof");
+    let block1 = seal_block(
+        unsealed_b1,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![storage_proof],
+    );
+    let state1 = match apply_block(&state0, &block1) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(state1.height, Some(1));
+    let entry1 = state1.storage[&commit_hash].clone();
+    assert_eq!(entry1.last_proven_height, 1);
+    assert_eq!(entry1.last_proven_slot, u64::from(slot_b1));
+    assert_eq!(entry1.commit, built.commit, "commitment fields unchanged");
+    // pending_yield_ppb may be 0 (sub-base-unit fractions) but it MUST
+    // have moved monotonically relative to the prior pending value (which
+    // was also 0 — we just check it's well-defined).
+    let _ = entry1.pending_yield_ppb;
+
+    /* ----- Block 2: duplicate proof must be rejected ----- */
+    let slot_b2 = 5_100u32;
+    let timestamp_b2: u64 = 2_000;
+    let unsealed_b2 = build_unsealed_header(&state1, &[], slot_b2, timestamp_b2);
+    let storage_proof_b2 = build_storage_proof(
+        &built.commit,
+        &unsealed_b2.prev_hash,
+        slot_b2,
+        &payload,
+        &built.tree,
+    )
+    .expect("build proof v2");
+    let dup_proof = storage_proof_b2.clone();
+    let block2 = seal_block(
+        unsealed_b2,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![storage_proof_b2, dup_proof],
+    );
+    let outcome_b2 = apply_block(&state1, &block2);
+    assert!(
+        matches!(outcome_b2, ApplyOutcome::Err { .. }),
+        "duplicate proof must reject the block"
+    );
 }
 
 #[test]

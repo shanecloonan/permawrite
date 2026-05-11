@@ -237,6 +237,7 @@ dependencies = [
  "hex",
  "mfn-bls",
  "mfn-crypto",
+ "mfn-storage",
  "rand_core",
  "sha2",
  "subtle",
@@ -255,6 +256,17 @@ dependencies = [
  "subtle",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "mfn-storage"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "hex",
+ "mfn-crypto",
+ "sha2",
+ "thiserror",
 ]
 
 [[package]]

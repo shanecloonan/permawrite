@@ -43,24 +43,24 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | --------- | ----------- | ----------- |
 | `wire.ts` | `lib.rs`    | [ ] pending |
 
-### `mfn-storage` — SPoRA + endowment math (planned crate)
+### `mfn-storage` — SPoRA + endowment math
 
 | TS file        | Rust module       | Status      |
 | -------------- | ----------------- | ----------- |
-| `storage.ts`   | `spora.rs`        | [ ] pending |
-| `endowment.ts` | `endowment.rs`    | [ ] pending |
+| `storage.ts` (commitment + SPoRA) | `commitment.rs`, `spora.rs` | [x] live |
+| `endowment.ts` | `endowment.rs`    | [x] live    |
 
 ### `mfn-consensus` — state transition function
 
 | TS file          | Rust module       | Status      |
 | ---------------- | ----------------- | ----------- |
 | `emission.ts`    | `emission.rs`     | [x] live    |
-| `storage.ts` (commitment only) | `storage.rs` | [x] live (minimal subset; full SPoRA lives in `mfn-storage`) |
+| `storage.ts` (commitment) | `storage.rs` | [x] live (thin re-export of `mfn-storage::commitment`) |
 | `transaction.ts` | `transaction.rs`  | [x] live    |
 | `coinbase.ts`    | `coinbase.rs`     | [x] live    |
 | `consensus.ts`   | `consensus.rs`    | [x] live    |
 | `slashing.ts`    | `slashing.rs`     | [x] live    |
-| `block.ts`       | `block.rs`        | [x] live (consensus-critical subset; storage-proof verification + endowment-burden enforcement land with `mfn-storage`) |
+| `block.ts`       | `block.rs`        | [x] live (full state-transition: txs, slashing, finality, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement) |
 
 ### `mfn-node` — daemon binary (planned crate)
 
