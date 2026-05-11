@@ -9,9 +9,9 @@ members = [
 edition = "2021"
 rust-version = "1.75"
 license = "MIT OR Apache-2.0"
-authors = ["MoneyFund Network"]
-repository = "https://github.com/cloonan-group/cloonan-group"
-description = "MoneyFund Network — Monero-grade privacy fused with > Arweave-grade permanence"
+authors = ["Shane Cloonan", "Permawrite contributors"]
+repository = "https://github.com/shanecloonan/permawrite"
+description = "Permawrite — privacy-preserving permanent-storage blockchain (reference Rust implementation)"
 
 [workspace.dependencies]
 # Cryptographic primitives ─ all audited, all the libraries Signal / Zcash /

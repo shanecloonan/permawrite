@@ -1,74 +1,129 @@
-# MoneyFund Network — Rust Core
+# Permawrite
 
-> This directory is the **production-grade Rust implementation** of the MoneyFund
-> Network protocol. The TypeScript code in `../lib/network/` is the executable
-> spec + in-browser demo lab. **This is the chain.**
+> A privacy-preserving, permanent-storage blockchain.
+> **Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.**
 
-## Why two languages
+This repository is the **reference Rust implementation** of the Permawrite protocol (internally codenamed **MoneyFund Network**, MFBN-1 on the wire). It contains the cryptographic core, eventual consensus engine, storage prover, node daemon, and wallet — all the consensus-critical code.
 
-The original prototype was built in TypeScript because the surrounding repo is a
-Next.js app, but TypeScript is the wrong language for a real blockchain:
+The Next.js demo site, in-browser executable specification (TypeScript reference of every primitive), and product UIs live in a separate repository ([`cloonan-group`](https://github.com/shanecloonan/cloonan-group)). The TS reference is byte-for-byte compatible with the Rust code in this repo — they validate each other.
 
-- ~50–100× slower than Rust for curve operations and hashing
-- JavaScript's garbage collector introduces non-deterministic pauses (bad for
-  consensus latency)
-- Cannot reliably implement constant-time cryptography in V8 (timing leaks ⇒
-  key leaks)
-- No good path to a deployable native daemon or `libp2p` peer
+---
 
-The architectural split is therefore:
+## Status
 
-| Concern                            | Where it lives                | Why                                                                            |
-| ---------------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| Protocol spec, in-browser demos    | `lib/network/*.ts` (existing) | Renders inside the Next.js `/blockchain` page; fast to iterate on protocol design. |
-| Wallet / RPC client / Next.js UI   | `lib/`, `app/`                | Stays in TS forever.                                                           |
-| **Real cryptographic primitives**  | `rust/mfn-crypto`             | Audited Rust libs (`curve25519-dalek`, `blstrs`).                              |
-| **Consensus engine / block apply** | `rust/mfn-consensus` (planned)| Deterministic, native-speed state transitions.                                 |
-| **Storage / SPoRA prover**         | `rust/mfn-storage` (planned)  | Hash-heavy, must be fast.                                                      |
-| **Node daemon (`mfnd`)**           | `rust/mfn-node` (planned)     | `tokio` async runtime, `libp2p` networking.                                    |
-| **Wire codec**                     | `rust/mfn-wire`               | Single canonical encoding shared by all crates. Byte-for-byte compatible with TS. |
-| **WASM bindings for browser demo** | `rust/mfn-wasm` (planned)     | Replace the TS in-browser primitives with the actual Rust impl via `wasm-bindgen`. |
+**Pre-network.** This is a foundational layer build-out, not a running chain. As of the latest commit:
 
-The TS implementation is the **reference**; the Rust implementation is the
-**ground truth**. When they disagree, the TS is wrong by definition. Test
-vectors flow TS → Rust at first (to bootstrap), then Rust → TS once each
-primitive is ported.
+| Layer                      | Crate           | Tests | State                                           |
+| -------------------------- | --------------- | :---: | ----------------------------------------------- |
+| ed25519 primitives + ZK    | `mfn-crypto`    |  130  | All Tier-1 primitives ported, clippy clean.     |
+| BLS12-381 sig aggregation  | `mfn-bls`       |   16  | BLS done; KZG pending.                          |
+| Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
+| State transition function  | `mfn-consensus` |   —   | Planned.                                        |
+| Storage prover (SPoRA)     | `mfn-storage`   |   —   | Planned.                                        |
+| Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned.                                        |
+| Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned.                                        |
+| WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the demo page).            |
+| **Total**                  |                 | **151** | Zero `unsafe`. Zero clippy warnings.          |
 
-## Build & test
+Detailed module-level tracking lives in [`PORTING.md`](./PORTING.md).
+
+---
+
+## What's in the box
+
+### `mfn-crypto` — discrete-log cryptography over ed25519
+
+Every primitive a confidential-transaction chain needs, built on the audited [`curve25519-dalek`](https://crates.io/crates/curve25519-dalek):
+
+- **Canonical binary codec** (MFBN-1, deterministic + length-prefixed)
+- **Domain-separated hashing** — every hash in the protocol is tagged
+- **Schnorr signatures** + **Pedersen commitments** (additively homomorphic)
+- **CryptoNote dual-key stealth addresses** (basic + indexed)
+- **Encrypted amounts** (RingCT-style mask + value)
+- **LSAG** and **CLSAG** ring signatures (CLSAG = Monero's production ring sig, RingCTv3)
+- **Groth–Kohlweiss one-out-of-many** zero-knowledge proofs (log-size ring proof, Triptych-grade)
+- **Bulletproofs** (Bünz et al. 2017; transparent, log-size range proofs)
+- O(N) bit-decomposition **range proofs** (Maxwell-style, kept for comparison)
+- **VRF** (RFC 9381 ECVRF over ed25519) for leader election / VDF-substitute / decoy selection / audit beacons
+- **Gamma-distributed decoy selection** (Monero ≥ v0.13 heuristic-resistance)
+- **UTXO accumulator** — Zcash-style sparse Merkle tree, depth 32 (4.29 × 10⁹ outputs of capacity), domain-separated, O(D) appends, O(log N) membership proofs. The substrate that log-size ring proofs ride on top of.
+
+### `mfn-bls` — pairing-friendly aggregation
+
+BLS12-381 via [`bls12_381_plus`](https://crates.io/crates/bls12_381_plus):
+
+- **BLS aggregate signatures** — same-message and batch aggregation
+- IETF-standard hash-to-curve (SSWU, `ExpandMsgXmd<Sha256>`)
+- **Committee voting** helpers: validator-set + bitmap → single aggregate verification (the core primitive for the eventual consensus layer)
+
+KZG polynomial commitments are next on this crate; they're the substrate for log-size UTXO Merkle witnesses (Verkle-style accumulator).
+
+---
+
+## Build
 
 ```bash
-# install rustup first if you haven't: https://rustup.rs
-cd rust
+# Install Rust if you haven't: https://rustup.rs
+git clone https://github.com/shanecloonan/permawrite
+cd permawrite
 cargo build --release
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
-cargo fmt --check
 ```
 
-## Porting status
+Tested toolchains: `stable-x86_64-unknown-linux-gnu`, `stable-x86_64-apple-darwin`, `stable-x86_64-pc-windows-gnu`.
 
-Tracked in `PORTING.md` at the workspace root.
+> **Windows note.** Use the `*-pc-windows-gnu` toolchain. The MSVC toolchain works but needs the Visual Studio Build Tools (`link.exe`) installed; the GNU toolchain ships its own linker.
 
-## Audited dependencies (and why)
+---
 
-- **`curve25519-dalek`** — the canonical Rust ed25519 implementation. Used by
-  Signal, Zcash, Monero (Salvium fork), Solana, and is the reference impl
-  cited by RFC 8032. Constant-time, no `unsafe`, formally verified subsections.
-- **`sha2`** — RustCrypto's SHA-2 family. Constant-time.
-- **`subtle`** — constant-time equality comparisons (used everywhere we'd
-  otherwise compare secret material with `==`).
-- **`zeroize`** — wipes secret material from memory on drop.
-- **`rand_core` + `getrandom`** — OS CSPRNG.
+## Design philosophy
 
-No `unsafe` is permitted in this workspace (enforced via lints).
+1. **No `unsafe`.** Enforced at the workspace level via `#![forbid(unsafe_code)]`. If a primitive cannot be built safely, we don't ship it.
+2. **Constant-time where it matters.** Secret-dependent comparisons use [`subtle`](https://crates.io/crates/subtle). Secret material implements [`zeroize::Zeroize`] on drop.
+3. **Audited libraries only.** No hand-rolled curves, no toy SHA. We compose; we don't reinvent.
+4. **Domain separation everywhere.** Every hash carries an MFBN-1 tag. Adding a new tag is a hard fork by design.
+5. **Reference implementation parity.** The TypeScript reference in [`cloonan-group/lib/network`](https://github.com/shanecloonan/cloonan-group/tree/main/lib/network) and the Rust code in this repo are byte-for-byte compatible. When they diverge, the test suite catches it.
+6. **Production-grade error handling.** No `panic!`/`unwrap` outside of test code. Every fallible operation returns `Result<_, CryptoError>` (or the crate-local equivalent).
+
+---
+
+## Audited dependencies
+
+| Crate                | Purpose                                    | Used by                                    |
+| -------------------- | ------------------------------------------ | ------------------------------------------ |
+| `curve25519-dalek`   | ed25519 scalars / Edwards points           | Signal, Zcash, Monero (Salvium), Solana    |
+| `bls12_381_plus`     | BLS12-381 pairings + hash-to-curve         | Active fork tracking `sha2 0.10`           |
+| `sha2`               | SHA-2 family                               | RustCrypto, used everywhere                |
+| `subtle`             | Constant-time equality                     | dalek ecosystem                            |
+| `zeroize`            | Secure memory wipe on drop                 | RustCrypto                                 |
+| `rand_core` + `getrandom` | OS CSPRNG                             | Standard                                   |
+
+No FFI. No C dependencies. Pure Rust top to bottom.
+
+---
 
 ## What this is NOT
 
-- Not a re-implementation of an existing chain. MoneyFund's design (endowment
-  storage rewards, OoM-based log-size ring signatures, hybrid emission +
-  fee-treasury tokenomics) is novel; see the `/blockchain` page in the web UI
-  and `lib/network/*.ts` for the spec.
-- Not audited. This is production-*grade* code (constant-time, no unsafe,
-  proper error handling), but a real network deployment requires a third-party
-  security review.
-- Not feature-complete. See `PORTING.md`.
+- **Not audited.** The code is production-*grade* (constant-time, no `unsafe`, proper error handling, comprehensive tests). A real network deployment requires a third-party cryptographic review.
+- **Not a re-implementation of an existing chain.** Permawrite's design — endowment-funded permanent storage rewards, OoM-based log-size ring signatures over the full UTXO set, hybrid emission + fee-treasury tokenomics — is novel. See [`cloonan-group`](https://github.com/shanecloonan/cloonan-group)'s `/blockchain` page for the protocol overview.
+- **Not running yet.** This repository contains the primitive layer; the consensus engine, storage prover, and node daemon are in the porting queue.
+
+---
+
+## License
+
+Dual-licensed under either of:
+
+- **Apache License, Version 2.0** ([LICENSE-APACHE](./LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- **MIT License** ([LICENSE-MIT](./LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option. This is the standard Rust ecosystem dual license.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work shall be dual-licensed as above, without any additional terms or conditions.
+
+---
+
+## Security
+
+Please see [SECURITY.md](./SECURITY.md) for the disclosure process. Do **not** open public issues for vulnerabilities.

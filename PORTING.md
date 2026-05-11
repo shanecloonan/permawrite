@@ -1,9 +1,10 @@
 # TS → Rust Porting Tracker
 
-Source of truth: `lib/network/*.ts`. Each module below maps a TypeScript
-file to its Rust counterpart. Mark `[x]` only when the Rust impl is
-**byte-for-byte compatible** with the TS reference (verified by shared
-test vectors).
+Source of truth: the TypeScript reference implementation in the sibling repo
+[`cloonan-group/lib/network/*.ts`](https://github.com/shanecloonan/cloonan-group/tree/main/lib/network).
+Each module below maps a TypeScript file to its Rust counterpart. Mark `[x]`
+only when the Rust impl is **byte-for-byte compatible** with the TS reference
+(verified by shared test vectors).
 
 ## Crates and modules
 
@@ -86,10 +87,11 @@ real crypto.
 ## Verification: shared test vectors
 
 Each Rust module ships unit tests that include known test vectors
-produced by the TS reference. CI runs both:
+produced by the TS reference. The TS smoke suites live in
+[`cloonan-group/scripts/smoke-*.ts`](https://github.com/shanecloonan/cloonan-group/tree/main/scripts);
+the Rust suite is in this repo.
 
 ```bash
-npm test                       # TS smokes
 cargo test --workspace         # Rust unit + integration tests
 ```
 
