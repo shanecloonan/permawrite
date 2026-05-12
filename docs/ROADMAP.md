@@ -14,8 +14,9 @@
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier**) | `mfn-consensus` | 145 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
+| Light-client chain follower (**M2.0.6 header-chain follower skeleton**) | `mfn-light` | 12 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **362** | All checks green |
+| **Total** | | **374** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -261,8 +262,10 @@ These are the next M2.x sub-milestones (each scoped to be small enough to land "
 
 - **Producer-helper module** — wraps the consensus-layer building blocks into a clean three-stage protocol. **Shipped in M2.0.4 below.**
 - **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`. **Shipped in M2.0.5 below.**
+- **`mfn-light` crate skeleton** — header-chain follower with chain linkage + cryptographic verification, stable validator set. **Shipped in M2.0.6 below.**
+- **M2.0.7 — Light-client body verification** — extend `mfn-light::apply_header` to also accept a body and re-derive `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` / `storage_root` from it. Trivial layer on top of existing `*_merkle_root` helpers.
+- **M2.0.8 — Light-client validator-set evolution** — walk `block.bond_ops` / `block.slashings` / pending-unbond settlements / liveness slashes to derive the next trusted validator set. First "long-running light client" milestone.
 - **Mempool primitives** — pending-tx admission, fee ordering, replace-by-fee. Pure library, attaches around `Chain`.
-- **`mfn-light` crate** — header-chain follower built on top of `verify_header`; evolves a trusted validator set across rotations, exposes a `verify_tip(...)` API for wallets and bridges.
 - **Persistent store (`mfn-node::store`)** — RocksDB-backed deterministic chain-state persistence + snapshot/replay.
 - **RPC server (`mfn-node::rpc`)** — JSON-RPC + WebSocket. Block / tx / balance / storage-status queries.
 - **Daemon binary (`bin/mfnd`)** — the entrypoint that wires it all together.
@@ -362,6 +365,60 @@ Integration (3, in `mfn-node/tests/light_header_verify.rs`):
 - **Bridges.** A reader on chain X can verify Permawrite headers given the canonical genesis + a follower for validator-set evolution.
 
 See [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md) for the full design note.
+
+---
+
+## Milestone M2.0.6 — `mfn-light` crate skeleton: header-chain follower (✓ shipped)
+
+**Why it was next.** M2.0.5 surfaced the pure-function `verify_header` primitive. The natural first consumer is a chain follower: a struct holding a tip pointer + a trusted validator set, applying headers one at a time. That's the foundational shape every downstream light-client artifact (browser wallet, WASM bindings, bridge contract, audit tool) will compose around.
+
+`apply_block` + `Chain` in `mfn-node` give us the *full-node* orchestrator, owning a `ChainState`. `mfn-light` is the *light-client* orchestrator: same `mfn-consensus` spec crate, completely different state model. Tip pointer + trusted validators only — no UTXO tree, no storage tree, no validator-stats history.
+
+### What shipped
+
+- **`mfn-light`** — a new workspace crate. Dependency graph is intentionally pure-Rust (`mfn-crypto`, `mfn-bls`, `mfn-storage`, `mfn-consensus`, `thiserror`) — no `tokio`, no `rocksdb`, no `libp2p` — so the same code compiles to `wasm32-unknown-unknown`.
+- **`LightChain`** struct holding `trusted_validators` + `params` + `tip_height` + `tip_id` + `genesis_id`.
+- **`LightChain::from_genesis(LightChainConfig)`** — infallible constructor. Genesis is a trust anchor; the light client trusts the config by construction.
+- **`LightChain::apply_header(&BlockHeader)`** — four checks in order: height monotonicity → prev_hash linkage → `verify_header` (M2.0.5) → tip advance. Returns `AppliedHeader { block_id, check }` with the `HeaderCheck` stats from the underlying verifier. State is byte-for-byte untouched on any failure.
+- **Typed `LightChainError`**: `HeightMismatch`, `PrevHashMismatch`, `HeaderVerify { height, source: HeaderVerifyError }`.
+- **Read-only accessors**: `tip_height`, `tip_id`, `genesis_id`, `trusted_validators`, `params`, `total_stake`, `stats`.
+
+### Architectural insight surfaced
+
+Two `GenesisConfig`s with identical `initial_outputs` / `initial_storage` / `timestamp` but **different `validators`** produce **byte-for-byte identical genesis headers** — `build_genesis` deliberately commits to the *pre-genesis* (empty) validator set in `validator_root`, since the genesis block itself *installs* the initial set. Consequence: `prev_hash` linkage alone does **not** distinguish parallel chains that share a minimal genesis. The defence-in-depth that catches cross-chain header injection is **M2.0's `validator_root` commitment** — every post-genesis header's `validator_root` reflects the set the producer was signing under, so a header from chain B is rejected by a light chain bootstrapped from chain A as `HeaderVerifyError::ValidatorRootMismatch`. This is exercised by `light_chain_rejects_header_from_different_chain`.
+
+### Test matrix (delivered, +12 net new tests)
+
+Unit (7, in `mfn-light/src/chain.rs`):
+- ✓ `from_genesis_lands_at_height_zero` — tip = genesis_id, validator count + total stake match.
+- ✓ `from_genesis_is_deterministic_across_constructions` — repeated construction → identical genesis_id / tip_id.
+- ✓ `apply_header_accepts_real_signed_block` — producer-side-built real signed block 1 applies cleanly.
+- ✓ `apply_header_rejects_wrong_prev_hash` — typed `PrevHashMismatch`, state preserved.
+- ✓ `apply_header_rejects_wrong_height` — typed `HeightMismatch`, state preserved.
+- ✓ `apply_header_rejects_tampered_validator_root` — typed `HeaderVerify { ValidatorRootMismatch }`, state preserved.
+- ✓ `stats_agree_with_individual_accessors` — `stats()` matches every accessor.
+
+Integration (5, in `mfn-light/tests/follow_chain.rs`):
+- ✓ `light_chain_follows_full_chain_across_three_blocks` — load-bearing: a `LightChain` and a full `mfn_node::Chain` reach identical tips on every block of a real 3-block chain.
+- ✓ `light_chain_rejects_skipped_header_with_state_preserved` — applying block 2 to a light chain at h=0 → typed error, state preserved.
+- ✓ `light_chain_rejects_header_from_different_chain` — cross-chain header injection caught by `validator_root` mismatch (architectural-insight test).
+- ✓ `light_chain_recovers_after_rejected_header` — tampered header rejected, state preserved, clean block applies on top.
+- ✓ `light_chain_surfaces_validator_root_mismatch_through_typed_error` — `HeaderVerifyError::ValidatorRootMismatch` surfaces through the wrapped `LightChainError::HeaderVerify { source }`.
+
+### What's intentionally *not* in M2.0.6
+
+- **Body verification** — M2.0.7 slice.
+- **Validator-set evolution across rotations** — M2.0.8 slice. M2.0.6 follows a chain through any *stable-validator window*; rotation handling lands separately.
+- **Re-org / fork choice** — single canonical header chain.
+- **Persistence** — state lives in memory.
+
+### What this unlocks
+
+- **M2.0.7 + M2.0.8** — the next two slices complete the production-ready light client.
+- **WASM bindings (`mfn-wasm`)** — the dependency graph is intentionally pure-Rust so this is just `wasm-bindgen` glue away.
+- **Cross-chain bridges** — same `verify_header` + chain follower, embedded in another chain's smart contracts.
+
+See [`docs/M2_LIGHT_CHAIN.md`](./M2_LIGHT_CHAIN.md) for the full design note.
 
 ---
 

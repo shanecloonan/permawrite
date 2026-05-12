@@ -663,7 +663,7 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 ### Known limitations (honest list)
 
 - **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header verification primitive shipped in M2.0.5.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) are all live. The block header now binds every body element, and the pure-function light verifier exists to prove it. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), and [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md).
-- **Light-client *crate* is not yet a binary.** The cryptographic primitive ([`verify_header`](../mfn-consensus/src/header_verify.rs), M2.0.5) is live and exercised against `apply_block` on real 3-block chains. The chain-traversal/validator-set-evolution layer (`mfn-light`) is the next milestone; the P2P/daemon layer (`mfn-node` runtime) follows.
+- **Light client follows a chain through stable-validator windows.** The cryptographic primitive ([`verify_header`](../mfn-consensus/src/header_verify.rs), M2.0.5) and the chain-following skeleton ([`mfn-light`](../mfn-light), M2.0.6) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies headers through `apply_header(&BlockHeader)` — linkage + verify_header + tip advance, with state byte-for-byte preserved on any failure. **Body verification** (M2.0.7) and **validator-set evolution across rotations** (M2.0.8) are the remaining slices; the P2P/daemon layer follows.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -747,6 +747,13 @@ mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integratio
                     produce_solo_block one-call helper for the single-validator
                     case. The shape future P2P / RPC / mempool integration
                     consumes.
+
+mfn-light/          Light-client follower      (12 tests: 7 unit + 5 integration)
+└── chain.rs        LightChain: tracks tip pointer + trusted validator set.
+                    apply_header(&BlockHeader) — linkage + verify_header (M2.0.5)
+                    + tip advance. Pure-Rust deps only; WASM-friendly.
+                    (M2.0.6 — header following with stable validator set;
+                    M2.0.7 + M2.0.8 will add body verification + rotation.)
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).

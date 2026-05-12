@@ -473,9 +473,9 @@ Properties:
 
 - **Pure function.** No IO, no async, no state mutation. Same inputs → byte-for-byte same outputs.
 - **Same checks `apply_block` runs.** Exercised by the integration test `verify_header_agrees_with_apply_block_across_three_blocks` (in `mfn-node`): for every block of a real 3-block chain, `verify_header` accepts iff `apply_block` does.
-- **One hop.** This verifies a single header against a single trusted set. Walking the chain — and tracking how the trusted validator set evolves through `BondOp`s, slashings, and unbond settlements — is the job of the future `mfn-light` crate.
+- **One hop.** This verifies a single header against a single trusted set. Walking the chain — and tracking how the trusted validator set evolves through `BondOp`s, slashings, and unbond settlements — is the job of the [`mfn-light`](../mfn-light/README.md) crate. The M2.0.6 slice of `mfn-light` provides the chain-following skeleton (header linkage + `verify_header` + tip advance); M2.0.7 will add body-root verification and M2.0.8 will add validator-set evolution across rotations.
 
-For the full design note + test matrix, see [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md).
+For the full design note + test matrix, see [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md) (M2.0.5 primitive) and [`docs/M2_LIGHT_CHAIN.md`](./M2_LIGHT_CHAIN.md) (M2.0.6 chain follower).
 
 ### Tests added for M2.0
 

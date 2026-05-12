@@ -259,6 +259,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-light"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-bls",
+ "mfn-consensus",
+ "mfn-crypto",
+ "mfn-node",
+ "mfn-storage",
+ "thiserror",
+]
+
+[[package]]
 name = "mfn-node"
 version = "0.1.0"
 dependencies = [
