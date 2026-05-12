@@ -409,6 +409,8 @@ pub struct GenesisConfig {
     pub emission_params: EmissionParams,
     /// Endowment schedule (defaults if omitted at type level).
     pub endowment_params: EndowmentParams,
+    /// Bonding / churn limits. [`None`] ⇒ [`DEFAULT_BONDING_PARAMS`](bonding::DEFAULT_BONDING_PARAMS).
+    pub bonding_params: Option<BondingParams>,
 }
 
 /// Build the genesis [`Block`].
@@ -449,6 +451,7 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
     state.params = cfg.params;
     state.emission_params = cfg.emission_params;
     state.endowment_params = cfg.endowment_params;
+    state.bonding_params = cfg.bonding_params.unwrap_or(DEFAULT_BONDING_PARAMS);
     state.validators = cfg.validators.clone();
     state.validator_stats = vec![ValidatorStats::default(); cfg.validators.len()];
     state.next_validator_index = cfg
@@ -1533,6 +1536,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         apply_genesis(&g, &cfg).unwrap()
@@ -1548,12 +1552,34 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         let st = apply_genesis(&g, &cfg).unwrap();
         assert_eq!(st.height, Some(0));
         assert_eq!(st.block_ids.len(), 1);
         assert_eq!(st.block_ids[0], block_id(&g.header));
+    }
+
+    #[test]
+    fn apply_genesis_sets_optional_bonding_params() {
+        let custom = BondingParams {
+            min_validator_stake: 2_000_000,
+            ..DEFAULT_BONDING_PARAMS
+        };
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: Some(custom),
+        };
+        let g = build_genesis(&cfg);
+        let st = apply_genesis(&g, &cfg).unwrap();
+        assert_eq!(st.bonding_params.min_validator_stake, 2_000_000);
     }
 
     #[test]
@@ -1789,6 +1815,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: ep,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         apply_genesis(&g, &cfg).unwrap()
@@ -1813,6 +1840,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -1903,6 +1931,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -1976,6 +2005,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -2094,6 +2124,7 @@ mod tests {
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();

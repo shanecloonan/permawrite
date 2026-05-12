@@ -274,6 +274,7 @@ fn chain_genesis_block1_block2_with_slashing() {
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -594,6 +595,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
         },
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -761,6 +763,7 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
     };
     let genesis = build_genesis(&cfg);
     let mut state = apply_genesis(&genesis, &cfg).expect("apply genesis");

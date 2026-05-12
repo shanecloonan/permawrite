@@ -177,4 +177,16 @@ mod tests {
     fn merkle_empty_is_zero() {
         assert_eq!(bond_merkle_root(&[]), [0u8; 32]);
     }
+
+    /// Wire + leaf from `cloonan-group/scripts/smoke-bond.ts` (`GOLDEN_BOND_OP_*`).
+    /// Keeps MFBN bond bytes aligned with the TypeScript reference client.
+    #[test]
+    fn bond_register_wire_matches_cloonan_ts_smoke_reference() {
+        const WIRE_HEX: &str = "0000000000000f4240b862409fb5c4c4123df2abf7462b88f041ad36dd6864ce872fd5472be363c5b1aab6e7afc31b3d67eef05ff38bfb40d5e608f352b3c0341ec019653505d7c1f13dd1e60640bb00d0735daa5cbd3b902600";
+        const LEAF_HEX: &str = "51164109143ca1e9db57a1738443c078389c6492e5ea14ed8ecf0aea83d1962b";
+        let wire = hex::decode(WIRE_HEX).expect("wire hex");
+        let op = decode_bond_op(&wire).expect("decode ts wire");
+        assert_eq!(encode_bond_op(&op), wire);
+        assert_eq!(hex::encode(bond_op_leaf_hash(&op)), LEAF_HEX);
+    }
 }
