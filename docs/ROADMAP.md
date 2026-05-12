@@ -12,10 +12,10 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root**) | `mfn-consensus` | 135 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers**) | `mfn-node` | 14 | ✓ live (skeleton) |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier**) | `mfn-consensus` | 145 | ✓ live |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **349** | All checks green |
+| **Total** | | **362** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -260,8 +260,9 @@ See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF
 These are the next M2.x sub-milestones (each scoped to be small enough to land "small but right"):
 
 - **Producer-helper module** — wraps the consensus-layer building blocks into a clean three-stage protocol. **Shipped in M2.0.4 below.**
+- **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`. **Shipped in M2.0.5 below.**
 - **Mempool primitives** — pending-tx admission, fee ordering, replace-by-fee. Pure library, attaches around `Chain`.
-- **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`.
+- **`mfn-light` crate** — header-chain follower built on top of `verify_header`; evolves a trusted validator set across rotations, exposes a `verify_tip(...)` API for wallets and bridges.
 - **Persistent store (`mfn-node::store`)** — RocksDB-backed deterministic chain-state persistence + snapshot/replay.
 - **RPC server (`mfn-node::rpc`)** — JSON-RPC + WebSocket. Block / tx / balance / storage-status queries.
 - **Daemon binary (`bin/mfnd`)** — the entrypoint that wires it all together.
@@ -306,6 +307,61 @@ The future P2P producer loop will *not* do all three stages locally:
 - The producer (or any node with a quorum of votes) aggregates and seals (stage 3).
 
 Building the API as three stages from day one means the P2P layer can be a pure transport — it never needs to crack open intermediate state. The solo helper is just sugar over the same path for tests and single-node deployments.
+
+---
+
+## Milestone M2.0.5 — Light-header verification primitive (✓ shipped)
+
+**Why it was next.** Through M2.0–M2.0.2 every block-body element became header-bound; M2.0.3 + M2.0.4 made it possible to *produce* and *consume* those blocks via the `mfn-node::Chain` driver. The remaining question — "given just a header and a trusted starting validator set, can a stateless verifier confirm a real quorum signed this header?" — is the user-facing payoff of the whole M2.0.x series, and the foundational primitive for `mfn-light` (and, transitively, for mobile/browser wallets, bridges, and audit tooling).
+
+`apply_block` already runs every cryptographic check the verifier needs, but it requires a full `ChainState` and *mutates* it. That's the wrong shape for a light client. M2.0.5 carves the cryptographic half out into a pure, allocation-cheap function.
+
+### What shipped
+
+- **`mfn_consensus::header_verify` module** ([`mfn-consensus/src/header_verify.rs`](../mfn-consensus/src/header_verify.rs)).
+- **`verify_header(header, trusted_validators, params)`** — single-hop pure-function header verification. No IO, no async, no clock, no state mutation. Returns a typed `Result<HeaderCheck, HeaderVerifyError>`.
+- **Five checks, in order:**
+  1. `trusted_validators` is non-empty → otherwise `EmptyTrustedSet`.
+  2. `validator_set_root(trusted_validators) == header.validator_root` (the trust anchor) → otherwise `ValidatorRootMismatch`.
+  3. `header.producer_proof` is non-empty (genesis-style headers are the trust anchor, not light-verifiable) → otherwise `GenesisHeader`.
+  4. `header.producer_proof` decodes as a `FinalityProof` → otherwise `ProducerProofDecode(_)`.
+  5. `verify_finality_proof(…)` returns `ConsensusCheck::Ok` (covers producer VRF + ed25519 + slot eligibility + BLS aggregate over the header signing hash + signing-stake-bitmap consistency + quorum threshold) → otherwise `FinalityRejected(_)`.
+- **`HeaderCheck`** — successful-verification stats (producer index, signing stake, total stake, computed quorum, validator count). Exposed so callers writing stricter quorum policies than the chain's 2/3 can compare numbers directly.
+- Lives in `mfn-consensus` (not in a new crate) deliberately: the verification logic is part of the consensus *spec*. A future `mfn-light` crate will wrap this with chain traversal / persistence / sync.
+
+### Test matrix (delivered, +13 net new tests)
+
+Unit (10, in `mfn-consensus`):
+- ✓ `verify_header_accepts_real_signed_block` — happy path.
+- ✓ `verify_header_rejects_tampered_validator_root` — `ValidatorRootMismatch`.
+- ✓ `verify_header_rejects_wrong_trusted_set` — different stake → different root → `ValidatorRootMismatch`.
+- ✓ `verify_header_rejects_tampered_producer_proof` — BLS aggregate breaks.
+- ✓ `verify_header_rejects_empty_trusted_set` — typed `EmptyTrustedSet`, not panic.
+- ✓ `verify_header_rejects_empty_producer_proof` — typed `GenesisHeader`, not cryptic.
+- ✓ `verify_header_rejects_truncated_producer_proof` — `ProducerProofDecode(_)`.
+- ✓ `verify_header_rejects_tampered_height` — header-hash domain change → `FinalityRejected(_)`.
+- ✓ `verify_header_rejects_tampered_slot` — VRF/producer-sig domain change → `FinalityRejected(_)`.
+- ✓ `verify_header_is_deterministic` — repeated calls byte-identical.
+
+Integration (3, in `mfn-node/tests/light_header_verify.rs`):
+- ✓ `verify_header_agrees_with_apply_block_across_three_blocks` — the load-bearing invariant: for each of 3 real BLS-signed blocks, `verify_header` accepts iff `apply_block` accepts.
+- ✓ `verify_header_works_with_post_block_trusted_set_when_no_rotation` — validator-set-stability invariant.
+- ✓ `tampered_header_is_rejected_by_both_verify_header_and_apply_block` — symmetric rejection across both layers; clean block still applies afterwards.
+
+### What's *not* in M2.0.5
+
+- **Multi-hop chain following.** `verify_header` covers one header against one trusted set. Evolving the trusted validator set as blocks rotate / slash / unbond is the future `mfn-light` crate.
+- **Body verification.** Recomputing `tx_root`, `bond_root`, `slashing_root`, `storage_proof_root`, or `storage_root` from a body and comparing to the header is a separate layer on top of existing `*_merkle_root` helpers.
+- **Header chain linkage.** Confirming `prev_hash` and `height` continuity is the caller's job — chained headers are verified by whoever decides which chain to follow.
+- **Persistence / RPC / P2P.** Daemon concerns. Future milestones.
+
+### What this unlocks
+
+- **`mfn-light` crate.** The natural next milestone: a header-chain follower built on `verify_header` that ingests headers + body deltas, evolves the trusted set across rotations, and exposes `verify_tip(...)`.
+- **WASM / mobile wallets.** Compile `mfn-consensus` to WASM, ship `verify_header` to the client, give it a trusted genesis validator set, let it independently verify every tip a remote node claims.
+- **Bridges.** A reader on chain X can verify Permawrite headers given the canonical genesis + a follower for validator-set evolution.
+
+See [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md) for the full design note.
 
 ---
 

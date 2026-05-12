@@ -662,8 +662,8 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
-- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) are all live. The block header now binds every body element. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), and [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md).
-- **Light-client protocol is not yet a binary.** The header now self-describes every body element it was produced over (`validator_root`, `slashing_root`, `storage_proof_root`, `tx_root`, `bond_root`, `storage_root`, `utxo_root`), so a light client *can* be built end-to-end — but the daemon/mempool/P2P layer (`mfn-node`) is the next milestone.
+- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header verification primitive shipped in M2.0.5.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) are all live. The block header now binds every body element, and the pure-function light verifier exists to prove it. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), and [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md).
+- **Light-client *crate* is not yet a binary.** The cryptographic primitive ([`verify_header`](../mfn-consensus/src/header_verify.rs), M2.0.5) is live and exercised against `apply_block` on real 3-block chains. The chain-traversal/validator-set-evolution layer (`mfn-light`) is the next milestone; the P2P/daemon layer (`mfn-node` runtime) follows.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -723,7 +723,7 @@ mfn-storage/        Permanence                 (39 tests)
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (135 tests: 121 unit + 14 integration)
+mfn-consensus/      Chain state machine        (145 tests: 131 unit + 14 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
@@ -734,10 +734,12 @@ mfn-consensus/      Chain state machine        (135 tests: 121 unit + 14 integra
 ├── slashing.rs     Equivocation evidence + verification,
 │                   M2.0.1 slashing-evidence merkle commitment
 ├── storage.rs      Re-exports mfn-storage commitment types
+├── header_verify.rs M2.0.5 pure-function light-header verifier
+│                   (validator_root + producer-proof + BLS aggregate)
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
                     M2.0.2 storage-proof root binding
 
-mfn-node/           Node-side glue             (14 tests: 11 unit + 3 integration)
+mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 └── producer.rs     Block-production helpers: three-stage protocol

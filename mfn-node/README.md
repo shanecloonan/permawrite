@@ -2,11 +2,11 @@
 
 Node-side glue around [`mfn-consensus`](../mfn-consensus/README.md). The future home of the mempool, P2P stack, persistent storage, RPC server, and producer / voter loops — the things that turn a state-transition function into a **running chain**.
 
-**Tests:** 14 passing (11 unit + 3 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 17 passing (11 unit + 6 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 ---
 
-## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers landed)
+## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers + M2.0.5 light-header agreement landed)
 
 This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Plus a `producer` module that wraps the consensus-layer building blocks (`build_unsealed_header` / `try_produce_slot` / `cast_vote` / `finalize` / `seal_block`) into a clean three-stage protocol with a one-call `produce_solo_block` convenience for the single-validator case. Everything in this crate is **deterministic and synchronous** — no IO, no clock, no async runtime, no background threads. Those concerns belong in later M2.x sub-milestones (mempool, RPC, P2P, store) which will all attach *around* these primitives.
 
@@ -107,7 +107,7 @@ Note that callers are responsible for building the coinbase tx (if the producer 
 
 `mfn-node` is the **first orchestration layer**. It tracks the live chain tip, owns `ChainState`, and is where mempool / P2P / RPC will eventually attach. Even at the skeleton stage that separation matters:
 
-- A future light-client crate (`mfn-light`) wants `apply_block` but **not** a `Chain` driver.
+- A future light-client crate (`mfn-light`) wants [`mfn_consensus::verify_header`] (M2.0.5) but **not** a `Chain` driver — same spec crate, different consumer.
 - A daemon wants a `Chain` driver but **shouldn't** be reimplementing one against the spec.
 - A wasm binding wants a `Chain` driver, but compiled for the browser — keeping it library-pure (no `tokio`, no `rocksdb`) keeps the wasm story clean.
 
@@ -120,6 +120,7 @@ This crate is the load-bearing centre of the future M2.x milestones; getting its
 - **Unit (`chain::tests`)**: `Chain::from_genesis` lands at height 0; tip_id equals genesis_id at construction; back-to-back empty-block application advances height + tip_id; bad-prev-hash blocks rejected with state unchanged; bad-height blocks rejected with state unchanged; `ChainStats` agrees with individual accessors; genesis is deterministic across constructions.
 - **Unit (`producer::tests`)**: `produce_solo_block` yields an `apply_block`-acceptable block; 5-in-a-row solo production drives the chain forward each time; `build_proposal` refuses ineligible (stake-zero) producers with a typed error; the staged API (`build_proposal` → `vote_on_proposal` → `seal_proposal`) produces an identical block-id to `produce_solo_block` for a solo validator (determinism contract).
 - **Integration (`tests/single_validator_flow.rs`)**: a 1-validator chain runs through 3 real BLS-signed blocks via the driver + producer helpers; `ChainStats` agrees with individual accessors after the run; replaying the same block is rejected with state preserved (driver never partially commits even pathological input).
+- **Integration (`tests/light_header_verify.rs`, M2.0.5)**: for every block of a real 3-block chain, [`mfn_consensus::verify_header`] accepts the header iff `apply_block` does (load-bearing light-client agreement invariant); a stable validator set verifies under both pre- and post-block trusted snapshots; tampered `validator_root` / `producer_proof` / `height` are rejected by both verification layers and the clean block still applies cleanly afterwards.
 
 ```bash
 cargo test -p mfn-node

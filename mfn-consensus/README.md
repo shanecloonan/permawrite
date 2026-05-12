@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 135 passing (121 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 145 passing (131 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -22,6 +22,7 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | [`consensus`](src/consensus.rs) | Slot model, VRF leader election, BLS committee finality, `FinalityProof`. M2.0 — `validator_leaf_bytes` / `validator_leaf_hash` / `validator_set_root` for the per-block `validator_root` commitment. |
 | [`slashing`](src/slashing.rs) | Equivocation evidence + verification. M2.0.1 — `slashing_leaf_hash` / `slashing_merkle_root` for the per-block `slashing_root` commitment. |
 | [`storage`](src/storage.rs) | Re-exports `StorageCommitment` from `mfn-storage` (for consumer convenience). |
+| [`header_verify`](src/header_verify.rs) | **M2.0.5 — pure-function light-header verification.** `verify_header(header, trusted_validators, params)` — given a trusted pre-block validator set, verify `validator_root` + producer-proof + BLS finality aggregate. Returns a typed `Result<HeaderCheck, HeaderVerifyError>`. The cryptographic primitive for `mfn-light`. |
 | [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** |
 
 ---
@@ -94,6 +95,12 @@ let check    = verify_finality_proof(&proof, &validators, &header_signing_hash);
 let check    = verify_evidence(&evidence, &validators);
 let encoded  = encode_evidence(&evidence);
 let decoded  = decode_evidence(&encoded)?;
+
+// === Light-header verification (M2.0.5) ===========================
+// Pure function: given a trusted pre-block validator set, verify
+// validator_root + producer_proof + BLS finality aggregate.
+let check: Result<HeaderCheck, HeaderVerifyError> =
+    verify_header(&header, &trusted_validators, &params);
 
 // === Emission / endowment =========================================
 let subsidy: u64 = emission_at_height(height, &emission_params);
@@ -230,6 +237,7 @@ pub enum BlockError {
 - **Roots** (tx_root, storage_root, bond_root, slashing_root, validator_root, storage_proof_root, utxo_root reconstruction).
 - **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `bond_unbond_wire_matches_cloonan_ts_smoke_reference`, `register_sig_is_bound_to_bls_pk_and_payload`, `register_signing_hash_is_domain_separated`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
 - **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection, **forged-register-signature rejection** under `register_rejects_invalid_signature`).
+- **Light-header verification (M2.0.5)** — 10 unit tests in `header_verify::tests`: happy path round-trip, tampered `validator_root` / wrong trusted set, tampered producer proof, empty trusted set, empty / truncated producer proof, tampered height and slot (each breaks the header signing hash → finality rejection), determinism. Plus 3 integration tests in `mfn-node/tests/light_header_verify.rs` proving `verify_header` and `apply_block` agree on every block of a real 3-block chain.
 - **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 
 ```bash

@@ -449,6 +449,34 @@ Each leaf is the domain-separated hash of one storage proof in its canonical SPo
 
 For the full design note + test matrix, see [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md).
 
+### Light-header verification (M2.0.5)
+
+With every block-body element now header-bound (M2.0 / M2.0.1 / M2.0.2), the natural payoff is a *light* verifier: a function that given only a `BlockHeader` and a trusted pre-block validator set, returns whether a real quorum of that set signed the header. That's [`verify_header`](../mfn-consensus/src/header_verify.rs) — the first piece of `mfn-light`.
+
+```rust
+pub fn verify_header(
+    header: &BlockHeader,
+    trusted_validators: &[Validator],
+    params: &ConsensusParams,
+) -> Result<HeaderCheck, HeaderVerifyError>;
+```
+
+Checks performed (in order):
+
+1. `trusted_validators` non-empty → otherwise `EmptyTrustedSet`.
+2. `validator_set_root(trusted_validators) == header.validator_root` → the **trust anchor**: caller asserts which set the producer claimed to commit to. Mismatch → `ValidatorRootMismatch`.
+3. `header.producer_proof` non-empty → otherwise `GenesisHeader` (genesis is the *anchor*, not light-verifiable).
+4. `header.producer_proof` decodes as a `FinalityProof` → otherwise `ProducerProofDecode(_)`.
+5. `verify_finality_proof(…)` returns `Ok` → covers producer VRF + ed25519 + slot eligibility, BLS aggregate over the header signing hash, signing-stake-bitmap consistency, and quorum threshold. Otherwise `FinalityRejected(_)`.
+
+Properties:
+
+- **Pure function.** No IO, no async, no state mutation. Same inputs → byte-for-byte same outputs.
+- **Same checks `apply_block` runs.** Exercised by the integration test `verify_header_agrees_with_apply_block_across_three_blocks` (in `mfn-node`): for every block of a real 3-block chain, `verify_header` accepts iff `apply_block` does.
+- **One hop.** This verifies a single header against a single trusted set. Walking the chain — and tracking how the trusted validator set evolves through `BondOp`s, slashings, and unbond settlements — is the job of the future `mfn-light` crate.
+
+For the full design note + test matrix, see [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md).
+
 ### Tests added for M2.0
 
 - `validator_set_root_empty_is_zero_sentinel` — empty set folds to the all-zero sentinel.
