@@ -889,3 +889,342 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         assert_eq!(cb_dec.value, emission);
     }
 }
+
+/* ---------------------------------------------------------------------- *
+ *  Unbond lifecycle integration (M1)                                     *
+ *                                                                        *
+ *  These tests exercise the full register → unbond → settle path with    *
+ *  real BLS finality proofs. The helper `unbond_chain_step` runs one     *
+ *  block with empty payload (no privacy txs, no storage proofs) and a    *
+ *  caller-supplied bond_ops list. It assumes a 3-validator chain where   *
+ *  v0/v1/v2 all sign every block.                                        *
+ * ---------------------------------------------------------------------- */
+
+#[cfg(test)]
+mod unbond_lifecycle {
+    use mfn_bls::{bls_keygen_from_seed, bls_sign};
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header,
+        cast_vote, emission_at_height, encode_finality_proof, finalize, header_signing_hash,
+        seal_block, sign_unbond, try_produce_slot, ApplyOutcome, BondOp, BondingParams, ChainState,
+        ConsensusParams, FinalityProof, GenesisConfig, PayoutAddress, SlashEvidence, SlotContext,
+        Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::stealth::stealth_gen;
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+    use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+
+    struct ChainFixture {
+        state: ChainState,
+        validators: Vec<Validator>,
+        secrets: Vec<ValidatorSecrets>,
+        params: ConsensusParams,
+    }
+
+    fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let payout_wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: payout_wallet.view_pub,
+            spend_pub: payout_wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets)
+    }
+
+    fn boot_3_validator_chain(unbond_delay: u32) -> ChainFixture {
+        let (v0, s0) = mk_validator(0, 1_000_000);
+        let (v1, s1) = mk_validator(1, 1_000_000);
+        let (v2, s2) = mk_validator(2, 1_000_000);
+        let validators = vec![v0, v1, v2];
+        let secrets = vec![s0, s1, s2];
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6666,
+            liveness_max_consecutive_missed: 64, // high so liveness doesn't trip
+            liveness_slash_bps: 0,
+        };
+        let bp = BondingParams {
+            min_validator_stake: 100,
+            unbond_delay_heights: unbond_delay,
+            max_entry_churn_per_epoch: 4,
+            max_exit_churn_per_epoch: 4,
+            slots_per_epoch: 1024,
+        };
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: validators.clone(),
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: Some(bp),
+        };
+        let genesis = build_genesis(&cfg);
+        let state = apply_genesis(&genesis, &cfg).expect("apply genesis");
+        ChainFixture {
+            state,
+            validators,
+            secrets,
+            params,
+        }
+    }
+
+    /// Produce one block at `height` with the given bond_ops and slashings.
+    /// All active (stake > 0) validators sign. Producer is always v0
+    /// (the highest-stake validator by ordering).
+    fn step(
+        fx: &mut ChainFixture,
+        height: u32,
+        bond_ops: Vec<BondOp>,
+        slashings: Vec<SlashEvidence>,
+    ) {
+        let v0_payout = fx.state.validators[0].payout.unwrap();
+        let cb_payout = PayoutAddress {
+            view_pub: v0_payout.view_pub,
+            spend_pub: v0_payout.spend_pub,
+        };
+        let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
+        let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
+        let txs = vec![cb];
+
+        let unsealed =
+            build_unsealed_header(&fx.state, &txs, &bond_ops, height, u64::from(height) * 100);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height,
+            slot: height,
+            prev_hash: unsealed.prev_hash,
+        };
+
+        let total_stake: u64 = fx.state.validators.iter().map(|v| v.stake).sum();
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &fx.secrets[0],
+            &fx.state.validators[0],
+            total_stake,
+            fx.params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+
+        // Every validator with stake > 0 votes. Index by validators[i].
+        let mut votes = Vec::new();
+        let mut signing_stake: u64 = 0;
+        for (i, v) in fx.state.validators.iter().enumerate() {
+            if v.stake == 0 {
+                continue;
+            }
+            let vote = cast_vote(
+                &header_hash,
+                &fx.secrets[i],
+                &ctx,
+                &producer_proof,
+                &fx.state.validators[0],
+                total_stake,
+                fx.params.expected_proposers_per_slot,
+            )
+            .unwrap();
+            votes.push(vote);
+            signing_stake = signing_stake.saturating_add(v.stake);
+        }
+        let agg = finalize(&header_hash, &votes, fx.state.validators.len()).expect("agg");
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: agg,
+            signing_stake,
+        };
+        let block = seal_block(
+            unsealed,
+            txs,
+            bond_ops,
+            encode_finality_proof(&fin),
+            slashings,
+            Vec::new(),
+        );
+        fx.state = match apply_block(&fx.state, &block) {
+            ApplyOutcome::Ok { state, .. } => state,
+            ApplyOutcome::Err { errors, .. } => panic!("block {height} rejected: {errors:?}"),
+        };
+    }
+
+    /// Force-set unbond delay for a fresh fixture.
+    fn fixture_with_delay(delay: u32) -> ChainFixture {
+        boot_3_validator_chain(delay)
+    }
+
+    #[test]
+    fn unbond_lifecycle_request_delay_settle() {
+        // Tiny delay so the test is fast.
+        let mut fx = fixture_with_delay(2);
+        let v1_idx = fx.validators[1].index;
+        let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+        // Block 1: v1 submits unbond.
+        let unbond = BondOp::Unbond {
+            validator_index: v1_idx,
+            sig: sign_unbond(v1_idx, &v1_bls_sk),
+        };
+        step(&mut fx, 1, vec![unbond], Vec::new());
+        assert!(fx.state.pending_unbonds.contains_key(&v1_idx));
+        assert_eq!(fx.state.validators[1].stake, 1_000_000);
+        assert_eq!(fx.state.pending_unbonds[&v1_idx].unlock_height, 3); // 1 + delay 2
+
+        // Block 2: still in delay window.
+        step(&mut fx, 2, Vec::new(), Vec::new());
+        assert!(fx.state.pending_unbonds.contains_key(&v1_idx));
+        assert_eq!(fx.state.validators[1].stake, 1_000_000);
+
+        // Block 3: unlock height reached -> v1's stake zeroed.
+        step(&mut fx, 3, Vec::new(), Vec::new());
+        assert!(!fx.state.pending_unbonds.contains_key(&v1_idx));
+        assert_eq!(fx.state.validators[1].stake, 0);
+        assert_eq!(fx.state.bond_epoch_exit_count, 1);
+    }
+
+    #[test]
+    fn unbond_lifecycle_equivocation_during_delay_still_slashes() {
+        // v1 unbonds; before settlement, v1 is caught equivocating.
+        // The slash zeros their stake AND credits treasury (per M1
+        // burn-on-bond + slash-to-treasury symmetry).
+        let mut fx = fixture_with_delay(100); // long delay
+        let v1_idx = fx.validators[1].index;
+        let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+        let pre_treasury = fx.state.treasury;
+        let unbond = BondOp::Unbond {
+            validator_index: v1_idx,
+            sig: sign_unbond(v1_idx, &v1_bls_sk),
+        };
+        step(&mut fx, 1, vec![unbond], Vec::new());
+        assert_eq!(fx.state.validators[1].stake, 1_000_000);
+        // Treasury didn't grow from the unbond op itself.
+        assert_eq!(fx.state.treasury, pre_treasury);
+
+        // Block 2: equivocation evidence for v1.
+        let h1 = [11u8; 32];
+        let h2 = [22u8; 32];
+        let ev = SlashEvidence {
+            height: 2,
+            slot: 2,
+            voter_index: v1_idx,
+            header_hash_a: h1,
+            sig_a: bls_sign(&h1, &v1_bls_sk),
+            header_hash_b: h2,
+            sig_b: bls_sign(&h2, &v1_bls_sk),
+        };
+        step(&mut fx, 2, Vec::new(), vec![ev]);
+        assert_eq!(
+            fx.state.validators[1].stake, 0,
+            "equivocation during unbond delay still zeros stake"
+        );
+        // 1M credited to treasury (slash) on top of any prior delta.
+        assert!(fx.state.treasury >= pre_treasury + 1_000_000);
+        // Pending unbond entry stays — settles as a zombie at unlock height.
+        assert!(fx.state.pending_unbonds.contains_key(&v1_idx));
+    }
+
+    #[test]
+    fn unbond_lifecycle_exit_churn_cap_spills_to_next_block() {
+        // 3 simultaneous unbonds, exit cap = 2: two settle in the first
+        // post-unlock block, one spills.
+        let (v0, s0) = mk_validator(0, 1_000_000);
+        let (v1, s1) = mk_validator(1, 1_000_000);
+        let (v2, s2) = mk_validator(2, 1_000_000);
+        let (v3, s3) = mk_validator(3, 1_000_000);
+        let validators = vec![v0.clone(), v1.clone(), v2.clone(), v3.clone()];
+        let secrets = vec![s0, s1, s2, s3];
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 5000, // half quorum so we survive 3 exits
+            liveness_max_consecutive_missed: 64,
+            liveness_slash_bps: 0,
+        };
+        let bp = BondingParams {
+            min_validator_stake: 100,
+            unbond_delay_heights: 1,
+            max_entry_churn_per_epoch: 4,
+            max_exit_churn_per_epoch: 2, // the constraint under test
+            slots_per_epoch: 1024,
+        };
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: validators.clone(),
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: Some(bp),
+        };
+        let g = build_genesis(&cfg);
+        let mut fx = ChainFixture {
+            state: apply_genesis(&g, &cfg).unwrap(),
+            validators,
+            secrets,
+            params,
+        };
+
+        // Block 1: v1, v2, v3 all unbond.
+        let b1 = fx.secrets[1].bls.sk.clone();
+        let b2 = fx.secrets[2].bls.sk.clone();
+        let b3 = fx.secrets[3].bls.sk.clone();
+        let i1 = fx.validators[1].index;
+        let i2 = fx.validators[2].index;
+        let i3 = fx.validators[3].index;
+        let ops = vec![
+            BondOp::Unbond {
+                validator_index: i1,
+                sig: sign_unbond(i1, &b1),
+            },
+            BondOp::Unbond {
+                validator_index: i2,
+                sig: sign_unbond(i2, &b2),
+            },
+            BondOp::Unbond {
+                validator_index: i3,
+                sig: sign_unbond(i3, &b3),
+            },
+        ];
+        step(&mut fx, 1, ops, Vec::new());
+        assert_eq!(fx.state.pending_unbonds.len(), 3);
+
+        // Block 2: unlock_height = 1+1 = 2 reached. Cap is 2 → first two
+        // (by sorted index, i.e. v1 and v2) settle; v3 spills.
+        step(&mut fx, 2, Vec::new(), Vec::new());
+        assert_eq!(fx.state.pending_unbonds.len(), 1);
+        assert!(fx.state.pending_unbonds.contains_key(&i3));
+        assert_eq!(fx.state.validators[1].stake, 0);
+        assert_eq!(fx.state.validators[2].stake, 0);
+        assert_eq!(fx.state.validators[3].stake, 1_000_000);
+        assert_eq!(fx.state.bond_epoch_exit_count, 2);
+
+        // Block 3: cap is still 2 this epoch, but one slot used. Wait,
+        // the cap was already hit (we used 2 of 2). So v3 still can't
+        // settle this block — or can it? Looking at logic: try_register_exit_churn
+        // accepts up to max_exit_churn_per_epoch. We already have count=2
+        // = max, so v3's settle fails → spill continues. v3 has to wait
+        // until the next epoch (slot 1024).
+        step(&mut fx, 3, Vec::new(), Vec::new());
+        assert_eq!(
+            fx.state.pending_unbonds.len(),
+            1,
+            "exit cap exhausted for the epoch — v3 still pending"
+        );
+        assert_eq!(fx.state.validators[3].stake, 1_000_000);
+    }
+}

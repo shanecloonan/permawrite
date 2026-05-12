@@ -2,22 +2,42 @@
 //!
 //! Merkle leaves use [`mfn_crypto::domain::BOND_OP_LEAF`] so bond commitments
 //! never collide with transaction ids or storage hashes.
+//!
+//! Two variants ride this enum today:
+//!
+//! - [`BondOp::Register`] — admit a new validator and burn its declared
+//!   stake into the permanence treasury.
+//! - [`BondOp::Unbond`] — schedule a validator's exit; settles at
+//!   `request_height + bonding_params.unbond_delay_heights`. The op
+//!   carries a BLS signature by the validator's own BLS secret key over
+//!   a domain-separated payload, proving only the operator could have
+//!   authorized the exit.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
-use mfn_bls::{decode_public_key, encode_public_key, BlsPublicKey};
+use mfn_bls::{bls_verify, BlsPublicKey, BlsSecretKey, BlsSignature};
+use mfn_bls::{decode_public_key, decode_signature, encode_public_key, encode_signature};
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::BOND_OP_LEAF;
+use mfn_crypto::domain::{BOND_OP_LEAF, UNBOND_OP_SIG};
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::merkle_root_or_zero;
 use thiserror::Error;
 
 use crate::consensus::ValidatorPayout;
 
-/// Wire tag for [`BondOp`].
+/// Wire tag for [`BondOp::Register`].
 pub const BOND_OP_REGISTER: u8 = 0;
+/// Wire tag for [`BondOp::Unbond`].
+pub const BOND_OP_UNBOND: u8 = 1;
 
 /// A consensus operation that mutates the validator set (M1).
+//
+// `Register` is fundamentally larger than `Unbond` because it must carry
+// the full validator public keys and optional stealth payout. Boxing the
+// large variant would force every `Register` op through an extra heap
+// allocation and indirection on the consensus hot path; we accept the
+// enum-size asymmetry as a deliberate trade-off.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BondOp {
     /// Register a new validator with locked stake and public keys.
@@ -31,6 +51,50 @@ pub enum BondOp {
         /// Optional stealth payout for producer rewards.
         payout: Option<ValidatorPayout>,
     },
+    /// Schedule an honorable exit for an existing validator. The op is
+    /// authenticated by a BLS signature under the validator's own `bls_pk`
+    /// over [`unbond_signing_hash`]; replay across the same validator is
+    /// prevented by [`crate::block::ChainState::pending_unbonds`]
+    /// rejecting duplicate enqueues.
+    Unbond {
+        /// Validator index assigned at registration (matches `Validator::index`).
+        validator_index: u32,
+        /// BLS signature over the canonical authorization payload.
+        sig: BlsSignature,
+    },
+}
+
+/// Canonical bytes that an [`BondOp::Unbond`] BLS signature commits to.
+///
+/// Domain-separated under [`UNBOND_OP_SIG`] so a leaked Unbond signature
+/// cannot be replayed for any other purpose (including a second unbond
+/// at a different validator index on a forked chain).
+#[must_use]
+pub fn unbond_signing_bytes(validator_index: u32) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.u32(validator_index);
+    w.into_bytes()
+}
+
+/// 32-byte digest of [`unbond_signing_bytes`] — what gets BLS-signed.
+#[must_use]
+pub fn unbond_signing_hash(validator_index: u32) -> [u8; 32] {
+    dhash(UNBOND_OP_SIG, &[&unbond_signing_bytes(validator_index)])
+}
+
+/// Construct the signature an [`BondOp::Unbond`] requires. The validator's
+/// wallet calls this with its BLS secret key when initiating exit.
+#[must_use]
+pub fn sign_unbond(validator_index: u32, sk: &BlsSecretKey) -> BlsSignature {
+    let msg = unbond_signing_hash(validator_index);
+    mfn_bls::bls_sign(&msg, sk)
+}
+
+/// Verify the authorization signature on a [`BondOp::Unbond`].
+#[must_use]
+pub fn verify_unbond_sig(validator_index: u32, sig: &BlsSignature, pk: &BlsPublicKey) -> bool {
+    let msg = unbond_signing_hash(validator_index);
+    bls_verify(sig, &msg, pk)
 }
 
 /// Encode `op` to canonical bytes (included in the bond Merkle leaf).
@@ -57,6 +121,14 @@ pub fn encode_bond_op(op: &BondOp) -> Vec<u8> {
                     w.push(&p.spend_pub.compress().to_bytes());
                 }
             }
+        }
+        BondOp::Unbond {
+            validator_index,
+            sig,
+        } => {
+            w.u8(BOND_OP_UNBOND);
+            w.u32(*validator_index);
+            w.push(&encode_signature(sig));
         }
     }
     w.into_bytes()
@@ -133,6 +205,21 @@ pub fn decode_bond_op(bytes: &[u8]) -> Result<BondOp, BondWireError> {
                 payout,
             })
         }
+        BOND_OP_UNBOND => {
+            let validator_index = r.u32().map_err(|e| BondWireError::Decode(e.to_string()))?;
+            let sig_bytes = r
+                .bytes(96)
+                .map_err(|e| BondWireError::Decode(e.to_string()))?;
+            let sig =
+                decode_signature(sig_bytes).map_err(|e| BondWireError::Decode(e.to_string()))?;
+            if r.remaining() != 0 {
+                return Err(BondWireError::Decode("trailing bytes".into()));
+            }
+            Ok(BondOp::Unbond {
+                validator_index,
+                sig,
+            })
+        }
         t => Err(BondWireError::UnknownTag(t)),
     }
 }
@@ -188,5 +275,54 @@ mod tests {
         let op = decode_bond_op(&wire).expect("decode ts wire");
         assert_eq!(encode_bond_op(&op), wire);
         assert_eq!(hex::encode(bond_op_leaf_hash(&op)), LEAF_HEX);
+    }
+
+    #[test]
+    fn unbond_op_round_trip_and_sig_verify() {
+        let bls = bls_keygen_from_seed(&[33u8; 32]);
+        let idx = 7u32;
+        let sig = sign_unbond(idx, &bls.sk);
+        assert!(verify_unbond_sig(idx, &sig, &bls.pk));
+
+        let op = BondOp::Unbond {
+            validator_index: idx,
+            sig,
+        };
+        let bytes = encode_bond_op(&op);
+        // Tag(1) + u32(4) + sig(96) = 101 bytes.
+        assert_eq!(bytes.len(), 1 + 4 + 96);
+        let decoded = decode_bond_op(&bytes).unwrap();
+        assert_eq!(decoded, op);
+    }
+
+    #[test]
+    fn unbond_signing_hash_is_domain_separated() {
+        // Same validator_index, different domain ⇒ different hash. Sanity
+        // check: ensure UNBOND_OP_SIG isn't accidentally aliased to
+        // BOND_OP_LEAF or any other consensus tag.
+        let h1 = unbond_signing_hash(0);
+        let h2 = mfn_crypto::hash::dhash(BOND_OP_LEAF, &[&unbond_signing_bytes(0)]);
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn unbond_sig_does_not_verify_under_different_index() {
+        let bls = bls_keygen_from_seed(&[44u8; 32]);
+        let sig = sign_unbond(1, &bls.sk);
+        assert!(verify_unbond_sig(1, &sig, &bls.pk));
+        assert!(!verify_unbond_sig(2, &sig, &bls.pk));
+    }
+
+    #[test]
+    fn unbond_decode_rejects_trailing_bytes() {
+        let bls = bls_keygen_from_seed(&[55u8; 32]);
+        let sig = sign_unbond(0, &bls.sk);
+        let op = BondOp::Unbond {
+            validator_index: 0,
+            sig,
+        };
+        let mut bytes = encode_bond_op(&op);
+        bytes.push(0xAA);
+        assert!(decode_bond_op(&bytes).is_err());
     }
 }

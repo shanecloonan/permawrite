@@ -106,3 +106,6 @@ pub const OOM_CHALLENGE: Domain = b"MFBN-1/oom-challenge";
 
 /// Merkle leaf for a validator bond operation (M1 rotation).
 pub const BOND_OP_LEAF: Domain = b"MFBN-1/bond-op-leaf";
+
+/// BLS-signed authorization payload for an [`BondOp::Unbond`](../../../mfn-consensus/src/bond_wire.rs) op (M1).
+pub const UNBOND_OP_SIG: Domain = b"MFBN-1/unbond-op-sig";

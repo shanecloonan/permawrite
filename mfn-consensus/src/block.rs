@@ -43,7 +43,7 @@
 //! two-sided treasury/emission settlement. The wire format is forward-
 //! compatible: blocks produced today will still validate then.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
@@ -60,10 +60,10 @@ use mfn_storage::{
     DEFAULT_ENDOWMENT_PARAMS,
 };
 
-use crate::bond_wire::{bond_merkle_root, BondOp};
+use crate::bond_wire::{bond_merkle_root, verify_unbond_sig, BondOp};
 use crate::bonding::{
-    epoch_id_for_height, try_register_entry_churn, validate_stake, BondingParams,
-    DEFAULT_BONDING_PARAMS,
+    epoch_id_for_height, try_register_entry_churn, try_register_exit_churn, unbond_unlock_height,
+    validate_stake, BondingParams, DEFAULT_BONDING_PARAMS,
 };
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
@@ -233,6 +233,23 @@ pub struct ValidatorStats {
     pub liveness_slashes: u32,
 }
 
+/// A validator's pending exit, tracked from the moment their
+/// [`BondOp::Unbond`] is accepted until the unlock height passes and
+/// settlement zeroes their voting weight (M1 rotation).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PendingUnbond {
+    /// Validator's `index` field (matches `Validator::index`).
+    pub validator_index: u32,
+    /// Block height at which this exit may be settled (`request_height + unbond_delay_heights`).
+    pub unlock_height: u32,
+    /// Stake the validator held when they requested unbond. Recorded for
+    /// observability; M1 leaves the underlying MFN as a permanent
+    /// treasury contribution (no payout path yet).
+    pub stake_at_request: u64,
+    /// Block height the unbond was requested at.
+    pub request_height: u32,
+}
+
 /// Per-storage-commitment chain state.
 #[derive(Clone, Debug)]
 pub struct StorageEntry {
@@ -333,13 +350,21 @@ pub struct ChainState {
     pub utxo_tree: UtxoTreeState,
     /// Bonding / rotation parameters (defaults at genesis).
     pub bonding_params: BondingParams,
-    /// Epoch id (`height / slots_per_epoch`) for which `bond_epoch_entry_count`
-    /// applies. Updated when the epoch rolls forward.
+    /// Epoch id (`height / slots_per_epoch`) for which the churn
+    /// counters apply. Updated when the epoch rolls forward.
     pub bond_epoch_id: u64,
     /// Validators registered via [`BondOp::Register`] in the current epoch.
     pub bond_epoch_entry_count: u32,
+    /// Validators that **fully exited** (unbond-settled) in the current
+    /// epoch, gated by [`BondingParams::max_exit_churn_per_epoch`].
+    pub bond_epoch_exit_count: u32,
     /// Next [`Validator::index`] assigned to a newly bonded validator.
     pub next_validator_index: u32,
+    /// In-flight unbond requests keyed by `Validator::index`. Settled
+    /// when `unlock_height <= current_height`, in deterministic sorted
+    /// order during [`apply_block`]. A validator with an entry here is
+    /// still subject to equivocation/liveness slashing during the delay.
+    pub pending_unbonds: BTreeMap<u32, PendingUnbond>,
 }
 
 impl ChainState {
@@ -361,7 +386,9 @@ impl ChainState {
             bonding_params: DEFAULT_BONDING_PARAMS,
             bond_epoch_id: 0,
             bond_epoch_entry_count: 0,
+            bond_epoch_exit_count: 0,
             next_validator_index: 0,
+            pending_unbonds: BTreeMap::new(),
         }
     }
 
@@ -1134,20 +1161,25 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //
     // Every successful `BondOp::Register` burns its declared `stake` to
     // the permanence treasury. Bonded MFN is therefore *immediately*
-    // working for storage operators the moment a validator joins. When
-    // the unbond lifecycle lands (see `pending_unbonds`), the stake
-    // flows back out via a coinbase backstop; until then a registered
-    // validator's stake is a one-way contribution.
+    // working for storage operators the moment a validator joins.
+    //
+    // `BondOp::Unbond` enqueues an exit; the validator stays in the
+    // active set (still slashable!) until the unbond delay elapses,
+    // at which point the settlement phase below zeros their stake.
     match simulate_bond_ops(
         block.header.height,
         next.bond_epoch_id,
         next.bond_epoch_entry_count,
         next.next_validator_index,
         &next.validators,
+        &next.pending_unbonds,
         &next.bonding_params,
         &block.bond_ops,
     ) {
         Ok(delta) => {
+            if delta.bond_epoch_id != next.bond_epoch_id {
+                next.bond_epoch_exit_count = 0;
+            }
             next.bond_epoch_id = delta.bond_epoch_id;
             next.bond_epoch_entry_count = delta.bond_epoch_entry_count;
             next.next_validator_index = delta.next_validator_index;
@@ -1156,9 +1188,43 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             next.validator_stats
                 .extend((0..n_new).map(|_| ValidatorStats::default()));
             next.treasury = next.treasury.saturating_add(delta.bond_burn_total);
+            for pu in delta.new_pending_unbonds {
+                next.pending_unbonds.insert(pu.validator_index, pu);
+            }
         }
         Err((i, message)) => {
             errors.push(BlockError::BondOpRejected { index: i, message });
+        }
+    }
+
+    // ---- Unbond settlements (M1): scan pending_unbonds in deterministic
+    //      sorted-by-index order; for each entry whose unlock_height has
+    //      arrived AND exit-churn budget remains, zero the validator's
+    //      stake. Bonded MFN stays in treasury -- for M1, bonding is a
+    //      one-way contribution to permanence; an honorable exit only
+    //      frees the operator from future slashing exposure.
+    {
+        let due: Vec<u32> = next
+            .pending_unbonds
+            .iter()
+            .filter(|(_, pu)| pu.unlock_height <= block.header.height)
+            .map(|(idx, _)| *idx)
+            .collect();
+        for validator_index in due {
+            match try_register_exit_churn(next.bond_epoch_exit_count, &next.bonding_params) {
+                Ok(next_count) => {
+                    next.bond_epoch_exit_count = next_count;
+                }
+                Err(_) => break,
+            }
+            if let Some(pos) = next
+                .validators
+                .iter()
+                .position(|v| v.index == validator_index)
+            {
+                next.validators[pos].stake = 0;
+            }
+            next.pending_unbonds.remove(&validator_index);
         }
     }
 
@@ -1260,17 +1326,26 @@ struct BondApplyDelta {
     /// Total stake registered this block; credited to `state.treasury`
     /// as part of the burn-on-bond economic model.
     bond_burn_total: u128,
+    /// Unbond requests enqueued this block.
+    new_pending_unbonds: Vec<PendingUnbond>,
 }
 
 /// Validate `ops` against the pre-bond view of the chain and return new
 /// validators plus updated bonding counters. Any error is atomic: the
 /// caller must not apply a partial prefix of `ops`.
+//
+// Eight arguments is intentional: each represents a distinct piece of
+// pre-bond chain state that the simulator must read and atomically update.
+// Bundling them into a struct would simply shift the same coupling across
+// the call site without reducing it.
+#[allow(clippy::too_many_arguments)]
 fn simulate_bond_ops(
     height: u32,
     mut bond_epoch_id: u64,
     mut bond_epoch_entry_count: u32,
     mut next_validator_index: u32,
     validators: &[Validator],
+    pending_unbonds: &BTreeMap<u32, PendingUnbond>,
     bonding_params: &BondingParams,
     ops: &[BondOp],
 ) -> Result<BondApplyDelta, (usize, String)> {
@@ -1288,6 +1363,8 @@ fn simulate_bond_ops(
         .collect();
     let mut new_validators: Vec<Validator> = Vec::new();
     let mut bond_burn_total: u128 = 0;
+    let mut new_pending_unbonds: Vec<PendingUnbond> = Vec::new();
+    let mut seen_unbond_indices: HashSet<u32> = pending_unbonds.keys().copied().collect();
 
     for (i, op) in ops.iter().enumerate() {
         match op {
@@ -1316,6 +1393,30 @@ fn simulate_bond_ops(
                 });
                 bond_burn_total = bond_burn_total.saturating_add(u128::from(*stake));
             }
+            BondOp::Unbond {
+                validator_index,
+                sig,
+            } => {
+                let v = validators
+                    .iter()
+                    .find(|v| v.index == *validator_index)
+                    .ok_or_else(|| (i, format!("unknown validator {validator_index}")))?;
+                if v.stake == 0 {
+                    return Err((i, "validator already zombie (stake=0)".into()));
+                }
+                if !seen_unbond_indices.insert(*validator_index) {
+                    return Err((i, "validator already has pending unbond".into()));
+                }
+                if !verify_unbond_sig(*validator_index, sig, &v.bls_pk) {
+                    return Err((i, "unbond signature invalid".into()));
+                }
+                new_pending_unbonds.push(PendingUnbond {
+                    validator_index: *validator_index,
+                    unlock_height: unbond_unlock_height(height, bonding_params),
+                    stake_at_request: v.stake,
+                    request_height: height,
+                });
+            }
         }
     }
 
@@ -1325,6 +1426,7 @@ fn simulate_bond_ops(
         next_validator_index,
         new_validators,
         bond_burn_total,
+        new_pending_unbonds,
     })
 }
 
@@ -1771,6 +1873,57 @@ mod tests {
             ApplyOutcome::Ok { .. } => panic!("expected err"),
         }
         assert!(st.validators.is_empty());
+    }
+
+    // Unbond rejection in legacy mode (empty validators ⇒ no finality
+    // proof required for this block). End-to-end register → unbond →
+    // settle flows live in tests/integration.rs::unbond_lifecycle_*.
+    #[test]
+    fn unbond_rejects_unknown_validator_legacy_mode() {
+        use mfn_bls::bls_keygen_from_seed;
+        let st = genesis_state();
+        let bls = bls_keygen_from_seed(&[100u8; 32]);
+        let unbond = BondOp::Unbond {
+            validator_index: 42,
+            sig: crate::bond_wire::sign_unbond(42, &bls.sk),
+        };
+        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&unbond), 1, 100);
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            vec![unbond],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondOpRejected { .. })));
+            }
+            ApplyOutcome::Ok { .. } => panic!("unknown validator must reject"),
+        }
+    }
+
+    #[test]
+    fn unbond_wire_round_trip_inside_bond_root() {
+        use mfn_bls::bls_keygen_from_seed;
+        use mfn_crypto::point::generator_g;
+        let bls = bls_keygen_from_seed(&[55u8; 32]);
+        let unbond = BondOp::Unbond {
+            validator_index: 7,
+            sig: crate::bond_wire::sign_unbond(7, &bls.sk),
+        };
+        let reg = BondOp::Register {
+            stake: DEFAULT_BONDING_PARAMS.min_validator_stake,
+            vrf_pk: generator_g(),
+            bls_pk: bls_keygen_from_seed(&[11u8; 32]).pk,
+            payout: None,
+        };
+        let ops = vec![reg, unbond];
+        let root = crate::bond_wire::bond_merkle_root(&ops);
+        assert_ne!(root, [0u8; 32], "merkle root over mixed ops is non-zero");
     }
 
     #[test]

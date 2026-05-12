@@ -62,11 +62,13 @@ pub use block::{
     apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
     header_signing_bytes, header_signing_hash, seal_block, storage_merkle_root, tx_merkle_root,
     ApplyOutcome, Block, BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig,
-    GenesisOutput, UtxoEntry, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+    GenesisOutput, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
+    HEADER_VERSION,
 };
 pub use bond_wire::{
-    bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,
-    BOND_OP_REGISTER,
+    bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, sign_unbond,
+    unbond_signing_bytes, unbond_signing_hash, verify_unbond_sig, BondOp, BondWireError,
+    BOND_OP_REGISTER, BOND_OP_UNBOND,
 };
 pub use bonding::{
     epoch_id_for_height, height_of_next_epoch, try_register_entry_churn, try_register_exit_churn,
