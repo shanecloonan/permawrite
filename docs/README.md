@@ -11,6 +11,7 @@ Welcome. These docs cover the full design of the Permawrite blockchain — priva
 ### Just want to understand what this is?
 
 - 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Smart-layperson level: no heavy formulas, lots of intuition.
+- 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network (freedom, incentives, economics).
 - 📚 [**GLOSSARY.md**](./GLOSSARY.md) — every acronym and protocol-specific term, alphabetical. Reach for it whenever you hit unfamiliar jargon.
 
 ### Want the technical design?

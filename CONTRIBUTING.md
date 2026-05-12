@@ -215,6 +215,16 @@ No CLA required. The dual-license agreement is implied by the contribution.
 
 ---
 
+## Codebase stats
+
+The repo tracks a generated line-count snapshot in [`CODEBASE_STATS.md`](./CODEBASE_STATS.md) (useful for gauging growth and review surface). Regenerate after large doc or code changes (requires [Node.js](https://nodejs.org/) only for this script—not for `cargo` builds):
+
+```bash
+node scripts/codebase-stats.mjs
+```
+
+---
+
 ## Quick reference
 
 ```

@@ -11,7 +11,7 @@
 [![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
 
-[**Read the overview →**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Read the architecture →**](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [**Roadmap →**](./docs/ROADMAP.md)
+[**Read the overview →**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Read the architecture →**](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [**Privacy & permanence (why one network) →**](./docs/PRIVACY_AND_PERMANENCE.md) &nbsp;·&nbsp; [**Roadmap →**](./docs/ROADMAP.md)
 
 </div>
 
@@ -43,6 +43,7 @@ Three reading paths depending on what you want:
 Start here. Plain-language framing for someone who's smart but doesn't want to read formulas yet.
 
 - [**docs/OVERVIEW.md**](./docs/OVERVIEW.md) — the project, the vision, why it's hard, how it works (intuition only, no math)
+- [**docs/PRIVACY_AND_PERMANENCE.md**](./docs/PRIVACY_AND_PERMANENCE.md) — why privacy and permanence are fused here (freedom, incentives, economics)
 - [**docs/GLOSSARY.md**](./docs/GLOSSARY.md) — every acronym and term used anywhere in the docs
 
 ### 🧮 I want the technical design
@@ -58,6 +59,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 ### 🛠 I want to build / contribute
 
 - [**CONTRIBUTING.md**](./CONTRIBUTING.md) — how to set up, what conventions to follow, how the test gate works
+- [**CODEBASE_STATS.md**](./CODEBASE_STATS.md) — auto-generated line counts / file breakdown (regenerate via `node scripts/codebase-stats.mjs`)
 - [**PORTING.md**](./PORTING.md) — TypeScript reference → Rust port tracker; one row per module
 - [**SECURITY.md**](./SECURITY.md) — vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
