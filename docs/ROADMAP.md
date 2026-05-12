@@ -13,8 +13,9 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root**) | `mfn-consensus` | 135 | ✓ live |
+| Node-side glue (**M2.0.3 `Chain` driver skeleton**) | `mfn-node` | 10 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **335** | All checks green |
+| **Total** | | **345** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -217,6 +218,55 @@ See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF
 
 - **TS-side reference port for `storage_proof_leaf_hash` + `storage_proof_merkle_root`.** Same pattern as the other M2.0.x vectors — Rust pins the bytes; TS mirrors.
 - **Sparse-Merkle variant.** A future `mfn-light` could use a sparse storage-proof root keyed by `commit_hash` for log-size "did commitment C have a proof land in block N?" audits.
+
+---
+
+## Milestone M2.0.3 — `mfn-node` crate skeleton (✓ shipped)
+
+**Why it was next.** With M2.0.x done the consensus surface is **finished as a specification**: every body element is header-rooted, every header is BLS-signed by a quorum, every validator-set transition is authenticated, every byte format is canonical. The next strategic question is "how do we go from STF-in-a-test-harness to running-chain-in-a-process?" — and the answer starts with extracting the live-chain orchestration from the test harness and into a real, dedicated crate. M2.0.3 lands that crate with the smallest useful artifact: an in-memory `Chain` driver.
+
+### What shipped
+
+- **New workspace member `mfn-node`** ([`mfn-node/`](../mfn-node/) — Cargo.toml, lib.rs, README, src/, tests/).
+- **`Chain` driver** in [`mfn-node::chain`](../mfn-node/src/chain.rs):
+  - Owns a [`ChainState`]; applies blocks sequentially through `apply_block`.
+  - Public read-only accessors: `tip_height`, `tip_id`, `genesis_id`, `validators`, `total_stake`, `treasury`, `state`.
+  - Cheap diagnostic snapshot via [`ChainStats`].
+  - Apply API: `apply(&block) -> Result<[u8; 32], ChainError>`. On success the chain moves to the new tip; on failure the state is **byte-for-byte unchanged**.
+- **`ChainConfig` + `ChainError`** typed wrappers around `GenesisConfig` / `BlockError`. `ChainError::Reject` carries the proposed block id alongside the structured rejection list — RPC handlers and tests can log it without re-hashing.
+- **Integration test [`tests/single_validator_flow.rs`](../mfn-node/tests/single_validator_flow.rs)**: a 1-validator chain runs through 3 real BLS-signed blocks via the driver, asserting every block moves height + tip_id and the validator set / treasury stay consistent. Plus a "replay is rejected, state preserved" test that demonstrates the driver's never-partially-commit contract.
+
+### Design — why a separate crate?
+
+`mfn-consensus` is the **specification**: STF + canonical wire formats. It must remain library-pure (no IO, no async, no clock) so it can be ported to a future `mfn-light` crate, a `mfn-wasm` binding, and any number of independent implementations.
+
+`mfn-node` is the **first orchestration layer**. It tracks the live chain tip, owns `ChainState`, and is where mempool / P2P / RPC will eventually attach. Even at the skeleton stage that separation matters: a light client wants `apply_block` but not a `Chain` driver, and a daemon wants a `Chain` driver but shouldn't be reimplementing one against the spec.
+
+### Test matrix (delivered, 10 tests)
+
+- ✓ `from_genesis_lands_at_height_zero` — construction → `tip_height = Some(0)`, `tip_id == genesis_id`, empty validator set.
+- ✓ `apply_two_empty_blocks_in_sequence` — back-to-back empty-block application advances height + tip_id deterministically.
+- ✓ `block_with_wrong_prev_hash_is_rejected_state_untouched` — bad-prev-hash rejected; `ChainStats` snapshot unchanged after.
+- ✓ `block_with_wrong_height_is_rejected` — bad-height rejected; state preserved.
+- ✓ `stats_track_block_application` — `ChainStats` reflects post-block state.
+- ✓ `genesis_is_deterministic_across_constructions` — same config → same genesis_id; same `ChainStats`.
+- ✓ `tip_id_equals_genesis_id_at_construction` — invariant at height 0.
+- ✓ `one_validator_three_blocks_advance_through_chain_driver` — full BLS-signed end-to-end loop.
+- ✓ `chain_stats_agree_with_individual_accessors_after_run` — snapshot ↔ accessor parity after 3 blocks.
+- ✓ `replaying_a_block_is_rejected_state_preserved` — never-partially-commit contract.
+
+### What's deliberately *not* in M2.0.3
+
+These are the next M2.x sub-milestones (each scoped to be small enough to land "small but right"):
+
+- **Mempool primitives** — pending-tx admission, fee ordering, replace-by-fee. Pure library, attaches around `Chain`.
+- **Producer loop helper** — given current state + slot + producer keys, build a candidate block. Wraps `build_unsealed_header` + producer-proof + `seal_block` into a single call.
+- **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`.
+- **Persistent store (`mfn-node::store`)** — RocksDB-backed deterministic chain-state persistence + snapshot/replay.
+- **RPC server (`mfn-node::rpc`)** — JSON-RPC + WebSocket. Block / tx / balance / storage-status queries.
+- **Daemon binary (`bin/mfnd`)** — the entrypoint that wires it all together.
+
+Each will be its own commit. The user-stated principle ("commit and push periodically when something whole is done no matter how big or small") makes this the right shape.
 
 ---
 

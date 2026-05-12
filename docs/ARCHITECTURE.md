@@ -736,6 +736,12 @@ mfn-consensus/      Chain state machine        (135 tests: 121 unit + 14 integra
 ├── storage.rs      Re-exports mfn-storage commitment types
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
                     M2.0.2 storage-proof root binding
+
+mfn-node/           Node-side glue             (10 tests: 7 unit + 3 integration)
+└── chain.rs        Chain driver: owns ChainState, applies blocks through
+                    apply_block, exposes read-only accessors and typed errors.
+                    Foundation for future mempool / producer-loop / RPC / P2P /
+                    store sub-milestones.
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).

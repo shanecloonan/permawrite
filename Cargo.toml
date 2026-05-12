@@ -5,6 +5,7 @@ members = [
     "mfn-bls",
     "mfn-storage",
     "mfn-consensus",
+    "mfn-node",
 ]
 
 [workspace.package]
