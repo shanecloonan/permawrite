@@ -310,7 +310,7 @@ sequenceDiagram
     M->>P: Forward tx pool
 
     Note over P: Slot S elapses
-    P->>P: Compute VRF over slot_seed(prev_id, S)<br/>If output &lt; eligibility_threshold(stake, total_stake), eligible
+    P->>P: Compute VRF over slot_seed(prev_id&#44; S)<br/>Eligible iff output &lt; eligibility_threshold(stake&#44; total_stake)
     P->>P: Gather txs + slashings + storage_proofs<br/>Build BlockHeader · broadcast for voting
 
     P->>C: header_signing_hash(header)
