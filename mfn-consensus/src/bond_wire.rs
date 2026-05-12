@@ -325,4 +325,47 @@ mod tests {
         bytes.push(0xAA);
         assert!(decode_bond_op(&bytes).is_err());
     }
+
+    /// Wire + leaf from the deterministic Unbond reference vector used by
+    /// the TypeScript reference client in
+    /// `cloonan-group/scripts/smoke-bond.ts` (`GOLDEN_UNBOND_OP_*`).
+    ///
+    /// Construction (byte-identical across implementations):
+    ///   - BLS keypair = `bls_keygen_from_seed(&[1, 2, 3, ..., 48])`
+    ///   - validator_index = 7
+    ///   - sig = `sign_unbond(7, &bls.sk)`
+    ///
+    /// BLS signatures `sig = sk · H(m)` over BLS12-381 are deterministic
+    /// (no nonce), so the wire bytes are reproducible without an RNG.
+    /// Any divergence here is a wire-format mismatch with the TS
+    /// reference and must be treated as a consensus-breaking change.
+    #[test]
+    fn bond_unbond_wire_matches_cloonan_ts_smoke_reference() {
+        const WIRE_HEX: &str = "0100000007a23607ffd488bbf50edaa45790118204321064a895ba974faf132337b21cc0190d1bf3e7d82399b7b954f310860aa9fd06cf898bce3b2a7731f685345b52f2008ecb526ec415694e665599d8859d3068bef8a4a0a98ff0a1e873acf82fd4e1e0";
+        const LEAF_HEX: &str = "6a51ca2c8e53443cfa9cdb096096097bcba3428098b628778cf55602207a5833";
+
+        let seed: Vec<u8> = (1u8..=48u8).collect();
+        let bls = bls_keygen_from_seed(&seed);
+        let idx = 7u32;
+        let sig = sign_unbond(idx, &bls.sk);
+        let op = BondOp::Unbond {
+            validator_index: idx,
+            sig,
+        };
+
+        let wire = encode_bond_op(&op);
+        assert_eq!(hex::encode(&wire), WIRE_HEX, "unbond wire bytes drift");
+        assert_eq!(
+            hex::encode(bond_op_leaf_hash(&op)),
+            LEAF_HEX,
+            "unbond leaf hash drift"
+        );
+
+        let decoded = decode_bond_op(&wire).expect("decode unbond reference");
+        assert_eq!(decoded, op);
+        assert!(
+            verify_unbond_sig(idx, &sig, &bls.pk),
+            "reference signature must verify under the reference public key"
+        );
+    }
 }

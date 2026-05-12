@@ -675,7 +675,7 @@ mfn-storage/        Permanence                 (32 tests)
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (107 tests: 99 unit + 8 integration)
+mfn-consensus/      Chain state machine        (108 tests: 100 unit + 8 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization

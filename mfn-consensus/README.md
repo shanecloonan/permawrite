@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 107 passing (99 unit + 8 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 108 passing (100 unit + 8 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -228,7 +228,7 @@ pub enum BlockError {
 - **Slashing** (equivocation: stake zeroed + forfeited stake credited to treasury; liveness: 8 unit tests + 1 multi-block integration test; both routed to treasury).
 - **Consensus** (finality verification, quorum threshold, missing producer proof).
 - **Roots** (tx_root, storage_root, bond_root, utxo_root reconstruction).
-- **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
+- **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `bond_unbond_wire_matches_cloonan_ts_smoke_reference`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
 - **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection).
 - **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 

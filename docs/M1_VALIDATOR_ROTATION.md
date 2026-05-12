@@ -1,6 +1,6 @@
 # M1 — Validator rotation (design + as-shipped reference)
 
-> **Status.** **Shipped.** `BondOp::Register` (burn-on-bond) and `BondOp::Unbond` (BLS-signed, delayed settlement) are wired through the full `apply_block` state-transition function with per-epoch entry / exit churn caps, atomic rollback, and slash-to-treasury parity. The only remaining tickets are (a) mempool-grade authorization for `BondOp::Register` and (b) the optional explicit operator payout on settlement — both deferred to a future milestone (see [§ Future work](#future-work)). TS reference parity is in place for `BondOp::Register`; the unbond vector is queued for the next interop bump.
+> **Status.** **Shipped.** `BondOp::Register` (burn-on-bond) and `BondOp::Unbond` (BLS-signed, delayed settlement) are wired through the full `apply_block` state-transition function with per-epoch entry / exit churn caps, atomic rollback, and slash-to-treasury parity. TS reference parity is in place for **both** `Register` and `Unbond` (see [`TS_BOND_GOLDEN_VECTORS.md`](./interop/TS_BOND_GOLDEN_VECTORS.md)). The only remaining tickets are (a) mempool-grade authorization for `BondOp::Register` and (b) the optional explicit operator payout on settlement — both deferred to a future milestone (see [§ Future work](#future-work)).
 
 ## Problem statement
 
@@ -153,6 +153,7 @@ Sealing this is a **hard precondition for mainnet** and is the only remaining wi
 - ✓ Settlement at `unlock_height` zeros stake + leaves bonded MFN in treasury *(`unbond_lifecycle_request_delay_settle`).*
 - ✓ Unbond signature is domain-separated and index-bound *(`bond_wire::tests::unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`).*
 - ✓ Bond-op wire is byte-identical with the TS reference for `Register` *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
+- ✓ Bond-op wire is byte-identical with the TS reference for `Unbond` *(`bond_unbond_wire_matches_cloonan_ts_smoke_reference`).*
 
 ## Future work
 
@@ -160,8 +161,7 @@ These are explicit, not bugs:
 
 1. **Mempool-grade authorization for `BondOp::Register`** — Schnorr-over-bond-bytes is the leading design (see [§ Mempool authorization](#mempool-authorization-for-bondopregister-open-question)). Hard precondition for mainnet.
 2. **Explicit operator payout on settlement.** Today the bonded MFN stays in the treasury on `unbond → settle`. A future milestone can re-introduce a payout (either via an augmented coinbase output, or a dedicated payout transaction class) without breaking the rotation primitive shipped here.
-3. **TS interop vector for `BondOp::Unbond`.** Queued — `BondOp::Register` parity is already enforced; the unbond vector will land alongside the next TS-bond bump.
-4. **Storage-operator bonding.** Separate from validator bonding. Out of scope for M1.
+3. **Storage-operator bonding.** Separate from validator bonding. Out of scope for M1.
 
 ## Code map
 

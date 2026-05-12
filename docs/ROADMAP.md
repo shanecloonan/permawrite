@@ -12,9 +12,9 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation**) | `mfn-consensus` | 107 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation**) | `mfn-consensus` | 108 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **300** | All checks green |
+| **Total** | | **301** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -95,6 +95,7 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - ✓ Settlement at `unlock_height` zeros stake + leaves bonded MFN in treasury *(`unbond_lifecycle_request_delay_settle`).*
 - ✓ Oversubscribed unbonds spill across blocks honoring the per-epoch exit cap *(`unbond_lifecycle_exit_churn_cap_spills_to_next_block`).*
 - ✓ TS interop: `BondOp::Register` byte parity with the `cloonan-group` smoke reference *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
+- ✓ TS interop: `BondOp::Unbond` byte parity with the `cloonan-group` smoke reference *(`bond_unbond_wire_matches_cloonan_ts_smoke_reference`).*
 
 ### Deferred to a future milestone
 
