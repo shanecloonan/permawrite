@@ -123,3 +123,10 @@ pub const REGISTER_OP_SIG: Domain = b"MFBN-1/register-op-sig";
 /// quorum threshold against this validator set without holding the full
 /// chain state.
 pub const VALIDATOR_LEAF: Domain = b"MFBN-1/validator-leaf";
+
+/// Merkle leaf for a piece of equivocation [`SlashEvidence`] committed
+/// under the block header's `slashing_root` (M2.0.1). The leaf hashes
+/// the canonicalized (sorted-pair) form of the evidence so two
+/// reorderings of the same conflict produce the same leaf and the
+/// Merkle root is reorder-stable.
+pub const SLASHING_LEAF: Domain = b"MFBN-1/slashing-leaf";

@@ -12,9 +12,9 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root**) | `mfn-consensus` | 124 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root**) | `mfn-consensus` | 133 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **317** | All checks green |
+| **Total** | | **326** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -140,6 +140,37 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 
 - **TS-side reference port for `validator_leaf_bytes` and `validator_set_root`.** Rust-side golden vectors are pinned in `validator_root_wire_matches_cloonan_ts_smoke_reference` (canonical bytes + leaf hash for both with-payout and no-payout branches, plus the root over a two-validator set); the matching TS smoke fixture will land in `cloonan-group` next.
 - **Light-client crate.** The header is now self-describing, but a separate `mfn-light` crate is intentionally postponed until the node daemon (M2.x) is up — without a real chain to query, there's nothing for the light client to verify against.
+
+---
+
+## Milestone M2.0.1 — Slashing-evidence Merkle root (✓ shipped)
+
+**Why it was next.** With M2.0 the header committed the *pre-block* validator set, but `block.slashings` (the equivocation evidence list) was still un-rooted. A light client would have to trust that a header's apparent slashings list was the producer's actual choice. Adding `slashing_root` closes that gap and finishes the header commitment family: every part of the block body except the producer-proof itself is now header-rooted.
+
+### What shipped
+
+- **`SLASHING_LEAF` domain tag** (`MFBN-1/slashing-leaf`).
+- **`slashing_leaf_hash` / `slashing_merkle_root`** in `mfn-consensus::slashing`. Each leaf is the domain-separated hash of one [`SlashEvidence`] in its **canonicalized** form (pair-order normalized) — so swapping `(hash_a, sig_a)` / `(hash_b, sig_b)` cannot forge a different leaf.
+- **`BlockHeader.slashing_root: [u8; 32]`**, included in both `header_signing_bytes` and `block_header_bytes`. Empty slashings list → all-zero sentinel.
+- **`build_unsealed_header` gained a `slashings: &[SlashEvidence]` parameter** so producers commit the root alongside everything else when building the unsealed header.
+- **`apply_block` Phase 1 check + `BlockError::SlashingRootMismatch`.** Runs before finality verification (defense in depth, same posture as `validator_root`).
+- **TS-parity golden vector** under the existing `bls_keygen_from_seed([1..=48])` convention. Exercises both the no-swap branch (`e0`, header_hash_a < header_hash_b in emit order) and the swap branch (`e1`, header_hash_a > header_hash_b) plus the Merkle root over both.
+
+### Test matrix (delivered)
+
+- ✓ Empty list → zero sentinel.
+- ✓ Pair-order swap inside a single evidence is leaf-invariant.
+- ✓ Field-level sensitivity (height, voter_index, …) — each materially changes the leaf.
+- ✓ Adding evidence moves the root.
+- ✓ Order across evidence pieces is committed (Merkle structure).
+- ✓ Leaf domain-separated (`MFBN-1/slashing-leaf` not confusable with any other dhash domain).
+- ✓ Tampered `header.slashing_root` rejected by `apply_block` (legacy/no-validator mode).
+- ✓ Tampered `header.slashing_root` in a fully BLS-signed block rejected.
+- ✓ TS-parity golden vector pinned.
+
+### Deferred
+
+- **TS-side reference port for `slashing_leaf_hash` + `slashing_merkle_root`.** Same pattern as `validator_root` — Rust pins the bytes; TS mirrors.
 
 ---
 

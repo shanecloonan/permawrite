@@ -93,8 +93,8 @@ pub use emission::{
     DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
 };
 pub use slashing::{
-    canonicalize, decode_evidence, encode_evidence, verify_evidence, EvidenceCheck,
-    SlashDecodeError, SlashEvidence,
+    canonicalize, decode_evidence, encode_evidence, slashing_leaf_hash, slashing_merkle_root,
+    verify_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,
 };
 pub use storage::{storage_commitment_hash, StorageCommitment};
 pub use transaction::{

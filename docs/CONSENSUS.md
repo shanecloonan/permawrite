@@ -404,6 +404,7 @@ Every block header now also commits to the validator set the block was produced 
 struct BlockHeader {
     // ...
     bond_root:      [u8; 32],
+    slashing_root:  [u8; 32],   // ← M2.0.1 — merkle over block.slashings
     validator_root: [u8; 32],   // ← M2.0
     producer_proof: Vec<u8>,
     utxo_root:      [u8; 32],
@@ -428,7 +429,14 @@ What this **doesn't** commit:
 
 - `ValidatorStats` (liveness counters) — they churn every block; leaving them out keeps the root stable across blocks that didn't change the set. Light clients don't need them.
 
-Reference root commitments under the header are now `tx_root`, `bond_root`, `validator_root`, `storage_root`, `utxo_root` — covering txs, validator-set deltas, the live validator set, newly-anchored storage, and the post-block UTXO accumulator. Domain tag for the new leaf: `MFBN-1/validator-leaf`.
+Reference root commitments under the header are now `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_root`, `utxo_root` — covering txs, validator-set deltas, equivocation evidence, the live validator set, newly-anchored storage, and the post-block UTXO accumulator. The header binds the entire block body except the producer proof itself. Domain tags for the new leaves: `MFBN-1/validator-leaf` (M2.0), `MFBN-1/slashing-leaf` (M2.0.1).
+
+### Slashing-evidence commitment (M2.0.1)
+
+Each leaf is the domain-separated hash of one equivocation piece in its canonicalized form — `canonicalize()` orders the conflicting `(hash_a, sig_a)` / `(hash_b, sig_b)` pair lexicographically by hash before encoding, so swapping the pair produces the same leaf. The Merkle root over all leaves (in the producer's emit order) is rooted under the header. Two consequences:
+
+- A light client can verify the slashings list independently of the rest of the block body — just request `block.slashings`, recompute leaves, recompute the root, compare against `header.slashing_root`.
+- An adversarial producer cannot forge "phantom" slashings: any leaf added to or removed from the list moves the root, and any pair-order tampering is canonicalized away before hashing.
 
 ### Tests added for M2.0
 

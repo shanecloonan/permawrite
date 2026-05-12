@@ -98,6 +98,12 @@ pub struct BlockHeader {
     pub storage_root: [u8; 32],
     /// Merkle root of [`Block::bond_ops`] (all-zero if empty).
     pub bond_root: [u8; 32],
+    /// Merkle root of [`Block::slashings`] (all-zero if empty). Each
+    /// leaf is the canonicalized form of one equivocation evidence
+    /// piece — so two reorderings of the same conflict hash to the
+    /// same leaf. Lets a light client verify the slashings list
+    /// independently of the rest of the chain state. (M2.0.1)
+    pub slashing_root: [u8; 32],
     /// Merkle root of the **pre-block** validator set
     /// (see [`crate::consensus::validator_set_root`]). Committing the
     /// *pre-block* set — the one this block's `producer_proof` is
@@ -155,6 +161,7 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.tx_root);
     w.push(&h.storage_root);
     w.push(&h.bond_root);
+    w.push(&h.slashing_root);
     w.push(&h.validator_root);
     w.into_bytes()
 }
@@ -177,6 +184,7 @@ pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.tx_root);
     w.push(&h.storage_root);
     w.push(&h.bond_root);
+    w.push(&h.slashing_root);
     w.push(&h.validator_root);
     w.blob(&h.producer_proof);
     w.push(&h.utxo_root);
@@ -471,6 +479,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         tx_root: [0u8; 32],
         storage_root,
         bond_root: [0u8; 32],
+        slashing_root: [0u8; 32],
         validator_root: [0u8; 32],
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&tree),
@@ -548,6 +557,7 @@ pub fn build_unsealed_header(
     state: &ChainState,
     txs: &[TransactionWire],
     bond_ops: &[BondOp],
+    slashings: &[SlashEvidence],
     slot: u32,
     timestamp: u64,
 ) -> BlockHeader {
@@ -592,6 +602,7 @@ pub fn build_unsealed_header(
         tx_root: tx_merkle_root(txs),
         storage_root: storage_merkle_root(&new_storages),
         bond_root: bond_merkle_root(bond_ops),
+        slashing_root: crate::slashing::slashing_merkle_root(slashings),
         // Commit to the validator set the block was produced against —
         // i.e., the *pre-block* set held by `state`. Any rotation /
         // slashing applied in this block moves the *next* header's
@@ -730,6 +741,18 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let expected_bond_root = bond_merkle_root(&block.bond_ops);
     if expected_bond_root != block.header.bond_root {
         errors.push(BlockError::BondRootMismatch);
+    }
+
+    // ---- Slashing evidence merkle root (M2.0.1) ----
+    //
+    // Each piece of evidence is canonicalized in `slashing_leaf_hash`,
+    // so swapping the (hash_a, sig_a) / (hash_b, sig_b) pair cannot
+    // forge a different leaf. The root commits the slashing list under
+    // the header so a light client can verify it without the rest of
+    // the block body.
+    let expected_slashing_root = crate::slashing::slashing_merkle_root(&block.slashings);
+    if expected_slashing_root != block.header.slashing_root {
+        errors.push(BlockError::SlashingRootMismatch);
     }
 
     // ---- Validator-set merkle root (pre-block commitment, M2.0) ----
@@ -1509,6 +1532,10 @@ pub enum BlockError {
     /// Header `bond_root` didn't match the locally-recomputed bond Merkle root.
     #[error("bond_root mismatch")]
     BondRootMismatch,
+    /// Header `slashing_root` didn't match the locally-recomputed
+    /// Merkle root over `block.slashings` (M2.0.1).
+    #[error("slashing_root mismatch")]
+    SlashingRootMismatch,
     /// Header `validator_root` didn't match the locally-recomputed Merkle
     /// root over the pre-block validator set (M2.0).
     #[error("validator_root mismatch")]
@@ -1769,7 +1796,7 @@ mod tests {
     #[test]
     fn empty_block_applies_in_legacy_mode() {
         let st = genesis_state();
-        let header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         let blk = seal_block(
             header,
             Vec::new(),
@@ -1790,7 +1817,7 @@ mod tests {
     #[test]
     fn bad_height_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         header.height = 99;
         // Have to recompute prev_hash + utxo_root for the bad height since
         // they're independent... actually no, only height is wrong here, so
@@ -1817,7 +1844,7 @@ mod tests {
     #[test]
     fn bad_prev_hash_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         header.prev_hash = [9u8; 32];
         let blk = seal_block(
             header,
@@ -1840,7 +1867,7 @@ mod tests {
     #[test]
     fn tx_root_mismatch_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         header.tx_root[0] ^= 0xff;
         let blk = seal_block(
             header,
@@ -1863,7 +1890,7 @@ mod tests {
     #[test]
     fn bond_root_mismatch_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         header.bond_root[0] ^= 0xff;
         let blk = seal_block(
             header,
@@ -1884,13 +1911,40 @@ mod tests {
     }
 
     #[test]
+    fn slashing_root_mismatch_is_rejected() {
+        // Build a valid empty-slashings block in legacy/no-validator
+        // mode, then flip one byte of `header.slashing_root` to a value
+        // the empty list cannot produce.
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
+        assert_eq!(header.slashing_root, [0u8; 32]);
+        header.slashing_root[0] = 0xff;
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::SlashingRootMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
     fn validator_root_mismatch_is_rejected() {
         // Build a valid empty block (legacy / no-validator mode is fine —
         // the validator-root check runs *regardless* of validator-set
         // size), then flip one byte of `header.validator_root` to a
         // value the pre-block state cannot produce.
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         // No validators ⇒ pre-block root is the all-zero sentinel.
         assert_eq!(header.validator_root, [0u8; 32]);
         header.validator_root[0] = 0xff;
@@ -1935,7 +1989,7 @@ mod tests {
         st.validator_stats.push(ValidatorStats::default());
         st.next_validator_index = 1;
 
-        let header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         assert_eq!(header.validator_root, validator_set_root(&st.validators));
         assert_ne!(header.validator_root, [0u8; 32]);
     }
@@ -1967,7 +2021,7 @@ mod tests {
             sig: crate::bond_wire::sign_register(stake_bad, &vrf_bad, &bls2.pk, None, &bls2.sk),
         };
         let bond_ops = vec![ok_op, bad_op];
-        let header = build_unsealed_header(&st, &[], &bond_ops, 1, 100);
+        let header = build_unsealed_header(&st, &[], &bond_ops, &[], 1, 100);
         let blk = seal_block(
             header,
             Vec::new(),
@@ -2014,7 +2068,7 @@ mod tests {
             payout: None,
             sig: forged,
         };
-        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&op), 1, 100);
+        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&op), &[], 1, 100);
         let blk = seal_block(
             header,
             Vec::new(),
@@ -2051,7 +2105,7 @@ mod tests {
             validator_index: 42,
             sig: crate::bond_wire::sign_unbond(42, &bls.sk),
         };
-        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&unbond), 1, 100);
+        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&unbond), &[], 1, 100);
         let blk = seal_block(
             header,
             Vec::new(),
@@ -2097,7 +2151,7 @@ mod tests {
     #[test]
     fn utxo_root_mismatch_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         header.utxo_root[0] ^= 0xff;
         let blk = seal_block(
             header,
@@ -2120,7 +2174,7 @@ mod tests {
     #[test]
     fn header_signing_hash_excludes_producer_proof() {
         let st = genesis_state();
-        let h0 = build_unsealed_header(&st, &[], &[], 1, 100);
+        let h0 = build_unsealed_header(&st, &[], &[], &[], 1, 100);
         let hash0 = header_signing_hash(&h0);
         let mut h1 = h0.clone();
         h1.producer_proof = b"this is whatever the producer attaches".to_vec();
@@ -2200,7 +2254,7 @@ mod tests {
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], &[], 5_000, 1_000);
+        let unsealed = build_unsealed_header(&state0, &[], &[], &[], 5_000, 1_000);
         let p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -2240,7 +2294,7 @@ mod tests {
             None,
         )
         .unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], &[], 1, 100);
+        let unsealed = build_unsealed_header(&state0, &[], &[], &[], 1, 100);
         let p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -2291,7 +2345,7 @@ mod tests {
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], &[], 1, 100);
+        let unsealed = build_unsealed_header(&state0, &[], &[], &[], 1, 100);
         let mut p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -2410,7 +2464,7 @@ mod tests {
         .expect("sign");
 
         let unsealed =
-            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], 1, 100);
+            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], &[], 1, 100);
         let block = seal_block(
             unsealed,
             vec![signed.tx],
@@ -2520,7 +2574,7 @@ mod tests {
         .expect("sign");
 
         let unsealed =
-            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], 1, 100);
+            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], &[], 1, 100);
         let block = seal_block(
             unsealed,
             vec![signed.tx],
@@ -2868,7 +2922,7 @@ mod tests {
             sig: crate::bond_wire::sign_register(stake, &vrf_pk, &bls.pk, None, &bls.sk),
         };
         let bond_ops = vec![bond];
-        let header = build_unsealed_header(&st, &[], &bond_ops, 1, 100);
+        let header = build_unsealed_header(&st, &[], &bond_ops, &[], 1, 100);
         let blk = seal_block(
             header,
             Vec::new(),
@@ -2914,7 +2968,7 @@ mod tests {
                 sig: crate::bond_wire::sign_register(min * 3, &vrf2, &bls2.pk, None, &bls2.sk),
             },
         ];
-        let header = build_unsealed_header(&st, &[], &ops, 1, 100);
+        let header = build_unsealed_header(&st, &[], &ops, &[], 1, 100);
         let blk = seal_block(header, Vec::new(), ops, Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Ok { state, .. } => {
@@ -2954,7 +3008,7 @@ mod tests {
                 sig: crate::bond_wire::sign_register(1, &vrf2, &bls2.pk, None, &bls2.sk),
             },
         ];
-        let header = build_unsealed_header(&st, &[], &ops, 1, 100);
+        let header = build_unsealed_header(&st, &[], &ops, &[], 1, 100);
         let blk = seal_block(header, Vec::new(), ops, Vec::new(), Vec::new(), Vec::new());
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { .. } => {

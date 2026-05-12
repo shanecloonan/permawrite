@@ -25,6 +25,9 @@
 
 use mfn_bls::{bls_verify, decode_signature, encode_signature, BlsSignature};
 use mfn_crypto::codec::{Reader, Writer};
+use mfn_crypto::domain::SLASHING_LEAF;
+use mfn_crypto::hash::dhash;
+use mfn_crypto::merkle::merkle_root_or_zero;
 
 use crate::consensus::Validator;
 
@@ -120,6 +123,45 @@ pub fn canonicalize(e: &SlashEvidence) -> SlashEvidence {
             sig_b: e.sig_a,
         }
     }
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Merkle commitment (M2.0.1)                                              *
+ * ----------------------------------------------------------------------- */
+
+/// 32-byte Merkle leaf hash for a single piece of [`SlashEvidence`].
+///
+/// Canonicalizes first so two reorderings of the same equivocation
+/// (same `(height, slot, voter_index)` with the header-hashes swapped)
+/// yield the same leaf. Without canonicalization, an attacker could
+/// flip the pair ordering to produce a different `slashing_root`
+/// without changing the underlying slash semantics.
+///
+/// Domain-separated under [`SLASHING_LEAF`] so the leaf cannot be
+/// reinterpreted as any other consensus message.
+#[must_use]
+pub fn slashing_leaf_hash(e: &SlashEvidence) -> [u8; 32] {
+    let canon = canonicalize(e);
+    dhash(SLASHING_LEAF, &[&encode_evidence(&canon)])
+}
+
+/// Merkle root over the block's slashings in their order-as-emitted by
+/// the producer. Returns the 32-byte zero sentinel for an empty list
+/// (matches every other consensus root).
+///
+/// **Why not sort?** Each leaf already canonicalizes the pair-order of
+/// the BLS signatures internally, so the only ordering choice left is
+/// across distinct pieces of evidence. Keeping the producer's emitted
+/// order avoids forcing the block applier to re-sort just to verify
+/// `header.slashing_root`, and the existing `apply_block` rejects
+/// duplicate validator_indices anyway.
+#[must_use]
+pub fn slashing_merkle_root(evidence: &[SlashEvidence]) -> [u8; 32] {
+    if evidence.is_empty() {
+        return [0u8; 32];
+    }
+    let leaves: Vec<[u8; 32]> = evidence.iter().map(slashing_leaf_hash).collect();
+    merkle_root_or_zero(&leaves)
 }
 
 /* ----------------------------------------------------------------------- *
@@ -283,5 +325,161 @@ mod tests {
         // And running it again is a no-op.
         let canon2 = canonicalize(&canon);
         assert_eq!(canon2.header_hash_a, canon.header_hash_a);
+    }
+
+    /* ------------------------------------------------------------- *
+     *  Merkle commitment (M2.0.1)                                    *
+     * ------------------------------------------------------------- */
+
+    #[test]
+    fn slashing_merkle_root_empty_is_zero_sentinel() {
+        assert_eq!(slashing_merkle_root(&[]), [0u8; 32]);
+    }
+
+    #[test]
+    fn slashing_leaf_is_reorder_stable() {
+        // canonicalize() ensures the same equivocation hashes to the
+        // same leaf regardless of which sig is presented as `a` vs
+        // `b`. Verify that property is preserved through the leaf
+        // hash itself.
+        let (_val, bls) = fresh_validator(0, 100);
+        let ev_forward = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);
+        // Swap a/b.
+        let ev_reversed = SlashEvidence {
+            height: ev_forward.height,
+            slot: ev_forward.slot,
+            voter_index: ev_forward.voter_index,
+            header_hash_a: ev_forward.header_hash_b,
+            sig_a: ev_forward.sig_b,
+            header_hash_b: ev_forward.header_hash_a,
+            sig_b: ev_forward.sig_a,
+        };
+        assert_eq!(
+            slashing_leaf_hash(&ev_forward),
+            slashing_leaf_hash(&ev_reversed),
+            "slashing leaf must be reorder-stable under pair-swap"
+        );
+    }
+
+    #[test]
+    fn slashing_leaf_changes_when_evidence_changes() {
+        let (_val, bls) = fresh_validator(0, 100);
+        let base = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);
+        let h_base = slashing_leaf_hash(&base);
+
+        let mut other_height = base.clone();
+        other_height.height = base.height + 1;
+        // Note: height differs but sigs are over the same hashes, so we
+        // bypass verify (leaf-hash is a pure structural commitment).
+        assert_ne!(h_base, slashing_leaf_hash(&other_height));
+
+        let mut other_voter = base.clone();
+        other_voter.voter_index = 99;
+        assert_ne!(h_base, slashing_leaf_hash(&other_voter));
+    }
+
+    #[test]
+    fn slashing_merkle_root_changes_with_addition() {
+        let (_v0, b0) = fresh_validator(0, 100);
+        let (_v1, b1) = fresh_validator(1, 100);
+        let e0 = ev_for(0, &b0.sk, [1u8; 32], [2u8; 32]);
+        let e1 = ev_for(1, &b1.sk, [3u8; 32], [4u8; 32]);
+        let r_one = slashing_merkle_root(std::slice::from_ref(&e0));
+        let r_two = slashing_merkle_root(&[e0, e1]);
+        assert_ne!(r_one, r_two);
+    }
+
+    #[test]
+    fn slashing_merkle_root_is_order_sensitive_across_evidence() {
+        // Within a single piece of evidence, pair-swap is canonicalized
+        // away. But across distinct evidence pieces, order matters —
+        // we keep the producer's emitted order as the commitment.
+        let (_v0, b0) = fresh_validator(0, 100);
+        let (_v1, b1) = fresh_validator(1, 100);
+        let e0 = ev_for(0, &b0.sk, [1u8; 32], [2u8; 32]);
+        let e1 = ev_for(1, &b1.sk, [3u8; 32], [4u8; 32]);
+        let r_a = slashing_merkle_root(&[e0.clone(), e1.clone()]);
+        let r_b = slashing_merkle_root(&[e1, e0]);
+        assert_ne!(r_a, r_b);
+    }
+
+    #[test]
+    fn slashing_leaf_is_domain_separated() {
+        let (_val, bls) = fresh_validator(0, 100);
+        let ev = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);
+        let leaf = slashing_leaf_hash(&ev);
+        let canon = canonicalize(&ev);
+        let other = mfn_crypto::hash::dhash(b"MFBN-1/not-a-slashing-leaf", &[&encode_evidence(&canon)]);
+        assert_ne!(leaf, other);
+    }
+
+    /// TS-parity golden vector for the M2.0.1 slashing-root commitment.
+    ///
+    /// Pinned to the same `bls_keygen_from_seed([1..=48])` convention
+    /// used by `BondOp::{Register, Unbond}` so a single TS smoke
+    /// fixture can cover all three (`bond_root`-component + this).
+    ///
+    /// **Reference inputs:**
+    /// - `bls_keypair` = `bls_keygen_from_seed([1, 2, …, 48])`
+    /// - `e0`: height=10, slot=11, voter_index=7,
+    ///   header_hash_a = [0xaa; 32], header_hash_b = [0xbb; 32]
+    ///   (so the producer's emit order already matches canonical
+    ///   form, exercising the no-swap branch).
+    /// - `e1`: height=12, slot=13, voter_index=8,
+    ///   header_hash_a = [0xee; 32], header_hash_b = [0xcc; 32]
+    ///   (a > b, so canonicalize() will swap — exercises the swap
+    ///   branch).
+    /// - Root computed over `[e0, e1]` in emit order.
+    #[test]
+    fn slashing_root_wire_matches_cloonan_ts_smoke_reference() {
+        let mut seed = [0u8; 48];
+        for (i, b) in seed.iter_mut().enumerate() {
+            *b = (i as u8) + 1;
+        }
+        let bls = bls_keygen_from_seed(&seed);
+
+        let h_aa = [0xaau8; 32];
+        let h_bb = [0xbbu8; 32];
+        let e0 = SlashEvidence {
+            height: 10,
+            slot: 11,
+            voter_index: 7,
+            header_hash_a: h_aa,
+            sig_a: bls_sign(&h_aa, &bls.sk),
+            header_hash_b: h_bb,
+            sig_b: bls_sign(&h_bb, &bls.sk),
+        };
+
+        let h_ee = [0xeeu8; 32];
+        let h_cc = [0xccu8; 32];
+        let e1 = SlashEvidence {
+            height: 12,
+            slot: 13,
+            voter_index: 8,
+            header_hash_a: h_ee,
+            sig_a: bls_sign(&h_ee, &bls.sk),
+            header_hash_b: h_cc,
+            sig_b: bls_sign(&h_cc, &bls.sk),
+        };
+
+        let leaf0 = slashing_leaf_hash(&e0);
+        let leaf1 = slashing_leaf_hash(&e1);
+        let root = slashing_merkle_root(&[e0, e1]);
+
+        assert_eq!(
+            hex::encode(leaf0),
+            "e58150a4f83124653f2d2ad1a54274fa5c3410dfaac3278df7c03d1db24141aa",
+            "slashing leaf for e0 drifted"
+        );
+        assert_eq!(
+            hex::encode(leaf1),
+            "d400dc0d29f652537d0fead9d400b2774fa6fde6c9f586067e5aab781a2a14d5",
+            "slashing leaf for e1 (swap-branch) drifted"
+        );
+        assert_eq!(
+            hex::encode(root),
+            "24670a15fe826c64880104caf7ca5a86c48e7532a40e5271d1b40d0198206480",
+            "slashing_merkle_root over [e0, e1] drifted"
+        );
     }
 }

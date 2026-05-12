@@ -113,6 +113,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/register-op-sig` | `BondOp::Register` BLS-signed authorization payload (M1.5) |
 | `MFBN-1/unbond-op-sig` | `BondOp::Unbond` BLS-signed authorization payload (M1) |
 | `MFBN-1/validator-leaf` | Validator-set Merkle leaf (M2.0) |
+| `MFBN-1/slashing-leaf` | Slashing-evidence Merkle leaf (M2.0.1) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -220,6 +221,7 @@ struct BlockHeader {
     tx_root:        [u8; 32],   // merkle over tx_ids
     storage_root:   [u8; 32],   // merkle over storage commitment hashes
     bond_root:      [u8; 32],   // M1 — merkle over bond_ops (zero sentinel if empty)
+    slashing_root:  [u8; 32],   // M2.0.1 — merkle over slashings (zero sentinel if empty)
     validator_root: [u8; 32],   // M2.0 — merkle over *pre-block* validator set
     producer_proof: Vec<u8>,    // MFBN-encoded FinalityProof
     utxo_root:      [u8; 32],   // accumulator root *after* this block applies
@@ -346,6 +348,7 @@ The block's lifecycle once it reaches a node:
 
 - Reconstruct `tx_root` from `txs` and reject if `header.tx_root` differs.
 - Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
+- **Reconstruct `slashing_root` from `block.slashings` (M2.0.1).** Each leaf is the canonicalized form of one equivocation evidence piece (pair-order normalized so a swapped `(hash_a, hash_b)` hashes to the same leaf). Empty list → all-zero sentinel.
 - **Reconstruct `validator_root` from the *pre-block* validator set (M2.0)** and reject if it differs from `header.validator_root`. Committing to the pre-block set means a light client can verify Phase 0's finality proof from the header alone, *before* it has any of this block's state. Rotation / slashing / unbond settlement applied later in `apply_block` move the **next** header's `validator_root`, not this one's.
 - Build the list of new storage commitments anchored in this block (from `txs[*].storage_commit` and `Block.slashings` etc.). Reconstruct `storage_root`.
 
@@ -453,7 +456,7 @@ Walk `next.pending_unbonds` in ascending `validator_index` order. For each entry
 - Append `block_id(header)` to `next.block_ids`.
 - Return `Ok(next)`.
 
-(Per-input Merkle roots — `tx_root`, `bond_root`, `validator_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here.)
+(Per-input Merkle roots — `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here. The header now binds the entire block body except the producer proof itself.)
 
 ---
 
@@ -700,7 +703,7 @@ mfn-storage/        Permanence                 (32 tests)
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (124 tests: 112 unit + 12 integration)
+mfn-consensus/      Chain state machine        (133 tests: 120 unit + 13 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
