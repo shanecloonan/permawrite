@@ -1,10 +1,11 @@
 //! Validator bonding and rotation **parameters** (Milestone M1).
 //!
 //! The full state transition (bond / unbond txs, churn queues) is specified
-//! in [`docs/M1_VALIDATOR_ROTATION.md`](../../docs/M1_VALIDATOR_ROTATION.md)
-//! and will plug into [`crate::block::apply_block`] in a follow-up PR.
-//! This module ships **defaults** and **pure validation helpers** so every
-//! later change has a single source of truth for numeric bounds.
+//! in [`docs/M1_VALIDATOR_ROTATION.md`](../../docs/M1_VALIDATOR_ROTATION.md).
+//! [`crate::bond_wire::BondOp`] registration is enforced in
+//! [`crate::block::apply_block`]; this module ships **defaults** and **pure
+//! validation helpers** so every later change has a single source of truth
+//! for numeric bounds.
 
 use thiserror::Error;
 

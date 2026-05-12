@@ -356,7 +356,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let txs_b1: Vec<_> = vec![coinbase_b1.clone(), signed.tx.clone()];
 
     // Unsealed header → produce finality → seal.
-    let unsealed = build_unsealed_header(&state0, &txs_b1, 1, 100);
+    let unsealed = build_unsealed_header(&state0, &txs_b1, &[], 1, 100);
     let header_hash = header_signing_hash(&unsealed);
     let ctx_b1 = SlotContext {
         height: 1,
@@ -417,6 +417,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let block1 = seal_block(
         unsealed,
         txs_b1,
+        Vec::new(),
         encode_finality_proof(&fin),
         Vec::new(),
         Vec::new(),
@@ -466,7 +467,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     };
 
     let txs_b2 = vec![coinbase_b2];
-    let unsealed_b2 = build_unsealed_header(&state1, &txs_b2, 2, 200);
+    let unsealed_b2 = build_unsealed_header(&state1, &txs_b2, &[], 2, 200);
     let header_hash_b2 = header_signing_hash(&unsealed_b2);
     let ctx_b2 = SlotContext {
         height: 2,
@@ -525,6 +526,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let block2 = seal_block(
         unsealed_b2,
         txs_b2,
+        Vec::new(),
         encode_finality_proof(&fin_b2),
         vec![evidence],
         Vec::new(),
@@ -604,7 +606,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     /* ----- Block 1: ship a storage proof at slot 5_000 ----- */
     let slot_b1 = 5_000u32;
     let timestamp_b1: u64 = 1_000;
-    let unsealed_b1 = build_unsealed_header(&state0, &[], slot_b1, timestamp_b1);
+    let unsealed_b1 = build_unsealed_header(&state0, &[], &[], slot_b1, timestamp_b1);
     let storage_proof = build_storage_proof(
         &built.commit,
         &unsealed_b1.prev_hash,
@@ -615,6 +617,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     .expect("build proof");
     let block1 = seal_block(
         unsealed_b1,
+        Vec::new(),
         Vec::new(),
         Vec::new(),
         Vec::new(),
@@ -637,7 +640,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     /* ----- Block 2: duplicate proof must be rejected ----- */
     let slot_b2 = 5_100u32;
     let timestamp_b2: u64 = 2_000;
-    let unsealed_b2 = build_unsealed_header(&state1, &[], slot_b2, timestamp_b2);
+    let unsealed_b2 = build_unsealed_header(&state1, &[], &[], slot_b2, timestamp_b2);
     let storage_proof_b2 = build_storage_proof(
         &built.commit,
         &unsealed_b2.prev_hash,
@@ -649,6 +652,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     let dup_proof = storage_proof_b2.clone();
     let block2 = seal_block(
         unsealed_b2,
+        Vec::new(),
         Vec::new(),
         Vec::new(),
         Vec::new(),
@@ -775,7 +779,7 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
 
         let txs = vec![cb];
-        let unsealed = build_unsealed_header(&state, &txs, height, u64::from(height) * 100);
+        let unsealed = build_unsealed_header(&state, &txs, &[], height, u64::from(height) * 100);
         let header_hash = header_signing_hash(&unsealed);
         let ctx = SlotContext {
             height,
@@ -827,6 +831,7 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         let block = seal_block(
             unsealed,
             txs,
+            Vec::new(),
             encode_finality_proof(&fin),
             Vec::new(),
             Vec::new(),

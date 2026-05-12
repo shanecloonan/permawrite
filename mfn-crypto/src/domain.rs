@@ -103,3 +103,6 @@ pub const UTXO_EMPTY: Domain = b"MFBN-1/utxo-empty";
 
 /// One-out-of-Many Fiat-Shamir challenge.
 pub const OOM_CHALLENGE: Domain = b"MFBN-1/oom-challenge";
+
+/// Merkle leaf for a validator bond operation (M1 rotation).
+pub const BOND_OP_LEAF: Domain = b"MFBN-1/bond-op-leaf";

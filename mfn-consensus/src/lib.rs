@@ -15,8 +15,9 @@
 //!   addresses, pseudo-output blindings that prove balance without revealing
 //!   amounts.
 //! - [`bonding`] — validator rotation **defaults** (M1): min stake, unbond
-//!   delay, per-epoch churn caps; wire + `apply_block` integration is tracked
-//!   in [`docs/M1_VALIDATOR_ROTATION.md`](../../docs/M1_VALIDATOR_ROTATION.md).
+//!   delay, per-epoch churn caps; [`bond_wire`] + [`block::apply_block`]
+//!   integrate register ops under the header `bond_root`.
+//! - [`bond_wire`] — canonical [`BondOp`] encoding and bond Merkle tree.
 //! - [`coinbase`] — synthetic block-reward transaction, deterministic so any
 //!   node can replay history byte-for-byte.
 //! - [`consensus`] — slot-based PoS engine: stake-weighted VRF leader
@@ -44,6 +45,7 @@
 #![warn(clippy::all)]
 
 pub mod block;
+pub mod bond_wire;
 pub mod bonding;
 pub mod coinbase;
 pub mod consensus;
@@ -57,6 +59,10 @@ pub use block::{
     header_signing_bytes, header_signing_hash, seal_block, storage_merkle_root, tx_merkle_root,
     ApplyOutcome, Block, BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig,
     GenesisOutput, UtxoEntry, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+};
+pub use bond_wire::{
+    bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,
+    BOND_OP_REGISTER,
 };
 pub use bonding::{
     epoch_id_for_height, height_of_next_epoch, try_register_entry_churn, try_register_exit_churn,

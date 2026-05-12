@@ -60,6 +60,11 @@ use mfn_storage::{
     DEFAULT_ENDOWMENT_PARAMS,
 };
 
+use crate::bond_wire::{bond_merkle_root, BondOp};
+use crate::bonding::{
+    epoch_id_for_height, try_register_entry_churn, validate_stake, BondingParams,
+    DEFAULT_BONDING_PARAMS,
+};
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
 use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
@@ -91,6 +96,8 @@ pub struct BlockHeader {
     /// Merkle root of newly-anchored storage commitments (all-zero if
     /// none).
     pub storage_root: [u8; 32],
+    /// Merkle root of [`Block::bond_ops`] (all-zero if empty).
+    pub bond_root: [u8; 32],
     /// MFBN-encoded [`crate::consensus::FinalityProof`]. Empty for genesis
     /// and for chains running in legacy/centralized mode (no validator
     /// set).
@@ -117,6 +124,9 @@ pub struct Block {
     /// per-commitment chunk challenges. Empty when no proofs are produced
     /// this block — commitments simply stay unproven longer.
     pub storage_proofs: Vec<StorageProof>,
+    /// Validator bonding / rotation operations (M1). Verified against
+    /// [`BlockHeader::bond_root`] before mutating the validator set.
+    pub bond_ops: Vec<BondOp>,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -135,6 +145,7 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
     w.u64(h.timestamp);
     w.push(&h.tx_root);
     w.push(&h.storage_root);
+    w.push(&h.bond_root);
     w.into_bytes()
 }
 
@@ -155,6 +166,7 @@ pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
     w.u64(h.timestamp);
     w.push(&h.tx_root);
     w.push(&h.storage_root);
+    w.push(&h.bond_root);
     w.blob(&h.producer_proof);
     w.push(&h.utxo_root);
     w.into_bytes()
@@ -319,6 +331,15 @@ pub struct ChainState {
     /// Cryptographic UTXO accumulator. Every output the chain ever
     /// anchors is appended in deterministic order.
     pub utxo_tree: UtxoTreeState,
+    /// Bonding / rotation parameters (defaults at genesis).
+    pub bonding_params: BondingParams,
+    /// Epoch id (`height / slots_per_epoch`) for which `bond_epoch_entry_count`
+    /// applies. Updated when the epoch rolls forward.
+    pub bond_epoch_id: u64,
+    /// Validators registered via [`BondOp::Register`] in the current epoch.
+    pub bond_epoch_entry_count: u32,
+    /// Next [`Validator::index`] assigned to a newly bonded validator.
+    pub next_validator_index: u32,
 }
 
 impl ChainState {
@@ -337,6 +358,10 @@ impl ChainState {
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             treasury: 0,
             utxo_tree: empty_utxo_tree(),
+            bonding_params: DEFAULT_BONDING_PARAMS,
+            bond_epoch_id: 0,
+            bond_epoch_entry_count: 0,
+            next_validator_index: 0,
         }
     }
 
@@ -402,6 +427,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         timestamp: cfg.timestamp,
         tx_root: [0u8; 32],
         storage_root,
+        bond_root: [0u8; 32],
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&tree),
     };
@@ -410,6 +436,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         txs: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        bond_ops: Vec::new(),
     }
 }
 
@@ -424,6 +451,13 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
     state.endowment_params = cfg.endowment_params;
     state.validators = cfg.validators.clone();
     state.validator_stats = vec![ValidatorStats::default(); cfg.validators.len()];
+    state.next_validator_index = cfg
+        .validators
+        .iter()
+        .map(|v| v.index)
+        .max()
+        .map(|m| m.saturating_add(1))
+        .unwrap_or(0);
 
     for o in &cfg.initial_outputs {
         let key = o.one_time_addr.compress().to_bytes();
@@ -468,6 +502,7 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
 pub fn build_unsealed_header(
     state: &ChainState,
     txs: &[TransactionWire],
+    bond_ops: &[BondOp],
     slot: u32,
     timestamp: u64,
 ) -> BlockHeader {
@@ -511,6 +546,7 @@ pub fn build_unsealed_header(
         timestamp,
         tx_root: tx_merkle_root(txs),
         storage_root: storage_merkle_root(&new_storages),
+        bond_root: bond_merkle_root(bond_ops),
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&projected_tree),
     }
@@ -520,6 +556,7 @@ pub fn build_unsealed_header(
 pub fn seal_block(
     mut header: BlockHeader,
     txs: Vec<TransactionWire>,
+    bond_ops: Vec<BondOp>,
     producer_proof: Vec<u8>,
     slashings: Vec<SlashEvidence>,
     storage_proofs: Vec<StorageProof>,
@@ -530,6 +567,7 @@ pub fn seal_block(
         txs,
         slashings,
         storage_proofs,
+        bond_ops,
     }
 }
 
@@ -590,7 +628,8 @@ impl ApplyOutcome {
 ///
 /// 1. Header sanity: height = `state.height + 1`, `prev_hash` = current
 ///    tip id (none ⇒ genesis-only chain).
-/// 2. Tx Merkle root matches the recomputed root.
+/// 2. Tx Merkle root matches the recomputed root; bond Merkle root
+///    matches [`Block::bond_ops`].
 /// 3. (If validators present) the [`crate::consensus::FinalityProof`]
 ///    verifies — producer was eligible at this slot, committee quorum
 ///    signed the header.
@@ -599,11 +638,15 @@ impl ApplyOutcome {
 /// 5. Storage commitments newly introduced by tx outputs are registered.
 /// 6. Slashing evidence verifies; offending validators have their stake
 ///    zeroed in the new state.
-/// 7. When a producer has a [`crate::consensus::ValidatorPayout`], the
-///    block must include a coinbase (in `tx[0]`) paying
-///    `emission(height) + producer_fee`.
-/// 8. Storage Merkle root matches.
-/// 9. UTXO accumulator root matches.
+/// 7. SPoRA storage proofs accrue rewards and update per-commitment state.
+/// 8. Liveness stats from the finality bitmap; auto-slash chronic misses.
+/// 9. [`BondOp`]s are validated and applied atomically (new validators are
+///    not subject to this block's finality bitmap).
+/// 10. When a producer has a [`crate::consensus::ValidatorPayout`], the
+///     block must include a coinbase (in `tx[0]`) paying
+///     `emission(height) + producer_fee` (+ storage rewards).
+/// 11. Storage Merkle root matches tx-anchored new commitments.
+/// 12. UTXO accumulator root matches.
 ///
 /// Returns [`ApplyOutcome::Ok`] with the new state, or
 /// [`ApplyOutcome::Err`] with a list of [`BlockError`]s and the original
@@ -632,6 +675,11 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let expected_tx_root = tx_merkle_root(&block.txs);
     if expected_tx_root != block.header.tx_root {
         errors.push(BlockError::TxRootMismatch);
+    }
+
+    let expected_bond_root = bond_merkle_root(&block.bond_ops);
+    if expected_bond_root != block.header.bond_root {
+        errors.push(BlockError::BondRootMismatch);
     }
 
     // ---- Producer/finality proof ----
@@ -1057,6 +1105,31 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
     }
 
+    // ---- Bond ops (M1): new validators appended; not subject to this
+    //      block's finality bitmap (they were not yet in the committee).
+    match simulate_bond_ops(
+        block.header.height,
+        next.bond_epoch_id,
+        next.bond_epoch_entry_count,
+        next.next_validator_index,
+        &next.validators,
+        &next.bonding_params,
+        &block.bond_ops,
+    ) {
+        Ok(delta) => {
+            next.bond_epoch_id = delta.bond_epoch_id;
+            next.bond_epoch_entry_count = delta.bond_epoch_entry_count;
+            next.next_validator_index = delta.next_validator_index;
+            let n_new = delta.new_validators.len();
+            next.validators.extend(delta.new_validators);
+            next.validator_stats
+                .extend((0..n_new).map(|_| ValidatorStats::default()));
+        }
+        Err((i, message)) => {
+            errors.push(BlockError::BondOpRejected { index: i, message });
+        }
+    }
+
     // ---- Two-sided economic settlement ----
     //
     //   1. treasury_fee = fee_sum · fee_to_treasury_bps / 10000
@@ -1144,6 +1217,79 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     }
 }
 
+/// Successful bond-op simulation: apply these mutations to [`ChainState`]
+/// after liveness (new validators are not in this block's committee).
+#[derive(Debug)]
+struct BondApplyDelta {
+    bond_epoch_id: u64,
+    bond_epoch_entry_count: u32,
+    next_validator_index: u32,
+    new_validators: Vec<Validator>,
+}
+
+/// Validate `ops` against the pre-bond view of the chain and return new
+/// validators plus updated bonding counters. Any error is atomic: the
+/// caller must not apply a partial prefix of `ops`.
+fn simulate_bond_ops(
+    height: u32,
+    mut bond_epoch_id: u64,
+    mut bond_epoch_entry_count: u32,
+    mut next_validator_index: u32,
+    validators: &[Validator],
+    bonding_params: &BondingParams,
+    ops: &[BondOp],
+) -> Result<BondApplyDelta, (usize, String)> {
+    let slots = bonding_params.slots_per_epoch;
+    let epoch_id =
+        epoch_id_for_height(height, slots).map_err(|e| (0usize, format!("bond epoch id: {e}")))?;
+    if epoch_id != bond_epoch_id {
+        bond_epoch_id = epoch_id;
+        bond_epoch_entry_count = 0;
+    }
+
+    let mut seen_vrf: HashSet<[u8; 32]> = validators
+        .iter()
+        .map(|v| v.vrf_pk.compress().to_bytes())
+        .collect();
+    let mut new_validators: Vec<Validator> = Vec::new();
+
+    for (i, op) in ops.iter().enumerate() {
+        match op {
+            BondOp::Register {
+                stake,
+                vrf_pk,
+                bls_pk,
+                payout,
+            } => {
+                validate_stake(*stake, bonding_params).map_err(|e| (i, e.to_string()))?;
+                let vrf_b = vrf_pk.compress().to_bytes();
+                if !seen_vrf.insert(vrf_b) {
+                    return Err((i, "duplicate vrf_pk".into()));
+                }
+                bond_epoch_entry_count =
+                    try_register_entry_churn(bond_epoch_entry_count, bonding_params)
+                        .map_err(|e| (i, e.to_string()))?;
+                let idx = next_validator_index;
+                next_validator_index = next_validator_index.saturating_add(1);
+                new_validators.push(Validator {
+                    index: idx,
+                    vrf_pk: *vrf_pk,
+                    bls_pk: *bls_pk,
+                    stake: *stake,
+                    payout: *payout,
+                });
+            }
+        }
+    }
+
+    Ok(BondApplyDelta {
+        bond_epoch_id,
+        bond_epoch_entry_count,
+        next_validator_index,
+        new_validators,
+    })
+}
+
 fn hex_short(b: &[u8]) -> String {
     let mut s = String::with_capacity(13);
     for byte in b.iter().take(6) {
@@ -1177,6 +1323,17 @@ pub enum BlockError {
     /// Header `tx_root` didn't match the locally-recomputed root.
     #[error("tx_root mismatch")]
     TxRootMismatch,
+    /// Header `bond_root` didn't match the locally-recomputed bond Merkle root.
+    #[error("bond_root mismatch")]
+    BondRootMismatch,
+    /// A bond operation failed validation or conflicted with on-chain state.
+    #[error("bond_ops[{index}]: {message}")]
+    BondOpRejected {
+        /// Index in `block.bond_ops`.
+        index: usize,
+        /// Human-readable reason.
+        message: String,
+    },
     /// Chain has a validator set but the header lacks a producer proof.
     #[error("missing producer proof")]
     MissingProducerProof,
@@ -1402,8 +1559,15 @@ mod tests {
     #[test]
     fn empty_block_applies_in_legacy_mode() {
         let st = genesis_state();
-        let header = build_unsealed_header(&st, &[], 1, 100);
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let header = build_unsealed_header(&st, &[], &[], 1, 100);
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         match apply_block(&st, &blk) {
             ApplyOutcome::Ok { state, .. } => {
                 assert_eq!(state.height, Some(1));
@@ -1416,13 +1580,20 @@ mod tests {
     #[test]
     fn bad_height_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
         header.height = 99;
         // Have to recompute prev_hash + utxo_root for the bad height since
         // they're independent... actually no, only height is wrong here, so
         // the locally-computed expected_tx_root and utxo_root will still
         // match. Just check that BadHeight surfaces.
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -1436,9 +1607,16 @@ mod tests {
     #[test]
     fn bad_prev_hash_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
         header.prev_hash = [9u8; 32];
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -1452,9 +1630,16 @@ mod tests {
     #[test]
     fn tx_root_mismatch_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
         header.tx_root[0] ^= 0xff;
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -1466,11 +1651,80 @@ mod tests {
     }
 
     #[test]
+    fn bond_root_mismatch_is_rejected() {
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        header.bond_root[0] ^= 0xff;
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondRootMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn bond_ops_apply_is_atomic_on_error() {
+        use mfn_bls::bls_keygen_from_seed;
+        use mfn_crypto::point::{generator_g, generator_h};
+
+        let st = genesis_state();
+        let ok_op = BondOp::Register {
+            stake: crate::DEFAULT_BONDING_PARAMS.min_validator_stake,
+            vrf_pk: generator_g(),
+            bls_pk: bls_keygen_from_seed(&[1u8; 32]).pk,
+            payout: None,
+        };
+        let bad_op = BondOp::Register {
+            stake: 1,
+            vrf_pk: generator_h(),
+            bls_pk: bls_keygen_from_seed(&[2u8; 32]).pk,
+            payout: None,
+        };
+        let bond_ops = vec![ok_op, bad_op];
+        let header = build_unsealed_header(&st, &[], &bond_ops, 1, 100);
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            bond_ops,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondOpRejected { index: 1, .. })));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+        assert!(st.validators.is_empty());
+    }
+
+    #[test]
     fn utxo_root_mismatch_is_rejected() {
         let st = genesis_state();
-        let mut header = build_unsealed_header(&st, &[], 1, 100);
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
         header.utxo_root[0] ^= 0xff;
-        let blk = seal_block(header, Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
                 assert!(errors
@@ -1484,7 +1738,7 @@ mod tests {
     #[test]
     fn header_signing_hash_excludes_producer_proof() {
         let st = genesis_state();
-        let h0 = build_unsealed_header(&st, &[], 1, 100);
+        let h0 = build_unsealed_header(&st, &[], &[], 1, 100);
         let hash0 = header_signing_hash(&h0);
         let mut h1 = h0.clone();
         h1.producer_proof = b"this is whatever the producer attaches".to_vec();
@@ -1562,7 +1816,7 @@ mod tests {
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], 5_000, 1_000);
+        let unsealed = build_unsealed_header(&state0, &[], &[], 5_000, 1_000);
         let p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -1573,6 +1827,7 @@ mod tests {
         .unwrap();
         let block = seal_block(
             unsealed,
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -1601,7 +1856,7 @@ mod tests {
             None,
         )
         .unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], 1, 100);
+        let unsealed = build_unsealed_header(&state0, &[], &[], 1, 100);
         let p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -1610,7 +1865,14 @@ mod tests {
             &built.tree,
         )
         .unwrap();
-        let block = seal_block(unsealed, Vec::new(), Vec::new(), Vec::new(), vec![p]);
+        let block = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![p],
+        );
         match apply_block(&state0, &block) {
             ApplyOutcome::Err { errors, .. } => assert!(
                 errors
@@ -1644,7 +1906,7 @@ mod tests {
         };
         let g = build_genesis(&cfg);
         let state0 = apply_genesis(&g, &cfg).unwrap();
-        let unsealed = build_unsealed_header(&state0, &[], 1, 100);
+        let unsealed = build_unsealed_header(&state0, &[], &[], 1, 100);
         let mut p = mfn_storage::build_storage_proof(
             &built.commit,
             &unsealed.prev_hash,
@@ -1656,7 +1918,14 @@ mod tests {
         if !p.chunk.is_empty() {
             p.chunk[0] ^= 0xff;
         }
-        let block = seal_block(unsealed, Vec::new(), Vec::new(), Vec::new(), vec![p]);
+        let block = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![p],
+        );
         match apply_block(&state0, &block) {
             ApplyOutcome::Err { errors, .. } => assert!(
                 errors
@@ -1754,10 +2023,12 @@ mod tests {
         )
         .expect("sign");
 
-        let unsealed = build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), 1, 100);
+        let unsealed =
+            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], 1, 100);
         let block = seal_block(
             unsealed,
             vec![signed.tx],
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
@@ -1861,10 +2132,12 @@ mod tests {
         )
         .expect("sign");
 
-        let unsealed = build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), 1, 100);
+        let unsealed =
+            build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), &[], 1, 100);
         let block = seal_block(
             unsealed,
             vec![signed.tx],
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
