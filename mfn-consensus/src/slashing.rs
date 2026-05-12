@@ -409,7 +409,8 @@ mod tests {
         let ev = ev_for(0, &bls.sk, [1u8; 32], [2u8; 32]);
         let leaf = slashing_leaf_hash(&ev);
         let canon = canonicalize(&ev);
-        let other = mfn_crypto::hash::dhash(b"MFBN-1/not-a-slashing-leaf", &[&encode_evidence(&canon)]);
+        let other =
+            mfn_crypto::hash::dhash(b"MFBN-1/not-a-slashing-leaf", &[&encode_evidence(&canon)]);
         assert_ne!(leaf, other);
     }
 

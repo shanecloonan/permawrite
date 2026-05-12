@@ -11,10 +11,10 @@
 |---|---|---:|---|
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
-| Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root**) | `mfn-consensus` | 133 | ✓ live |
+| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root**) | `mfn-consensus` | 135 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **326** | All checks green |
+| **Total** | | **335** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -171,6 +171,52 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 ### Deferred
 
 - **TS-side reference port for `slashing_leaf_hash` + `slashing_merkle_root`.** Same pattern as `validator_root` — Rust pins the bytes; TS mirrors.
+
+---
+
+## Milestone M2.0.2 — Storage-proof Merkle root (✓ shipped)
+
+**Why it was next.** M2.0 committed the pre-block validator set; M2.0.1 committed equivocation evidence. The last un-rooted body element was `block.storage_proofs` — the SPoRA proofs that drive yield payouts against locked endowments. Without a header binding, a light client could see commitments land (`storage_root`) and see the post-block UTXO accumulator (`utxo_root`), but had no header-level handle on the intermediate "which proofs landed this block" question. Adding `storage_proof_root` closes that gap and finishes the **header-binds-the-body** invariant: every block-body element is now rooted under the header.
+
+### What shipped
+
+- **`STORAGE_PROOF_LEAF` domain tag** (`MFBN-1/storage-proof-leaf`).
+- **`storage_proof_leaf_hash` / `storage_proof_merkle_root`** in `mfn-storage::spora`. Each leaf is `dhash(STORAGE_PROOF_LEAF, encode_storage_proof(p))` — the same canonical SPoRA wire bytes the verifier already consumes, so there's no second encoding to keep in sync.
+- **`BlockHeader.storage_proof_root: [u8; 32]`**, included in both `header_signing_bytes` and `block_header_bytes`. Empty proofs list → all-zero sentinel.
+- **`build_unsealed_header` gained a `storage_proofs: &[StorageProof]` parameter** so producers commit the root alongside everything else when building the unsealed header.
+- **`apply_block` Phase 1 check + `BlockError::StorageProofRootMismatch`.** Runs before per-proof verification (defense in depth, same posture as the other body roots).
+- **Order semantics — producer-emit, not sorted.** The chain pays yield to the first proof that lands per commitment; sorting would lose that alignment and force the applier to re-sort just to verify the header. Per-commitment duplicates are rejected separately, so emit order is the only ordering choice across distinct commitments.
+- **TS-parity golden vector.** Two hand-built proofs (`p0`: 0-sibling boundary; `p1`: 2-sibling with mixed `right_side`) pin leaf hashes + Merkle root. See [`docs/interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`](./interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md).
+
+### Test matrix (delivered)
+
+- ✓ Empty list → zero sentinel.
+- ✓ Leaf is deterministic (same proof → same hash).
+- ✓ Leaf changes with proof content (commit_hash, chunk, siblings).
+- ✓ Adding a proof moves the root.
+- ✓ Order across proofs is committed (Merkle structure).
+- ✓ Leaf domain-separated (`MFBN-1/storage-proof-leaf` not confusable with any other dhash domain).
+- ✓ `apply_block` rejects a header whose `storage_proof_root` doesn't match the body (legacy / no-validator path).
+- ✓ Tampered `header.storage_proof_root` in a fully BLS-signed block rejected.
+- ✓ Positive path: `storage_proof_flow_at_genesis_plus_block1` builds a real proof, threads it through `build_unsealed_header` + `seal_block`, and the chain accepts it.
+- ✓ TS-parity golden vector pinned.
+
+### Closed the "header binds every body element" invariant
+
+After M2.0.2, the header commits to:
+
+```text
+tx_root, bond_root, slashing_root, validator_root, storage_proof_root, storage_root, utxo_root
+```
+
+— every input the state machine consumes, plus the post-block accumulator. The only structural exception is `producer_proof`, which is *part of* the header (the BLS aggregate signs over everything else).
+
+See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md).
+
+### Deferred
+
+- **TS-side reference port for `storage_proof_leaf_hash` + `storage_proof_merkle_root`.** Same pattern as the other M2.0.x vectors — Rust pins the bytes; TS mirrors.
+- **Sparse-Merkle variant.** A future `mfn-light` could use a sparse storage-proof root keyed by `commit_hash` for log-size "did commitment C have a proof land in block N?" audits.
 
 ---
 

@@ -6,7 +6,7 @@
 
 *Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.*
 
-[![Tests](https://img.shields.io/badge/tests-326_passing-brightgreen)](#status)
+[![Tests](https://img.shields.io/badge/tests-335_passing-brightgreen)](#status)
 [![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
 [![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
@@ -83,13 +83,13 @@ Each crate has its own README with public API summary, test counts, and links in
 | -------------------------- | --------------- | :---: | ----- |
 | ed25519 primitives + ZK    | [`mfn-crypto`](./mfn-crypto/README.md)    |  145  | All Tier-1 primitives live: Schnorr, Pedersen, CLSAG, LSAG, Bulletproofs, range proofs, OoM, VRF, gamma decoys, UTXO accumulator, Merkle. |
 | BLS12-381 sig aggregation  | [`mfn-bls`](./mfn-bls/README.md)       |   16  | BLS signatures + committee aggregation live; KZG pending. |
-| Permanent-storage primitives | [`mfn-storage`](./mfn-storage/README.md) |   32  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator. |
-| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  133  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **validator-set + slashing Merkle roots committed in every header** (M2.0 / M2.0.1 — the header now binds the entire block body except the producer proof itself, unblocking light clients). |
+| Permanent-storage primitives | [`mfn-storage`](./mfn-storage/README.md) |   39  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator, **storage-proof Merkle root** (M2.0.2). |
+| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  135  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted, unblocking light clients). |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned (currently lives inside `mfn-crypto::codec`). |
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned. |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned. |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the [TS reference demo page](https://github.com/shanecloonan/cloonan-group)). |
-| **Total** | | **326** | Zero `unsafe`. Zero clippy warnings. |
+| **Total** | | **335** | Zero `unsafe`. Zero clippy warnings. |
 
 Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
@@ -117,7 +117,7 @@ cd permawrite
 # Build everything
 cargo build --release
 
-# Run the full workspace test suite (326 tests, ~30s on a modern machine)
+# Run the full workspace test suite (335 tests, ~30s on a modern machine)
 cargo test --workspace --release
 
 # Lint gate (zero warnings expected)

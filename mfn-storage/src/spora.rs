@@ -26,11 +26,11 @@
 use sha2::{Digest as ShaDigest, Sha512};
 
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::{CHUNK_HASH, MERKLE_LEAF};
+use mfn_crypto::domain::{CHUNK_HASH, MERKLE_LEAF, STORAGE_PROOF_LEAF};
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::{
-    merkle_proof, merkle_tree_from_leaves, verify_merkle_proof, MerkleError, MerkleProof,
-    MerkleTree,
+    merkle_proof, merkle_root_or_zero, merkle_tree_from_leaves, verify_merkle_proof, MerkleError,
+    MerkleProof, MerkleTree,
 };
 
 use crate::commitment::{storage_commitment_hash, StorageCommitment};
@@ -278,6 +278,39 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
             index: usize::try_from(index).map_err(|_| SporaError::TooManyChunks)?,
         },
     })
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Merkle commitment (M2.0.2)                                              *
+ * ----------------------------------------------------------------------- */
+
+/// 32-byte Merkle leaf hash for a single [`StorageProof`].
+///
+/// Hashes the canonical wire bytes from [`encode_storage_proof`] under
+/// the [`STORAGE_PROOF_LEAF`] domain. The wire form is itself
+/// deterministic, so this is a pure function of the proof's contents.
+#[must_use]
+pub fn storage_proof_leaf_hash(p: &StorageProof) -> [u8; 32] {
+    dhash(STORAGE_PROOF_LEAF, &[&encode_storage_proof(p)])
+}
+
+/// Merkle root over the block's storage proofs in the producer's
+/// emit order. Returns the 32-byte zero sentinel for an empty list
+/// (matches every other consensus root).
+///
+/// **Why not sort by `commit_hash`?** The chain already rejects
+/// duplicate proofs for the same commitment in a single block, so
+/// the only ordering choice left is across distinct commitments —
+/// and the producer's emit order is what gets paid out (the first
+/// proof that lands accrues that slot's yield). Keeping that order
+/// in the commitment avoids forcing the applier to re-sort.
+#[must_use]
+pub fn storage_proof_merkle_root(proofs: &[StorageProof]) -> [u8; 32] {
+    if proofs.is_empty() {
+        return [0u8; 32];
+    }
+    let leaves: Vec<[u8; 32]> = proofs.iter().map(storage_proof_leaf_hash).collect();
+    merkle_root_or_zero(&leaves)
 }
 
 /// Result of [`verify_storage_proof`].
@@ -600,5 +633,158 @@ mod tests {
             }
         }
         assert!(differ);
+    }
+
+    /* ----------------------------------------------------------- *
+     *  Merkle commitment (M2.0.2)                                  *
+     * ----------------------------------------------------------- */
+
+    #[test]
+    fn storage_proof_merkle_root_empty_is_zero_sentinel() {
+        assert_eq!(storage_proof_merkle_root(&[]), [0u8; 32]);
+    }
+
+    #[test]
+    fn storage_proof_leaf_hash_is_deterministic() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [0u8; 32];
+        let p = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        assert_eq!(storage_proof_leaf_hash(&p), storage_proof_leaf_hash(&p));
+    }
+
+    #[test]
+    fn storage_proof_leaf_hash_changes_with_proof_content() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [0u8; 32];
+        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let mut p1 = p0.clone();
+        p1.commit_hash[0] ^= 0xff;
+        assert_ne!(storage_proof_leaf_hash(&p0), storage_proof_leaf_hash(&p1));
+    }
+
+    #[test]
+    fn storage_proof_merkle_root_changes_with_addition() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [0u8; 32];
+        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        // Build a "different" proof by flipping the chunk under the same
+        // commitment — the leaf hash will differ even though the proof
+        // wouldn't itself verify. (We're testing the commitment helper,
+        // not the verifier, so any structurally distinct proof bytes
+        // suffice.)
+        let mut p1 = p0.clone();
+        p1.chunk[0] ^= 0x55;
+
+        let r_one = storage_proof_merkle_root(std::slice::from_ref(&p0));
+        let r_two = storage_proof_merkle_root(&[p0, p1]);
+        assert_ne!(r_one, r_two);
+    }
+
+    #[test]
+    fn storage_proof_merkle_root_is_order_sensitive() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [0u8; 32];
+        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let mut p1 = p0.clone();
+        p1.chunk[0] ^= 0x55;
+        let r_a = storage_proof_merkle_root(&[p0.clone(), p1.clone()]);
+        let r_b = storage_proof_merkle_root(&[p1, p0]);
+        assert_ne!(r_a, r_b);
+    }
+
+    #[test]
+    fn storage_proof_leaf_is_domain_separated() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [0u8; 32];
+        let p = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let leaf = storage_proof_leaf_hash(&p);
+        let other = dhash(
+            b"MFBN-1/not-a-storage-proof-leaf",
+            &[&encode_storage_proof(&p)],
+        );
+        assert_ne!(leaf, other);
+    }
+
+    /// **TS-parity reference vector (M2.0.2).**
+    ///
+    /// A TypeScript port (or any independent implementation) of
+    /// `storage_proof_leaf_hash` / `storage_proof_merkle_root` MUST
+    /// produce these exact hex values from the deterministic inputs
+    /// `p0` and `p1` below.
+    ///
+    /// `p0` exercises a 0-sibling proof (root == leaf, single-chunk
+    /// commitment). `p1` exercises a 2-sibling proof with a mixed
+    /// `right_side` pattern (so encoders cannot accidentally swap the
+    /// boolean column).
+    ///
+    /// We intentionally construct the `StorageProof`s by hand here:
+    /// the goal is to pin the *encoding + hashing* surface, not the
+    /// Merkle-membership semantics (which are exercised elsewhere).
+    ///
+    /// ## Reproducing in TS
+    ///
+    /// 1. Build each leaf as
+    ///    ```text
+    ///    encode_storage_proof(p) =
+    ///        commit_hash(32) ‖ blob(chunk) ‖ varint(index) ‖
+    ///        varint(siblings.len) ‖
+    ///        [ siblings[i](32) ‖ u8(right_side[i] ? 1 : 0) ]*
+    ///    ```
+    ///    where `blob(x) = varint(x.len) ‖ x`.
+    /// 2. `leaf_hash(p) = SHA-512/256(dhash) over
+    ///    "MFBN-1/storage-proof-leaf" ‖ varint-len-prefix encoding of
+    ///    `encode_storage_proof(p)`.
+    /// 3. `root = merkle_root_or_zero([leaf(p0), leaf(p1)])` with the
+    ///    same canonical Merkle scheme (`MERKLE_NODE` interior domain,
+    ///    odd-leaf duplication).
+    ///
+    /// See `docs/interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`.
+    #[test]
+    fn storage_proof_root_wire_matches_cloonan_ts_smoke_reference() {
+        // Deterministic, hand-constructed proofs (no randomness, no
+        // dependency on the chunking pipeline).
+        let p0 = StorageProof {
+            commit_hash: [0xaau8; 32],
+            chunk: vec![0u8, 1, 2, 3, 4, 5, 6, 7],
+            proof: MerkleProof {
+                siblings: Vec::new(),
+                right_side: Vec::new(),
+                index: 0,
+            },
+        };
+        let p1 = StorageProof {
+            commit_hash: [0xbbu8; 32],
+            chunk: b"permawrite".to_vec(),
+            proof: MerkleProof {
+                siblings: vec![[0x11u8; 32], [0x22u8; 32]],
+                right_side: vec![true, false],
+                index: 1,
+            },
+        };
+
+        let leaf0 = storage_proof_leaf_hash(&p0);
+        let leaf1 = storage_proof_leaf_hash(&p1);
+        let root = storage_proof_merkle_root(&[p0, p1]);
+
+        assert_eq!(
+            hex::encode(leaf0),
+            "694b5a17a842c528d24f24e53cdd9a1601fff4018c365d8a7f448411daf4709d",
+            "storage-proof leaf for p0 (0-sibling) drifted"
+        );
+        assert_eq!(
+            hex::encode(leaf1),
+            "00bc55e1545fa11184cd2aeb450173fdf8d940cb6f18e294d6f0be454b6c05f6",
+            "storage-proof leaf for p1 (2-sibling, mixed right_side) drifted"
+        );
+        assert_eq!(
+            hex::encode(root),
+            "aaae83fcbc777d692c7fbc0f469213faae63082e8c040c163256ef751c889c6b",
+            "storage_proof_merkle_root over [p0, p1] drifted"
+        );
     }
 }

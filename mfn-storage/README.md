@@ -2,7 +2,7 @@
 
 Permanent-storage primitives for Permawrite — the half of the chain that makes data outlast its uploader.
 
-**Tests:** 32 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 39 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This crate is the chain-level engine for **endowment-funded permanent storage**: how to anchor a file on-chain, how to *prove* you're still holding it block-by-block, and how to compute the upfront escrow that lets storage operators get paid forever.
 
@@ -15,7 +15,7 @@ For the *what* and *why*, see [`docs/STORAGE.md`](../docs/STORAGE.md). For the e
 | Module | Responsibility |
 |---|---|
 | [`commitment`](src/commitment.rs) | `StorageCommitment` struct + canonical hash. The on-chain anchor of a stored file. |
-| [`spora`](src/spora.rs) | **SPoRA — Succinct Proofs of Random Access.** Chunking, the per-block deterministic challenge derivation, and the `StorageProof` build/verify pipeline. |
+| [`spora`](src/spora.rs) | **SPoRA — Succinct Proofs of Random Access.** Chunking, the per-block deterministic challenge derivation, and the `StorageProof` build/verify pipeline. M2.0.2 — `storage_proof_leaf_hash` / `storage_proof_merkle_root` for the per-block `storage_proof_root` commitment under the new `STORAGE_PROOF_LEAF` domain. |
 | [`endowment`](src/endowment.rs) | The `E₀ = C₀·(1+i)/(r−i)` formula, per-slot payouts, and the PPB-precision yield accumulator. |
 
 ---
@@ -167,7 +167,7 @@ hex              = "0.4"
 
 ## Test categories
 
-- **`spora`**: chunking edge cases (empty, single, exact-multiple, ragged final chunk), Merkle proof correctness for every position, challenge determinism across reruns, wrong-index rejection, wrong-chunk rejection, encode/decode round-trips.
+- **`spora`**: chunking edge cases (empty, single, exact-multiple, ragged final chunk), Merkle proof correctness for every position, challenge determinism across reruns, wrong-index rejection, wrong-chunk rejection, encode/decode round-trips; **M2.0.2 storage-proof Merkle commitment** (empty → zero sentinel, leaf domain-separation, deterministic leaf hashing, content-sensitive leaves, addition moves the root, order-sensitive across proofs, TS-parity golden vector for 0-sibling + 2-sibling-with-mixed-`right_side` proofs).
 - **`endowment`**: parameter validation (positive-yield, `r > i`, replication bounds), `required_endowment` matches the formula at multiple sizes, `payout_per_slot` matches in aggregate, PPB accumulator carries fractional yield correctly across proofs, anti-hoarding cap enforced, overflow paths return typed errors.
 - **`commitment`**: canonical hash is deterministic, field-sensitive, and matches the TS reference.
 

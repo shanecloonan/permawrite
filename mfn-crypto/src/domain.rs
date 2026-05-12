@@ -130,3 +130,10 @@ pub const VALIDATOR_LEAF: Domain = b"MFBN-1/validator-leaf";
 /// reorderings of the same conflict produce the same leaf and the
 /// Merkle root is reorder-stable.
 pub const SLASHING_LEAF: Domain = b"MFBN-1/slashing-leaf";
+
+/// Merkle leaf for a SPoRA `StorageProof` committed under the block
+/// header's `storage_proof_root` (M2.0.2). The leaf hashes the
+/// canonical wire-encoded proof bytes; the producer's emit order is
+/// preserved by the Merkle root (the chain rejects duplicate proofs
+/// per commitment, so canonical sorting is unnecessary).
+pub const STORAGE_PROOF_LEAF: Domain = b"MFBN-1/storage-proof-leaf";

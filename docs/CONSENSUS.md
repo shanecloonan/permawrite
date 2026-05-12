@@ -403,11 +403,12 @@ Every block header now also commits to the validator set the block was produced 
 ```rust
 struct BlockHeader {
     // ...
-    bond_root:      [u8; 32],
-    slashing_root:  [u8; 32],   // ← M2.0.1 — merkle over block.slashings
-    validator_root: [u8; 32],   // ← M2.0
-    producer_proof: Vec<u8>,
-    utxo_root:      [u8; 32],
+    bond_root:          [u8; 32],
+    slashing_root:      [u8; 32],   // ← M2.0.1 — merkle over block.slashings
+    validator_root:     [u8; 32],   // ← M2.0
+    storage_proof_root: [u8; 32],   // ← M2.0.2 — merkle over block.storage_proofs
+    producer_proof:     Vec<u8>,
+    utxo_root:          [u8; 32],
 }
 ```
 
@@ -429,7 +430,7 @@ What this **doesn't** commit:
 
 - `ValidatorStats` (liveness counters) — they churn every block; leaving them out keeps the root stable across blocks that didn't change the set. Light clients don't need them.
 
-Reference root commitments under the header are now `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_root`, `utxo_root` — covering txs, validator-set deltas, equivocation evidence, the live validator set, newly-anchored storage, and the post-block UTXO accumulator. The header binds the entire block body except the producer proof itself. Domain tags for the new leaves: `MFBN-1/validator-leaf` (M2.0), `MFBN-1/slashing-leaf` (M2.0.1).
+Reference root commitments under the header are now `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_proof_root`, `storage_root`, `utxo_root` — covering txs, validator-set deltas, equivocation evidence, the live validator set, this block's storage proofs, newly-anchored storage commitments, and the post-block UTXO accumulator. **The header binds the entire block body** (the producer proof itself is the only structural exception, since it's *part of* the header). Domain tags for the new leaves: `MFBN-1/validator-leaf` (M2.0), `MFBN-1/slashing-leaf` (M2.0.1), `MFBN-1/storage-proof-leaf` (M2.0.2).
 
 ### Slashing-evidence commitment (M2.0.1)
 
@@ -437,6 +438,16 @@ Each leaf is the domain-separated hash of one equivocation piece in its canonica
 
 - A light client can verify the slashings list independently of the rest of the block body — just request `block.slashings`, recompute leaves, recompute the root, compare against `header.slashing_root`.
 - An adversarial producer cannot forge "phantom" slashings: any leaf added to or removed from the list moves the root, and any pair-order tampering is canonicalized away before hashing.
+
+### Storage-proof commitment (M2.0.2)
+
+Each leaf is the domain-separated hash of one storage proof in its canonical SPoRA wire form — `dhash(STORAGE_PROOF_LEAF, encode_storage_proof(p))`, where `encode_storage_proof` is the exact byte string the SPoRA verifier already consumes (no second "for-Merkle-only" encoding). The Merkle root over all leaves (in the producer's emit order) is rooted under the header. Three consequences:
+
+- A light client can verify the block's SPoRA yield-event surface independently of the rest of the body — just request `block.storage_proofs`, recompute leaves, recompute the root, compare against `header.storage_proof_root`.
+- An adversarial producer cannot smuggle phantom proofs past the header: any added or removed proof moves the root. Per-commitment duplicates are already rejected separately by `apply_block`, so emit order is the only ordering choice — and that order is what actually gets paid out (first proof wins each slot's yield).
+- The producer's BLS aggregate signs over `header_signing_hash`, which now includes `storage_proof_root`, so any post-seal flip necessarily invalidates the aggregate.
+
+For the full design note + test matrix, see [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md).
 
 ### Tests added for M2.0
 

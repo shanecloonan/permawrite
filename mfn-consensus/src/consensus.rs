@@ -35,12 +35,12 @@
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
+use mfn_bls::encode_public_key;
 use mfn_bls::{
     aggregate_committee_votes, bls_sign, bls_verify, decode_signature, encode_signature,
     verify_committee_aggregate, BlsKeypair, BlsPublicKey, BlsResult, BlsSignature,
     CommitteeAggregate, CommitteeVote,
 };
-use mfn_bls::encode_public_key;
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{CONSENSUS_SLOT, VALIDATOR_LEAF};
 use mfn_crypto::hash::dhash;

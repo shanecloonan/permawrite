@@ -357,7 +357,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let txs_b1: Vec<_> = vec![coinbase_b1.clone(), signed.tx.clone()];
 
     // Unsealed header → produce finality → seal.
-    let unsealed = build_unsealed_header(&state0, &txs_b1, &[], &[], 1, 100);
+    let unsealed = build_unsealed_header(&state0, &txs_b1, &[], &[], &[], 1, 100);
     let header_hash = header_signing_hash(&unsealed);
     let ctx_b1 = SlotContext {
         height: 1,
@@ -469,7 +469,7 @@ fn chain_genesis_block1_block2_with_slashing() {
 
     let txs_b2 = vec![coinbase_b2];
     let slashings_b2 = vec![evidence.clone()];
-    let unsealed_b2 = build_unsealed_header(&state1, &txs_b2, &[], &slashings_b2, 2, 200);
+    let unsealed_b2 = build_unsealed_header(&state1, &txs_b2, &[], &slashings_b2, &[], 2, 200);
     let header_hash_b2 = header_signing_hash(&unsealed_b2);
     let ctx_b2 = SlotContext {
         height: 2,
@@ -609,22 +609,37 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     /* ----- Block 1: ship a storage proof at slot 5_000 ----- */
     let slot_b1 = 5_000u32;
     let timestamp_b1: u64 = 1_000;
-    let unsealed_b1 = build_unsealed_header(&state0, &[], &[], &[], slot_b1, timestamp_b1);
+    // We have to compute prev_hash before building the proof (the
+    // challenge index depends on it), so build a throwaway header
+    // first to obtain `prev_hash`, then build the proof, then build
+    // the *real* unsealed header committing the proof under
+    // `storage_proof_root`.
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot_b1, timestamp_b1);
     let storage_proof = build_storage_proof(
         &built.commit,
-        &unsealed_b1.prev_hash,
+        &scratch.prev_hash,
         slot_b1,
         &payload,
         &built.tree,
     )
     .expect("build proof");
+    let storage_proofs_b1 = vec![storage_proof];
+    let unsealed_b1 = build_unsealed_header(
+        &state0,
+        &[],
+        &[],
+        &[],
+        &storage_proofs_b1,
+        slot_b1,
+        timestamp_b1,
+    );
     let block1 = seal_block(
         unsealed_b1,
         Vec::new(),
         Vec::new(),
         Vec::new(),
         Vec::new(),
-        vec![storage_proof],
+        storage_proofs_b1,
     );
     let state1 = match apply_block(&state0, &block1) {
         ApplyOutcome::Ok { state, .. } => state,
@@ -643,7 +658,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     /* ----- Block 2: duplicate proof must be rejected ----- */
     let slot_b2 = 5_100u32;
     let timestamp_b2: u64 = 2_000;
-    let unsealed_b2 = build_unsealed_header(&state1, &[], &[], &[], slot_b2, timestamp_b2);
+    let unsealed_b2 = build_unsealed_header(&state1, &[], &[], &[], &[], slot_b2, timestamp_b2);
     let storage_proof_b2 = build_storage_proof(
         &built.commit,
         &unsealed_b2.prev_hash,
@@ -783,7 +798,8 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
 
         let txs = vec![cb];
-        let unsealed = build_unsealed_header(&state, &txs, &[], &[], height, u64::from(height) * 100);
+        let unsealed =
+            build_unsealed_header(&state, &txs, &[], &[], &[], height, u64::from(height) * 100);
         let header_hash = header_signing_hash(&unsealed);
         let ctx = SlotContext {
             height,
@@ -1002,8 +1018,15 @@ mod unbond_lifecycle {
         let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
         let txs = vec![cb];
 
-        let unsealed =
-            build_unsealed_header(&fx.state, &txs, &bond_ops, &slashings, height, u64::from(height) * 100);
+        let unsealed = build_unsealed_header(
+            &fx.state,
+            &txs,
+            &bond_ops,
+            &slashings,
+            &[],
+            height,
+            u64::from(height) * 100,
+        );
         let header_hash = header_signing_hash(&unsealed);
         let ctx = SlotContext {
             height,
@@ -1251,14 +1274,8 @@ mod unbond_lifecycle {
         // produce another block; the *next* header's validator_root
         // must equal the post-block-1 validator set, which is unchanged
         // here, so still equals pre_state_root.
-        let next_unsealed = mfn_consensus::build_unsealed_header(
-            &fx.state,
-            &[],
-            &[],
-            &[],
-            2,
-            200,
-        );
+        let next_unsealed =
+            mfn_consensus::build_unsealed_header(&fx.state, &[], &[], &[], &[], 2, 200);
         assert_eq!(next_unsealed.validator_root, pre_state_root);
         // And serialization is non-empty (validator_root is part of the
         // header bytes).
@@ -1301,14 +1318,8 @@ mod unbond_lifecycle {
         );
 
         // The *next* unsealed header must commit `root_after`.
-        let next_unsealed = mfn_consensus::build_unsealed_header(
-            &fx.state,
-            &[],
-            &[],
-            &[],
-            2,
-            200,
-        );
+        let next_unsealed =
+            mfn_consensus::build_unsealed_header(&fx.state, &[], &[], &[], &[], 2, 200);
         assert_eq!(next_unsealed.validator_root, root_after);
     }
 
@@ -1377,7 +1388,8 @@ mod unbond_lifecycle {
         let bond_ops: Vec<BondOp> = Vec::new();
         let slashings: Vec<SlashEvidence> = Vec::new();
 
-        let mut unsealed = build_unsealed_header(&fx.state, &txs, &bond_ops, &slashings, 1, 100);
+        let mut unsealed =
+            build_unsealed_header(&fx.state, &txs, &bond_ops, &slashings, &[], 1, 100);
         // Empty slashings → zero sentinel.
         assert_eq!(unsealed.slashing_root, [0u8; 32]);
 
@@ -1473,7 +1485,7 @@ mod unbond_lifecycle {
         let txs = vec![cb];
         let bond_ops: Vec<BondOp> = Vec::new();
 
-        let mut unsealed = build_unsealed_header(&fx.state, &txs, &bond_ops, &[], 1, 100);
+        let mut unsealed = build_unsealed_header(&fx.state, &txs, &bond_ops, &[], &[], 1, 100);
         let header_hash = header_signing_hash(&unsealed);
         let ctx = SlotContext {
             height: 1,
@@ -1537,6 +1549,109 @@ mod unbond_lifecycle {
                         .iter()
                         .any(|e| matches!(e, BlockError::ValidatorRootMismatch)),
                     "expected ValidatorRootMismatch in {errors:?}"
+                );
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    /// Tampering with `header.storage_proof_root` on a fully-finalised
+    /// (BLS-signed) block must be rejected by `apply_block`. The
+    /// committee signed over `header_signing_hash`, which now includes
+    /// `storage_proof_root`; tampering after sealing necessarily makes
+    /// the producer/committee aggregate disagree with what `apply_block`
+    /// recomputes from `block.storage_proofs`.
+    ///
+    /// This test exercises the no-storage-proofs path (zero sentinel →
+    /// non-zero flip). The positive path — *with* real proofs whose
+    /// root matches the header — is exercised by
+    /// `storage_proof_flow_at_genesis_plus_block1` above.
+    #[test]
+    fn tampered_storage_proof_root_in_signed_block_is_rejected() {
+        use mfn_consensus::{
+            apply_block, build_unsealed_header, cast_vote, encode_finality_proof, finalize,
+            header_signing_hash, seal_block, try_produce_slot, ApplyOutcome, BlockError, BondOp,
+            FinalityProof, PayoutAddress, SlashEvidence, SlotContext, DEFAULT_EMISSION_PARAMS,
+        };
+        let fx = fixture_with_delay(2);
+        let v0_payout = fx.state.validators[0].payout.unwrap();
+        let cb_payout = PayoutAddress {
+            view_pub: v0_payout.view_pub,
+            spend_pub: v0_payout.spend_pub,
+        };
+        let emission = mfn_consensus::emission_at_height(1, &DEFAULT_EMISSION_PARAMS);
+        let cb = mfn_consensus::build_coinbase(1, emission, &cb_payout).expect("cb");
+        let txs = vec![cb];
+        let bond_ops: Vec<BondOp> = Vec::new();
+        let slashings: Vec<SlashEvidence> = Vec::new();
+
+        let mut unsealed =
+            build_unsealed_header(&fx.state, &txs, &bond_ops, &slashings, &[], 1, 100);
+        // Empty storage_proofs → zero sentinel.
+        assert_eq!(unsealed.storage_proof_root, [0u8; 32]);
+
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height: 1,
+            slot: 1,
+            prev_hash: unsealed.prev_hash,
+        };
+        let total_stake: u64 = fx.state.validators.iter().map(|v| v.stake).sum();
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &fx.secrets[0],
+            &fx.state.validators[0],
+            total_stake,
+            fx.params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+        let mut votes = Vec::new();
+        let mut signing_stake: u64 = 0;
+        for (i, v) in fx.state.validators.iter().enumerate() {
+            if v.stake == 0 {
+                continue;
+            }
+            votes.push(
+                cast_vote(
+                    &header_hash,
+                    &fx.secrets[i],
+                    &ctx,
+                    &producer_proof,
+                    &fx.state.validators[0],
+                    total_stake,
+                    fx.params.expected_proposers_per_slot,
+                )
+                .unwrap(),
+            );
+            signing_stake += v.stake;
+        }
+        let agg = finalize(&header_hash, &votes, fx.state.validators.len()).expect("agg");
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: agg,
+            signing_stake,
+        };
+
+        // Tamper post-signing.
+        unsealed.storage_proof_root[0] ^= 0xff;
+
+        let blk = seal_block(
+            unsealed,
+            txs,
+            bond_ops,
+            encode_finality_proof(&fin),
+            slashings,
+            Vec::new(),
+        );
+        match apply_block(&fx.state, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(
+                    errors
+                        .iter()
+                        .any(|e| matches!(e, BlockError::StorageProofRootMismatch)),
+                    "expected StorageProofRootMismatch in {errors:?}"
                 );
             }
             ApplyOutcome::Ok { .. } => panic!("expected err"),

@@ -42,6 +42,7 @@ pub use endowment::{
 pub use spora::{
     build_storage_commitment, build_storage_proof, challenge_index_from_seed, chunk_data,
     chunk_hash, chunk_index_for_challenge, decode_storage_proof, encode_storage_proof,
-    merkle_tree_from_chunks, verify_endowment_opening, verify_storage_proof, BuiltCommitment,
-    SporaError, StorageProof, StorageProofCheck, DEFAULT_CHUNK_SIZE,
+    merkle_tree_from_chunks, storage_proof_leaf_hash, storage_proof_merkle_root,
+    verify_endowment_opening, verify_storage_proof, BuiltCommitment, SporaError, StorageProof,
+    StorageProofCheck, DEFAULT_CHUNK_SIZE,
 };

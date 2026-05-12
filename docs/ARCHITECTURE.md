@@ -114,6 +114,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/unbond-op-sig` | `BondOp::Unbond` BLS-signed authorization payload (M1) |
 | `MFBN-1/validator-leaf` | Validator-set Merkle leaf (M2.0) |
 | `MFBN-1/slashing-leaf` | Slashing-evidence Merkle leaf (M2.0.1) |
+| `MFBN-1/storage-proof-leaf` | Storage-proof Merkle leaf (M2.0.2) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -221,12 +222,29 @@ struct BlockHeader {
     tx_root:        [u8; 32],   // merkle over tx_ids
     storage_root:   [u8; 32],   // merkle over storage commitment hashes
     bond_root:      [u8; 32],   // M1 — merkle over bond_ops (zero sentinel if empty)
-    slashing_root:  [u8; 32],   // M2.0.1 — merkle over slashings (zero sentinel if empty)
-    validator_root: [u8; 32],   // M2.0 — merkle over *pre-block* validator set
-    producer_proof: Vec<u8>,    // MFBN-encoded FinalityProof
-    utxo_root:      [u8; 32],   // accumulator root *after* this block applies
+    slashing_root:      [u8; 32],   // M2.0.1 — merkle over slashings (zero sentinel if empty)
+    validator_root:     [u8; 32],   // M2.0 — merkle over *pre-block* validator set
+    storage_proof_root: [u8; 32],   // M2.0.2 — merkle over block.storage_proofs (zero sentinel if empty)
+    producer_proof:     Vec<u8>,    // MFBN-encoded FinalityProof
+    utxo_root:          [u8; 32],   // accumulator root *after* this block applies
 }
 ```
+
+#### `storage_proof_root` (M2.0.2)
+
+A 32-byte Merkle root over the block's storage proofs in **producer-emit order**. The leaf for each proof is:
+
+```text
+storage_proof_leaf_hash(p) = dhash(STORAGE_PROOF_LEAF, encode_storage_proof(p))
+```
+
+where `encode_storage_proof` is the canonical SPoRA proof wire form (the same bytes `verify_storage_proof` consumes — there is no separate "for-Merkle-only" encoding). Empty list → all-zero sentinel.
+
+Three design points worth pinning:
+
+1. **Producer-emit order, not sorted.** `apply_block` rejects duplicate proofs per commitment in a single block, and the chain pays out yield to the first proof that lands. Re-sorting would force the applier to also re-sort just to verify the header, and would lose the natural alignment between "the order the producer wrote them" and "the order the payouts happened".
+2. **No second encoding.** The leaf hash rides on top of `encode_storage_proof`, so there's only one canonical form of a `StorageProof` to keep in sync between the verifier and the commitment.
+3. **`block.storage_proofs`, post-validation.** `apply_block`'s storage-proof phase verifies each proof against the live commitment; the Merkle root just commits to what was *included* in the body. Tampering with the root after sealing breaks the BLS aggregate the producer signed.
 
 #### `validator_root` (M2.0)
 
@@ -350,6 +368,7 @@ The block's lifecycle once it reaches a node:
 - Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
 - **Reconstruct `slashing_root` from `block.slashings` (M2.0.1).** Each leaf is the canonicalized form of one equivocation evidence piece (pair-order normalized so a swapped `(hash_a, hash_b)` hashes to the same leaf). Empty list → all-zero sentinel.
 - **Reconstruct `validator_root` from the *pre-block* validator set (M2.0)** and reject if it differs from `header.validator_root`. Committing to the pre-block set means a light client can verify Phase 0's finality proof from the header alone, *before* it has any of this block's state. Rotation / slashing / unbond settlement applied later in `apply_block` move the **next** header's `validator_root`, not this one's.
+- **Reconstruct `storage_proof_root` from `block.storage_proofs` (M2.0.2).** Each leaf is `dhash(STORAGE_PROOF_LEAF, encode_storage_proof(p))` — the same canonical SPoRA wire bytes the per-proof verifier consumes. Order is producer-emit (the chain pays out yield to the first proof that lands; re-sorting would lose that alignment). Empty list → all-zero sentinel.
 - Build the list of new storage commitments anchored in this block (from `txs[*].storage_commit` and `Block.slashings` etc.). Reconstruct `storage_root`.
 
 ### Phase 2 — Slashing (equivocation)
@@ -456,7 +475,7 @@ Walk `next.pending_unbonds` in ascending `validator_index` order. For each entry
 - Append `block_id(header)` to `next.block_ids`.
 - Return `Ok(next)`.
 
-(Per-input Merkle roots — `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here. The header now binds the entire block body except the producer proof itself.)
+(Per-input Merkle roots — `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_proof_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here. **The header now binds every body element** — `txs`, `bond_ops`, `slashings`, the pre-block validator set, and `storage_proofs` — closing the "header binds the body" invariant.)
 
 ---
 
@@ -643,8 +662,8 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
-- **Validator rotation shipped in M1; validator-set commitment shipped in M2.0.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` are live. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md) and [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md).
-- **Light-client protocol is not yet a binary.** The header now self-describes the validator set it was produced against (`validator_root`), so a light client *can* be built — but the daemon/mempool/P2P layer (`mfn-node`) is the next milestone.
+- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) are all live. The block header now binds every body element. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), and [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md).
+- **Light-client protocol is not yet a binary.** The header now self-describes every body element it was produced over (`validator_root`, `slashing_root`, `storage_proof_root`, `tx_root`, `bond_root`, `storage_root`, `utxo_root`), so a light client *can* be built end-to-end — but the daemon/mempool/P2P layer (`mfn-node`) is the next milestone.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -698,12 +717,13 @@ mfn-crypto/         ed25519 primitives + ZK    (145 tests)
 mfn-bls/            BLS12-381                  (16 tests)
 └── sig.rs          BLS signatures + committee aggregation
 
-mfn-storage/        Permanence                 (32 tests)
+mfn-storage/        Permanence                 (39 tests)
 ├── commitment.rs   StorageCommitment canonical hash
-├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
+├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof,
+│                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (133 tests: 120 unit + 13 integration)
+mfn-consensus/      Chain state machine        (135 tests: 121 unit + 14 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
@@ -711,9 +731,11 @@ mfn-consensus/      Chain state machine        (133 tests: 120 unit + 13 integra
 ├── coinbase.rs     Deterministic coinbase
 ├── consensus.rs    Slot model, VRF leader election, BLS committee finality,
 │                   M2.0 validator-set merkle commitment
-├── slashing.rs     Equivocation evidence + verification
+├── slashing.rs     Equivocation evidence + verification,
+│                   M2.0.1 slashing-evidence merkle commitment
 ├── storage.rs      Re-exports mfn-storage commitment types
-└── block.rs        BlockHeader, Block, ChainState, apply_block (the STF)
+└── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
+                    M2.0.2 storage-proof root binding
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).
