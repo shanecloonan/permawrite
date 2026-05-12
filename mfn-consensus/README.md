@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 153 passing (139 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 161 passing (147 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -23,7 +23,8 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | [`slashing`](src/slashing.rs) | Equivocation evidence + verification. M2.0.1 — `slashing_leaf_hash` / `slashing_merkle_root` for the per-block `slashing_root` commitment. |
 | [`storage`](src/storage.rs) | Re-exports `StorageCommitment` from `mfn-storage` (for consumer convenience). |
 | [`header_verify`](src/header_verify.rs) | **M2.0.5 + M2.0.7 — pure-function light-client verification primitives.** `verify_header(header, trusted_validators, params)` (M2.0.5) verifies `validator_root` + producer-proof + BLS finality aggregate against a trusted pre-block validator set. `verify_block_body(block)` (M2.0.7) re-derives `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` from `block.<field>` and matches each against the header. Both return typed `Result<_, *VerifyError>`. The cryptographic primitives for `mfn-light`. |
-| [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** |
+| [`validator_evolution`](src/validator_evolution.rs) | **M2.0.8 — shared validator-set evolution helpers.** Pure functions `apply_equivocation_slashings`, `apply_liveness_evolution`, `apply_bond_ops_evolution`, `apply_unbond_settlements` plus `BondEpochCounters` + `finality_bitmap_from_header`. `apply_block` (the full-node STF) and `mfn-light::LightChain::apply_block` (the light-client chain follower) both call these helpers, guaranteeing byte-for-byte parity between full-node and light-client validator-set transitions. |
+| [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** Each per-block validator-set mutation is a single line that delegates into `validator_evolution`. |
 
 ---
 
@@ -247,6 +248,7 @@ pub enum BlockError {
 - **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection, **forged-register-signature rejection** under `register_rejects_invalid_signature`).
 - **Light-header verification (M2.0.5)** — 10 unit tests in `header_verify::tests`: happy path round-trip, tampered `validator_root` / wrong trusted set, tampered producer proof, empty trusted set, empty / truncated producer proof, tampered height and slot (each breaks the header signing hash → finality rejection), determinism. Plus 3 integration tests in `mfn-node/tests/light_header_verify.rs` proving `verify_header` and `apply_block` agree on every block of a real 3-block chain. Plus 5 integration tests in `mfn-light/tests/follow_chain.rs` (M2.0.6 chain follower).
 - **Light-body verification (M2.0.7)** — 8 unit tests in `header_verify::tests`: happy path on real signed block, tampered header fields for each of the four body-bound roots (`tx_root` / `bond_root` / `slashing_root` / `storage_proof_root`), body-side tamper (pushed duplicate tx), determinism, genesis consistency. Plus 7 + 5 mfn-light tests for `apply_block` (see [`mfn-light/README.md`](../mfn-light/README.md)).
+- **Validator-set evolution (M2.0.8)** — 8 unit tests in `validator_evolution::tests`: empty-input no-ops for each of the four phases; liveness consecutive-missed reset on signed bit; zero-stake validators skipped by liveness; stats-vec auto-resize when misaligned; unbond settlement zeroes stake at unlock_height; bitmap extractor returns `None` on genesis headers. The `apply_block` refactor that delegates to these helpers preserves every pre-M2.0.8 test (all 147 unit + 14 integration tests pass byte-for-byte unchanged). Plus 8 + 2 mfn-light tests for the light-client integration (see [`mfn-light/README.md`](../mfn-light/README.md)).
 - **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 
 ```bash

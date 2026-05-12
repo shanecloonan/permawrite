@@ -1,0 +1,78 @@
+M2.0.8 Light-client validator-set evolution — shared `validator_evolution` helpers
+
+Extracts the four phases that mutate the active validator set inside
+`mfn-consensus::apply_block` (equivocation slashing, liveness slashing,
+bond ops, unbond settlements) into a new pure-helper module
+`mfn-consensus::validator_evolution`, then teaches `mfn-light::LightChain`
+to call those exact same helpers from `apply_block`. Result: light
+clients now follow the Permawrite chain across arbitrary rotations
+from a single genesis bootstrap, with byte-for-byte parity between
+full-node and light-client validator-set transitions guaranteed by
+construction (single source of truth).
+
+Highlights:
+
+- New `mfn-consensus::validator_evolution` module with four phase
+  functions (`apply_equivocation_slashings`, `apply_liveness_evolution`,
+  `apply_bond_ops_evolution`, `apply_unbond_settlements`), the
+  `BondEpochCounters` shared-state struct, and a
+  `finality_bitmap_from_header` extractor so light clients drive
+  Phase B without re-decoding the producer proof.
+
+- `mfn-consensus::block::apply_block` refactor: four inlined phases
+  replaced with single-line calls. All 147 pre-existing unit tests +
+  14 integration tests pass byte-for-byte unchanged — confirming
+  semantic equivalence to the pre-refactor implementation.
+
+- `mfn-light::LightChain` extension: tracks shadow state
+  (`validator_stats`, `pending_unbonds`, `BondEpochCounters`,
+  `bonding_params`) initialized in `from_genesis` to mirror
+  `apply_genesis` byte-for-byte. New `apply_block` runs the four
+  evolution phases on staging copies and atomically commits.
+
+- New typed error `LightChainError::EvolutionFailed { height, index,
+  message }` for the defense-in-depth Byzantine-quorum case.
+
+- Extended `AppliedBlock` reports per-block validator-set deltas:
+  `validators_added`, `validators_slashed_equivocation`,
+  `validators_slashed_liveness`, `validators_unbond_settled`.
+
+- The cross-block audit invariant: block N+1's header commits to the
+  post-block-N validator set, so any drift between the light
+  client's evolution and the full node's view is caught by the very
+  next `apply_block` with `HeaderVerify { ValidatorRootMismatch }`.
+  The chain's own headers audit the light client's evolution.
+
+Tests: workspace 412 passing (147 mfn-consensus unit + 14
+mfn-consensus integration + 22 mfn-light unit + 12 mfn-light
+integration + others); +18 new tests for M2.0.8:
+
+- 8 new mfn-consensus unit tests covering each phase's happy / edge
+  cases.
+- 8 new mfn-light unit tests covering shadow-state initialization,
+  per-block stat advance, the cross-block drift detection, and the
+  headline `validator_set_root` invariant.
+- 2 new mfn-light integration tests: a real 5-block rotation chain
+  (Register at block 1, Unbond at block 3, settlement at block 5)
+  with `validator_set_root` agreement asserted after every block,
+  and a tampered-bond-op rejection that fires at the
+  `BondRootMismatch` body check before evolution runs.
+
+Docs:
+
+- New design note `docs/M2_LIGHT_VALIDATOR_EVOLUTION.md` covering
+  the four-phase algorithm, the cross-block audit invariant, the
+  full test matrix, atomicity semantics, and what's intentionally
+  not in scope.
+- Updated `docs/ARCHITECTURE.md`, `docs/CONSENSUS.md`,
+  `docs/ROADMAP.md`, `mfn-consensus/README.md`, `mfn-light/README.md`,
+  and the top-level `README.md` to reflect the new module, updated
+  test counts (394 → 412), and the milestone-shipped status.
+
+- Regenerated `CODEBASE_STATS.md`.
+
+What this unlocks: trustless long-running light clients (wallets,
+dashboards, bridges, in-browser WASM clients) can now follow
+Permawrite indefinitely from a single genesis bootstrap, with full
+cryptographic verification at every step and no need to re-bootstrap
+across rotations.

@@ -11,8 +11,9 @@
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, BlockHeader, BodyVerifyError, ConsensusParams,
-    GenesisConfig, HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
+    build_coinbase, emission_at_height, sign_register, sign_unbond, validator_set_root,
+    BlockHeader, BodyVerifyError, BondOp, BondingParams, ConsensusParams, GenesisConfig,
+    HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
@@ -444,4 +445,321 @@ fn light_chain_apply_block_and_apply_header_agree_on_clean_chains() {
     }
     assert_eq!(light_hdr.stats(), light_blk.stats());
     assert_eq!(light_hdr.tip_id(), light_blk.tip_id());
+}
+
+/* ------------------------------------------------------------------ *
+ *  M2.0.8 — Validator-set evolution                                   *
+ * ------------------------------------------------------------------ */
+
+/// Rotation-friendly bonding params: tiny min stake (so a second
+/// validator can join with stake far below v0), short unbond delay
+/// (so settlement happens within 5 blocks), generous churn.
+fn rotation_bonding_params() -> BondingParams {
+    BondingParams {
+        min_validator_stake: 1,
+        unbond_delay_heights: 2,
+        max_entry_churn_per_epoch: 16,
+        max_exit_churn_per_epoch: 16,
+        slots_per_epoch: 7200,
+    }
+}
+
+/// Genesis fixture that overrides bonding params to make rotations
+/// observable inside a 5-block window.
+fn rotation_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusParams) {
+    let (v0, s0) = mk_validator(0, 1_000_000);
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6666,
+        liveness_max_consecutive_missed: 64,
+        liveness_slash_bps: 0,
+    };
+    (
+        GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: vec![v0],
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: Some(rotation_bonding_params()),
+        },
+        s0,
+        params,
+    )
+}
+
+/// Produce a block on the given full chain with explicit `bond_ops`.
+/// Always uses v0 (chain.validators()[0]) as the producer + sole voter
+/// — for our rotation tests, v0 keeps a 99.99%+ stake share so quorum
+/// is always met by v0's vote alone.
+fn produce_block_with_ops(
+    chain: &Chain,
+    secrets: &ValidatorSecrets,
+    params: ConsensusParams,
+    height: u32,
+    bond_ops: Vec<BondOp>,
+) -> mfn_consensus::Block {
+    let producer = chain.validators()[0].clone();
+    let payout = producer.payout.unwrap();
+    let cb_payout = PayoutAddress {
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
+    };
+    let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
+    let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
+    let inputs = BlockInputs {
+        height,
+        slot: height,
+        timestamp: u64::from(height) * 100,
+        txs: vec![cb],
+        bond_ops,
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
+    };
+    produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block")
+}
+
+/// A 5-block rotation scenario:
+///
+///   block 1: Register v1 (small stake, so v0 alone keeps 2/3 quorum).
+///   block 2: normal block — v1 is now in the trusted set.
+///   block 3: Unbond v1 (signed by v1's BLS key). With
+///            `unbond_delay_heights = 2`, the unlock height is 3 + 2 = 5.
+///   block 4: normal block — v1 still in set (zombie-in-waiting).
+///   block 5: unbond settles — v1's stake zeroed.
+///
+/// After EVERY block we assert that the light chain's trusted
+/// validator set has byte-for-byte the same `validator_set_root` as
+/// the full node's `ChainState.validators`. This is the headline M2.0.8
+/// invariant: light + full agree on the trusted set across every
+/// rotation event.
+#[test]
+fn light_chain_follows_register_then_unbond_rotation_across_five_blocks() {
+    let (cfg, s0, params) = rotation_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    // Genesis: 1 validator in both chains.
+    assert_eq!(full.validators().len(), 1);
+    assert_eq!(light.trusted_validators().len(), 1);
+    let root_genesis = validator_set_root(full.validators());
+    assert_eq!(root_genesis, validator_set_root(light.trusted_validators()));
+
+    // Prepare v1's keypair + signed Register op (signs *before* the
+    // op is broadcast — the chain re-verifies on application).
+    let (v1, s1) = mk_validator(1, 100);
+    let v1_payout = v1.payout;
+    let register_sig = sign_register(
+        v1.stake,
+        &v1.vrf_pk,
+        &v1.bls_pk,
+        v1_payout.as_ref(),
+        &s1.bls.sk,
+    );
+    let register_op = BondOp::Register {
+        stake: v1.stake,
+        vrf_pk: v1.vrf_pk,
+        bls_pk: v1.bls_pk,
+        payout: v1_payout,
+        sig: register_sig,
+    };
+
+    // ------- block 1: Register v1 -------
+    let b1 = produce_block_with_ops(&full, &s0, params, 1, vec![register_op]);
+    full.apply(&b1).expect("full b1");
+    let applied = light.apply_block(&b1).expect("light b1");
+    assert_eq!(applied.validators_added, 1);
+    assert_eq!(applied.validators_slashed_equivocation, 0);
+    assert_eq!(applied.validators_unbond_settled, 0);
+    assert_eq!(
+        full.validators().len(),
+        2,
+        "full chain extended with v1 after block 1"
+    );
+    assert_eq!(
+        light.trusted_validators().len(),
+        2,
+        "light chain extended with v1 after block 1"
+    );
+    assert_eq!(
+        validator_set_root(full.validators()),
+        validator_set_root(light.trusted_validators()),
+        "block 1: light + full must agree on validator_root"
+    );
+    // Indexing convention preserved: v1 is at index 1.
+    assert_eq!(light.trusted_validators()[1].index, 1);
+    assert_eq!(light.next_validator_index(), 2);
+
+    // ------- block 2: normal -------
+    let b2 = produce_block_with_ops(&full, &s0, params, 2, Vec::new());
+    full.apply(&b2).expect("full b2");
+    let applied2 = light.apply_block(&b2).expect("light b2");
+    assert_eq!(applied2.validators_added, 0);
+    assert_eq!(applied2.validators_unbond_settled, 0);
+    assert_eq!(
+        validator_set_root(full.validators()),
+        validator_set_root(light.trusted_validators()),
+        "block 2: roots agree"
+    );
+
+    // ------- block 3: Unbond v1 -------
+    let unbond_sig = sign_unbond(v1.index, &s1.bls.sk);
+    let unbond_op = BondOp::Unbond {
+        validator_index: v1.index,
+        sig: unbond_sig,
+    };
+    let b3 = produce_block_with_ops(&full, &s0, params, 3, vec![unbond_op]);
+    full.apply(&b3).expect("full b3");
+    let applied3 = light.apply_block(&b3).expect("light b3");
+    assert_eq!(applied3.validators_added, 0);
+    assert_eq!(
+        applied3.validators_unbond_settled, 0,
+        "unbond enqueued, not yet settled"
+    );
+    assert_eq!(
+        light.pending_unbonds().len(),
+        1,
+        "v1's unbond is queued after block 3"
+    );
+    // unbond_delay_heights = 2 → unlock_height = 3 + 2 = 5
+    let pending = light.pending_unbonds().get(&1).expect("v1 queued");
+    assert_eq!(pending.unlock_height, 5);
+    assert_eq!(
+        validator_set_root(full.validators()),
+        validator_set_root(light.trusted_validators()),
+        "block 3: roots agree (validator set unchanged, pending queue updated)"
+    );
+
+    // ------- block 4: normal — still no settlement -------
+    let b4 = produce_block_with_ops(&full, &s0, params, 4, Vec::new());
+    full.apply(&b4).expect("full b4");
+    let applied4 = light.apply_block(&b4).expect("light b4");
+    assert_eq!(applied4.validators_unbond_settled, 0);
+    assert_eq!(light.pending_unbonds().len(), 1);
+    assert_eq!(
+        light.trusted_validators()[1].stake,
+        100,
+        "v1 still has stake at block 4 (unbond not yet due)"
+    );
+    assert_eq!(
+        validator_set_root(full.validators()),
+        validator_set_root(light.trusted_validators()),
+        "block 4: roots agree"
+    );
+
+    // ------- block 5: unbond settles -------
+    let b5 = produce_block_with_ops(&full, &s0, params, 5, Vec::new());
+    full.apply(&b5).expect("full b5");
+    let applied5 = light.apply_block(&b5).expect("light b5");
+    assert_eq!(
+        applied5.validators_unbond_settled, 1,
+        "v1's unbond should settle this block"
+    );
+    assert!(
+        light.pending_unbonds().is_empty(),
+        "v1's pending unbond cleared after settlement"
+    );
+    assert_eq!(
+        light.trusted_validators()[1].stake,
+        0,
+        "v1's stake zeroed by unbond settlement"
+    );
+    assert_eq!(
+        validator_set_root(full.validators()),
+        validator_set_root(light.trusted_validators()),
+        "block 5: roots agree post-settlement"
+    );
+}
+
+/// A maliciously-tampered bond op in a block whose header *is*
+/// authentic (signed correctly with v0's key for the genuine
+/// pre-tamper bond_root) must be caught by the body root check
+/// (the body's bond_root no longer matches the header's claimed
+/// bond_root) — NOT by `EvolutionFailed`. The body check fires first.
+#[test]
+fn light_chain_rejects_tampered_bond_op_with_body_mismatch() {
+    let (cfg, s0, params) = rotation_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let (v1, s1) = mk_validator(1, 100);
+    let v1_payout = v1.payout;
+    let register_sig = sign_register(
+        v1.stake,
+        &v1.vrf_pk,
+        &v1.bls_pk,
+        v1_payout.as_ref(),
+        &s1.bls.sk,
+    );
+    let register_op = BondOp::Register {
+        stake: v1.stake,
+        vrf_pk: v1.vrf_pk,
+        bls_pk: v1.bls_pk,
+        payout: v1_payout,
+        sig: register_sig,
+    };
+
+    let mut b1 = produce_block_with_ops(&full, &s0, params, 1, vec![register_op]);
+
+    // Tamper the bond op's claimed stake after the header has already
+    // been signed over the original bond_root. Recomputing the
+    // bond_root from this list yields a different value → body fails.
+    if let BondOp::Register { stake, .. } = &mut b1.bond_ops[0] {
+        *stake = 999_999;
+    }
+
+    let pre_root = validator_set_root(light.trusted_validators());
+    let err = light.apply_block(&b1).expect_err("must reject");
+    assert!(
+        matches!(
+            err,
+            LightChainError::BodyMismatch {
+                source: BodyVerifyError::BondRootMismatch { .. },
+                ..
+            }
+        ),
+        "expected BondRootMismatch, got {err:?}"
+    );
+    // Full chain didn't accept either — sanity.
+    let _ = full.apply(&b1); // expected to fail too; outcome ignored.
+                             // Light chain preserved.
+    assert_eq!(light.tip_height(), 0);
+    assert_eq!(validator_set_root(light.trusted_validators()), pre_root);
+}
+
+/// If a malicious peer fabricates a block whose header authentically
+/// commits to a bond_op list, but one of those ops has an invalid
+/// signature, the body verify passes (bond_root recomputes correctly)
+/// but `apply_bond_ops_evolution` rejects → `EvolutionFailed`. State
+/// preserved.
+///
+/// To exercise this path we need a block whose header is signed by
+/// the chain's actual quorum but whose bond_ops contain a bad
+/// signature. `produce_solo_block` won't construct such a block
+/// (it goes through the same evolution check); we construct it by
+/// hand by producing a *valid* block with a bad-signature bond op
+/// and signing it — but `produce_solo_block` will fail to produce
+/// because the full chain rejects the bad op on its trial-apply.
+/// So we instead manually call the same low-level primitives the
+/// producer does and skip the trial-apply: this *is* the Byzantine
+/// scenario the light client guards against.
+///
+/// For this milestone, we use a simpler proxy: we hand-craft a block
+/// by re-signing the header with the bad bond_op already in place —
+/// since both `header.bond_root` and the body's `bond_op` agree
+/// byte-for-byte (we recompute the root over the bad bond_op list),
+/// body verify passes; the bad signature only trips when the
+/// light client runs `apply_bond_ops_evolution`.
+///
+/// Implementing this requires re-running the consensus signing pipeline
+/// with the corrupted body, which is heavyweight; instead we exercise
+/// the path via a unit test in `mfn-consensus` (already present).
+/// This integration test slot reserves space for that path to be
+/// fleshed out when we have a `mfn-test` fixture helper in M2.0.8.x.
+#[test]
+#[ignore = "needs mfn-test fixture for hand-signed Byzantine blocks (M2.0.8.x)"]
+fn light_chain_rejects_invalid_bond_op_signature_via_evolution_failed() {
+    // Reserved for future M2.0.8.x — see test docs.
 }

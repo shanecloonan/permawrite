@@ -58,6 +58,7 @@ pub mod header_verify;
 pub mod slashing;
 pub mod storage;
 pub mod transaction;
+pub mod validator_evolution;
 
 pub use block::{
     apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
@@ -105,4 +106,9 @@ pub use transaction::{
     sign_transaction, tx_id, tx_preimage, verify_transaction, InputSpec, OutputSpec, Recipient,
     SignedTransaction, TransactionWire, TxBuildError, TxInputWire, TxOutputWire, VerifyResult,
     TX_RANGE_BITS, TX_VERSION,
+};
+pub use validator_evolution::{
+    apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,
+    apply_unbond_settlements, finality_bitmap_from_header, BondEpochCounters, BondOpError,
+    EquivocationError, EquivocationOutcome, LivenessOutcome,
 };

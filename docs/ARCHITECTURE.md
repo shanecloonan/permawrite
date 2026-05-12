@@ -662,8 +662,8 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
-- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header + light-body verification primitives shipped in M2.0.5 / M2.0.7.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) / `verify_block_body` (M2.0.7) are all live. The block header now binds every body element, and pure-function light verifiers exist to prove both halves stateless-ly. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md), and [`M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md).
-- **Light client follows a chain through stable-validator windows, with full header + body verification.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify.rs) M2.0.7) and the chain-following skeleton ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + tip advance) — state byte-for-byte preserved on any failure, typed errors distinguishing forged headers from header-honest / body-tampered pairs. **Validator-set evolution across rotations** (M2.0.8) is the remaining slice; the P2P/daemon layer follows.
+- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header + light-body verification + validator-set-evolution primitives shipped in M2.0.5 / M2.0.7 / M2.0.8.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) / `verify_block_body` (M2.0.7) / shared `validator_evolution` helpers (M2.0.8) are all live. The block header now binds every body element, pure-function light verifiers exist to prove both halves stateless-ly, AND a shared evolution module guarantees byte-for-byte parity between the full-node and light-client validator-set transitions. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md), [`M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md), and [`M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md).
+- **Light client follows a chain across arbitrary rotations.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify.rs) M2.0.7) plus the shared evolution module ([`validator_evolution`](../mfn-consensus/src/validator_evolution.rs) M2.0.8) plus the chain-following driver ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7 + M2.0.8) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance — no evolution) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + validator-set evolution + tip advance). State byte-for-byte preserved on any failure, typed errors distinguishing forged headers / body-tampered pairs / invalid bond ops. The light client now follows the chain indefinitely from a single genesis bootstrap. The P2P/daemon layer is the next slice.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -739,8 +739,16 @@ mfn-consensus/      Chain state machine        (153 tests: 139 unit + 14 integra
 │                   + M2.0.7 verify_block_body — re-derives tx_root /
 │                   bond_root / slashing_root / storage_proof_root from
 │                   a delivered &Block and matches the header
+├── validator_evolution.rs M2.0.8 pure helpers for per-block validator-set
+│                   evolution: apply_equivocation_slashings,
+│                   apply_liveness_evolution, apply_bond_ops_evolution,
+│                   apply_unbond_settlements. Single source of truth used by
+│                   both apply_block (full node) and mfn-light's chain
+│                   follower. Plus finality_bitmap_from_header for callers
+│                   that drive Phase B without re-decoding the proof.
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
-                    M2.0.2 storage-proof root binding
+                    M2.0.2 storage-proof root binding. Each validator-set
+                    mutation is a single call into validator_evolution.
 
 mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
@@ -751,16 +759,20 @@ mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integratio
                     case. The shape future P2P / RPC / mempool integration
                     consumes.
 
-mfn-light/          Light-client follower      (24 tests: 14 unit + 10 integration)
-└── chain.rs        LightChain: tracks tip pointer + trusted validator set.
+mfn-light/          Light-client follower      (34 tests: 22 unit + 12 integration)
+└── chain.rs        LightChain: tracks tip pointer, trusted validator set,
+                    AND the shadow state needed to evolve that set across
+                    rotations (validator_stats, pending_unbonds,
+                    BondEpochCounters, bonding_params).
                     apply_header(&BlockHeader) — linkage + verify_header (M2.0.5)
-                                                 + tip advance.
+                                                 + tip advance. (No evolution.)
                     apply_block(&Block) — linkage + verify_header
-                                          + verify_block_body (M2.0.7) + tip advance.
-                    Pure-Rust deps only; WASM-friendly.
-                    (M2.0.6 — header following with stable validator set;
-                    M2.0.7 — body-root verification;
-                    M2.0.8 will add validator-set evolution.)
+                                          + verify_block_body (M2.0.7)
+                                          + validator-set evolution (M2.0.8 via
+                                          shared mfn-consensus helpers)
+                                          + tip advance.
+                    Pure-Rust deps only; WASM-friendly. Follows the chain
+                    indefinitely from a single genesis bootstrap.
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).

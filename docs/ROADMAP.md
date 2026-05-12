@@ -12,11 +12,11 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier**) | `mfn-consensus` | 153 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers**) | `mfn-consensus` | 161 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
-| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification**) | `mfn-light` | 24 | ✓ live (skeleton) |
+| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution**) | `mfn-light` | 34 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **394** | All checks green |
+| **Total** | | **412** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -408,13 +408,13 @@ Integration (5, in `mfn-light/tests/follow_chain.rs`):
 ### What's intentionally *not* in M2.0.6
 
 - **Body verification** — shipped in M2.0.7 below.
-- **Validator-set evolution across rotations** — M2.0.8 slice. M2.0.6 / M2.0.7 follow a chain through any *stable-validator window*; rotation handling lands separately.
+- **Validator-set evolution across rotations** — shipped in M2.0.8 below. M2.0.6 / M2.0.7 follow a chain through any *stable-validator window*; M2.0.8 mirrors `mfn-consensus`'s evolution byte-for-byte via a shared pure-helper module so light clients follow indefinitely.
 - **Re-org / fork choice** — single canonical header chain.
 - **Persistence** — state lives in memory.
 
 ### What this unlocks
 
-- **M2.0.7 + M2.0.8** — the next two slices complete the production-ready light client.
+- **M2.0.7 + M2.0.8** — shipped. The production-ready light client now follows the chain across arbitrary rotations.
 - **WASM bindings (`mfn-wasm`)** — the dependency graph is intentionally pure-Rust so this is just `wasm-bindgen` glue away.
 - **Cross-chain bridges** — same `verify_header` + chain follower, embedded in another chain's smart contracts.
 
@@ -479,6 +479,46 @@ The full header-binds-body invariant was structurally in place since M2.0.2 (the
 - **Bridges / oracles.** A reader on another chain can prove "Permawrite block N at height H contains tx T" by relaying the header + body + Merkle path, all verifiable with the M2.0.5 + M2.0.7 primitives.
 
 See [`docs/M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md) for the full design note.
+
+---
+
+## Milestone M2.0.8 — Light-client validator-set evolution (✓ shipped)
+
+**Why it was next.** M2.0.5 / M2.0.6 / M2.0.7 let a light client follow a chain through *stable-validator windows*. The instant the chain rotates — a `BondOp::Register` adds a validator, an equivocation slashing zeros one, an unbond settles, a liveness slash reduces a stake — the next block's `verify_header` fails with `ValidatorRootMismatch` because the chain's new validator_root commits to a set the light client doesn't know about. M2.0.8 closes that gap: light clients now follow indefinitely from a single genesis bootstrap.
+
+The architectural keystone: the four phases that mutate the validator set inside `apply_block` (equivocation slashing, liveness slashing, bond ops, unbond settlements) are **extracted into a shared `mfn-consensus::validator_evolution` module**. Both the full node (`apply_block`) and the light client (`LightChain::apply_block`) call the same pure functions, so drift between the two implementations is **structurally impossible**.
+
+### What shipped
+
+- **`mfn-consensus::validator_evolution`** — new module with four pure helpers + the `BondEpochCounters` / `EquivocationOutcome` / `LivenessOutcome` / `BondOpError` types. Bitmap extractor (`finality_bitmap_from_header`) so light clients can drive Phase B without re-decoding the producer proof.
+- **`mfn-consensus::block::apply_block` refactor** — four inlined phases replaced with single-line calls to the new helpers. Byte-for-byte equivalent to the pre-refactor implementation: **all 161 mfn-consensus unit tests + 14 integration tests pass unchanged**.
+- **`mfn-light::LightChain` extension** — shadow state (`validator_stats`, `pending_unbonds`, `BondEpochCounters`, `bonding_params`) initialized in `from_genesis` to mirror `apply_genesis` byte-for-byte. `apply_block` now runs the four evolution phases on staging copies and atomically commits.
+- **`LightChainError::EvolutionFailed`** — new variant for the defense-in-depth path where bond ops are invalid (would only fire under Byzantine quorum).
+- **`AppliedBlock` extensions** — now reports `validators_added`, `validators_slashed_equivocation`, `validators_slashed_liveness`, `validators_unbond_settled` so callers can audit per-block deltas.
+
+### Test matrix
+
+- **8 new mfn-consensus unit tests** for the four phase helpers (no-op / happy path / edge cases).
+- **8 new mfn-light unit tests** for `from_genesis` shadow-state initialization, per-block stat advance, drift detection via next-block `validator_root` check, and the headline `validator_set_root` invariant.
+- **2 new mfn-light integration tests**:
+  - `light_chain_follows_register_then_unbond_rotation_across_five_blocks` — a real 5-block scenario (Register v1 at block 1, Unbond v1 at block 3, settle at block 5) with `validator_set_root` agreement asserted after every block.
+  - `light_chain_rejects_tampered_bond_op_with_body_mismatch` — defense-in-depth check that body-root verification fires *before* evolution.
+
+### What's intentionally *not* in M2.0.8
+
+- **Light-client surfaces for slashing audit.** The light client currently mirrors `apply_block`'s soft-skip semantics for invalid slashings (advances the chain, doesn't surface them as errors). A future slice could add an `EquivocationCheck`-style outcome to `AppliedBlock`.
+- **Liveness audit.** The bitmap is BLS-signed-over in `header_signing_hash`, so the chain itself enforces its faithfulness. A future slice could surface the decoded bitmap on `AppliedBlock::voted_indices`.
+- **Persistence.** Shadow state lives in memory.
+- **Re-org / fork choice.** Single canonical chain.
+
+### What this unlocks
+
+- **Trustless long-running light clients.** Wallets, dashboards, and bridges can follow Permawrite indefinitely from a single genesis bootstrap.
+- **M2.1 — Multi-node testnet.** Light clients can join the testnet as first-class observers.
+- **M2.2 — Light-client P2P sync.** Header-first / body-on-demand sync protocols can be built on top.
+- **M2.3+ — In-browser wallets.** `mfn-light` is WASM-compatible and now follows rotations.
+
+See [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md) for the full design note.
 
 ---
 

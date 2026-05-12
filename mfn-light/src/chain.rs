@@ -1,18 +1,26 @@
-//! Header-only light-client chain follower.
+//! Light-client chain follower.
 //!
 //! The [`LightChain`] struct owns:
 //!
-//! - The *trusted* validator set (set at construction time from a
-//!   [`GenesisConfig`]; not yet evolved across rotations — see M2.0.8).
+//! - The *trusted* validator set, evolved deterministically across
+//!   rotations via [`LightChain::apply_block`] (M2.0.8). The next
+//!   block's `validator_root` is the cryptographic audit of the
+//!   previous block's evolution — if the light client gets it wrong,
+//!   `verify_header` fails with `ValidatorRootMismatch` on the very
+//!   next block.
 //! - The chain's [`ConsensusParams`] (for quorum threshold + slot-eligibility math).
+//! - The chain's [`BondingParams`] (for entry/exit churn + unbond delay).
 //! - The current tip's `block_id` and height.
 //! - The fixed genesis `block_id` (for "what chain am I on?" queries).
+//! - Shadow state required to derive the next validator set from the
+//!   current one: `validator_stats` (per-validator liveness counters),
+//!   `pending_unbonds` (in-flight exit queue), and the four bond-epoch
+//!   counters (`bond_epoch_id`, `bond_epoch_entry_count`,
+//!   `bond_epoch_exit_count`, `next_validator_index`).
 //!
-//! Every successful [`LightChain::apply_header`] swaps the tip pointer
-//! for the next header. The trusted-validators set is *not* mutated
-//! in this slice — callers following a chain across a rotation should
-//! re-bootstrap from a freshly-trusted checkpoint until M2.0.8 lands
-//! body-aware validator-set evolution.
+//! Every successful [`LightChain::apply_block`] swaps the tip pointer
+//! for the next header AND evolves the trusted validator set so the
+//! *next* block's header is verified against the right committee.
 //!
 //! ## What this driver does
 //!
@@ -20,14 +28,20 @@
 //!   Strict height/`prev_hash` linkage + [`verify_header`] cryptographic
 //!   check + tip advance. Useful when the body isn't available yet
 //!   (e.g. lightweight sync of *just* the header chain for inclusion
-//!   proofs against a trusted checkpoint).
-//! - [`LightChain::apply_block`] — full block application (M2.0.7).
+//!   proofs against a trusted checkpoint). **Does not** evolve the
+//!   validator set — header-only callers that need to follow across a
+//!   rotation must either re-bootstrap or use `apply_block`.
+//! - [`LightChain::apply_block`] — full block application (M2.0.7 + M2.0.8).
 //!   Same linkage + header verification, plus stateless body
 //!   verification via [`mfn_consensus::verify_block_body`] of the four
 //!   header-bound body roots (`tx_root`, `bond_root`, `slashing_root`,
-//!   `storage_proof_root`). After a successful `apply_block`, the
-//!   light client has cryptographic confidence that the delivered
-//!   body is byte-for-byte the body the producer signed over.
+//!   `storage_proof_root`), plus byte-for-byte mirror of
+//!   `mfn-consensus`'s validator-set evolution (equivocation slashing,
+//!   liveness slashing, bond ops, unbond settlements). After a
+//!   successful `apply_block`, the light client has cryptographic
+//!   confidence that the delivered body is byte-for-byte the body the
+//!   producer signed over AND its trusted validator set is the same
+//!   set the next block's header will commit to.
 //!
 //! ## What this driver does NOT do (yet)
 //!
@@ -36,17 +50,19 @@
 //!   the block body. A stateless light client can't independently
 //!   recompute them; they're already cryptographically covered by the
 //!   BLS aggregate signing `header_signing_hash`.
-//! - **No validator-set evolution.** Processing `BondOp`s, slashings,
-//!   liveness slashes, and pending-unbond settlements to derive
-//!   `trusted_validators_{n+1}` from `trusted_validators_n` is M2.0.8.
 //! - **No re-org / fork choice.** Single canonical header chain only.
 //!   Future P2P / sync layers would attach re-org logic on top.
 //! - **No persistence.** Tip pointer + trusted validators live in
 //!   memory. Trivial to add via a separate `mfn-light::store` module.
 
+use std::collections::BTreeMap;
+
 use mfn_consensus::{
-    block_id, build_genesis, verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError,
-    ConsensusParams, GenesisConfig, HeaderCheck, HeaderVerifyError, Validator,
+    apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,
+    apply_unbond_settlements, block_id, build_genesis, finality_bitmap_from_header,
+    verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError, BondEpochCounters,
+    BondOpError, BondingParams, ConsensusParams, GenesisConfig, HeaderCheck, HeaderVerifyError,
+    PendingUnbond, Validator, ValidatorStats, DEFAULT_BONDING_PARAMS,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -104,20 +120,35 @@ pub struct AppliedHeader {
 }
 
 /// Returned by [`LightChain::apply_block`] on success — carries the
-/// new tip's `block_id` and the [`HeaderCheck`] from the underlying
-/// `verify_header` call, *plus* the implicit guarantee that the
-/// delivered body's four header-bound body roots all matched.
+/// new tip's `block_id`, the [`HeaderCheck`] from the underlying
+/// `verify_header` call, and summary counts of the validator-set
+/// evolution that took place.
 ///
-/// Structurally identical to [`AppliedHeader`] today, but kept as a
-/// distinct type so future slices (M2.0.8 validator-set evolution,
-/// then per-block reward / inclusion-proof surfaces) can extend
-/// `AppliedBlock` without affecting `AppliedHeader`'s contract.
+/// `validators_added`, `validators_slashed_equiv`, `validators_slashed_liveness`,
+/// and `validators_unbond_settled` together describe everything that
+/// changed in the trusted validator set as a result of applying this
+/// block. Together with the new tip's `block_id`, the next block's
+/// header (whose `validator_root` commits to the post-this-block
+/// validator set) implicitly audits this evolution: if any count is
+/// wrong, the next `apply_block` will fail with `HeaderVerify`
+/// wrapping `ValidatorRootMismatch`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppliedBlock {
     /// `block_id` of the just-applied block (now the chain's tip).
     pub block_id: [u8; 32],
     /// Verification stats from [`verify_header`].
     pub check: HeaderCheck,
+    /// Validators added to the trusted set this block (successful
+    /// `BondOp::Register` ops).
+    pub validators_added: u32,
+    /// Validators whose stake was zeroed by equivocation slashing
+    /// (canonical `SlashEvidence` entries that passed verification).
+    pub validators_slashed_equivocation: u32,
+    /// Validators whose stake was multiplicatively reduced by
+    /// liveness auto-slashing on this block.
+    pub validators_slashed_liveness: u32,
+    /// Pending unbonds that settled (stake zeroed) this block.
+    pub validators_unbond_settled: u32,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -172,13 +203,40 @@ pub enum LightChainError {
     /// the specific root.
     ///
     /// **State invariant**: when this is returned by
-    /// [`LightChain::apply_block`], the chain's tip is unchanged.
+    /// [`LightChain::apply_block`], the chain's tip and trusted
+    /// validator set are unchanged.
     #[error("body verification failed at height {height}: {source}")]
     BodyMismatch {
         /// Height the offending block claims.
         height: u32,
         /// Specific body-root failure.
         source: BodyVerifyError,
+    },
+
+    /// Validator-set evolution failed: a bond op in `block.bond_ops`
+    /// did not pass the same checks that
+    /// [`mfn_consensus::apply_block`] applies (bad register signature,
+    /// duplicate vrf_pk, churn budget exhausted, unknown validator
+    /// for unbond, …).
+    ///
+    /// In an honest chain this should never happen: if 2/3-stake
+    /// quorum signs a header committing to a bad bond-op list, that
+    /// quorum is Byzantine. The light client still re-runs the same
+    /// validity checks the full node does, so this variant is
+    /// defense-in-depth.
+    ///
+    /// **State invariant**: when this is returned by
+    /// [`LightChain::apply_block`], the chain's tip and trusted
+    /// validator set are unchanged — `apply_block` is atomic.
+    #[error("validator-set evolution failed at height {height}: bond op #{index}: {message}")]
+    EvolutionFailed {
+        /// Height the offending block claims.
+        height: u32,
+        /// 0-indexed position of the offending op in
+        /// `block.bond_ops`.
+        index: usize,
+        /// Human-readable reason.
+        message: String,
     },
 }
 
@@ -195,24 +253,33 @@ fn hex_id(id: &[u8; 32]) -> String {
  *  LightChain                                                              *
  * ----------------------------------------------------------------------- */
 
-/// Header-only light-client chain follower.
+/// Light-client chain follower.
 ///
-/// Tracks the current tip, the genesis id, and a trusted validator
-/// set. The trusted set is *not* yet rotated across `BondOp`s /
-/// slashings / unbond settlements — that's M2.0.8 work. For this
-/// slice, the chain follower works for stable-validator windows
-/// (which covers the vast majority of bulk-sync time).
+/// Tracks the current tip, the genesis id, a trusted validator set,
+/// and the shadow state required to evolve the trusted set across
+/// rotations (per-validator liveness stats, pending-unbond queue,
+/// bond-epoch counters). `apply_block` mirrors `mfn-consensus`'s
+/// validator-set evolution byte-for-byte by calling the same pure
+/// helper functions, so the light client cannot drift from the full
+/// node's view of `trusted_validators_n` for any honest chain.
 ///
 /// `LightChain` is `Send` (every field is `Send`) but `!Sync` by
 /// default — wrap in a `Mutex` if shared across threads is needed.
 /// The intended usage pattern is single-owner.
 #[derive(Clone, Debug)]
 pub struct LightChain {
-    trusted_validators: Vec<Validator>,
-    params: ConsensusParams,
+    // ---- Identity + tip ----
+    genesis_id: [u8; 32],
     tip_height: u32,
     tip_id: [u8; 32],
-    genesis_id: [u8; 32],
+    // ---- Consensus / bonding params (frozen at genesis) ----
+    params: ConsensusParams,
+    bonding_params: BondingParams,
+    // ---- Trusted validator set + shadow state for evolution (M2.0.8) ----
+    trusted_validators: Vec<Validator>,
+    validator_stats: Vec<ValidatorStats>,
+    pending_unbonds: BTreeMap<u32, PendingUnbond>,
+    bond_counters: BondEpochCounters,
 }
 
 impl LightChain {
@@ -220,11 +287,20 @@ impl LightChain {
     ///
     /// Runs [`build_genesis`] to derive the genesis block, computes
     /// the genesis `block_id`, and seeds the trusted validator set
-    /// from `cfg.genesis.validators`. After this returns successfully:
+    /// plus shadow evolution state from `cfg.genesis`. After this
+    /// returns successfully:
     ///
     /// - `tip_height() == 0`
     /// - `tip_id() == genesis_id()`
     /// - `trusted_validators()` matches `cfg.genesis.validators`
+    /// - `validator_stats()` matches the full-node post-genesis
+    ///   `validator_stats` (defaulted, one per genesis validator).
+    /// - `pending_unbonds()` is empty.
+    /// - `next_validator_index()` is `max(v.index for v in
+    ///   genesis.validators) + 1` (or 0 if empty), matching the
+    ///   full-node `apply_genesis` convention.
+    /// - `bonding_params()` is `cfg.genesis.bonding_params` if
+    ///   provided, else [`DEFAULT_BONDING_PARAMS`].
     ///
     /// No fallible work happens in genesis bootstrapping for the
     /// light-client path — the only thing we compute is the block id
@@ -236,12 +312,35 @@ impl LightChain {
         let LightChainConfig { genesis: cfg } = cfg;
         let genesis_block = build_genesis(&cfg);
         let genesis_id = block_id(&genesis_block.header);
+
+        // Mirror `apply_genesis` exactly so the light client's shadow
+        // state starts byte-for-byte equal to the full node's.
+        let bonding_params = cfg.bonding_params.unwrap_or(DEFAULT_BONDING_PARAMS);
+        let validator_stats = vec![ValidatorStats::default(); cfg.validators.len()];
+        let next_validator_index = cfg
+            .validators
+            .iter()
+            .map(|v| v.index)
+            .max()
+            .map(|m| m.saturating_add(1))
+            .unwrap_or(0);
+        let bond_counters = BondEpochCounters {
+            bond_epoch_id: 0,
+            bond_epoch_entry_count: 0,
+            bond_epoch_exit_count: 0,
+            next_validator_index,
+        };
+
         Self {
-            trusted_validators: cfg.validators,
-            params: cfg.params,
+            genesis_id,
             tip_height: 0,
             tip_id: genesis_id,
-            genesis_id,
+            params: cfg.params,
+            bonding_params,
+            trusted_validators: cfg.validators,
+            validator_stats,
+            pending_unbonds: BTreeMap::new(),
+            bond_counters,
         }
     }
 
@@ -387,14 +486,88 @@ impl LightChain {
             source,
         })?;
 
-        // (5) Advance tip. Nothing past this point can fail.
+        // (5) Validator-set evolution (M2.0.8).
+        //
+        //     Mirror `mfn-consensus::apply_block`'s evolution phases
+        //     byte-for-byte by calling the same pure helpers. Work
+        //     against staging copies so the light chain stays atomic:
+        //     if any phase rejects, we return without committing any
+        //     mutation.
+        let mut staged_validators = self.trusted_validators.clone();
+        let mut staged_stats = self.validator_stats.clone();
+        let mut staged_pending = self.pending_unbonds.clone();
+        let mut staged_counters = self.bond_counters;
+
+        // Phase A: equivocation slashings.
+        let eq = apply_equivocation_slashings(&mut staged_validators, &block.slashings);
+        // We don't surface Equivocation errors as LightChainError —
+        // `mfn-consensus::apply_block` allows the block to advance with
+        // *valid* slashings even if some entries in the slashing list
+        // are individually invalid (the full node surfaces them as
+        // BlockError but still applies the valid ones). To stay
+        // byte-for-byte compatible we do the same here.
+        let validators_slashed_equivocation = (block.slashings.len() - eq.errors.len()) as u32;
+
+        // Phase B: liveness slashing — needs the finality bitmap from
+        // `producer_proof`. `verify_header` already validated that the
+        // proof decodes and that the bitmap is internally consistent,
+        // so this `Option` is `Some` for every non-bootstrap block.
+        let bitmap = finality_bitmap_from_header(&block.header);
+        let pre_liveness_slashes: u32 = staged_stats.iter().map(|s| s.liveness_slashes).sum();
+        if let Some(b) = &bitmap {
+            apply_liveness_evolution(&mut staged_validators, &mut staged_stats, b, &self.params);
+        }
+        let post_liveness_slashes: u32 = staged_stats.iter().map(|s| s.liveness_slashes).sum();
+        let validators_slashed_liveness =
+            post_liveness_slashes.saturating_sub(pre_liveness_slashes);
+
+        // Phase C: bond ops (Register / Unbond).
+        let pre_bond_validators = staged_validators.len();
+        apply_bond_ops_evolution(
+            block.header.height,
+            &mut staged_counters,
+            &mut staged_validators,
+            &mut staged_stats,
+            &mut staged_pending,
+            &self.bonding_params,
+            &block.bond_ops,
+        )
+        .map_err(
+            |BondOpError { index, message }| LightChainError::EvolutionFailed {
+                height: block.header.height,
+                index,
+                message,
+            },
+        )?;
+        let validators_added = (staged_validators.len() - pre_bond_validators) as u32;
+
+        // Phase D: unbond settlements.
+        let pre_pending = staged_pending.len();
+        apply_unbond_settlements(
+            block.header.height,
+            &mut staged_counters,
+            &self.bonding_params,
+            &mut staged_validators,
+            &mut staged_pending,
+        );
+        let validators_unbond_settled = pre_pending.saturating_sub(staged_pending.len()) as u32;
+
+        // (6) Atomic commit. Nothing past this point can fail.
         let new_tip = block_id(&block.header);
+        self.trusted_validators = staged_validators;
+        self.validator_stats = staged_stats;
+        self.pending_unbonds = staged_pending;
+        self.bond_counters = staged_counters;
         self.tip_height = block.header.height;
         self.tip_id = new_tip;
 
         Ok(AppliedBlock {
             block_id: new_tip,
             check,
+            validators_added,
+            validators_slashed_equivocation,
+            validators_slashed_liveness,
+            validators_unbond_settled,
         })
     }
 
@@ -418,16 +591,54 @@ impl LightChain {
     }
 
     /// Trusted validator set the next header will be verified against.
-    /// Not yet evolved across rotations — see crate-level docs.
+    /// Evolved across rotations via [`LightChain::apply_block`] — see
+    /// the M2.0.8 design note for the four-phase evolution algorithm.
     #[must_use]
     pub fn trusted_validators(&self) -> &[Validator] {
         &self.trusted_validators
+    }
+
+    /// Per-validator participation stats (aligned with
+    /// [`Self::trusted_validators`] by index). Mirrors the full
+    /// node's `ChainState.validator_stats`.
+    #[must_use]
+    pub fn validator_stats(&self) -> &[ValidatorStats] {
+        &self.validator_stats
+    }
+
+    /// In-flight unbond requests indexed by `Validator::index`.
+    /// Settled when this validator's `unlock_height` is reached AND
+    /// exit-churn budget permits.
+    #[must_use]
+    pub fn pending_unbonds(&self) -> &BTreeMap<u32, PendingUnbond> {
+        &self.pending_unbonds
+    }
+
+    /// Bond-epoch counters mirroring `mfn-consensus::ChainState` —
+    /// `bond_epoch_id`, `bond_epoch_entry_count`,
+    /// `bond_epoch_exit_count`, `next_validator_index`.
+    #[must_use]
+    pub fn bond_counters(&self) -> &BondEpochCounters {
+        &self.bond_counters
+    }
+
+    /// Next `Validator::index` the chain will assign to a freshly-bonded
+    /// validator. Monotonically increasing across the chain's lifetime.
+    #[must_use]
+    pub fn next_validator_index(&self) -> u32 {
+        self.bond_counters.next_validator_index
     }
 
     /// Consensus parameters (frozen at genesis).
     #[must_use]
     pub fn params(&self) -> &ConsensusParams {
         &self.params
+    }
+
+    /// Bonding parameters (frozen at genesis).
+    #[must_use]
+    pub fn bonding_params(&self) -> &BondingParams {
+        &self.bonding_params
     }
 
     /// Sum of stake of all trusted validators.
@@ -856,5 +1067,191 @@ mod tests {
         a.apply_header(&block.header).expect("a");
         b.apply_block(&block).expect("b");
         assert_eq!(a.stats(), b.stats());
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0.8 — Validator-set evolution                                  *
+     * ----------------------------------------------------------------- */
+
+    /// `from_genesis` initialises shadow state correctly:
+    ///   - `validator_stats` aligned with `trusted_validators`.
+    ///   - `pending_unbonds` empty.
+    ///   - `bond_counters.next_validator_index` = max(index) + 1.
+    ///   - `bonding_params` = `DEFAULT_BONDING_PARAMS` when genesis
+    ///     supplies `None`.
+    #[test]
+    fn from_genesis_initializes_shadow_state() {
+        let (cfg, _s0, _params, _v0) = single_validator_cfg();
+        let light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        assert_eq!(light.validator_stats().len(), 1);
+        assert_eq!(light.validator_stats()[0], ValidatorStats::default());
+        assert!(light.pending_unbonds().is_empty());
+        let bc = light.bond_counters();
+        assert_eq!(bc.bond_epoch_id, 0);
+        assert_eq!(bc.bond_epoch_entry_count, 0);
+        assert_eq!(bc.bond_epoch_exit_count, 0);
+        assert_eq!(bc.next_validator_index, 1, "max(0) + 1");
+        // Default bonding params (genesis didn't override).
+        assert_eq!(
+            light.bonding_params().min_validator_stake,
+            mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake
+        );
+    }
+
+    /// `from_genesis` with an empty validator set seeds
+    /// `next_validator_index = 0`.
+    #[test]
+    fn from_genesis_empty_validators_indexes_at_zero() {
+        let mut cfg = single_validator_cfg().0;
+        cfg.validators = Vec::new();
+        let light = LightChain::from_genesis(LightChainConfig::new(cfg));
+        assert_eq!(light.bond_counters().next_validator_index, 0);
+        assert!(light.validator_stats().is_empty());
+    }
+
+    /// `apply_block` on a clean 1-validator chain increments
+    /// `validator_stats[0].total_signed` (the validator voted).
+    /// Liveness shouldn't slash because `liveness_slash_bps = 0`
+    /// in the test config.
+    #[test]
+    fn apply_block_increments_total_signed_for_voting_validator() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block = produce_block(&state, &v0, &s0, params, 1);
+        let applied = light.apply_block(&block).expect("apply");
+        assert_eq!(light.validator_stats()[0].total_signed, 1);
+        assert_eq!(light.validator_stats()[0].consecutive_missed, 0);
+        assert_eq!(light.validator_stats()[0].liveness_slashes, 0);
+        // No bond ops, no slashings, no unbonds.
+        assert_eq!(applied.validators_added, 0);
+        assert_eq!(applied.validators_slashed_equivocation, 0);
+        assert_eq!(applied.validators_slashed_liveness, 0);
+        assert_eq!(applied.validators_unbond_settled, 0);
+    }
+
+    /// Multi-block: total_signed advances per block.
+    #[test]
+    fn apply_block_total_signed_advances_across_blocks() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+        for h in 1..=3 {
+            let block = produce_block(&state, &v0, &s0, params, h);
+            state = match mfn_consensus::apply_block(&state, &block) {
+                mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+                other => panic!("apply_block(block {h}) failed: {other:?}"),
+            };
+            light.apply_block(&block).expect("light apply");
+        }
+        assert_eq!(light.validator_stats()[0].total_signed, 3);
+        assert_eq!(light.tip_height(), 3);
+    }
+
+    /// Tampered body → state preserved. Specifically, validator_stats
+    /// must not have advanced.
+    #[test]
+    fn apply_block_body_tamper_preserves_validator_stats() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let mut block = produce_block(&state, &v0, &s0, params, 1);
+        // Body tamper without touching header → BodyMismatch (header is
+        // still authentic, but body root mismatches).
+        let cb = block.txs[0].clone();
+        block.txs.push(cb);
+
+        let pre_stats = light.validator_stats().to_vec();
+        let pre_tip = light.tip_id;
+        let _ = light.apply_block(&block).expect_err("reject");
+        assert_eq!(light.validator_stats(), &pre_stats[..]);
+        assert_eq!(light.tip_id, pre_tip);
+    }
+
+    /// Header verification's `validator_root` check is the
+    /// cross-block audit of the previous block's evolution. We
+    /// simulate "wrong evolution" by hand-mutating the trusted set
+    /// and confirm the next `apply_block` fails with
+    /// `ValidatorRootMismatch` — exactly the failure mode that catches
+    /// a drift between full-node and light-client evolution.
+    #[test]
+    fn evolution_drift_caught_by_next_block_validator_root_check() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block1 = produce_block(&state, &v0, &s0, params, 1);
+        light.apply_block(&block1).expect("block 1");
+        let state1 = match mfn_consensus::apply_block(&state, &block1) {
+            mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+            other => panic!("block 1 should apply: {other:?}"),
+        };
+        let block2 = produce_block(&state1, &v0, &s0, params, 2);
+
+        // Simulate drift: zero the trusted validator's stake without
+        // any corresponding chain event. This is what a bug in
+        // `apply_block` evolution would look like.
+        light.trusted_validators[0].stake = 0;
+
+        let err = light.apply_block(&block2).expect_err("must reject");
+        match err {
+            LightChainError::HeaderVerify {
+                source: HeaderVerifyError::ValidatorRootMismatch,
+                ..
+            } => (),
+            other => panic!("expected ValidatorRootMismatch, got {other:?}"),
+        }
+    }
+
+    /// `applied.validators_added` / `_slashed_*` / `_unbond_settled`
+    /// all start at zero for a no-bond-no-slash chain.
+    #[test]
+    fn applied_block_counts_are_zero_for_no_event_chain() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+        for h in 1..=3 {
+            let block = produce_block(&state, &v0, &s0, params, h);
+            state = match mfn_consensus::apply_block(&state, &block) {
+                mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+                other => panic!("apply_block(block {h}) failed: {other:?}"),
+            };
+            let applied = light.apply_block(&block).expect("light apply");
+            assert_eq!(applied.validators_added, 0);
+            assert_eq!(applied.validators_slashed_equivocation, 0);
+            assert_eq!(applied.validators_slashed_liveness, 0);
+            assert_eq!(applied.validators_unbond_settled, 0);
+        }
+    }
+
+    /// `validator_set_root(light.trusted_validators())` must equal
+    /// the next block's `header.validator_root` after every applied
+    /// block. This is the core invariant of M2.0.8 — the next block's
+    /// header implicitly audits the previous block's evolution.
+    #[test]
+    fn validator_set_root_matches_next_block_header_after_apply() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+        for h in 1..=3 {
+            let block = produce_block(&state, &v0, &s0, params, h);
+            state = match mfn_consensus::apply_block(&state, &block) {
+                mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+                other => panic!("block {h}: {other:?}"),
+            };
+            light.apply_block(&block).expect("light apply");
+            // Next block's header will commit to this set.
+            let expected = mfn_consensus::validator_set_root(light.trusted_validators());
+            let actual = mfn_consensus::validator_set_root(&state.validators);
+            assert_eq!(
+                expected, actual,
+                "block {h}: light + full validator sets must agree byte-for-byte"
+            );
+        }
     }
 }

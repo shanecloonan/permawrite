@@ -473,7 +473,7 @@ Properties:
 
 - **Pure function.** No IO, no async, no state mutation. Same inputs → byte-for-byte same outputs.
 - **Same checks `apply_block` runs.** Exercised by the integration test `verify_header_agrees_with_apply_block_across_three_blocks` (in `mfn-node`): for every block of a real 3-block chain, `verify_header` accepts iff `apply_block` does.
-- **One hop.** This verifies a single header against a single trusted set. Walking the chain — and tracking how the trusted validator set evolves through `BondOp`s, slashings, and unbond settlements — is the job of the [`mfn-light`](../mfn-light/README.md) crate. The M2.0.6 slice of `mfn-light` provides the chain-following skeleton (header linkage + `verify_header` + tip advance); **M2.0.7 adds body-root verification** (see below); M2.0.8 will add validator-set evolution across rotations.
+- **One hop.** This verifies a single header against a single trusted set. Walking the chain — and tracking how the trusted validator set evolves through `BondOp`s, slashings, and unbond settlements — is the job of the [`mfn-light`](../mfn-light/README.md) crate. The M2.0.6 slice of `mfn-light` provides the chain-following skeleton (header linkage + `verify_header` + tip advance); **M2.0.7 adds body-root verification** (see below); **M2.0.8 adds validator-set evolution across rotations** via the shared `validator_evolution` module (see below).
 
 For the full design note + test matrix, see [`docs/M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md) (M2.0.5 primitive) and [`docs/M2_LIGHT_CHAIN.md`](./M2_LIGHT_CHAIN.md) (M2.0.6 chain follower).
 
@@ -501,6 +501,38 @@ Each variant carries the value the *header* claimed (`expected`) and the value t
 In `mfn-light`, the full-block analogue of `apply_header` is `apply_block(&Block)` — five steps in order: height monotonicity → prev_hash linkage → `verify_header` → `verify_block_body` → tip advance. State is byte-for-byte untouched on any failure. Header verification runs **before** body verification so the diagnostic distinction is clean: `HeaderVerify` = forged header; `BodyMismatch` = right header, wrong body.
 
 For the full design note + test matrix (8 unit tests in `mfn-consensus`, 7 unit + 5 integration in `mfn-light`), see [`docs/M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md).
+
+### Light-client validator-set evolution (M2.0.8)
+
+M2.0.5 + M2.0.7 give a light client cryptographic confidence in a single `(header, body)` pair. **M2.0.8** lets the light client follow the chain across arbitrary **rotations** — `BondOp::Register` adds, equivocation slashings zero, unbond settlements zero, liveness slashings reduce — by mirroring `apply_block`'s validator-set transition byte-for-byte via a **shared pure-helper module**: [`mfn-consensus::validator_evolution`](../mfn-consensus/src/validator_evolution.rs).
+
+Architecturally:
+
+```text
+                            mfn_consensus::validator_evolution
+                                       │
+        ┌──────────────────────────────┴──────────────────────────────┐
+        │                                                              │
+   mfn_consensus::block::apply_block             mfn_light::chain::apply_block
+   (full-node STF)                               (light-client chain follower)
+```
+
+The four shared phase functions:
+
+| Phase | Function | Mutates |
+|---|---|---|
+| A | `apply_equivocation_slashings(&mut [Validator], &[SlashEvidence])` | `validators[*].stake` ← 0 for verified evidence |
+| B | `apply_liveness_evolution(&mut [Validator], &mut Vec<ValidatorStats>, &[u8] bitmap, &ConsensusParams)` | `validator_stats` + multiplicative stake reduction |
+| C | `apply_bond_ops_evolution(height, &mut counters, &mut Vec<Validator>, &mut Vec<ValidatorStats>, &mut BTreeMap, &BondingParams, &[BondOp])` | extends validators / extends stats / enqueues pending unbonds / advances epoch counters |
+| D | `apply_unbond_settlements(height, &mut counters, &BondingParams, &mut [Validator], &mut BTreeMap)` | zeroes settled validators' stake / drains pending unbonds / consumes exit churn |
+
+`apply_block` (full node) and `LightChain::apply_block` (light client) **call the same four functions**. There is no hand-written mirror of the evolution logic in `mfn-light` — drift is structurally impossible.
+
+The cross-block audit invariant: after `apply_block(n)` succeeds, the light client's evolved `trusted_validators` MUST equal the full node's `state.validators` after the same block — otherwise the next `apply_block(n+1)` fails with `HeaderVerify { ValidatorRootMismatch }`. Block `n+1`'s header commits to the *post-block-n* validator set (M2.0), and `verify_header` checks it against the trusted set. **The chain's own headers are the audit of the light client's evolution.**
+
+In `mfn-light::LightChain`, the four phases run on **staging copies** of `trusted_validators`, `validator_stats`, `pending_unbonds`, and `BondEpochCounters`. If any phase rejects (e.g. an invalid bond op surfaces as `LightChainError::EvolutionFailed`), nothing is committed — the chain's tip and shadow state stay byte-for-byte equal to their pre-call values. Atomic commit on success only.
+
+For the full design note + test matrix (8 unit tests in `mfn-consensus::validator_evolution`, 8 unit + 2 integration in `mfn-light`), see [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md).
 
 ### Tests added for M2.0
 

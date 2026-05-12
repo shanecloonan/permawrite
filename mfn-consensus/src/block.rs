@@ -60,15 +60,12 @@ use mfn_storage::{
     DEFAULT_ENDOWMENT_PARAMS,
 };
 
-use crate::bond_wire::{bond_merkle_root, verify_unbond_sig, BondOp};
-use crate::bonding::{
-    epoch_id_for_height, try_register_entry_churn, try_register_exit_churn, unbond_unlock_height,
-    validate_stake, BondingParams, DEFAULT_BONDING_PARAMS,
-};
+use crate::bond_wire::{bond_merkle_root, BondOp};
+use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
 use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
-use crate::slashing::{canonicalize, verify_evidence, EvidenceCheck, SlashEvidence};
+use crate::slashing::{EvidenceCheck, SlashEvidence};
 use crate::transaction::{tx_id, verify_transaction, TransactionWire};
 
 /* ----------------------------------------------------------------------- *
@@ -1079,30 +1076,25 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // unit a validator commits is permanently anchored in the chain's
     // permanence-funding pool, whether it's later returned via unbond,
     // forfeited via slash, or paid out as block reward.
-    let mut slashed_this_block: HashSet<u32> = HashSet::new();
-    for (si, ev_raw) in block.slashings.iter().enumerate() {
-        let ev = canonicalize(ev_raw);
-        if !slashed_this_block.insert(ev.voter_index) {
-            errors.push(BlockError::DuplicateSlash {
-                index: si,
-                voter_index: ev.voter_index,
-            });
-            continue;
-        }
-        let chk = verify_evidence(&ev, &next.validators);
-        match chk {
-            EvidenceCheck::Valid => {
-                let idx = ev.voter_index as usize;
-                if idx < next.validators.len() {
-                    let forfeited = u128::from(next.validators[idx].stake);
-                    next.validators[idx].stake = 0;
-                    next.treasury = next.treasury.saturating_add(forfeited);
+    //
+    // Validator-set mutation is delegated to
+    // [`crate::validator_evolution::apply_equivocation_slashings`] —
+    // the same pure function the light client uses.
+    {
+        let eq = crate::validator_evolution::apply_equivocation_slashings(
+            &mut next.validators,
+            &block.slashings,
+        );
+        next.treasury = next.treasury.saturating_add(eq.forfeited_total);
+        for err in eq.errors {
+            errors.push(match err {
+                crate::validator_evolution::EquivocationError::Duplicate { index, voter_index } => {
+                    BlockError::DuplicateSlash { index, voter_index }
                 }
-            }
-            other => errors.push(BlockError::SlashInvalid {
-                index: si,
-                reason: other,
-            }),
+                crate::validator_evolution::EquivocationError::Invalid { index, reason } => {
+                    BlockError::SlashInvalid { index, reason }
+                }
+            });
         }
     }
 
@@ -1183,53 +1175,23 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // (the `SlashEvidence` path above) zeros stake outright; this layer
     // catches chronic absenteeism that equivocation evidence can't
     // attribute.
-    let mut liveness_burn_total: u128 = 0;
+    //
+    // The slashed-away delta is credited to the permanence treasury —
+    // same sink as equivocation slashing and bond burns, so chronic
+    // absenteeism funds storage operators rather than vanishing.
+    //
+    // Mutation is delegated to
+    // [`crate::validator_evolution::apply_liveness_evolution`].
     if let Some(ref bitmap) = finality_bitmap {
-        // Make sure the stats array is aligned with the validator set
-        // even if a previous version of the chain produced a state with
-        // a shorter (or absent) stats vector.
-        if next.validator_stats.len() != next.validators.len() {
-            next.validator_stats
-                .resize(next.validators.len(), ValidatorStats::default());
+        let out = crate::validator_evolution::apply_liveness_evolution(
+            &mut next.validators,
+            &mut next.validator_stats,
+            bitmap,
+            &next.params,
+        );
+        if out.liveness_burn_total > 0 {
+            next.treasury = next.treasury.saturating_add(out.liveness_burn_total);
         }
-        let max_missed = next.params.liveness_max_consecutive_missed;
-        let slash_bps = u128::from(next.params.liveness_slash_bps);
-        for (i, v) in next.validators.iter_mut().enumerate() {
-            if v.stake == 0 {
-                continue; // zombie; rotation will reap later
-            }
-            let byte = i >> 3;
-            let bit = i & 7;
-            let signed = byte < bitmap.len() && (bitmap[byte] & (1u8 << bit)) != 0;
-            let stats = &mut next.validator_stats[i];
-            if signed {
-                stats.consecutive_missed = 0;
-                stats.total_signed = stats.total_signed.saturating_add(1);
-            } else {
-                stats.consecutive_missed = stats.consecutive_missed.saturating_add(1);
-                stats.total_missed = stats.total_missed.saturating_add(1);
-                if max_missed > 0 && stats.consecutive_missed >= max_missed {
-                    // Multiplicative slash: stake *= (10000 − slash_bps) / 10000.
-                    // Capped at 100% (slash_bps clamped to 10_000 below) so we
-                    // can't underflow into negative stake. The slashed-away
-                    // delta is credited to the permanence treasury — same
-                    // sink as equivocation slashing and bond burns, so
-                    // chronic absenteeism funds storage operators rather
-                    // than vanishing.
-                    let bps = slash_bps.min(10_000);
-                    let old_stake = u128::from(v.stake);
-                    let new_stake_u128 = old_stake * (10_000 - bps) / 10_000;
-                    let forfeited = old_stake - new_stake_u128;
-                    v.stake = u64::try_from(new_stake_u128).unwrap_or(u64::MAX);
-                    liveness_burn_total = liveness_burn_total.saturating_add(forfeited);
-                    stats.liveness_slashes = stats.liveness_slashes.saturating_add(1);
-                    stats.consecutive_missed = 0;
-                }
-            }
-        }
-    }
-    if liveness_burn_total > 0 {
-        next.treasury = next.treasury.saturating_add(liveness_burn_total);
     }
 
     // ---- Bond ops (M1): new validators appended; not subject to this
@@ -1242,34 +1204,32 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // `BondOp::Unbond` enqueues an exit; the validator stays in the
     // active set (still slashable!) until the unbond delay elapses,
     // at which point the settlement phase below zeros their stake.
-    match simulate_bond_ops(
+    //
+    // Mutation is delegated to
+    // [`crate::validator_evolution::apply_bond_ops_evolution`] and
+    // [`crate::validator_evolution::apply_unbond_settlements`] — the
+    // same pure functions the light client uses to evolve its trusted
+    // validator set across rotations.
+    let mut counters = crate::validator_evolution::BondEpochCounters {
+        bond_epoch_id: next.bond_epoch_id,
+        bond_epoch_entry_count: next.bond_epoch_entry_count,
+        bond_epoch_exit_count: next.bond_epoch_exit_count,
+        next_validator_index: next.next_validator_index,
+    };
+    match crate::validator_evolution::apply_bond_ops_evolution(
         block.header.height,
-        next.bond_epoch_id,
-        next.bond_epoch_entry_count,
-        next.next_validator_index,
-        &next.validators,
-        &next.pending_unbonds,
+        &mut counters,
+        &mut next.validators,
+        &mut next.validator_stats,
+        &mut next.pending_unbonds,
         &next.bonding_params,
         &block.bond_ops,
     ) {
-        Ok(delta) => {
-            if delta.bond_epoch_id != next.bond_epoch_id {
-                next.bond_epoch_exit_count = 0;
-            }
-            next.bond_epoch_id = delta.bond_epoch_id;
-            next.bond_epoch_entry_count = delta.bond_epoch_entry_count;
-            next.next_validator_index = delta.next_validator_index;
-            let n_new = delta.new_validators.len();
-            next.validators.extend(delta.new_validators);
-            next.validator_stats
-                .extend((0..n_new).map(|_| ValidatorStats::default()));
-            next.treasury = next.treasury.saturating_add(delta.bond_burn_total);
-            for pu in delta.new_pending_unbonds {
-                next.pending_unbonds.insert(pu.validator_index, pu);
-            }
+        Ok(burn_total) => {
+            next.treasury = next.treasury.saturating_add(burn_total);
         }
-        Err((i, message)) => {
-            errors.push(BlockError::BondOpRejected { index: i, message });
+        Err(crate::validator_evolution::BondOpError { index, message }) => {
+            errors.push(BlockError::BondOpRejected { index, message });
         }
     }
 
@@ -1279,30 +1239,19 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      stake. Bonded MFN stays in treasury -- for M1, bonding is a
     //      one-way contribution to permanence; an honorable exit only
     //      frees the operator from future slashing exposure.
-    {
-        let due: Vec<u32> = next
-            .pending_unbonds
-            .iter()
-            .filter(|(_, pu)| pu.unlock_height <= block.header.height)
-            .map(|(idx, _)| *idx)
-            .collect();
-        for validator_index in due {
-            match try_register_exit_churn(next.bond_epoch_exit_count, &next.bonding_params) {
-                Ok(next_count) => {
-                    next.bond_epoch_exit_count = next_count;
-                }
-                Err(_) => break,
-            }
-            if let Some(pos) = next
-                .validators
-                .iter()
-                .position(|v| v.index == validator_index)
-            {
-                next.validators[pos].stake = 0;
-            }
-            next.pending_unbonds.remove(&validator_index);
-        }
-    }
+    crate::validator_evolution::apply_unbond_settlements(
+        block.header.height,
+        &mut counters,
+        &next.bonding_params,
+        &mut next.validators,
+        &mut next.pending_unbonds,
+    );
+
+    // Commit the counter mutations back to chain state.
+    next.bond_epoch_id = counters.bond_epoch_id;
+    next.bond_epoch_entry_count = counters.bond_epoch_entry_count;
+    next.bond_epoch_exit_count = counters.bond_epoch_exit_count;
+    next.next_validator_index = counters.next_validator_index;
 
     // ---- Two-sided economic settlement ----
     //
@@ -1389,131 +1338,6 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         state: next,
         block_id: proposed_id,
     }
-}
-
-/// Successful bond-op simulation: apply these mutations to [`ChainState`]
-/// after liveness (new validators are not in this block's committee).
-#[derive(Debug)]
-struct BondApplyDelta {
-    bond_epoch_id: u64,
-    bond_epoch_entry_count: u32,
-    next_validator_index: u32,
-    new_validators: Vec<Validator>,
-    /// Total stake registered this block; credited to `state.treasury`
-    /// as part of the burn-on-bond economic model.
-    bond_burn_total: u128,
-    /// Unbond requests enqueued this block.
-    new_pending_unbonds: Vec<PendingUnbond>,
-}
-
-/// Validate `ops` against the pre-bond view of the chain and return new
-/// validators plus updated bonding counters. Any error is atomic: the
-/// caller must not apply a partial prefix of `ops`.
-//
-// Eight arguments is intentional: each represents a distinct piece of
-// pre-bond chain state that the simulator must read and atomically update.
-// Bundling them into a struct would simply shift the same coupling across
-// the call site without reducing it.
-#[allow(clippy::too_many_arguments)]
-fn simulate_bond_ops(
-    height: u32,
-    mut bond_epoch_id: u64,
-    mut bond_epoch_entry_count: u32,
-    mut next_validator_index: u32,
-    validators: &[Validator],
-    pending_unbonds: &BTreeMap<u32, PendingUnbond>,
-    bonding_params: &BondingParams,
-    ops: &[BondOp],
-) -> Result<BondApplyDelta, (usize, String)> {
-    let slots = bonding_params.slots_per_epoch;
-    let epoch_id =
-        epoch_id_for_height(height, slots).map_err(|e| (0usize, format!("bond epoch id: {e}")))?;
-    if epoch_id != bond_epoch_id {
-        bond_epoch_id = epoch_id;
-        bond_epoch_entry_count = 0;
-    }
-
-    let mut seen_vrf: HashSet<[u8; 32]> = validators
-        .iter()
-        .map(|v| v.vrf_pk.compress().to_bytes())
-        .collect();
-    let mut new_validators: Vec<Validator> = Vec::new();
-    let mut bond_burn_total: u128 = 0;
-    let mut new_pending_unbonds: Vec<PendingUnbond> = Vec::new();
-    let mut seen_unbond_indices: HashSet<u32> = pending_unbonds.keys().copied().collect();
-
-    for (i, op) in ops.iter().enumerate() {
-        match op {
-            BondOp::Register {
-                stake,
-                vrf_pk,
-                bls_pk,
-                payout,
-                sig,
-            } => {
-                validate_stake(*stake, bonding_params).map_err(|e| (i, e.to_string()))?;
-                if !crate::bond_wire::verify_register_sig(
-                    *stake,
-                    vrf_pk,
-                    bls_pk,
-                    payout.as_ref(),
-                    sig,
-                ) {
-                    return Err((i, "register signature invalid".into()));
-                }
-                let vrf_b = vrf_pk.compress().to_bytes();
-                if !seen_vrf.insert(vrf_b) {
-                    return Err((i, "duplicate vrf_pk".into()));
-                }
-                bond_epoch_entry_count =
-                    try_register_entry_churn(bond_epoch_entry_count, bonding_params)
-                        .map_err(|e| (i, e.to_string()))?;
-                let idx = next_validator_index;
-                next_validator_index = next_validator_index.saturating_add(1);
-                new_validators.push(Validator {
-                    index: idx,
-                    vrf_pk: *vrf_pk,
-                    bls_pk: *bls_pk,
-                    stake: *stake,
-                    payout: *payout,
-                });
-                bond_burn_total = bond_burn_total.saturating_add(u128::from(*stake));
-            }
-            BondOp::Unbond {
-                validator_index,
-                sig,
-            } => {
-                let v = validators
-                    .iter()
-                    .find(|v| v.index == *validator_index)
-                    .ok_or_else(|| (i, format!("unknown validator {validator_index}")))?;
-                if v.stake == 0 {
-                    return Err((i, "validator already zombie (stake=0)".into()));
-                }
-                if !seen_unbond_indices.insert(*validator_index) {
-                    return Err((i, "validator already has pending unbond".into()));
-                }
-                if !verify_unbond_sig(*validator_index, sig, &v.bls_pk) {
-                    return Err((i, "unbond signature invalid".into()));
-                }
-                new_pending_unbonds.push(PendingUnbond {
-                    validator_index: *validator_index,
-                    unlock_height: unbond_unlock_height(height, bonding_params),
-                    stake_at_request: v.stake,
-                    request_height: height,
-                });
-            }
-        }
-    }
-
-    Ok(BondApplyDelta {
-        bond_epoch_id,
-        bond_epoch_entry_count,
-        next_validator_index,
-        new_validators,
-        bond_burn_total,
-        new_pending_unbonds,
-    })
 }
 
 fn hex_short(b: &[u8]) -> String {
@@ -2959,7 +2783,7 @@ mod tests {
         // but the equivocation accounting here is straightforward and
         // verifiable in isolation.
         let mut next = st.clone();
-        let chk = verify_evidence(&ev, &next.validators);
+        let chk = crate::slashing::verify_evidence(&ev, &next.validators);
         assert_eq!(chk, EvidenceCheck::Valid);
         let idx = ev.voter_index as usize;
         let forfeited = u128::from(next.validators[idx].stake);

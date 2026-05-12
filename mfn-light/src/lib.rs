@@ -1,34 +1,39 @@
 //! # `mfn-light`
 //!
 //! Light-client chain follower for the Permawrite protocol. Built on
-//! top of the M2.0.5 ([`mfn_consensus::verify_header`]) and M2.0.7
-//! ([`mfn_consensus::verify_block_body`]) primitives.
+//! top of the M2.0.5 ([`mfn_consensus::verify_header`]), M2.0.7
+//! ([`mfn_consensus::verify_block_body`]), and M2.0.8 (the
+//! `validator_evolution` module) primitives.
 //!
 //! A light client *follows* a chain without holding the full
 //! `ChainState`: it tracks the current tip's height and `block_id`,
 //! it holds a *trusted* validator set (bootstrapped from a
-//! [`mfn_consensus::GenesisConfig`]), and for every new header (or
-//! block) it:
+//! [`mfn_consensus::GenesisConfig`]) plus the small shadow state
+//! needed to evolve it across rotations (per-validator liveness
+//! stats, pending-unbond queue, four bond-epoch counters), and for
+//! every new block it:
 //!
 //! 1. **Verifies chain linkage** — `header.prev_hash` matches the
 //!    current `tip_id`, `header.height == current_height + 1`.
 //! 2. **Cryptographically verifies the header** via the M2.0.5 light
 //!    primitive: `validator_root` matches the trusted set,
 //!    producer-proof + BLS finality aggregate verify.
-//! 3. **(Optional, M2.0.7) Body verification.** If the caller passes a
-//!    full block via [`chain::LightChain::apply_block`], the four
-//!    header-bound body roots (`tx_root`, `bond_root`, `slashing_root`,
+//! 3. **(M2.0.7) Body verification.** The four header-bound body
+//!    roots (`tx_root`, `bond_root`, `slashing_root`,
 //!    `storage_proof_root`) are re-derived from the body and matched
 //!    against the (now authenticated) header.
-//! 4. **Advances tip** — new `tip_id = block_id(&header)`.
+//! 4. **(M2.0.8) Validator-set evolution.** Apply equivocation
+//!    slashings, liveness slashings (from the verified finality
+//!    bitmap), bond ops, and unbond settlements — byte-for-byte the
+//!    same evolution `mfn-consensus::apply_block` runs, via the
+//!    shared `mfn-consensus::validator_evolution` pure helpers.
+//! 5. **Advances tip** — new `tip_id = block_id(&header)`.
 //!
-//! That's enough to follow the chain through a window of stable
-//! validator-set membership. **Validator-set evolution** across
-//! `BondOp::Register` / `BondOp::Unbond` / slashings / unbond
-//! settlements / liveness slashing arrives in a later slice
-//! ([M2.0.8 — Validator-set evolution]). Until then, callers should
-//! re-bootstrap the trusted set across rotation boundaries (e.g.
-//! from a freshly-trusted checkpoint header + body).
+//! That's enough to follow the chain across arbitrary rotations:
+//! the next block's `validator_root` is the cryptographic audit of
+//! the previous block's evolution. If the light client gets the
+//! evolution wrong, the very next `apply_block` fails with
+//! `HeaderVerify` / `ValidatorRootMismatch`.
 //!
 //! ## Why a separate crate?
 //!
@@ -75,3 +80,9 @@ pub mod chain;
 pub use chain::{
     AppliedBlock, AppliedHeader, LightChain, LightChainConfig, LightChainError, LightChainStats,
 };
+
+// Re-export the small set of `mfn-consensus` types the M2.0.8 shadow
+// state surface uses, so downstream callers don't have to depend on
+// `mfn-consensus` directly to inspect `validator_stats`,
+// `pending_unbonds`, or the bond-epoch counters.
+pub use mfn_consensus::{BondEpochCounters, BondingParams, PendingUnbond, ValidatorStats};
