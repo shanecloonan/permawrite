@@ -13,9 +13,9 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root**) | `mfn-consensus` | 135 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver skeleton**) | `mfn-node` | 10 | ✓ live (skeleton) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers**) | `mfn-node` | 14 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **345** | All checks green |
+| **Total** | | **349** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -259,14 +259,53 @@ See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF
 
 These are the next M2.x sub-milestones (each scoped to be small enough to land "small but right"):
 
+- **Producer-helper module** — wraps the consensus-layer building blocks into a clean three-stage protocol. **Shipped in M2.0.4 below.**
 - **Mempool primitives** — pending-tx admission, fee ordering, replace-by-fee. Pure library, attaches around `Chain`.
-- **Producer loop helper** — given current state + slot + producer keys, build a candidate block. Wraps `build_unsealed_header` + producer-proof + `seal_block` into a single call.
 - **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`.
 - **Persistent store (`mfn-node::store`)** — RocksDB-backed deterministic chain-state persistence + snapshot/replay.
 - **RPC server (`mfn-node::rpc`)** — JSON-RPC + WebSocket. Block / tx / balance / storage-status queries.
 - **Daemon binary (`bin/mfnd`)** — the entrypoint that wires it all together.
 
 Each will be its own commit. The user-stated principle ("commit and push periodically when something whole is done no matter how big or small") makes this the right shape.
+
+---
+
+## Milestone M2.0.4 — Block-producer helpers in `mfn-node` (✓ shipped)
+
+**Why it was next.** M2.0.3 landed the chain *consumer* (`Chain::apply`). The natural complement is the chain *producer*: a clean library that takes a chain state + producer keys + body inputs and returns a `Block` ready to apply. Without this, every test, RPC handler, and future producer loop has to reimplement ~100 lines of producer-proof + vote + aggregate + seal boilerplate. With this, the operation is one or three function calls.
+
+### What shipped
+
+- **`mfn-node::producer` module** ([`mfn-node/src/producer.rs`](../mfn-node/src/producer.rs)).
+- **Three-stage protocol** mirroring the actual consensus flow:
+  1. [`producer::build_proposal`] — slot-eligible producer builds an unsealed header committing every body element, runs the VRF + ed25519 producer proof, returns a [`BlockProposal`].
+  2. [`producer::vote_on_proposal`] — any committee member BLS-signs the proposal's `header_hash` via `cast_vote`, returns a `CommitteeVote`.
+  3. [`producer::seal_proposal`] — producer aggregates collected votes via `finalize`, packages the `FinalityProof`, and `seal_block`s the result.
+- **One-call convenience** [`producer::produce_solo_block`] for the single-validator case (producer = sole voter). Runs all three stages in one call.
+- **`BlockInputs`** — caller-provided body lists (`txs`, `bond_ops`, `slashings`, `storage_proofs`) + slot timing.
+- **`BlockProposal`** — the byte string a producer would send out on the P2P wire for voters to sign over.
+- **`ProducerError`** with the *non-eligibility* case carved out as a typed variant (`NotSlotEligible { height, slot }`) so callers can distinguish "skip this slot" from "something is broken".
+
+### Refactored
+
+The integration test [`tests/single_validator_flow.rs`](../mfn-node/tests/single_validator_flow.rs) is now ~80 lines shorter — `produce_and_apply` collapsed from ~70 lines of producer-proof + vote + aggregate + seal boilerplate to a 10-line `BlockInputs { … }` + `produce_solo_block` call. This is the load-bearing demonstration that the new API is actually useful.
+
+### Test matrix (delivered, +4 net new tests)
+
+- ✓ `produce_solo_block_yields_an_applyable_block` — the headline contract: the helper produces a block that `chain.apply` accepts.
+- ✓ `produce_solo_block_five_in_a_row` — 5-block sequential production drives the chain forward; block ids change each time.
+- ✓ `build_proposal_refuses_ineligible_producer` — stake-zero validator → typed `NotSlotEligible` error (not a panic, not an opaque error).
+- ✓ `staged_api_equivalent_to_solo_helper` — same chain → same block-id whether you use the staged API or the convenience function (determinism contract).
+
+### Why a three-stage protocol?
+
+The future P2P producer loop will *not* do all three stages locally:
+
+- A slot-eligible validator builds + broadcasts a `BlockProposal` (stage 1).
+- Other committee members receive it, vote, and ship their `CommitteeVote` back over the wire (stage 2).
+- The producer (or any node with a quorum of votes) aggregates and seals (stage 3).
+
+Building the API as three stages from day one means the P2P layer can be a pure transport — it never needs to crack open intermediate state. The solo helper is just sugar over the same path for tests and single-node deployments.
 
 ---
 

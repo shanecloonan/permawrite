@@ -1,29 +1,29 @@
 //! Integration test: a 1-validator chain driven through 3 real
-//! BLS-signed blocks via the [`mfn_node::Chain`] driver.
+//! BLS-signed blocks via the [`mfn_node::Chain`] driver and the
+//! [`mfn_node::produce_solo_block`] producer helper.
 //!
 //! This is the smallest end-to-end demonstration that the driver
 //! actually advances a chain — not just rejects bad blocks. It builds
 //! one validator with its own ed25519 + VRF + BLS keys, bootstraps
 //! genesis through `Chain::from_genesis`, then for three blocks runs
-//! the full producer → finality-vote → seal → apply path through the
-//! driver's `apply()` method.
+//! the full producer → finality-vote → seal → apply path. The
+//! producer-side boilerplate is wrapped by `produce_solo_block`; the
+//! application boilerplate is wrapped by `chain.apply()`. The result
+//! is a tight ~10-line per-block loop that exercises every consensus
+//! primitive end-to-end.
 //!
-//! The block-production code in this file is intentionally raw — no
-//! helpers from `mfn-node` yet (those will land in M2.x with the
-//! producer loop). The point is to prove that the chain driver is a
-//! drop-in replacement for "call `apply_block` and shuffle state
-//! around" in higher layers.
+//! Both helpers are reused by the future producer-loop module (M2.1),
+//! the RPC handler that takes a tx batch and produces a block, and
+//! every multi-block test across the workspace.
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, build_unsealed_header, cast_vote, emission_at_height, encode_finality_proof,
-    finalize, header_signing_hash, seal_block, try_produce_slot, ConsensusParams, FinalityProof,
-    GenesisConfig, PayoutAddress, SlotContext, Validator, ValidatorPayout, ValidatorSecrets,
-    DEFAULT_EMISSION_PARAMS,
+    build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, PayoutAddress, Validator,
+    ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
-use mfn_node::{Chain, ChainConfig};
+use mfn_node::{produce_solo_block, BlockInputs, Chain, ChainConfig};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
 /// Build a deterministic single validator with full secrets.
@@ -76,75 +76,33 @@ fn single_validator_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusPara
 }
 
 /// Produce + apply one block at the given `height` through the
-/// `Chain` driver. Returns the new tip's `block_id`.
+/// `Chain` driver and the `produce_solo_block` helper. Returns the
+/// new tip's `block_id`.
 fn produce_and_apply(
     chain: &mut Chain,
     secrets: &ValidatorSecrets,
     params: ConsensusParams,
     height: u32,
 ) -> [u8; 32] {
-    let v0 = &chain.validators()[0];
-    let v0_payout = v0.payout.unwrap();
+    let producer = chain.validators()[0].clone();
+    let payout = producer.payout.unwrap();
     let cb_payout = PayoutAddress {
-        view_pub: v0_payout.view_pub,
-        spend_pub: v0_payout.spend_pub,
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
     };
     let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
     let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
-    let txs = vec![cb];
-
-    let unsealed = build_unsealed_header(
-        chain.state(),
-        &txs,
-        &[],
-        &[],
-        &[],
-        height,
-        u64::from(height) * 100,
-    );
-    let header_hash = header_signing_hash(&unsealed);
-    let ctx = SlotContext {
+    let inputs = BlockInputs {
         height,
         slot: height,
-        prev_hash: unsealed.prev_hash,
+        timestamp: u64::from(height) * 100,
+        txs: vec![cb],
+        bond_ops: Vec::new(),
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
     };
-
-    let total_stake = chain.total_stake();
-    let producer_proof = try_produce_slot(
-        &ctx,
-        secrets,
-        v0,
-        total_stake,
-        params.expected_proposers_per_slot,
-        &header_hash,
-    )
-    .expect("produce")
-    .expect("eligible");
-    let vote = cast_vote(
-        &header_hash,
-        secrets,
-        &ctx,
-        &producer_proof,
-        v0,
-        total_stake,
-        params.expected_proposers_per_slot,
-    )
-    .expect("cast_vote");
-    let agg = finalize(&header_hash, &[vote], chain.validators().len()).expect("agg");
-    let fin = FinalityProof {
-        producer: producer_proof,
-        finality: agg,
-        signing_stake: v0.stake,
-    };
-    let block = seal_block(
-        unsealed,
-        txs,
-        Vec::new(),
-        encode_finality_proof(&fin),
-        Vec::new(),
-        Vec::new(),
-    );
-
+    let block =
+        produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block");
     chain.apply(&block).expect("apply block")
 }
 
@@ -213,59 +171,26 @@ fn replaying_a_block_is_rejected_state_preserved() {
     let (cfg, secrets, params) = single_validator_genesis();
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
-    let v0 = chain.validators()[0].clone();
-    let v0_payout = v0.payout.unwrap();
+    let producer = chain.validators()[0].clone();
+    let payout = producer.payout.unwrap();
     let cb_payout = PayoutAddress {
-        view_pub: v0_payout.view_pub,
-        spend_pub: v0_payout.spend_pub,
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
     };
     let height = 1u32;
     let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
     let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
-    let txs = vec![cb];
-
-    let unsealed = build_unsealed_header(chain.state(), &txs, &[], &[], &[], height, 100);
-    let header_hash = header_signing_hash(&unsealed);
-    let ctx = SlotContext {
+    let inputs = BlockInputs {
         height,
         slot: height,
-        prev_hash: unsealed.prev_hash,
+        timestamp: 100,
+        txs: vec![cb],
+        bond_ops: Vec::new(),
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
     };
-    let total_stake = chain.total_stake();
-    let producer_proof = try_produce_slot(
-        &ctx,
-        &secrets,
-        &v0,
-        total_stake,
-        params.expected_proposers_per_slot,
-        &header_hash,
-    )
-    .expect("produce")
-    .expect("eligible");
-    let vote = cast_vote(
-        &header_hash,
-        &secrets,
-        &ctx,
-        &producer_proof,
-        &v0,
-        total_stake,
-        params.expected_proposers_per_slot,
-    )
-    .expect("cast_vote");
-    let agg = finalize(&header_hash, &[vote], 1).expect("agg");
-    let fin = FinalityProof {
-        producer: producer_proof,
-        finality: agg,
-        signing_stake: v0.stake,
-    };
-    let block = seal_block(
-        unsealed,
-        txs,
-        Vec::new(),
-        encode_finality_proof(&fin),
-        Vec::new(),
-        Vec::new(),
-    );
+    let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
+        .expect("produce_solo_block");
 
     let _id_b1 = chain.apply(&block).expect("first apply ok");
     assert_eq!(chain.tip_height(), Some(1));

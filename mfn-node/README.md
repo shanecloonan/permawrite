@@ -2,13 +2,13 @@
 
 Node-side glue around [`mfn-consensus`](../mfn-consensus/README.md). The future home of the mempool, P2P stack, persistent storage, RPC server, and producer / voter loops — the things that turn a state-transition function into a **running chain**.
 
-**Tests:** 10 passing (7 unit + 3 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 14 passing (11 unit + 3 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 ---
 
-## Status (M2.0.3 — `Chain` driver landed)
+## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers landed)
 
-This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Everything in this crate is **deterministic and synchronous** — no IO, no clock, no async runtime, no background threads. Those concerns belong in later M2.x sub-milestones (mempool, RPC, P2P, store, producer loop) which will all attach *around* this driver.
+This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Plus a `producer` module that wraps the consensus-layer building blocks (`build_unsealed_header` / `try_produce_slot` / `cast_vote` / `finalize` / `seal_block`) into a clean three-stage protocol with a one-call `produce_solo_block` convenience for the single-validator case. Everything in this crate is **deterministic and synchronous** — no IO, no clock, no async runtime, no background threads. Those concerns belong in later M2.x sub-milestones (mempool, RPC, P2P, store) which will all attach *around* these primitives.
 
 The integration test [`tests/single_validator_flow.rs`](tests/single_validator_flow.rs) demonstrates the full end-to-end loop:
 
@@ -26,13 +26,13 @@ That's the same path a real validator daemon will run in a loop, just without th
 | Module | Responsibility |
 |---|---|
 | [`chain`](src/chain.rs) | `Chain` driver, `ChainConfig`, `ChainError`, `ChainStats`. The full public surface today. |
+| [`producer`](src/producer.rs) | Block-production helpers. Three-stage protocol (`build_proposal` → `vote_on_proposal` → `seal_proposal`) plus one-call `produce_solo_block` for the single-validator case. The shape that future P2P / RPC / mempool integration will consume. |
 
 Planned in future M2.x sub-milestones (deliberately *not* in this crate yet):
 
 | Module | Purpose | Milestone |
 |---|---|---|
 | `mempool` | Pending-tx admission, fee ordering, replace-by-fee, eviction. | M2.1 |
-| `producer` | Block-production loop: collect mempool txs, build candidate header, vote, seal. | M2.1 |
 | `network` | libp2p / direct-TCP P2P gossip. Block + tx propagation. | M2.2 |
 | `store` | RocksDB-backed persistent chain state. Snapshot/replay/restore. | M2.2 |
 | `rpc` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. | M2.2 |
@@ -67,6 +67,38 @@ let snap: ChainStats = chain.stats();
 
 The driver intentionally does **not** hand out `&mut ChainState`. Callers can't sidestep `apply_block` and mutate the chain.
 
+### Producing blocks
+
+```rust
+use mfn_node::{produce_solo_block, BlockInputs};
+
+// Solo case (producer = sole voter): one call.
+let inputs = BlockInputs {
+    height,
+    slot: height,
+    timestamp,
+    txs,
+    bond_ops: Vec::new(),
+    slashings: Vec::new(),
+    storage_proofs: Vec::new(),
+};
+let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)?;
+chain.apply(&block)?;
+
+// Multi-validator case: explicit three-stage protocol.
+use mfn_node::{build_proposal, vote_on_proposal, seal_proposal};
+
+let proposal = build_proposal(chain.state(), &producer, &producer_secrets, params, inputs)?;
+// Each committee member (over the P2P wire, in production):
+let vote_a = vote_on_proposal(&proposal, chain.state(), &v_a, &s_a, &producer, params)?;
+let vote_b = vote_on_proposal(&proposal, chain.state(), &v_b, &s_b, &producer, params)?;
+// Producer aggregates + seals once quorum is reached:
+let block = seal_proposal(proposal, &[vote_a, vote_b], 2, total_signing_stake)?;
+chain.apply(&block)?;
+```
+
+Note that callers are responsible for building the coinbase tx (if the producer has a `ValidatorPayout`) and placing it as `txs[0]`. The producer helper does **not** synthesize the coinbase; that's a higher-level concern that depends on which payout policy the node is configured with.
+
 ---
 
 ## Design — why a separate crate from `mfn-consensus`?
@@ -86,7 +118,8 @@ This crate is the load-bearing centre of the future M2.x milestones; getting its
 ## Test categories
 
 - **Unit (`chain::tests`)**: `Chain::from_genesis` lands at height 0; tip_id equals genesis_id at construction; back-to-back empty-block application advances height + tip_id; bad-prev-hash blocks rejected with state unchanged; bad-height blocks rejected with state unchanged; `ChainStats` agrees with individual accessors; genesis is deterministic across constructions.
-- **Integration (`tests/single_validator_flow.rs`)**: a 1-validator chain runs through 3 real BLS-signed blocks via the driver; `ChainStats` agrees with individual accessors after the run; replaying the same block is rejected with state preserved (driver never partially commits even pathological input).
+- **Unit (`producer::tests`)**: `produce_solo_block` yields an `apply_block`-acceptable block; 5-in-a-row solo production drives the chain forward each time; `build_proposal` refuses ineligible (stake-zero) producers with a typed error; the staged API (`build_proposal` → `vote_on_proposal` → `seal_proposal`) produces an identical block-id to `produce_solo_block` for a solo validator (determinism contract).
+- **Integration (`tests/single_validator_flow.rs`)**: a 1-validator chain runs through 3 real BLS-signed blocks via the driver + producer helpers; `ChainStats` agrees with individual accessors after the run; replaying the same block is rejected with state preserved (driver never partially commits even pathological input).
 
 ```bash
 cargo test -p mfn-node

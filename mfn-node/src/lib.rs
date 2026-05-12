@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 skeleton)
+//! ## What this crate provides today (M2.0.3 + M2.0.4)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -13,6 +13,13 @@
 //!   [`mfn_consensus::apply_block`].
 //! - [`ChainError`] — typed wrapper around [`mfn_consensus::BlockError`]
 //!   plus higher-level "chain hasn't reached genesis yet" guards.
+//! - [`producer`] — block-production helpers. Wraps the consensus
+//!   layer's `build_unsealed_header` / `try_produce_slot` /
+//!   `cast_vote` / `finalize` / `seal_block` into a three-stage
+//!   protocol ([`producer::build_proposal`] →
+//!   [`producer::vote_on_proposal`] → [`producer::seal_proposal`]),
+//!   with a one-call [`producer::produce_solo_block`] for the
+//!   single-validator case.
 //!
 //! Everything in this crate is **deterministic and synchronous**.
 //! Network / disk / clock concerns are deliberately absent — they belong
@@ -46,5 +53,10 @@
 #![warn(clippy::all)]
 
 pub mod chain;
+pub mod producer;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
+pub use producer::{
+    build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
+    BlockProposal, ProducerError,
+};
