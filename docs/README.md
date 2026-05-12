@@ -2,6 +2,10 @@
 
 Welcome. These docs cover the full design of the Permawrite blockchain — privacy-preserving, permanent-storage, single chain.
 
+<p align="center">
+  <img src="./img/architecture-stack.svg" alt="Permawrite crate dependency stack" width="100%">
+</p>
+
 ## Reading paths
 
 ### Just want to understand what this is?

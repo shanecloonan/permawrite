@@ -149,6 +149,18 @@ This isn't an afterthought — it's the design's central insight. **The privacy 
 
 ---
 
+## The single picture that summarizes the project
+
+If you take nothing else from this document, take this:
+
+<p align="center">
+  <img src="./img/money-flow.svg" alt="Permawrite's economic engine. Privacy transactions pay fees that split 90% to a storage treasury and 10% to the block producer. The treasury drains every block to pay storage operators who submit valid SPoRA proofs of continued data possession. Emission acts as a backstop only when the treasury runs short. Storage operators' income re-enters circulation as users spend MFN on more privacy transactions, closing the loop." width="100%">
+</p>
+
+Privacy demand drives constant fee revenue. Fee revenue funds permanent storage. Storage operators' income re-enters circulation. The loop closes — **and the economic engine is self-sustaining as long as people want financial privacy**.
+
+---
+
 ## How they fuse — concrete example
 
 Let's trace one transaction through the system:

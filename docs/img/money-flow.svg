@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">Permawrite money flow</title>
+  <desc id="desc">How MFN moves through the protocol. The emission curve mints into the coinbase; transaction fees split 90/10 between treasury and producer; the treasury pays out storage rewards via SPoRA proofs; emission only acts as a backstop when the treasury runs short.</desc>
+  <defs>
+    <style>
+      .bg-fill { fill: #ffffff; }
+      .panel-fill { fill: #ffffff; }
+      .panel-privacy-fill { fill: #f5f3ff; }
+      .panel-storage-fill { fill: #ecfeff; }
+      .panel-treasury-fill { fill: #fffbeb; }
+      .text-strong { fill: #0f172a; }
+      .text-muted { fill: #475569; }
+      .text-faint { fill: #94a3b8; }
+      .text-treasury { fill: #b45309; }
+      .text-privacy { fill: #6d28d9; }
+      .text-storage { fill: #0e7490; }
+      .stroke-dark { stroke: #0f172a; }
+      .stroke-privacy { stroke: #7c3aed; }
+      .stroke-storage { stroke: #0891b2; }
+      .stroke-treasury { stroke: #d97706; }
+      .stroke-emission { stroke: #16a34a; }
+      .flow-fee { stroke: #d97706; stroke-width: 3; fill: none; }
+      .flow-emission { stroke: #16a34a; stroke-width: 3; fill: none; }
+      .flow-reward { stroke: #7c3aed; stroke-width: 3; fill: none; }
+      .flow-backstop { stroke: #16a34a; stroke-width: 2.5; fill: none; stroke-dasharray: 6 4; }
+      .flow-circulate { stroke: #475569; stroke-width: 2; fill: none; stroke-dasharray: 4 4; }
+      .flow-fee-head { fill: #d97706; }
+      .flow-emission-head { fill: #16a34a; }
+      .flow-reward-head { fill: #7c3aed; }
+      .flow-circulate-head { fill: #475569; }
+      .label-pill { fill: #ffffff; stroke: #0f172a; stroke-width: 1.5; rx: 4; }
+      @media (prefers-color-scheme: dark) {
+        .bg-fill { fill: #0d1117; }
+        .panel-fill { fill: #161b22; }
+        .panel-privacy-fill { fill: #1d1633; }
+        .panel-storage-fill { fill: #052730; }
+        .panel-treasury-fill { fill: #2b1e07; }
+        .text-strong { fill: #f0f6fc; }
+        .text-muted { fill: #c9d1d9; }
+        .text-faint { fill: #8b949e; }
+        .text-treasury { fill: #fbbf24; }
+        .text-privacy { fill: #c4b5fd; }
+        .text-storage { fill: #67e8f9; }
+        .stroke-dark { stroke: #f0f6fc; }
+        .label-pill { fill: #161b22; stroke: #f0f6fc; }
+      }
+    </style>
+    <marker id="m-fee" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="flow-fee-head"/></marker>
+    <marker id="m-emission" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="flow-emission-head"/></marker>
+    <marker id="m-reward" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="flow-reward-head"/></marker>
+    <marker id="m-circ" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="flow-circulate-head"/></marker>
+  </defs>
+
+  <rect class="bg-fill" width="100%" height="100%"/>
+
+  <text x="600" y="48" text-anchor="middle" font-size="26" font-weight="700" class="text-strong">Permawrite &#8212; the economic engine</text>
+  <text x="600" y="76" text-anchor="middle" font-size="14" class="text-muted">Privacy demand pays for permanent storage. Default 90% of every fee flows to the storage treasury.</text>
+
+  <g transform="translate(40,108)">
+    <line x1="0" y1="8" x2="32" y2="8" class="flow-emission" marker-end="url(#m-emission)"/>
+    <text x="40" y="13" font-size="13" font-weight="600" class="text-strong">emission (fresh MFN minted)</text>
+    <line x1="280" y1="8" x2="312" y2="8" class="flow-fee" marker-end="url(#m-fee)"/>
+    <text x="320" y="13" font-size="13" font-weight="600" class="text-strong">fee revenue</text>
+    <line x1="460" y1="8" x2="492" y2="8" class="flow-reward" marker-end="url(#m-reward)"/>
+    <text x="500" y="13" font-size="13" font-weight="600" class="text-strong">storage reward</text>
+    <line x1="650" y1="8" x2="682" y2="8" class="flow-backstop" marker-end="url(#m-emission)"/>
+    <text x="690" y="13" font-size="13" font-weight="600" class="text-strong">emission backstop (only if treasury empty)</text>
+  </g>
+
+  <g>
+    <rect x="60" y="160" width="220" height="88" rx="12" class="panel-fill stroke-emission" stroke-width="2"/>
+    <text x="170" y="190" text-anchor="middle" font-size="16" font-weight="700" class="text-strong">EMISSION CURVE</text>
+    <text x="170" y="212" text-anchor="middle" font-size="12" class="text-muted">Bitcoin-style halvings &#8594;</text>
+    <text x="170" y="228" text-anchor="middle" font-size="12" class="text-muted">Monero-style tail (0.195 MFN/blk)</text>
+  </g>
+
+  <g>
+    <rect x="370" y="160" width="220" height="88" rx="12" class="panel-fill stroke-dark" stroke-width="2"/>
+    <text x="480" y="190" text-anchor="middle" font-size="16" font-weight="700" class="text-strong">COINBASE</text>
+    <text x="480" y="212" text-anchor="middle" font-size="12" class="text-muted">subsidy(h) + producer_share</text>
+    <text x="480" y="228" text-anchor="middle" font-size="12" class="text-muted">deterministic, per block</text>
+  </g>
+
+  <g>
+    <rect x="680" y="160" width="220" height="88" rx="12" class="panel-fill stroke-dark" stroke-width="2"/>
+    <text x="790" y="190" text-anchor="middle" font-size="16" font-weight="700" class="text-strong">PRODUCER WALLET</text>
+    <text x="790" y="212" text-anchor="middle" font-size="12" class="text-muted">earns subsidy + 10% of fees</text>
+    <text x="790" y="228" text-anchor="middle" font-size="12" class="text-muted">(default fee_to_treasury_bps = 9000)</text>
+  </g>
+
+  <g>
+    <rect x="970" y="160" width="190" height="88" rx="12" class="panel-fill stroke-storage" stroke-width="2"/>
+    <text x="1065" y="190" text-anchor="middle" font-size="16" font-weight="700" class="text-storage">STORAGE</text>
+    <text x="1065" y="208" text-anchor="middle" font-size="16" font-weight="700" class="text-storage">OPERATOR</text>
+    <text x="1065" y="230" text-anchor="middle" font-size="12" class="text-muted">paid per SPoRA proof</text>
+  </g>
+
+  <path d="M280,204 L370,204" class="flow-emission" marker-end="url(#m-emission)"/>
+  <text x="320" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#16a34a">mints</text>
+
+  <path d="M590,204 L680,204" class="flow-emission" marker-end="url(#m-emission)"/>
+  <text x="630" y="196" text-anchor="middle" font-size="12" font-weight="700" fill="#16a34a">pays</text>
+
+  <g>
+    <rect x="60" y="340" width="380" height="110" rx="14" class="panel-privacy-fill stroke-privacy" stroke-width="2.5"/>
+    <text x="250" y="372" text-anchor="middle" font-size="18" font-weight="700" class="text-privacy">PRIVACY TRANSACTION</text>
+    <text x="250" y="394" text-anchor="middle" font-size="13" class="text-muted">CLSAG ring (16) &#183; stealth outputs &#183; Pedersen</text>
+    <text x="250" y="412" text-anchor="middle" font-size="13" class="text-muted">commitments &#183; Bulletproof range proofs</text>
+    <text x="250" y="438" text-anchor="middle" font-size="13" font-weight="700" class="text-strong">+ optional storage commitment</text>
+  </g>
+
+  <g>
+    <circle cx="580" cy="395" r="42" class="panel-treasury-fill stroke-treasury" stroke-width="2.5"/>
+    <text x="580" y="390" text-anchor="middle" font-size="14" font-weight="700" class="text-treasury">FEE</text>
+    <text x="580" y="408" text-anchor="middle" font-size="11" font-weight="600" class="text-muted">split 90/10</text>
+  </g>
+
+  <g>
+    <rect x="720" y="340" width="380" height="110" rx="14" class="panel-treasury-fill stroke-treasury" stroke-width="2.5"/>
+    <text x="910" y="372" text-anchor="middle" font-size="18" font-weight="700" class="text-treasury">STORAGE TREASURY</text>
+    <text x="910" y="396" text-anchor="middle" font-size="13" class="text-muted">accumulates 90% of every fee</text>
+    <text x="910" y="416" text-anchor="middle" font-size="13" class="text-muted">drains per block to fund SPoRA payouts</text>
+    <text x="910" y="438" text-anchor="middle" font-size="12" font-weight="700" class="text-strong">ChainState::treasury : u128</text>
+  </g>
+
+  <path d="M440,395 L536,395" class="flow-fee" marker-end="url(#m-fee)"/>
+  <text x="488" y="386" text-anchor="middle" font-size="12" font-weight="700" fill="#d97706">pays fee</text>
+
+  <path d="M610,357 Q700,300 790,250" class="flow-fee" marker-end="url(#m-fee)"/>
+  <g>
+    <rect x="650" y="288" width="58" height="22" rx="4" class="label-pill"/>
+    <text x="679" y="304" text-anchor="middle" font-size="12" font-weight="700" class="text-strong">10%</text>
+  </g>
+
+  <path d="M622,395 L720,395" class="flow-fee" marker-end="url(#m-fee)"/>
+  <g>
+    <rect x="638" y="370" width="58" height="22" rx="4" class="label-pill"/>
+    <text x="667" y="386" text-anchor="middle" font-size="12" font-weight="700" class="text-strong">90%</text>
+  </g>
+
+  <g>
+    <rect x="720" y="540" width="380" height="110" rx="14" class="panel-storage-fill stroke-storage" stroke-width="2.5"/>
+    <text x="910" y="572" text-anchor="middle" font-size="18" font-weight="700" class="text-storage">SPoRA PROOF &#183; PER BLOCK</text>
+    <text x="910" y="596" text-anchor="middle" font-size="13" class="text-muted">deterministic chunk challenge from prev_id + slot</text>
+    <text x="910" y="616" text-anchor="middle" font-size="13" class="text-muted">first valid proof earns PPB-accrued yield</text>
+    <text x="910" y="638" text-anchor="middle" font-size="12" font-weight="700" class="text-strong">accrue_proof_reward(...)</text>
+  </g>
+
+  <g>
+    <rect x="60" y="540" width="380" height="110" rx="14" class="panel-storage-fill stroke-storage" stroke-width="2.5"/>
+    <text x="250" y="572" text-anchor="middle" font-size="18" font-weight="700" class="text-storage">UPLOAD ENDOWMENT</text>
+    <text x="250" y="595" text-anchor="middle" font-size="13" class="text-muted">required_endowment(size, replication, params)</text>
+    <text x="250" y="615" text-anchor="middle" font-size="13" font-weight="700" class="text-strong" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">E&#8320; = C&#8320; &#183; (1 + i) / (r &#8722; i)</text>
+    <text x="250" y="637" text-anchor="middle" font-size="12" class="text-muted">enforced: tx fee&#8217;s treasury share &#8805; E&#8320;</text>
+  </g>
+
+  <path d="M910,450 L910,540" class="flow-reward" marker-end="url(#m-reward)"/>
+  <text x="930" y="495" font-size="12" font-weight="700" fill="#7c3aed">storage yield</text>
+
+  <path d="M1100,565 Q1180,400 1100,245" class="flow-reward" marker-end="url(#m-reward)"/>
+  <text x="1188" y="408" text-anchor="middle" font-size="12" font-weight="700" fill="#7c3aed">paid</text>
+
+  <path d="M250,450 L250,540" class="flow-circulate" marker-end="url(#m-circ)"/>
+  <text x="138" y="495" font-size="12" font-weight="700" class="text-muted">if upload, must cover E&#8320;</text>
+
+  <path d="M170,248 Q170,460 720,440" class="flow-backstop" marker-end="url(#m-emission)"/>
+  <text x="98" y="464" font-size="12" font-weight="600" class="text-faint">backstop</text>
+  <text x="106" y="480" font-size="11" class="text-faint">(rare)</text>
+
+  <path d="M790,250 Q400,260 250,340" class="flow-circulate" marker-end="url(#m-circ)"/>
+  <text x="480" y="278" text-anchor="middle" font-size="12" font-weight="600" class="text-muted">circulates &#8594; users pay fees with this MFN</text>
+
+  <path d="M970,200 Q800,150 250,340" class="flow-circulate" marker-end="url(#m-circ)"/>
+  <text x="600" y="138" text-anchor="middle" font-size="12" font-weight="600" class="text-muted">operator income re-enters the economy</text>
+
+  <g transform="translate(60,710)">
+    <rect x="0" y="0" width="1080" height="76" rx="10" class="panel-fill stroke-muted" stroke-width="1.5"/>
+    <text x="20" y="26" font-size="14" font-weight="700" class="text-strong">The economic thesis</text>
+    <text x="20" y="48" font-size="13" class="text-muted">Privacy demand is structurally constant &#8212; every confidential transfer pays a fee. Storage demand is episodic &#8212; uploads happen occasionally.</text>
+    <text x="20" y="66" font-size="13" class="text-muted">Routing 90% of fees to the storage treasury means <tspan font-weight="700" class="text-strong">privacy revenue funds permanent storage</tspan>. Emission is the safety net; fees are the engine.</text>
+  </g>
+</svg>

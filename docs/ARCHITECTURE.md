@@ -242,54 +242,37 @@ struct ChainState {
 
 ## Transaction lifecycle
 
-Sketched end-to-end:
+End-to-end: a transaction's journey from the user's wallet to a finalized block.
 
-```
-                                  WALLET
-   ┌──────────────────────────────────────────────────────────────────┐
-   │ 1. Pick inputs the wallet controls.                              │
-   │ 2. For each input, pick N decoys from chain history using        │
-   │    gamma-distributed age sampling (Monero v0.13 heuristic).      │
-   │ 3. Compute each output's one-time address via stealth derivation │
-   │    against recipient view/spend keys.                            │
-   │ 4. Commit each output's amount with Pedersen(value, blinding).   │
-   │ 5. Build Bulletproof range proof per output.                     │
-   │ 6. (Optional) Build StorageCommitment if uploading data.         │
-   │ 7. Compute fee = (base + per-byte + endowment-coverage).         │
-   │ 8. CLSAG-sign each input over the canonical tx preimage          │
-   │    (dhash(TX_PREIMAGE, …)) using the ring + key image.           │
-   └──────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-                                  MEMPOOL  (not yet implemented; future mfn-node)
-                                    │
-                                    ▼
-                              BLOCK PRODUCER
-   ┌──────────────────────────────────────────────────────────────────┐
-   │ 1. Slot S elapses.                                               │
-   │ 2. Validator computes their VRF over slot_seed(prev_block_id, S)│
-   │    using their secret VRF key.                                  │
-   │ 3. If VRF output < eligibility_threshold(stake, total_stake,    │
-   │    expected_proposers_per_slot), the validator is eligible.     │
-   │ 4. Gather txs + slashing evidence + storage proofs.              │
-   │ 5. Construct block header; broadcast for committee voting.      │
-   └──────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-                           COMMITTEE FINALITY
-   ┌──────────────────────────────────────────────────────────────────┐
-   │ Every validator BLS-signs header_signing_hash(header). Producer  │
-   │ collects votes, aggregates into a CommitteeAggregate, packs it   │
-   │ into a FinalityProof, and that's the header's producer_proof.    │
-   │ Quorum: ≥ quorum_stake_bps (default 6667 = 2/3 + 1bp) of total   │
-   │ validator stake.                                                 │
-   └──────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-                                apply_block
-                                    │
-                                    ▼
-                              NEW CHAIN STATE
+```mermaid
+sequenceDiagram
+    autonumber
+    participant W as Wallet
+    participant M as Mempool<br/>(future: mfn-node)
+    participant P as Block Producer<br/>(slot-eligible validator)
+    participant C as Committee<br/>(N validators)
+    participant S as State Machine<br/>(apply_block)
+
+    W->>W: Pick inputs · sample 15 gamma decoys per input<br/>Compute stealth one-time addrs · Pedersen-commit each output<br/>Bulletproof range proof per output · CLSAG-sign each input<br/>(optionally attach a StorageCommitment)
+    W->>M: Broadcast TransactionWire
+    M->>M: Admit (fee threshold, no key-image collision)
+    M->>P: Forward tx pool
+
+    Note over P: Slot S elapses
+    P->>P: Compute VRF over slot_seed(prev_id, S)<br/>If output &lt; eligibility_threshold(stake, total_stake), eligible
+    P->>P: Gather txs + slashings + storage_proofs<br/>Build BlockHeader · broadcast for voting
+
+    P->>C: header_signing_hash(header)
+    C-->>P: CommitteeVote { idx, BLS-sig(hash) }
+    P->>P: Aggregate votes · pack FinalityProof<br/>(quorum ≥ quorum_stake_bps stake share)
+    P->>S: Block { header, txs, slashings, storage_proofs }
+
+    S->>S: apply_block (the 7-phase pipeline above)
+    alt all phases pass
+        S-->>S: Commit new ChainState · append block_id
+    else any phase fails
+        S-->>P: Vec&lt;BlockError&gt; · block dropped
+    end
 ```
 
 ---
@@ -310,6 +293,11 @@ The block's lifecycle once it reaches a node:
 ## State-transition function (`apply_block`)
 
 `mfn_consensus::apply_block` is the heart of the protocol. What follows is a flattened summary of every check, in order. The full implementation is in [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs).
+
+<p align="center">
+  <img src="./img/apply-block-phases.svg" alt="The seven phases of apply_block in sequence: header sanity and finality, Merkle roots, equivocation slashing, transaction verification, SPoRA storage proofs, two-sided treasury settlement, and liveness tracking. Any phase's failure rejects the entire block." width="100%">
+</p>
+
 
 ### Phase 0 — Header & finality
 

@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1020" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">apply_block phases</title>
+  <desc id="desc">The seven sequential phases of apply_block. Each phase performs a class of checks; any failure rejects the block with a typed BlockError.</desc>
+  <defs>
+    <style>
+      .bg-fill { fill: #ffffff; }
+      .panel-fill { fill: #ffffff; }
+      .panel-input { fill: #f1f5f9; }
+      .text-strong { fill: #0f172a; }
+      .text-muted { fill: #475569; }
+      .text-faint { fill: #94a3b8; }
+      .text-num { fill: #ffffff; }
+      .stroke-muted { stroke: #475569; }
+      .phase-fill-0 { fill: #475569; }
+      .phase-fill-1 { fill: #0891b2; }
+      .phase-fill-2 { fill: #d97706; }
+      .phase-fill-3 { fill: #7c3aed; }
+      .phase-fill-4 { fill: #ea580c; }
+      .phase-fill-5 { fill: #16a34a; }
+      .phase-fill-6 { fill: #db2777; }
+      .stroke-phase-0 { stroke: #475569; }
+      .stroke-phase-1 { stroke: #0891b2; }
+      .stroke-phase-2 { stroke: #d97706; }
+      .stroke-phase-3 { stroke: #7c3aed; }
+      .stroke-phase-4 { stroke: #ea580c; }
+      .stroke-phase-5 { stroke: #16a34a; }
+      .stroke-phase-6 { stroke: #db2777; }
+      .pipe { stroke: #94a3b8; stroke-width: 4; fill: none; }
+      .pipe-head { fill: #94a3b8; }
+      .reject-arrow { stroke: #dc2626; stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+      .reject-head { fill: #dc2626; }
+      .text-reject { fill: #dc2626; }
+      .text-critical { fill: #dc2626; font-weight: 700; }
+      .panel-output-ok { fill: #ecfdf5; stroke: #16a34a; }
+      .panel-output-err { fill: #fef2f2; stroke: #dc2626; }
+      @media (prefers-color-scheme: dark) {
+        .bg-fill { fill: #0d1117; }
+        .panel-fill { fill: #161b22; }
+        .panel-input { fill: #1c2129; }
+        .text-strong { fill: #f0f6fc; }
+        .text-muted { fill: #c9d1d9; }
+        .text-faint { fill: #8b949e; }
+        .stroke-muted { stroke: #8b949e; }
+        .pipe { stroke: #6e7681; }
+        .pipe-head { fill: #6e7681; }
+        .reject-arrow { stroke: #f87171; }
+        .reject-head { fill: #f87171; }
+        .text-reject { fill: #f87171; }
+        .text-critical { fill: #fca5a5; }
+        .panel-output-ok { fill: #052e21; stroke: #16a34a; }
+        .panel-output-err { fill: #2d1010; stroke: #dc2626; }
+      }
+    </style>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="pipe-head"/></marker>
+    <marker id="m-reject" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="reject-head"/></marker>
+  </defs>
+
+  <rect class="bg-fill" width="100%" height="100%"/>
+
+  <text x="600" y="48" text-anchor="middle" font-size="26" font-weight="700" class="text-strong">apply_block &#8212; the state-transition function</text>
+  <text x="600" y="76" text-anchor="middle" font-size="14" class="text-muted">
+    A pure function: <tspan font-family="ui-monospace, SFMono-Regular, Menlo, monospace">fn apply_block(state: &amp;ChainState, block: &amp;Block) -&gt; Result&lt;ChainState, Vec&lt;BlockError&gt;&gt;</tspan>
+  </text>
+
+  <g>
+    <rect x="80" y="112" width="260" height="84" rx="10" class="panel-input stroke-muted" stroke-width="1.5"/>
+    <text x="210" y="138" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" class="text-faint">INPUT</text>
+    <text x="210" y="162" text-anchor="middle" font-size="14" font-weight="700" class="text-strong">ChainState (current)</text>
+    <text x="210" y="182" text-anchor="middle" font-size="14" font-weight="700" class="text-strong">+ candidate Block</text>
+  </g>
+  <text x="800" y="160" text-anchor="middle" font-size="13" class="text-muted">Every phase is sequential. The state is mutated locally; any error rolls back the whole block.</text>
+  <text x="800" y="178" text-anchor="middle" font-size="13" class="text-muted">Deterministic: same (state, block) &#8594; same outcome on every machine, every replay.</text>
+
+  <line x1="210" y1="196" x2="210" y2="918" class="pipe"/>
+
+  <g transform="translate(180,232)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-0"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">0</text>
+    <rect x="80" y="-38" width="980" height="76" rx="10" class="panel-fill stroke-phase-0" stroke-width="2"/>
+    <text x="100" y="-12" font-size="16" font-weight="700" class="text-strong">Header sanity &amp; finality</text>
+    <text x="100" y="10" font-size="13" class="text-muted">version &#183; height = prev + 1 &#183; prev_hash chain &#183; monotonic timestamp.</text>
+    <text x="100" y="28" font-size="13" class="text-muted">Decode &amp; verify FinalityProof &#8212; producer VRF + Schnorr, BLS aggregate &#8805; quorum_stake_bps (default 6667).</text>
+  </g>
+  <path d="M210,260 L210,318" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,342)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-1"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">1</text>
+    <rect x="80" y="-28" width="980" height="56" rx="10" class="panel-fill stroke-phase-1" stroke-width="2"/>
+    <text x="100" y="-4" font-size="16" font-weight="700" class="text-strong">Merkle roots</text>
+    <text x="100" y="18" font-size="13" class="text-muted">Reconstruct tx_root from tx_ids and storage_root from new commitments &#8212; both must match the header exactly.</text>
+  </g>
+  <path d="M210,370 L210,418" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,442)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-2"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">2</text>
+    <rect x="80" y="-28" width="980" height="56" rx="10" class="panel-fill stroke-phase-2" stroke-width="2"/>
+    <text x="100" y="-4" font-size="16" font-weight="700" class="text-strong">Equivocation slashing</text>
+    <text x="100" y="18" font-size="13" class="text-muted">For each SlashEvidence: verify both BLS sigs &#183; zero the offending validator&#8217;s stake outright (permanent).</text>
+  </g>
+  <path d="M210,470 L210,518" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,562)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-3"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">3</text>
+    <rect x="80" y="-48" width="980" height="158" rx="10" class="panel-fill stroke-phase-3" stroke-width="2.5"/>
+    <text x="100" y="-22" font-size="16" font-weight="700" class="text-strong">Transaction verification &#8212; the heart of consensus</text>
+    <text x="100" y="2" font-size="13" class="text-muted">&#183; Coinbase (if any): amount = emission(h) + producer_fee_share &#183; deterministic blinding factor.</text>
+    <text x="100" y="22" font-size="13" class="text-muted">&#183; Each regular tx: CLSAG verifies &#183; Pedersen balance = 0 &#183; Bulletproof range proofs valid.</text>
+    <text x="100" y="44" font-size="13" class="text-critical">&#183; Ring-membership chain guard: every (P, C) in every CLSAG ring exists in the UTXO set with exact commit match.</text>
+    <text x="100" y="64" font-size="13" class="text-muted">&#183; Key-image uniqueness across blocks (double-spend gate) &#183; insert each new key image on accept.</text>
+    <text x="100" y="84" font-size="13" class="text-muted">&#183; Storage upload: fee&#8217;s treasury share &#8805; required_endowment(size, replication) &#183; replication in [min, max].</text>
+  </g>
+  <path d="M210,672 L210,718" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,742)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-4"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">4</text>
+    <rect x="80" y="-28" width="980" height="56" rx="10" class="panel-fill stroke-phase-4" stroke-width="2"/>
+    <text x="100" y="-4" font-size="16" font-weight="700" class="text-strong">SPoRA storage proofs</text>
+    <text x="100" y="18" font-size="13" class="text-muted">Per proof: dedupe &#183; find commitment &#183; verify Merkle path at deterministic challenge index &#183; accrue PPB yield.</text>
+  </g>
+  <path d="M210,770 L210,818" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,842)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-5"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">5</text>
+    <rect x="80" y="-28" width="980" height="56" rx="10" class="panel-fill stroke-phase-5" stroke-width="2"/>
+    <text x="100" y="-4" font-size="16" font-weight="700" class="text-strong">Two-sided treasury settlement</text>
+    <text x="100" y="18" font-size="13" class="text-muted">Drain treasury for total storage reward &#183; mint emission backstop only for the shortfall &#183; commit treasury balance.</text>
+  </g>
+  <path d="M210,870 L210,918" class="pipe" marker-end="url(#m-pipe)"/>
+
+  <g transform="translate(180,942)">
+    <circle cx="30" cy="0" r="22" class="phase-fill-6"/>
+    <text x="30" y="6" text-anchor="middle" font-size="18" font-weight="700" class="text-num">6</text>
+    <rect x="80" y="-28" width="980" height="56" rx="10" class="panel-fill stroke-phase-6" stroke-width="2"/>
+    <text x="100" y="-4" font-size="16" font-weight="700" class="text-strong">Liveness tracking + auto-slashing &#183; UTXO root commit</text>
+    <text x="100" y="18" font-size="13" class="text-muted">Walk finality bitmap &#183; update ValidatorStats &#183; multiplicatively slash chronic absentees &#183; verify final utxo_root.</text>
+  </g>
+
+  <g>
+    <rect x="80" y="980" width="340" height="34" rx="8" class="panel-output-ok" stroke-width="1.5"/>
+    <text x="250" y="1002" text-anchor="middle" font-size="13" font-weight="700" fill="#15803d">&#8594; Ok(new ChainState) &#183; append block_id to chain</text>
+  </g>
+  <g>
+    <rect x="800" y="980" width="320" height="34" rx="8" class="panel-output-err" stroke-width="1.5"/>
+    <text x="960" y="1002" text-anchor="middle" font-size="13" font-weight="700" class="text-reject">&#8594; Err(Vec&lt;BlockError&gt;) &#183; drop block</text>
+  </g>
+
+  <path d="M1060,254 Q1170,254 1170,980" class="reject-arrow" marker-end="url(#m-reject)"/>
+  <text x="1150" y="610" text-anchor="middle" font-size="12" font-weight="700" class="text-reject" transform="rotate(-90 1150,610)">any failure rejects the entire block</text>
+</svg>

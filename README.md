@@ -28,6 +28,10 @@ These two halves aren't bolted together. They **share the economics**: the prior
 
 The full vision and the design rationale live in [**docs/OVERVIEW.md**](./docs/OVERVIEW.md). The whitepaper-grade technical spec lives in [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md).
 
+<p align="center">
+  <img src="./docs/img/architecture-stack.svg" alt="Permawrite crate dependency stack: mfn-crypto and mfn-bls form the primitive layer, mfn-storage builds storage proofs on top of mfn-crypto, and mfn-consensus is the state machine that depends on all three. Three additional crates (mfn-wallet, mfn-node, mfn-wasm) are planned." width="100%">
+</p>
+
 ---
 
 ## Documentation map
@@ -89,52 +93,15 @@ Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). Th
 
 ---
 
-## How the halves fuse (60-second version)
+## How the halves fuse — the economic engine
 
-```
-┌───────────────────────────────────────────────────────────────────────┐
-│                       CONFIDENTIAL TRANSACTION                        │
-│                                                                       │
-│  • Inputs: ring of N decoys + 1 real (CLSAG-signed, key-image       │
-│    enforces single-spend without revealing which input is real)     │
-│  • Outputs: stealth one-time addresses + Pedersen-committed amounts │
-│  • Optional payload: StorageCommitment (data_root + size + endow.)  │
-│  • Fee: priority fee, 90% to treasury / 10% to producer (default)   │
-└───────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│                          BLOCK PRODUCER                               │
-│                                                                       │
-│  Slot-based PoS. Eligible producers chosen by stake-weighted VRF.    │
-│  Committee finalizes the block with bitmap-aggregated BLS12-381      │
-│  signatures (default 2/3 + 1bp quorum).                              │
-└───────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│                  apply_block (deterministic STF)                      │
-│                                                                       │
-│  ✓ Verify finality proof                                              │
-│  ✓ Verify every CLSAG ring member is a real on-chain UTXO            │
-│    (closes the counterfeit-input attack)                              │
-│  ✓ Cross-block key-image uniqueness (no double-spend)                │
-│  ✓ Range proofs on every output                                       │
-│  ✓ Equivocation slashing: zero offending validator's stake           │
-│  ✓ SPoRA storage proofs: random-access audit of stored payloads       │
-│  ✓ Endowment burden: uploads must pay required E₀ via treasury share │
-│  ✓ Liveness tracking: chronic absentees slashed multiplicatively     │
-│  ✓ Two-sided settlement: fees split, treasury drains for storage     │
-│    rewards, emission mints the backstop                              │
-└───────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                          NEW CHAIN STATE
-                  (UTXO set, accumulator, treasury,
-                   storage registry, validator stats)
-```
+<p align="center">
+  <img src="./docs/img/money-flow.svg" alt="The Permawrite money flow. Emission mints fresh MFN into the coinbase paid to producers. Privacy transactions pay fees that split 90/10 between the storage treasury and the producer. The treasury drains every block to pay storage operators who submit valid SPoRA proofs. Emission acts as a backstop only when the treasury runs short. Operator and producer income re-enters circulation as users pay fees with this MFN, closing the loop." width="100%">
+</p>
 
 Every transaction that touches the chain — financial-only or storage-bearing — leaks **fee revenue into the treasury**. The treasury **funds the per-slot yield owed to storage operators** for keeping data alive. There is no "compute layer" to monetize, no oracle to bribe, no separate DA layer to subsidize: **privacy demand pays for permanence**, full stop.
+
+The full mechanics of `apply_block` are illustrated in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md#state-transition-function-apply_block).
 
 ---
 
@@ -234,6 +201,7 @@ Dual-licensed under either of:
 - **MIT License** ([LICENSE-MIT](./LICENSE-MIT))
 
 at your option. Standard Rust ecosystem dual license.
+
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work shall be dual-licensed as above, without any additional terms or conditions.
 

@@ -5,6 +5,10 @@
 
 ---
 
+<p align="center">
+  <img src="./img/money-flow.svg" alt="The Permawrite money flow: emission mints into the coinbase paid to the producer; transaction fees split 90/10 between treasury and producer; the treasury drains every block to pay storage operators via SPoRA proofs; emission acts only as a backstop when the treasury runs short. Producer and operator income re-enters circulation as users pay more fees, closing the loop." width="100%">
+</p>
+
 ## Three flows
 
 There are exactly three money flows on Permawrite. Everything else is derivable from these.

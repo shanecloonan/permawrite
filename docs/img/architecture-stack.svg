@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">Permawrite architecture stack</title>
+  <desc id="desc">The four production crates (mfn-crypto, mfn-bls, mfn-storage, mfn-consensus) plus the three planned crates (mfn-wallet, mfn-node, mfn-wasm) and how they depend on each other.</desc>
+  <defs>
+    <style>
+      .bg-fill { fill: #ffffff; }
+      .panel-fill { fill: #ffffff; }
+      .text-strong { fill: #0f172a; }
+      .text-muted { fill: #475569; }
+      .text-faint { fill: #94a3b8; }
+      .stroke-dark { stroke: #0f172a; }
+      .stroke-muted { stroke: #475569; }
+      .accent-live { fill: #16a34a; }
+      .accent-planned { fill: #94a3b8; }
+      .accent-crypto { fill: #7c3aed; }
+      .accent-bls { fill: #2563eb; }
+      .accent-storage { fill: #0891b2; }
+      .accent-consensus { fill: #d97706; }
+      .arrow-line { stroke: #475569; stroke-width: 2; fill: none; }
+      .arrow-line-future { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+      .arrow-head { fill: #475569; }
+      .arrow-head-future { fill: #94a3b8; }
+      @media (prefers-color-scheme: dark) {
+        .bg-fill { fill: #0d1117; }
+        .panel-fill { fill: #161b22; }
+        .text-strong { fill: #f0f6fc; }
+        .text-muted { fill: #c9d1d9; }
+        .text-faint { fill: #8b949e; }
+        .stroke-dark { stroke: #f0f6fc; }
+        .stroke-muted { stroke: #8b949e; }
+        .arrow-line { stroke: #c9d1d9; }
+        .arrow-head { fill: #c9d1d9; }
+      }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="arrow-head"/>
+    </marker>
+    <marker id="arrow-future" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="arrow-head-future"/>
+    </marker>
+  </defs>
+
+  <rect class="bg-fill" width="100%" height="100%"/>
+
+  <text x="600" y="48" text-anchor="middle" font-size="26" font-weight="700" class="text-strong">Permawrite &#8212; crate dependency stack</text>
+  <text x="600" y="76" text-anchor="middle" font-size="14" class="text-muted">Four production crates today (274 passing tests). Three more planned for the live network.</text>
+
+  <g transform="translate(40,108)">
+    <circle cx="8" cy="8" r="6" class="accent-live"/>
+    <text x="22" y="13" font-size="13" font-weight="600" class="text-strong">live</text>
+    <circle cx="78" cy="8" r="6" class="accent-planned"/>
+    <text x="92" y="13" font-size="13" font-weight="600" class="text-muted">planned</text>
+  </g>
+
+  <text x="40" y="172" font-size="13" font-weight="700" letter-spacing="1.5" class="text-faint">PLANNED &#8212; APPLICATION LAYER</text>
+
+  <g>
+    <rect x="80" y="190" width="280" height="86" rx="12" class="panel-fill stroke-muted" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <circle cx="100" cy="212" r="5" class="accent-planned"/>
+    <text x="115" y="217" font-size="17" font-weight="700" class="text-muted">mfn-wallet</text>
+    <text x="100" y="244" font-size="13" class="text-faint">Reference CLI: keygen, scan, send,</text>
+    <text x="100" y="262" font-size="13" class="text-faint">upload, operator-mode proof submission.</text>
+  </g>
+  <g>
+    <rect x="460" y="190" width="280" height="86" rx="12" class="panel-fill stroke-muted" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <circle cx="480" cy="212" r="5" class="accent-planned"/>
+    <text x="495" y="217" font-size="17" font-weight="700" class="text-muted">mfn-node</text>
+    <text x="480" y="244" font-size="13" class="text-faint">Daemon: P2P, mempool, RocksDB store,</text>
+    <text x="480" y="262" font-size="13" class="text-faint">JSON-RPC, producer + voter loops.</text>
+  </g>
+  <g>
+    <rect x="840" y="190" width="280" height="86" rx="12" class="panel-fill stroke-muted" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <circle cx="860" cy="212" r="5" class="accent-planned"/>
+    <text x="875" y="217" font-size="17" font-weight="700" class="text-muted">mfn-wasm</text>
+    <text x="860" y="244" font-size="13" class="text-faint">WebAssembly bindings: in-browser</text>
+    <text x="860" y="262" font-size="13" class="text-faint">wallets and light-client verification.</text>
+  </g>
+
+  <path d="M220,276 L420,346" class="arrow-line-future" marker-end="url(#arrow-future)"/>
+  <path d="M600,276 L600,346" class="arrow-line-future" marker-end="url(#arrow-future)"/>
+  <path d="M980,276 L780,346" class="arrow-line-future" marker-end="url(#arrow-future)"/>
+
+  <text x="40" y="338" font-size="13" font-weight="700" letter-spacing="1.5" class="text-faint">LIVE &#8212; STATE-TRANSITION FUNCTION</text>
+
+  <g>
+    <rect x="80" y="352" width="1040" height="112" rx="14" class="panel-fill stroke-dark" stroke-width="2.5"/>
+    <rect x="80" y="352" width="6" height="112" class="accent-consensus" rx="3"/>
+    <circle cx="110" cy="378" r="6" class="accent-live"/>
+    <text x="126" y="384" font-size="22" font-weight="700" class="text-strong">mfn-consensus</text>
+    <text x="290" y="384" font-size="14" font-weight="600" class="accent-consensus">81 tests &#183; apply_block</text>
+    <text x="110" y="416" font-size="14" class="text-muted">Header verification &#183; Finality proof check &#183; CLSAG ring-membership chain guard &#183; Pedersen balance</text>
+    <text x="110" y="438" font-size="14" class="text-muted">Storage upload endowment &#183; SPoRA proof verification &#183; Two-sided treasury settlement &#183; Liveness slashing</text>
+  </g>
+
+  <path d="M300,464 L240,540" class="arrow-line" marker-end="url(#arrow)"/>
+  <path d="M600,464 L600,540" class="arrow-line" marker-end="url(#arrow)"/>
+  <path d="M900,464 L960,540" class="arrow-line" marker-end="url(#arrow)"/>
+  <text x="270" y="510" font-size="12" font-weight="600" class="text-muted">uses</text>
+  <text x="608" y="510" font-size="12" font-weight="600" class="text-muted">uses</text>
+  <text x="922" y="510" font-size="12" font-weight="600" class="text-muted">uses</text>
+
+  <text x="40" y="532" font-size="13" font-weight="700" letter-spacing="1.5" class="text-faint">LIVE &#8212; PRIMITIVE LAYER</text>
+
+  <g>
+    <rect x="80" y="548" width="320" height="148" rx="14" class="panel-fill stroke-dark" stroke-width="2.5"/>
+    <rect x="80" y="548" width="6" height="148" class="accent-bls" rx="3"/>
+    <circle cx="110" cy="574" r="6" class="accent-live"/>
+    <text x="126" y="580" font-size="20" font-weight="700" class="text-strong">mfn-bls</text>
+    <text x="110" y="608" font-size="13" font-weight="600" class="accent-bls">16 tests &#183; BLS12-381</text>
+    <text x="110" y="634" font-size="13" class="text-muted">Aggregate signatures (G1 keys, G2 sigs).</text>
+    <text x="110" y="654" font-size="13" class="text-muted">Committee finality in one pairing.</text>
+    <text x="110" y="674" font-size="13" class="text-muted">Same variant as ETH2 / Filecoin.</text>
+  </g>
+
+  <g>
+    <rect x="440" y="548" width="320" height="148" rx="14" class="panel-fill stroke-dark" stroke-width="2.5"/>
+    <rect x="440" y="548" width="6" height="148" class="accent-storage" rx="3"/>
+    <circle cx="470" cy="574" r="6" class="accent-live"/>
+    <text x="486" y="580" font-size="20" font-weight="700" class="text-strong">mfn-storage</text>
+    <text x="470" y="608" font-size="13" font-weight="600" class="accent-storage">32 tests &#183; SPoRA &#183; E&#8320;</text>
+    <text x="470" y="634" font-size="13" class="text-muted">Chunking, Merkle, challenge derivation.</text>
+    <text x="470" y="654" font-size="13" class="text-muted">Endowment formula + PPB accumulator.</text>
+    <text x="470" y="674" font-size="13" class="text-muted">Per-block storage proof verifier.</text>
+  </g>
+
+  <g>
+    <rect x="800" y="548" width="320" height="148" rx="14" class="panel-fill stroke-dark" stroke-width="2.5"/>
+    <rect x="800" y="548" width="6" height="148" class="accent-crypto" rx="3"/>
+    <circle cx="830" cy="574" r="6" class="accent-live"/>
+    <text x="846" y="580" font-size="20" font-weight="700" class="text-strong">mfn-crypto</text>
+    <text x="830" y="608" font-size="13" font-weight="600" class="accent-crypto">145 tests &#183; ed25519 + ZK</text>
+    <text x="830" y="634" font-size="13" class="text-muted">CLSAG, Pedersen, Bulletproofs, OoM,</text>
+    <text x="830" y="654" font-size="13" class="text-muted">stealth, VRF, gamma decoys, UTXO tree.</text>
+    <text x="830" y="674" font-size="13" class="text-muted">MFBN-1 codec + domain registry.</text>
+  </g>
+
+  <path d="M600,696 Q600,724 800,696" class="arrow-line" marker-end="url(#arrow)" fill="none"/>
+  <text x="690" y="730" font-size="11" font-weight="600" class="text-muted">depends on</text>
+
+  <text x="600" y="762" text-anchor="middle" font-size="13" class="text-faint">Workspace: zero unsafe &#183; zero clippy warnings &#183; deterministic byte-for-byte across implementations</text>
+</svg>
