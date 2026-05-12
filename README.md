@@ -6,7 +6,7 @@
 
 *Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.*
 
-[![Tests](https://img.shields.io/badge/tests-274_passing-brightgreen)](#status)
+[![Tests](https://img.shields.io/badge/tests-279_passing-brightgreen)](#status)
 [![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
 [![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
@@ -89,7 +89,7 @@ Each crate has its own README with public API summary, test counts, and links in
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned. |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned. |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the [TS reference demo page](https://github.com/shanecloonan/cloonan-group)). |
-| **Total** | | **274** | Zero `unsafe`. Zero clippy warnings. |
+| **Total** | | **279** | Zero `unsafe`. Zero clippy warnings. |
 
 Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
@@ -117,7 +117,7 @@ cd permawrite
 # Build everything
 cargo build --release
 
-# Run the full workspace test suite (274 tests, ~30s on a modern machine)
+# Run the full workspace test suite (279 tests, ~30s on a modern machine)
 cargo test --workspace --release
 
 # Lint gate (zero warnings expected)

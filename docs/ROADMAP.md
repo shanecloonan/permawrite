@@ -14,7 +14,7 @@
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
 | Chain state machine (incl. SPoRA verify + liveness slashing) | `mfn-consensus` | 81 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **274** | All checks green |
+| **Total** | | **279** | All checks green |
 
 **Posture.** We've built the consensus core. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -54,11 +54,13 @@ Everything described in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Specifically:
   - Two-sided treasury settlement (with emission backstop)
   - **Liveness tracking + multiplicative slashing**
 
-Test count: 274 passing across the workspace. Zero `unsafe`. Zero clippy warnings.
+Test count: 279 passing across the workspace. Zero `unsafe`. Zero clippy warnings.
 
 ---
 
 ## Milestone M1 — Validator rotation (next major)
+
+Full design note: [**docs/M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md). Default parameters and pure validation helpers live in `mfn_consensus::bonding` (wired into `apply_block` in a follow-up PR).
 
 **Why this is next.** Today the validator set is frozen at genesis. This is the largest *structural* hole left in the protocol layer. Without rotation, the chain can't onboard new validators or remove zero-stake (liveness-slashed-to-floor or equivocation-zeroed) ones.
 

@@ -14,6 +14,9 @@
 //!   inputs, Pedersen-committed amounts, bulletproof range proofs, stealth
 //!   addresses, pseudo-output blindings that prove balance without revealing
 //!   amounts.
+//! - [`bonding`] — validator rotation **defaults** (M1): min stake, unbond
+//!   delay, per-epoch churn caps; wire + `apply_block` integration is tracked
+//!   in [`docs/M1_VALIDATOR_ROTATION.md`](../../docs/M1_VALIDATOR_ROTATION.md).
 //! - [`coinbase`] — synthetic block-reward transaction, deterministic so any
 //!   node can replay history byte-for-byte.
 //! - [`consensus`] — slot-based PoS engine: stake-weighted VRF leader
@@ -41,6 +44,7 @@
 #![warn(clippy::all)]
 
 pub mod block;
+pub mod bonding;
 pub mod coinbase;
 pub mod consensus;
 pub mod emission;
@@ -53,6 +57,10 @@ pub use block::{
     header_signing_bytes, header_signing_hash, seal_block, storage_merkle_root, tx_merkle_root,
     ApplyOutcome, Block, BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig,
     GenesisOutput, UtxoEntry, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+};
+pub use bonding::{
+    epoch_id_for_height, height_of_next_epoch, try_register_entry_churn, try_register_exit_churn,
+    unbond_unlock_height, validate_stake, BondingError, BondingParams, DEFAULT_BONDING_PARAMS,
 };
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,

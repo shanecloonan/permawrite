@@ -8,7 +8,7 @@ For the vision and context, start with [`docs/OVERVIEW.md`](./docs/OVERVIEW.md).
 
 ## What we want
 
-- **Tests for everything.** Every new function, every new state-transition rule, every new error variant gets a test. The repo currently has 274 passing tests for a reason.
+- **Tests for everything.** Every new function, every new state-transition rule, every new error variant gets a test. The repo currently has 279 passing tests for a reason.
 - **No `unsafe`.** Workspace-level `#![forbid(unsafe_code)]`. If your change can't avoid `unsafe`, the answer is almost certainly "find a different approach."
 - **Determinism.** Anything that touches consensus must be byte-deterministic across runs and platforms. Integer math only; explicit endianness; no `f64` in consensus paths.
 - **Domain separation.** New hash purposes need new domain tags in [`mfn-crypto/src/domain.rs`](./mfn-crypto/src/domain.rs). Reusing a tag for a different purpose is a hard fork by design.
@@ -115,7 +115,7 @@ mod tests {
 Match the existing style: single-line subject in **Title Case**, no conventional-commit prefix, no body unless really needed.
 
 ```
-Close counterfeit-input attack + add liveness slashing (274 tests workspace-wide)
+Close counterfeit-input attack + add liveness slashing (279 tests workspace-wide)
 Move /about System Architecture next to Arweave + Stats
 Reorder /about: move Platform Stats next to Fee Structure
 ```

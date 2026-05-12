@@ -17,6 +17,7 @@ Welcome. These docs cover the full design of the Permawrite blockchain — priva
 ### Want the technical design?
 
 - 🏗 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — whitepaper-grade system overview. Wire codec, domain tags, every check `apply_block` performs in order.
+- 🧷 [**M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md) — Milestone M1: validator bond/unbond, churn caps, epoch model (spec + code map).
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.

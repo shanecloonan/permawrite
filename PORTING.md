@@ -54,6 +54,7 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 
 | TS file          | Rust module       | Status      |
 | ---------------- | ----------------- | ----------- |
+| `bonding.ts`     | `bonding.rs`      | [ ] pending (defaults + pure checks live; wire + `apply_block` next) |
 | `emission.ts`    | `emission.rs`     | [x] live    |
 | `storage.ts` (commitment) | `storage.rs` | [x] live (thin re-export of `mfn-storage::commitment`) |
 | `transaction.ts` | `transaction.rs`  | [x] live    |

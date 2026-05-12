@@ -43,7 +43,7 @@
   <rect class="bg-fill" width="100%" height="100%"/>
 
   <text x="600" y="48" text-anchor="middle" font-size="26" font-weight="700" class="text-strong">Permawrite &#8212; crate dependency stack</text>
-  <text x="600" y="76" text-anchor="middle" font-size="14" class="text-muted">Four production crates today (274 passing tests). Three more planned for the live network.</text>
+  <text x="600" y="76" text-anchor="middle" font-size="14" class="text-muted">Four production crates today (279 passing tests). Three more planned for the live network.</text>
 
   <g transform="translate(40,108)">
     <circle cx="8" cy="8" r="6" class="accent-live"/>

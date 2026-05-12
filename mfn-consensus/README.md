@@ -15,6 +15,7 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | Module | Responsibility |
 |---|---|
 | [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps. |
+| [`bonding`](src/bonding.rs) | M1 rotation **parameters** — min stake, unbond delay, epoch churn caps (wire + `apply_block` next). |
 | [`transaction`](src/transaction.rs) | RingCT-style confidential tx — wire format, build, sign, verify. |
 | [`coinbase`](src/coinbase.rs) | Deterministic synthetic block-reward tx. |
 | [`consensus`](src/consensus.rs) | Slot model, VRF leader election, BLS committee finality, `FinalityProof`. |
