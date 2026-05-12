@@ -1,19 +1,26 @@
 //! # `mfn-light`
 //!
-//! Header-only light-client chain follower for the Permawrite
-//! protocol. Built on top of [`mfn_consensus::verify_header`] (M2.0.5).
+//! Light-client chain follower for the Permawrite protocol. Built on
+//! top of the M2.0.5 ([`mfn_consensus::verify_header`]) and M2.0.7
+//! ([`mfn_consensus::verify_block_body`]) primitives.
 //!
 //! A light client *follows* a chain without holding the full
 //! `ChainState`: it tracks the current tip's height and `block_id`,
 //! it holds a *trusted* validator set (bootstrapped from a
-//! [`mfn_consensus::GenesisConfig`]), and for every new header it:
+//! [`mfn_consensus::GenesisConfig`]), and for every new header (or
+//! block) it:
 //!
 //! 1. **Verifies chain linkage** — `header.prev_hash` matches the
 //!    current `tip_id`, `header.height == current_height + 1`.
 //! 2. **Cryptographically verifies the header** via the M2.0.5 light
 //!    primitive: `validator_root` matches the trusted set,
 //!    producer-proof + BLS finality aggregate verify.
-//! 3. **Advances tip** — new `tip_id = block_id(header)`.
+//! 3. **(Optional, M2.0.7) Body verification.** If the caller passes a
+//!    full block via [`chain::LightChain::apply_block`], the four
+//!    header-bound body roots (`tx_root`, `bond_root`, `slashing_root`,
+//!    `storage_proof_root`) are re-derived from the body and matched
+//!    against the (now authenticated) header.
+//! 4. **Advances tip** — new `tip_id = block_id(&header)`.
 //!
 //! That's enough to follow the chain through a window of stable
 //! validator-set membership. **Validator-set evolution** across
@@ -44,10 +51,14 @@
 //! ```text
 //!   LightChain::from_genesis(cfg)        ──► tip_height = 0
 //!     │
-//!     ├── chain.apply_header(&hdr1)?     ──► tip_height = 1
-//!     ├── chain.apply_header(&hdr2)?     ──► tip_height = 2
+//!     ├── chain.apply_block(&blk1)?      ──► tip_height = 1
+//!     ├── chain.apply_block(&blk2)?      ──► tip_height = 2
 //!     └── …
 //! ```
+//!
+//! [`chain::LightChain::apply_header`] is also available for callers
+//! that only have the header chain (e.g. during a bulk header-first
+//! sync, with full bodies fetched later).
 //!
 //! ## Safety
 //!
@@ -61,4 +72,6 @@
 
 pub mod chain;
 
-pub use chain::{AppliedHeader, LightChain, LightChainConfig, LightChainError, LightChainStats};
+pub use chain::{
+    AppliedBlock, AppliedHeader, LightChain, LightChainConfig, LightChainError, LightChainStats,
+};

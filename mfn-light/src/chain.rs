@@ -14,11 +14,28 @@
 //! re-bootstrap from a freshly-trusted checkpoint until M2.0.8 lands
 //! body-aware validator-set evolution.
 //!
+//! ## What this driver does
+//!
+//! - [`LightChain::apply_header`] — header-only application (M2.0.6).
+//!   Strict height/`prev_hash` linkage + [`verify_header`] cryptographic
+//!   check + tip advance. Useful when the body isn't available yet
+//!   (e.g. lightweight sync of *just* the header chain for inclusion
+//!   proofs against a trusted checkpoint).
+//! - [`LightChain::apply_block`] — full block application (M2.0.7).
+//!   Same linkage + header verification, plus stateless body
+//!   verification via [`mfn_consensus::verify_block_body`] of the four
+//!   header-bound body roots (`tx_root`, `bond_root`, `slashing_root`,
+//!   `storage_proof_root`). After a successful `apply_block`, the
+//!   light client has cryptographic confidence that the delivered
+//!   body is byte-for-byte the body the producer signed over.
+//!
 //! ## What this driver does NOT do (yet)
 //!
-//! - **No body verification.** Reconstructing `tx_root` / `bond_root` /
-//!   `slashing_root` / `storage_proof_root` / `storage_root` from a
-//!   delivered body and comparing against the header is M2.0.7 work.
+//! - **No state-dependent body roots.** `storage_root` and `utxo_root`
+//!   are functions of accumulated chain state, not pure functions of
+//!   the block body. A stateless light client can't independently
+//!   recompute them; they're already cryptographically covered by the
+//!   BLS aggregate signing `header_signing_hash`.
 //! - **No validator-set evolution.** Processing `BondOp`s, slashings,
 //!   liveness slashes, and pending-unbond settlements to derive
 //!   `trusted_validators_{n+1}` from `trusted_validators_n` is M2.0.8.
@@ -28,8 +45,8 @@
 //!   memory. Trivial to add via a separate `mfn-light::store` module.
 
 use mfn_consensus::{
-    block_id, build_genesis, verify_header, BlockHeader, ConsensusParams, GenesisConfig,
-    HeaderCheck, HeaderVerifyError, Validator,
+    block_id, build_genesis, verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError,
+    ConsensusParams, GenesisConfig, HeaderCheck, HeaderVerifyError, Validator,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -86,6 +103,23 @@ pub struct AppliedHeader {
     pub check: HeaderCheck,
 }
 
+/// Returned by [`LightChain::apply_block`] on success — carries the
+/// new tip's `block_id` and the [`HeaderCheck`] from the underlying
+/// `verify_header` call, *plus* the implicit guarantee that the
+/// delivered body's four header-bound body roots all matched.
+///
+/// Structurally identical to [`AppliedHeader`] today, but kept as a
+/// distinct type so future slices (M2.0.8 validator-set evolution,
+/// then per-block reward / inclusion-proof surfaces) can extend
+/// `AppliedBlock` without affecting `AppliedHeader`'s contract.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AppliedBlock {
+    /// `block_id` of the just-applied block (now the chain's tip).
+    pub block_id: [u8; 32],
+    /// Verification stats from [`verify_header`].
+    pub check: HeaderCheck,
+}
+
 /* ----------------------------------------------------------------------- *
  *  Errors                                                                  *
  * ----------------------------------------------------------------------- */
@@ -129,6 +163,22 @@ pub enum LightChainError {
         height: u32,
         /// Specific cryptographic failure.
         source: HeaderVerifyError,
+    },
+
+    /// Body-root verification of the delivered block failed: at least
+    /// one of `tx_root` / `bond_root` / `slashing_root` /
+    /// `storage_proof_root` recomputed from `block.<field>` doesn't
+    /// match the value the header claims. See [`BodyVerifyError`] for
+    /// the specific root.
+    ///
+    /// **State invariant**: when this is returned by
+    /// [`LightChain::apply_block`], the chain's tip is unchanged.
+    #[error("body verification failed at height {height}: {source}")]
+    BodyMismatch {
+        /// Height the offending block claims.
+        height: u32,
+        /// Specific body-root failure.
+        source: BodyVerifyError,
     },
 }
 
@@ -252,6 +302,97 @@ impl LightChain {
         self.tip_id = new_tip;
 
         Ok(AppliedHeader {
+            block_id: new_tip,
+            check,
+        })
+    }
+
+    /// Apply a full candidate block (header + body).
+    ///
+    /// In order:
+    ///
+    /// 1. Linkage: `header.height == tip_height + 1`.
+    /// 2. Linkage: `header.prev_hash == tip_id`.
+    /// 3. Cryptographic header verification via [`verify_header`]
+    ///    against the trusted validator set (validator-set commitment
+    ///    + producer proof + BLS finality aggregate).
+    /// 4. Body verification via [`verify_block_body`] — re-derives
+    ///    `tx_root`, `bond_root`, `slashing_root`, `storage_proof_root`
+    ///    from `block.<field>` and matches each against the (now
+    ///    authenticated) header.
+    /// 5. Advance tip.
+    ///
+    /// On failure, the light chain is **unchanged** — no partial
+    /// commits, no side effects.
+    ///
+    /// ## Why body verification runs *after* header verification
+    ///
+    /// We check the header's BLS-signed authenticity *first*, then
+    /// check the body matches what the (now-trusted) header signed
+    /// over. This ordering produces the cleanest error semantics:
+    ///
+    /// - [`LightChainError::HeaderVerify`] means "this header isn't
+    ///   genuine" — produced by a forger or tampered with.
+    /// - [`LightChainError::BodyMismatch`] means "this header *is*
+    ///   genuine, but the delivered body doesn't match what it
+    ///   committed to" — the body was tampered with after signing,
+    ///   or the peer delivered the wrong body for this header.
+    ///
+    /// Either is a hard reject; the diagnostic distinction is useful
+    /// for caller logging / peer scoring.
+    ///
+    /// # Errors
+    ///
+    /// - [`LightChainError::HeightMismatch`] — block isn't the strict
+    ///   successor of the current tip.
+    /// - [`LightChainError::PrevHashMismatch`] — block doesn't link
+    ///   to the current tip.
+    /// - [`LightChainError::HeaderVerify`] — cryptographic header
+    ///   failure.
+    /// - [`LightChainError::BodyMismatch`] — header is authentic but
+    ///   the body doesn't match one of the four header-bound body
+    ///   roots.
+    pub fn apply_block(&mut self, block: &Block) -> Result<AppliedBlock, LightChainError> {
+        // (1) Height must be the strict successor.
+        let expected_height = self.tip_height.saturating_add(1);
+        if block.header.height != expected_height {
+            return Err(LightChainError::HeightMismatch {
+                expected: expected_height,
+                got: block.header.height,
+            });
+        }
+
+        // (2) prev_hash must point at our current tip.
+        if block.header.prev_hash != self.tip_id {
+            return Err(LightChainError::PrevHashMismatch {
+                height: block.header.height,
+                expected: self.tip_id,
+                got: block.header.prev_hash,
+            });
+        }
+
+        // (3) Cryptographic header verification.
+        let check = verify_header(&block.header, &self.trusted_validators, &self.params).map_err(
+            |source| LightChainError::HeaderVerify {
+                height: block.header.height,
+                source,
+            },
+        )?;
+
+        // (4) Body verification — header is now authenticated, so a
+        //     body-root mismatch unambiguously means "wrong body for
+        //     this authentic header".
+        verify_block_body(block).map_err(|source| LightChainError::BodyMismatch {
+            height: block.header.height,
+            source,
+        })?;
+
+        // (5) Advance tip. Nothing past this point can fail.
+        let new_tip = block_id(&block.header);
+        self.tip_height = block.header.height;
+        self.tip_id = new_tip;
+
+        Ok(AppliedBlock {
             block_id: new_tip,
             check,
         })
@@ -562,5 +703,158 @@ mod tests {
         assert_eq!(s.genesis_id, *light.genesis_id());
         assert_eq!(s.validator_count, light.trusted_validators().len());
         assert_eq!(s.total_stake, light.total_stake());
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0.7 — apply_block                                              *
+     * ----------------------------------------------------------------- */
+
+    /// Real signed block 1 must apply through the light chain via
+    /// `apply_block`. After: tip = block 1's id, height = 1.
+    #[test]
+    fn apply_block_accepts_real_signed_block() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block = produce_block(&state, &v0, &s0, params, 1);
+
+        let applied = light.apply_block(&block).expect("must apply");
+        assert_eq!(light.tip_height(), 1);
+        assert_eq!(light.tip_id(), &applied.block_id);
+        assert_eq!(applied.check.producer_index, 0);
+        assert_eq!(applied.check.signing_stake, 1_000_000);
+    }
+
+    /// Tampered `tx_root` in the *header* (body still original) →
+    /// the header now claims a tx_root that doesn't match the body.
+    /// But since header BLS-signs over its own tx_root, the header
+    /// is no longer authentic → `HeaderVerify`. State preserved.
+    #[test]
+    fn apply_block_rejects_tampered_tx_root_in_header() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let mut block = produce_block(&state, &v0, &s0, params, 1);
+        block.header.tx_root[0] ^= 0xff;
+
+        let pre = light.stats();
+        let err = light.apply_block(&block).expect_err("reject");
+        assert!(
+            matches!(err, LightChainError::HeaderVerify { .. }),
+            "tampering header fields breaks the BLS signature → HeaderVerify, got {err:?}"
+        );
+        assert_eq!(light.stats(), pre, "state must be untouched on rejection");
+    }
+
+    /// Tampered body (push a duplicate tx) → the recomputed `tx_root`
+    /// no longer matches the (authentic) header → `BodyMismatch`.
+    /// State preserved.
+    #[test]
+    fn apply_block_rejects_tampered_tx_body() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let mut block = produce_block(&state, &v0, &s0, params, 1);
+        // Tamper the body without touching the header — this leaves
+        // the header BLS-signed and authentic, but its tx_root no
+        // longer matches the body.
+        let cb = block.txs[0].clone();
+        block.txs.push(cb);
+
+        let pre = light.stats();
+        let err = light.apply_block(&block).expect_err("reject");
+        match err {
+            LightChainError::BodyMismatch {
+                height,
+                source: BodyVerifyError::TxRootMismatch { .. },
+            } => assert_eq!(height, 1),
+            other => panic!("expected BodyMismatch/TxRootMismatch, got {other:?}"),
+        }
+        assert_eq!(light.stats(), pre, "state must be untouched on rejection");
+    }
+
+    /// Wrong `prev_hash` → typed `PrevHashMismatch`. The linkage
+    /// check fires before body verification.
+    #[test]
+    fn apply_block_rejects_wrong_prev_hash() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let mut block = produce_block(&state, &v0, &s0, params, 1);
+        block.header.prev_hash[0] ^= 0xff;
+
+        let pre = light.stats();
+        let err = light.apply_block(&block).expect_err("reject");
+        match err {
+            LightChainError::PrevHashMismatch { height, .. } => assert_eq!(height, 1),
+            other => panic!("expected PrevHashMismatch, got {other:?}"),
+        }
+        assert_eq!(light.stats(), pre);
+    }
+
+    /// Wrong height → typed `HeightMismatch`. Linkage fires first.
+    #[test]
+    fn apply_block_rejects_wrong_height() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let mut block = produce_block(&state, &v0, &s0, params, 1);
+        block.header.height = 42;
+
+        let pre = light.stats();
+        let err = light.apply_block(&block).expect_err("reject");
+        match err {
+            LightChainError::HeightMismatch { expected, got } => {
+                assert_eq!(expected, 1);
+                assert_eq!(got, 42);
+            }
+            other => panic!("expected HeightMismatch, got {other:?}"),
+        }
+        assert_eq!(light.stats(), pre);
+    }
+
+    /// After a successful `apply_block`, `apply_block` again with a
+    /// fresh block 2 must continue cleanly.
+    #[test]
+    fn apply_block_chains_across_two_blocks() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+
+        let block1 = produce_block(&state, &v0, &s0, params, 1);
+        light.apply_block(&block1).expect("block 1");
+        state = match mfn_consensus::apply_block(&state, &block1) {
+            mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+            other => panic!("apply_block(block 1) failed: {other:?}"),
+        };
+
+        let block2 = produce_block(&state, &v0, &s0, params, 2);
+        let applied2 = light.apply_block(&block2).expect("block 2");
+        assert_eq!(light.tip_height(), 2);
+        assert_eq!(light.tip_id(), &applied2.block_id);
+    }
+
+    /// Determinism: same chain → same final stats irrespective of
+    /// whether each block is fed through `apply_header` (header only)
+    /// or `apply_block` (full block). The header-only path skips body
+    /// verification but produces the same tip / height.
+    #[test]
+    fn apply_header_and_apply_block_agree_on_tip() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block = produce_block(&state, &v0, &s0, params, 1);
+
+        let mut a = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let mut b = LightChain::from_genesis(LightChainConfig::new(cfg));
+        a.apply_header(&block.header).expect("a");
+        b.apply_block(&block).expect("b");
+        assert_eq!(a.stats(), b.stats());
     }
 }

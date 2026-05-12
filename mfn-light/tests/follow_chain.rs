@@ -11,8 +11,8 @@
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, BlockHeader, ConsensusParams, GenesisConfig,
-    HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
+    build_coinbase, emission_at_height, BlockHeader, BodyVerifyError, ConsensusParams,
+    GenesisConfig, HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
@@ -294,4 +294,154 @@ fn light_chain_surfaces_validator_root_mismatch_through_typed_error() {
         } => assert_eq!(height, 1),
         other => panic!("expected HeaderVerify/ValidatorRootMismatch, got {other:?}"),
     }
+}
+
+/* ------------------------------------------------------------------ *
+ *  M2.0.7 — apply_block (header + body verification)                  *
+ * ------------------------------------------------------------------ */
+
+/// Headline: a [`LightChain`] follows a full-node [`Chain`] across 3
+/// real blocks via `apply_block`. After each block, both chains must
+/// agree on tip id + height; the light chain has additionally
+/// verified all four header-bound body roots match the delivered body.
+#[test]
+fn light_chain_apply_block_follows_full_chain_across_three_blocks() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    assert_eq!(full.tip_height(), Some(0));
+    assert_eq!(light.tip_height(), 0);
+
+    for height in 1u32..=3 {
+        let block = produce_block(&full, &secrets, params, height);
+        let full_tip = full.apply(&block).expect("full apply");
+        let applied = light.apply_block(&block).expect("light apply_block");
+        assert_eq!(full_tip, applied.block_id);
+        assert_eq!(full.tip_height(), Some(height));
+        assert_eq!(light.tip_height(), height);
+        assert_eq!(full.tip_id(), Some(light.tip_id()));
+        assert_eq!(applied.check.producer_index, 0);
+        assert_eq!(applied.check.signing_stake, 1_000_000);
+    }
+}
+
+/// Tamper a body field (push a duplicate tx into `block.txs`)
+/// *without* touching the header. The header BLS signature is still
+/// valid — but its `tx_root` no longer matches the recomputed root
+/// of the tampered body. Light chain must reject with
+/// `BodyMismatch / TxRootMismatch`, state preserved.
+///
+/// This is the case `apply_header` alone *could not* catch: a peer
+/// delivering a genuine header alongside a corrupted body.
+#[test]
+fn light_chain_apply_block_rejects_body_tx_tamper_with_state_preserved() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let mut b1 = produce_block(&full, &secrets, params, 1);
+    // Tamper body only.
+    let dup = b1.txs[0].clone();
+    b1.txs.push(dup);
+
+    let pre = light.stats();
+    let err = light.apply_block(&b1).expect_err("must reject");
+    match err {
+        LightChainError::BodyMismatch {
+            height,
+            source: BodyVerifyError::TxRootMismatch { .. },
+        } => assert_eq!(height, 1),
+        other => panic!("expected BodyMismatch/TxRootMismatch, got {other:?}"),
+    }
+    assert_eq!(light.stats(), pre, "state must be untouched");
+}
+
+/// Same idea, different body field: tamper `block.storage_proofs` by
+/// dropping the producer's emitted storage proofs (a malicious peer
+/// "withholding" the storage-availability sample). Header still
+/// claims a non-empty `storage_proof_root`; recomputed root is the
+/// all-zero sentinel for an empty Merkle. → `StorageProofRootMismatch`.
+///
+/// Note: our single-validator demo chain doesn't routinely emit
+/// storage proofs (no storage anchored), so the header's claimed
+/// `storage_proof_root` is the empty-Merkle sentinel and the
+/// tamper-by-drop test below is a no-op. We instead tamper by
+/// *injecting* a synthetic empty proof, which moves the recomputed
+/// root. The test asserts the rejection regardless of direction.
+#[test]
+fn light_chain_apply_block_rejects_storage_proof_body_tamper() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let mut b1 = produce_block(&full, &secrets, params, 1);
+    // Inject a stray storage_proof. Even a synthetic empty one is a
+    // structural tamper since the header committed to an empty list,
+    // so the recomputed root differs from the header's claimed root.
+    b1.storage_proofs.push(mfn_storage::StorageProof {
+        commit_hash: [0u8; 32],
+        chunk: Vec::new(),
+        proof: mfn_crypto::merkle::MerkleProof {
+            siblings: Vec::new(),
+            right_side: Vec::new(),
+            index: 0,
+        },
+    });
+
+    let pre = light.stats();
+    let err = light.apply_block(&b1).expect_err("must reject");
+    match err {
+        LightChainError::BodyMismatch {
+            height,
+            source: BodyVerifyError::StorageProofRootMismatch { .. },
+        } => assert_eq!(height, 1),
+        other => panic!("expected BodyMismatch/StorageProofRootMismatch, got {other:?}"),
+    }
+    assert_eq!(light.stats(), pre);
+}
+
+/// `apply_block` correctly applies after a previously-tampered block
+/// was rejected: state preservation enables recovery.
+#[test]
+fn light_chain_apply_block_recovers_after_body_rejection() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let b1 = produce_block(&full, &secrets, params, 1);
+
+    // Attempt 1: tampered body — rejected.
+    let mut bad = b1.clone();
+    bad.txs.push(b1.txs[0].clone());
+    let err = light.apply_block(&bad).expect_err("body tamper rejected");
+    assert!(matches!(err, LightChainError::BodyMismatch { .. }));
+    assert_eq!(light.tip_height(), 0);
+
+    // Attempt 2: pristine body — must apply cleanly on top.
+    full.apply(&b1).expect("full apply b1");
+    light.apply_block(&b1).expect("light recovers");
+    assert_eq!(light.tip_height(), 1);
+    assert_eq!(full.tip_id(), Some(light.tip_id()));
+}
+
+/// `apply_header` and `apply_block` reach **identical** stats on the
+/// same chain. Body verification is an *additive* check — it never
+/// changes which headers are accepted, only adds rejections for
+/// header-honest / body-tampered pairs.
+#[test]
+fn light_chain_apply_block_and_apply_header_agree_on_clean_chains() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+    let mut light_hdr = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+    let mut light_blk = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    for height in 1u32..=3 {
+        let block = produce_block(&full, &secrets, params, height);
+        full.apply(&block).expect("full apply");
+        light_hdr.apply_header(&block.header).expect("hdr");
+        light_blk.apply_block(&block).expect("blk");
+    }
+    assert_eq!(light_hdr.stats(), light_blk.stats());
+    assert_eq!(light_hdr.tip_id(), light_blk.tip_id());
 }

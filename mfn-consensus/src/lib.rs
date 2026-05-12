@@ -93,7 +93,9 @@ pub use emission::{
     pre_tail_supply_cap, validate_emission_params, EmissionError, EmissionParams,
     DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
 };
-pub use header_verify::{verify_header, HeaderCheck, HeaderVerifyError};
+pub use header_verify::{
+    verify_block_body, verify_header, BodyVerifyError, HeaderCheck, HeaderVerifyError,
+};
 pub use slashing::{
     canonicalize, decode_evidence, encode_evidence, slashing_leaf_hash, slashing_merkle_root,
     verify_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,

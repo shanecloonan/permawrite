@@ -1,11 +1,21 @@
-//! Light-header verification.
+//! Light-client verification primitives.
 //!
-//! Pure function: given a [`BlockHeader`] and a *trusted* pre-block
-//! validator set, verify the header's consensus-critical commitments
-//! (validator-set commitment + producer proof + BLS finality
-//! aggregate). This is the foundational primitive for light clients
-//! — anything that wants to follow the chain without holding the full
-//! `ChainState`.
+//! This module hosts the **pure, state-free** verification functions
+//! a light client uses to follow the chain without holding a full
+//! [`crate::block::ChainState`]:
+//!
+//! - [`verify_header`] (M2.0.5) — given a trusted pre-block validator
+//!   set and a [`BlockHeader`], verify the header's consensus-critical
+//!   commitments (validator-set commitment + producer proof + BLS
+//!   finality aggregate).
+//! - [`verify_block_body`] (M2.0.7) — given a [`crate::block::Block`],
+//!   re-derive the four body-bound Merkle roots that are pure
+//!   functions of the block body (`tx_root`, `bond_root`,
+//!   `slashing_root`, `storage_proof_root`) and verify they match
+//!   the header. The other two header-bound roots (`storage_root`,
+//!   `utxo_root`) are state-dependent and out-of-scope for stateless
+//!   verification — they're already cryptographically bound through
+//!   the BLS aggregate verified by [`verify_header`].
 //!
 //! ## Why this primitive exists
 //!
@@ -57,24 +67,25 @@
 //!
 //! ## Not in scope
 //!
-//! - **Body verification.** This module doesn't re-derive `tx_root`,
-//!   `bond_root`, `slashing_root`, `storage_proof_root`, or
-//!   `storage_root` from a body — that's separate. Recomputing the
-//!   body roots and comparing them to the header is a trivial
-//!   exercise on top of the existing `*_merkle_root` helpers and
-//!   intentionally not coupled to this primitive.
 //! - **Header chain linkage.** Confirming `header.prev_hash ==
 //!   block_id(prev_header)` and `header.height == prev_height + 1`
-//!   is also a separate concern — chained headers are verified by
-//!   the *caller* once they decide which chain to follow. The
-//!   primitive here is "given trusted validators and a header,
-//!   is the header internally consistent and BLS-signed?".
+//!   is the caller's responsibility — chained headers are verified
+//!   by whoever decides which chain to follow (in practice the
+//!   `mfn-light::LightChain` driver).
+//! - **State-dependent body roots.** `storage_root` and `utxo_root`
+//!   are functions of accumulated chain state, not pure functions of
+//!   the block body. A stateless verifier can't independently
+//!   recompute them; they're already covered by the BLS aggregate
+//!   (which signs over `header_signing_hash`, including those roots).
 
-use crate::block::{header_signing_hash, BlockHeader, ConsensusParams};
+use crate::block::{header_signing_hash, tx_merkle_root, Block, BlockHeader, ConsensusParams};
+use crate::bond_wire::bond_merkle_root;
 use crate::consensus::{
     decode_finality_proof, validator_set_root, verify_finality_proof, ConsensusCheck,
     ConsensusDecodeError, SlotContext, Validator,
 };
+use crate::slashing::slashing_merkle_root;
+use mfn_storage::storage_proof_merkle_root;
 
 /* ----------------------------------------------------------------------- *
  *  Result                                                                  *
@@ -255,6 +266,141 @@ pub fn verify_header(
         validator_count: trusted_validators.len(),
         quorum_reached: true,
     })
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Body verification (M2.0.7)                                              *
+ * ----------------------------------------------------------------------- */
+
+/// Failure modes of [`verify_block_body`]. Each variant carries the
+/// header's claimed root (`expected`) and the root the verifier
+/// computed from the delivered body (`got`) so callers can log a
+/// useful diagnostic.
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum BodyVerifyError {
+    /// `header.tx_root` doesn't equal `tx_merkle_root(&block.txs)`.
+    /// The delivered txs are not the txs the header was signed over.
+    #[error("tx_root mismatch")]
+    TxRootMismatch {
+        /// Root the header claims (the value the producer BLS-signed
+        /// over via `header_signing_hash`).
+        expected: [u8; 32],
+        /// Root the verifier computed from `block.txs`.
+        got: [u8; 32],
+    },
+
+    /// `header.bond_root` doesn't equal `bond_merkle_root(&block.bond_ops)`.
+    #[error("bond_root mismatch")]
+    BondRootMismatch {
+        /// Root the header claims.
+        expected: [u8; 32],
+        /// Root the verifier computed from `block.bond_ops`.
+        got: [u8; 32],
+    },
+
+    /// `header.slashing_root` doesn't equal `slashing_merkle_root(&block.slashings)`.
+    /// (Leaves are canonicalized per M2.0.1, so pair-swap inside an
+    /// evidence pair is a no-op — but a different set of evidences,
+    /// or a different number, moves the root.)
+    #[error("slashing_root mismatch")]
+    SlashingRootMismatch {
+        /// Root the header claims.
+        expected: [u8; 32],
+        /// Root the verifier computed from `block.slashings`.
+        got: [u8; 32],
+    },
+
+    /// `header.storage_proof_root` doesn't equal
+    /// `storage_proof_merkle_root(&block.storage_proofs)`.
+    /// (Order is producer-emit; see M2.0.2.)
+    #[error("storage_proof_root mismatch")]
+    StorageProofRootMismatch {
+        /// Root the header claims.
+        expected: [u8; 32],
+        /// Root the verifier computed from `block.storage_proofs`.
+        got: [u8; 32],
+    },
+}
+
+/// Verify that a delivered [`Block`] body matches the four
+/// header-bound body roots that are pure functions of the block body
+/// alone:
+///
+/// - [`BlockHeader::tx_root`] == `tx_merkle_root(&block.txs)`
+/// - [`BlockHeader::bond_root`] == `bond_merkle_root(&block.bond_ops)`
+/// - [`BlockHeader::slashing_root`] == `slashing_merkle_root(&block.slashings)`
+/// - [`BlockHeader::storage_proof_root`] == `storage_proof_merkle_root(&block.storage_proofs)`
+///
+/// Combined with [`verify_header`] — which verifies that
+/// `header_signing_hash` was BLS-signed by a quorum of the trusted
+/// validator set, and `header_signing_hash` binds all four of these
+/// roots — this gives a light client cryptographic confidence that
+/// the delivered body is **the** body the producer signed over. A
+/// malicious peer cannot deliver a tampered body without one of
+/// these checks rejecting.
+///
+/// ## What this function does *not* verify
+///
+/// - [`BlockHeader::storage_root`] — depends on cross-block dedup
+///   against the chain's `storage` map. Stateless verification of
+///   this root has a false-positive rate when blocks contain
+///   re-anchoring txs (which `apply_block` silently filters out).
+///   A future light-client slice that maintains a `storage` shadow
+///   set could add this check.
+/// - [`BlockHeader::utxo_root`] — depends on the cumulative UTXO
+///   accumulator. Same reasoning: requires state.
+/// - [`BlockHeader::validator_root`] — already verified via the
+///   trust anchor in [`verify_header`].
+///
+/// Both state-dependent roots are *already cryptographically bound*
+/// through the BLS aggregate signing `header_signing_hash` (which
+/// includes them). So even though a stateless verifier can't
+/// independently recompute them, a forged block can't smuggle them
+/// past [`verify_header`].
+///
+/// ## Determinism
+///
+/// Pure function. No IO, no allocation beyond what the underlying
+/// `*_merkle_root` helpers require. Calling this with the same
+/// `&Block` returns byte-for-byte the same result.
+///
+/// # Errors
+///
+/// See variants of [`BodyVerifyError`].
+pub fn verify_block_body(block: &Block) -> Result<(), BodyVerifyError> {
+    let tx_root = tx_merkle_root(&block.txs);
+    if tx_root != block.header.tx_root {
+        return Err(BodyVerifyError::TxRootMismatch {
+            expected: block.header.tx_root,
+            got: tx_root,
+        });
+    }
+
+    let bond_root = bond_merkle_root(&block.bond_ops);
+    if bond_root != block.header.bond_root {
+        return Err(BodyVerifyError::BondRootMismatch {
+            expected: block.header.bond_root,
+            got: bond_root,
+        });
+    }
+
+    let slashing_root = slashing_merkle_root(&block.slashings);
+    if slashing_root != block.header.slashing_root {
+        return Err(BodyVerifyError::SlashingRootMismatch {
+            expected: block.header.slashing_root,
+            got: slashing_root,
+        });
+    }
+
+    let storage_proof_root = storage_proof_merkle_root(&block.storage_proofs);
+    if storage_proof_root != block.header.storage_proof_root {
+        return Err(BodyVerifyError::StorageProofRootMismatch {
+            expected: block.header.storage_proof_root,
+            got: storage_proof_root,
+        });
+    }
+
+    Ok(())
 }
 
 /* ----------------------------------------------------------------------- *
@@ -505,5 +651,123 @@ mod tests {
         let a = verify_header(&block.header, &validators, &params).expect("a");
         let b = verify_header(&block.header, &validators, &params).expect("b");
         assert_eq!(a, b);
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0.7 — verify_block_body                                        *
+     * ----------------------------------------------------------------- */
+
+    /// Headline: a real signed block 1 — built by `build_unsealed_header`
+    /// which sets every root consistently — must body-verify cleanly.
+    #[test]
+    fn verify_block_body_accepts_consistent_block() {
+        let (block, _validators, _params, _s0) = build_signed_block_1();
+        verify_block_body(&block).expect("must verify");
+    }
+
+    /// Tampered `tx_root` → typed `TxRootMismatch` with the actual
+    /// re-derived root in `got`.
+    #[test]
+    fn verify_block_body_rejects_tampered_tx_root() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        let original = block.header.tx_root;
+        block.header.tx_root[0] ^= 0xff;
+        let err = verify_block_body(&block).expect_err("must reject");
+        match err {
+            BodyVerifyError::TxRootMismatch { expected, got } => {
+                assert_ne!(expected, original, "header field was tampered");
+                assert_eq!(
+                    got, original,
+                    "re-derived root equals the un-tampered original"
+                );
+            }
+            other => panic!("expected TxRootMismatch, got {other:?}"),
+        }
+    }
+
+    /// Tampered `bond_root` → typed `BondRootMismatch`.
+    #[test]
+    fn verify_block_body_rejects_tampered_bond_root() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        block.header.bond_root[0] ^= 0xff;
+        let err = verify_block_body(&block).expect_err("must reject");
+        assert!(matches!(err, BodyVerifyError::BondRootMismatch { .. }));
+    }
+
+    /// Tampered `slashing_root` → typed `SlashingRootMismatch`.
+    #[test]
+    fn verify_block_body_rejects_tampered_slashing_root() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        block.header.slashing_root[0] ^= 0xff;
+        let err = verify_block_body(&block).expect_err("must reject");
+        assert!(matches!(err, BodyVerifyError::SlashingRootMismatch { .. }));
+    }
+
+    /// Tampered `storage_proof_root` → typed `StorageProofRootMismatch`.
+    #[test]
+    fn verify_block_body_rejects_tampered_storage_proof_root() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        block.header.storage_proof_root[0] ^= 0xff;
+        let err = verify_block_body(&block).expect_err("must reject");
+        assert!(matches!(
+            err,
+            BodyVerifyError::StorageProofRootMismatch { .. }
+        ));
+    }
+
+    /// Re-ordering txs (swap two equivalent-but-distinct txs)
+    /// must move `tx_root` → body verification rejects.
+    ///
+    /// We use the coinbase tx as the sole tx in our test setup, so
+    /// here we instead simulate body-side tampering by pushing a
+    /// duplicate of the coinbase tx into `block.txs` — the producer
+    /// committed to one tx; an added tx changes the recomputed root.
+    #[test]
+    fn verify_block_body_rejects_tampered_tx_body() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        // Duplicate the existing coinbase. Note: this is purely a
+        // body-side tamper test — apply_block would reject the
+        // duplicate-coinbase block for other reasons; here we're
+        // verifying that the *body root check itself* catches the
+        // mismatch.
+        let cb = block.txs[0].clone();
+        block.txs.push(cb);
+        let err = verify_block_body(&block).expect_err("must reject");
+        assert!(matches!(err, BodyVerifyError::TxRootMismatch { .. }));
+    }
+
+    /// Determinism: repeat verification of the same valid block
+    /// must produce byte-for-byte the same `Ok(())`.
+    #[test]
+    fn verify_block_body_is_deterministic() {
+        let (block, _validators, _params, _s0) = build_signed_block_1();
+        let a = verify_block_body(&block);
+        let b = verify_block_body(&block);
+        assert_eq!(a, b);
+    }
+
+    /// Genesis block is body-consistent (all empty bodies → all-zero
+    /// sentinel roots in the genesis header, which `build_genesis`
+    /// computes the same way).
+    #[test]
+    fn verify_block_body_accepts_genesis() {
+        let (v0, _s0) = mk_validator(0, 1_000_000);
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: vec![v0],
+            params: ConsensusParams {
+                expected_proposers_per_slot: 10.0,
+                quorum_stake_bps: 6666,
+                liveness_max_consecutive_missed: 64,
+                liveness_slash_bps: 0,
+            },
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let genesis = build_genesis(&cfg);
+        verify_block_body(&genesis).expect("genesis body must verify");
     }
 }

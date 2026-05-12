@@ -6,7 +6,7 @@ Node-side glue around [`mfn-consensus`](../mfn-consensus/README.md). The future 
 
 ---
 
-## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers + M2.0.5 light-header agreement landed)
+## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers + M2.0.5 light-header agreement landed; M2.0.6 / M2.0.7 consumed by `mfn-light`)
 
 This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Plus a `producer` module that wraps the consensus-layer building blocks (`build_unsealed_header` / `try_produce_slot` / `cast_vote` / `finalize` / `seal_block`) into a clean three-stage protocol with a one-call `produce_solo_block` convenience for the single-validator case. Everything in this crate is **deterministic and synchronous** — no IO, no clock, no async runtime, no background threads. Those concerns belong in later M2.x sub-milestones (mempool, RPC, P2P, store) which will all attach *around* these primitives.
 
@@ -107,7 +107,7 @@ Note that callers are responsible for building the coinbase tx (if the producer 
 
 `mfn-node` is the **first orchestration layer**. It tracks the live chain tip, owns `ChainState`, and is where mempool / P2P / RPC will eventually attach. Even at the skeleton stage that separation matters:
 
-- A future light-client crate (`mfn-light`) wants [`mfn_consensus::verify_header`] (M2.0.5) but **not** a `Chain` driver — same spec crate, different consumer.
+- The light-client crate ([`mfn-light`](../mfn-light/README.md)) wants [`mfn_consensus::verify_header`] (M2.0.5) and [`mfn_consensus::verify_block_body`] (M2.0.7) but **not** a `Chain` driver — same spec crate, different consumer.
 - A daemon wants a `Chain` driver but **shouldn't** be reimplementing one against the spec.
 - A wasm binding wants a `Chain` driver, but compiled for the browser — keeping it library-pure (no `tokio`, no `rocksdb`) keeps the wasm story clean.
 

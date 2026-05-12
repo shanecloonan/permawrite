@@ -12,11 +12,11 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier**) | `mfn-consensus` | 145 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier**) | `mfn-consensus` | 153 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
-| Light-client chain follower (**M2.0.6 header-chain follower skeleton**) | `mfn-light` | 12 | ✓ live (skeleton) |
+| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification**) | `mfn-light` | 24 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **374** | All checks green |
+| **Total** | | **394** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -263,7 +263,7 @@ These are the next M2.x sub-milestones (each scoped to be small enough to land "
 - **Producer-helper module** — wraps the consensus-layer building blocks into a clean three-stage protocol. **Shipped in M2.0.4 below.**
 - **Light-header-verification primitive** — given a trusted validator set, verify a header's `validator_root`, producer-proof, and BLS aggregate. Building block for `mfn-light`. **Shipped in M2.0.5 below.**
 - **`mfn-light` crate skeleton** — header-chain follower with chain linkage + cryptographic verification, stable validator set. **Shipped in M2.0.6 below.**
-- **M2.0.7 — Light-client body verification** — extend `mfn-light::apply_header` to also accept a body and re-derive `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` / `storage_root` from it. Trivial layer on top of existing `*_merkle_root` helpers.
+- **Light-client body verification** — adds `apply_block(&Block)` that re-derives `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` from the body and matches them against the (now-authenticated) header. **Shipped in M2.0.7 below.**
 - **M2.0.8 — Light-client validator-set evolution** — walk `block.bond_ops` / `block.slashings` / pending-unbond settlements / liveness slashes to derive the next trusted validator set. First "long-running light client" milestone.
 - **Mempool primitives** — pending-tx admission, fee ordering, replace-by-fee. Pure library, attaches around `Chain`.
 - **Persistent store (`mfn-node::store`)** — RocksDB-backed deterministic chain-state persistence + snapshot/replay.
@@ -354,7 +354,7 @@ Integration (3, in `mfn-node/tests/light_header_verify.rs`):
 ### What's *not* in M2.0.5
 
 - **Multi-hop chain following.** `verify_header` covers one header against one trusted set. Evolving the trusted validator set as blocks rotate / slash / unbond is the future `mfn-light` crate.
-- **Body verification.** Recomputing `tx_root`, `bond_root`, `slashing_root`, `storage_proof_root`, or `storage_root` from a body and comparing to the header is a separate layer on top of existing `*_merkle_root` helpers.
+- **Body verification.** Recomputing `tx_root`, `bond_root`, `slashing_root`, `storage_proof_root` from a body and comparing to the header is a separate layer on top of existing `*_merkle_root` helpers. **Shipped in M2.0.7 below.**
 - **Header chain linkage.** Confirming `prev_hash` and `height` continuity is the caller's job — chained headers are verified by whoever decides which chain to follow.
 - **Persistence / RPC / P2P.** Daemon concerns. Future milestones.
 
@@ -407,8 +407,8 @@ Integration (5, in `mfn-light/tests/follow_chain.rs`):
 
 ### What's intentionally *not* in M2.0.6
 
-- **Body verification** — M2.0.7 slice.
-- **Validator-set evolution across rotations** — M2.0.8 slice. M2.0.6 follows a chain through any *stable-validator window*; rotation handling lands separately.
+- **Body verification** — shipped in M2.0.7 below.
+- **Validator-set evolution across rotations** — M2.0.8 slice. M2.0.6 / M2.0.7 follow a chain through any *stable-validator window*; rotation handling lands separately.
 - **Re-org / fork choice** — single canonical header chain.
 - **Persistence** — state lives in memory.
 
@@ -419,6 +419,66 @@ Integration (5, in `mfn-light/tests/follow_chain.rs`):
 - **Cross-chain bridges** — same `verify_header` + chain follower, embedded in another chain's smart contracts.
 
 See [`docs/M2_LIGHT_CHAIN.md`](./M2_LIGHT_CHAIN.md) for the full design note.
+
+---
+
+## Milestone M2.0.7 — Light-client body verification (✓ shipped)
+
+**Why it was next.** After M2.0.6 a light client could prove a *header* was BLS-signed by a quorum of the trusted validator set, but it couldn't prove a *delivered body* was the body the producer signed over. A malicious peer could ship a genuine header next to a substituted body — replaced txs, dropped storage proofs, swapped bond ops — and a header-only client would have no way to notice. M2.0.7 closes that gap.
+
+The full header-binds-body invariant was structurally in place since M2.0.2 (the producer's BLS aggregate signs over `header_signing_hash`, which folds `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root`). M2.0.7 is the **verification half**: a stateless function that recomputes those four roots from a delivered `&Block` and checks each against the header. The result: every `(header, body)` pair the light client accepts is cryptographically pinned to the same producer endorsement.
+
+### What shipped
+
+- **`mfn-consensus::verify_block_body(&Block) -> Result<(), BodyVerifyError>`** — pure, stateless. Re-derives `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` from `block.<field>` and matches each against `block.header`. Lives in the same module as `verify_header` (`mfn-consensus::header_verify`) — the two halves of the "light-client verification primitives" surface.
+- **Typed `BodyVerifyError`** — one variant per root (`TxRootMismatch`, `BondRootMismatch`, `SlashingRootMismatch`, `StorageProofRootMismatch`), each carrying `{ expected, got }` for diagnostics / peer scoring.
+- **`mfn-light::LightChain::apply_block(&Block) -> Result<AppliedBlock, LightChainError>`** — the full-block analogue of `apply_header`. Five steps in order: height monotonicity → prev_hash linkage → `verify_header` → `verify_block_body` → tip advance. State is byte-for-byte untouched on any failure.
+- **New `AppliedBlock` outcome type** + **new `LightChainError::BodyMismatch { height, source: BodyVerifyError }`** variant.
+- **Ordering rationale documented**: header verification runs *before* body verification so the distinction "forged header" vs "right header, wrong body" surfaces cleanly through different error variants.
+
+### Test matrix (delivered, +20 net new tests, 374 → 394 total)
+
+`mfn-consensus::header_verify` unit (+8):
+- ✓ `verify_block_body_accepts_consistent_block` — real signed block passes.
+- ✓ `verify_block_body_rejects_tampered_tx_root` — flipping a byte in `header.tx_root` → typed `TxRootMismatch { expected, got }`.
+- ✓ `verify_block_body_rejects_tampered_bond_root` — typed `BondRootMismatch`.
+- ✓ `verify_block_body_rejects_tampered_slashing_root` — typed `SlashingRootMismatch`.
+- ✓ `verify_block_body_rejects_tampered_storage_proof_root` — typed `StorageProofRootMismatch`.
+- ✓ `verify_block_body_rejects_tampered_tx_body` — body-side tamper (push duplicate tx) → typed `TxRootMismatch`.
+- ✓ `verify_block_body_is_deterministic` — repeated verification returns identical `Ok(())`.
+- ✓ `verify_block_body_accepts_genesis` — empty-body genesis is consistent.
+
+`mfn-light` unit (+7):
+- ✓ `apply_block_accepts_real_signed_block` — real signed block 1 applies cleanly.
+- ✓ `apply_block_rejects_tampered_tx_root_in_header` — header-field tamper → `HeaderVerify` (BLS signature breaks first).
+- ✓ `apply_block_rejects_tampered_tx_body` — body-only tamper → `BodyMismatch { TxRootMismatch }`, state preserved.
+- ✓ `apply_block_rejects_wrong_prev_hash` — linkage fires first.
+- ✓ `apply_block_rejects_wrong_height` — linkage fires first.
+- ✓ `apply_block_chains_across_two_blocks` — two real blocks apply via `apply_block`, tip advances.
+- ✓ `apply_header_and_apply_block_agree_on_tip` — both paths produce identical final stats for clean chains.
+
+`mfn-light` integration (+5):
+- ✓ `light_chain_apply_block_follows_full_chain_across_three_blocks` — load-bearing: `LightChain` via `apply_block` mirrors `mfn_node::Chain` tip-for-tip across 3 real blocks.
+- ✓ `light_chain_apply_block_rejects_body_tx_tamper_with_state_preserved` — pushing a duplicate tx into `block.txs` → typed `BodyMismatch { TxRootMismatch }`, state preserved.
+- ✓ `light_chain_apply_block_rejects_storage_proof_body_tamper` — injecting a stray `StorageProof` → typed `BodyMismatch { StorageProofRootMismatch }`, state preserved.
+- ✓ `light_chain_apply_block_recovers_after_body_rejection` — rejected tampered body preserves state, pristine body applies on top.
+- ✓ `light_chain_apply_block_and_apply_header_agree_on_clean_chains` — body verification is *additive*: clean chains produce identical stats via either method.
+
+### What's intentionally *not* in M2.0.7
+
+- **`storage_root` / `utxo_root` verification.** Both are state-dependent (`storage_root` needs cross-block dedup against the chain's `storage` map; `utxo_root` is the cumulative accumulator). They're already cryptographically covered by the BLS aggregate signing `header_signing_hash`; a forged block can't smuggle either past `verify_header`. Independent re-derivation is out of scope for stateless verification.
+- **Validator-set evolution** — still the M2.0.8 slice.
+- **Re-org / fork choice** — single canonical chain.
+- **Persistence** — state in memory.
+
+### What this unlocks
+
+- **M2.0.8 — validator-set evolution.** With body verification working, the light client now has trusted access to `block.bond_ops` and `block.slashings`. The next step is to actually walk those deltas and evolve `trusted_validators` across rotations — the first real "long-running light client" milestone.
+- **Wallets.** A wallet has cryptographic proof that the txs in a block are the ones the producer signed over, so it can confidently extract its outputs without trusting the serving node's body.
+- **Storage-availability auditing.** Trusted access to `block.storage_proofs` enables an audit client to replay SPoRA sampling locally and verify the network's storage availability claims.
+- **Bridges / oracles.** A reader on another chain can prove "Permawrite block N at height H contains tx T" by relaying the header + body + Merkle path, all verifiable with the M2.0.5 + M2.0.7 primitives.
+
+See [`docs/M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md) for the full design note.
 
 ---
 

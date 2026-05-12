@@ -6,7 +6,7 @@
 
 *Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.*
 
-[![Tests](https://img.shields.io/badge/tests-374_passing-brightgreen)](#status)
+[![Tests](https://img.shields.io/badge/tests-394_passing-brightgreen)](#status)
 [![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
 [![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
@@ -86,13 +86,13 @@ Each crate has its own README with public API summary, test counts, and links in
 | ed25519 primitives + ZK    | [`mfn-crypto`](./mfn-crypto/README.md)    |  145  | All Tier-1 primitives live: Schnorr, Pedersen, CLSAG, LSAG, Bulletproofs, range proofs, OoM, VRF, gamma decoys, UTXO accumulator, Merkle. |
 | BLS12-381 sig aggregation  | [`mfn-bls`](./mfn-bls/README.md)       |   16  | BLS signatures + committee aggregation live; KZG pending. |
 | Permanent-storage primitives | [`mfn-storage`](./mfn-storage/README.md) |   39  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator, **storage-proof Merkle root** (M2.0.2). |
-| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  145  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted), **M2.0.5 light-header verifier** (`verify_header` pure-function primitive — given a trusted validator set, verifies `validator_root` + producer-proof + BLS aggregate; the foundation for `mfn-light`, browser wallets, and bridges). |
+| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  153  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted), **M2.0.5 light-header verifier** (`verify_header` — given a trusted validator set, verifies `validator_root` + producer-proof + BLS aggregate), **M2.0.7 light-body verifier** (`verify_block_body` — re-derives `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` from a delivered `&Block` and matches the header; closes the "right header, wrong body" attack surface). |
 | Node-side glue              | [`mfn-node`](./mfn-node/README.md) |   17  | **M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** — in-memory chain driver owning `ChainState`, applying blocks sequentially through `apply_block`, plus a three-stage block-production protocol (`build_proposal` → `vote_on_proposal` → `seal_proposal`) with a `produce_solo_block` one-call convenience, and an integration suite proving `verify_header` and `apply_block` agree on every block of a real 3-block chain. The orchestration foundation every M2.x sub-milestone (mempool, RPC, store, P2P) will attach around. |
-| Light-client follower      | [`mfn-light`](./mfn-light/README.md) |   12  | **M2.0.6 header-chain follower skeleton** — `LightChain` tracks a tip pointer + a trusted validator set bootstrapped from `GenesisConfig`; `apply_header(&BlockHeader)` does strict-monotonicity check, `prev_hash` linkage, and full cryptographic verification via M2.0.5's `verify_header`, with state byte-for-byte preserved on any failure. Pure-Rust deps only (no `tokio`, no `rocksdb`) — same crate compiles to `wasm32-unknown-unknown` for browser wallets and bridges. Integration test proves `LightChain` and `mfn-node::Chain` reach identical tips on every block of a real 3-block chain. Body verification (M2.0.7) and validator-set evolution (M2.0.8) are the remaining slices. |
+| Light-client follower      | [`mfn-light`](./mfn-light/README.md) |   24  | **M2.0.6 header-chain follower + M2.0.7 body-root verification** — `LightChain` tracks a tip pointer + a trusted validator set bootstrapped from `GenesisConfig`; `apply_header(&BlockHeader)` does strict-monotonicity + `prev_hash` linkage + full cryptographic verification via M2.0.5's `verify_header`. `apply_block(&Block)` adds M2.0.7's body-root verification on top, so the light client has cryptographic proof that the delivered body is the body the producer signed over — closes the "right header, wrong body" attack surface. State byte-for-byte preserved on any failure; typed errors distinguish forged headers (`HeaderVerify`) from header-honest / body-tampered pairs (`BodyMismatch`). Pure-Rust deps only (no `tokio`, no `rocksdb`) — same crate compiles to `wasm32-unknown-unknown` for browser wallets and bridges. Integration tests prove `LightChain` and `mfn-node::Chain` reach identical tips on every block of a real 3-block chain via either `apply_header` or `apply_block`. Validator-set evolution across rotations (M2.0.8) is the remaining slice. |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned (currently lives inside `mfn-crypto::codec`). |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned. |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the [TS reference demo page](https://github.com/shanecloonan/cloonan-group)). |
-| **Total** | | **374** | Zero `unsafe`. Zero clippy warnings. |
+| **Total** | | **394** | Zero `unsafe`. Zero clippy warnings. |
 
 Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
@@ -120,7 +120,7 @@ cd permawrite
 # Build everything
 cargo build --release
 
-# Run the full workspace test suite (374 tests, ~30s on a modern machine)
+# Run the full workspace test suite (394 tests, ~3-4 min on a modern machine)
 cargo test --workspace --release
 
 # Lint gate (zero warnings expected)
