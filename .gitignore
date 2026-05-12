@@ -18,3 +18,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Transient commit-message scratch files (used when crafting multi-line
+# commit messages on Powershell, which lacks HEREDOC support for git commit -m)
+.commit-msg.tmp
+
