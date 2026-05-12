@@ -109,3 +109,9 @@ pub const BOND_OP_LEAF: Domain = b"MFBN-1/bond-op-leaf";
 
 /// BLS-signed authorization payload for an [`BondOp::Unbond`](../../../mfn-consensus/src/bond_wire.rs) op (M1).
 pub const UNBOND_OP_SIG: Domain = b"MFBN-1/unbond-op-sig";
+
+/// BLS-signed authorization payload for an [`BondOp::Register`](../../../mfn-consensus/src/bond_wire.rs) op (M1).
+/// Binds the operator's BLS public key (the same key used to sign `Unbond`)
+/// to the rest of the register payload, blocking permissionless replay of
+/// a serialized `Register` op for any operator's keys.
+pub const REGISTER_OP_SIG: Domain = b"MFBN-1/register-op-sig";

@@ -1,6 +1,6 @@
 # M1 — Validator rotation (design + as-shipped reference)
 
-> **Status.** **Shipped.** `BondOp::Register` (burn-on-bond) and `BondOp::Unbond` (BLS-signed, delayed settlement) are wired through the full `apply_block` state-transition function with per-epoch entry / exit churn caps, atomic rollback, and slash-to-treasury parity. TS reference parity is in place for **both** `Register` and `Unbond` (see [`TS_BOND_GOLDEN_VECTORS.md`](./interop/TS_BOND_GOLDEN_VECTORS.md)). The only remaining tickets are (a) mempool-grade authorization for `BondOp::Register` and (b) the optional explicit operator payout on settlement — both deferred to a future milestone (see [§ Future work](#future-work)).
+> **Status.** **Shipped — mainnet-ready wire format.** Both `BondOp::Register` (burn-on-bond) and `BondOp::Unbond` (BLS-signed, delayed settlement) are wired through the full `apply_block` state-transition function with per-epoch entry / exit churn caps, atomic rollback, slash-to-treasury parity, and (as of M1.5) **end-to-end BLS authorization on every bond op** — both arms now carry a domain-separated signature by the operator's own voting key. TS reference parity is pinned for both variants (see [`TS_BOND_GOLDEN_VECTORS.md`](./interop/TS_BOND_GOLDEN_VECTORS.md)). The only remaining ticket is the optional explicit operator payout on settlement — deferred to a future milestone (see [§ Future work](#future-work)).
 
 ## Problem statement
 
@@ -60,6 +60,7 @@ pub enum BondOp {
         vrf_pk:  EdwardsPoint,
         bls_pk:  BlsPublicKey,
         payout:  Option<ValidatorPayout>,   // stealth payout (deferred — see Future work)
+        sig:     BlsSignature,              // M1.5 — BLS auth by the operator's own bls_sk
     },
     Unbond {
         validator_index: u32,
@@ -71,10 +72,10 @@ pub enum BondOp {
 ### `BondOp::Register`
 
 - Stake amount validated by [`bonding::validate_stake`](../mfn-consensus/src/bonding.rs) (must satisfy `min_validator_stake`).
+- **Operator authorization (M1.5).** `sig` is verified by [`verify_register_sig`](../mfn-consensus/src/bond_wire.rs) against `bls_pk` over `dhash(REGISTER_OP_SIG, stake ‖ vrf_pk ‖ bls_pk ‖ payout_flag ‖ [payout?])`. The signed payload includes `bls_pk` itself, binding the rest of the op to a single operator's keys — an adversarial relayer who lifts a serialized Register cannot swap in their own keys, and they cannot forge a fresh signature without the operator's `bls_sk`. The same secret half that votes on finality is the only authority that can register *or* unbond that validator.
 - `vrf_pk` must be unique across the active validator set (collision rejection).
 - Per-epoch entry-churn cap enforced via `try_register_entry_churn`.
 - On success: a new `Validator` row is appended with `index = next_validator_index`, `next_validator_index += 1`, a fresh `ValidatorStats` row is appended in lockstep, and `stake` base units are **burned into `treasury`** (the canonical permanence sink).
-- M1 deliberately leaves `BondOp::Register` **unauthenticated on the wire**. Sufficient for the consensus integration test harness and the deterministic block builder; insufficient for a permissionless mempool. See [§ Future work — mempool authorization](#future-work).
 
 ### `BondOp::Unbond`
 
@@ -130,16 +131,15 @@ After equivocation slashing and liveness updates, but before the final state-roo
 
 Because settlement runs **after** slashing, a validator who unbonds and then equivocates during the delay is still fully forfeited and credits the treasury — there's no path for an attacker to "rage-quit" to escape consequences for misbehavior committed inside the delay window.
 
-### Mempool authorization for `BondOp::Register` (open question)
+### Mempool authorization (M1.5 — shipped)
 
-Unbond is BLS-authenticated end-to-end. Register is not — today's `BondOp::Register` carries `(stake, vrf_pk, bls_pk, payout)` with no signature. This is sufficient for the deterministic in-process block builder used by the integration tests, but explicitly insecure for a permissionless mempool: an adversary could replay a serialized Register op for any operator's keys.
+Both bond-op variants are now BLS-authenticated end-to-end. `Register` carries a 96-byte signature trailer over `dhash(REGISTER_OP_SIG, stake ‖ vrf_pk ‖ bls_pk ‖ payout_flag ‖ [payout?])` signed by the operator's own `bls_sk` — the same key that votes on finality and authorizes the operator's `Unbond`. This forecloses three concrete mempool-adversary playbooks:
 
-The two leading designs:
+1. **Replay of a leaked op against the original operator's keys.** Blocked at admission: any reasonable mempool ignores duplicates by `bond_op_leaf_hash`. Even if a replay reached `apply_block`, the `(vrf_pk, bls_pk)` uniqueness checks would reject it.
+2. **Replay of a leaked op with a swapped `bls_pk`.** Blocked: the signed payload commits to `bls_pk` itself, so swapping the key invalidates the signature.
+3. **Adversarial forgery of a fresh op for a stranger's keys.** Blocked: the BLS hardness assumption prevents producing a valid `sig` without the matching `bls_sk`.
 
-1. **Schnorr-over-bond-bytes by the operator's BLS key.** Simplest; one new field on `BondOp::Register`; reuses the existing BLS primitive. Likely path.
-2. **UTXO consumption tied to bond bytes via a public-message hash.** Strongest funding proof; introduces a new tx variant.
-
-Sealing this is a **hard precondition for mainnet** and is the only remaining wire-format question for the rotation layer.
+With this in place, the rotation wire format has no remaining mainnet preconditions. The TS reference vector in [`TS_BOND_GOLDEN_VECTORS.md`](./interop/TS_BOND_GOLDEN_VECTORS.md) pins the authenticated bytes for both variants.
 
 ## Test matrix (M1 completion criteria — all green)
 
@@ -154,23 +154,25 @@ Sealing this is a **hard precondition for mainnet** and is the only remaining wi
 - ✓ Unbond signature is domain-separated and index-bound *(`bond_wire::tests::unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`).*
 - ✓ Bond-op wire is byte-identical with the TS reference for `Register` *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
 - ✓ Bond-op wire is byte-identical with the TS reference for `Unbond` *(`bond_unbond_wire_matches_cloonan_ts_smoke_reference`).*
+- ✓ M1.5 — `Register` sig is bound to `bls_pk` and to the rest of the payload *(`register_sig_is_bound_to_bls_pk_and_payload`).*
+- ✓ M1.5 — `Register` signing payload is domain-separated *(`register_signing_hash_is_domain_separated`).*
+- ✓ M1.5 — forged `Register` signature is rejected atomically by `apply_block` *(`block::tests::register_rejects_invalid_signature`).*
 
 ## Future work
 
 These are explicit, not bugs:
 
-1. **Mempool-grade authorization for `BondOp::Register`** — Schnorr-over-bond-bytes is the leading design (see [§ Mempool authorization](#mempool-authorization-for-bondopregister-open-question)). Hard precondition for mainnet.
-2. **Explicit operator payout on settlement.** Today the bonded MFN stays in the treasury on `unbond → settle`. A future milestone can re-introduce a payout (either via an augmented coinbase output, or a dedicated payout transaction class) without breaking the rotation primitive shipped here.
-3. **Storage-operator bonding.** Separate from validator bonding. Out of scope for M1.
+1. **Explicit operator payout on settlement.** Today the bonded MFN stays in the treasury on `unbond → settle`. A future milestone can re-introduce a payout (either via an augmented coinbase output, or a dedicated payout transaction class) without breaking the rotation primitive shipped here.
+2. **Storage-operator bonding.** Separate from validator bonding. Out of scope for M1.
 
 ## Code map
 
 | Piece | Location |
 | --- | --- |
 | Defaults + pure checks | [`mfn-consensus/src/bonding.rs`](../mfn-consensus/src/bonding.rs) |
-| Wire encode/decode + BLS-signed authorization | [`mfn-consensus/src/bond_wire.rs`](../mfn-consensus/src/bond_wire.rs) |
+| Wire encode/decode + BLS-signed authorization (both arms) | [`mfn-consensus/src/bond_wire.rs`](../mfn-consensus/src/bond_wire.rs) |
 | State transition (`apply_block` + bond-op phase + settlement phase) | [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs) |
-| Domain separation tags (`UNBOND_OP_SIG`) | [`mfn-crypto/src/domain.rs`](../mfn-crypto/src/domain.rs) |
+| Domain separation tags (`REGISTER_OP_SIG`, `UNBOND_OP_SIG`, `BOND_OP_LEAF`) | [`mfn-crypto/src/domain.rs`](../mfn-crypto/src/domain.rs) |
 | Integration tests (`unbond_lifecycle` module) | [`mfn-consensus/tests/integration.rs`](../mfn-consensus/tests/integration.rs) |
 | TS reference smoke vector | [`docs/interop/TS_BOND_GOLDEN_VECTORS.md`](./interop/TS_BOND_GOLDEN_VECTORS.md) |
 

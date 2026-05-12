@@ -66,9 +66,10 @@ pub use block::{
     HEADER_VERSION,
 };
 pub use bond_wire::{
-    bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, sign_unbond,
-    unbond_signing_bytes, unbond_signing_hash, verify_unbond_sig, BondOp, BondWireError,
-    BOND_OP_REGISTER, BOND_OP_UNBOND,
+    bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, register_signing_bytes,
+    register_signing_hash, sign_register, sign_unbond, unbond_signing_bytes, unbond_signing_hash,
+    verify_register_sig, verify_unbond_sig, BondOp, BondWireError, BOND_OP_REGISTER,
+    BOND_OP_UNBOND,
 };
 pub use bonding::{
     epoch_id_for_height, height_of_next_epoch, try_register_entry_churn, try_register_exit_churn,

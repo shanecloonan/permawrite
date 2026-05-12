@@ -12,9 +12,9 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation**) | `mfn-consensus` | 108 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register**) | `mfn-consensus` | 111 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **301** | All checks green |
+| **Total** | | **304** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -66,7 +66,7 @@ Full design note: [**docs/M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md
 
 ### What shipped
 
-- **`BondOp::Register`** — burn-on-bond. The validator's declared stake is credited to `treasury`, the new validator is appended with a fresh `ValidatorStats` row, and a deterministic `next_validator_index` counter ensures indices are never reused.
+- **`BondOp::Register`** — burn-on-bond, **BLS-authenticated by the operator's own voting key** (M1.5). The validator's declared stake is credited to `treasury`, the new validator is appended with a fresh `ValidatorStats` row, and a deterministic `next_validator_index` counter ensures indices are never reused. The signature commits to `(stake, vrf_pk, bls_pk, payout)` under domain `MFBN-1/register-op-sig`, so an adversarial relayer cannot replay a leaked op or swap in their own keys.
 - **`BondOp::Unbond`** — BLS-signed authorization over a domain-separated payload (`MFBN-1/unbond-op-sig` ‖ `validator_index`). Enqueued into `pending_unbonds: BTreeMap<u32, PendingUnbond>` with `unlock_height = height + unbond_delay_blocks`.
 - **Delayed settlement.** At `height ≥ unlock_height`, the entry is popped, the validator's stake is zeroed (becomes a non-signing zombie), and the originally bonded MFN remains in the treasury — a permanent contribution to the permanence endowment. Explicit operator payouts are intentionally deferred.
 - **Per-epoch entry / exit churn caps.** `max_entry_churn_per_epoch` and `max_exit_churn_per_epoch` (defaults: 4 each), enforced via `try_register_entry_churn` / `try_register_exit_churn`. Oversubscribed unbonds spill cleanly into subsequent blocks without losing their delay accounting.
@@ -96,11 +96,11 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - ✓ Oversubscribed unbonds spill across blocks honoring the per-epoch exit cap *(`unbond_lifecycle_exit_churn_cap_spills_to_next_block`).*
 - ✓ TS interop: `BondOp::Register` byte parity with the `cloonan-group` smoke reference *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
 - ✓ TS interop: `BondOp::Unbond` byte parity with the `cloonan-group` smoke reference *(`bond_unbond_wire_matches_cloonan_ts_smoke_reference`).*
+- ✓ M1.5 — `Register` sig is payload-bound and operator-bound; forged signatures reject atomically at `apply_block` *(`register_sig_is_bound_to_bls_pk_and_payload`, `register_signing_hash_is_domain_separated`, `block::tests::register_rejects_invalid_signature`).*
 
 ### Deferred to a future milestone
 
 - **Explicit operator payout on settlement** (coinbase output augmentation or a dedicated payout transaction class). The M1 design intentionally leaves bonded MFN in the treasury rather than introducing a new wire shape mid-milestone.
-- **Mempool-grade authorization for `BondOp::Register`.** Unbond is BLS-authenticated; Register is still trusted from the local block builder. Permissionless mempool admission requires either a Schnorr-over-bond-bytes by the operator's BLS key or a UTXO-consuming bond-input transaction — sealing this is a hard precondition for mainnet (tracked in [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md)).
 - **Storage-operator bonding** (separate from validator bonding, for a future "premium" replica tier).
 
 ---

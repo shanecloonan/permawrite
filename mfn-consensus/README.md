@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 108 passing (100 unit + 8 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 111 passing (103 unit + 8 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -16,7 +16,7 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 |---|---|
 | [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps. |
 | [`bonding`](src/bonding.rs) | M1 rotation parameters + pure validation helpers — min stake, unbond delay, per-epoch entry/exit churn caps. |
-| [`bond_wire`](src/bond_wire.rs) | M1 wire format — `BondOp::Register` (burn-on-bond), `BondOp::Unbond` (BLS-signed authorization), `bond_op_leaf_hash`, `bond_merkle_root`. |
+| [`bond_wire`](src/bond_wire.rs) | M1 wire format — `BondOp::{Register, Unbond}` (both BLS-signed by the operator's voting key), `register_signing_hash`, `unbond_signing_hash`, `bond_op_leaf_hash`, `bond_merkle_root`. |
 | [`transaction`](src/transaction.rs) | RingCT-style confidential tx — wire format, build, sign, verify. |
 | [`coinbase`](src/coinbase.rs) | Deterministic synthetic block-reward tx. |
 | [`consensus`](src/consensus.rs) | Slot model, VRF leader election, BLS committee finality, `FinalityProof`. |
@@ -43,7 +43,7 @@ In order, every block goes through these checks. Any failure produces a typed `B
 11. **SPoRA proofs.** For each `StorageProof`: reject duplicates, verify against deterministic challenge, accrue PPB yield, pay out integer base units.
 12. **Treasury settlement.** Drain treasury for storage rewards; emission backstop covers any shortfall.
 13. **Liveness tracking + auto-slash.** Walk finality bitmap; update `ValidatorStats`; multiplicatively slash any validator over the consecutive-missed-vote threshold (forfeited stake **credited to `treasury`**).
-14. **Bond operations (M1).** Atomically apply `BondOp::Register` (validator registered, declared stake **burned into `treasury`**) and `BondOp::Unbond` (BLS-signed; enqueued into `pending_unbonds`). Per-epoch entry / exit churn caps enforced. Any rejection rolls back the entire bond-op block.
+14. **Bond operations (M1, M1.5-authenticated).** Atomically apply `BondOp::Register` (BLS-authenticated by the operator's own `bls_pk` over `(stake, vrf_pk, bls_pk, payout)` under domain `MFBN-1/register-op-sig`; on success the validator is registered and its declared stake is **burned into `treasury`**) and `BondOp::Unbond` (BLS-signed under `MFBN-1/unbond-op-sig`; enqueued into `pending_unbonds`). Per-epoch entry / exit churn caps enforced. Any rejection rolls back the entire bond-op block.
 15. **Unbond settlement (M1).** Any pending unbond whose `unlock_height ≤ block.height` is settled: the validator's stake is zeroed, the entry becomes a non-signing zombie, and the originally bonded MFN remains in the treasury (permanent contribution to the permanence endowment).
 16. **UTXO root.** Recompute accumulator root; reject if `header.utxo_root` doesn't match.
 17. **Commit.** Append block_id to `block_ids`, return new state.
@@ -228,8 +228,8 @@ pub enum BlockError {
 - **Slashing** (equivocation: stake zeroed + forfeited stake credited to treasury; liveness: 8 unit tests + 1 multi-block integration test; both routed to treasury).
 - **Consensus** (finality verification, quorum threshold, missing producer proof).
 - **Roots** (tx_root, storage_root, bond_root, utxo_root reconstruction).
-- **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `bond_unbond_wire_matches_cloonan_ts_smoke_reference`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
-- **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection).
+- **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `bond_unbond_wire_matches_cloonan_ts_smoke_reference`, `register_sig_is_bound_to_bls_pk_and_payload`, `register_signing_hash_is_domain_separated`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
+- **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection, **forged-register-signature rejection** under `register_rejects_invalid_signature`).
 - **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 
 ```bash

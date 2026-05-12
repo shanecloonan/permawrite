@@ -110,6 +110,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/utxo-{leaf,node,empty}` | UTXO accumulator |
 | `MFBN-1/oom-challenge` | One-out-of-Many challenge |
 | `MFBN-1/bond-op-leaf` | Bond-op Merkle leaf (M1) |
+| `MFBN-1/register-op-sig` | `BondOp::Register` BLS-signed authorization payload (M1.5) |
 | `MFBN-1/unbond-op-sig` | `BondOp::Unbond` BLS-signed authorization payload (M1) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
@@ -401,8 +402,9 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
 
 [`simulate_bond_ops`](../mfn-consensus/src/block.rs) runs **atomically** over `block.bond_ops`, validated against the pre-bond view of the chain. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rolls back the entire bond-op set so the binding `bond_root` commitment remains intact.
 
-- `BondOp::Register { stake, vrf_pk, bls_pk, payout }`:
+- `BondOp::Register { stake, vrf_pk, bls_pk, payout, sig }`:
   - Stake validated by `bonding::validate_stake` (≥ `min_validator_stake`).
+  - **Operator authorization (M1.5).** `sig` BLS-verified by `verify_register_sig` against `bls_pk` over `dhash(REGISTER_OP_SIG, stake ‖ vrf_pk ‖ bls_pk ‖ payout_flag ‖ [payout?])`. The signed payload includes `bls_pk` itself so a leaked op cannot be replayed with swapped keys.
   - `vrf_pk` must be unique across the active set.
   - Per-epoch entry-churn cap enforced via `try_register_entry_churn`.
   - Append a new `Validator` (index `= next.next_validator_index`, `next.next_validator_index += 1`) and a lockstep fresh `ValidatorStats` row.
@@ -675,7 +677,7 @@ mfn-storage/        Permanence                 (32 tests)
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (108 tests: 100 unit + 8 integration)
+mfn-consensus/      Chain state machine        (111 tests: 103 unit + 8 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization

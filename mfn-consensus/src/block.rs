@@ -1373,8 +1373,18 @@ fn simulate_bond_ops(
                 vrf_pk,
                 bls_pk,
                 payout,
+                sig,
             } => {
                 validate_stake(*stake, bonding_params).map_err(|e| (i, e.to_string()))?;
+                if !crate::bond_wire::verify_register_sig(
+                    *stake,
+                    vrf_pk,
+                    bls_pk,
+                    payout.as_ref(),
+                    sig,
+                ) {
+                    return Err((i, "register signature invalid".into()));
+                }
                 let vrf_b = vrf_pk.compress().to_bytes();
                 if !seen_vrf.insert(vrf_b) {
                     return Err((i, "duplicate vrf_pk".into()));
@@ -1842,17 +1852,25 @@ mod tests {
         use mfn_crypto::point::{generator_g, generator_h};
 
         let st = genesis_state();
+        let bls1 = bls_keygen_from_seed(&[1u8; 32]);
+        let stake_ok = crate::DEFAULT_BONDING_PARAMS.min_validator_stake;
+        let vrf_ok = generator_g();
         let ok_op = BondOp::Register {
-            stake: crate::DEFAULT_BONDING_PARAMS.min_validator_stake,
-            vrf_pk: generator_g(),
-            bls_pk: bls_keygen_from_seed(&[1u8; 32]).pk,
+            stake: stake_ok,
+            vrf_pk: vrf_ok,
+            bls_pk: bls1.pk,
             payout: None,
+            sig: crate::bond_wire::sign_register(stake_ok, &vrf_ok, &bls1.pk, None, &bls1.sk),
         };
+        let bls2 = bls_keygen_from_seed(&[2u8; 32]);
+        let stake_bad = 1u64;
+        let vrf_bad = generator_h();
         let bad_op = BondOp::Register {
-            stake: 1,
-            vrf_pk: generator_h(),
-            bls_pk: bls_keygen_from_seed(&[2u8; 32]).pk,
+            stake: stake_bad,
+            vrf_pk: vrf_bad,
+            bls_pk: bls2.pk,
             payout: None,
+            sig: crate::bond_wire::sign_register(stake_bad, &vrf_bad, &bls2.pk, None, &bls2.sk),
         };
         let bond_ops = vec![ok_op, bad_op];
         let header = build_unsealed_header(&st, &[], &bond_ops, 1, 100);
@@ -1873,6 +1891,58 @@ mod tests {
             ApplyOutcome::Ok { .. } => panic!("expected err"),
         }
         assert!(st.validators.is_empty());
+    }
+
+    // Bad register signature must be rejected (atomic apply ⇒ the
+    // whole bond-op set is rolled back, no validators appended, no
+    // treasury credit). Mempool-grade authorization: this is the
+    // property that prevents an adversarial relayer from replaying a
+    // serialized BondOp::Register op for any operator's keys.
+    #[test]
+    fn register_rejects_invalid_signature() {
+        use mfn_bls::bls_keygen_from_seed;
+        use mfn_crypto::point::generator_g;
+
+        let st = genesis_state();
+        let attacker = bls_keygen_from_seed(&[200u8; 32]);
+        let victim_bls = bls_keygen_from_seed(&[201u8; 32]);
+        let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+        let vrf_pk = generator_g();
+        // The attacker signs over the victim's bls_pk but with their
+        // own secret key — the resulting sig won't verify under
+        // victim_bls.pk.
+        let forged =
+            crate::bond_wire::sign_register(stake, &vrf_pk, &victim_bls.pk, None, &attacker.sk);
+        let op = BondOp::Register {
+            stake,
+            vrf_pk,
+            bls_pk: victim_bls.pk,
+            payout: None,
+            sig: forged,
+        };
+        let header = build_unsealed_header(&st, &[], std::slice::from_ref(&op), 1, 100);
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            vec![op],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(
+                    errors
+                        .iter()
+                        .any(|e| matches!(e, BlockError::BondOpRejected { index: 0, .. })),
+                    "expected BondOpRejected at index 0, got {errors:?}"
+                );
+                // No state mutation must have occurred.
+                assert_eq!(st.validators.len(), 0);
+                assert_eq!(st.treasury, 0);
+            }
+            ApplyOutcome::Ok { .. } => panic!("forged register signature must reject"),
+        }
     }
 
     // Unbond rejection in legacy mode (empty validators ⇒ no finality
@@ -1915,11 +1985,15 @@ mod tests {
             validator_index: 7,
             sig: crate::bond_wire::sign_unbond(7, &bls.sk),
         };
+        let reg_bls = bls_keygen_from_seed(&[11u8; 32]);
+        let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+        let vrf_pk = generator_g();
         let reg = BondOp::Register {
-            stake: DEFAULT_BONDING_PARAMS.min_validator_stake,
-            vrf_pk: generator_g(),
-            bls_pk: bls_keygen_from_seed(&[11u8; 32]).pk,
+            stake,
+            vrf_pk,
+            bls_pk: reg_bls.pk,
             payout: None,
+            sig: crate::bond_wire::sign_register(stake, &vrf_pk, &reg_bls.pk, None, &reg_bls.sk),
         };
         let ops = vec![reg, unbond];
         let root = crate::bond_wire::bond_merkle_root(&ops);
@@ -2689,11 +2763,15 @@ mod tests {
 
         let st = genesis_state();
         assert_eq!(st.treasury, 0);
+        let bls = bls_keygen_from_seed(&[42u8; 32]);
+        let stake = 2_500_000u64;
+        let vrf_pk = generator_g();
         let bond = BondOp::Register {
-            stake: 2_500_000,
-            vrf_pk: generator_g(),
-            bls_pk: bls_keygen_from_seed(&[42u8; 32]).pk,
+            stake,
+            vrf_pk,
+            bls_pk: bls.pk,
             payout: None,
+            sig: crate::bond_wire::sign_register(stake, &vrf_pk, &bls.pk, None, &bls.sk),
         };
         let bond_ops = vec![bond];
         let header = build_unsealed_header(&st, &[], &bond_ops, 1, 100);
@@ -2722,18 +2800,24 @@ mod tests {
 
         let st = genesis_state();
         let min = DEFAULT_BONDING_PARAMS.min_validator_stake;
+        let bls1 = bls_keygen_from_seed(&[1u8; 32]);
+        let bls2 = bls_keygen_from_seed(&[2u8; 32]);
+        let vrf1 = generator_g();
+        let vrf2 = generator_h();
         let ops = vec![
             BondOp::Register {
                 stake: min,
-                vrf_pk: generator_g(),
-                bls_pk: bls_keygen_from_seed(&[1u8; 32]).pk,
+                vrf_pk: vrf1,
+                bls_pk: bls1.pk,
                 payout: None,
+                sig: crate::bond_wire::sign_register(min, &vrf1, &bls1.pk, None, &bls1.sk),
             },
             BondOp::Register {
                 stake: min * 3,
-                vrf_pk: generator_h(),
-                bls_pk: bls_keygen_from_seed(&[2u8; 32]).pk,
+                vrf_pk: vrf2,
+                bls_pk: bls2.pk,
                 payout: None,
+                sig: crate::bond_wire::sign_register(min * 3, &vrf2, &bls2.pk, None, &bls2.sk),
             },
         ];
         let header = build_unsealed_header(&st, &[], &ops, 1, 100);
@@ -2755,18 +2839,25 @@ mod tests {
         let st = genesis_state();
         // Below-minimum stake → rejection; the whole block must not
         // credit the treasury (atomic apply).
+        let min = DEFAULT_BONDING_PARAMS.min_validator_stake;
+        let bls1 = bls_keygen_from_seed(&[1u8; 32]);
+        let bls2 = bls_keygen_from_seed(&[2u8; 32]);
+        let vrf1 = generator_g();
+        let vrf2 = generator_h();
         let ops = vec![
             BondOp::Register {
-                stake: DEFAULT_BONDING_PARAMS.min_validator_stake,
-                vrf_pk: generator_g(),
-                bls_pk: bls_keygen_from_seed(&[1u8; 32]).pk,
+                stake: min,
+                vrf_pk: vrf1,
+                bls_pk: bls1.pk,
                 payout: None,
+                sig: crate::bond_wire::sign_register(min, &vrf1, &bls1.pk, None, &bls1.sk),
             },
             BondOp::Register {
                 stake: 1, // below min
-                vrf_pk: generator_h(),
-                bls_pk: bls_keygen_from_seed(&[2u8; 32]).pk,
+                vrf_pk: vrf2,
+                bls_pk: bls2.pk,
                 payout: None,
+                sig: crate::bond_wire::sign_register(1, &vrf2, &bls2.pk, None, &bls2.sk),
             },
         ];
         let header = build_unsealed_header(&st, &[], &ops, 1, 100);

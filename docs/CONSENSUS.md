@@ -368,6 +368,7 @@ pub enum BondOp {
         vrf_pk:  EdwardsPoint,
         bls_pk:  BlsPublicKey,
         payout:  Option<ValidatorPayout>,
+        sig:     BlsSignature,           // domain-separated under MFBN-1/register-op-sig
     },
     Unbond {
         validator_index: u32,
@@ -376,9 +377,11 @@ pub enum BondOp {
 }
 ```
 
+Both arms are BLS-authenticated by the operator's own voting key — the same `bls_sk` that signs finality. `Register` commits its signature over `(stake, vrf_pk, bls_pk, payout)`, binding the rest of the op to a single operator's keys (defeating mempool replay against a stranger's keys). `Unbond` commits over `validator_index` and is independently replay-protected by `pending_unbonds` rejecting duplicate enqueues.
+
 `apply_block` validates and applies `bond_ops` atomically. On success:
 
-- `BondOp::Register` appends a new `Validator` (with a fresh `ValidatorStats` row) and **burns its declared stake into `treasury`** — the same sink that funds permanence.
+- `BondOp::Register` verifies the operator's signature under `bls_pk`, then appends a new `Validator` (with a fresh `ValidatorStats` row) and **burns its declared stake into `treasury`** — the same sink that funds permanence.
 - `BondOp::Unbond` is BLS-verified against the validator's own `bls_public_key` and enqueued into `pending_unbonds: BTreeMap<u32, PendingUnbond>` with `unlock_height = height + bonding_params.unbond_delay_blocks`.
 
 Per-epoch entry / exit churn caps (`max_entry_churn_per_epoch`, `max_exit_churn_per_epoch`; default 4 each) bound how fast the set can change.
