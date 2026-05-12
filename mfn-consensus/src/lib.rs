@@ -16,7 +16,11 @@
 //!   amounts.
 //! - [`bonding`] — validator rotation **defaults** (M1): min stake, unbond
 //!   delay, per-epoch churn caps; [`bond_wire`] + [`block::apply_block`]
-//!   integrate register ops under the header `bond_root`.
+//!   integrate register ops under the header `bond_root`. Every successful
+//!   register burns `stake` into [`block::ChainState::treasury`]; every
+//!   equivocation and liveness slash routes the forfeited stake back to
+//!   the same sink — closing the chain's permanence-funding loop on the
+//!   validator economic side.
 //! - [`bond_wire`] — canonical [`BondOp`] encoding and bond Merkle tree.
 //! - [`coinbase`] — synthetic block-reward transaction, deterministic so any
 //!   node can replay history byte-for-byte.

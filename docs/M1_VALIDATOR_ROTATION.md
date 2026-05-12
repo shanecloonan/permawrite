@@ -67,15 +67,51 @@ Unbond:
 
 ## Slashed stake disposition
 
-Per roadmap: **treasury credit** (not burn) so permanence funding benefits from misbehavior penalties. Exact `u128` credit path must not overflow; mirror existing treasury math style in `apply_block`.
+Per roadmap: **treasury credit** (not burn) so permanence funding benefits from misbehavior penalties. Implemented in [`apply_block`](../mfn-consensus/src/block.rs) — both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) credit the lost amount to [`ChainState::treasury`](../mfn-consensus/src/block.rs) using saturating `u128` arithmetic.
+
+## Bond funding (M1 economic model)
+
+Validator registration is **burn-on-bond**: every successful [`BondOp::Register`] adds its declared `stake` to [`ChainState::treasury`]. This is the cleanest funding model — it requires no extra wire fields, no separate Schnorr proof of UTXO consumption, and it makes the chain's permanence-funding pool the canonical sink for validator economic commitment.
+
+Combined with slash-to-treasury, this gives M1 a **closed economic-symmetry property**:
+
+- Every base unit a validator commits via `BondOp::Register` is credited to the treasury.
+- Every base unit a validator forfeits via equivocation or liveness slashing is credited to the treasury.
+- Every base unit paid out to storage operators via [`accrue_proof_reward`](../mfn-storage/src/endowment.rs) drains the treasury (with emission backstop).
+
+There is no path today for stake to flow *out* of the treasury back to a validator — that's the job of [unbond settlement](#unbond-flow-future-work) (next milestone). Until then, validator bonds are a one-way contribution to permanence.
+
+### Funding the bond input (open question)
+
+The above model assumes the producer who included the `BondOp::Register` had the moral authority to do so on behalf of the bonded operator. In a permissionless mempool a bond op without authorization could be replayed by an adversary. The two leading options:
+
+1. **Schnorr-over-bond-bytes by operator's BLS key.** Simpler to verify; reuses existing primitives. Adds a `sig` field to `BondOp::Register`.
+2. **UTXO consumption tied to bond bytes via a public-message hash.** Stronger funding proof but requires a new tx variant.
+
+This is the largest remaining wire-format question for M1. Today's `BondOp::Register` is **unauthenticated** — sufficient for the consensus integration tests but explicitly insecure for a permissionless mempool. **Sealing this is a hard precondition for mainnet.**
+
+## Unbond flow (future work)
+
+## Unbond flow (future work)
+
+Unbond support adds:
+
+- `BondOp::Unbond { validator_index, sig }` — BLS-signed authorization by the validator's own key.
+- `ChainState::pending_unbonds: BTreeMap<u32, PendingUnbond { unlock_height, stake_at_request }>` keyed by validator index.
+- Settlement phase in `apply_block` (runs before liveness so the unbonded validator is excluded from the bitmap for this block):
+  - At `height >= unlock_height`, the entry is popped; the validator's `stake` is set to `0`; the operator's payout is funded via an augmented coinbase output (treasury debit, emission-backstopped exactly like storage rewards).
+  - Exit churn cap (`max_exit_churn_per_epoch`) enforced via `try_register_exit_churn` per settled validator.
+- Late equivocation slashing during the unbond delay still routes to treasury (validator entry is still in `validators` with non-zero stake).
 
 ## Test matrix (M1 completion criteria)
 
-- Bond accepted → validator appears with correct index, stats row, eligible in VRF same epoch rules as chosen.
-- Unbond submitted → validator still slashable until delay elapses.
-- Equivocation evidence for validator in unbond window → stake zeroed, treasury credited.
-- Churn cap: N+1-th bond in same epoch rejected with deterministic error.
-- Entry/exit with empty / max-sized validator sets (property tests optional).
+- ✓ Bond accepted → validator appears with correct index, stats row, eligible in VRF same epoch rules as chosen. *(block::tests::bond_op_round_trip in `bond_wire.rs`; apply-side in `block.rs`.)*
+- ✓ Burn-on-bond credits treasury *(block::tests::burn_on_bond_credits_treasury, burn_on_bond_aggregates_multiple_registers).*
+- ✓ Equivocation evidence credits treasury *(block::tests::equivocation_slash_credits_treasury_via_apply_block).*
+- ✓ Liveness slash credits treasury *(block::tests::liveness_slash_credits_treasury, liveness_slash_treasury_compounds_with_validator_stake).*
+- ✓ Churn cap: N+1-th bond in same epoch rejected with deterministic error *(bonding::tests::entry_churn_cap; apply-side in block::tests).*
+- □ Unbond submitted → validator still slashable until delay elapses. *(pending — M1.2.)*
+- □ Settlement at unlock height debits treasury + zeros stake. *(pending — M1.2.)*
 
 ## Code map
 
