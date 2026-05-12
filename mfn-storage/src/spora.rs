@@ -453,7 +453,11 @@ mod tests {
         assert_eq!(built.commit.size_bytes, d.len() as u64);
         assert_eq!(built.commit.replication, 3);
         // Endowment opens.
-        assert!(verify_endowment_opening(&built.commit, 1_000, &built.blinding));
+        assert!(verify_endowment_opening(
+            &built.commit,
+            1_000,
+            &built.blinding
+        ));
     }
 
     #[test]
@@ -484,8 +488,7 @@ mod tests {
     #[test]
     fn build_and_verify_storage_proof_round_trip() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [42u8; 32];
         for slot in 0u32..8 {
             let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
@@ -500,8 +503,7 @@ mod tests {
     #[test]
     fn proof_with_wrong_chunk_is_rejected() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
         let mut p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
@@ -516,8 +518,7 @@ mod tests {
     #[test]
     fn proof_with_wrong_index_is_rejected() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
         let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
@@ -526,14 +527,16 @@ mod tests {
         // colliding with the base slot's index — explicitly search for
         // the first non-colliding slot before asserting.
         let c_hash = storage_commitment_hash(&built.commit);
-        let base_idx =
-            chunk_index_for_challenge(&prev, slot, &c_hash, built.commit.num_chunks);
+        let base_idx = chunk_index_for_challenge(&prev, slot, &c_hash, built.commit.num_chunks);
         let mut other_slot = slot + 1;
         while chunk_index_for_challenge(&prev, other_slot, &c_hash, built.commit.num_chunks)
             == base_idx
         {
             other_slot += 1;
-            assert!(other_slot - slot < 256, "couldn't find a non-colliding slot");
+            assert!(
+                other_slot - slot < 256,
+                "couldn't find a non-colliding slot"
+            );
         }
         let v = verify_storage_proof(&built.commit, &prev, other_slot, &p);
         assert!(
@@ -545,8 +548,7 @@ mod tests {
     #[test]
     fn proof_with_wrong_commit_hash_is_rejected() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
         let mut p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
@@ -560,8 +562,7 @@ mod tests {
     #[test]
     fn storage_proof_encode_decode_round_trip() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
         let slot = 5u32;
         let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
@@ -582,8 +583,7 @@ mod tests {
     #[test]
     fn challenge_index_from_seed_is_deterministic() {
         let d = data_1mib();
-        let built =
-            build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         assert_eq!(
             challenge_index_from_seed(&built.commit, b"seed-x"),
             challenge_index_from_seed(&built.commit, b"seed-x"),
