@@ -112,6 +112,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/bond-op-leaf` | Bond-op Merkle leaf (M1) |
 | `MFBN-1/register-op-sig` | `BondOp::Register` BLS-signed authorization payload (M1.5) |
 | `MFBN-1/unbond-op-sig` | `BondOp::Unbond` BLS-signed authorization payload (M1) |
+| `MFBN-1/validator-leaf` | Validator-set Merkle leaf (M2.0) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -219,10 +220,29 @@ struct BlockHeader {
     tx_root:        [u8; 32],   // merkle over tx_ids
     storage_root:   [u8; 32],   // merkle over storage commitment hashes
     bond_root:      [u8; 32],   // M1 — merkle over bond_ops (zero sentinel if empty)
+    validator_root: [u8; 32],   // M2.0 — merkle over *pre-block* validator set
     producer_proof: Vec<u8>,    // MFBN-encoded FinalityProof
     utxo_root:      [u8; 32],   // accumulator root *after* this block applies
 }
 ```
+
+#### `validator_root` (M2.0)
+
+A 32-byte Merkle root over the chain's **pre-block** validator set in canonical (chain-stored) index order. The leaf for each validator is:
+
+```text
+dhash(VALIDATOR_LEAF,
+      index(u32, BE) ‖ stake(u64, BE)
+   ‖  vrf_pk(32) ‖ bls_pk(48)
+   ‖  payout_flag(u8) ‖ [view_pub(32) ‖ spend_pub(32)]?)
+```
+
+Two design points worth pinning:
+
+1. **Pre-block, not post-block.** Committing to the validator set the block was *produced against* lets a light client verify the header (producer eligibility, BLS finality bitmap, quorum) from the header alone, without holding the live validator list. Any rotation / slashing applied *by* this block moves the **next** header's `validator_root`.
+2. **No `ValidatorStats`.** Liveness counters churn every block; reincluding them would re-hash every leaf needlessly. The minimal data a light client needs to verify a finality bitmap is `(index, stake, bls_pk)`; the other fields round out the canonical record for completeness.
+
+Empty validator set → all-zero sentinel (matches the other consensus roots).
 
 ### Chain state
 
@@ -325,6 +345,8 @@ The block's lifecycle once it reaches a node:
 ### Phase 1 — Roots
 
 - Reconstruct `tx_root` from `txs` and reject if `header.tx_root` differs.
+- Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
+- **Reconstruct `validator_root` from the *pre-block* validator set (M2.0)** and reject if it differs from `header.validator_root`. Committing to the pre-block set means a light client can verify Phase 0's finality proof from the header alone, *before* it has any of this block's state. Rotation / slashing / unbond settlement applied later in `apply_block` move the **next** header's `validator_root`, not this one's.
 - Build the list of new storage commitments anchored in this block (from `txs[*].storage_commit` and `Block.slashings` etc.). Reconstruct `storage_root`.
 
 ### Phase 2 — Slashing (equivocation)
@@ -427,10 +449,11 @@ Walk `next.pending_unbonds` in ascending `validator_index` order. For each entry
 
 ### Phase 9 — Root checks + commit
 
-- Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
 - Recompute `utxo_root` from `next.utxo_tree` and reject if it differs from `header.utxo_root`.
 - Append `block_id(header)` to `next.block_ids`.
 - Return `Ok(next)`.
+
+(Per-input Merkle roots — `tx_root`, `bond_root`, `validator_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here.)
 
 ---
 
@@ -617,9 +640,9 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
-- **Validator rotation shipped in M1.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury are live. The only remaining wire-format question is mempool-grade authorization for `BondOp::Register` (Unbond is already BLS-authenticated). See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md).
+- **Validator rotation shipped in M1; validator-set commitment shipped in M2.0.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` are live. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md) and [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md).
+- **Light-client protocol is not yet a binary.** The header now self-describes the validator set it was produced against (`validator_root`), so a light client *can* be built — but the daemon/mempool/P2P layer (`mfn-node`) is the next milestone.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
-- **No node binary / mempool / P2P yet.** This repo is the consensus core. The daemon (`mfn-node`) is in the roadmap.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
 For the disclosure process see [`../SECURITY.md`](../SECURITY.md).
@@ -677,13 +700,14 @@ mfn-storage/        Permanence                 (32 tests)
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (111 tests: 103 unit + 8 integration)
+mfn-consensus/      Chain state machine        (124 tests: 112 unit + 12 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
 ├── transaction.rs  RingCT-style tx wire + verify
 ├── coinbase.rs     Deterministic coinbase
-├── consensus.rs    Slot model, VRF leader election, BLS committee finality
+├── consensus.rs    Slot model, VRF leader election, BLS committee finality,
+│                   M2.0 validator-set merkle commitment
 ├── slashing.rs     Equivocation evidence + verification
 ├── storage.rs      Re-exports mfn-storage commitment types
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF)

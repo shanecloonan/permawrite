@@ -98,6 +98,15 @@ pub struct BlockHeader {
     pub storage_root: [u8; 32],
     /// Merkle root of [`Block::bond_ops`] (all-zero if empty).
     pub bond_root: [u8; 32],
+    /// Merkle root of the **pre-block** validator set
+    /// (see [`crate::consensus::validator_set_root`]). Committing the
+    /// *pre-block* set — the one this block's `producer_proof` is
+    /// verified against — lets a light client validate a header and its
+    /// finality bitmap from the header alone, without holding the
+    /// validator list as side state. Any rotation/slashing changes
+    /// applied by this block move the *next* header's `validator_root`.
+    /// All-zero only if the chain is bootstrapped without validators.
+    pub validator_root: [u8; 32],
     /// MFBN-encoded [`crate::consensus::FinalityProof`]. Empty for genesis
     /// and for chains running in legacy/centralized mode (no validator
     /// set).
@@ -146,6 +155,7 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.tx_root);
     w.push(&h.storage_root);
     w.push(&h.bond_root);
+    w.push(&h.validator_root);
     w.into_bytes()
 }
 
@@ -167,6 +177,7 @@ pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.tx_root);
     w.push(&h.storage_root);
     w.push(&h.bond_root);
+    w.push(&h.validator_root);
     w.blob(&h.producer_proof);
     w.push(&h.utxo_root);
     w.into_bytes()
@@ -448,6 +459,9 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         tree = append_utxo(&tree, leaf).expect("genesis output count fits in accumulator");
     }
     let storage_root = storage_merkle_root(&cfg.initial_storage);
+    // Genesis commits to the **pre-genesis** validator set (empty) — the
+    // genesis block itself installs `cfg.validators`. The next block's
+    // header will commit to `validator_set_root(&cfg.validators)`.
     let header = BlockHeader {
         version: HEADER_VERSION,
         prev_hash: [0u8; 32],
@@ -457,6 +471,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         tx_root: [0u8; 32],
         storage_root,
         bond_root: [0u8; 32],
+        validator_root: [0u8; 32],
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&tree),
     };
@@ -577,6 +592,11 @@ pub fn build_unsealed_header(
         tx_root: tx_merkle_root(txs),
         storage_root: storage_merkle_root(&new_storages),
         bond_root: bond_merkle_root(bond_ops),
+        // Commit to the validator set the block was produced against —
+        // i.e., the *pre-block* set held by `state`. Any rotation /
+        // slashing applied in this block moves the *next* header's
+        // validator_root, not this one's.
+        validator_root: crate::consensus::validator_set_root(&state.validators),
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&projected_tree),
     }
@@ -710,6 +730,19 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let expected_bond_root = bond_merkle_root(&block.bond_ops);
     if expected_bond_root != block.header.bond_root {
         errors.push(BlockError::BondRootMismatch);
+    }
+
+    // ---- Validator-set merkle root (pre-block commitment, M2.0) ----
+    //
+    // Committing to the validator set **as it stood when this block was
+    // produced** lets a light client verify the producer eligibility and
+    // BLS quorum bitmap from the header alone, without holding the live
+    // validator list. Validators introduced or evicted by this block
+    // (bond ops, equivocation slashing, liveness slashing, unbond
+    // settlement) move the *next* header's root, not this one's.
+    let expected_validator_root = crate::consensus::validator_set_root(&state.validators);
+    if expected_validator_root != block.header.validator_root {
+        errors.push(BlockError::ValidatorRootMismatch);
     }
 
     // ---- Producer/finality proof ----
@@ -1476,6 +1509,10 @@ pub enum BlockError {
     /// Header `bond_root` didn't match the locally-recomputed bond Merkle root.
     #[error("bond_root mismatch")]
     BondRootMismatch,
+    /// Header `validator_root` didn't match the locally-recomputed Merkle
+    /// root over the pre-block validator set (M2.0).
+    #[error("validator_root mismatch")]
+    ValidatorRootMismatch,
     /// A bond operation failed validation or conflicted with on-chain state.
     #[error("bond_ops[{index}]: {message}")]
     BondOpRejected {
@@ -1844,6 +1881,63 @@ mod tests {
             }
             ApplyOutcome::Ok { .. } => panic!("expected err"),
         }
+    }
+
+    #[test]
+    fn validator_root_mismatch_is_rejected() {
+        // Build a valid empty block (legacy / no-validator mode is fine —
+        // the validator-root check runs *regardless* of validator-set
+        // size), then flip one byte of `header.validator_root` to a
+        // value the pre-block state cannot produce.
+        let st = genesis_state();
+        let mut header = build_unsealed_header(&st, &[], &[], 1, 100);
+        // No validators ⇒ pre-block root is the all-zero sentinel.
+        assert_eq!(header.validator_root, [0u8; 32]);
+        header.validator_root[0] = 0xff;
+        let blk = seal_block(
+            header,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::ValidatorRootMismatch)));
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
+
+    #[test]
+    fn build_unsealed_header_commits_pre_block_validator_set() {
+        // The header for block N must commit to the validator set as it
+        // stood at the end of block N-1 — the set the producer-proof is
+        // verified against. Verify by building the header from a state
+        // with a non-empty validator set and checking it equals
+        // `validator_set_root(&state.validators)`.
+        use crate::consensus::{validator_set_root, Validator};
+        use mfn_bls::bls_keygen_from_seed;
+        use mfn_crypto::point::generator_g;
+
+        let mut st = genesis_state();
+        let v = Validator {
+            index: 0,
+            vrf_pk: generator_g(),
+            bls_pk: bls_keygen_from_seed(&[7u8; 32]).pk,
+            stake: 1_000_000,
+            payout: None,
+        };
+        st.validators.push(v.clone());
+        st.validator_stats.push(ValidatorStats::default());
+        st.next_validator_index = 1;
+
+        let header = build_unsealed_header(&st, &[], &[], 1, 100);
+        assert_eq!(header.validator_root, validator_set_root(&st.validators));
+        assert_ne!(header.validator_root, [0u8; 32]);
     }
 
     #[test]

@@ -40,9 +40,11 @@ use mfn_bls::{
     verify_committee_aggregate, BlsKeypair, BlsPublicKey, BlsResult, BlsSignature,
     CommitteeAggregate, CommitteeVote,
 };
+use mfn_bls::encode_public_key;
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::CONSENSUS_SLOT;
+use mfn_crypto::domain::{CONSENSUS_SLOT, VALIDATOR_LEAF};
 use mfn_crypto::hash::dhash;
+use mfn_crypto::merkle::merkle_root_or_zero;
 use mfn_crypto::vrf::{
     decode_vrf_proof, encode_vrf_proof, vrf_output_as_u64, vrf_prove, vrf_verify, VrfKeypair,
     VrfProof,
@@ -74,6 +76,68 @@ pub struct Validator {
     /// burns the coinbase (no UTXO created) — used for backward compat
     /// with pre-tokenomics validator records.
     pub payout: Option<ValidatorPayout>,
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Validator-set commitment (M2.0)                                         *
+ * ----------------------------------------------------------------------- */
+
+/// Canonical bytes for a single [`Validator`] when committed under the
+/// block header's `validator_root`.
+///
+/// Layout (no domain prefix): `index(u32, BE) ‖ stake(u64, BE) ‖
+/// vrf_pk(32) ‖ bls_pk(48) ‖ payout_flag(u8) ‖ [view_pub(32) ‖ spend_pub(32)]?`.
+///
+/// Deterministic; mirrors the on-wire encoding of these fields elsewhere.
+/// Does **not** include [`crate::block::ValidatorStats`] — stats churn
+/// every block via liveness tracking and would otherwise re-hash every
+/// leaf needlessly. Light clients verifying a finality bitmap need
+/// `(index, stake, bls_pk)` and nothing else.
+#[must_use]
+pub fn validator_leaf_bytes(v: &Validator) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.u32(v.index);
+    w.u64(v.stake);
+    w.push(&v.vrf_pk.compress().to_bytes());
+    w.push(&encode_public_key(&v.bls_pk));
+    match &v.payout {
+        None => {
+            w.u8(0);
+        }
+        Some(p) => {
+            w.u8(1);
+            w.push(&p.view_pub.compress().to_bytes());
+            w.push(&p.spend_pub.compress().to_bytes());
+        }
+    }
+    w.into_bytes()
+}
+
+/// 32-byte Merkle leaf hash for one validator (domain-separated under
+/// [`VALIDATOR_LEAF`]).
+#[must_use]
+pub fn validator_leaf_hash(v: &Validator) -> [u8; 32] {
+    dhash(VALIDATOR_LEAF, &[&validator_leaf_bytes(v)])
+}
+
+/// Merkle root over the active validator set in canonical index order.
+///
+/// Empty validator set → all-zero sentinel (matches the other consensus
+/// root commitments). This root is what every block header commits to,
+/// reflecting the validator set the block is being validated against —
+/// i.e., the *pre-block* validator set so the producer-proof + finality
+/// bitmap are immediately verifiable from the header alone.
+///
+/// Bond ops, equivocation slashing, and liveness slashing all change
+/// the next block's `validator_root`; the current block's root reflects
+/// what *was*, not what *will be*.
+#[must_use]
+pub fn validator_set_root(validators: &[Validator]) -> [u8; 32] {
+    if validators.is_empty() {
+        return [0u8; 32];
+    }
+    let leaves: Vec<[u8; 32]> = validators.iter().map(validator_leaf_hash).collect();
+    merkle_root_or_zero(&leaves)
 }
 
 /// Per-validator secret material (held only by the validator's process,
@@ -760,5 +824,187 @@ mod tests {
         let candidates = vec![mk_dummy(0, 50), mk_dummy(1, 10), mk_dummy(2, 30)];
         let w = pick_winner(&candidates).expect("winner");
         assert_eq!(w.validator_index, 1);
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  Validator-set commitment (M2.0)                                   *
+     * ----------------------------------------------------------------- */
+
+    #[test]
+    fn validator_leaf_bytes_depend_on_every_field() {
+        let (mut v, _) = fresh_validator(0, 1_000);
+
+        let base = validator_leaf_bytes(&v);
+
+        v.index = 1;
+        let by_index = validator_leaf_bytes(&v);
+        assert_ne!(base, by_index, "index must influence leaf");
+
+        v.index = 0;
+        v.stake = 999;
+        let by_stake = validator_leaf_bytes(&v);
+        assert_ne!(base, by_stake, "stake must influence leaf");
+
+        v.stake = 1_000;
+        v.vrf_pk = fresh_validator(7, 1_000).0.vrf_pk;
+        let by_vrf = validator_leaf_bytes(&v);
+        assert_ne!(base, by_vrf, "vrf_pk must influence leaf");
+
+        let (mut v2, _) = fresh_validator(0, 1_000);
+        v2.bls_pk = fresh_validator(7, 1_000).0.bls_pk;
+        assert_ne!(
+            validator_leaf_bytes(&v2),
+            base,
+            "bls_pk must influence leaf"
+        );
+
+        // Payout presence flips a discriminator byte.
+        let (mut vp, _) = fresh_validator(0, 1_000);
+        vp.payout = Some(ValidatorPayout {
+            view_pub: curve25519_dalek::edwards::EdwardsPoint::default(),
+            spend_pub: curve25519_dalek::edwards::EdwardsPoint::default(),
+        });
+        assert_ne!(validator_leaf_bytes(&vp), base, "payout flag changes leaf");
+    }
+
+    #[test]
+    fn validator_leaf_hash_is_domain_separated() {
+        // Two distinct ways of arriving at "equal bytes" must not produce
+        // a collision because of [`VALIDATOR_LEAF`] domain separation.
+        let (v, _) = fresh_validator(0, 1_000);
+        let h = validator_leaf_hash(&v);
+        // Direct dhash with a different domain should differ.
+        let other = mfn_crypto::hash::dhash(b"MFBN-1/not-a-leaf", &[&validator_leaf_bytes(&v)]);
+        assert_ne!(h, other);
+    }
+
+    #[test]
+    fn validator_set_root_empty_is_zero_sentinel() {
+        assert_eq!(validator_set_root(&[]), [0u8; 32]);
+    }
+
+    #[test]
+    fn validator_set_root_changes_when_stake_changes() {
+        let (mut v0, _) = fresh_validator(0, 1_000);
+        let (v1, _) = fresh_validator(1, 1_000);
+        let r0 = validator_set_root(&[v0.clone(), v1.clone()]);
+        v0.stake = 999_999;
+        let r1 = validator_set_root(&[v0, v1]);
+        assert_ne!(r0, r1, "slashing/rotation must move the root");
+    }
+
+    #[test]
+    fn validator_set_root_changes_with_order() {
+        // The set is committed in *canonical (chain-stored) order* — not
+        // a sorted multiset. Tests must defend against accidental
+        // commutative collapse.
+        let (v0, _) = fresh_validator(0, 1_000);
+        let (v1, _) = fresh_validator(1, 1_000);
+        let a = validator_set_root(&[v0.clone(), v1.clone()]);
+        let b = validator_set_root(&[v1, v0]);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn validator_set_root_changes_when_validator_added() {
+        let (v0, _) = fresh_validator(0, 1_000);
+        let (v1, _) = fresh_validator(1, 1_000);
+        let r_one = validator_set_root(std::slice::from_ref(&v0));
+        let r_two = validator_set_root(&[v0, v1]);
+        assert_ne!(r_one, r_two, "registering a validator must move the root");
+    }
+
+    /// TS-parity golden vector for the M2.0 validator-set commitment.
+    ///
+    /// Pinned to deterministic seed inputs so the `cloonan-group`
+    /// reference can mirror byte-for-byte. The vector covers all three
+    /// public helpers: `validator_leaf_bytes`, `validator_leaf_hash`,
+    /// and `validator_set_root` over a non-trivial set (one validator
+    /// with payout, one without — exercises both branches of the
+    /// canonical encoding).
+    ///
+    /// **Reference inputs:**
+    /// - `v0`: index=0, stake=1_000_000,
+    ///   `vrf_pk = vrf_keygen_from_seed([1; 32]).pk`,
+    ///   `bls_pk = bls_keygen_from_seed([101; 32]).pk`, payout=None
+    /// - `v1`: index=1, stake=2_000_000,
+    ///   `vrf_pk = vrf_keygen_from_seed([2; 32]).pk`,
+    ///   `bls_pk = bls_keygen_from_seed([102; 32]).pk`,
+    ///   `payout.view_pub = 3 · G`, `payout.spend_pub = 5 · G`
+    #[test]
+    fn validator_root_wire_matches_cloonan_ts_smoke_reference() {
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_crypto::point::generator_g;
+
+        let vrf0 = vrf_keygen_from_seed(&[1u8; 32]).expect("vrf0");
+        let bls0 = bls_keygen_from_seed(&[101u8; 32]);
+        let v0 = Validator {
+            index: 0,
+            vrf_pk: vrf0.pk,
+            bls_pk: bls0.pk,
+            stake: 1_000_000,
+            payout: None,
+        };
+
+        let vrf1 = vrf_keygen_from_seed(&[2u8; 32]).expect("vrf1");
+        let bls1 = bls_keygen_from_seed(&[102u8; 32]);
+        let v1 = Validator {
+            index: 1,
+            vrf_pk: vrf1.pk,
+            bls_pk: bls1.pk,
+            stake: 2_000_000,
+            payout: Some(ValidatorPayout {
+                view_pub: generator_g() * Scalar::from(3u64),
+                spend_pub: generator_g() * Scalar::from(5u64),
+            }),
+        };
+
+        // ----- v0 (no payout) -----
+        // 4 (index) + 8 (stake) + 32 (vrf_pk) + 48 (bls_pk) + 1 (payout_flag) = 93 bytes
+        let v0_bytes = validator_leaf_bytes(&v0);
+        assert_eq!(
+            v0_bytes.len(),
+            93,
+            "v0 canonical leaf must be 93 bytes (no payout branch)"
+        );
+        assert_eq!(
+            hex::encode(&v0_bytes),
+            "0000000000000000000f42408a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5cb5a05f6d4ac7b5906f838f775da2c17d3b1f77aead8860b10922e816fb7419541642a9f70f2c101600554d315a8f6c5900",
+            "v0 canonical bytes drifted"
+        );
+        let v0_leaf = validator_leaf_hash(&v0);
+        assert_eq!(
+            hex::encode(v0_leaf),
+            "00c034ee4366815b9dc13f4769e47090a86a5ab7f355477e67135fa7f958b605",
+            "v0 (no payout) leaf hash drifted"
+        );
+
+        // ----- v1 (with payout) -----
+        // 93 + 32 (view_pub) + 32 (spend_pub) = 157 bytes
+        let v1_bytes = validator_leaf_bytes(&v1);
+        assert_eq!(
+            v1_bytes.len(),
+            157,
+            "v1 canonical leaf must be 157 bytes (with-payout branch)"
+        );
+        assert_eq!(
+            hex::encode(&v1_bytes),
+            "0000000100000000001e84808139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394ae5765f8aa19f64c622783fe27b225cb75d79b03c69178cc73e8f72ada2814436f9161cba5489be72448779e9786325001d4b4f5784868c3020403246717ec169ff79e26608ea126a1ab69ee77d1b16712edc876d6831fd2105d0b4389ca2e283166469289146e2ce06faefe98b22548df",
+            "v1 canonical bytes drifted"
+        );
+        let v1_leaf = validator_leaf_hash(&v1);
+        assert_eq!(
+            hex::encode(v1_leaf),
+            "ee082d7d2df87805f7bc2058d87de8f149832bfedb8df11f3b66752d6af674c0",
+            "v1 (with payout) leaf hash drifted"
+        );
+
+        // ----- root over [v0, v1] -----
+        let root = validator_set_root(&[v0, v1]);
+        assert_eq!(
+            hex::encode(root),
+            "dad4793fd4c01fc2710792e5fe4afb5391b701f6ad3f884d7515c7f04d1445a7",
+            "validator_set_root over [v0, v1] drifted"
+        );
     }
 }

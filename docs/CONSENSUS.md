@@ -394,7 +394,56 @@ A separate settlement phase later in `apply_block` finalizes any pending unbond 
 
 Both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) **credit the lost amount to `treasury`** using saturating `u128` arithmetic. Settled unbonds also leave their originally bonded MFN in the treasury (M1 deliberately defers any operator payout). The result: rotation in M1 is a **closed economic loop** — bonds in, slashes in, storage rewards out — see [`ECONOMICS.md § Validator bond economics`](./ECONOMICS.md#9-validator-bond-economics-m1-closed-loop) for the full picture.
 
-For the full design note + test matrix, see [`docs/M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md). The only remaining wire-format question is mempool-grade authorization for `BondOp::Register` (Unbond is already BLS-authenticated).
+For the full design note + test matrix, see [`docs/M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md).
+
+### Validator-set commitment in the header (M2.0)
+
+Every block header now also commits to the validator set the block was produced against:
+
+```rust
+struct BlockHeader {
+    // ...
+    bond_root:      [u8; 32],
+    validator_root: [u8; 32],   // ← M2.0
+    producer_proof: Vec<u8>,
+    utxo_root:      [u8; 32],
+}
+```
+
+`validator_root` is the binary Merkle root over the **pre-block** `state.validators` in canonical chain-stored (index) order, with each leaf
+
+```text
+dhash(VALIDATOR_LEAF,
+      index(u32, BE) ‖ stake(u64, BE)
+   ‖  vrf_pk(32) ‖ bls_pk(48)
+   ‖  payout_flag(u8) ‖ [view_pub(32) ‖ spend_pub(32)]?)
+```
+
+Why "pre-block" and not "post-block":
+
+- Phase 0 of `apply_block` verifies the producer-proof + finality bitmap **against `state.validators`** — the set in force *before* this block. Committing that exact set under the header means a light client holding only the header can verify producer eligibility and committee quorum without holding the live validator list.
+- Any rotation / slashing / unbond settlement applied *by* this block moves the **next** header's `validator_root`. Each header is internally consistent: `validator_root` is the set its `producer_proof` was checked against.
+
+What this **doesn't** commit:
+
+- `ValidatorStats` (liveness counters) — they churn every block; leaving them out keeps the root stable across blocks that didn't change the set. Light clients don't need them.
+
+Reference root commitments under the header are now `tx_root`, `bond_root`, `validator_root`, `storage_root`, `utxo_root` — covering txs, validator-set deltas, the live validator set, newly-anchored storage, and the post-block UTXO accumulator. Domain tag for the new leaf: `MFBN-1/validator-leaf`.
+
+### Tests added for M2.0
+
+- `validator_set_root_empty_is_zero_sentinel` — empty set folds to the all-zero sentinel.
+- `validator_set_root_changes_when_stake_changes` — slashing / rotation moves the root.
+- `validator_set_root_changes_with_order` — the set is committed in canonical (chain-stored) order, not a sorted multiset.
+- `validator_set_root_changes_when_validator_added` — registering a validator moves the root.
+- `validator_leaf_bytes_depend_on_every_field` — index, stake, vrf_pk, bls_pk, payout flag all materially affect the leaf.
+- `validator_leaf_hash_is_domain_separated` — `VALIDATOR_LEAF` is not confusable with any other dhash domain.
+- `validator_root_mismatch_is_rejected` — `apply_block` rejects a header whose `validator_root` doesn't match the pre-block set.
+- `build_unsealed_header_commits_pre_block_validator_set` — the producer's own header builder commits the pre-block root.
+- `validator_root_commits_pre_block_set_each_block` (integration) — multi-block invariant.
+- `validator_root_moves_on_equivocation_slash` (integration) — slashing zeroes stake → next header's root differs.
+- `validator_root_moves_on_unbond_settlement` (integration) — unbond settlement zeroes stake → next header's root differs.
+- `tampered_validator_root_in_signed_block_is_rejected` (integration) — flipping `validator_root` post-signing is rejected (also invalidates the BLS aggregate, which is by design — `header_signing_hash` now binds `validator_root`).
 
 ---
 

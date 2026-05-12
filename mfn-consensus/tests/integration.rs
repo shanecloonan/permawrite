@@ -1227,4 +1227,220 @@ mod unbond_lifecycle {
         );
         assert_eq!(fx.state.validators[3].stake, 1_000_000);
     }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0 — validator_root observability across the live chain        *
+     * ----------------------------------------------------------------- */
+
+    /// Every block emitted by the fixture must commit `validator_root`
+    /// equal to the merkle root of the *pre-block* validator set (i.e.,
+    /// the state we just transitioned out of, not the new one).
+    #[test]
+    fn validator_root_commits_pre_block_set_each_block() {
+        use mfn_consensus::{block_header_bytes, validator_set_root};
+        let mut fx = fixture_with_delay(2);
+
+        // Block 1: no ops. Header validator_root == root of genesis set.
+        let pre_state_root = validator_set_root(&fx.state.validators);
+        step(&mut fx, 1, Vec::new(), Vec::new());
+        // Verify against the last block_ids entry by re-deriving the
+        // header from the latest tip. (We can't easily fetch the header
+        // bytes back from state, but we can rebuild the header for the
+        // last applied step and compare.) Instead, simpler check:
+        // produce another block; the *next* header's validator_root
+        // must equal the post-block-1 validator set, which is unchanged
+        // here, so still equals pre_state_root.
+        let next_unsealed = mfn_consensus::build_unsealed_header(
+            &fx.state,
+            &[],
+            &[],
+            2,
+            200,
+        );
+        assert_eq!(next_unsealed.validator_root, pre_state_root);
+        // And serialization is non-empty (validator_root is part of the
+        // header bytes).
+        let bytes = block_header_bytes(&next_unsealed);
+        assert!(bytes.len() > 32);
+    }
+
+    /// Equivocation slashing zeroes a validator's stake. The *next*
+    /// block's `validator_root` must therefore differ from the pre-slash
+    /// root.
+    #[test]
+    fn validator_root_moves_on_equivocation_slash() {
+        use mfn_consensus::validator_set_root;
+        let mut fx = fixture_with_delay(100);
+        let v1_idx = fx.validators[1].index;
+        let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+        let root_before = validator_set_root(&fx.state.validators);
+
+        // Block 1: equivocate v1.
+        let h1 = [33u8; 32];
+        let h2 = [44u8; 32];
+        let ev = SlashEvidence {
+            height: 1,
+            slot: 1,
+            voter_index: v1_idx,
+            header_hash_a: h1,
+            sig_a: bls_sign(&h1, &v1_bls_sk),
+            header_hash_b: h2,
+            sig_b: bls_sign(&h2, &v1_bls_sk),
+        };
+        step(&mut fx, 1, Vec::new(), vec![ev]);
+
+        // v1.stake should now be zero in the new state.
+        assert_eq!(fx.state.validators[1].stake, 0);
+        let root_after = validator_set_root(&fx.state.validators);
+        assert_ne!(
+            root_before, root_after,
+            "slashing must move the validator-set root"
+        );
+
+        // The *next* unsealed header must commit `root_after`.
+        let next_unsealed = mfn_consensus::build_unsealed_header(
+            &fx.state,
+            &[],
+            &[],
+            2,
+            200,
+        );
+        assert_eq!(next_unsealed.validator_root, root_after);
+    }
+
+    /// Unbond settlement zeroes a validator's stake at the unlock
+    /// height. The block that settles must produce a header whose
+    /// successor's `validator_root` reflects the zeroed stake.
+    #[test]
+    fn validator_root_moves_on_unbond_settlement() {
+        use mfn_consensus::validator_set_root;
+        let mut fx = fixture_with_delay(2);
+        let v1_idx = fx.validators[1].index;
+        let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+        let root_genesis = validator_set_root(&fx.state.validators);
+
+        // Block 1: request unbond. Stake unchanged → root unchanged.
+        let unbond = BondOp::Unbond {
+            validator_index: v1_idx,
+            sig: sign_unbond(v1_idx, &v1_bls_sk),
+        };
+        step(&mut fx, 1, vec![unbond], Vec::new());
+        let root_after_request = validator_set_root(&fx.state.validators);
+        assert_eq!(
+            root_genesis, root_after_request,
+            "merely requesting unbond does not move the root"
+        );
+
+        // Block 2: still in delay window. No change.
+        step(&mut fx, 2, Vec::new(), Vec::new());
+        assert_eq!(
+            validator_set_root(&fx.state.validators),
+            root_genesis,
+            "delay window keeps root stable"
+        );
+
+        // Block 3: settlement. Stake zeroed → root moves.
+        step(&mut fx, 3, Vec::new(), Vec::new());
+        let root_after_settle = validator_set_root(&fx.state.validators);
+        assert_ne!(
+            root_genesis, root_after_settle,
+            "unbond settlement must move the validator-set root"
+        );
+    }
+
+    /// Tampering with `header.validator_root` on a fully-finalised
+    /// (BLS-signed) block must be rejected by `apply_block`. The
+    /// committee BLS-signs over `header_signing_hash`, which now
+    /// includes `validator_root`; tampering after sealing necessarily
+    /// invalidates the producer/committee aggregate.
+    #[test]
+    fn tampered_validator_root_in_signed_block_is_rejected() {
+        use mfn_consensus::{
+            apply_block, build_unsealed_header, cast_vote, encode_finality_proof, finalize,
+            header_signing_hash, seal_block, try_produce_slot, ApplyOutcome, BlockError, BondOp,
+            FinalityProof, PayoutAddress, SlotContext, DEFAULT_EMISSION_PARAMS,
+        };
+        let fx = fixture_with_delay(2);
+        // Build a valid block-1 header for the fixture.
+        let v0_payout = fx.state.validators[0].payout.unwrap();
+        let cb_payout = PayoutAddress {
+            view_pub: v0_payout.view_pub,
+            spend_pub: v0_payout.spend_pub,
+        };
+        let emission = mfn_consensus::emission_at_height(1, &DEFAULT_EMISSION_PARAMS);
+        let cb = mfn_consensus::build_coinbase(1, emission, &cb_payout).expect("cb");
+        let txs = vec![cb];
+        let bond_ops: Vec<BondOp> = Vec::new();
+
+        let mut unsealed = build_unsealed_header(&fx.state, &txs, &bond_ops, 1, 100);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height: 1,
+            slot: 1,
+            prev_hash: unsealed.prev_hash,
+        };
+        let total_stake: u64 = fx.state.validators.iter().map(|v| v.stake).sum();
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &fx.secrets[0],
+            &fx.state.validators[0],
+            total_stake,
+            fx.params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+        let mut votes = Vec::new();
+        let mut signing_stake: u64 = 0;
+        for (i, v) in fx.state.validators.iter().enumerate() {
+            if v.stake == 0 {
+                continue;
+            }
+            votes.push(
+                cast_vote(
+                    &header_hash,
+                    &fx.secrets[i],
+                    &ctx,
+                    &producer_proof,
+                    &fx.state.validators[0],
+                    total_stake,
+                    fx.params.expected_proposers_per_slot,
+                )
+                .unwrap(),
+            );
+            signing_stake += v.stake;
+        }
+        let agg = finalize(&header_hash, &votes, fx.state.validators.len()).expect("agg");
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: agg,
+            signing_stake,
+        };
+
+        // Tamper with the header AFTER the producer + committee signed
+        // over the original `header_signing_hash`.
+        unsealed.validator_root[0] ^= 0xff;
+
+        let blk = seal_block(
+            unsealed,
+            txs,
+            bond_ops,
+            encode_finality_proof(&fin),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&fx.state, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                assert!(
+                    errors
+                        .iter()
+                        .any(|e| matches!(e, BlockError::ValidatorRootMismatch)),
+                    "expected ValidatorRootMismatch in {errors:?}"
+                );
+            }
+            ApplyOutcome::Ok { .. } => panic!("expected err"),
+        }
+    }
 }

@@ -115,3 +115,11 @@ pub const UNBOND_OP_SIG: Domain = b"MFBN-1/unbond-op-sig";
 /// to the rest of the register payload, blocking permissionless replay of
 /// a serialized `Register` op for any operator's keys.
 pub const REGISTER_OP_SIG: Domain = b"MFBN-1/register-op-sig";
+
+/// Merkle leaf for a validator record committed under the block header's
+/// `validator_root` (M2.0). Canonical encoding includes the validator's
+/// index, stake, VRF + BLS public keys, and optional stealth payout —
+/// the minimal data a light client needs to verify a finality bitmap and
+/// quorum threshold against this validator set without holding the full
+/// chain state.
+pub const VALIDATOR_LEAF: Domain = b"MFBN-1/validator-leaf";

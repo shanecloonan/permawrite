@@ -12,9 +12,9 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register**) | `mfn-consensus` | 111 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root**) | `mfn-consensus` | 124 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **304** | All checks green |
+| **Total** | | **317** | All checks green |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -105,7 +105,45 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 
 ---
 
-## Milestone M2 — Node daemon (`mfn-node`)
+## Milestone M2.0 — Validator-set Merkle root (✓ shipped)
+
+**Why it was next.** With validator rotation live (M1) the `Validator` set drifts every block. M0/M1 already gave each block header a tx/storage/bond/utxo root commitment; the missing one was a binding commitment to the validator set the block was *produced against*. Adding it now unlocks:
+
+- **Light clients.** A header now self-describes the validator set it was validated against — so a client holding only the header chain can verify producer eligibility and committee quorum without holding the live validator list.
+- **Long-range attack resistance.** Forking history requires either (a) re-presenting the exact pre-block validator set, or (b) regenerating consistent BLS aggregates over a different `validator_root` — both are constrained by past bond-op authorization and slashing evidence.
+- **Closing the root-commitment family.** The header now binds `tx_root`, `bond_root`, `validator_root`, `storage_root`, `utxo_root` — txs, validator-set deltas, the live validator set, newly anchored storage, and the post-block UTXO accumulator.
+
+### What shipped
+
+- **`VALIDATOR_LEAF` domain tag** (`MFBN-1/validator-leaf`).
+- **`validator_leaf_bytes` / `validator_leaf_hash` / `validator_set_root`** in `mfn-consensus::consensus`, deterministically committing each `Validator`'s `(index, stake, vrf_pk, bls_pk, payout?)`. `ValidatorStats` is intentionally excluded — liveness counters churn every block and would force a needless re-hash of every leaf; light clients verifying a finality bitmap need `(index, stake, bls_pk)` only.
+- **`BlockHeader.validator_root: [u8; 32]`**, included in both `header_signing_bytes` (the BLS-signed pre-image) and `block_header_bytes` (the full header, used for `block_id`).
+- **Pre-block semantics.** The root commits to the validator set held by the chain state *before* applying the block, i.e. the set Phase 0's producer-proof and finality bitmap are verified against. Rotation / slashing / unbond settlement applied **by** this block move the **next** header's root.
+- **`apply_block` Phase 1 check.** Reconstructs `validator_set_root(&state.validators)` and rejects mismatching headers with a new `BlockError::ValidatorRootMismatch`. The check runs *before* finality verification, so a tampered `validator_root` is rejected even if (somehow) the BLS aggregate were valid.
+- **Genesis convention.** Genesis commits `validator_root = [0u8; 32]` (the pre-genesis validator set is empty); the block at height 1 commits to `validator_set_root(&cfg.validators)`.
+
+### Test matrix (delivered)
+
+- ✓ Empty validator set → all-zero sentinel.
+- ✓ Leaf bytes depend on every field (`index`, `stake`, `vrf_pk`, `bls_pk`, `payout` flag).
+- ✓ `VALIDATOR_LEAF` is domain-separated (cross-domain dhash differs).
+- ✓ Stake changes move the root (slashing / rotation).
+- ✓ Ordering matters (canonical chain-stored order, not a sorted multiset).
+- ✓ Registering a validator moves the root.
+- ✓ `build_unsealed_header` commits the pre-block root.
+- ✓ Tampered `header.validator_root` rejected by `apply_block` (both legacy/no-validator mode and a fully signed multi-validator block).
+- ✓ Multi-block invariant: each header's `validator_root` equals the pre-block set's root.
+- ✓ Equivocation slash moves the **next** header's root.
+- ✓ Unbond settlement moves the **next** header's root.
+
+### Deferred to a future milestone
+
+- **TS-side reference port for `validator_leaf_bytes` and `validator_set_root`.** Rust-side golden vectors are pinned in `validator_root_wire_matches_cloonan_ts_smoke_reference` (canonical bytes + leaf hash for both with-payout and no-payout branches, plus the root over a two-validator set); the matching TS smoke fixture will land in `cloonan-group` next.
+- **Light-client crate.** The header is now self-describing, but a separate `mfn-light` crate is intentionally postponed until the node daemon (M2.x) is up — without a real chain to query, there's nothing for the light client to verify against.
+
+---
+
+## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
 
@@ -128,11 +166,11 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 
 ### Phases
 
-- **M2a — Single-node demo.** No P2P; just `apply_block` driven by an RPC harness. Validates the chain state machine works end-to-end in a long-running process.
-- **M2b — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
-- **M2c — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
+- **M2.1 — Single-node demo.** No P2P; just `apply_block` driven by an RPC harness. Validates the chain state machine works end-to-end in a long-running process.
+- **M2.2 — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
+- **M2.3 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
 
-### Not in M2
+### Not in M2.x
 
 - Light clients (M4).
 - Cross-chain bridges (M5+).
