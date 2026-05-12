@@ -466,7 +466,59 @@ The economy is **closed** in the sense that no value leaves the chain. It's **op
 
 ---
 
-## 9. Open economic questions
+## 9. Validator bond economics (M1, closed loop)
+
+Validator rotation, shipped in M1, is itself a self-balancing money flow that **plugs directly into the treasury** rather than introducing a separate validator-reward pipeline.
+
+### Burn-on-bond
+
+Every successful `BondOp::Register` credits the validator's declared `stake` (in MFN base units) to `ChainState::treasury` and appends a new active validator with a fresh `ValidatorStats` row. There is no separate "validator deposit" account, no Pedersen-committed escrow, no lockup-token. The treasury — the same pool that funds permanence — is the canonical permanence-funding sink, and validator bonds add to it.
+
+### Slash-to-treasury
+
+Both classes of slashing route the forfeited stake to the treasury (saturating `u128`):
+
+- **Equivocation slashing.** Full stake forfeit. The validator's `stake` is set to zero in the next state.
+- **Liveness slashing.** Multiplicative `liveness_slash_bps` forfeit per consecutive-miss threshold trip. The delta (`old_stake − new_stake`) accrues to the treasury.
+
+### Unbond settlement
+
+When a `BondOp::Unbond` matures (`height ≥ unlock_height`), the validator's stake is zeroed and they become a non-signing zombie. The originally bonded MFN **remains in the treasury** as a permanent contribution to the permanence endowment. M1 deliberately introduces no operator payout on settlement; that's deferred to a future milestone (and would itself debit the treasury, just like any other operator-side outflow). Settlement runs **after** slashing, so equivocating during the delay window still credits the treasury and zeroes the validator — there's no rage-quit exit.
+
+### The closed loop
+
+Putting the three flows together, M1 makes the treasury the single accounting hub for the validator-incentive system:
+
+```
+                ┌────────────────────────────┐
+                │      ChainState.treasury   │
+                └────┬────────┬──────────┬───┘
+                     ▲        ▲          │
+   Register burn ────┘        │          │
+   Slash credit ───────────────┘          │
+                                          ▼
+                                Storage-operator rewards
+                                (drains treasury per accepted SPoRA proof,
+                                 emission-backstopped on shortfall)
+```
+
+- **Inflows.** `register_burn(op) + slash_credit(equivocation, liveness)` per block.
+- **Outflows.** `Σ accrued_payout(proof)` per block, drained from treasury first; emission backstop covers any shortfall.
+
+Validator bonds are therefore a **one-way contribution to the permanence endowment in M1**. Two consequences worth noting:
+
+1. **No new issuance path is needed to fund validator economics.** The chain's existing emission curve + fee split remains the only mechanism producing fresh MFN; validator commitment redirects into permanence rather than out into new tokens.
+2. **A malicious validator directly subsidizes the network they attacked.** Equivocation evidence anchored against an attacker who locked up `stake` worth of bond converts the entire bond into storage funding the moment the evidence is included.
+
+This is the economic engine M1 unlocked: privacy demand pays the treasury via fees, validators pay the treasury via bonds, slashes pay the treasury via punishment, and the treasury pays permanence operators. No leakage; no second pool to govern.
+
+### When the deferred operator payout lands
+
+A future milestone may restore an explicit settlement payout — either via an augmented coinbase output for the settling validator, or a dedicated payout transaction class. Both shapes treat the payout as a `treasury` outflow on the same accounting footing as storage rewards. The economics here are robust to either choice; the loop above is the invariant.
+
+---
+
+## 10. Open economic questions
 
 These are deliberately not yet hard-coded:
 
@@ -478,7 +530,7 @@ These are open research questions, not bugs. They'll be addressed via governance
 
 ---
 
-## 10. Public API surface
+## 11. Public API surface
 
 The economic functions are all in `mfn-consensus::emission` and `mfn-storage::endowment`:
 

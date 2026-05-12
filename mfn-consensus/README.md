@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 81 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 107 passing (99 unit + 8 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -15,7 +15,8 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | Module | Responsibility |
 |---|---|
 | [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps. |
-| [`bonding`](src/bonding.rs) | M1 rotation **parameters** — min stake, unbond delay, epoch churn caps (wire + `apply_block` next). |
+| [`bonding`](src/bonding.rs) | M1 rotation parameters + pure validation helpers — min stake, unbond delay, per-epoch entry/exit churn caps. |
+| [`bond_wire`](src/bond_wire.rs) | M1 wire format — `BondOp::Register` (burn-on-bond), `BondOp::Unbond` (BLS-signed authorization), `bond_op_leaf_hash`, `bond_merkle_root`. |
 | [`transaction`](src/transaction.rs) | RingCT-style confidential tx — wire format, build, sign, verify. |
 | [`coinbase`](src/coinbase.rs) | Deterministic synthetic block-reward tx. |
 | [`consensus`](src/consensus.rs) | Slot model, VRF leader election, BLS committee finality, `FinalityProof`. |
@@ -31,8 +32,8 @@ In order, every block goes through these checks. Any failure produces a typed `B
 
 1. **Header sanity.** Height increments by 1, prev_hash matches, version matches, timestamp increases.
 2. **Finality proof.** Decode `producer_proof`; verify producer's VRF + Schnorr; verify committee BLS aggregate; verify quorum stake share.
-3. **Merkle roots.** Reconstruct `tx_root` and `storage_root`; reject mismatches.
-4. **Equivocation slashing.** For each `SlashEvidence`: verify, zero offending validator's stake.
+3. **Merkle roots.** Reconstruct `tx_root`, `storage_root`, and `bond_root` (M1); reject mismatches.
+4. **Equivocation slashing.** For each `SlashEvidence`: verify, **credit forfeited stake to `treasury`**, zero offending validator's stake.
 5. **Coinbase** (when applicable): verify `amount == emission(height) + producer_fee_share`.
 6. **Regular tx verification.** For each tx: CLSAG signatures, Pedersen balance, Bulletproof range proofs.
 7. **Ring-membership chain guard.** For each CLSAG input, every ring member `(P, C)` must exist in the UTXO set with **exact** commitment match. **Closes the counterfeit-input attack.**
@@ -41,9 +42,11 @@ In order, every block goes through these checks. Any failure produces a typed `B
 10. **State updates.** Insert new UTXOs, append to accumulator, register new commitments, add treasury inflow.
 11. **SPoRA proofs.** For each `StorageProof`: reject duplicates, verify against deterministic challenge, accrue PPB yield, pay out integer base units.
 12. **Treasury settlement.** Drain treasury for storage rewards; emission backstop covers any shortfall.
-13. **Liveness tracking + auto-slash.** Walk finality bitmap; update `ValidatorStats`; multiplicatively slash any validator over the consecutive-missed-vote threshold.
-14. **UTXO root.** Recompute accumulator root; reject if `header.utxo_root` doesn't match.
-15. **Commit.** Append block_id to `block_ids`, return new state.
+13. **Liveness tracking + auto-slash.** Walk finality bitmap; update `ValidatorStats`; multiplicatively slash any validator over the consecutive-missed-vote threshold (forfeited stake **credited to `treasury`**).
+14. **Bond operations (M1).** Atomically apply `BondOp::Register` (validator registered, declared stake **burned into `treasury`**) and `BondOp::Unbond` (BLS-signed; enqueued into `pending_unbonds`). Per-epoch entry / exit churn caps enforced. Any rejection rolls back the entire bond-op block.
+15. **Unbond settlement (M1).** Any pending unbond whose `unlock_height ≤ block.height` is settled: the validator's stake is zeroed, the entry becomes a non-signing zombie, and the originally bonded MFN remains in the treasury (permanent contribution to the permanence endowment).
+16. **UTXO root.** Recompute accumulator root; reject if `header.utxo_root` doesn't match.
+17. **Commit.** Append block_id to `block_ids`, return new state.
 
 Full implementation in [`src/block.rs`](src/block.rs).
 
@@ -125,18 +128,24 @@ pub struct Block {
 }
 
 pub struct ChainState {
-    pub height:            Option<u32>,
-    pub utxo:              HashMap<[u8;32], UtxoEntry>,
-    pub spent_key_images:  HashSet<[u8;32]>,
-    pub storage:           HashMap<[u8;32], StorageEntry>,
-    pub block_ids:         Vec<[u8;32]>,
-    pub validators:        Vec<Validator>,
-    pub validator_stats:   Vec<ValidatorStats>,
-    pub params:            ConsensusParams,
-    pub emission_params:   EmissionParams,
-    pub endowment_params:  EndowmentParams,
-    pub treasury:          u128,
-    pub utxo_tree:         UtxoTreeState,
+    pub height:                  Option<u32>,
+    pub utxo:                    HashMap<[u8;32], UtxoEntry>,
+    pub spent_key_images:        HashSet<[u8;32]>,
+    pub storage:                 HashMap<[u8;32], StorageEntry>,
+    pub block_ids:               Vec<[u8;32]>,
+    pub validators:              Vec<Validator>,
+    pub validator_stats:         Vec<ValidatorStats>,
+    pub params:                  ConsensusParams,
+    pub emission_params:         EmissionParams,
+    pub endowment_params:        EndowmentParams,
+    pub bonding_params:          BondingParams,            // M1
+    pub bond_epoch_id:           u64,                       // M1
+    pub bond_epoch_entry_count:  u32,                       // M1
+    pub bond_epoch_exit_count:   u32,                       // M1
+    pub next_validator_index:    u32,                       // M1
+    pub pending_unbonds:         BTreeMap<u32, PendingUnbond>, // M1
+    pub treasury:                u128,
+    pub utxo_tree:               UtxoTreeState,
 }
 ```
 
@@ -211,15 +220,17 @@ pub enum BlockError {
 
 ## Test categories
 
-- **Genesis** (`apply_genesis` behavior, initial output insertion, initial storage anchoring).
+- **Genesis** (`apply_genesis` behavior, initial output insertion, initial storage anchoring, optional `bonding_params`).
 - **Header** (height/prev-hash/version/timestamp sanity).
 - **Tx semantics** (CLSAG verify, Pedersen balance, range proofs, key-image uniqueness).
 - **Ring membership** (counterfeit-input attack closure — fabricated members rejected, real-P-wrong-C rejected).
 - **Storage** (endowment burden enforcement, replication bounds, duplicate proofs, unknown commits, corrupt chunks, accrual correctness).
-- **Slashing** (equivocation: stake zeroed; liveness: 8 unit tests + 1 multi-block integration test).
+- **Slashing** (equivocation: stake zeroed + forfeited stake credited to treasury; liveness: 8 unit tests + 1 multi-block integration test; both routed to treasury).
 - **Consensus** (finality verification, quorum threshold, missing producer proof).
-- **Roots** (tx_root, storage_root, utxo_root reconstruction).
-- **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing).
+- **Roots** (tx_root, storage_root, bond_root, utxo_root reconstruction).
+- **Bond wire** (`bond_op_round_trip`, `bond_register_wire_matches_cloonan_ts_smoke_reference`, `unbond_op_round_trip_and_sig_verify`, `unbond_signing_hash_is_domain_separated`, `unbond_sig_does_not_verify_under_different_index`, `unbond_decode_rejects_trailing_bytes`).
+- **Bond apply** (burn-on-bond credits treasury, per-epoch entry/exit churn cap enforcement, atomic rollback of failed bond ops, unbond-of-unknown-validator rejection).
+- **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 
 ```bash
 cargo test -p mfn-consensus --release

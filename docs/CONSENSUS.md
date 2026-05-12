@@ -324,16 +324,18 @@ Integration test in `mfn-consensus/tests/integration.rs`:
 
 ## 6. Validator set
 
-**Intuition.** Today's validator set is frozen at genesis. Future protocol upgrades will introduce bond/unbond transactions and entry/exit queues so the set can rotate. (See [`ROADMAP.md`](./ROADMAP.md).)
+**Intuition.** As of M1, the validator set rotates **on-chain**. New validators register via burn-on-bond `BondOp::Register`; existing validators exit via BLS-signed `BondOp::Unbond` with a delayed settlement that keeps them slashable across the delay. Per-epoch churn caps prevent the set from thrashing under griefing.
 
-### Current state (v0.1)
+### `Validator` shape
 
 ```rust
 pub struct Validator {
-    pub vrf_public_key:  EdwardsPoint,
-    pub bls_public_key:  BlsPublicKey,
-    pub schnorr_public_key: EdwardsPoint,
-    pub stake:           u64,
+    pub index:               u32,            // monotonic, never reused
+    pub vrf_public_key:      EdwardsPoint,
+    pub bls_public_key:      BlsPublicKey,
+    pub schnorr_public_key:  EdwardsPoint,
+    pub stake:               u64,
+    pub payout:              Option<ValidatorPayout>,
 }
 
 pub struct ValidatorSecrets {
@@ -346,23 +348,50 @@ pub struct ValidatorSecrets {
 Three keypairs per validator:
 
 - **VRF keypair** — for leader election.
-- **BLS keypair** — for finality voting.
+- **BLS keypair** — for finality voting **and** for authorizing the validator's own `BondOp::Unbond`.
 - **Schnorr keypair** — for producer claim (signing the VRF proof in their `ProducerProof`).
 
 Why three? Different roles, different schemes. VRF and BLS use different curves; Schnorr lets us bind the VRF proof to the producer's stable identity. Keeping them separate keeps the security reductions clean.
 
 ### `Validator` index = identity
 
-The validator's identity in the chain is just their index in `ChainState::validators`. The finality bitmap is keyed by this index. `validator_stats[i]` is the stats for `validators[i]`. Tight coupling, simple semantics.
+The validator's identity in the chain is just their `index`. The finality bitmap is keyed by this index. `validator_stats[i]` is the stats for `validators[i]`. **Indices are never reused** — `ChainState::next_validator_index` is a monotonic counter — so historical finality bitmaps and slash evidence reference stable slots even after a validator unbonds or is zeroed out.
 
-### What's missing (v0.2 roadmap)
+### Rotation (M1 — live)
 
-- **Bond/unbond transactions.** Staking and unstaking must be on-chain, with delays (to prevent unbond-then-attack).
-- **Entry/exit queues.** Bounded per-epoch churn so the validator set is predictable.
-- **Slashing-aware unbond.** Equivocation slashes that are anchored *after* an unbond should still take effect (delayed unbond ≥ max-evidence-window).
-- **Validator metadata.** Optional fields for monitoring (last-active height, slash history visible to wallets).
+`BlockHeader` carries `bond_root: [u8; 32]` (Merkle root over the block's `bond_ops`, zero sentinel for empty), and `Block` carries `bond_ops: Vec<BondOp>`.
 
-See [`ROADMAP.md`](./ROADMAP.md) for the implementation plan.
+```rust
+pub enum BondOp {
+    Register {
+        stake:   u64,
+        vrf_pk:  EdwardsPoint,
+        bls_pk:  BlsPublicKey,
+        payout:  Option<ValidatorPayout>,
+    },
+    Unbond {
+        validator_index: u32,
+        sig:             BlsSignature,   // domain-separated under MFBN-1/unbond-op-sig
+    },
+}
+```
+
+`apply_block` validates and applies `bond_ops` atomically. On success:
+
+- `BondOp::Register` appends a new `Validator` (with a fresh `ValidatorStats` row) and **burns its declared stake into `treasury`** — the same sink that funds permanence.
+- `BondOp::Unbond` is BLS-verified against the validator's own `bls_public_key` and enqueued into `pending_unbonds: BTreeMap<u32, PendingUnbond>` with `unlock_height = height + bonding_params.unbond_delay_blocks`.
+
+Per-epoch entry / exit churn caps (`max_entry_churn_per_epoch`, `max_exit_churn_per_epoch`; default 4 each) bound how fast the set can change.
+
+### Settlement and slashing during the delay
+
+A separate settlement phase later in `apply_block` finalizes any pending unbond whose `unlock_height ≤ height`: the validator's stake is zeroed and they become a non-signing zombie. Because settlement runs **after** equivocation slashing and liveness updates, a validator who unbonds and then equivocates inside the delay is still fully forfeited — and the forfeited stake credits the treasury. There's no "rage-quit" exit.
+
+### Slashed / settled stake disposition
+
+Both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) **credit the lost amount to `treasury`** using saturating `u128` arithmetic. Settled unbonds also leave their originally bonded MFN in the treasury (M1 deliberately defers any operator payout). The result: rotation in M1 is a **closed economic loop** — bonds in, slashes in, storage rewards out — see [`ECONOMICS.md § Validator bond economics`](./ECONOMICS.md#9-validator-bond-economics-m1-closed-loop) for the full picture.
+
+For the full design note + test matrix, see [`docs/M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md). The only remaining wire-format question is mempool-grade authorization for `BondOp::Register` (Unbond is already BLS-authenticated).
 
 ---
 

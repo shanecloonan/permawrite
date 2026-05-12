@@ -12,11 +12,11 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives | `mfn-storage` | 32 | ✓ live |
-| Chain state machine (incl. SPoRA verify + liveness slashing) | `mfn-consensus` | 81 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation**) | `mfn-consensus` | 107 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **279** | All checks green |
+| **Total** | | **300** | All checks green |
 
-**Posture.** We've built the consensus core. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
+**Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
 ---
 
@@ -54,39 +54,53 @@ Everything described in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Specifically:
   - Two-sided treasury settlement (with emission backstop)
   - **Liveness tracking + multiplicative slashing**
 
-Test count: 279 passing across the workspace. Zero `unsafe`. Zero clippy warnings.
+Test count: 279 passing across the workspace at the close of M0. Zero `unsafe`. Zero clippy warnings.
 
 ---
 
-## Milestone M1 — Validator rotation (next major)
+## Milestone M1 — Validator rotation (✓ shipped)
 
-Full design note: [**docs/M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md). Default parameters and pure validation helpers live in `mfn_consensus::bonding` (wired into `apply_block` in a follow-up PR).
+Full design note: [**docs/M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md). Validator rotation is now fully implemented end-to-end: register, exit, delayed settlement, slashing during the delay, per-epoch churn caps, and the burn-on-bond / slash-to-treasury economic loop.
 
-**Why this is next.** Today the validator set is frozen at genesis. This is the largest *structural* hole left in the protocol layer. Without rotation, the chain can't onboard new validators or remove zero-stake (liveness-slashed-to-floor or equivocation-zeroed) ones.
+**Why it was next.** At the close of M0 the validator set was frozen at genesis. Without rotation, the chain could not onboard new validators or recycle slots vacated by zero-stake (liveness-slashed-to-floor or equivocation-zeroed) ones — the largest *structural* hole left in the protocol layer.
 
-### Scope
+### What shipped
 
-- **Bond transaction.** New variant of `TransactionWire` that locks a stake amount and registers a new `Validator` entry.
-- **Unbond transaction.** Initiates withdrawal of a bond; subject to an unbond delay (≥ max evidence window, so equivocation slashing can still take effect after intent-to-unbond).
-- **Entry/exit queues.** Bounded per-epoch churn. Default: at most 4 validators in or out per epoch (epoch = some multiple of the slot frequency).
-- **Validator-stats reset.** New validators get fresh `ValidatorStats`; departing validators have their slot freed.
-- **Storage operator bond (separate from validator bond — optional, for "premium" replica tier).**
+- **`BondOp::Register`** — burn-on-bond. The validator's declared stake is credited to `treasury`, the new validator is appended with a fresh `ValidatorStats` row, and a deterministic `next_validator_index` counter ensures indices are never reused.
+- **`BondOp::Unbond`** — BLS-signed authorization over a domain-separated payload (`MFBN-1/unbond-op-sig` ‖ `validator_index`). Enqueued into `pending_unbonds: BTreeMap<u32, PendingUnbond>` with `unlock_height = height + unbond_delay_blocks`.
+- **Delayed settlement.** At `height ≥ unlock_height`, the entry is popped, the validator's stake is zeroed (becomes a non-signing zombie), and the originally bonded MFN remains in the treasury — a permanent contribution to the permanence endowment. Explicit operator payouts are intentionally deferred.
+- **Per-epoch entry / exit churn caps.** `max_entry_churn_per_epoch` and `max_exit_churn_per_epoch` (defaults: 4 each), enforced via `try_register_entry_churn` / `try_register_exit_churn`. Oversubscribed unbonds spill cleanly into subsequent blocks without losing their delay accounting.
+- **Treasury credit on slash.** Both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) credit the lost amount to `treasury` using saturating `u128` arithmetic — the same sink that funds storage operators.
+- **Atomicity.** Bond ops are applied as a single all-or-nothing batch per block: any rejection (bad signature, churn cap, unknown validator, …) rolls back the entire bond-op set so `bond_root` remains the binding commitment.
+- **Header v1 carries `bond_root`.** A separate Merkle root over the block's bond ops (Option A from the design note). Empty bond-op vector → `[0u8; 32]` sentinel.
 
-### Open design questions
+### Closed economic-symmetry property
 
-- Single bond per validator vs. multiple delegations (decided: single, for simplicity).
-- Slashed validators' bonds: fully burned, fully donated to treasury, or partially returned? (Tentative: fully donated to treasury.)
-- Cooldown: 14 days at slot rate? Longer? Tied to economic security margin?
+Combined, burn-on-bond + slash-to-treasury give the chain a closed economic loop:
 
-### Tests we'll write
+- Every base unit a validator commits via `BondOp::Register` is credited to the treasury.
+- Every base unit a validator forfeits via equivocation or liveness slashing is credited to the treasury.
+- Every base unit paid out to storage operators via `accrue_proof_reward` drains the treasury (with the emission backstop).
 
-- Bond tx via `apply_block` extends validator set.
-- Unbond delay enforced.
-- Late equivocation slashing applies despite intent-to-unbond.
-- Entry/exit queues bounded.
-- Treasury credited on slash.
+Validator bonds are a **one-way contribution** to the permanence endowment in M1. Operator payouts on settlement are explicitly deferred to a future milestone.
 
-**Estimated scope.** ~1500 LoC + ~30 tests. Comparable to liveness-slashing work.
+### Test matrix (delivered)
+
+- ✓ Bond accepted → validator appears with correct index, fresh stats row, eligible in the next VRF cycle. *(`block::tests::bond_op_round_trip` + `bond_apply` cases.)*
+- ✓ Burn-on-bond credits treasury *(`burn_on_bond_credits_treasury`, `burn_on_bond_aggregates_multiple_registers`).*
+- ✓ Equivocation evidence credits treasury *(`equivocation_slash_credits_treasury_via_apply_block`).*
+- ✓ Liveness slash credits treasury *(`liveness_slash_credits_treasury`, `liveness_slash_treasury_compounds_with_validator_stake`).*
+- ✓ Entry / exit churn caps enforced deterministically *(`bonding::tests::entry_churn_cap`, `exit_churn_cap`; apply-side in `block::tests`).*
+- ✓ Unbond submitted → validator still slashable during the delay *(`unbond_lifecycle_equivocation_during_delay_still_slashes` in `tests/integration.rs`).*
+- ✓ Settlement at `unlock_height` zeros stake + leaves bonded MFN in treasury *(`unbond_lifecycle_request_delay_settle`).*
+- ✓ Oversubscribed unbonds spill across blocks honoring the per-epoch exit cap *(`unbond_lifecycle_exit_churn_cap_spills_to_next_block`).*
+- ✓ TS interop: `BondOp::Register` byte parity with the `cloonan-group` smoke reference *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
+
+### Deferred to a future milestone
+
+- **Explicit operator payout on settlement** (coinbase output augmentation or a dedicated payout transaction class). The M1 design intentionally leaves bonded MFN in the treasury rather than introducing a new wire shape mid-milestone.
+- **Mempool-grade authorization for `BondOp::Register`.** Unbond is BLS-authenticated; Register is still trusted from the local block builder. Permissionless mempool admission requires either a Schnorr-over-bond-bytes by the operator's BLS key or a UTXO-consuming bond-input transaction — sealing this is a hard precondition for mainnet (tracked in [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md)).
+- **Storage-operator bonding** (separate from validator bonding, for a future "premium" replica tier).
 
 ---
 

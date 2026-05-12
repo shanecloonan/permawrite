@@ -109,6 +109,8 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/coinbase-{tx-key,blind}` | Coinbase derivation |
 | `MFBN-1/utxo-{leaf,node,empty}` | UTXO accumulator |
 | `MFBN-1/oom-challenge` | One-out-of-Many challenge |
+| `MFBN-1/bond-op-leaf` | Bond-op Merkle leaf (M1) |
+| `MFBN-1/unbond-op-sig` | `BondOp::Unbond` BLS-signed authorization payload (M1) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -200,6 +202,7 @@ struct Block {
     txs:            Vec<TransactionWire>,  // txs[0] may be coinbase
     slashings:      Vec<SlashEvidence>,    // equivocation evidence anchored in this block
     storage_proofs: Vec<StorageProof>,     // SPoRA proofs answering this block's challenges
+    bond_ops:       Vec<BondOp>,           // M1 — Register / Unbond
 }
 ```
 
@@ -214,6 +217,7 @@ struct BlockHeader {
     timestamp:      u64,
     tx_root:        [u8; 32],   // merkle over tx_ids
     storage_root:   [u8; 32],   // merkle over storage commitment hashes
+    bond_root:      [u8; 32],   // M1 — merkle over bond_ops (zero sentinel if empty)
     producer_proof: Vec<u8>,    // MFBN-encoded FinalityProof
     utxo_root:      [u8; 32],   // accumulator root *after* this block applies
 }
@@ -223,18 +227,24 @@ struct BlockHeader {
 
 ```rust
 struct ChainState {
-    height:            Option<u32>,
-    utxo:              HashMap<[u8; 32], UtxoEntry>,
-    spent_key_images:  HashSet<[u8; 32]>,
-    storage:           HashMap<[u8; 32], StorageEntry>,
-    block_ids:         Vec<[u8; 32]>,
-    validators:        Vec<Validator>,
-    validator_stats:   Vec<ValidatorStats>,  // aligned with validators by index
-    params:            ConsensusParams,
-    emission_params:   EmissionParams,
-    endowment_params:  EndowmentParams,
-    treasury:          u128,
-    utxo_tree:         UtxoTreeState,  // depth-32 sparse Merkle accumulator
+    height:                  Option<u32>,
+    utxo:                    HashMap<[u8; 32], UtxoEntry>,
+    spent_key_images:        HashSet<[u8; 32]>,
+    storage:                 HashMap<[u8; 32], StorageEntry>,
+    block_ids:               Vec<[u8; 32]>,
+    validators:              Vec<Validator>,
+    validator_stats:         Vec<ValidatorStats>,  // aligned with validators by index
+    params:                  ConsensusParams,
+    emission_params:         EmissionParams,
+    endowment_params:        EndowmentParams,
+    bonding_params:          BondingParams,                  // M1
+    bond_epoch_id:           u64,                             // M1
+    bond_epoch_entry_count:  u32,                             // M1 — epoch entry-churn counter
+    bond_epoch_exit_count:   u32,                             // M1 — epoch exit-churn counter
+    next_validator_index:    u32,                             // M1 — monotonic; never reused
+    pending_unbonds:         BTreeMap<u32, PendingUnbond>,   // M1 — keyed by validator index
+    treasury:                u128,
+    utxo_tree:               UtxoTreeState,  // depth-32 sparse Merkle accumulator
 }
 ```
 
@@ -385,9 +395,37 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
   - `new_stake = stake × (10_000 − liveness_slash_bps) / 10_000` (multiplicative reduction).
   - `liveness_slashes += 1`.
   - Reset `consecutive_missed = 0`.
+  - **Credit the forfeited stake delta to `next.treasury`** (saturating `u128`).
 
-### Phase 7 — Root checks + commit
+### Phase 7 — Bond operations (M1)
 
+[`simulate_bond_ops`](../mfn-consensus/src/block.rs) runs **atomically** over `block.bond_ops`, validated against the pre-bond view of the chain. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rolls back the entire bond-op set so the binding `bond_root` commitment remains intact.
+
+- `BondOp::Register { stake, vrf_pk, bls_pk, payout }`:
+  - Stake validated by `bonding::validate_stake` (≥ `min_validator_stake`).
+  - `vrf_pk` must be unique across the active set.
+  - Per-epoch entry-churn cap enforced via `try_register_entry_churn`.
+  - Append a new `Validator` (index `= next.next_validator_index`, `next.next_validator_index += 1`) and a lockstep fresh `ValidatorStats` row.
+  - **Burn `stake` into `next.treasury`** (the closed-loop permanence sink).
+- `BondOp::Unbond { validator_index, sig }`:
+  - BLS-verify `sig` against the validator's `bls_pk` over `dhash(UNBOND_OP_SIG, validator_index.to_be_bytes())`.
+  - Reject unknown / zombie / duplicate validators.
+  - Per-epoch exit-churn cap enforced via `try_register_exit_churn`.
+  - Insert `PendingUnbond { validator_index, unlock_height = height + unbond_delay_blocks, stake_at_request, request_height }` into `next.pending_unbonds`.
+  - **The validator stays live and slashable** for the duration of the delay.
+
+### Phase 8 — Unbond settlement (M1)
+
+Walk `next.pending_unbonds` in ascending `validator_index` order. For each entry with `unlock_height ≤ height`:
+
+- Zero the validator's `stake` (becomes a non-signing zombie at the same index).
+- Remove the entry from `pending_unbonds`.
+- The originally bonded MFN **stays in `next.treasury`** — M1 leaves it as a permanent contribution to permanence. Explicit operator payouts on settlement are deferred to a future milestone (see [`M1_VALIDATOR_ROTATION.md § Future work`](./M1_VALIDATOR_ROTATION.md#future-work)).
+- Settlement runs *after* slashing, so a validator who unbonds and then equivocates inside the delay is still fully forfeited (and the slash credits the treasury).
+
+### Phase 9 — Root checks + commit
+
+- Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
 - Recompute `utxo_root` from `next.utxo_tree` and reject if it differs from `header.utxo_root`.
 - Append `block_id(header)` to `next.block_ids`.
 - Return `Ok(next)`.
@@ -572,12 +610,12 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 | Liveness incentive | Multiplicative stake slash for chronic missed votes | ✓ live |
 | Storage permanence | Endowment formula enforced at upload; SPoRA audited every block | ✓ live |
 | Forward-secret receivers | Stealth derivation uses per-tx ephemeral randomness | ✓ live |
-| Long-range attack resistance | (planned) bonded validators with unbond delay | □ planned |
+| Long-range attack resistance | Bonded validators with delayed unbond + slash-during-delay (M1) | ✓ live |
 | Censorship resistance | Multi-eligible-producer slots (`expected_proposers_per_slot = 1.5`) | ✓ live |
 
 ### Known limitations (honest list)
 
-- **No validator rotation yet.** Validator set is frozen at genesis. Bond/unbond transactions are the next major protocol-layer work. See [`ROADMAP.md`](./ROADMAP.md).
+- **Validator rotation shipped in M1.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury are live. The only remaining wire-format question is mempool-grade authorization for `BondOp::Register` (Unbond is already BLS-authenticated). See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md).
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **No node binary / mempool / P2P yet.** This repo is the consensus core. The daemon (`mfn-node`) is in the roadmap.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
@@ -637,8 +675,10 @@ mfn-storage/        Permanence                 (32 tests)
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (81 tests)
+mfn-consensus/      Chain state machine        (107 tests: 99 unit + 8 integration)
 ├── emission.rs     Hybrid emission curve + fee split
+├── bonding.rs      M1 rotation params + pure validation helpers
+├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
 ├── transaction.rs  RingCT-style tx wire + verify
 ├── coinbase.rs     Deterministic coinbase
 ├── consensus.rs    Slot model, VRF leader election, BLS committee finality
