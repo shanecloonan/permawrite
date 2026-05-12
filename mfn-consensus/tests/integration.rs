@@ -218,6 +218,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0, // oversample to make every validator always eligible
         quorum_stake_bps: 6667,
+        ..ConsensusParams::default()
     };
 
     /* ----- Genesis with one initial UTXO that wallet_a controls ----- */
@@ -235,12 +236,39 @@ fn chain_genesis_block1_block2_with_slashing() {
     let signer_p = generator_g() * signer_spend;
     let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
 
+    // Decoy UTXOs anchored at genesis. In a real chain these would be
+    // historical outputs the wallet selects via gamma-aged sampling; for
+    // the test we just need them to exist in the chain's UTXO set so the
+    // chain's ring-membership guard accepts them.
+    let ring_size = 11usize;
+    let signer_idx = 5usize;
+    let mut decoy_outputs: Vec<GenesisOutput> = Vec::with_capacity(ring_size - 1);
+    let mut decoy_p: Vec<curve25519_dalek::edwards::EdwardsPoint> =
+        Vec::with_capacity(ring_size - 1);
+    let mut decoy_c: Vec<curve25519_dalek::edwards::EdwardsPoint> =
+        Vec::with_capacity(ring_size - 1);
+    for _ in 0..(ring_size - 1) {
+        let sp = random_scalar();
+        let bp = random_scalar();
+        let vp = random_scalar();
+        let p = generator_g() * sp;
+        let c = (generator_g() * bp) + (generator_h() * vp);
+        decoy_outputs.push(GenesisOutput {
+            one_time_addr: p,
+            amount: c,
+        });
+        decoy_p.push(p);
+        decoy_c.push(c);
+    }
+    let mut initial_outputs = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    initial_outputs.extend(decoy_outputs.iter().cloned());
+
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: signer_p,
-            amount: signer_c,
-        }],
+        initial_outputs,
         initial_storage: Vec::new(),
         validators: validators.clone(),
         params,
@@ -263,23 +291,20 @@ fn chain_genesis_block1_block2_with_slashing() {
     let fee = 100_000u64;
     assert_eq!(send_value + change_value + fee, init_value);
 
-    // Hand-rolled InputSpec (ring of 11, signer at slot 5; other ring members
-    // are random points). The signer's real input is the genesis UTXO.
-    let ring_size = 11usize;
-    let signer_idx = 5usize;
+    // Assemble a ring with the real input at `signer_idx` and the
+    // genesis-anchored decoys filling the rest of the slots.
     let (ring_p, ring_c) = {
         let mut p = Vec::with_capacity(ring_size);
         let mut c = Vec::with_capacity(ring_size);
+        let mut di = 0usize;
         for i in 0..ring_size {
             if i == signer_idx {
                 p.push(signer_p);
                 c.push(signer_c);
             } else {
-                let sp = random_scalar();
-                let bp = random_scalar();
-                let vp = random_scalar();
-                p.push(generator_g() * sp);
-                c.push((generator_g() * bp) + (generator_h() * vp));
+                p.push(decoy_p[di]);
+                c.push(decoy_c[di]);
+                di += 1;
             }
         }
         (p, c)
@@ -563,6 +588,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
+            ..ConsensusParams::default()
         },
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -658,4 +684,200 @@ fn coinbase_replay_is_byte_identical() {
     // And the deterministic tx-priv recovers correctly.
     let recovered = coinbase_tx_priv(1234, &payout.spend_pub);
     assert_eq!(generator_g() * recovered, cb_a.r_pub);
+}
+
+/// Liveness slashing integration test.
+///
+/// 3-validator chain. Validator 1 NEVER signs. We drive enough empty
+/// blocks past the liveness threshold (set to 3 for the test so we don't
+/// have to produce 32+ blocks) and verify:
+///
+/// 1. Stats track signed/missed counts correctly per validator.
+/// 2. Validator 1's stake is slashed multiplicatively on the threshold
+///    block.
+/// 3. The remaining 2 validators (who do sign) are untouched.
+/// 4. Quorum is still met across the slashed-stake landscape because
+///    1000 + 0 + 1000 = 2000 stake vs (1000+slashed_1+1000)·6667/10000.
+#[test]
+fn liveness_slashing_chronic_absentee_gets_slashed() {
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
+        encode_finality_proof, finalize, header_signing_hash, seal_block, try_produce_slot,
+        ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig, SlotContext, Validator,
+        ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+
+    let mk_validator = |i: u32, stake: u64| -> (Validator, ValidatorSecrets, _) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: wallet.view_pub,
+            spend_pub: wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets, wallet)
+    };
+
+    // Use very high stakes so the 1% liveness slash is non-trivial in
+    // integer math; threshold = 3 so we don't need to produce 32 blocks.
+    let (v0, s0, w0) = mk_validator(0, 1_000_000);
+    let (v1, _s1, _w1) = mk_validator(1, 1_000_000);
+    let (v2, s2, _w2) = mk_validator(2, 1_000_000);
+    let validators = vec![v0.clone(), v1.clone(), v2.clone()];
+    let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        // With only v0+v2 voting (66.67% stake exactly) we sit right at
+        // the 6667 bps quorum. Drop the quorum 1bp to 6666 so the
+        // chronic absentee doesn't break finality.
+        quorum_stake_bps: 6666,
+        liveness_max_consecutive_missed: 3,
+        liveness_slash_bps: 100, // 1%
+    };
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
+    };
+    let genesis = build_genesis(&cfg);
+    let mut state = apply_genesis(&genesis, &cfg).expect("apply genesis");
+    assert_eq!(state.validator_stats.len(), 3);
+
+    // Produce 4 blocks. After block 3 (3 consecutive misses), v1 is
+    // slashed. Block 4 verifies the slash sticks and stats keep tracking.
+    for height in 1u32..=4 {
+        let v0_payout = state.validators[0].payout.as_ref().unwrap();
+        let cb_payout = PayoutAddress {
+            view_pub: v0_payout.view_pub,
+            spend_pub: v0_payout.spend_pub,
+        };
+        let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
+        // No fees in these blocks, so coinbase reward = emission only.
+        let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
+
+        let txs = vec![cb];
+        let unsealed = build_unsealed_header(&state, &txs, height, u64::from(height) * 100);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height,
+            slot: height,
+            prev_hash: unsealed.prev_hash,
+        };
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &s0,
+            &state.validators[0],
+            total_stake,
+            params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+
+        // ONLY v0 + v2 sign. v1 stays silent → liveness miss.
+        let votes = vec![
+            cast_vote(
+                &header_hash,
+                &s0,
+                &ctx,
+                &producer_proof,
+                &state.validators[0],
+                total_stake,
+                params.expected_proposers_per_slot,
+            )
+            .unwrap(),
+            cast_vote(
+                &header_hash,
+                &s2,
+                &ctx,
+                &producer_proof,
+                &state.validators[0],
+                total_stake,
+                params.expected_proposers_per_slot,
+            )
+            .unwrap(),
+        ];
+        let agg = finalize(&header_hash, &votes, state.validators.len()).expect("agg");
+        let signing_stake = state.validators[0].stake + state.validators[2].stake;
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: agg,
+            signing_stake,
+        };
+
+        let block = seal_block(
+            unsealed,
+            txs,
+            encode_finality_proof(&fin),
+            Vec::new(),
+            Vec::new(),
+        );
+        state = match apply_block(&state, &block) {
+            ApplyOutcome::Ok { state, .. } => state,
+            ApplyOutcome::Err { errors, .. } => panic!("block {height} rejected: {errors:?}"),
+        };
+
+        match height {
+            1 | 2 => {
+                assert_eq!(
+                    state.validators[1].stake, 1_000_000,
+                    "no slash yet at h={height}"
+                );
+                assert_eq!(state.validator_stats[1].consecutive_missed, height);
+                assert_eq!(state.validator_stats[1].liveness_slashes, 0);
+            }
+            3 => {
+                // Threshold trip: 1% of 1_000_000 = 10_000 → stake 990_000.
+                assert_eq!(state.validators[1].stake, 990_000);
+                assert_eq!(state.validator_stats[1].liveness_slashes, 1);
+                assert_eq!(state.validator_stats[1].consecutive_missed, 0);
+                assert_eq!(state.validator_stats[1].total_missed, 3);
+            }
+            4 => {
+                // First miss of the next cycle.
+                assert_eq!(state.validators[1].stake, 990_000);
+                assert_eq!(state.validator_stats[1].consecutive_missed, 1);
+                assert_eq!(state.validator_stats[1].liveness_slashes, 1);
+                assert_eq!(state.validator_stats[1].total_missed, 4);
+            }
+            _ => unreachable!(),
+        }
+        // v0 and v2 always signed → counters always 0, stake intact.
+        assert_eq!(state.validators[0].stake, 1_000_000);
+        assert_eq!(state.validators[2].stake, 1_000_000);
+        assert_eq!(state.validator_stats[0].consecutive_missed, 0);
+        assert_eq!(state.validator_stats[2].consecutive_missed, 0);
+        assert_eq!(state.validator_stats[0].total_signed, u64::from(height));
+        assert_eq!(state.validator_stats[2].total_signed, u64::from(height));
+
+        // Producer can decrypt their coinbase to confirm the chain
+        // accepted it as paying the right party.
+        let cb_dec = decrypt_output_amount(
+            &block.txs[0].r_pub,
+            0,
+            w0.view_priv,
+            &block.txs[0].outputs[0].enc_amount,
+        )
+        .expect("decrypt cb");
+        assert_eq!(cb_dec.value, emission);
+    }
 }

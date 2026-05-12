@@ -18,12 +18,12 @@ The Next.js demo site, in-browser executable specification (TypeScript reference
 | ed25519 primitives + ZK    | `mfn-crypto`    |  145  | All Tier-1 primitives ported, plus binary Merkle. Clippy clean. |
 | BLS12-381 sig aggregation  | `mfn-bls`       |   16  | BLS done; KZG pending.                          |
 | Permanent-storage primitives | `mfn-storage` |   32  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator. |
-| Chain state machine        | `mfn-consensus` |   70  | Emission, RingCT-style tx, coinbase, finality + slashing, **storage-proof verification + endowment-burden enforcement + two-sided treasury settlement — live**. End-to-end tests: 2-block chain with stake-zeroing; storage upload anchored at genesis + SPoRA proof in block 1. |
+| Chain state machine        | `mfn-consensus` |   81  | Emission, RingCT-style tx, coinbase, finality + equivocation slashing, storage-proof verification + endowment-burden enforcement + two-sided treasury settlement, **ring-membership chain-level guard (counterfeit-input attack closed)**, **liveness slashing of chronic absentees**. End-to-end tests: 2-block chain with equivocation slashing, SPoRA proof flow, chronic-absentee liveness slashing. |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned.                                        |
 | Node daemon (`mfnd`)       | `mfn-node`      |   —   | Planned.                                        |
 | Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned.                                        |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the demo page).            |
-| **Total**                  |                 | **263** | Zero `unsafe`. Zero clippy warnings.          |
+| **Total**                  |                 | **274** | Zero `unsafe`. Zero clippy warnings.          |
 
 Detailed module-level tracking lives in [`PORTING.md`](./PORTING.md).
 
@@ -103,15 +103,22 @@ The lego pieces become a chain here:
   can submit, deterministic verification.
 - **`block`** — header, body, `ChainState`, deterministic `apply_block`
   that verifies the producer's finality proof, walks the tx list
-  (coinbase at position 0 + regular RingCT spends), enforces cross-block
-  key-image uniqueness, applies slashing evidence, **verifies SPoRA
-  storage proofs against per-commitment chain state**, **enforces that
-  new storage uploads cover the protocol's required endowment via the
-  treasury-bound fee share**, and **performs a two-sided treasury
-  settlement** that drains the treasury for storage rewards before
-  minting an emission backstop, all before re-deriving the post-block
-  UTXO accumulator root. The integration suite drives both a 2-block
-  chain with stake-zeroing and a SPoRA proof flow.
+  (coinbase at position 0 + regular RingCT spends), **verifies every
+  CLSAG ring member's `(P, C)` pair exists in the chain's UTXO set
+  with byte-exact commitment match** (the consensus-critical guard
+  against the "fabricate a ring member with arbitrary hidden value"
+  counterfeit-input attack), enforces cross-block key-image uniqueness,
+  applies equivocation slashing evidence, **verifies SPoRA storage
+  proofs against per-commitment chain state**, **enforces that new
+  storage uploads cover the protocol's required endowment via the
+  treasury-bound fee share**, **tracks per-validator finality
+  participation and auto-slashes chronic absentees (multiplicative,
+  compounding)**, and **performs a two-sided treasury settlement** that
+  drains the treasury for storage rewards before minting an emission
+  backstop, all before re-deriving the post-block UTXO accumulator
+  root. The integration suite drives a 2-block chain with equivocation
+  slashing, an end-to-end SPoRA proof flow, and a 4-block chronic-
+  absentee scenario that validates the liveness path.
 
 ---
 

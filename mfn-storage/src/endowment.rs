@@ -180,7 +180,13 @@ pub fn required_endowment(
     let real_yield = u128::from(params.real_yield_ppb);
     let numerator = cost
         .checked_mul(size_repl)
-        .and_then(|x| x.checked_mul(PPB.checked_add(inflation).ok_or(EndowmentError::Overflow).ok()?))
+        .and_then(|x| {
+            x.checked_mul(
+                PPB.checked_add(inflation)
+                    .ok_or(EndowmentError::Overflow)
+                    .ok()?,
+            )
+        })
         .ok_or(EndowmentError::Overflow)?;
     let denominator = PPB
         .checked_mul(real_yield - inflation)
@@ -516,11 +522,7 @@ mod tests {
     fn replication_below_min_rejected() {
         assert!(matches!(
             required_endowment(1_000, 1, &p()),
-            Err(EndowmentError::ReplicationOutOfRange {
-                got: 1,
-                min: 3,
-                ..
-            })
+            Err(EndowmentError::ReplicationOutOfRange { got: 1, min: 3, .. })
         ));
     }
 
@@ -599,11 +601,7 @@ mod tests {
         // remainder should match a fresh two-slot accrual on an empty
         // accumulator.
         let r_combined = accrue_proof_reward(args(0, 2, 0)).unwrap();
-        assert_eq!(
-            r1.payout + r2.payout,
-            r_combined.payout,
-            "split = combined"
-        );
+        assert_eq!(r1.payout + r2.payout, r_combined.payout, "split = combined");
         assert_eq!(r2.new_pending_ppb, r_combined.new_pending_ppb);
     }
 

@@ -200,6 +200,27 @@ pub struct UtxoEntry {
     pub height: u32,
 }
 
+/// Per-validator participation statistics. Tracked by `apply_block` from
+/// the finality proof's bitmap; once `consecutive_missed` exceeds the
+/// configured liveness threshold the validator's stake is slashed by
+/// `ConsensusParams::liveness_slash_bps` and the counter resets.
+///
+/// Zeroed-stake (already-slashed) validators are excluded from stats
+/// updates — they're zombies until validator rotation lands.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ValidatorStats {
+    /// Consecutive blocks (since this validator's last successful vote)
+    /// at which their bit was not set in the finality bitmap.
+    pub consecutive_missed: u32,
+    /// Lifetime count of finality votes successfully contributed.
+    pub total_signed: u64,
+    /// Lifetime count of finality votes missed.
+    pub total_missed: u64,
+    /// Number of times this validator has been liveness-slashed (capped
+    /// at `u32::MAX`).
+    pub liveness_slashes: u32,
+}
+
 /// Per-storage-commitment chain state.
 #[derive(Clone, Debug)]
 pub struct StorageEntry {
@@ -227,6 +248,18 @@ pub struct ConsensusParams {
     pub expected_proposers_per_slot: f64,
     /// Stake-weighted quorum threshold in basis points. `6667` = 2/3 + 1bp.
     pub quorum_stake_bps: u32,
+    /// Liveness threshold: a validator that misses this many CONSECUTIVE
+    /// finality votes is auto-slashed by `liveness_slash_bps` and their
+    /// counter is reset. Default `32` ≈ 6.4 minutes at 12-second slots —
+    /// long enough to absorb a transient outage, short enough to deter
+    /// chronic absenteeism.
+    pub liveness_max_consecutive_missed: u32,
+    /// Stake reduction per liveness slash, in basis points. Default `100`
+    /// = 1% per offense. Repeated offenses compound multiplicatively, so
+    /// 100 successive trip-ups reduce stake by roughly `e^{-1}` ≈ 63%.
+    /// Equivocation slashing remains its own thing (`SlashEvidence`),
+    /// which zeros stake outright.
+    pub liveness_slash_bps: u32,
 }
 
 impl Default for ConsensusParams {
@@ -234,6 +267,8 @@ impl Default for ConsensusParams {
         Self {
             expected_proposers_per_slot: 1.5,
             quorum_stake_bps: 6667,
+            liveness_max_consecutive_missed: 32,
+            liveness_slash_bps: 100,
         }
     }
 }
@@ -242,6 +277,8 @@ impl Default for ConsensusParams {
 pub const DEFAULT_CONSENSUS_PARAMS: ConsensusParams = ConsensusParams {
     expected_proposers_per_slot: 1.5,
     quorum_stake_bps: 6667,
+    liveness_max_consecutive_missed: 32,
+    liveness_slash_bps: 100,
 };
 
 /// The mutable state of a Permawrite chain.
@@ -264,6 +301,12 @@ pub struct ChainState {
     /// Active validator set. Frozen at genesis in v0.1; epoch reconfig
     /// is a future upgrade.
     pub validators: Vec<Validator>,
+    /// Per-validator participation stats, aligned with `validators` by
+    /// index (`validator_stats[i]` is the stats for `validators[i]`).
+    /// `apply_block` updates this from each block's finality bitmap and
+    /// auto-slashes validators that exceed the configured consecutive-
+    /// missed-votes threshold.
+    pub validator_stats: Vec<ValidatorStats>,
     /// Consensus parameters.
     pub params: ConsensusParams,
     /// Emission schedule (defaults to [`DEFAULT_EMISSION_PARAMS`]).
@@ -288,6 +331,7 @@ impl ChainState {
             storage: HashMap::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),
+            validator_stats: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -379,6 +423,7 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
     state.emission_params = cfg.emission_params;
     state.endowment_params = cfg.endowment_params;
     state.validators = cfg.validators.clone();
+    state.validator_stats = vec![ValidatorStats::default(); cfg.validators.len()];
 
     for o in &cfg.initial_outputs {
         let key = o.one_time_addr.compress().to_bytes();
@@ -591,6 +636,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
 
     // ---- Producer/finality proof ----
     let mut producer_idx: Option<u32> = None;
+    let mut finality_bitmap: Option<Vec<u8>> = None;
     if !state.validators.is_empty() {
         if block.header.producer_proof.is_empty() {
             errors.push(BlockError::MissingProducerProof);
@@ -615,6 +661,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                         errors.push(BlockError::FinalityInvalid(chk));
                     } else {
                         producer_idx = Some(fin.producer.validator_index);
+                        finality_bitmap = Some(fin.finality.bitmap.clone());
                     }
                 }
                 Err(e) => errors.push(BlockError::FinalityDecode(format!("{e}"))),
@@ -690,6 +737,67 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 index: ti,
                 errors: v.errors,
             });
+            continue;
+        }
+
+        // ---- Ring-membership check (consensus-critical, see SECURITY note) ----
+        //
+        // `verify_transaction` is stateless: it proves the CLSAG signer
+        // controlled the spend key of *some* ring member, but a CLSAG
+        // ring whose members are fabricated (P, C) pairs would still
+        // verify because the math doesn't care whether the points are
+        // on-chain. Combined with the balance equation
+        //
+        //     Σ pseudo − Σ amount − fee·H == 0
+        //
+        // a malicious spender who invents a ring member with commitment
+        // C_fake = G·r + H·v_fake can pseudo-output the fake value into
+        // their own outputs — i.e. mint MFN out of thin air. The
+        // CHAIN-LEVEL check that every ring member is a real UTXO is the
+        // only thing that closes this attack.
+        //
+        // Genesis UTXOs are included in `state.utxo`, so genesis-anchored
+        // outputs are valid ring members from height 0 onwards.
+        let mut ring_ok = true;
+        for (ii, inp) in tx.inputs.iter().enumerate() {
+            if inp.ring.p.len() != inp.ring.c.len() {
+                errors.push(BlockError::TxInvalid {
+                    index: ti,
+                    errors: vec![format!(
+                        "input {ii}: ring P-column length {} != C-column length {}",
+                        inp.ring.p.len(),
+                        inp.ring.c.len()
+                    )],
+                });
+                ring_ok = false;
+                break;
+            }
+            for (ri, (p, c)) in inp.ring.p.iter().zip(inp.ring.c.iter()).enumerate() {
+                let key = p.compress().to_bytes();
+                match next.utxo.get(&key) {
+                    Some(entry) if entry.commit == *c => {}
+                    Some(_) => {
+                        errors.push(BlockError::RingMemberCommitMismatch {
+                            tx: ti,
+                            input: ii,
+                            ring_index: ri,
+                            one_time_addr: hex_short(&key),
+                        });
+                        ring_ok = false;
+                    }
+                    None => {
+                        errors.push(BlockError::RingMemberNotInUtxoSet {
+                            tx: ti,
+                            input: ii,
+                            ring_index: ri,
+                            one_time_addr: hex_short(&key),
+                        });
+                        ring_ok = false;
+                    }
+                }
+            }
+        }
+        if !ring_ok {
             continue;
         }
 
@@ -900,6 +1008,55 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
     }
 
+    // ---- Liveness participation tracking + auto-slashing ----
+    //
+    // Walk this block's verified finality bitmap. For each non-zero-stake
+    // validator: a set bit credits a successful vote, a clear bit
+    // increments consecutive_missed. When consecutive_missed crosses
+    // `liveness_max_consecutive_missed`, the validator's stake is
+    // multiplicatively reduced by `liveness_slash_bps` and the counter
+    // resets — repeated trip-ups compound. Equivocation slashing
+    // (the `SlashEvidence` path above) zeros stake outright; this layer
+    // catches chronic absenteeism that equivocation evidence can't
+    // attribute.
+    if let Some(ref bitmap) = finality_bitmap {
+        // Make sure the stats array is aligned with the validator set
+        // even if a previous version of the chain produced a state with
+        // a shorter (or absent) stats vector.
+        if next.validator_stats.len() != next.validators.len() {
+            next.validator_stats
+                .resize(next.validators.len(), ValidatorStats::default());
+        }
+        let max_missed = next.params.liveness_max_consecutive_missed;
+        let slash_bps = u128::from(next.params.liveness_slash_bps);
+        for (i, v) in next.validators.iter_mut().enumerate() {
+            if v.stake == 0 {
+                continue; // zombie; rotation will reap later
+            }
+            let byte = i >> 3;
+            let bit = i & 7;
+            let signed = byte < bitmap.len() && (bitmap[byte] & (1u8 << bit)) != 0;
+            let stats = &mut next.validator_stats[i];
+            if signed {
+                stats.consecutive_missed = 0;
+                stats.total_signed = stats.total_signed.saturating_add(1);
+            } else {
+                stats.consecutive_missed = stats.consecutive_missed.saturating_add(1);
+                stats.total_missed = stats.total_missed.saturating_add(1);
+                if max_missed > 0 && stats.consecutive_missed >= max_missed {
+                    // Multiplicative slash: stake *= (10000 − slash_bps) / 10000.
+                    // Capped at 100% (slash_bps clamped to 10_000 below) so we
+                    // can't underflow into negative stake.
+                    let bps = slash_bps.min(10_000);
+                    let new_stake_u128 = u128::from(v.stake) * (10_000 - bps) / 10_000;
+                    v.stake = u64::try_from(new_stake_u128).unwrap_or(u64::MAX);
+                    stats.liveness_slashes = stats.liveness_slashes.saturating_add(1);
+                    stats.consecutive_missed = 0;
+                }
+            }
+        }
+    }
+
     // ---- Two-sided economic settlement ----
     //
     //   1. treasury_fee = fee_sum · fee_to_treasury_bps / 10000
@@ -1054,6 +1211,40 @@ pub enum BlockError {
         index: usize,
         /// Hex prefix of the duplicate key image.
         key_image: String,
+    },
+    /// A CLSAG ring member references a one-time address that is not in
+    /// the chain's UTXO set. This is the chain-level guard against fake
+    /// ring members; without it, a spender could mint MFN out of thin
+    /// air by inventing a ring member with an arbitrary hidden value.
+    #[error(
+        "tx[{tx}].inputs[{input}].ring[{ring_index}]: one-time address {one_time_addr} not in UTXO set"
+    )]
+    RingMemberNotInUtxoSet {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending input within the tx.
+        input: usize,
+        /// Position of the offending member within the ring.
+        ring_index: usize,
+        /// Hex prefix of the one-time address.
+        one_time_addr: String,
+    },
+    /// A CLSAG ring member references a real UTXO but with a Pedersen
+    /// commitment that doesn't match the on-chain commitment for that
+    /// output. The ring's `C` column would let the spender inflate the
+    /// hidden value of a real UTXO, so the chain enforces exact match.
+    #[error(
+        "tx[{tx}].inputs[{input}].ring[{ring_index}]: commitment mismatch for {one_time_addr}"
+    )]
+    RingMemberCommitMismatch {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending input within the tx.
+        input: usize,
+        /// Position of the offending member within the ring.
+        ring_index: usize,
+        /// Hex prefix of the one-time address.
+        one_time_addr: String,
     },
     /// The UTXO accumulator is full (depth-32 tree exhausted).
     #[error("utxo accumulator full: {0}")]
@@ -1475,5 +1666,418 @@ mod tests {
             ),
             ApplyOutcome::Ok { .. } => panic!("corrupt proof must reject the block"),
         }
+    }
+
+    /* ---- Ring-membership / counterfeit-input attack tests ------------ *
+     *                                                                   *
+     *  These tests target the only thing standing between Permawrite     *
+     *  and the "mint MFN out of thin air" attack: every CLSAG ring       *
+     *  member's (P, C) MUST exist in the chain's UTXO set. Without       *
+     *  this guard a spender can fabricate a ring member with arbitrary   *
+     *  hidden value, balance their pseudo-output against it, and emit    *
+     *  outputs they don't own.                                           *
+     * ----------------------------------------------------------------- */
+
+    #[test]
+    fn ring_member_not_in_utxo_set_rejected() {
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::point::{generator_g, generator_h};
+        use mfn_crypto::scalar::random_scalar;
+        use mfn_crypto::stealth::stealth_gen;
+
+        use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+        // Genesis funds the real signer with a known UTXO. No decoys are
+        // anchored, so any ring member other than the signer's UTXO will
+        // be unknown to the chain.
+        let init_value = 1_000_000u64;
+        let init_blinding = random_scalar();
+        let signer_spend = random_scalar();
+        let signer_p = generator_g() * signer_spend;
+        let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: vec![GenesisOutput {
+                one_time_addr: signer_p,
+                amount: signer_c,
+            }],
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).unwrap();
+
+        // Construct a 4-member ring; signer at index 1, the other three
+        // are random (P, C) pairs that aren't in the UTXO set.
+        let mut ring_p = Vec::new();
+        let mut ring_c = Vec::new();
+        for i in 0..4 {
+            if i == 1 {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else {
+                let sp = random_scalar();
+                let bp = random_scalar();
+                let vp = random_scalar();
+                ring_p.push(generator_g() * sp);
+                ring_c.push((generator_g() * bp) + (generator_h() * vp));
+            }
+        }
+        let recipient_wallet = stealth_gen();
+        let r = Recipient {
+            view_pub: recipient_wallet.view_pub,
+            spend_pub: recipient_wallet.spend_pub,
+        };
+        let send_value = init_value - 1_000;
+        let signed = sign_transaction(
+            vec![InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx: 1,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
+            }],
+            vec![OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            }],
+            1_000,
+            b"attack".to_vec(),
+        )
+        .expect("sign");
+
+        let unsealed = build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), 1, 100);
+        let block = seal_block(
+            unsealed,
+            vec![signed.tx],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&state0, &block) {
+            ApplyOutcome::Err { errors, .. } => {
+                let saw_ring_error = errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::RingMemberNotInUtxoSet { .. }));
+                assert!(
+                    saw_ring_error,
+                    "expected RingMemberNotInUtxoSet, got {errors:?}"
+                );
+            }
+            ApplyOutcome::Ok { .. } => {
+                panic!("ring with fabricated members must reject the block (counterfeit attack)")
+            }
+        }
+    }
+
+    #[test]
+    fn ring_member_with_wrong_commit_rejected() {
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::point::{generator_g, generator_h};
+        use mfn_crypto::scalar::random_scalar;
+        use mfn_crypto::stealth::stealth_gen;
+
+        use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+        // Anchor a real UTXO at genesis; spender will reference it in
+        // their ring but with an inflated Pedersen commitment to try to
+        // sneak extra hidden value past the chain. Must be rejected.
+        let init_value = 1_000_000u64;
+        let init_blinding = random_scalar();
+        let signer_spend = random_scalar();
+        let signer_p = generator_g() * signer_spend;
+        let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+
+        // A second anchored UTXO with KNOWN small value that the attacker
+        // will reference in their ring, but with an inflated C.
+        let decoy_spend = random_scalar();
+        let decoy_p = generator_g() * decoy_spend;
+        let decoy_value = 1u64;
+        let decoy_blinding = random_scalar();
+        let decoy_c =
+            (generator_g() * decoy_blinding) + (generator_h() * Scalar::from(decoy_value));
+
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: vec![
+                GenesisOutput {
+                    one_time_addr: signer_p,
+                    amount: signer_c,
+                },
+                GenesisOutput {
+                    one_time_addr: decoy_p,
+                    amount: decoy_c,
+                },
+            ],
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).unwrap();
+
+        // Attacker's ring: signer's real UTXO + the decoy's P with an
+        // INFLATED C (pretending the decoy holds 10^9 base units).
+        let inflated_c =
+            (generator_g() * random_scalar()) + (generator_h() * Scalar::from(1_000_000_000u64));
+        let ring_p = vec![signer_p, decoy_p];
+        let ring_c = vec![signer_c, inflated_c];
+
+        let recipient_wallet = stealth_gen();
+        let r = Recipient {
+            view_pub: recipient_wallet.view_pub,
+            spend_pub: recipient_wallet.spend_pub,
+        };
+        let send_value = init_value - 1_000;
+        let signed = sign_transaction(
+            vec![InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx: 0,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
+            }],
+            vec![OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            }],
+            1_000,
+            b"inflated-c".to_vec(),
+        )
+        .expect("sign");
+
+        let unsealed = build_unsealed_header(&state0, std::slice::from_ref(&signed.tx), 1, 100);
+        let block = seal_block(
+            unsealed,
+            vec![signed.tx],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        match apply_block(&state0, &block) {
+            ApplyOutcome::Err { errors, .. } => {
+                let saw_commit_error = errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::RingMemberCommitMismatch { .. }));
+                assert!(
+                    saw_commit_error,
+                    "expected RingMemberCommitMismatch, got {errors:?}"
+                );
+            }
+            ApplyOutcome::Ok { .. } => panic!("inflated-C ring member must reject the block"),
+        }
+    }
+
+    /* ---- Liveness participation + auto-slashing ---------------------- *
+     *                                                                   *
+     *  These unit tests drive `apply_block` against the liveness bitmap  *
+     *  path with hand-crafted state — we don't need a real validator    *
+     *  set or BLS finality machinery because the liveness logic         *
+     *  consumes `finality_bitmap` after `verify_finality_proof` has     *
+     *  already cleared the block. We bypass that path by stuffing the   *
+     *  bitmap directly into a synthetic `next` via the public surface:  *
+     *  set up an empty-validator chain, then manually invoke the path.  *
+     *                                                                   *
+     *  Integration coverage with REAL BLS finality flowing into the     *
+     *  liveness path lives in `tests/integration.rs`.                   *
+     * ----------------------------------------------------------------- */
+
+    /// Direct unit test of the liveness-update logic, called as the
+    /// equivalent inline block of `apply_block`. This keeps the test
+    /// hermetic — no BLS setup, no genesis dance — just the state
+    /// transition the bitmap drives.
+    fn apply_liveness_step(state: &mut ChainState, bitmap: &[u8], max_missed: u32, slash_bps: u32) {
+        // Mirrors the `if let Some(ref bitmap)` branch in apply_block.
+        if state.validator_stats.len() != state.validators.len() {
+            state
+                .validator_stats
+                .resize(state.validators.len(), ValidatorStats::default());
+        }
+        let slash_bps = u128::from(slash_bps);
+        for (i, v) in state.validators.iter_mut().enumerate() {
+            if v.stake == 0 {
+                continue;
+            }
+            let byte = i >> 3;
+            let bit = i & 7;
+            let signed = byte < bitmap.len() && (bitmap[byte] & (1u8 << bit)) != 0;
+            let stats = &mut state.validator_stats[i];
+            if signed {
+                stats.consecutive_missed = 0;
+                stats.total_signed = stats.total_signed.saturating_add(1);
+            } else {
+                stats.consecutive_missed = stats.consecutive_missed.saturating_add(1);
+                stats.total_missed = stats.total_missed.saturating_add(1);
+                if max_missed > 0 && stats.consecutive_missed >= max_missed {
+                    let bps = slash_bps.min(10_000);
+                    let new_stake_u128 = u128::from(v.stake) * (10_000 - bps) / 10_000;
+                    v.stake = u64::try_from(new_stake_u128).unwrap_or(u64::MAX);
+                    stats.liveness_slashes = stats.liveness_slashes.saturating_add(1);
+                    stats.consecutive_missed = 0;
+                }
+            }
+        }
+    }
+
+    fn fake_validator(idx: u32, stake: u64) -> Validator {
+        // VRF + BLS pubkeys are placeholders; the liveness path doesn't
+        // touch them. We just need a Validator-shaped struct.
+        Validator {
+            index: idx,
+            vrf_pk: mfn_crypto::vrf::vrf_keygen_from_seed(&[idx as u8 + 7; 32])
+                .unwrap()
+                .pk,
+            bls_pk: mfn_bls::bls_keygen_from_seed(&[idx as u8 + 17; 32]).pk,
+            stake,
+            payout: None,
+        }
+    }
+
+    #[test]
+    fn liveness_signed_resets_counter_and_credits() {
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 100)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        // Bitmap with bit 0 set.
+        apply_liveness_step(&mut state, &[0b0000_0001], 32, 100);
+        let s = state.validator_stats[0];
+        assert_eq!(s.consecutive_missed, 0);
+        assert_eq!(s.total_signed, 1);
+        assert_eq!(s.total_missed, 0);
+        assert_eq!(state.validators[0].stake, 100);
+    }
+
+    #[test]
+    fn liveness_unset_increments_counter() {
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 100)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        for _ in 0..5 {
+            apply_liveness_step(&mut state, &[0b0000_0000], 32, 100);
+        }
+        let s = state.validator_stats[0];
+        assert_eq!(s.consecutive_missed, 5);
+        assert_eq!(s.total_missed, 5);
+        assert_eq!(s.total_signed, 0);
+        assert_eq!(s.liveness_slashes, 0);
+        assert_eq!(state.validators[0].stake, 100, "below threshold ⇒ no slash");
+    }
+
+    #[test]
+    fn liveness_threshold_triggers_slash_and_reset() {
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 1_000_000)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        // 32 consecutive misses → first slash.
+        for _ in 0..32 {
+            apply_liveness_step(&mut state, &[], 32, 100);
+        }
+        let s = state.validator_stats[0];
+        assert_eq!(s.liveness_slashes, 1);
+        assert_eq!(s.consecutive_missed, 0, "counter resets after slash");
+        // 1% of 1_000_000 = 10_000; new stake = 990_000.
+        assert_eq!(state.validators[0].stake, 990_000);
+    }
+
+    #[test]
+    fn liveness_compounds_multiplicatively() {
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 1_000_000)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        // 5 slash cycles of 32 misses each.
+        for _ in 0..(5 * 32) {
+            apply_liveness_step(&mut state, &[], 32, 100);
+        }
+        // After 5 × (1% reduction): stake = 1_000_000 × 0.99^5
+        // = 1_000_000 × 0.95099 ≈ 950_990.
+        // Each step rounds down (floor div), so we expect ≤ 951_000
+        // with a small floor-rounding margin.
+        let stake = state.validators[0].stake;
+        assert!(
+            (940_000..=952_000).contains(&stake),
+            "expected ~951k after 5 slashes, got {stake}"
+        );
+        assert_eq!(state.validator_stats[0].liveness_slashes, 5);
+    }
+
+    #[test]
+    fn liveness_signed_clears_pending_counter() {
+        // A validator that misses 30 votes and then signs has their
+        // consecutive_missed reset to 0 — no slash triggered. This is
+        // the "transient outage" forgiveness.
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 100)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        for _ in 0..30 {
+            apply_liveness_step(&mut state, &[], 32, 100);
+        }
+        assert_eq!(state.validator_stats[0].consecutive_missed, 30);
+        apply_liveness_step(&mut state, &[0b0000_0001], 32, 100);
+        let s = state.validator_stats[0];
+        assert_eq!(s.consecutive_missed, 0);
+        assert_eq!(s.total_signed, 1);
+        assert_eq!(s.total_missed, 30);
+        assert_eq!(s.liveness_slashes, 0);
+        assert_eq!(state.validators[0].stake, 100, "transient outage forgiven");
+    }
+
+    #[test]
+    fn liveness_zero_stake_validator_skipped() {
+        // Equivocation-slashed (stake=0) validators are zombies; the
+        // liveness layer must not touch them.
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 0)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        for _ in 0..100 {
+            apply_liveness_step(&mut state, &[], 32, 100);
+        }
+        let s = state.validator_stats[0];
+        assert_eq!(s.consecutive_missed, 0);
+        assert_eq!(s.total_missed, 0);
+        assert_eq!(s.liveness_slashes, 0);
+    }
+
+    #[test]
+    fn liveness_bitmap_too_short_treated_as_missing() {
+        // If a validator's bit index lies beyond the bitmap's length,
+        // they are treated as a missed vote.
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 100), fake_validator(1, 100)];
+        state.validator_stats = vec![ValidatorStats::default(); 2];
+        // Bitmap only carries bit 0; validator 1's byte index is 0 too
+        // (bit 1) and IS in range. Use a 0-length bitmap to force the
+        // out-of-range case.
+        apply_liveness_step(&mut state, &[], 32, 100);
+        assert_eq!(state.validator_stats[0].consecutive_missed, 1);
+        assert_eq!(state.validator_stats[1].consecutive_missed, 1);
+    }
+
+    #[test]
+    fn liveness_slash_caps_at_full_stake_loss() {
+        // A pathological slash_bps > 10_000 must clamp to 100% so we
+        // can't underflow into negative stake.
+        let mut state = ChainState::empty();
+        state.validators = vec![fake_validator(0, 1_000_000)];
+        state.validator_stats = vec![ValidatorStats::default()];
+        for _ in 0..1 {
+            apply_liveness_step(&mut state, &[], 1, 99_999);
+        }
+        assert_eq!(state.validators[0].stake, 0);
+        assert_eq!(state.validator_stats[0].liveness_slashes, 1);
     }
 }

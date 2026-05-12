@@ -521,13 +521,24 @@ mod tests {
         let prev = [1u8; 32];
         let slot = 0u32;
         let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
-        // Verify against a DIFFERENT slot (will derive a different expected
-        // chunk index, mismatching the proof's actual index).
-        let other_slot = slot + 100;
+        // Verify against a DIFFERENT slot that maps to a different chunk
+        // index. With only 4 chunks any given slot has a 1/4 chance of
+        // colliding with the base slot's index — explicitly search for
+        // the first non-colliding slot before asserting.
+        let c_hash = storage_commitment_hash(&built.commit);
+        let base_idx =
+            chunk_index_for_challenge(&prev, slot, &c_hash, built.commit.num_chunks);
+        let mut other_slot = slot + 1;
+        while chunk_index_for_challenge(&prev, other_slot, &c_hash, built.commit.num_chunks)
+            == base_idx
+        {
+            other_slot += 1;
+            assert!(other_slot - slot < 256, "couldn't find a non-colliding slot");
+        }
         let v = verify_storage_proof(&built.commit, &prev, other_slot, &p);
         assert!(
             matches!(v, StorageProofCheck::WrongChunkIndex { .. }),
-            "expected wrong-index rejection, got {v:?}"
+            "expected wrong-index rejection at slot {other_slot}, got {v:?}"
         );
     }
 
