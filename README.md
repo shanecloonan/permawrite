@@ -6,7 +6,7 @@
 
 *Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.*
 
-[![Tests](https://img.shields.io/badge/tests-460_passing-brightgreen)](#status)
+[![Tests](https://img.shields.io/badge/tests-488_passing-brightgreen)](#status)
 [![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
 [![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
@@ -74,6 +74,7 @@ Each crate has its own README with public API summary, test counts, and links in
 - [**`mfn-consensus`**](./mfn-consensus/README.md) — block, transaction, coinbase, emission, slashing, state-transition function
 - [**`mfn-node`**](./mfn-node/README.md) — node-side `Chain` driver + block-producer helpers
 - [**`mfn-light`**](./mfn-light/README.md) — light-client header-chain follower (built on `verify_header`)
+- [**`mfn-wallet`**](./mfn-wallet/README.md) — confidential wallet primitives: stealth scanning, owned-UTXO tracking, transfer-tx construction
 
 ---
 
@@ -89,10 +90,11 @@ Each crate has its own README with public API summary, test counts, and links in
 | Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  181  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted), **M2.0.5 light-header verifier** (`verify_header`), **M2.0.7 light-body verifier** (`verify_block_body`), **M2.0.8 shared `validator_evolution` helpers**, **M2.0.9 round-trippable `BlockHeader` codec**, and **M2.0.10 canonical full-block codec** (`encode_transaction` / `decode_transaction`, `encode_block` / `decode_block`, typed `TxDecodeError` / `BlockDecodeError`) for P2P, persistence, and raw-byte light sync. |
 | Node-side glue              | [`mfn-node`](./mfn-node/README.md) |   17  | **M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** — in-memory chain driver owning `ChainState`, applying blocks sequentially through `apply_block`, plus a three-stage block-production protocol (`build_proposal` → `vote_on_proposal` → `seal_proposal`) with a `produce_solo_block` one-call convenience, and an integration suite proving `verify_header` and `apply_block` agree on every block of a real 3-block chain. The orchestration foundation every M2.x sub-milestone (mempool, RPC, store, P2P) will attach around. |
 | Light-client follower      | [`mfn-light`](./mfn-light/README.md) |   57  | **M2.0.6 header-chain follower + M2.0.7 body-root verification + M2.0.8 validator-set evolution + M2.0.9 checkpoint serialization + M2.0.10 raw-block-byte sync proof** — `LightChain` tracks a tip pointer + a trusted validator set + the small shadow state needed to evolve that set across rotations. `apply_block(&Block)` verifies linkage, `verify_header`, `verify_block_body`, and validator-set evolution. M2.0.9 adds restartable checkpoints. M2.0.10 proves the P2P-ready path end-to-end: real blocks produced by `mfn-node` are encoded with `encode_block`, decoded from bytes with `decode_block`, and then fed to both `Chain::apply` and `LightChain::apply_block`, reaching identical tips over a 3-block chain. The light client now follows the chain indefinitely from a single genesis bootstrap, survives restarts, and can consume canonical raw block bytes. |
+| Confidential wallet         | [`mfn-wallet`](./mfn-wallet/README.md) |   28  | **M2.0.11 stealth scanning + UTXO tracking + transfer-tx construction** — first consumer-facing crate. `Wallet` holds `WalletKeys` (deterministic seed-derivable) + an owned-UTXO map keyed by one-time-address + a key-image reverse index. `ingest_block` scans every output via `indexed_stealth_detect`, decrypts the amount blob with `decrypt_output_amount`, and verifies the Pedersen commitment opens (defeats grinding attacks against the XOR-pad-shaped encrypted-amount layer). Coinbase shortcut + cross-device spend detection via key-image match. `build_transfer` runs greedy largest-first coin selection, samples `select_gamma_decoys` against the chain's UTXO set, picks a uniformly-random `signer_idx` per input, assembles `InputSpec` rings, and delegates to `sign_transaction`. End-to-end integration test drives `mfn_node::Chain` + `mfn_light::LightChain` through 4 blocks (3 coinbase + 1 Alice→Bob transfer); both wallets and both chains end up in lockstep. Pure-Rust, IO-free, WASM-friendly. |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned (currently lives inside `mfn-crypto::codec`). |
-| Wallet CLI (`mfn-cli`)     | `mfn-wallet`    |   —   | Planned. |
+| Wallet CLI (`mfn-cli`)     | `mfn-cli`       |   —   | Planned (will wrap `mfn-wallet` with a CLI binary + RPC client). |
 | WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the [TS reference demo page](https://github.com/shanecloonan/cloonan-group)). |
-| **Total** | | **460** | Zero `unsafe`. Zero clippy warnings. Two ignored placeholders/doc examples. |
+| **Total** | | **488** | Zero `unsafe`. Zero clippy warnings. Two ignored placeholders/doc examples. |
 
 Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 

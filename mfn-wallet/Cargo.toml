@@ -1,0 +1,26 @@
+[package]
+name = "mfn-wallet"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite — confidential wallet primitives. Stealth scanning, owned-UTXO tracking, and transfer transaction construction on top of mfn-consensus + mfn-crypto."
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+mfn-crypto = { path = "../mfn-crypto" }
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-storage = { path = "../mfn-storage" }
+
+curve25519-dalek = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+mfn-node = { path = "../mfn-node" }
+mfn-light = { path = "../mfn-light" }
+mfn-bls = { path = "../mfn-bls" }
+hex = { workspace = true }

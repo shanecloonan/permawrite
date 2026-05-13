@@ -814,6 +814,46 @@ mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integra
                     Pure-Rust deps only; WASM-friendly. Follows the chain
                     indefinitely from a single genesis bootstrap, AND
                     survives restarts via M2.0.9 checkpoint serialization.
+
+mfn-wallet/         Confidential wallet (M2.0.11) (28 passing: 26 unit + 2 e2e integration)
+├── keys.rs         WalletKeys (wraps StealthWallet) + wallet_from_seed
+│                   (deterministic seed → keys via domain-separated
+│                    hash_to_scalar with MFW_SEED_VIEW_V1 / MFW_SEED_SPEND_V1
+│                    tags).
+├── owned.rs        OwnedOutput (one-time addr, value, blinding, one-time
+│                   spend key, PRECOMPUTED key image, height, tx_id, output
+│                   idx). verify_pedersen_open — binds the XOR-pad-shaped
+│                   `decrypt_output_amount` to the on-chain commitment so a
+│                   grinder cannot trick the wallet into claiming phantom
+│                   UTXOs. key_image_for_owned uses hash_to_point on the
+│                   one-time address.
+├── scan.rs         scan_transaction / scan_block — pure, read-only. Walks
+│                   every output, runs indexed_stealth_detect, decrypts
+│                   the amount blob, verifies Pedersen open. Coinbase
+│                   shortcut: re-derives expected coinbase r_pub for our
+│                   own spend_pub before scanning per-output. Cross-device
+│                   spend detection: every tx input's key image checked
+│                   against the wallet's precomputed index.
+├── decoy.rs        DecoyPoolBuilder + build_decoy_pool — walks
+│                   ChainState.utxo, excludes the wallet's owned outputs,
+│                   emits a height-sorted Vec<DecoyCandidate<(P, C)>>
+│                   ready for select_gamma_decoys.
+├── spend.rs        TransferPlan + build_transfer. Per real input: sample
+│                   ring_size-1 decoys with select_gamma_decoys, pick a
+│                   uniformly random signer_idx, assemble the ClsagRing,
+│                   build the InputSpec. Delegates to
+│                   mfn_consensus::sign_transaction for the RingCT
+│                   ceremony.
+├── wallet.rs       Wallet state container. ingest_block(&Block) is the
+│                   single mutation entry point. Wallet::build_transfer
+│                   does greedy largest-first coin selection, builds the
+│                   decoy pool, adds an implicit change output, calls
+│                   spend::build_transfer, and marks the consumed inputs
+│                   spent locally so a follow-up build_transfer doesn't
+│                   double-spend before the tx mines.
+└── error.rs        WalletError — flattens mfn_crypto::CryptoError and
+                    mfn_consensus::TxBuildError so callers can `?` either
+                    without rewriting matches.
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).

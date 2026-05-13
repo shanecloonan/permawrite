@@ -296,6 +296,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-wallet"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "hex",
+ "mfn-bls",
+ "mfn-consensus",
+ "mfn-crypto",
+ "mfn-light",
+ "mfn-node",
+ "mfn-storage",
+ "thiserror",
+]
+
+[[package]]
 name = "pairing"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -7,6 +7,7 @@ members = [
     "mfn-consensus",
     "mfn-node",
     "mfn-light",
+    "mfn-wallet",
 ]
 
 [workspace.package]

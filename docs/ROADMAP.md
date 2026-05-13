@@ -15,8 +15,9 @@
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
+| Confidential wallet (**M2.0.11 stealth scan + UTXO tracking + transfer building**) | `mfn-wallet` | 28 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **460** | All checks green (+ 2 ignored) |
+| **Total** | | **488** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -596,6 +597,43 @@ varint(storage_proofs.len)  || blob(encode_storage_proof(proof))*
 - **RPC / archival APIs.** `get_block_bytes(height)` can become a stable API surface: clients verify the same bytes that consensus hashes.
 
 See [`docs/M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md) for the full design note.
+
+---
+
+## Milestone M2.0.11 — `mfn-wallet`: confidential wallet primitives (✓ shipped)
+
+**Why it was next.** Through M2.0.10 every consensus primitive was correct *and* canonical on the wire, but nothing in the workspace was **consumer-facing**. A `Chain` could apply blocks, a `LightChain` could verify them, the codec could round-trip every byte — but no piece of the system could answer the human-level question *"how much money do I have, and how do I send some to someone else?"*. M2.0.11 ships that piece.
+
+### What shipped
+
+- **`mfn-wallet` crate** — first consumer-facing crate in the workspace. Pure-Rust, IO-free, WASM-friendly. Depends on `mfn-consensus` + `mfn-crypto` + `mfn-storage`.
+- **`Wallet`** — top-level state container holding `WalletKeys` + an owned-UTXO map + a key-image reverse index + a scan-height watermark.
+- **`WalletKeys` + `wallet_from_seed`** — wraps `StealthWallet` and adds deterministic seed-based key derivation (`hash_to_scalar` with domain-separated `MFW_SEED_VIEW_V1` / `MFW_SEED_SPEND_V1` tags).
+- **`OwnedOutput`** — compact record of every recovered output: one-time-address, Pedersen commitment, decrypted `(value, blinding)`, one-time spend scalar, **precomputed key image**, plus tx-id / output-idx / height bookkeeping. The eager key-image precomputation makes both *local* double-spend prevention and *cross-device* spend detection O(1).
+- **`scan_transaction` / `scan_block`** — walk every output, run `indexed_stealth_detect`, decrypt the amount blob, **and** verify the on-chain Pedersen commitment opens to the decrypted `(value, blinding)`. The Pedersen-open check is the binding step that turns the XOR-pad-shaped `decrypt_output_amount` into a sound "this output is mine" predicate — without it, an attacker could grind `r_pub` values until our wallet mistakenly claims phantom UTXOs. Coinbase outputs use the same flow with a cheap deterministic-`r_pub` shortcut. Spends of owned UTXOs are detected by matching each tx input's key image against the wallet's index.
+- **`build_transfer` + `TransferPlan`** — assemble CLSAG-signed transfer txs. Caller supplies a slice of `&OwnedOutput` inputs, a `TransferRecipient` list, a fee, a ring size, and a `DecoyCandidate<(P, C)>` pool. The helper samples decoys via `select_gamma_decoys`, picks a uniformly random `signer_idx` per input, builds the `InputSpec` ring, and delegates to `mfn_consensus::sign_transaction` for the RingCT ceremony.
+- **`DecoyPoolBuilder` + `build_decoy_pool`** — assemble the `&[DecoyCandidate<RingMember>]` slice `select_gamma_decoys` expects. Walks `ChainState::utxo`, excludes the wallet's own UTXOs (and optionally the real input), and emits a height-sorted pool.
+- **`Wallet::build_transfer`** — convenience method wrapping all of the above: greedy largest-first coin selection over owned UTXOs, automatic decoy-pool construction, automatic change-output to self, automatic local mark-spent so the next `build_transfer` doesn't double-spend before the tx mines.
+- **`Wallet::ingest_block`** — the single mutation entry point. Calls `scan_block`, evicts spent owned UTXOs, inserts recovered outputs (plus their key images into the reverse index), advances the scan watermark.
+
+### Test matrix (+28 tests, 460 → 488 passing workspace-wide)
+
+- **4 keys tests** — seed determinism, seed independence, view/spend independence, `StealthPubKeys` round-trip.
+- **5 owned tests** — Pedersen-open happy / wrong-value / wrong-blinding, key-image determinism + variance, `owned_balance` sum.
+- **7 scan tests** — recover payment-to-us, skip payment-to-someone-else, find one of many outputs, recover our coinbase, skip others' coinbase, aggregate over a block, key-image marks spent, **Pedersen-open protects against grinding**.
+- **8 wallet tests** — coinbase credits, idempotent on unrelated blocks, two-block accumulation, `select_inputs` largest-first / multi-input / insufficient-funds, `mark_spent_by_utxo_key` evicts + idempotent, ingest detects external spend by key-image match.
+- **2 end-to-end integration tests** in `mfn-wallet/tests/end_to_end.rs`:
+  - `wallet_round_trip_through_full_chain_and_light_chain` — drives `mfn_node::Chain` + `mfn_light::LightChain` through 4 blocks (3 coinbase-only + 1 Alice → Bob transfer). Both wallets and both chains end up at the same tip id; Bob's balance is exactly `transfer_value`; Alice's balance reflects `block4_emission + producer_fee − transfer_value − fee` against the pre-build_transfer baseline.
+  - `wallet_rejects_transfer_when_below_balance` — pins the `InsufficientFunds` error path through the full `build_transfer` API.
+
+### What this unlocks
+
+- **`mfn-cli wallet`** — the next milestone wraps `Wallet` + a `ChainConfig` (or a `LightChainConfig`) into a command-line binary. `mfn-cli wallet new / scan / balance / send` becomes the canonical way to interact with a running testnet node.
+- **Single-node demo with a real user.** Once the CLI ships, a single machine running `mfn-node` + `mfn-cli wallet` is a working *node + wallet* pair — the first time the chain is end-to-end useful to a human operator.
+- **Mempool design pressure.** Having a real wallet that emits canonical `TransactionWire`s forces the next milestone (mempool admit + relay) to handle a concrete tx supply, not a hypothetical one.
+- **WASM browser wallet.** Pure-Rust + IO-free means `wasm-pack build --target web` Just Works once we add a `wasm` feature flag — likely a follow-up milestone bundled with the first browser-wallet PoC.
+
+See [`docs/M2_WALLET.md`](./M2_WALLET.md) for the full design note.
 
 ---
 
