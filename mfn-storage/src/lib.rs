@@ -33,7 +33,10 @@ pub mod commitment;
 pub mod endowment;
 pub mod spora;
 
-pub use commitment::{storage_commitment_hash, StorageCommitment};
+pub use commitment::{
+    decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
+    StorageCommitment,
+};
 pub use endowment::{
     accrue_proof_reward, cumulative_payout, max_bytes_for_endowment, payout_per_slot,
     required_endowment, validate_endowment_params, AccrueArgs, AccrueResult, EndowmentError,

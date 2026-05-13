@@ -11,12 +11,12 @@
 |---|---|---:|---|
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
-| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec**) | `mfn-consensus` | 168 | ✓ live |
+| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
-| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization**) | `mfn-light` | 55 | ✓ live |
+| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **440** | All checks green (+ 1 ignored) |
+| **Total** | | **460** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -542,7 +542,7 @@ See [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md) 
 
 ### What's intentionally *not* in M2.0.9
 
-- **Full `Block` codec (`encode_block` / `decode_block`).** Requires a `TransactionWire` round-trip codec (CLSAG sigs + bulletproofs decode) which is its own non-trivial slice. The M2.0.9 header codec is already enough for header-only sync.
+- **Full `Block` codec (`encode_block` / `decode_block`).** Shipped in M2.0.10 (see below).
 - **Persistent storage adapter.** The crate produces bytes; whether a caller writes them to disk / S3 / IPFS / Arweave is intentionally outside `mfn-light`'s remit.
 - **Multi-version codec.** Today version 1 is the only known version. When we bump it, the `version` switch in `decode_checkpoint_bytes` is the extension point.
 
@@ -551,9 +551,51 @@ See [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md) 
 - **Wallet UX.** Mobile / browser wallets can resume in milliseconds instead of replaying from genesis.
 - **Light-client P2P.** Peers can ship signed `(checkpoint, header_chain)` pairs to bootstrap newly-joining clients fast.
 - **Header-first sync.** `decode_block_header` is the foundation for the future "Headers" message protocol.
-- **M2.0.10 candidate** — `TransactionWire` round-trip codec → full `Block::encode` / `Block::decode`.
+- **M2.0.10** — `TransactionWire` round-trip codec → full `Block::encode` / `Block::decode` (now shipped).
 
 See [`docs/M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md) for the full design note.
+
+---
+
+## Milestone M2.0.10 — Canonical transaction + full-block wire codec (✓ shipped)
+
+**Why it was next.** M2.0.9 gave the chain a round-trippable header and restartable light-client checkpoints, but the block *body* still lived only as in-memory Rust structs. That is not enough for P2P, disk persistence, raw-byte RPC, or a light client that receives `Block` bytes from an untrusted peer. M2.0.10 makes a finalized block a canonical byte string: encode once, ship anywhere, decode deterministically, and verify with the same header/body/root checks already implemented.
+
+### What shipped
+
+- **`mfn-storage::{encode_storage_commitment, decode_storage_commitment}`** — lossless full-struct storage-commitment codec. `storage_commitment_hash` still hashes the same field order; the new codec carries the complete commitment inside storage-bearing transaction outputs instead of collapsing it to a 32-byte hash.
+- **`mfn-consensus::{encode_transaction, decode_transaction}`** — full `TransactionWire` codec covering tx version, tx public key, fee, `extra`, all CLSAG input rings + signatures, all output commitments + Bulletproof range proofs + encrypted amounts, and optional full storage commitments. `TxDecodeError` is typed (`VersionOutOfRange`, `InvalidStorageFlag`, `RingColumnLenMismatch`, `NonCanonicalBlob`, `TrailingBytes`, etc.).
+- **Strict nested canonicality.** CLSAG and Bulletproof blobs are decoded and re-encoded to reject non-canonical tails. Storage commitments, slashing evidence, and storage proofs now enforce trailing-byte rejection. Storage-proof sibling-side flags are restricted to `0`/`1`.
+- **`mfn-consensus::{encode_block, decode_block}`** — full `Block` codec:
+
+```text
+block_header_bytes(header)
+varint(txs.len)             || blob(encode_transaction(tx))*
+varint(bond_ops.len)        || blob(encode_bond_op(op))*
+varint(slashings.len)       || blob(encode_evidence(evidence))*
+varint(storage_proofs.len)  || blob(encode_storage_proof(proof))*
+```
+
+- **`BlockDecodeError`** — typed decode surface for header errors, body framing errors, per-section item errors (`Transaction`, `BondOp`, `Slashing`, `StorageProof`), oversize counts, and trailing bytes.
+- **Allocation-hardening.** Attacker-controlled section counts are never passed into `Vec::with_capacity`; the decoder grows vectors only as bytes are successfully consumed, so malformed `2^64-1 items` claims fail as codec errors instead of aborting the process.
+
+### Test matrix
+
+- **5 new `mfn-storage::commitment` tests** for commitment codec round-trip, fixed 81-byte shape, every-prefix truncation rejection, trailing-byte rejection, and hash preservation after decode.
+- **7 new `mfn-consensus::transaction` tests** for simple tx round-trip, multi-input + storage-bearing round-trip, raw-output round-trip, every-prefix truncation rejection, trailing-byte rejection, invalid storage-flag rejection, and exact storage-commitment preservation.
+- **6 new `mfn-consensus::block` tests** for empty-body block round-trip, header-prefix invariant, trailing-byte rejection, every-prefix truncation rejection, huge-count allocation-hardening, and the 278-byte empty-body golden shape (274-byte header + four zero-count varints).
+- **2 new `mfn-light::tests::follow_chain` integration tests**:
+  - `block_codec_round_trips_real_blocks_and_feeds_light_chain` — produce real BLS-signed blocks with `mfn-node`, encode to bytes, decode with `decode_block`, then apply the decoded blocks to both `mfn-node::Chain` and `LightChain::apply_block`, asserting identical tips for 3 blocks.
+  - `block_codec_rejects_real_block_trailing_bytes` — raw block bytes are self-delimiting and reject appended garbage before consensus verification.
+
+### What this unlocks
+
+- **P2P block gossip.** A block can now be the byte payload of a network message; peers decode it deterministically and then run `verify_header` / `verify_block_body` / `apply_block`.
+- **Disk persistence.** A node can persist canonical block bytes and replay them later without bespoke serde or Rust-version-dependent struct layout.
+- **Raw-byte light sync.** A light client can receive bytes, decode to `Block`, and feed the result into `LightChain::apply_block` — proven end-to-end by the new integration test.
+- **RPC / archival APIs.** `get_block_bytes(height)` can become a stable API surface: clients verify the same bytes that consensus hashes.
+
+See [`docs/M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md) for the full design note.
 
 ---
 

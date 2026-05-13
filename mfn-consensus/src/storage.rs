@@ -8,4 +8,7 @@
 //!
 //! New code should prefer `use mfn_storage::*` directly.
 
-pub use mfn_storage::commitment::{storage_commitment_hash, StorageCommitment};
+pub use mfn_storage::commitment::{
+    decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
+    StorageCommitment,
+};

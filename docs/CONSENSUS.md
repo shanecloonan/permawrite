@@ -562,6 +562,38 @@ Cross-field invariants enforced on decode (defence-in-depth against malicious pe
 
 For the full wire layout, design rationale, and 28-test matrix (7 header-codec unit + 13 checkpoint codec unit + 5 LightChain-level unit + 3 integration), see [`docs/M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md).
 
+### Canonical full-block codec (M2.0.10)
+
+M2.0.10 makes a finalized block a canonical byte string:
+
+```text
+block_header_bytes(header)
+varint(txs.len)             || blob(encode_transaction(tx))*
+varint(bond_ops.len)        || blob(encode_bond_op(op))*
+varint(slashings.len)       || blob(encode_evidence(evidence))*
+varint(storage_proofs.len)  || blob(encode_storage_proof(proof))*
+```
+
+This codec is deliberately layered:
+
+- `decode_block_header` (M2.0.9) parses the header prefix.
+- `decode_transaction` (M2.0.10) parses the full `TransactionWire`, including CLSAG input signatures, Bulletproof output proofs, encrypted amounts, and optional full `StorageCommitment`s.
+- `decode_bond_op`, `decode_evidence`, and `decode_storage_proof` parse the remaining rooted body sections.
+
+`decode_block` is **not** a consensus acceptance rule by itself. It answers "are these bytes a canonical `Block` object?" The acceptance path is still:
+
+```text
+decode_block(bytes)
+  → verify_header(header, trusted_validators, params)
+  → verify_block_body(block)
+  → apply_block(state, block)   // full node
+     or LightChain::apply_block(block)  // light client
+```
+
+The new `mfn-light` integration test exercises exactly that raw-byte path: `mfn-node` produces real BLS-signed blocks, `encode_block` turns them into bytes, `decode_block` reconstructs them, and both `Chain` and `LightChain` accept the decoded blocks while staying tip-identical.
+
+For the full wire layout, strictness rules, allocation-hardening rationale, and test matrix, see [`docs/M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md).
+
 ### Tests added for M2.0
 
 - `validator_set_root_empty_is_zero_sentinel` — empty set folds to the all-zero sentinel.

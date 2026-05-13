@@ -11,9 +11,9 @@
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, sign_register, sign_unbond, validator_set_root,
-    BlockHeader, BodyVerifyError, BondOp, BondingParams, ConsensusParams, GenesisConfig,
-    HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
+    build_coinbase, decode_block, emission_at_height, encode_block, sign_register, sign_unbond,
+    validator_set_root, BlockHeader, BodyVerifyError, BondOp, BondingParams, ConsensusParams,
+    GenesisConfig, HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
@@ -445,6 +445,66 @@ fn light_chain_apply_block_and_apply_header_agree_on_clean_chains() {
     }
     assert_eq!(light_hdr.stats(), light_blk.stats());
     assert_eq!(light_hdr.tip_id(), light_blk.tip_id());
+}
+
+/* ------------------------------------------------------------------ *
+ *  M2.0.10 — Canonical full-block wire codec                          *
+ * ------------------------------------------------------------------ */
+
+/// A block received as raw network bytes can be decoded, verified, and
+/// applied by the light client exactly like an in-memory `Block`.
+///
+/// This is the first end-to-end sync-path proof for M2.0.10: full node
+/// produces real BLS-signed blocks, the consensus codec serializes them
+/// to canonical bytes, a peer decodes those bytes back into `Block`, and
+/// both `Chain::apply` and `LightChain::apply_block` accept the decoded
+/// object while remaining tip-identical for three consecutive blocks.
+#[test]
+fn block_codec_round_trips_real_blocks_and_feeds_light_chain() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    for height in 1u32..=3 {
+        let block = produce_block(&full, &secrets, params, height);
+        let encoded = encode_block(&block);
+        let decoded = decode_block(&encoded).expect("decode block");
+
+        assert_eq!(encode_block(&decoded), encoded, "block codec drifted");
+        assert_eq!(decoded.header.height, height);
+        assert_eq!(decoded.header.prev_hash, block.header.prev_hash);
+        assert_eq!(decoded.header.tx_root, block.header.tx_root);
+        assert_eq!(decoded.header.bond_root, block.header.bond_root);
+        assert_eq!(decoded.header.slashing_root, block.header.slashing_root);
+        assert_eq!(
+            decoded.header.storage_proof_root,
+            block.header.storage_proof_root
+        );
+
+        let full_tip = full.apply(&decoded).expect("full apply decoded");
+        let light_applied = light.apply_block(&decoded).expect("light apply decoded");
+        assert_eq!(full_tip, light_applied.block_id);
+        assert_eq!(full.tip_id(), Some(light.tip_id()));
+        assert_eq!(full.tip_height(), Some(height));
+        assert_eq!(light.tip_height(), height);
+    }
+}
+
+/// Raw block bytes are self-delimiting: appending one byte after a valid
+/// block must be rejected before any consensus verification runs.
+#[test]
+fn block_codec_rejects_real_block_trailing_bytes() {
+    let (cfg, secrets, params) = single_validator_genesis();
+    let full = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+    let block = produce_block(&full, &secrets, params, 1);
+    let mut encoded = encode_block(&block);
+    encoded.push(0xff);
+
+    let err = decode_block(&encoded).expect_err("must reject trailing byte");
+    assert!(matches!(
+        err,
+        mfn_consensus::BlockDecodeError::TrailingBytes { remaining: 1 }
+    ));
 }
 
 /* ------------------------------------------------------------------ *

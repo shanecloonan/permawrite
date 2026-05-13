@@ -2,7 +2,7 @@
 
 Permanent-storage primitives for Permawrite — the half of the chain that makes data outlast its uploader.
 
-**Tests:** 39 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 44 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This crate is the chain-level engine for **endowment-funded permanent storage**: how to anchor a file on-chain, how to *prove* you're still holding it block-by-block, and how to compute the upfront escrow that lets storage operators get paid forever.
 
@@ -14,8 +14,8 @@ For the *what* and *why*, see [`docs/STORAGE.md`](../docs/STORAGE.md). For the e
 
 | Module | Responsibility |
 |---|---|
-| [`commitment`](src/commitment.rs) | `StorageCommitment` struct + canonical hash. The on-chain anchor of a stored file. |
-| [`spora`](src/spora.rs) | **SPoRA — Succinct Proofs of Random Access.** Chunking, the per-block deterministic challenge derivation, and the `StorageProof` build/verify pipeline. M2.0.2 — `storage_proof_leaf_hash` / `storage_proof_merkle_root` for the per-block `storage_proof_root` commitment under the new `STORAGE_PROOF_LEAF` domain. |
+| [`commitment`](src/commitment.rs) | `StorageCommitment` struct + canonical hash. M2.0.10 adds `encode_storage_commitment` / `decode_storage_commitment`, a lossless full-struct codec used by storage-bearing transaction outputs in the full-block wire codec. |
+| [`spora`](src/spora.rs) | **SPoRA — Succinct Proofs of Random Access.** Chunking, the per-block deterministic challenge derivation, and the `StorageProof` build/verify pipeline. M2.0.2 — `storage_proof_leaf_hash` / `storage_proof_merkle_root` for the per-block `storage_proof_root` commitment under the new `STORAGE_PROOF_LEAF` domain. M2.0.10 tightens `decode_storage_proof`: trailing bytes reject, and Merkle side flags must be exactly `0` or `1`. |
 | [`endowment`](src/endowment.rs) | The `E₀ = C₀·(1+i)/(r−i)` formula, per-slot payouts, and the PPB-precision yield accumulator. |
 
 ---
@@ -49,6 +49,8 @@ let commit = StorageCommitment {
     endowment: pedersen_commit(amount, &blinding),
 };
 let hash = storage_commitment_hash(&commit);
+let bytes = encode_storage_commitment(&commit);
+let decoded = decode_storage_commitment(&bytes)?;
 
 // === Chunking + Merkle tree ========================================
 let chunks: Vec<&[u8]> = chunk_data(data)?;
@@ -102,7 +104,20 @@ Full type signatures in [`src/lib.rs`](src/lib.rs).
 [varint(proof.len()) ‖ proof[0] (32 B) ‖ proof[1] (32 B) ‖ …]
 ```
 
-Encoded by [`encode_storage_proof`](src/spora.rs); decoded by [`decode_storage_proof`](src/spora.rs).
+Encoded by [`encode_storage_proof`](src/spora.rs); decoded by [`decode_storage_proof`](src/spora.rs). M2.0.10 makes the decoder strict: any trailing bytes or non-boolean sibling-side flags reject.
+
+## Wire format — `StorageCommitment` (M2.0.10)
+
+```text
+[data_root (32 B)]
+[size_bytes (u64)]
+[chunk_size (u32)]
+[num_chunks (u32)]
+[replication (u8)]
+[endowment (compressed EdwardsPoint, 32 B)]
+```
+
+Total: **81 bytes**. Encoded by [`encode_storage_commitment`](src/commitment.rs); decoded by [`decode_storage_commitment`](src/commitment.rs). This is intentionally the same field order that [`storage_commitment_hash`](src/commitment.rs) hashes under `MFBN-1/storage-commit`, so storage-bearing transaction outputs can carry the full commitment while roots and IDs keep using the commitment hash.
 
 ---
 

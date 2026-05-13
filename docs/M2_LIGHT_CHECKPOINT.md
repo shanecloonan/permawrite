@@ -1,6 +1,6 @@
 # Milestone M2.0.9 — Canonical header codec + LightChain checkpoint
 
-> **Status:** ✓ Shipped. Tests: 440 passing (workspace), 1 ignored.
+> **Status:** ✓ Shipped. Tests at M2.0.9 close: 440 passing (workspace), 1 ignored.
 > Code:
 > - `mfn-crypto/src/domain.rs` — new `LIGHT_CHECKPOINT` domain tag.
 > - `mfn-consensus/src/block.rs` — `decode_block_header`, `HeaderDecodeError`.
@@ -283,10 +283,8 @@ storage layer that already hashed the payload upstream).
 
 Each of these is its own clean follow-on slice:
 
-- **Full `Block` codec (`encode_block` / `decode_block`).** Requires
-  a `TransactionWire` round-trip codec (CLSAG sigs +
-  bulletproofs decode), which is its own non-trivial slice. The
-  M2.0.9 header codec is already enough for header-only sync.
+- **Full `Block` codec (`encode_block` / `decode_block`).** Shipped
+  in M2.0.10; see [`M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md).
 - **Persistent storage adapter for checkpoints.** This crate
   produces bytes; whether a caller writes them to disk / S3 /
   IPFS / Arweave is intentionally outside `mfn-light`'s remit.
@@ -299,8 +297,7 @@ Each of these is its own clean follow-on slice:
 
 ## What's next
 
-M2.0.10 candidate: **`TransactionWire` round-trip codec** —
-followed by full `Block::encode` / `Block::decode`, unblocking the
-first real P2P "Block" message and end-to-end snapshot+replay of
-arbitrary blocks. After that: M2.1 single-node tx-pool +
-networking surface.
+M2.0.10 shipped the `TransactionWire` round-trip codec and full
+`Block::encode` / `Block::decode`, unblocking the first real P2P
+"Block" message and end-to-end raw-byte block replay. After that:
+M2.1 single-node tx-pool + networking surface.

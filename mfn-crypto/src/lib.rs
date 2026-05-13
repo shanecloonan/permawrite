@@ -141,6 +141,16 @@ pub enum CryptoError {
     /// A varint encoding exceeded its size limit.
     #[error("varint too long")]
     VarintTooLong,
+    /// A decoder reached the end of its expected input but found
+    /// additional bytes in the buffer. Returned by strict, self-
+    /// delimiting decoders (e.g. fixed-shape struct decoders) where a
+    /// non-empty tail always indicates a caller-side framing bug or
+    /// corruption.
+    #[error("{remaining} trailing byte(s) after decode")]
+    TrailingBytes {
+        /// Number of bytes left in the buffer after the last field.
+        remaining: usize,
+    },
 }
 
 /// Result type used throughout this crate.

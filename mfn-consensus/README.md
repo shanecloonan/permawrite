@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 168 passing (154 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 181 passing (167 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -17,14 +17,14 @@ For the system view, see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). For 
 | [`emission`](src/emission.rs) | Hybrid emission curve (Bitcoin halvings → Monero tail), fee-split bps. |
 | [`bonding`](src/bonding.rs) | M1 rotation parameters + pure validation helpers — min stake, unbond delay, per-epoch entry/exit churn caps. |
 | [`bond_wire`](src/bond_wire.rs) | M1 wire format — `BondOp::{Register, Unbond}` (both BLS-signed by the operator's voting key), `register_signing_hash`, `unbond_signing_hash`, `bond_op_leaf_hash`, `bond_merkle_root`. |
-| [`transaction`](src/transaction.rs) | RingCT-style confidential tx — wire format, build, sign, verify. |
+| [`transaction`](src/transaction.rs) | RingCT-style confidential tx — build, sign, verify, tx ids. **M2.0.10** adds `encode_transaction` / `decode_transaction`, a lossless full `TransactionWire` codec carrying CLSAG signatures, Bulletproofs, encrypted amounts, and optional full `StorageCommitment`s. |
 | [`coinbase`](src/coinbase.rs) | Deterministic synthetic block-reward tx. |
 | [`consensus`](src/consensus.rs) | Slot model, VRF leader election, BLS committee finality, `FinalityProof`. M2.0 — `validator_leaf_bytes` / `validator_leaf_hash` / `validator_set_root` for the per-block `validator_root` commitment. |
 | [`slashing`](src/slashing.rs) | Equivocation evidence + verification. M2.0.1 — `slashing_leaf_hash` / `slashing_merkle_root` for the per-block `slashing_root` commitment. |
-| [`storage`](src/storage.rs) | Re-exports `StorageCommitment` from `mfn-storage` (for consumer convenience). |
+| [`storage`](src/storage.rs) | Re-exports `StorageCommitment` and the M2.0.10 `encode_storage_commitment` / `decode_storage_commitment` helpers from `mfn-storage` (for consumer convenience). |
 | [`header_verify`](src/header_verify.rs) | **M2.0.5 + M2.0.7 — pure-function light-client verification primitives.** `verify_header(header, trusted_validators, params)` (M2.0.5) verifies `validator_root` + producer-proof + BLS finality aggregate against a trusted pre-block validator set. `verify_block_body(block)` (M2.0.7) re-derives `tx_root` / `bond_root` / `slashing_root` / `storage_proof_root` from `block.<field>` and matches each against the header. Both return typed `Result<_, *VerifyError>`. The cryptographic primitives for `mfn-light`. |
 | [`validator_evolution`](src/validator_evolution.rs) | **M2.0.8 — shared validator-set evolution helpers.** Pure functions `apply_equivocation_slashings`, `apply_liveness_evolution`, `apply_bond_ops_evolution`, `apply_unbond_settlements` plus `BondEpochCounters` + `finality_bitmap_from_header`. `apply_block` (the full-node STF) and `mfn-light::LightChain::apply_block` (the light-client chain follower) both call these helpers, guaranteeing byte-for-byte parity between full-node and light-client validator-set transitions. |
-| [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** Each per-block validator-set mutation is a single line that delegates into `validator_evolution`. **M2.0.9** adds `decode_block_header` — the inverse of the existing canonical `block_header_bytes` encoder — with typed `HeaderDecodeError` covering truncation, varint overflow, version-out-of-range, oversized producer-proof length, and trailing bytes. Property tests prove the codec has no dead bytes; a golden vector pins the 274-byte genesis-shaped encoding for cross-implementation parity. |
+| [`block`](src/block.rs) | **`BlockHeader`, `Block`, `ChainState`, `apply_block` — the heart of it all.** Each per-block validator-set mutation delegates into `validator_evolution`. **M2.0.9** adds `decode_block_header`; **M2.0.10** adds `encode_block` / `decode_block` plus typed `BlockDecodeError`. Full-block wire layout is `block_header_bytes(header)` followed by length-prefixed tx, bond-op, slashing, and storage-proof sections. |
 
 ---
 
@@ -111,6 +111,11 @@ let check: Result<HeaderCheck, HeaderVerifyError> =
 // pair is the one a 2/3-stake quorum signed over.
 let body_ok: Result<(), BodyVerifyError> = verify_block_body(&block);
 
+// === Canonical full-block wire codec (M2.0.10) ======================
+let bytes: Vec<u8> = encode_block(&block);
+let decoded: Block = decode_block(&bytes)?;
+assert_eq!(encode_block(&decoded), bytes);
+
 // === Emission / endowment =========================================
 let subsidy: u64 = emission_at_height(height, &emission_params);
 let cum:     u128 = cumulative_emission(height, &emission_params);
@@ -132,6 +137,10 @@ pub struct BlockHeader {
     pub timestamp:      u64,
     pub tx_root:        [u8; 32],
     pub storage_root:   [u8; 32],
+    pub bond_root:      [u8; 32],
+    pub slashing_root:  [u8; 32],
+    pub storage_proof_root: [u8; 32],
+    pub validator_root: [u8; 32],
     pub producer_proof: Vec<u8>,    // MFBN-encoded FinalityProof
     pub utxo_root:      [u8; 32],
 }
@@ -141,6 +150,7 @@ pub struct Block {
     pub txs:            Vec<TransactionWire>,
     pub slashings:      Vec<SlashEvidence>,
     pub storage_proofs: Vec<StorageProof>,
+    pub bond_ops:       Vec<BondOp>,
 }
 
 pub struct ChainState {
@@ -250,6 +260,7 @@ pub enum BlockError {
 - **Light-body verification (M2.0.7)** — 8 unit tests in `header_verify::tests`: happy path on real signed block, tampered header fields for each of the four body-bound roots (`tx_root` / `bond_root` / `slashing_root` / `storage_proof_root`), body-side tamper (pushed duplicate tx), determinism, genesis consistency. Plus 7 + 5 mfn-light tests for `apply_block` (see [`mfn-light/README.md`](../mfn-light/README.md)).
 - **Validator-set evolution (M2.0.8)** — 8 unit tests in `validator_evolution::tests`: empty-input no-ops for each of the four phases; liveness consecutive-missed reset on signed bit; zero-stake validators skipped by liveness; stats-vec auto-resize when misaligned; unbond settlement zeroes stake at unlock_height; bitmap extractor returns `None` on genesis headers. The `apply_block` refactor that delegates to these helpers preserves every pre-M2.0.8 test (all 147 unit + 14 integration tests pass byte-for-byte unchanged). Plus 8 + 2 mfn-light tests for the light-client integration (see [`mfn-light/README.md`](../mfn-light/README.md)).
 - **Header wire codec round-trip (M2.0.9)** — 7 unit tests in `block::tests`: `block_header_codec_round_trip` (synthetic header), `block_header_codec_round_trip_empty_producer_proof` (genesis-shaped), `block_header_codec_rejects_truncation` (every prefix), `block_header_codec_rejects_trailing_bytes`, `block_header_codec_rejects_oversized_version` (varint > u32::MAX), `block_header_codec_has_no_dead_bytes` (property: every byte materially affects the header's `block_id` or is rejected), `block_header_codec_golden_vector` (pinned 274-byte encoding).
+- **Full block wire codec (M2.0.10)** — 18 new unit tests: 5 in `mfn-storage::commitment` for the full `StorageCommitment` codec, 7 in `transaction::tests` for `TransactionWire` round-trip / truncation / trailing / invalid-flag handling, and 6 in `block::tests` for `encode_block` / `decode_block` shape, strictness, allocation-hardening, and a 278-byte empty-body golden shape. Plus 2 mfn-light integration tests proving real BLS-signed block bytes decode and feed `LightChain::apply_block` in lockstep with `mfn-node::Chain`.
 - **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
 
 ```bash

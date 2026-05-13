@@ -92,6 +92,13 @@ pub fn decode_evidence(bytes: &[u8]) -> Result<SlashEvidence, SlashDecodeError> 
     let mut header_hash_b = [0u8; 32];
     header_hash_b.copy_from_slice(header_hash_b_raw);
     let sig_b = decode_signature(r.bytes(96)?)?;
+    if !r.end() {
+        return Err(SlashDecodeError::Codec(
+            mfn_crypto::CryptoError::TrailingBytes {
+                remaining: r.remaining(),
+            },
+        ));
+    }
     Ok(SlashEvidence {
         height,
         slot,

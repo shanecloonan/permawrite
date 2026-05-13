@@ -20,7 +20,7 @@
 //! `dhash(STORAGE_COMMIT, write(data_root) || u64(size) || u32(chunk) || u32(num) || u8(rep) || point(end))`.
 
 use curve25519_dalek::edwards::EdwardsPoint;
-use mfn_crypto::codec::Writer;
+use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::dhash;
 use mfn_crypto::domain::STORAGE_COMMIT;
 
@@ -59,6 +59,65 @@ pub fn storage_commitment_hash(c: &StorageCommitment) -> [u8; 32] {
     dhash(STORAGE_COMMIT, &[w.bytes()])
 }
 
+/* ----------------------------------------------------------------------- *
+ *  Wire codec (M2.0.10)                                                    *
+ * ----------------------------------------------------------------------- */
+
+/// Lossless canonical byte encoding of a [`StorageCommitment`].
+///
+/// Same field order and primitive layout as [`storage_commitment_hash`]
+/// — the hash and the encoding are derived from the identical byte
+/// stream so cross-implementation parity is automatic.
+///
+/// This is the encoder a full-block wire codec uses to round-trip the
+/// optional permanence binding on a tx output: the hash alone is not
+/// sufficient there, the full struct must travel with the block.
+#[must_use]
+pub fn encode_storage_commitment(c: &StorageCommitment) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.push(&c.data_root);
+    w.u64(c.size_bytes);
+    w.u32(c.chunk_size);
+    w.u32(c.num_chunks);
+    w.u8(c.replication);
+    w.point(&c.endowment);
+    w.into_bytes()
+}
+
+/// Decode a [`StorageCommitment`] from its canonical bytes.
+///
+/// Strict: any trailing byte after the final field is a hard reject.
+///
+/// # Errors
+///
+/// Returns [`mfn_crypto::CryptoError`] on truncation, invalid Edwards
+/// point compression, or trailing bytes.
+pub fn decode_storage_commitment(
+    bytes: &[u8],
+) -> Result<StorageCommitment, mfn_crypto::CryptoError> {
+    let mut r = Reader::new(bytes);
+    let mut data_root = [0u8; 32];
+    data_root.copy_from_slice(r.bytes(32)?);
+    let size_bytes = r.u64()?;
+    let chunk_size = r.u32()?;
+    let num_chunks = r.u32()?;
+    let replication = r.u8()?;
+    let endowment = r.point()?;
+    if !r.end() {
+        return Err(mfn_crypto::CryptoError::TrailingBytes {
+            remaining: r.remaining(),
+        });
+    }
+    Ok(StorageCommitment {
+        data_root,
+        size_bytes,
+        chunk_size,
+        num_chunks,
+        replication,
+        endowment,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,6 +139,60 @@ mod tests {
     fn hash_is_deterministic() {
         let c = sample_commit();
         assert_eq!(storage_commitment_hash(&c), storage_commitment_hash(&c));
+    }
+
+    #[test]
+    fn encode_decode_round_trip() {
+        let c = sample_commit();
+        let bytes = encode_storage_commitment(&c);
+        let recovered = decode_storage_commitment(&bytes).expect("decode");
+        assert_eq!(recovered, c);
+        // Re-encoding the decoded value must produce identical bytes.
+        assert_eq!(encode_storage_commitment(&recovered), bytes);
+    }
+
+    #[test]
+    fn encoded_length_is_fixed_81_bytes() {
+        // data_root(32) + size_bytes(8) + chunk_size(4) + num_chunks(4)
+        // + replication(1) + endowment(32) = 81 bytes.
+        let c = sample_commit();
+        let bytes = encode_storage_commitment(&c);
+        assert_eq!(bytes.len(), 81);
+    }
+
+    #[test]
+    fn decode_rejects_truncation_at_every_prefix() {
+        let c = sample_commit();
+        let bytes = encode_storage_commitment(&c);
+        for prefix in 0..bytes.len() {
+            let err = decode_storage_commitment(&bytes[..prefix]);
+            assert!(err.is_err(), "prefix of length {prefix} should be rejected");
+        }
+    }
+
+    #[test]
+    fn decode_rejects_trailing_bytes() {
+        let c = sample_commit();
+        let mut bytes = encode_storage_commitment(&c);
+        bytes.push(0xff);
+        let err = decode_storage_commitment(&bytes).unwrap_err();
+        assert!(matches!(
+            err,
+            mfn_crypto::CryptoError::TrailingBytes { remaining: 1 }
+        ));
+    }
+
+    #[test]
+    fn decode_then_hash_equals_original_hash() {
+        // The most important consensus invariant: a decoded commitment
+        // hashes to the same `commit_hash` as the original.
+        let c = sample_commit();
+        let bytes = encode_storage_commitment(&c);
+        let recovered = decode_storage_commitment(&bytes).expect("decode");
+        assert_eq!(
+            storage_commitment_hash(&recovered),
+            storage_commitment_hash(&c)
+        );
     }
 
     #[test]

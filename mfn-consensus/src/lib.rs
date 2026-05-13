@@ -62,10 +62,11 @@ pub mod validator_evolution;
 
 pub use block::{
     apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
-    decode_block_header, header_signing_bytes, header_signing_hash, seal_block,
-    storage_merkle_root, tx_merkle_root, ApplyOutcome, Block, BlockError, BlockHeader, ChainState,
-    ConsensusParams, GenesisConfig, GenesisOutput, HeaderDecodeError, PendingUnbond, UtxoEntry,
-    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+    decode_block, decode_block_header, encode_block, header_signing_bytes, header_signing_hash,
+    seal_block, storage_merkle_root, tx_merkle_root, ApplyOutcome, Block, BlockDecodeError,
+    BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig, GenesisOutput,
+    HeaderDecodeError, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
+    HEADER_VERSION,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, register_signing_bytes,
@@ -101,11 +102,15 @@ pub use slashing::{
     canonicalize, decode_evidence, encode_evidence, slashing_leaf_hash, slashing_merkle_root,
     verify_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,
 };
-pub use storage::{storage_commitment_hash, StorageCommitment};
+pub use storage::{
+    decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
+    StorageCommitment,
+};
 pub use transaction::{
-    sign_transaction, tx_id, tx_preimage, verify_transaction, InputSpec, OutputSpec, Recipient,
-    SignedTransaction, TransactionWire, TxBuildError, TxInputWire, TxOutputWire, VerifyResult,
-    TX_RANGE_BITS, TX_VERSION,
+    decode_transaction, encode_transaction, sign_transaction, tx_id, tx_preimage,
+    verify_transaction, InputSpec, OutputSpec, Recipient, SignedTransaction, TransactionWire,
+    TxBuildError, TxDecodeError, TxInputWire, TxOutputWire, VerifyResult, TX_RANGE_BITS,
+    TX_VERSION,
 };
 pub use validator_evolution::{
     apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,

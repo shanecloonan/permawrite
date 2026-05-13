@@ -68,6 +68,29 @@ Off-the-shelf options (CBOR, protobuf, RLP, SCALE) all have *one* or more of the
 
 MFBN-1 is the smallest possible deterministic codec that exactly matches our primitive byte layouts. Every encoder is paired with an exact-match decoder.
 
+### Round-trippable block bytes (M2.0.10)
+
+The canonical full-block codec now lives in `mfn-consensus::block`:
+
+```text
+encode_block(block) =
+  block_header_bytes(header)
+  varint(txs.len)             || blob(encode_transaction(tx))*
+  varint(bond_ops.len)        || blob(encode_bond_op(op))*
+  varint(slashings.len)       || blob(encode_evidence(evidence))*
+  varint(storage_proofs.len)  || blob(encode_storage_proof(proof))*
+```
+
+This is deliberately a composition of existing canonical codecs: M2.0.9's `block_header_bytes` / `decode_block_header`, M2.0.10's `encode_transaction` / `decode_transaction`, the M1 bond-op codec, the slashing-evidence codec, and the SPoRA storage-proof codec. Decoding is structural only; validity is still established by `verify_header`, `verify_block_body`, and `apply_block`.
+
+Strictness rules:
+
+- Any trailing bytes after a header, transaction, storage commitment, slashing evidence, storage proof, or full block reject.
+- Nested CLSAG / Bulletproof blobs must decode and re-encode to the same bytes.
+- Attacker-controlled body-section counts are not used as allocation capacities; malformed huge counts fail against the finite buffer instead of aborting the process.
+
+See [`M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md) for the full wire layout and test matrix.
+
 ### Hashing convention
 
 Every chain-significant hash is computed as:
@@ -115,6 +138,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/validator-leaf` | Validator-set Merkle leaf (M2.0) |
 | `MFBN-1/slashing-leaf` | Slashing-evidence Merkle leaf (M2.0.1) |
 | `MFBN-1/storage-proof-leaf` | Storage-proof Merkle leaf (M2.0.2) |
+| `MFBN-1/light-checkpoint` | LightChain checkpoint integrity tag (M2.0.9) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -717,17 +741,17 @@ mfn-crypto/         ed25519 primitives + ZK    (145 tests)
 mfn-bls/            BLS12-381                  (16 tests)
 └── sig.rs          BLS signatures + committee aggregation
 
-mfn-storage/        Permanence                 (39 tests)
-├── commitment.rs   StorageCommitment canonical hash
+mfn-storage/        Permanence                 (44 tests)
+├── commitment.rs   StorageCommitment canonical hash + M2.0.10 full codec
 ├── spora.rs        Chunking, Merkle, challenge derivation, build/verify proof,
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (168 tests: 154 unit + 14 integration)
+mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
-├── transaction.rs  RingCT-style tx wire + verify
+├── transaction.rs  RingCT-style tx wire + verify + M2.0.10 full tx codec
 ├── coinbase.rs     Deterministic coinbase
 ├── consensus.rs    Slot model, VRF leader election, BLS committee finality,
 │                   M2.0 validator-set merkle commitment
@@ -751,6 +775,7 @@ mfn-consensus/      Chain state machine        (168 tests: 154 unit + 14 integra
                     mutation is a single call into validator_evolution.
                     M2.0.9 adds decode_block_header (the inverse of
                     block_header_bytes) with typed HeaderDecodeError.
+                    M2.0.10 adds encode_block / decode_block.
 
 mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
@@ -761,7 +786,7 @@ mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integratio
                     case. The shape future P2P / RPC / mempool integration
                     consumes.
 
-mfn-light/          Light-client follower      (55 tests: 40 unit + 15 integration)
+mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,
 │                   AND the shadow state needed to evolve that set across
 │                   rotations (validator_stats, pending_unbonds,
@@ -775,6 +800,8 @@ mfn-light/          Light-client follower      (55 tests: 40 unit + 15 integrati
 │                                         + tip advance.
 │                   M2.0.9: encode_checkpoint / decode_checkpoint methods
 │                           round-trip the full shadow state byte-deterministically.
+│                   M2.0.10: integration-proven raw-block-byte path:
+│                            decode_block(bytes) → apply_block(&Block).
 └── checkpoint.rs   M2.0.9 self-contained checkpoint codec: magic + version
                     + tip + identity + params + validators + stats +
                     pending_unbonds + bond_counters + dhash(LIGHT_CHECKPOINT)

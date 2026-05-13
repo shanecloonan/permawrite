@@ -41,9 +41,13 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 
-use mfn_crypto::bulletproofs::{bp_prove, bp_verify, encode_bulletproof, BulletproofRange};
-use mfn_crypto::clsag::{clsag_sign, clsag_verify, encode_clsag, ClsagRing, ClsagSignature};
-use mfn_crypto::codec::Writer;
+use mfn_crypto::bulletproofs::{
+    bp_prove, bp_verify, decode_bulletproof, encode_bulletproof, BulletproofRange,
+};
+use mfn_crypto::clsag::{
+    clsag_sign, clsag_verify, decode_clsag, encode_clsag, ClsagRing, ClsagSignature,
+};
+use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{TX_ID, TX_PREIMAGE};
 use mfn_crypto::encrypted_amount::{encrypt_output_amount, ENC_AMOUNT_BYTES};
 use mfn_crypto::hash::dhash;
@@ -51,7 +55,10 @@ use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
 use mfn_crypto::stealth::{indexed_stealth_address, StealthPubKeys};
 
-use crate::storage::{storage_commitment_hash, StorageCommitment};
+use crate::storage::{
+    decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
+    StorageCommitment,
+};
 
 /// Current consensus version of the transaction wire format.
 pub const TX_VERSION: u32 = 1;
@@ -171,6 +178,262 @@ pub fn tx_id(tx: &TransactionWire) -> [u8; 32] {
         w.blob(&encode_clsag(&inp.sig));
     }
     dhash(TX_ID, &[w.bytes()])
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Wire codec (M2.0.10) — full transaction encode / decode                *
+ * ----------------------------------------------------------------------- */
+
+/// Lossless canonical byte encoding of a [`TransactionWire`].
+///
+/// Mirrors [`tx_preimage`]'s field order for every "shape" field, then
+/// appends the inputs' signatures and the outputs' full bulletproof and
+/// (optionally) full storage commitment. Round-trips byte-for-byte
+/// through [`decode_transaction`].
+///
+/// Wire layout (every length-variable item is length-prefixed via
+/// [`mfn_crypto::codec::Writer`]'s `varint` / `blob` / `points` /
+/// `scalars` helpers):
+///
+/// ```text
+/// varint(version)
+/// point(r_pub)
+/// u64(fee)
+/// blob(extra)
+/// varint(inputs.len)
+/// for each input:
+///   points(ring.p)           // length-prefixed
+///   points(ring.c)           // length-prefixed
+///   point(c_pseudo)
+///   blob(encode_clsag(sig))  // length-prefixed
+/// varint(outputs.len)
+/// for each output:
+///   point(one_time_addr)
+///   point(amount)            // == bulletproof.v
+///   blob(encode_bulletproof(range_proof))
+///   push(enc_amount)         // raw 40 bytes (fixed width)
+///   u8(0|1)                  // storage-some flag
+///   if 1: blob(encode_storage_commitment(c))
+/// ```
+#[must_use]
+pub fn encode_transaction(tx: &TransactionWire) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.varint(u64::from(tx.version));
+    w.point(&tx.r_pub);
+    w.u64(tx.fee);
+    w.blob(&tx.extra);
+
+    w.varint(tx.inputs.len() as u64);
+    for inp in &tx.inputs {
+        w.points(&inp.ring.p);
+        w.points(&inp.ring.c);
+        w.point(&inp.c_pseudo);
+        w.blob(&encode_clsag(&inp.sig));
+    }
+
+    w.varint(tx.outputs.len() as u64);
+    for out in &tx.outputs {
+        w.point(&out.one_time_addr);
+        w.point(&out.amount);
+        w.blob(&encode_bulletproof(&out.range_proof));
+        w.push(&out.enc_amount);
+        match &out.storage {
+            None => {
+                w.u8(0);
+            }
+            Some(c) => {
+                w.u8(1);
+                w.blob(&encode_storage_commitment(c));
+            }
+        }
+    }
+
+    w.into_bytes()
+}
+
+/// Typed errors produced by [`decode_transaction`].
+#[derive(Debug, thiserror::Error)]
+pub enum TxDecodeError {
+    /// Underlying codec layer hit a short read, invalid point, varint
+    /// overflow, etc.
+    #[error("transaction codec: {0}")]
+    Codec(#[from] mfn_crypto::CryptoError),
+    /// `version` decoded as a varint but didn't fit in the 32-bit
+    /// transaction-version field.
+    #[error("transaction version {got} does not fit in u32")]
+    VersionOutOfRange {
+        /// The raw varint value that overflowed.
+        got: u64,
+    },
+    /// A declared input or output count overflowed `usize`. Defensive
+    /// guard for 32-bit targets; unreachable on 64-bit hosts.
+    #[error("{field} count {got} exceeds usize")]
+    CountTooLarge {
+        /// Which collection's count tripped the guard.
+        field: &'static str,
+        /// The raw varint value that overflowed.
+        got: u64,
+    },
+    /// The `storage` flag on an output was neither `0` nor `1`.
+    #[error("output {index}: invalid storage flag {got} (expected 0 or 1)")]
+    InvalidStorageFlag {
+        /// Index of the offending output.
+        index: usize,
+        /// The flag byte that was read.
+        got: u8,
+    },
+    /// One of the input ring's `(P, C)` columns disagreed on length.
+    /// CLSAG signs over a structured ring of `(P_i, C_i)` pairs, so
+    /// the two columns must always be the same length.
+    #[error("input {index}: ring P-column length {p_len} != C-column length {c_len}")]
+    RingColumnLenMismatch {
+        /// Index of the offending input.
+        index: usize,
+        /// Length of the P column.
+        p_len: usize,
+        /// Length of the C column.
+        c_len: usize,
+    },
+    /// A nested length-prefixed blob decoded successfully but did not
+    /// re-encode to the exact same bytes. This catches trailing bytes
+    /// inside nested cryptographic objects whose standalone decoders are
+    /// intentionally permissive for legacy call sites.
+    #[error("{field}[{index}] is not canonical")]
+    NonCanonicalBlob {
+        /// Which nested blob failed canonical round-trip.
+        field: &'static str,
+        /// Index of the input / output containing the blob.
+        index: usize,
+    },
+    /// Bytes remained in the buffer after a full transaction had been
+    /// parsed.
+    #[error("{remaining} trailing byte(s) after transaction")]
+    TrailingBytes {
+        /// Number of bytes left in the buffer.
+        remaining: usize,
+    },
+}
+
+/// Decode a [`TransactionWire`] from its canonical wire encoding produced
+/// by [`encode_transaction`].
+///
+/// `decode_transaction(&encode_transaction(t)) == Ok(t')` where `t'` is
+/// structurally equal to `t` and `tx_id(t') == tx_id(t)` (byte-for-byte
+/// round-trip).
+///
+/// Strict: any trailing byte after the last field is a hard reject.
+/// Transactions are self-delimiting, so a non-empty tail always indicates
+/// a caller-side framing bug or corruption.
+///
+/// # Errors
+///
+/// Returns [`TxDecodeError`] on truncation, invalid point compression,
+/// varint overflow, unexpected storage flag, ring-column length mismatch,
+/// or trailing bytes.
+pub fn decode_transaction(bytes: &[u8]) -> Result<TransactionWire, TxDecodeError> {
+    let mut r = Reader::new(bytes);
+    let tx = read_transaction(&mut r)?;
+    if !r.end() {
+        return Err(TxDecodeError::TrailingBytes {
+            remaining: r.remaining(),
+        });
+    }
+    Ok(tx)
+}
+
+/// Streaming variant of [`decode_transaction`] — reads one transaction
+/// from a [`Reader`] without enforcing trailing-byte rejection. Used
+/// by the block codec (M2.0.10) where transactions are length-prefixed
+/// blobs in a larger stream.
+pub(crate) fn read_transaction(r: &mut Reader<'_>) -> Result<TransactionWire, TxDecodeError> {
+    let version_raw = r.varint()?;
+    let version: u32 = u32::try_from(version_raw)
+        .map_err(|_| TxDecodeError::VersionOutOfRange { got: version_raw })?;
+
+    let r_pub = r.point()?;
+    let fee = r.u64()?;
+    let extra = r.blob()?.to_vec();
+
+    let n_in_raw = r.varint()?;
+    let n_in: usize = usize::try_from(n_in_raw).map_err(|_| TxDecodeError::CountTooLarge {
+        field: "inputs",
+        got: n_in_raw,
+    })?;
+    let mut inputs: Vec<TxInputWire> = Vec::new();
+    for idx in 0..n_in {
+        let p = r.points()?;
+        let c = r.points()?;
+        if p.len() != c.len() {
+            return Err(TxDecodeError::RingColumnLenMismatch {
+                index: idx,
+                p_len: p.len(),
+                c_len: c.len(),
+            });
+        }
+        let c_pseudo = r.point()?;
+        let sig_bytes = r.blob()?;
+        let sig = decode_clsag(sig_bytes)?;
+        if encode_clsag(&sig) != sig_bytes {
+            return Err(TxDecodeError::NonCanonicalBlob {
+                field: "input.sig",
+                index: idx,
+            });
+        }
+        inputs.push(TxInputWire {
+            ring: ClsagRing { p, c },
+            c_pseudo,
+            sig,
+        });
+    }
+
+    let n_out_raw = r.varint()?;
+    let n_out: usize = usize::try_from(n_out_raw).map_err(|_| TxDecodeError::CountTooLarge {
+        field: "outputs",
+        got: n_out_raw,
+    })?;
+    let mut outputs: Vec<TxOutputWire> = Vec::new();
+    for idx in 0..n_out {
+        let one_time_addr = r.point()?;
+        let amount = r.point()?;
+        let bp_bytes = r.blob()?;
+        let range_proof = decode_bulletproof(amount, bp_bytes)?;
+        if encode_bulletproof(&range_proof) != bp_bytes {
+            return Err(TxDecodeError::NonCanonicalBlob {
+                field: "output.range_proof",
+                index: idx,
+            });
+        }
+        let enc_slice = r.bytes(ENC_AMOUNT_BYTES)?;
+        let mut enc_amount = [0u8; ENC_AMOUNT_BYTES];
+        enc_amount.copy_from_slice(enc_slice);
+        let storage_flag = r.u8()?;
+        let storage = match storage_flag {
+            0 => None,
+            1 => {
+                let sc_bytes = r.blob()?;
+                Some(decode_storage_commitment(sc_bytes)?)
+            }
+            got => {
+                return Err(TxDecodeError::InvalidStorageFlag { index: idx, got });
+            }
+        };
+        outputs.push(TxOutputWire {
+            one_time_addr,
+            amount,
+            range_proof,
+            enc_amount,
+            storage,
+        });
+    }
+
+    Ok(TransactionWire {
+        version,
+        r_pub,
+        inputs,
+        outputs,
+        fee,
+        extra,
+    })
 }
 
 /* ----------------------------------------------------------------------- *
@@ -885,6 +1148,190 @@ mod tests {
         tx.outputs[0].storage = Some(bad);
         // The tx is now inconsistent with its CLSAG signatures.
         assert!(!verify_transaction(&tx).ok);
+    }
+
+    /* ---------------------------------------------------------------- *
+     *  Wire codec (M2.0.10)                                              *
+     * ---------------------------------------------------------------- */
+
+    fn signed_simple_tx() -> SignedTransaction {
+        let inputs = vec![make_input(1_000_000, 8)];
+        let (_w_a, ra) = recipient();
+        let (_w_b, rb) = recipient();
+        let outputs = vec![
+            OutputSpec::ToRecipient {
+                recipient: ra,
+                value: 600_000,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: rb,
+                value: 399_000,
+                storage: None,
+            },
+        ];
+        sign_transaction(inputs, outputs, 1_000, b"memo".to_vec()).expect("sign")
+    }
+
+    fn signed_multi_input_storage_tx() -> SignedTransaction {
+        let inputs = vec![
+            make_input(500_000, 6),
+            make_input(500_000, 6),
+            make_input(100_000, 6),
+        ];
+        let (_w_a, ra) = recipient();
+        let (_w_b, rb) = recipient();
+        let commit = StorageCommitment {
+            data_root: [9u8; 32],
+            size_bytes: 4096,
+            chunk_size: 4096,
+            num_chunks: 1,
+            replication: 3,
+            endowment: generator_g() * Scalar::from(123u64),
+        };
+        let outputs = vec![
+            OutputSpec::ToRecipient {
+                recipient: ra,
+                value: 700_000,
+                storage: Some(commit),
+            },
+            OutputSpec::ToRecipient {
+                recipient: rb,
+                value: 395_000,
+                storage: None,
+            },
+        ];
+        sign_transaction(inputs, outputs, 5_000, Vec::new()).expect("sign")
+    }
+
+    #[test]
+    fn encode_decode_round_trip_simple_tx() {
+        let signed = signed_simple_tx();
+        let bytes = encode_transaction(&signed.tx);
+        let recovered = decode_transaction(&bytes).expect("decode");
+
+        // Byte-for-byte round-trip via re-encode.
+        let re = encode_transaction(&recovered);
+        assert_eq!(re, bytes, "transaction codec is not byte-deterministic");
+
+        // tx_id agrees (the consensus-critical invariant).
+        assert_eq!(tx_id(&recovered), tx_id(&signed.tx));
+
+        // Re-verifying the decoded tx proves CLSAG / range / balance
+        // all survived the round-trip intact.
+        let v = verify_transaction(&recovered);
+        assert!(v.ok, "decoded tx must verify: {:?}", v.errors);
+    }
+
+    #[test]
+    fn encode_decode_round_trip_multi_input_with_storage() {
+        let signed = signed_multi_input_storage_tx();
+        let bytes = encode_transaction(&signed.tx);
+        let recovered = decode_transaction(&bytes).expect("decode");
+
+        assert_eq!(encode_transaction(&recovered), bytes);
+        assert_eq!(tx_id(&recovered), tx_id(&signed.tx));
+
+        // Storage commitment survived intact (full struct, not just hash).
+        assert_eq!(recovered.outputs[0].storage, signed.tx.outputs[0].storage);
+        assert!(recovered.outputs[0].storage.is_some());
+        assert!(recovered.outputs[1].storage.is_none());
+
+        assert!(verify_transaction(&recovered).ok);
+    }
+
+    #[test]
+    fn encode_decode_raw_output_round_trip() {
+        let inputs = vec![make_input(50_000, 4)];
+        let one_time = generator_g() * random_scalar();
+        let outputs = vec![OutputSpec::Raw {
+            one_time_addr: one_time,
+            value: 49_900,
+            storage: None,
+        }];
+        let signed = sign_transaction(inputs, outputs, 100, Vec::new()).expect("sign");
+
+        let bytes = encode_transaction(&signed.tx);
+        let recovered = decode_transaction(&bytes).expect("decode");
+        assert_eq!(tx_id(&recovered), tx_id(&signed.tx));
+        assert!(verify_transaction(&recovered).ok);
+    }
+
+    #[test]
+    fn decode_rejects_truncation_at_every_prefix() {
+        let signed = signed_simple_tx();
+        let bytes = encode_transaction(&signed.tx);
+        for prefix in 0..bytes.len() {
+            let err = decode_transaction(&bytes[..prefix]);
+            assert!(
+                err.is_err(),
+                "prefix of length {prefix}/{} should be rejected",
+                bytes.len()
+            );
+        }
+    }
+
+    #[test]
+    fn decode_rejects_trailing_bytes() {
+        let signed = signed_simple_tx();
+        let mut bytes = encode_transaction(&signed.tx);
+        bytes.push(0xff);
+        let err = decode_transaction(&bytes).unwrap_err();
+        assert!(matches!(err, TxDecodeError::TrailingBytes { remaining: 1 }));
+    }
+
+    #[test]
+    fn decode_rejects_invalid_storage_flag() {
+        // Build a tx with no storage; the storage flag byte is `0`.
+        // Find that byte in the encoded buffer and set it to `2`,
+        // which is neither 0 nor 1. The decoder must reject it as a
+        // structural error (not just an underlying codec failure)
+        // because flags are part of this codec's contract.
+        let signed = signed_simple_tx();
+        let mut bytes = encode_transaction(&signed.tx);
+
+        // The first output's storage flag lives near the end of the
+        // tx — walk the encoded body deterministically by re-decoding
+        // up to that point and noting the reader's position.
+        //
+        // Simpler: flip the LAST storage flag in the buffer. We know
+        // the last output's storage flag is the byte right before the
+        // tx tail (since storage was None → no trailing storage blob).
+        // The encoder places the storage flag right before the next
+        // output or end-of-tx, so the very LAST `0` byte in the
+        // encoded buffer is a candidate — but to be exact, we
+        // re-encode and locate it deterministically by reading the
+        // length-prefix structure.
+        //
+        // To keep the test robust against future codec changes, we
+        // simply search for the well-known `0u8` storage flag at the
+        // exact offset we get by re-encoding the leading section and
+        // counting bytes through one output. That's overkill — the
+        // simpler approach below is to corrupt the last byte of the
+        // encoded tx, which is precisely the second output's storage
+        // flag (== 0). Re-encoding the tx (storage=None on the last
+        // output) places the storage flag as the final byte.
+        let last_idx = bytes.len() - 1;
+        assert_eq!(bytes[last_idx], 0u8, "last byte should be storage flag 0");
+        bytes[last_idx] = 2;
+        let err = decode_transaction(&bytes).unwrap_err();
+        assert!(matches!(err, TxDecodeError::InvalidStorageFlag { .. }));
+    }
+
+    #[test]
+    fn decode_preserves_storage_commitment_exactly() {
+        let signed = signed_multi_input_storage_tx();
+        let original = signed.tx.outputs[0].storage.as_ref().unwrap().clone();
+        let bytes = encode_transaction(&signed.tx);
+        let recovered = decode_transaction(&bytes).expect("decode");
+
+        let got = recovered.outputs[0].storage.as_ref().unwrap();
+        assert_eq!(got.data_root, original.data_root);
+        assert_eq!(got.size_bytes, original.size_bytes);
+        assert_eq!(got.chunk_size, original.chunk_size);
+        assert_eq!(got.num_chunks, original.num_chunks);
+        assert_eq!(got.replication, original.replication);
+        assert_eq!(got.endowment, original.endowment);
     }
 
     #[test]

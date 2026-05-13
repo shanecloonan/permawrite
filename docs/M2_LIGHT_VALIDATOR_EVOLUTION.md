@@ -1,6 +1,6 @@
 # Milestone M2.0.8 — Light-client validator-set evolution
 
-> **Status:** ✓ Shipped. Tests: 412 passing (workspace).
+> **Status:** ✓ Shipped. Tests at M2.0.8 close: 412 passing (workspace).
 > Code: `mfn-consensus/src/validator_evolution.rs` (new module),
 > `mfn-consensus/src/block.rs` (apply_block refactored to consume it),
 > `mfn-light/src/chain.rs` (LightChain evolves trusted set per block).

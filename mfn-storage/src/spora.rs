@@ -261,13 +261,23 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
     let index = r.varint().map_err(SporaError::Codec)?;
     let n = r.varint().map_err(SporaError::Codec)?;
     let n_usize: usize = usize::try_from(n).map_err(|_| SporaError::TooManyChunks)?;
-    let mut siblings: Vec<[u8; 32]> = Vec::with_capacity(n_usize);
-    let mut right_side: Vec<bool> = Vec::with_capacity(n_usize);
+    let mut siblings: Vec<[u8; 32]> = Vec::new();
+    let mut right_side: Vec<bool> = Vec::new();
     for _ in 0..n_usize {
         let mut s = [0u8; 32];
         s.copy_from_slice(r.bytes(32).map_err(SporaError::Codec)?);
         siblings.push(s);
-        right_side.push(r.u8().map_err(SporaError::Codec)? != 0);
+        let side = r.u8().map_err(SporaError::Codec)?;
+        match side {
+            0 => right_side.push(false),
+            1 => right_side.push(true),
+            got => return Err(SporaError::InvalidProofSideFlag(got)),
+        }
+    }
+    if !r.end() {
+        return Err(SporaError::Codec(mfn_crypto::CryptoError::TrailingBytes {
+            remaining: r.remaining(),
+        }));
     }
     Ok(StorageProof {
         commit_hash,
@@ -418,6 +428,9 @@ pub enum SporaError {
     /// Underlying codec read failed during proof decoding.
     #[error(transparent)]
     Codec(mfn_crypto::CryptoError),
+    /// A Merkle proof sibling-side flag was neither 0 nor 1.
+    #[error("invalid Merkle proof side flag {0}")]
+    InvalidProofSideFlag(u8),
     /// Build helper computed an out-of-range chunk index.
     #[error("chunk index out of range")]
     ChunkIndexOutOfRange,
