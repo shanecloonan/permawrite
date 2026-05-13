@@ -777,14 +777,25 @@ mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (17 tests: 11 unit + 6 integration)
+mfn-node/           Node-side glue             (35 tests: 26 unit + 9 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
-└── producer.rs     Block-production helpers: three-stage protocol
-                    (build_proposal → vote_on_proposal → seal_proposal) plus a
-                    produce_solo_block one-call helper for the single-validator
-                    case. The shape future P2P / RPC / mempool integration
-                    consumes.
+├── producer.rs     Block-production helpers: three-stage protocol
+│                   (build_proposal → vote_on_proposal → seal_proposal) plus a
+│                   produce_solo_block one-call helper for the single-validator
+│                   case. The shape future P2P / RPC / mempool integration
+│                   consumes.
+└── mempool.rs      M2.0.12 in-memory transaction pool. Mempool::admit replicates
+                    every per-tx gate apply_block runs (verify_transaction +
+                    ring-membership chain guard with commit match + key-image
+                    dedup against state.spent_key_images and within the pool),
+                    implements replace-by-fee (strictly-dominating policy),
+                    size-cap lowest-fee eviction, and storage-anchoring-tx
+                    deferment via a typed AdmitError variant. drain(max) yields
+                    highest-fee-first with tx_id tie-break (byte-deterministic
+                    block bodies). remove_mined(&Block) evicts entries by
+                    block-included key images. AdmitOutcome distinguishes Fresh
+                    / ReplacedByFee / EvictedLowest for future P2P-relay use.
 
 mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,

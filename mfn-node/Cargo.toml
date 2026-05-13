@@ -20,4 +20,7 @@ mfn-consensus = { path = "../mfn-consensus" }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+curve25519-dalek = { workspace = true }
 hex = { workspace = true }
+mfn-light = { path = "../mfn-light" }
+mfn-wallet = { path = "../mfn-wallet" }

@@ -13,11 +13,11 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool**) | `mfn-node` | 35 | ✓ live (skeleton + mempool) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + UTXO tracking + transfer building**) | `mfn-wallet` | 28 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **488** | All checks green (+ 2 ignored) |
+| **Total** | | **506** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -634,6 +634,68 @@ See [`docs/M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md) for the full design note.
 - **WASM browser wallet.** Pure-Rust + IO-free means `wasm-pack build --target web` Just Works once we add a `wasm` feature flag — likely a follow-up milestone bundled with the first browser-wallet PoC.
 
 See [`docs/M2_WALLET.md`](./M2_WALLET.md) for the full design note.
+
+---
+
+## Milestone M2.0.12 — `mfn-node::mempool`: in-memory transaction pool (✓ shipped)
+
+**Why it was next.** M2.0.11 shipped a wallet that signs `TransactionWire`s. M2.0.4 shipped a producer that consumes `BlockInputs.txs` and seals blocks. Between them there was no holding pen — no place for a signed tx to wait until a producer was ready to include it, no place to reject conflicting submissions before they hit the chain, no place to enforce fee priority. M2.0.12 ships that holding pen as a pure, in-memory, deterministic primitive that the future P2P relay layer, persistent mempool, and RPC handlers will all attach to.
+
+### What shipped
+
+`mfn-node::mempool` adds **one new module + 18 new tests**:
+
+- **`Mempool` struct** keyed by `tx_id` with an O(1) key-image reverse index. Stores wire-form txs plus cached metadata (`tx_id`, `fee`, key-image bytes, admission height).
+- **`MempoolConfig`** — `max_entries` (size cap) + `min_fee` (local-policy floor).
+- **`admit(tx, &ChainState)`** — eight gates, all-or-nothing:
+  1. Reject coinbases (`inputs.is_empty()`).
+  2. Reject storage-anchoring txs (typed `StorageTxsNotYetSupported`, deferred).
+  3. Local min-fee policy.
+  4. `verify_transaction` (CLSAG + range proofs + balance + within-tx ki dedup).
+  5. Ring-membership chain guard against `state.utxo` (with `entry.commit == c` match).
+  6. Cross-chain double-spend guard against `state.spent_key_images`.
+  7. Mempool-internal key-image conflict → **replace-by-fee** (strictly-higher fee wins, ties rejected).
+  8. Size-cap eviction (lowest-fee victim, only if new tx strictly outpays).
+- **`drain(max)`** — pops up to `max` entries in highest-fee-first order with `tx_id` tie-break (byte-deterministic block bodies).
+- **`remove_mined(&Block)`** — evicts entries whose key images appear in a newly-applied block. Idempotent for unrelated blocks.
+- **`evict(tx_id)` / `clear()` / `iter()` / `contains()` / `get()`** — bookkeeping API.
+- **Typed `AdmitError`** — 10 variants covering every reject path, each carrying enough context for an RPC layer to surface useful errors (`TxInvalid`, `RingMemberNotInUtxoSet`, `RingMemberCommitMismatch`, `KeyImageAlreadyOnChain`, `ReplaceTooLow`, `BelowMinFee`, `DuplicateTx`, `PoolFull`, `StorageTxsNotYetSupported`, `NoInputs`).
+- **`AdmitOutcome`** — distinguishes `Fresh`, `ReplacedByFee { displaced }`, `EvictedLowest { evicted }` so future P2P relay can forward txs correctly.
+
+### Test matrix
+
+**Unit (15 tests in `mfn-node/src/mempool.rs`):**
+
+- `admit_happy_path_fresh` — plain admission of a wallet-signed tx.
+- `admit_rejects_coinbase_shaped_tx` — `NoInputs` for `inputs.is_empty()`.
+- `admit_rejects_storage_anchoring_tx` — `StorageTxsNotYetSupported`.
+- `admit_rejects_below_min_fee` — local policy floor enforced.
+- `admit_rejects_unbalanced_tx` — post-hoc-mutated tx fails `verify_transaction`.
+- `admit_rejects_ring_member_not_in_utxo_set` — ring members must be in chain UTXO set.
+- `rbf_accepts_strictly_higher_fee` — RBF happy path.
+- `rbf_rejects_equal_or_lower_fee` — equal fee = no replacement.
+- `duplicate_tx_id_is_rejected` — idempotent re-submission surfaces typed error.
+- `size_cap_evicts_lowest_fee_when_pool_full` — eviction policy under pressure.
+- `drain_orders_by_fee_descending_then_tx_id` — fee priority + deterministic tie-break.
+- `remove_mined_evicts_txs_with_block_key_images` — post-block cleanup.
+- `remove_mined_is_idempotent_when_unrelated` — unrelated blocks are a no-op.
+- `evict_by_id_returns_true_when_present` — manual eviction.
+- `drained_tx_can_be_applied_to_chain` — bytes survive the mempool round-trip unchanged.
+
+**Integration (3 tests in `mfn-node/tests/mempool_integration.rs`):**
+
+- `wallet_to_mempool_to_producer_to_chain_round_trip` — full lifecycle: 3 coinbase blocks fund Alice, she signs a transfer to Bob, the tx goes through `Mempool::admit` → `drain` → `produce_solo_block` → `Chain::apply` → `LightChain::apply_block` → wallet ingest. Bob receives `transfer_value`; Alice's balance reflects `block_emission + producer_fee − transfer − fee`; both chains end at the same tip id.
+- `mempool_evicts_tx_after_block_includes_it_via_remove_mined` — producer builds with a tx but doesn't drain; `remove_mined` evicts it after `apply`.
+- `mempool_admit_after_chain_advanced_still_works` — tx signed at height 1, chain advanced to height 2, mempool admits at height 2 (ring members still valid, key images still unspent).
+
+### What this unlocks
+
+- **Complete tx submission path** without any test-only scaffolding.
+- **Foundation for single-node daemon** — `loop { sleep(slot); drain; produce; apply; remove_mined; }`.
+- **Foundation for P2P relay** — `Mempool::admit` is the gate; admitted txs are forwarded.
+- **Foundation for RPC** — `submit_tx` is a thin wrapper around `Mempool::admit`; typed errors map to HTTP status codes.
+
+See [`docs/M2_MEMPOOL.md`](./M2_MEMPOOL.md) for the full design note.
 
 ---
 

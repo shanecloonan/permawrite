@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -20,6 +20,14 @@
 //!   [`producer::vote_on_proposal`] → [`producer::seal_proposal`]),
 //!   with a one-call [`producer::produce_solo_block`] for the
 //!   single-validator case.
+//! - [`mempool`] (M2.0.12) — in-memory transaction pool. Admits
+//!   txs after replicating every per-tx gate `apply_block` runs
+//!   (`verify_transaction` + ring-membership + commit match +
+//!   key-image dedup against chain + mempool). Implements
+//!   replace-by-fee on key-image conflict, size-cap eviction of
+//!   the lowest-fee entry, and `drain(max)` for highest-fee-first
+//!   block inclusion. Storage-anchoring txs are gated behind a
+//!   future milestone via a typed error variant.
 //!
 //! Everything in this crate is **deterministic and synchronous**.
 //! Network / disk / clock concerns are deliberately absent — they belong
@@ -53,9 +61,11 @@
 #![warn(clippy::all)]
 
 pub mod chain;
+pub mod mempool;
 pub mod producer;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
+pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
 pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,
