@@ -24,6 +24,17 @@
 //!    real input at a random slot, and delegating to
 //!    [`mfn_consensus::sign_transaction`] for the RingCT ceremony.
 //!
+//! 4. **Store permanently.** Build CLSAG-signed *storage upload*
+//!    transactions ([`build_storage_upload`]) that anchor a
+//!    [`mfn_storage::StorageCommitment`] in the tx's first output and
+//!    pay a fee whose treasury slice (`fee · fee_to_treasury_bps /
+//!    10000`) covers the protocol-required upfront endowment. Every
+//!    reason the mempool's storage gate could reject the tx is hoisted
+//!    to a typed wallet error so the wallet never signs a tx the
+//!    network would refuse — saving CLSAG work and avoiding the privacy
+//!    cost of broadcasting a tx whose key images become public for
+//!    nothing.
+//!
 //! Everything here is **pure, deterministic, and IO-free**. The wallet
 //! does not own a `Chain`, a `LightChain`, or any database — callers feed
 //! it [`Block`]s and ask for [`TransactionWire`]s. This keeps the crate
@@ -42,6 +53,7 @@ pub mod keys;
 pub mod owned;
 pub mod scan;
 pub mod spend;
+pub mod upload;
 pub mod wallet;
 
 pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
@@ -50,4 +62,7 @@ pub use keys::{wallet_from_seed, WalletKeys};
 pub use owned::{key_image_for_owned, owned_balance, verify_pedersen_open, OwnedOutput, OwnedRef};
 pub use scan::{scan_block, scan_transaction, BlockScan, ScannedOutput, TxScan};
 pub use spend::{build_transfer, TransferPlan, TransferRecipient};
+pub use upload::{
+    build_storage_upload, estimate_minimum_fee_for_upload, StorageUploadPlan, UploadArtifacts,
+};
 pub use wallet::Wallet;

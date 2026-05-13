@@ -837,7 +837,7 @@ mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integra
                     indefinitely from a single genesis bootstrap, AND
                     survives restarts via M2.0.9 checkpoint serialization.
 
-mfn-wallet/         Confidential wallet (M2.0.11) (28 passing: 26 unit + 2 e2e integration)
+mfn-wallet/         Confidential wallet (M2.0.11 + M2.0.14) (42 passing: 37 unit + 5 e2e integration)
 ├── keys.rs         WalletKeys (wraps StealthWallet) + wallet_from_seed
 │                   (deterministic seed → keys via domain-separated
 │                    hash_to_scalar with MFW_SEED_VIEW_V1 / MFW_SEED_SPEND_V1
@@ -866,16 +866,37 @@ mfn-wallet/         Confidential wallet (M2.0.11) (28 passing: 26 unit + 2 e2e i
 │                   build the InputSpec. Delegates to
 │                   mfn_consensus::sign_transaction for the RingCT
 │                   ceremony.
+├── upload.rs       (M2.0.14) StorageUploadPlan + build_storage_upload +
+│                   UploadArtifacts + estimate_minimum_fee_for_upload.
+│                   The permanence-side counterpart of spend.rs: every
+│                   reason the mempool's M2.0.13 storage gate would reject
+│                   a tx is hoisted to a typed WalletError raised BEFORE
+│                   signing (replication out of range, fee underfunded
+│                   with the actionable `min_fee` value attached,
+│                   endowment exceeds u64, treasury route disabled). On
+│                   success: built.commit is anchored in tx.outputs[0],
+│                   built.tree is returned for SPoRA chunk serving, and
+│                   built.blinding is returned so the caller can later
+│                   prove openings via verify_endowment_opening.
 ├── wallet.rs       Wallet state container. ingest_block(&Block) is the
 │                   single mutation entry point. Wallet::build_transfer
-│                   does greedy largest-first coin selection, builds the
-│                   decoy pool, adds an implicit change output, calls
-│                   spend::build_transfer, and marks the consumed inputs
-│                   spent locally so a follow-up build_transfer doesn't
-│                   double-spend before the tx mines.
-└── error.rs        WalletError — flattens mfn_crypto::CryptoError and
-                    mfn_consensus::TxBuildError so callers can `?` either
-                    without rewriting matches.
+│                   handles privacy transfers. (M2.0.14) Wallet::recipient
+│                   is the canonical "send to self" handle.
+│                   Wallet::build_storage_upload mirrors build_transfer's
+│                   coin-selection + decoy-pool + change-output pattern,
+│                   anchors a StorageCommitment over `data` on the first
+│                   output, and returns UploadArtifacts.
+│                   Wallet::upload_min_fee curries the chain's params for
+│                   the fee floor calculator.
+│                   Wallet::build_storage_upload_with_blinding exposes
+│                   the deterministic-blinding path for tests / audit
+│                   reproducibility.
+└── error.rs        WalletError — flattens mfn_crypto::CryptoError,
+                    mfn_consensus::TxBuildError, mfn_storage::EndowmentError,
+                    mfn_storage::SporaError so callers can `?` any of them.
+                    M2.0.14 adds UploadReplicationOutOfRange,
+                    UploadUnderfunded { fee, treasury_share, burden, min_fee },
+                    UploadEndowmentExceedsU64, UploadTreasuryRouteDisabled.
 ```
 
 For per-crate API summaries see the crate-level READMEs linked from the top of [`../README.md`](../README.md).

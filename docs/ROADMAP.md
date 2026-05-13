@@ -15,9 +15,9 @@
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission**) | `mfn-node` | 45 | ✓ live (skeleton + mempool) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
-| Confidential wallet (**M2.0.11 stealth scan + UTXO tracking + transfer building**) | `mfn-wallet` | 28 | ✓ live (skeleton) |
+| Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **516** | All checks green (+ 2 ignored) |
+| **Total** | | **530** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -741,6 +741,57 @@ See [`docs/M2_MEMPOOL.md`](./M2_MEMPOOL.md) for the full design note.
 - The fusion of privacy and permanence is now **end-to-end testable at the submission layer** — same admit call gates both halves, enforcing the same economic relation (`treasury_share ≥ burden`) the chain enforces at block-application time.
 
 See [`docs/M2_STORAGE_MEMPOOL.md`](./M2_STORAGE_MEMPOOL.md) for the full design note.
+
+---
+
+## Milestone M2.0.14 — `Wallet::build_storage_upload` (✓ shipped)
+
+**Why it was next.** After M2.0.13, the mempool could admit both privacy spends and storage anchors on equal terms — but only `Wallet::build_transfer` existed in the wallet crate. Anyone wanting to actually upload data had to hand-construct a `sign_transaction` call with an `OutputSpec` carrying a `StorageCommitment`, with no decoy sampling, no coin selection, no change handling, and no typed errors for any of the mempool's rejection conditions. M2.0.14 promotes storage uploads to a *first-class wallet operation*, mirroring the API ergonomics and typed-error safety of the transfer path.
+
+### What shipped
+
+- **New module `mfn-wallet/src/upload.rs`** — low-level `build_storage_upload(plan)` adapter + `StorageUploadPlan` input struct + `UploadArtifacts` return type + the pure `estimate_minimum_fee_for_upload(...)` helper.
+- **New `Wallet` methods**:
+  - `Wallet::recipient()` — packages the wallet's view-pub + spend-pub into the canonical "send to self" handle.
+  - `Wallet::build_storage_upload(data, replication, fee, anchor_recipient, anchor_value, chunk_size, ring_size, &chain_state, extra, rng)` — full high-level path: greedy coin selection, decoy pool, change output, CLSAG ceremony, RingCT seal.
+  - `Wallet::build_storage_upload_with_blinding(...)` — same but pins the Pedersen blinding for deterministic uploads (tests, reproducible audit trails).
+  - `Wallet::upload_min_fee(data_len, replication, &chain_state)` — convenience that reads endowment params + `fee_to_treasury_bps` straight from chain state.
+- **Five new `WalletError` variants** that mirror every mempool / chain storage gate, raised **before** signing so the wallet never wastes CLSAG work or leaks key images on a doomed tx:
+  - `UploadReplicationOutOfRange { got, min, max }`
+  - `UploadUnderfunded { fee, treasury_share, burden, min_fee }` — the `min_fee` field gives the caller the exact value to retry with
+  - `UploadEndowmentExceedsU64 { burden }`
+  - `UploadTreasuryRouteDisabled`
+  - `Endowment(EndowmentError)` + `Spora(SporaError)` — typed forwards from `mfn-storage`
+- **`UploadArtifacts` returns more than the tx** — `BuiltCommitment` (Merkle tree + endowment blinding) for SPoRA chunk-serving + endowment-opening later, plus the computed `burden` and `min_fee` for wallet UX.
+
+### Test matrix
+
+**Unit (`mfn-wallet/src/upload.rs`, +11 tests):**
+
+- `happy_path_anchors_data_and_returns_artifacts` — round-trip; storage commit on output[0]; blinding opens the Pedersen.
+- `replication_below_min_rejected_with_typed_error` / `replication_above_max_rejected_with_typed_error`
+- `fee_below_minimum_rejected_with_actionable_min_fee` — error carries the correct `min_fee`; paying it clears the gate.
+- `fee_to_treasury_bps_zero_yields_typed_error_when_burden_positive`
+- `empty_data_zero_burden_zero_min_fee_is_fine` — anchoring `&[]` is a valid commitment with zero burden.
+- `estimate_minimum_fee_is_monotonic_in_size_at_fixed_replication`
+- `estimate_minimum_fee_satisfies_gate_exactly` — for a 4×4 grid of (size, repl), `min_fee` clears the gate and `min_fee - 1` does not.
+- `estimate_minimum_fee_rejects_replication_out_of_range`
+- `insufficient_funds_on_unbalanced_inputs`
+- `pinned_blinding_is_returned_for_later_endowment_opening`
+
+**Integration (`mfn-wallet/tests/end_to_end.rs`, +3 tests):**
+
+- `wallet_storage_upload_through_mempool_producer_and_chain` — full stack: Alice's wallet builds an upload → `Mempool::admit` accepts it as `Fresh` → producer drains + builds block 4 → `Chain::apply` anchors the commitment, asserting `state.storage[storage_commitment_hash(&art.built.commit)]` is populated with the correct `size_bytes`, `replication`, and `last_proven_height=4`. The `LightChain` follows in lockstep to the same tip id. Alice's balance reflects (block-4 emission + producer tip − fee) because anchor + change both come back to self.
+- `wallet_storage_upload_rejects_insufficient_funds_before_signing` — coin selection fails before any signing work happens.
+- `wallet_storage_upload_rejects_fee_too_low_before_signing` — wallet returns `UploadUnderfunded { min_fee }` with the exact actionable retry value.
+
+### What this unlocks
+
+- **The permanence half is end-to-end accessible through the wallet** — same API ergonomics as the transfer path. A consumer of `mfn-wallet` can permanently anchor data with one method call.
+- The future `mfn-cli wallet upload` and WASM bindings have a real API to sit on top of.
+- M2.0.15 (persistent chain state) and M2.1.0 (single-node daemon) now have the *complete* wallet surface to integrate against — both privacy and permanence operations are first-class.
+
+See [`docs/M2_WALLET_UPLOAD.md`](./M2_WALLET_UPLOAD.md) for the full design note.
 
 ---
 

@@ -6,7 +6,12 @@
 //! 1. `Wallet::from_seed(seed)` / `Wallet::from_keys(keys)` — bootstrap.
 //! 2. `wallet.ingest_block(&block)` — advance scan state by one block.
 //! 3. `wallet.balance()` / `wallet.owned()` — read state.
-//! 4. `wallet.build_transfer(...)` — produce a signed transfer tx.
+//! 4. `wallet.build_transfer(...)` — produce a signed *privacy transfer*
+//!    tx (Monero-style RingCT to one or more recipients).
+//! 5. `wallet.build_storage_upload(...)` — produce a signed *permanence
+//!    upload* tx (RingCT + a StorageCommitment anchored in the tx's
+//!    first output, with a fee whose treasury slice covers the
+//!    chain-required upfront endowment).
 //!
 //! All mutation goes through `ingest_block` and `build_transfer`, so an
 //! `&Wallet` reference is safe to share across threads for read-only
@@ -14,7 +19,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use mfn_consensus::{Block, ChainState, SignedTransaction};
+use curve25519_dalek::scalar::Scalar;
+use mfn_consensus::{Block, ChainState, Recipient, SignedTransaction};
 
 use crate::decoy::build_decoy_pool;
 use crate::error::WalletError;
@@ -22,6 +28,7 @@ use crate::keys::{wallet_from_seed, WalletKeys};
 use crate::owned::{owned_balance, OwnedOutput};
 use crate::scan::{scan_block, BlockScan};
 use crate::spend::{build_transfer, TransferPlan, TransferRecipient};
+use crate::upload::{build_storage_upload, StorageUploadPlan, UploadArtifacts};
 
 /// A confidential wallet — keys plus owned-output bookkeeping.
 ///
@@ -72,6 +79,22 @@ impl Wallet {
     #[inline]
     pub fn keys(&self) -> &WalletKeys {
         &self.keys
+    }
+
+    /// The wallet's public-facing recipient: its view-pub + spend-pub
+    /// packaged as a [`Recipient`] ready to plug into
+    /// [`crate::TransferRecipient`] or any other API that takes a
+    /// recipient.
+    ///
+    /// This is the canonical "send to self" handle and is heavily used
+    /// in storage uploads, where the anchor output and change output
+    /// typically both go back to the uploader.
+    #[inline]
+    pub fn recipient(&self) -> Recipient {
+        Recipient {
+            view_pub: self.keys.view_pub(),
+            spend_pub: self.keys.spend_pub(),
+        }
     }
 
     /// Snapshot of the wallet's spendable balance (sum of unspent
@@ -266,6 +289,223 @@ impl Wallet {
         }
 
         Ok(signed)
+    }
+
+    /// High-level **storage upload**: pick inputs greedily, build the
+    /// decoy pool from `chain_state`, construct a `StorageCommitment`
+    /// over `data` at `replication`, anchor it in the tx's first output
+    /// (paying `anchor_value` to `anchor_recipient`), and return back
+    /// any leftover MFN as a change output to **this wallet**.
+    ///
+    /// The returned [`UploadArtifacts`] holds the signed tx (submit it
+    /// to a mempool) **and** the [`mfn_storage::BuiltCommitment`]
+    /// (Merkle tree + endowment blinding) that the uploader must retain
+    /// to serve SPoRA chunks later.
+    ///
+    /// ## Common patterns
+    ///
+    /// **Anchor to self** — most uploads. Pass
+    /// `anchor_recipient = self.recipient()`:
+    ///
+    /// ```ignore
+    /// let art = wallet.build_storage_upload(
+    ///     data,
+    ///     /* replication */ 3,
+    ///     /* fee */ wallet.upload_min_fee(data.len() as u64, 3, chain_state)?,
+    ///     /* anchor_recipient */ wallet.recipient(),
+    ///     /* anchor_value */ 1_000,         // tiny self-payment
+    ///     /* chunk_size */ None,
+    ///     /* ring_size */ 4,
+    ///     chain_state,
+    ///     b"my-upload",
+    ///     &mut rng,
+    /// )?;
+    /// mempool.admit(art.signed.tx, chain_state)?;
+    /// ```
+    ///
+    /// **Anchor to a third party** — the recipient gets the anchor
+    /// UTXO and the storage commitment is on the chain. The
+    /// **uploader** still keeps the Merkle tree (`art.built.tree`) so
+    /// they can answer SPoRA chunk audits on behalf of the data.
+    ///
+    /// ## Fee
+    ///
+    /// `fee` must satisfy the chain's UploadUnderfunded gate
+    /// (`fee · fee_to_treasury_bps / 10000 ≥ required_endowment(...)`).
+    /// Use [`crate::estimate_minimum_fee_for_upload`] or
+    /// [`Wallet::upload_min_fee`] to compute the floor.
+    ///
+    /// # Errors
+    ///
+    /// See [`WalletError`]. Every storage-specific reason the mempool
+    /// would reject is hoisted to a typed wallet error so the caller
+    /// learns the failure mode *before* signing.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_storage_upload<R>(
+        &mut self,
+        data: &[u8],
+        replication: u8,
+        fee: u64,
+        anchor_recipient: Recipient,
+        anchor_value: u64,
+        chunk_size: Option<usize>,
+        ring_size: usize,
+        chain_state: &ChainState,
+        extra: &[u8],
+        rng: &mut R,
+    ) -> Result<UploadArtifacts, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        // The chain requires Σ inputs = anchor_value + change + fee.
+        // Greedy coin-selection sums to ≥ target, then the wallet pays
+        // any surplus back to itself as change. This mirrors
+        // `build_transfer` exactly.
+        let target = anchor_value.saturating_add(fee);
+        let (chosen_refs, input_sum) = self.select_inputs(target)?;
+        let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
+        let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
+
+        let change_value = input_sum.saturating_sub(target);
+        let mut change_recipients: Vec<TransferRecipient> = Vec::new();
+        if change_value > 0 {
+            change_recipients.push(TransferRecipient {
+                recipient: self.recipient(),
+                value: change_value,
+            });
+        }
+
+        let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
+        let pool = build_decoy_pool(chain_state, self.owned.values(), None);
+        let current_height = u64::from(self.scan_height.unwrap_or(0));
+
+        let plan = StorageUploadPlan {
+            inputs: &chosen_refs2,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: anchor_value,
+            },
+            data,
+            replication,
+            chunk_size,
+            endowment_blinding: None,
+            endowment_params: &chain_state.endowment_params,
+            fee_to_treasury_bps: chain_state.emission_params.fee_to_treasury_bps,
+            change_recipients: &change_recipients,
+            fee,
+            extra,
+            ring_size,
+            decoy_pool: &pool,
+            current_height,
+            rng,
+        };
+        let art = build_storage_upload(plan)?;
+
+        // Local spent-marking: tx hasn't mined yet but we must not
+        // double-spend in a follow-up build call. `ingest_block` will
+        // re-do this idempotently when the block lands.
+        for k in chosen_keys {
+            self.mark_spent_by_utxo_key(&k);
+        }
+
+        Ok(art)
+    }
+
+    /// Compute the minimum fee that satisfies the chain's storage
+    /// underfunded gate for an upload of `data_len` bytes at the given
+    /// `replication`, reading both the endowment params and the
+    /// fee-to-treasury bps from `chain_state`.
+    ///
+    /// Convenience wrapper around
+    /// [`crate::estimate_minimum_fee_for_upload`]; equivalent to
+    /// `estimate_minimum_fee_for_upload(data_len, replication,
+    /// &chain_state.endowment_params,
+    /// chain_state.emission_params.fee_to_treasury_bps)`.
+    pub fn upload_min_fee(
+        &self,
+        data_len: u64,
+        replication: u8,
+        chain_state: &ChainState,
+    ) -> Result<u64, WalletError> {
+        crate::estimate_minimum_fee_for_upload(
+            data_len,
+            replication,
+            &chain_state.endowment_params,
+            chain_state.emission_params.fee_to_treasury_bps,
+        )
+    }
+
+    /// Same as [`Wallet::build_storage_upload`] but pins the Pedersen
+    /// blinding scalar used for `StorageCommitment.endowment`.
+    ///
+    /// Intended for tests and for callers that want **deterministic
+    /// uploads** (re-running with the same inputs produces the same
+    /// `StorageCommitment` bytewise, which is occasionally useful for
+    /// reproducible audit trails). Production callers should prefer
+    /// [`Wallet::build_storage_upload`], which draws a fresh scalar.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_storage_upload_with_blinding<R>(
+        &mut self,
+        data: &[u8],
+        replication: u8,
+        fee: u64,
+        anchor_recipient: Recipient,
+        anchor_value: u64,
+        chunk_size: Option<usize>,
+        ring_size: usize,
+        endowment_blinding: Scalar,
+        chain_state: &ChainState,
+        extra: &[u8],
+        rng: &mut R,
+    ) -> Result<UploadArtifacts, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        let target = anchor_value.saturating_add(fee);
+        let (chosen_refs, input_sum) = self.select_inputs(target)?;
+        let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
+        let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
+
+        let change_value = input_sum.saturating_sub(target);
+        let mut change_recipients: Vec<TransferRecipient> = Vec::new();
+        if change_value > 0 {
+            change_recipients.push(TransferRecipient {
+                recipient: self.recipient(),
+                value: change_value,
+            });
+        }
+
+        let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
+        let pool = build_decoy_pool(chain_state, self.owned.values(), None);
+        let current_height = u64::from(self.scan_height.unwrap_or(0));
+
+        let plan = StorageUploadPlan {
+            inputs: &chosen_refs2,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: anchor_value,
+            },
+            data,
+            replication,
+            chunk_size,
+            endowment_blinding: Some(endowment_blinding),
+            endowment_params: &chain_state.endowment_params,
+            fee_to_treasury_bps: chain_state.emission_params.fee_to_treasury_bps,
+            change_recipients: &change_recipients,
+            fee,
+            extra,
+            ring_size,
+            decoy_pool: &pool,
+            current_height,
+            rng,
+        };
+        let art = build_storage_upload(plan)?;
+
+        for k in chosen_keys {
+            self.mark_spent_by_utxo_key(&k);
+        }
+
+        Ok(art)
     }
 }
 
