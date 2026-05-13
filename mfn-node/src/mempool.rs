@@ -20,13 +20,6 @@
 //!
 //! ## What this milestone deliberately defers
 //!
-//! - **Storage-anchoring transactions.** The wallet (M2.0.11) only
-//!   builds non-storage txs, and the storage-upload economic gates in
-//!   `apply_block` (treasury share vs `required_endowment`, replication
-//!   bounds, cross-tx dedup against `state.storage`) are non-trivial.
-//!   The mempool rejects storage-bearing txs with a typed
-//!   [`AdmitError::StorageTxsNotYetSupported`]; a follow-up milestone
-//!   will mirror the apply_block-level storage gates here.
 //! - **Time-based eviction / `seen_at`.** Mempool entries live forever
 //!   until they conflict, are mined, or are explicitly evicted. Adding
 //!   age-based eviction is straightforward but unnecessary while the
@@ -35,6 +28,9 @@
 //!   in-memory; a node restart loses pending txs. This matches
 //!   Bitcoin / Monero behaviour at this layer (mempool is best-effort
 //!   anyway — finality lives on the chain).
+//! - **Wallet-built storage uploads.** The mempool admits
+//!   storage-anchoring txs (M2.0.13), but the wallet does not yet
+//!   *build* them. Construction lands in M2.0.14.
 //!
 //! ## Determinism
 //!
@@ -43,9 +39,10 @@
 //! within ties (entries with equal fees come out in `tx_id` order to
 //! guarantee byte-deterministic block bodies).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use mfn_consensus::{verify_transaction, Block, ChainState, TransactionWire};
+use mfn_storage::{required_endowment, storage_commitment_hash};
 
 /* ----------------------------------------------------------------------- *
  *  Config + entry                                                           *
@@ -200,18 +197,75 @@ pub enum AdmitError {
         proposed_fee: u64,
     },
 
-    /// The tx anchors a storage commitment. The current mempool gates
-    /// non-storage txs only — storage uploads will land in a follow-up
-    /// milestone that mirrors `apply_block`'s `UploadUnderfunded` /
-    /// replication / dedup checks.
-    #[error("storage-anchoring txs are not supported by this mempool milestone")]
-    StorageTxsNotYetSupported,
-
     /// `tx.inputs` is empty. Either a malformed wire-form tx or a
     /// caller trying to admit a coinbase, which never goes through
     /// the mempool.
     #[error("tx has no inputs — coinbases and degenerate txs are not admitted")]
     NoInputs,
+
+    /// A storage-anchoring output's replication factor was below the
+    /// chain's `min_replication`. Mirrors
+    /// `mfn_consensus::BlockError::StorageReplicationTooLow`.
+    #[error("storage output {output} of tx {tx_id_hex} has replication {got} < min {min}")]
+    StorageReplicationTooLow {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Which output the offending storage anchor belongs to.
+        output: usize,
+        /// Replication the spender requested.
+        got: u8,
+        /// Configured `endowment_params.min_replication`.
+        min: u8,
+    },
+
+    /// A storage-anchoring output's replication factor was above the
+    /// chain's `max_replication`. Mirrors
+    /// `mfn_consensus::BlockError::StorageReplicationTooHigh`.
+    #[error("storage output {output} of tx {tx_id_hex} has replication {got} > max {max}")]
+    StorageReplicationTooHigh {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Which output the offending storage anchor belongs to.
+        output: usize,
+        /// Replication the spender requested.
+        got: u8,
+        /// Configured `endowment_params.max_replication`.
+        max: u8,
+    },
+
+    /// `mfn_storage::required_endowment` returned an error when the
+    /// mempool tried to compute the burden for a new storage anchor.
+    /// Mirrors `mfn_consensus::BlockError::EndowmentMathFailed`.
+    #[error("endowment math failed for storage output {output} of tx {tx_id_hex}: {reason}")]
+    EndowmentMathFailed {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Which output triggered the error.
+        output: usize,
+        /// Stringified `mfn_storage::EndowmentError`.
+        reason: String,
+    },
+
+    /// The tx introduced new storage anchors but its treasury-bound
+    /// fee share doesn't cover the protocol-required endowment burden.
+    /// Mirrors `mfn_consensus::BlockError::UploadUnderfunded`
+    /// byte-for-byte.
+    #[error(
+        "tx {tx_id_hex}: storage endowment burden {burden} exceeds treasury share \
+         {treasury_share} (fee={fee}, fee_to_treasury_bps={fee_to_treasury_bps})"
+    )]
+    UploadUnderfunded {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Total required endowment for this tx's *new* anchors.
+        burden: u128,
+        /// Treasury-bound share of `tx.fee` available to cover it.
+        treasury_share: u128,
+        /// The tx's declared fee (base units).
+        fee: u64,
+        /// Chain's `emission_params.fee_to_treasury_bps`.
+        fee_to_treasury_bps: u16,
+    },
 }
 
 /* ----------------------------------------------------------------------- *
@@ -326,13 +380,16 @@ impl Mempool {
     ///
     /// 1. Reject coinbases (`inputs.is_empty()`) — they never go
     ///    through the mempool.
-    /// 2. Reject storage-anchoring txs in this milestone.
-    /// 3. Enforce local min-fee policy.
-    /// 4. Run `verify_transaction` (CLSAG + balance + range proofs +
+    /// 2. Enforce local min-fee policy.
+    /// 3. Run `verify_transaction` (CLSAG + balance + range proofs +
     ///    within-tx key-image dedup).
-    /// 5. Ring-membership chain guard against `state.utxo`.
-    /// 6. Cross-chain double-spend guard against
+    /// 4. Ring-membership chain guard against `state.utxo`.
+    /// 5. Cross-chain double-spend guard against
     ///    `state.spent_key_images`.
+    /// 6. **Storage-anchoring gate** (M2.0.13): replication bounds,
+    ///    `required_endowment` math, treasury-share-vs-burden, with
+    ///    within-tx and cross-chain dedup treated as silent skips
+    ///    (mirrors `apply_block` byte-for-byte).
     /// 7. Mempool-internal key-image conflict resolution via RBF.
     /// 8. Mempool size-cap eviction.
     ///
@@ -348,12 +405,7 @@ impl Mempool {
             return Err(AdmitError::NoInputs);
         }
 
-        // (2) Storage-anchoring txs deferred.
-        if tx.outputs.iter().any(|o| o.storage.is_some()) {
-            return Err(AdmitError::StorageTxsNotYetSupported);
-        }
-
-        // (3) Local min-fee policy.
+        // (2) Local min-fee policy.
         if tx.fee < self.config.min_fee {
             return Err(AdmitError::BelowMinFee {
                 min_fee: self.config.min_fee,
@@ -361,7 +413,7 @@ impl Mempool {
             });
         }
 
-        // (4) Cryptographic verification + canonical tx_id.
+        // (3) Cryptographic verification + canonical tx_id.
         let result = verify_transaction(&tx);
         if !result.ok {
             return Err(AdmitError::TxInvalid {
@@ -379,7 +431,7 @@ impl Mempool {
             });
         }
 
-        // (5) Ring-membership chain guard. Mirrors `apply_block`'s
+        // (4) Ring-membership chain guard. Mirrors `apply_block`'s
         //     check byte-for-byte (lookup by `p.compress().to_bytes()`
         //     against `state.utxo`, then compare `entry.commit == c`).
         for (i_idx, inp) in tx.inputs.iter().enumerate() {
@@ -415,7 +467,7 @@ impl Mempool {
             }
         }
 
-        // (6) Cross-chain double-spend guard.
+        // (5) Cross-chain double-spend guard.
         let key_image_bytes: Vec<[u8; 32]> = result
             .key_images
             .iter()
@@ -425,6 +477,73 @@ impl Mempool {
             if state.spent_key_images.contains(ki) {
                 return Err(AdmitError::KeyImageAlreadyOnChain {
                     tx_id_hex: hex_prefix(&tx_id),
+                });
+            }
+        }
+
+        // (6) Storage-anchoring gate. Walks every output's optional
+        // `storage` field, treats already-anchored (vs `state.storage`)
+        // and within-tx duplicate (`seen_in_tx`) hashes as *silent
+        // skips* (matching `apply_block` byte-for-byte), and rejects
+        // on:
+        //   - replication outside `[min, max]` from `endowment_params`
+        //   - `required_endowment(size_bytes, replication, params)` error
+        //   - aggregate `required_endowment` exceeds the tx's
+        //     `treasury_share = fee * fee_to_treasury_bps / 10_000`
+        // Outputs that are duplicates of already-anchored or
+        // already-seen-in-this-tx commitments contribute zero burden,
+        // mirroring `apply_block`'s "only NEW anchors incur burden"
+        // semantics.
+        let mut tx_burden: u128 = 0;
+        let mut seen_in_tx: HashSet<[u8; 32]> = HashSet::new();
+        for (oi, out) in tx.outputs.iter().enumerate() {
+            let sc = match &out.storage {
+                Some(s) => s,
+                None => continue,
+            };
+            let h = storage_commitment_hash(sc);
+            // Already anchored on chain OR already counted earlier in
+            // this same tx → inert (no burden, no error).
+            if state.storage.contains_key(&h) || !seen_in_tx.insert(h) {
+                continue;
+            }
+            if sc.replication < state.endowment_params.min_replication {
+                return Err(AdmitError::StorageReplicationTooLow {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    output: oi,
+                    got: sc.replication,
+                    min: state.endowment_params.min_replication,
+                });
+            }
+            if sc.replication > state.endowment_params.max_replication {
+                return Err(AdmitError::StorageReplicationTooHigh {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    output: oi,
+                    got: sc.replication,
+                    max: state.endowment_params.max_replication,
+                });
+            }
+            match required_endowment(sc.size_bytes, sc.replication, &state.endowment_params) {
+                Ok(b) => tx_burden = tx_burden.saturating_add(b),
+                Err(e) => {
+                    return Err(AdmitError::EndowmentMathFailed {
+                        tx_id_hex: hex_prefix(&tx_id),
+                        output: oi,
+                        reason: format!("{e}"),
+                    });
+                }
+            }
+        }
+        if tx_burden > 0 {
+            let treasury_share: u128 =
+                u128::from(tx.fee) * u128::from(state.emission_params.fee_to_treasury_bps) / 10_000;
+            if treasury_share < tx_burden {
+                return Err(AdmitError::UploadUnderfunded {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    burden: tx_burden,
+                    treasury_share,
+                    fee: tx.fee,
+                    fee_to_treasury_bps: state.emission_params.fee_to_treasury_bps,
                 });
             }
         }
@@ -780,37 +899,295 @@ mod tests {
         assert!(matches!(err, AdmitError::NoInputs));
     }
 
-    #[test]
-    fn admit_rejects_storage_anchoring_tx() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+    /* ----------------------------- storage-tx helpers ------------------ */
 
-        // Build a tx that anchors a (dummy) storage commitment. We do
-        // this via sign_transaction with OutputSpec::ToRecipient {
-        // storage: Some(...) }.
-        use mfn_storage::StorageCommitment;
-        let storage = StorageCommitment {
-            data_root: [7u8; 32],
-            size_bytes: 1024,
-            chunk_size: 256,
-            num_chunks: 4,
-            replication: 3,
+    /// A canonical-ish [`StorageCommitment`] for tests. `data_root` is
+    /// the caller-supplied seed; that's the only field the chain uses
+    /// for dedup, so making it parameterizable lets tests reuse the
+    /// same builder without colliding.
+    fn storage_commit(
+        data_root_seed: u8,
+        size_bytes: u64,
+        replication: u8,
+    ) -> mfn_storage::StorageCommitment {
+        let chunk_size: u32 = 256;
+        let num_chunks = size_bytes.div_ceil(u64::from(chunk_size)) as u32;
+        mfn_storage::StorageCommitment {
+            data_root: [data_root_seed; 32],
+            size_bytes,
+            chunk_size,
+            num_chunks,
+            replication,
+            // The chain does NOT verify the endowment commitment
+            // opens to required_endowment, so any non-identity point
+            // is fine for these tests.
             endowment: generator_g(),
-        };
-        let signed = sign_transaction(
-            vec![inp],
+        }
+    }
+
+    /// Sign a tx with a single storage-anchoring output. The output
+    /// value is `input.value - fee` so the balance equation holds.
+    /// Decoy outputs aren't relevant to the storage gates so we
+    /// always point the anchor at a fresh stealth recipient.
+    fn signed_storage_tx(
+        input: InputSpec,
+        fee: u64,
+        storage: mfn_storage::StorageCommitment,
+    ) -> TransactionWire {
+        let value = input.value - fee;
+        sign_transaction(
+            vec![input],
             vec![OutputSpec::ToRecipient {
                 recipient: recipient(),
-                value: 800,
+                value,
                 storage: Some(storage),
             }],
-            200,
+            fee,
             Vec::new(),
         )
-        .expect("sign");
+        .expect("sign")
+        .tx
+    }
 
+    /// Build a chain whose UTXO set contains the spendable input + N
+    /// decoys, with optional pre-anchored storage commitments. Useful
+    /// for testing the already-anchored silent-skip path.
+    fn build_genesis_with_storage(
+        ring_size: usize,
+        signer_value: u64,
+        initial_storage: Vec<mfn_storage::StorageCommitment>,
+    ) -> (Chain, InputSpec) {
+        let (chain_throwaway, _, _, _) =
+            build_genesis_with_spendable_input(ring_size, signer_value);
+        let _ = chain_throwaway;
+        // We can't easily extract the genesis config back out of a
+        // Chain. Rebuild from scratch with the same shape, but
+        // injecting `initial_storage` this time.
+        let signer_spend = random_scalar();
+        let signer_blinding = random_scalar();
+        let signer_p = generator_g() * signer_spend;
+        let signer_c =
+            (generator_g() * signer_blinding) + (generator_h() * Scalar::from(signer_value));
+
+        let mut decoy_p: Vec<EdwardsPoint> = Vec::with_capacity(ring_size - 1);
+        let mut decoy_c: Vec<EdwardsPoint> = Vec::with_capacity(ring_size - 1);
+        let mut decoy_outputs: Vec<GenesisOutput> = Vec::with_capacity(ring_size - 1);
+        for i in 0..(ring_size - 1) {
+            let sp = random_scalar();
+            let bp = random_scalar();
+            let p = generator_g() * sp;
+            let c = (generator_g() * bp) + (generator_h() * Scalar::from((i as u64) + 1));
+            decoy_p.push(p);
+            decoy_c.push(c);
+            decoy_outputs.push(GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            });
+        }
+        let mut initial_outputs = vec![GenesisOutput {
+            one_time_addr: signer_p,
+            amount: signer_c,
+        }];
+        initial_outputs.extend(decoy_outputs.iter().cloned());
+
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs,
+            initial_storage,
+            validators: Vec::<Validator>::new(),
+            params: ConsensusParams::default(),
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+
+        let signer_idx = ring_size / 2;
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        let mut di = 0usize;
+        for i in 0..ring_size {
+            if i == signer_idx {
+                p.push(signer_p);
+                c.push(signer_c);
+            } else {
+                p.push(decoy_p[di]);
+                c.push(decoy_c[di]);
+                di += 1;
+            }
+        }
+        let inp = InputSpec {
+            ring: ClsagRing { p, c },
+            signer_idx,
+            spend_priv: signer_spend,
+            value: signer_value,
+            blinding: signer_blinding,
+        };
+        (chain, inp)
+    }
+
+    /* ----------------------------- storage-tx tests -------------------- */
+
+    #[test]
+    fn admit_storage_tx_happy_path() {
+        // size=1024, replication=3 → required_endowment ≈ 32 atomic
+        // units. fee=100, fee_to_treasury_bps=9000 → treasury_share=90.
+        // 90 >= 32 → admit.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let storage = storage_commit(0x42, 1024, 3);
+        let tx = signed_storage_tx(inp, 100, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
-        let err = pool.admit(signed.tx, chain.state()).unwrap_err();
-        assert!(matches!(err, AdmitError::StorageTxsNotYetSupported));
+        let outcome = pool.admit(tx, chain.state()).expect("admit");
+        assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
+        assert_eq!(pool.len(), 1);
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_replication_too_low() {
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        // Default min_replication = 3; ask for 2.
+        let storage = storage_commit(0x43, 1024, 2);
+        let tx = signed_storage_tx(inp, 200, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        match err {
+            AdmitError::StorageReplicationTooLow { got: 2, min: 3, .. } => {}
+            other => panic!("expected StorageReplicationTooLow, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_replication_too_high() {
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        // Default max_replication = 32; ask for 33.
+        let storage = storage_commit(0x44, 1024, 33);
+        let tx = signed_storage_tx(inp, 200, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        match err {
+            AdmitError::StorageReplicationTooHigh {
+                got: 33, max: 32, ..
+            } => {}
+            other => panic!("expected StorageReplicationTooHigh, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_underfunded() {
+        // Same upload, but fee=1. treasury_share = 1 * 9000 / 10_000 = 0
+        // (integer division) < burden ≈ 32. UploadUnderfunded.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let storage = storage_commit(0x45, 1024, 3);
+        let tx = signed_storage_tx(inp, 1, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        match err {
+            AdmitError::UploadUnderfunded {
+                burden,
+                treasury_share,
+                fee_to_treasury_bps,
+                ..
+            } => {
+                assert!(burden > 0);
+                assert!(treasury_share < burden);
+                assert_eq!(fee_to_treasury_bps, 9000);
+            }
+            other => panic!("expected UploadUnderfunded, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn admit_storage_tx_silently_skips_already_anchored_root() {
+        // Pre-seed state.storage with the data_root we're about to
+        // anchor. Now the same commitment is "already anchored" and
+        // contributes zero burden — so even a tiny fee admits.
+        let storage = storage_commit(0x46, 1024, 3);
+        let (chain, inp) = build_genesis_with_storage(4, 1_000, vec![storage.clone()]);
+        let tx = signed_storage_tx(inp, 1, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let outcome = pool.admit(tx, chain.state()).expect("admit (silent skip)");
+        assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
+    }
+
+    #[test]
+    fn admit_storage_tx_silently_skips_within_tx_duplicate() {
+        // Two storage outputs anchoring the SAME data_root in the
+        // same tx → second is a silent skip. Only the first counts
+        // toward burden. With fee=100, single burden ≈ 32 < 90, so
+        // admit. With fee=100 and DOUBLE-counted burden ≈ 64 < 90,
+        // also admit; so this test mostly proves we don't *fail* on
+        // the duplicate (a buggy implementation that double-counts
+        // would still pass this assertion). The stronger guarantee
+        // is in apply_block's `seen_in_tx` semantics, which we mirror
+        // exactly.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let storage = storage_commit(0x47, 1024, 3);
+        let value = inp.value - 100;
+        let tx = sign_transaction(
+            vec![inp],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: value / 2,
+                    storage: Some(storage.clone()),
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: value - value / 2,
+                    storage: Some(storage),
+                },
+            ],
+            100,
+            Vec::new(),
+        )
+        .expect("sign")
+        .tx;
+        let mut pool = Mempool::new(MempoolConfig::default());
+        pool.admit(tx, chain.state()).expect("admit");
+    }
+
+    #[test]
+    fn admit_storage_tx_mixed_outputs_with_regular_payment() {
+        // One storage anchor + one plain payment in the same tx.
+        // Burden ≈ 32 (just the storage one). fee=100 → treasury share
+        // = 90 > 32 → admit.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let storage = storage_commit(0x48, 1024, 3);
+        let value = inp.value - 100;
+        let tx = sign_transaction(
+            vec![inp],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: value / 2,
+                    storage: Some(storage),
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: value - value / 2,
+                    storage: None,
+                },
+            ],
+            100,
+            Vec::new(),
+        )
+        .expect("sign")
+        .tx;
+        let mut pool = Mempool::new(MempoolConfig::default());
+        pool.admit(tx, chain.state()).expect("admit");
+    }
+
+    #[test]
+    fn admit_storage_tx_burden_scales_with_size() {
+        // A 16 KB upload at replication=3 has a much bigger burden
+        // than a 1 KB one. fee=100 was fine for 1 KB; for 16 KB it
+        // is not.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let storage = storage_commit(0x49, 16 * 1024, 3);
+        let tx = signed_storage_tx(inp, 100, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(matches!(err, AdmitError::UploadUnderfunded { .. }));
     }
 
     #[test]

@@ -13,11 +13,11 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool**) | `mfn-node` | 35 | ✓ live (skeleton + mempool) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission**) | `mfn-node` | 45 | ✓ live (skeleton + mempool) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + UTXO tracking + transfer building**) | `mfn-wallet` | 28 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **506** | All checks green (+ 2 ignored) |
+| **Total** | | **516** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -696,6 +696,51 @@ See [`docs/M2_WALLET.md`](./M2_WALLET.md) for the full design note.
 - **Foundation for RPC** — `submit_tx` is a thin wrapper around `Mempool::admit`; typed errors map to HTTP status codes.
 
 See [`docs/M2_MEMPOOL.md`](./M2_MEMPOOL.md) for the full design note.
+
+---
+
+## Milestone M2.0.13 — Storage-anchoring transactions in the mempool (✓ shipped)
+
+**Why it was next.** M2.0.12 advertised exactly one typed deferment: `AdmitError::StorageTxsNotYetSupported`. That made the privacy half of the chain end-to-end usable but left the permanence half disconnected from the submission pipeline. M2.0.13 closes that gap, turning the mempool into a *complete* admission primitive that gates both privacy spends and storage anchors on the same terms as `apply_block`.
+
+### What shipped
+
+- **A new step (6) in the admit gate** — for each output with `storage: Some(sc)`, the mempool now mirrors `apply_block` byte-for-byte: enforce replication bounds against `state.endowment_params`, compute `mfn_storage::required_endowment(size_bytes, replication, &params)` for each *new* anchor, sum into `tx_burden`, then require `treasury_share = fee * fee_to_treasury_bps / 10_000 ≥ tx_burden`. Already-anchored data roots (`state.storage.contains_key(&h)`) and within-tx duplicates (`seen_in_tx` `HashSet`) are silently skipped, exactly as on chain.
+- **Four typed `AdmitError` variants** mirroring `mfn_consensus::BlockError`:
+  - `StorageReplicationTooLow { tx_id_hex, output, got, min }`
+  - `StorageReplicationTooHigh { tx_id_hex, output, got, max }`
+  - `EndowmentMathFailed { tx_id_hex, output, reason }`
+  - `UploadUnderfunded { tx_id_hex, burden, treasury_share, fee, fee_to_treasury_bps }`
+- **Removed `AdmitError::StorageTxsNotYetSupported`** — small intentional API break, replaced by the four richer variants above.
+- **No new dependencies** — `mfn-storage` was already in the closure; the new imports are `required_endowment` + `storage_commitment_hash`.
+
+### Test matrix
+
+**Unit (+8 tests; one replaced):**
+
+- `admit_storage_tx_happy_path` — well-formed 1 KB / replication-3 / fee=100 → admits as `Fresh`.
+- `admit_storage_tx_rejects_replication_too_low` — `replication=2` against `min=3` → `StorageReplicationTooLow`.
+- `admit_storage_tx_rejects_replication_too_high` — `replication=33` against `max=32` → `StorageReplicationTooHigh`.
+- `admit_storage_tx_rejects_underfunded` — same upload at `fee=1` → `UploadUnderfunded`.
+- `admit_storage_tx_silently_skips_already_anchored_root` — pre-seeded `state.storage` → admits at `fee=1` because the burden is zero.
+- `admit_storage_tx_silently_skips_within_tx_duplicate` — two outputs anchoring the same `data_root` in one tx → admits cleanly without double-counting.
+- `admit_storage_tx_mixed_outputs_with_regular_payment` — one storage anchor + one plain payment → admits.
+- `admit_storage_tx_burden_scales_with_size` — same fee, 16× the size → `UploadUnderfunded`.
+
+**Integration (+3 tests):**
+
+- `storage_tx_through_full_mempool_producer_chain_pipeline` — full pipeline: mempool admits → drain → producer builds block → chain applies → `state.storage[hash]` is populated → re-admission rejected via `KeyImageAlreadyOnChain`.
+- `storage_tx_underfunded_is_rejected_by_mempool_before_producer` — proves the mempool catches what the chain catches, so the producer can't accidentally build an `UploadUnderfunded` block.
+- `already_anchored_storage_tx_silently_skips_burden_in_mempool` — pre-seeded genesis with the storage commitment → a fresh tx anchoring the same `data_root` admits at `fee=1`.
+
+### What this unlocks
+
+- Permanence transactions ride the **same submission wire** as privacy spends. No special-case mempool, no separate storage daemon.
+- The wallet can grow `build_storage_upload(...)` (M2.0.14) with confidence that its output will be admissible by both mempool and chain.
+- A user-facing RPC built on M2.0.12 + M2.0.13 accepts uploads via the same `submit_tx` endpoint, with `AdmitError` driving HTTP status responses.
+- The fusion of privacy and permanence is now **end-to-end testable at the submission layer** — same admit call gates both halves, enforcing the same economic relation (`treasury_share ≥ burden`) the chain enforces at block-application time.
+
+See [`docs/M2_STORAGE_MEMPOOL.md`](./M2_STORAGE_MEMPOOL.md) for the full design note.
 
 ---
 

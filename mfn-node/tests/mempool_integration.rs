@@ -18,21 +18,26 @@
 //! wallet's output and the producer's input — the three crates speak
 //! exactly the same `TransactionWire`.
 
+use curve25519_dalek::edwards::EdwardsPoint;
+use curve25519_dalek::scalar::Scalar;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, GenesisOutput,
-    PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    build_coinbase, emission_at_height, sign_transaction, ConsensusParams, GenesisConfig,
+    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, Recipient, Validator, ValidatorPayout,
+    ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
 };
+use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
 use mfn_crypto::seeded_rng;
+use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_light::{LightChain, LightChainConfig};
 use mfn_node::{
     produce_solo_block, AdmitError, AdmitOutcome, BlockInputs, Chain, ChainConfig, Mempool,
     MempoolConfig,
 };
-use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+use mfn_storage::{storage_commitment_hash, StorageCommitment, DEFAULT_ENDOWMENT_PARAMS};
 use mfn_wallet::{wallet_from_seed, TransferRecipient, Wallet};
 
 fn consensus_params() -> ConsensusParams {
@@ -388,4 +393,322 @@ fn mempool_admit_after_chain_advanced_still_works() {
     pool.admit(signed.tx, chain.state())
         .expect("admit against advanced chain");
     assert_eq!(pool.len(), 1);
+}
+
+/* --------------------------------------------------------------------- *
+ *  M2.0.13: storage-anchoring tx round-trip                                *
+ * --------------------------------------------------------------------- */
+
+/// One spendable input + decoys, anchored at genesis. The wallet
+/// (M2.0.11) doesn't yet build storage-anchoring txs — that's M2.0.14 —
+/// so this helper hand-rolls the InputSpec the same way the mempool's
+/// own unit tests do, then signs a storage-bearing tx through
+/// `mfn_consensus::sign_transaction`.
+fn genesis_with_spendable_decoy(ring_size: usize, signer_value: u64) -> (Chain, InputSpec) {
+    assert!(ring_size >= 2);
+    let signer_spend = random_scalar();
+    let signer_blinding = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * signer_blinding) + (generator_h() * Scalar::from(signer_value));
+
+    let mut decoy_p: Vec<EdwardsPoint> = Vec::with_capacity(ring_size - 1);
+    let mut decoy_c: Vec<EdwardsPoint> = Vec::with_capacity(ring_size - 1);
+    let mut decoy_outputs: Vec<GenesisOutput> = Vec::with_capacity(ring_size - 1);
+    for i in 0..(ring_size - 1) {
+        let sp = random_scalar();
+        let bp = random_scalar();
+        let p = generator_g() * sp;
+        let c = (generator_g() * bp) + (generator_h() * Scalar::from((i as u64) + 1));
+        decoy_p.push(p);
+        decoy_c.push(c);
+        decoy_outputs.push(GenesisOutput {
+            one_time_addr: p,
+            amount: c,
+        });
+    }
+    let mut initial_outputs = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    initial_outputs.extend(decoy_outputs.iter().cloned());
+
+    let bls = bls_keygen_from_seed(&[42u8; 32]);
+    let vrf = vrf_keygen_from_seed(&[1u8; 32]).unwrap();
+    let payout_keys = stealth_gen();
+    let payout = ValidatorPayout {
+        view_pub: payout_keys.view_pub,
+        spend_pub: payout_keys.spend_pub,
+    };
+    let validator = Validator {
+        index: 0,
+        vrf_pk: vrf.pk,
+        bls_pk: bls.pk,
+        stake: 1_000_000,
+        payout: Some(payout),
+    };
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        validators: vec![validator],
+        params: consensus_params(),
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+
+    let signer_idx = ring_size / 2;
+    let mut p = Vec::with_capacity(ring_size);
+    let mut c = Vec::with_capacity(ring_size);
+    let mut di = 0usize;
+    for i in 0..ring_size {
+        if i == signer_idx {
+            p.push(signer_p);
+            c.push(signer_c);
+        } else {
+            p.push(decoy_p[di]);
+            c.push(decoy_c[di]);
+            di += 1;
+        }
+    }
+    let inp = InputSpec {
+        ring: ClsagRing { p, c },
+        signer_idx,
+        spend_priv: signer_spend,
+        value: signer_value,
+        blinding: signer_blinding,
+    };
+    (chain, inp)
+}
+
+#[test]
+fn storage_tx_through_full_mempool_producer_chain_pipeline() {
+    // Build a chain whose producer is the same validator key the
+    // helper hard-codes. Mining a block requires a producer with
+    // stake > 0; the helper sets up exactly that.
+    let (mut chain, inp) = genesis_with_spendable_decoy(4, 1_000);
+    let validator = chain.validators()[0].clone();
+    let bls = bls_keygen_from_seed(&[42u8; 32]);
+    let vrf = vrf_keygen_from_seed(&[1u8; 32]).unwrap();
+    let secrets = ValidatorSecrets { index: 0, vrf, bls };
+
+    // A 1 KB upload at min replication.
+    let storage = StorageCommitment {
+        data_root: [0xab; 32],
+        size_bytes: 1024,
+        chunk_size: 256,
+        num_chunks: 4,
+        replication: 3,
+        endowment: generator_g(),
+    };
+    let storage_hash = storage_commitment_hash(&storage);
+
+    // Sign a storage-anchoring tx. fee=100 → treasury share 90,
+    // burden ≈ 32 → admits.
+    let recipient = {
+        let w = stealth_gen();
+        Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        }
+    };
+    let signed_tx = sign_transaction(
+        vec![inp],
+        vec![OutputSpec::ToRecipient {
+            recipient,
+            value: 900,
+            storage: Some(storage.clone()),
+        }],
+        100,
+        Vec::new(),
+    )
+    .expect("sign")
+    .tx;
+
+    // Mempool: admit + verify Fresh.
+    let mut pool = Mempool::new(MempoolConfig::default());
+    let outcome = pool.admit(signed_tx.clone(), chain.state()).expect("admit");
+    assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
+
+    // Producer drains + builds block 1 (coinbase + storage tx).
+    let drained = pool.drain(16);
+    assert_eq!(drained.len(), 1);
+    let treasury_fee_bps = 9000u64;
+    let producer_fee = 100 - (100 * treasury_fee_bps / 10_000);
+    let mut txs = vec![coinbase_for(&validator, 1, producer_fee)];
+    txs.extend(drained);
+    let inputs = BlockInputs {
+        height: 1,
+        slot: 1,
+        timestamp: 100,
+        txs,
+        bond_ops: Vec::new(),
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
+    };
+    let block = produce_solo_block(&chain, &validator, &secrets, consensus_params(), inputs)
+        .expect("produce");
+    chain
+        .apply(&block)
+        .expect("chain accepts storage-anchor block");
+
+    // ChainState now contains the new storage commitment.
+    assert!(
+        chain.state().storage.contains_key(&storage_hash),
+        "storage commitment must be anchored on chain"
+    );
+
+    // remove_mined cleans up.
+    assert_eq!(pool.remove_mined(&block), 0); // already drained
+    assert!(pool.is_empty());
+
+    // A second admission of the same tx hits the cross-chain
+    // double-spend gate (key images now in spent_key_images).
+    let err = pool.admit(signed_tx, chain.state()).unwrap_err();
+    assert!(matches!(err, AdmitError::KeyImageAlreadyOnChain { .. }));
+}
+
+#[test]
+fn storage_tx_underfunded_is_rejected_by_mempool_before_producer() {
+    // Same setup as the happy-path test, but with a fee that doesn't
+    // cover the burden. The mempool MUST reject — otherwise the chain
+    // would later reject the producer's block via UploadUnderfunded.
+    let (chain, inp) = genesis_with_spendable_decoy(4, 1_000);
+    let storage = StorageCommitment {
+        data_root: [0xcd; 32],
+        size_bytes: 64 * 1024, // 64 KB
+        chunk_size: 256,
+        num_chunks: 256,
+        replication: 3,
+        endowment: generator_g(),
+    };
+
+    let recipient = {
+        let w = stealth_gen();
+        Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        }
+    };
+    let signed_tx = sign_transaction(
+        vec![inp],
+        vec![OutputSpec::ToRecipient {
+            recipient,
+            value: 900,
+            storage: Some(storage),
+        }],
+        100, // way too small for 64 KB
+        Vec::new(),
+    )
+    .expect("sign")
+    .tx;
+
+    let mut pool = Mempool::new(MempoolConfig::default());
+    let err = pool.admit(signed_tx, chain.state()).unwrap_err();
+    assert!(matches!(err, AdmitError::UploadUnderfunded { .. }));
+}
+
+#[test]
+fn already_anchored_storage_tx_silently_skips_burden_in_mempool() {
+    // Pre-seed the chain's storage map with a commitment, then attempt
+    // to admit a NEW tx that references the same data_root. The chain
+    // treats this as a silent skip (no burden, no error). The mempool
+    // must agree — even with a tiny fee.
+    let storage = StorageCommitment {
+        data_root: [0xef; 32],
+        size_bytes: 1024,
+        chunk_size: 256,
+        num_chunks: 4,
+        replication: 3,
+        endowment: generator_g(),
+    };
+
+    let signer_spend = random_scalar();
+    let signer_blinding = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * signer_blinding) + (generator_h() * Scalar::from(1_000u64));
+
+    let mut decoy_p: Vec<EdwardsPoint> = Vec::new();
+    let mut decoy_c: Vec<EdwardsPoint> = Vec::new();
+    let mut decoy_outputs: Vec<GenesisOutput> = Vec::new();
+    for i in 0..3 {
+        let sp = random_scalar();
+        let bp = random_scalar();
+        let p = generator_g() * sp;
+        let c = (generator_g() * bp) + (generator_h() * Scalar::from((i as u64) + 1));
+        decoy_p.push(p);
+        decoy_c.push(c);
+        decoy_outputs.push(GenesisOutput {
+            one_time_addr: p,
+            amount: c,
+        });
+    }
+    let mut initial_outputs = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    initial_outputs.extend(decoy_outputs.iter().cloned());
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: vec![storage.clone()],
+        validators: Vec::<Validator>::new(),
+        params: ConsensusParams::default(),
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+
+    let signer_idx = 1usize;
+    let mut p = Vec::new();
+    let mut c = Vec::new();
+    let mut di = 0usize;
+    for i in 0..4 {
+        if i == signer_idx {
+            p.push(signer_p);
+            c.push(signer_c);
+        } else {
+            p.push(decoy_p[di]);
+            c.push(decoy_c[di]);
+            di += 1;
+        }
+    }
+    let inp = InputSpec {
+        ring: ClsagRing { p, c },
+        signer_idx,
+        spend_priv: signer_spend,
+        value: 1_000,
+        blinding: signer_blinding,
+    };
+
+    let recipient = {
+        let w = stealth_gen();
+        Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        }
+    };
+    // fee=1 → treasury share = 0. Without the silent-skip, burden ≈ 32
+    // would force UploadUnderfunded. With it, the upload is inert and
+    // the tx admits.
+    let signed_tx = sign_transaction(
+        vec![inp],
+        vec![OutputSpec::ToRecipient {
+            recipient,
+            value: 999,
+            storage: Some(storage),
+        }],
+        1,
+        Vec::new(),
+    )
+    .expect("sign")
+    .tx;
+
+    let mut pool = Mempool::new(MempoolConfig::default());
+    pool.admit(signed_tx, chain.state())
+        .expect("admit (already-anchored silent skip)");
 }

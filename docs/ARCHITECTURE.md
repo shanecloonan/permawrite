@@ -777,7 +777,7 @@ mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (35 tests: 26 unit + 9 integration)
+mfn-node/           Node-side glue             (45 tests: 34 unit + 11 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 ├── producer.rs     Block-production helpers: three-stage protocol
@@ -785,17 +785,28 @@ mfn-node/           Node-side glue             (35 tests: 26 unit + 9 integratio
 │                   produce_solo_block one-call helper for the single-validator
 │                   case. The shape future P2P / RPC / mempool integration
 │                   consumes.
-└── mempool.rs      M2.0.12 in-memory transaction pool. Mempool::admit replicates
-                    every per-tx gate apply_block runs (verify_transaction +
-                    ring-membership chain guard with commit match + key-image
-                    dedup against state.spent_key_images and within the pool),
-                    implements replace-by-fee (strictly-dominating policy),
-                    size-cap lowest-fee eviction, and storage-anchoring-tx
-                    deferment via a typed AdmitError variant. drain(max) yields
-                    highest-fee-first with tx_id tie-break (byte-deterministic
-                    block bodies). remove_mined(&Block) evicts entries by
-                    block-included key images. AdmitOutcome distinguishes Fresh
-                    / ReplacedByFee / EvictedLowest for future P2P-relay use.
+└── mempool.rs      M2.0.12 + M2.0.13 in-memory transaction pool. Mempool::admit
+                    replicates every per-tx gate apply_block runs — both the
+                    PRIVACY gates (verify_transaction + ring-membership chain
+                    guard with commit match + key-image dedup against
+                    state.spent_key_images and within the pool) and the
+                    PERMANENCE gates (M2.0.13: replication bounds against
+                    state.endowment_params, mfn_storage::required_endowment math,
+                    treasury-share-vs-burden where treasury_share = fee *
+                    fee_to_treasury_bps / 10_000, with already-anchored data
+                    roots and within-tx duplicates silently skipped exactly
+                    like apply_block). Implements replace-by-fee
+                    (strictly-dominating policy) and size-cap lowest-fee
+                    eviction. drain(max) yields highest-fee-first with tx_id
+                    tie-break (byte-deterministic block bodies).
+                    remove_mined(&Block) evicts entries by block-included key
+                    images. Typed AdmitError variants: TxInvalid,
+                    RingMemberNotInUtxoSet, RingMemberCommitMismatch,
+                    KeyImageAlreadyOnChain, ReplaceTooLow, BelowMinFee,
+                    DuplicateTx, PoolFull, NoInputs, StorageReplicationTooLow,
+                    StorageReplicationTooHigh, EndowmentMathFailed,
+                    UploadUnderfunded. AdmitOutcome distinguishes Fresh /
+                    ReplacedByFee / EvictedLowest for future P2P-relay use.
 
 mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,
