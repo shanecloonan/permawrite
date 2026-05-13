@@ -9,15 +9,15 @@
 
 | Layer | Crate | Tests | Status |
 |---|---|---:|---|
-| ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
+| ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | 153 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec**) | `mfn-consensus` | 181 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission**) | `mfn-node` | 45 | ✓ live (skeleton + mempool) |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec**) | `mfn-consensus` | 194 | ✓ live |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`**) | `mfn-node` | 52 | ✓ live (skeleton + mempool + persistence codec) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **530** | All checks green (+ 2 ignored) |
+| **Total** | | **558** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -792,6 +792,77 @@ See [`docs/M2_STORAGE_MEMPOOL.md`](./M2_STORAGE_MEMPOOL.md) for the full design 
 - M2.0.15 (persistent chain state) and M2.1.0 (single-node daemon) now have the *complete* wallet surface to integrate against — both privacy and permanence operations are first-class.
 
 See [`docs/M2_WALLET_UPLOAD.md`](./M2_WALLET_UPLOAD.md) for the full design note.
+
+---
+
+## Milestone M2.0.15 — `ChainState` checkpoint codec (✓ shipped)
+
+**Why it was next.** After M2.0.14 the full privacy+permanence transaction surface is built — wallet, mempool, chain, light client. But every full-node `ChainState` still lives **entirely in memory**: a single process restart wipes the entire chain. The single-node daemon (M2.1.0) cannot ship without persistence; M2.0.15 is the deterministic IO-free byte codec that makes persistence possible. It's the same primitive M2.0.9 gave the `LightChain`, lifted to the full-node `ChainState`.
+
+### What shipped
+
+- **New module `mfn-consensus/src/chain_checkpoint.rs`** — the canonical wire codec for the full-node `ChainState` plus the chain's `genesis_id` pointer.
+  - `ChainCheckpoint { genesis_id, state }` bundle type.
+  - `encode_chain_checkpoint(&ChainCheckpoint) -> Vec<u8>` — deterministic, infallible.
+  - `decode_chain_checkpoint(&[u8]) -> Result<ChainCheckpoint, ChainCheckpointError>` — strict; rejects every malformed shape with a typed variant (`BadMagic`, `UnsupportedVersion`, `Truncated`, `VarintOverflow`, `LengthOverflow`, `InvalidHeightFlag`, `StatsLengthMismatch`, `DuplicateValidatorIndex`, `NextIndexBelowAssigned`, `InvalidVrfPublicKey`, `InvalidBlsPublicKey`, `InvalidPayoutViewPub`, `InvalidPayoutSpendPub`, `InvalidPayoutFlag`, `PendingUnbondsNotSorted`, `UtxoNotSorted`, `InvalidUtxoCommit`, `SpentKeyImagesNotSorted`, `StorageNotSorted`, `InvalidStorageCommitment`, `InvalidUtxoTree`, `IntegrityCheckFailed`, `TrailingBytes`).
+  - Wire layout: magic `b"MFCC"` + `u32` version + payload (every `ChainState` field, hash-maps sorted by key) + 32-byte trailing integrity tag `dhash(CHAIN_CHECKPOINT, &[payload])`.
+- **`UtxoTreeState` codec in `mfn-crypto`** — `encode_utxo_tree_state` / `decode_utxo_tree_state` with new `UtxoTreeDecodeError` enum (Truncated, VarintOverflow, LengthOverflow, LeafCountExceedsCapacity, DepthOutOfRange, NodesNotSorted, TrailingBytes); new accessors `UtxoTreeState::nodes_iter` and `UtxoTreeState::from_parts` so the type's serialisation lives co-located with the type itself. `zeros` is **not** serialised — recomputed from `UTXO_TREE_DEPTH` on decode.
+- **New `CHAIN_CHECKPOINT = b"MFBN-1/chain-checkpoint"` domain tag** in `mfn-crypto/src/domain.rs`, fully separated from `LIGHT_CHECKPOINT` so a light-checkpoint byte stream fed to the full-node decoder fails the integrity check rather than partially decoding.
+- **`Chain` driver glue in `mfn-node`**:
+  - `Chain::checkpoint()` → `ChainCheckpoint` (owned bundle).
+  - `Chain::encode_checkpoint()` → `Vec<u8>` (canonical bytes).
+  - `Chain::from_checkpoint(cfg, ChainCheckpoint)` → `Result<Self, ChainError>` — restores in-process state, re-derives the local genesis_id from `ChainConfig`, and rejects any mismatch with `ChainError::GenesisMismatch { expected, got }`.
+  - `Chain::from_checkpoint_bytes(cfg, &[u8])` → `Result<Self, ChainError>` — decode + restore in one step.
+  - New `ChainError::CheckpointDecode(ChainCheckpointError)` and `ChainError::GenesisMismatch { expected, got }` variants — every restoration failure mode surfaces as a typed error.
+
+### Test matrix
+
+**`mfn-crypto::utxo_tree` (+9 tests, brings utxo_tree module to 25):**
+
+- `utxo_tree_codec_empty_round_trip` — empty tree round-trips, root preserved.
+- `utxo_tree_codec_many_leaves_round_trip` — 16-leaf tree round-trips; every membership proof verifies leaf-for-leaf against the restored root.
+- `utxo_tree_codec_is_deterministic_independent_of_append_order` — same history, identical bytes.
+- `utxo_tree_codec_rejects_truncation` — every prefix of a valid blob fails decode.
+- `utxo_tree_codec_rejects_trailing_bytes` — `TrailingBytes`.
+- `utxo_tree_codec_rejects_unsorted_nodes` — strict-ascending `(depth, index)` constraint.
+- `utxo_tree_codec_rejects_depth_out_of_range` — `depth > UTXO_TREE_DEPTH`.
+- `utxo_tree_codec_rejects_leaf_count_above_capacity` — `leaf_count > 2^32`.
+
+**`mfn-consensus::chain_checkpoint` (+13 tests):**
+
+- `pre_genesis_round_trip` — pre-genesis (no height, empty maps) round-trips.
+- `rich_round_trip_preserves_every_field` — 3 validators (mixed payouts), pending unbond, 10 UTXOs, 5 spent key images, 4 storage anchors, populated `utxo_tree`; round-trips field-by-field + re-encoding determinism.
+- `encode_is_independent_of_hashmap_iteration_order` — semantically equal states encode to identical bytes.
+- `rejects_bad_magic` / `rejects_unsupported_version` / `detects_payload_tamper` / `detects_tag_tamper` / `rejects_truncated_below_minimum` — every header / integrity failure surfaces correctly.
+- `rejects_duplicate_validator_index` / `rejects_stats_validators_mismatch` / `rejects_next_index_at_or_below_max_assigned` — every cross-field invariant enforced.
+- `rejects_trailing_bytes_after_tag` — surfaces as `IntegrityCheckFailed` (by design, every byte before the tag is part of the integrity payload).
+- `light_checkpoint_bytes_fail_chain_decode` — domain separation between the two checkpoint families is enforced.
+
+**`mfn-node::chain` (+5 unit tests, +3 integration tests):**
+
+- `checkpoint_round_trip_at_genesis` — round-trip at height 0.
+- `checkpoint_after_three_blocks_round_trips` — 3-block chain round-trips; both chains advance on the same block 4 to byte-identical state.
+- `from_checkpoint_rejects_foreign_genesis` — `GenesisMismatch` when the caller's genesis disagrees.
+- `from_checkpoint_bytes_rejects_tamper` — `CheckpointDecode(IntegrityCheckFailed)`.
+- `chain_checkpoint_integration::checkpoint_round_trip_after_three_real_blocks_advances_in_lockstep` — drives the full producer pipeline (3 real BLS-signed blocks with coinbase emission + validator stats) → checkpoint → restore → both chains accept an identical block 4 and end at byte-identical encoded state. This is the ground-truth contract for the M2.1 daemon: a restart must yield a chain that produces the same blocks and responds the same way to network input.
+- `chain_checkpoint_integration::encode_checkpoint_is_deterministic_on_non_trivial_chain` — re-encoding twice yields identical bytes.
+- `chain_checkpoint_integration::from_checkpoint_rejects_foreign_genesis_through_real_chain` — `GenesisMismatch` on a non-trivial chain.
+
+### Scope decisions (what M2.0.15 explicitly does **not** do)
+
+- **No file IO.** The codec is `&[u8] ↔ Vec<u8>`. The daemon (M2.1.0) chooses on-disk layout (single-file snapshot, atomic rename, sled, RocksDB column families).
+- **No incremental persistence.** Encoder produces a full snapshot per call. Block-log persistence is a future M2.x; this codec is the safety net that bounds replay cost in either case.
+- **No mfn-light consolidation.** `mfn-light::checkpoint` and `mfn-consensus::chain_checkpoint` duplicate four small sub-encoders (`encode_validator`, etc). Wire bytes match byte-for-byte; consolidation is a future micro-milestone.
+- **No `mfn-store` crate.** That naming is reserved for the future RocksDB/sled backend that consumes this codec.
+
+### What this unlocks
+
+- **M2.1.0 single-node daemon.** Boot reads snapshot or runs genesis; shutdown atomically writes a snapshot. No more "chain dies with the process."
+- **State-root-consistent fast sync.** Two nodes that have applied the same blocks produce byte-identical encoded checkpoints; their `dhash(CHAIN_CHECKPOINT, &[payload])` is a checkpoint root a future fast-sync RPC can verify against the network.
+- **Long-running test harnesses.** Tests can snapshot mid-run and resume — enables chaos/restart-style tests.
+- **Debuggability.** Faulty chains can be encoded and byte-diffed against a known-good twin; typed decode errors localise drift to a single field name.
+
+See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full design note.
 
 ---
 

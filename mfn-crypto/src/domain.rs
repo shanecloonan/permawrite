@@ -144,3 +144,12 @@ pub const STORAGE_PROOF_LEAF: Domain = b"MFBN-1/storage-proof-leaf";
 /// byte-for-byte on decode. Domain-separated so a tampered payload
 /// can't be made to collide with any other hash in the protocol.
 pub const LIGHT_CHECKPOINT: Domain = b"MFBN-1/light-checkpoint";
+
+/// Integrity-check tag for `mfn-consensus`'s full-node `ChainState`
+/// checkpoint serialization (M2.0.15). Hashes the entire checkpoint
+/// payload (every byte except the trailing 32-byte tag itself) and is
+/// verified byte-for-byte on decode. Domain-separated from
+/// [`LIGHT_CHECKPOINT`] so the two formats can never collide: a light
+/// checkpoint passed to the full-node decoder (or vice-versa) fails the
+/// integrity check rather than silently producing a wrong-shape decode.
+pub const CHAIN_CHECKPOINT: Domain = b"MFBN-1/chain-checkpoint";

@@ -99,9 +99,10 @@ pub use stealth::{
     stealth_gen, stealth_send_to, stealth_spend_key, StealthOutput, StealthWallet,
 };
 pub use utxo_tree::{
-    append_utxo, empty_leaf, empty_utxo_tree, short_root, utxo_leaf_hash, utxo_membership_proof,
-    utxo_tree_root, verify_utxo_membership, UtxoMembershipProof, UtxoProofError, UtxoTreeError,
-    UtxoTreeState, UTXO_TREE_DEPTH,
+    append_utxo, decode_utxo_tree_state, empty_leaf, empty_utxo_tree, encode_utxo_tree_state,
+    short_root, utxo_leaf_hash, utxo_membership_proof, utxo_tree_root, verify_utxo_membership,
+    UtxoMembershipProof, UtxoProofError, UtxoTreeDecodeError, UtxoTreeError, UtxoTreeState,
+    UTXO_TREE_DEPTH,
 };
 pub use vrf::{
     decode_vrf_proof, encode_vrf_proof, vrf_keygen, vrf_keygen_from_seed, vrf_output,

@@ -35,14 +35,18 @@
 //!   `producer` module will land in a later M2.x milestone.
 //! - **No re-org / fork choice.** Single canonical chain only. Re-orgs
 //!   become relevant once the P2P layer feeds the node forks from peers.
-//! - **No persistence.** State lives in memory; a future
-//!   `mfn-node::store` module will add a deterministic RocksDB-backed
-//!   snapshot/replay layer.
+//! - **No persistent IO.** The deterministic byte codec for full chain
+//!   state lives at [`mfn_consensus::chain_checkpoint`] (M2.0.15); this
+//!   driver only exposes the in-memory [`Chain::checkpoint`] and
+//!   [`Chain::from_checkpoint`] adaptors over it. The actual on-disk
+//!   layout (file path, RocksDB column families, …) is the daemon's
+//!   responsibility and intentionally not encoded here.
 //! - **No clock.** The producer is the source of truth for
 //!   `header.timestamp`; the chain just enforces strict monotonicity.
 
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, ApplyOutcome, Block, BlockError, ChainState,
+    apply_block, apply_genesis, build_genesis, decode_chain_checkpoint, encode_chain_checkpoint,
+    ApplyOutcome, Block, BlockError, ChainCheckpoint, ChainCheckpointError, ChainState,
     GenesisConfig, Validator,
 };
 
@@ -116,6 +120,32 @@ pub enum ChainError {
         block_id: [u8; 32],
         /// Structured rejection reasons.
         errors: Vec<BlockError>,
+    },
+
+    /// The chain checkpoint passed to [`Chain::from_checkpoint`] failed
+    /// to decode (bad magic, integrity tag mismatch, truncated payload,
+    /// duplicate validator index, …). Wraps the underlying
+    /// [`ChainCheckpointError`].
+    #[error("chain checkpoint decode failed: {0}")]
+    CheckpointDecode(#[from] ChainCheckpointError),
+
+    /// The caller's [`ChainConfig::genesis`] does not match the
+    /// `genesis_id` embedded in the checkpoint. A restored chain must
+    /// be re-attached to its **own** genesis to preserve replay
+    /// determinism — restoring against the wrong genesis would silently
+    /// hand the daemon a chain that disagrees with the rest of the
+    /// network on `chain_id`.
+    #[error(
+        "checkpoint genesis_id {hex_checkpoint} does not match local genesis {hex_local}",
+        hex_checkpoint = hex_id(expected),
+        hex_local = hex_id(got)
+    )]
+    GenesisMismatch {
+        /// The `genesis_id` encoded inside the checkpoint payload.
+        expected: [u8; 32],
+        /// The `genesis_id` derived from the caller-supplied
+        /// [`ChainConfig::genesis`].
+        got: [u8; 32],
     },
 }
 
@@ -243,6 +273,81 @@ impl Chain {
             total_stake: self.total_stake(),
             treasury: self.state.treasury,
         }
+    }
+
+    /* ------------------------------------------------------------- *
+     *  Persistence (M2.0.15)                                          *
+     * ------------------------------------------------------------- */
+
+    /// Bundle the chain's current [`ChainState`] and `genesis_id` into
+    /// an owned [`ChainCheckpoint`] suitable for serialisation via
+    /// [`Chain::encode_checkpoint`] or any other byte codec. Cheap —
+    /// the only cost is cloning the underlying state.
+    #[must_use]
+    pub fn checkpoint(&self) -> ChainCheckpoint {
+        ChainCheckpoint {
+            genesis_id: self.genesis_id,
+            state: self.state.clone(),
+        }
+    }
+
+    /// Encode the chain's current state to the canonical byte form
+    /// (magic + version + payload + integrity tag) so it can be
+    /// persisted to disk, streamed to a snapshot service, or shipped
+    /// to a peer. See [`mfn_consensus::chain_checkpoint`] for the wire
+    /// layout and on-disk guarantees.
+    ///
+    /// Bytes produced here always round-trip through
+    /// [`Chain::from_checkpoint_bytes`] — calling
+    /// `Chain::encode_checkpoint` twice on a chain with the same state
+    /// yields byte-identical output.
+    #[must_use]
+    pub fn encode_checkpoint(&self) -> Vec<u8> {
+        encode_chain_checkpoint(&self.checkpoint())
+    }
+
+    /// Restore a [`Chain`] from a decoded [`ChainCheckpoint`].
+    ///
+    /// Verifies the checkpoint's `genesis_id` matches the
+    /// `ChainConfig`-derived genesis — restoring with a foreign
+    /// genesis would silently fork the daemon off the rest of the
+    /// network on `chain_id`.
+    ///
+    /// # Errors
+    ///
+    /// - [`ChainError::GenesisMismatch`] when the checkpoint's
+    ///   `genesis_id` differs from the local one.
+    pub fn from_checkpoint(
+        cfg: ChainConfig,
+        checkpoint: ChainCheckpoint,
+    ) -> Result<Self, ChainError> {
+        let genesis = build_genesis(&cfg.genesis);
+        let local_genesis_id = mfn_consensus::block_id(&genesis.header);
+        if local_genesis_id != checkpoint.genesis_id {
+            return Err(ChainError::GenesisMismatch {
+                expected: checkpoint.genesis_id,
+                got: local_genesis_id,
+            });
+        }
+        Ok(Self {
+            state: checkpoint.state,
+            genesis_id: checkpoint.genesis_id,
+        })
+    }
+
+    /// Decode + restore a [`Chain`] from canonical checkpoint bytes
+    /// produced by [`Chain::encode_checkpoint`].
+    ///
+    /// # Errors
+    ///
+    /// - [`ChainError::CheckpointDecode`] when the byte payload is
+    ///   malformed (bad magic, integrity tag mismatch, truncation, …).
+    /// - [`ChainError::GenesisMismatch`] when the checkpoint's
+    ///   `genesis_id` differs from the caller-supplied
+    ///   [`ChainConfig`]'s genesis.
+    pub fn from_checkpoint_bytes(cfg: ChainConfig, bytes: &[u8]) -> Result<Self, ChainError> {
+        let checkpoint = decode_chain_checkpoint(bytes).map_err(ChainError::CheckpointDecode)?;
+        Self::from_checkpoint(cfg, checkpoint)
     }
 }
 
@@ -444,5 +549,119 @@ mod tests {
     fn tip_id_equals_genesis_id_at_construction() {
         let chain = Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis");
         assert_eq!(chain.tip_id(), Some(chain.genesis_id()));
+    }
+
+    /* --------------------------------------------------------------- *
+     *  Persistence (M2.0.15)                                            *
+     * --------------------------------------------------------------- */
+
+    fn apply_one_empty_block(chain: &mut Chain, slot: u32, ts: u64) {
+        let unsealed = build_unsealed_header(chain.state(), &[], &[], &[], &[], slot, ts);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        chain.apply(&blk).expect("apply");
+    }
+
+    /// `Chain::checkpoint` returns a bundle that round-trips through
+    /// the codec, and the restored chain has byte-identical encoded
+    /// state.
+    #[test]
+    fn checkpoint_round_trip_at_genesis() {
+        let chain = Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis");
+        let bytes = chain.encode_checkpoint();
+        let restored = Chain::from_checkpoint_bytes(ChainConfig::new(empty_genesis_cfg()), &bytes)
+            .expect("restore");
+        assert_eq!(restored.genesis_id(), chain.genesis_id());
+        assert_eq!(restored.tip_id(), chain.tip_id());
+        assert_eq!(restored.tip_height(), chain.tip_height());
+        assert_eq!(restored.stats(), chain.stats());
+        // Re-encoding the restored chain must produce identical bytes.
+        let bytes2 = restored.encode_checkpoint();
+        assert_eq!(bytes, bytes2);
+    }
+
+    /// After applying three blocks, encode + decode and verify the
+    /// resulting chain agrees with the original on every diagnostic
+    /// (tip_id, tip_height, stats) and on the canonical re-encoded
+    /// bytes.
+    #[test]
+    fn checkpoint_after_three_blocks_round_trips() {
+        let mut chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis");
+        apply_one_empty_block(&mut chain, 1, 100);
+        apply_one_empty_block(&mut chain, 2, 200);
+        apply_one_empty_block(&mut chain, 3, 300);
+
+        let bytes = chain.encode_checkpoint();
+        let restored = Chain::from_checkpoint_bytes(ChainConfig::new(empty_genesis_cfg()), &bytes)
+            .expect("restore");
+        assert_eq!(restored.tip_height(), chain.tip_height());
+        assert_eq!(restored.tip_id(), chain.tip_id());
+        assert_eq!(restored.genesis_id(), chain.genesis_id());
+        assert_eq!(restored.stats(), chain.stats());
+        assert_eq!(restored.encode_checkpoint(), bytes);
+
+        // And the restored chain can keep advancing in lockstep with
+        // the original from the same next block.
+        let unsealed = build_unsealed_header(chain.state(), &[], &[], &[], &[], 4, 400);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mut restored = restored;
+        let id_orig = chain.apply(&blk).expect("orig advance");
+        let id_rest = restored.apply(&blk).expect("restored advance");
+        assert_eq!(id_orig, id_rest);
+        assert_eq!(chain.tip_id(), restored.tip_id());
+        assert_eq!(chain.encode_checkpoint(), restored.encode_checkpoint());
+    }
+
+    /// Restoring with the wrong genesis config produces
+    /// `GenesisMismatch`, never silently rewires the chain.
+    #[test]
+    fn from_checkpoint_rejects_foreign_genesis() {
+        let chain = Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis");
+        let bytes = chain.encode_checkpoint();
+
+        // The genesis timestamp is hashed into the genesis header
+        // (and therefore the genesis_id); flipping it gives us a
+        // distinct local-genesis to test the mismatch path.
+        let mut foreign = empty_genesis_cfg();
+        foreign.timestamp = 1_000_000;
+        let err = Chain::from_checkpoint_bytes(ChainConfig::new(foreign), &bytes)
+            .expect_err("must reject");
+        match err {
+            ChainError::GenesisMismatch { expected, got } => {
+                assert_eq!(&expected, chain.genesis_id());
+                assert_ne!(&got, chain.genesis_id());
+            }
+            other => panic!("expected GenesisMismatch, got {other:?}"),
+        }
+    }
+
+    /// Tampered checkpoint bytes surface as a typed
+    /// `CheckpointDecode` error rather than corrupting the new chain.
+    #[test]
+    fn from_checkpoint_bytes_rejects_tamper() {
+        let chain = Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis");
+        let mut bytes = chain.encode_checkpoint();
+        let mid = bytes.len() / 2;
+        bytes[mid] ^= 0xff;
+        let err = Chain::from_checkpoint_bytes(ChainConfig::new(empty_genesis_cfg()), &bytes)
+            .expect_err("must reject");
+        match err {
+            ChainError::CheckpointDecode(ChainCheckpointError::IntegrityCheckFailed) => {}
+            other => panic!("expected IntegrityCheckFailed, got {other:?}"),
+        }
     }
 }

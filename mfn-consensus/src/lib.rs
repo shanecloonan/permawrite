@@ -51,6 +51,7 @@
 pub mod block;
 pub mod bond_wire;
 pub mod bonding;
+pub mod chain_checkpoint;
 pub mod coinbase;
 pub mod consensus;
 pub mod emission;
@@ -77,6 +78,10 @@ pub use bond_wire::{
 pub use bonding::{
     epoch_id_for_height, height_of_next_epoch, try_register_entry_churn, try_register_exit_churn,
     unbond_unlock_height, validate_stake, BondingError, BondingParams, DEFAULT_BONDING_PARAMS,
+};
+pub use chain_checkpoint::{
+    decode_chain_checkpoint, encode_chain_checkpoint, ChainCheckpoint, ChainCheckpointError,
+    CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
 };
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,

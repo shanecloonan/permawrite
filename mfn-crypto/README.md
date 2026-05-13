@@ -2,7 +2,7 @@
 
 Discrete-log cryptographic primitives for Permawrite, built on the ed25519 prime-order subgroup via the audited [`curve25519-dalek`](https://crates.io/crates/curve25519-dalek) crate.
 
-**Tests:** 145 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 153 passing &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 This is where every "math thing" lives that *doesn't* touch BLS12-381 or chain state. Schnorr signatures, Pedersen commitments, ring signatures, stealth addresses, range proofs, VRFs, the UTXO accumulator, plus the MFBN-1 wire codec and domain-separation registry.
 

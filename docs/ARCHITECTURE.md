@@ -139,6 +139,7 @@ Every hash carries an unambiguous **purpose tag** prefix. The full set (current 
 | `MFBN-1/slashing-leaf` | Slashing-evidence Merkle leaf (M2.0.1) |
 | `MFBN-1/storage-proof-leaf` | Storage-proof Merkle leaf (M2.0.2) |
 | `MFBN-1/light-checkpoint` | LightChain checkpoint integrity tag (M2.0.9) |
+| `MFBN-1/chain-checkpoint` | Full-node `ChainState` checkpoint integrity tag (M2.0.15) |
 | `MFBN-1/kzg-{setup,transcript}` | KZG (reserved, not yet active) |
 
 Reusing a tag for a new purpose is a hard fork by construction.
@@ -747,7 +748,7 @@ mfn-storage/        Permanence                 (44 tests)
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integration)
+mfn-consensus/      Chain state machine        (194 tests: 180 unit + 14 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
@@ -770,6 +771,23 @@ mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integra
 │                   both apply_block (full node) and mfn-light's chain
 │                   follower. Plus finality_bitmap_from_header for callers
 │                   that drive Phase B without re-decoding the proof.
+├── chain_checkpoint.rs M2.0.15 deterministic byte codec for the full-node
+│                   ChainCheckpoint { genesis_id, state }: magic "MFCC"
+│                   + u32 version + payload (every ChainState field,
+│                   hash-maps sorted by key for cross-platform determinism,
+│                   nested utxo_tree blob via encode_utxo_tree_state)
+│                   + 32-byte dhash(CHAIN_CHECKPOINT, &[payload]) integrity tag.
+│                   Typed ChainCheckpointError covers BadMagic /
+│                   UnsupportedVersion / Truncated / VarintOverflow /
+│                   LengthOverflow / InvalidHeightFlag / StatsLengthMismatch /
+│                   DuplicateValidatorIndex / NextIndexBelowAssigned /
+│                   InvalidVrfPublicKey / InvalidBlsPublicKey /
+│                   InvalidPayout{ViewPub,SpendPub,Flag} /
+│                   PendingUnbondsNotSorted / UtxoNotSorted /
+│                   InvalidUtxoCommit / SpentKeyImagesNotSorted /
+│                   StorageNotSorted / InvalidStorageCommitment /
+│                   InvalidUtxoTree / IntegrityCheckFailed / TrailingBytes.
+│                   Domain-separated from LIGHT_CHECKPOINT.
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
                     M2.0.2 storage-proof root binding. Each validator-set
                     mutation is a single call into validator_evolution.
@@ -777,9 +795,17 @@ mfn-consensus/      Chain state machine        (181 tests: 167 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (45 tests: 34 unit + 11 integration)
+mfn-node/           Node-side glue             (52 tests: 37 unit + 15 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
+│                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
+│                   Chain::from_checkpoint(cfg, ck) / Chain::from_checkpoint_bytes(cfg, &[u8])
+│                   are the in-process adapter over mfn-consensus's
+│                   chain_checkpoint codec. Restoration re-derives the
+│                   local genesis_id from ChainConfig and rejects any
+│                   mismatch with ChainError::GenesisMismatch { expected,
+│                   got }. Bad bytes surface as
+│                   ChainError::CheckpointDecode(ChainCheckpointError).
 ├── producer.rs     Block-production helpers: three-stage protocol
 │                   (build_proposal → vote_on_proposal → seal_proposal) plus a
 │                   produce_solo_block one-call helper for the single-validator
