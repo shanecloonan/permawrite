@@ -534,6 +534,34 @@ In `mfn-light::LightChain`, the four phases run on **staging copies** of `truste
 
 For the full design note + test matrix (8 unit tests in `mfn-consensus::validator_evolution`, 8 unit + 2 integration in `mfn-light`), see [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md).
 
+### Light-client checkpoint serialization (M2.0.9)
+
+M2.0.8 made the light client survive **rotations**; M2.0.9 makes it survive **restarts**.
+
+A *checkpoint* is a self-contained binary snapshot of a `LightChain`: tip identity, frozen consensus / bonding params, the current trusted validator set, the per-validator liveness stats, the pending-unbond queue, and the four bond-epoch counters. The codec lives in [`mfn-light::checkpoint`](../mfn-light/src/checkpoint.rs); the `LightChain` exposes thin `encode_checkpoint` / `decode_checkpoint` methods on top.
+
+Properties:
+
+- **Deterministic.** Two callers serializing the same `LightChain` state produce byte-identical output (including the trailing integrity tag). Foundation for content-addressable snapshot storage.
+- **Self-contained.** The payload carries `genesis_id`, `params`, and `bonding_params` so restore needs no external config. Callers who want to pin a checkpoint to a specific genesis can compare `decoded.genesis_id() == build_genesis(cfg).id()` post-decode.
+- **Domain-separated integrity.** The trailing 32 bytes are `dhash(LIGHT_CHECKPOINT, payload)` under the dedicated `MFBN-1/light-checkpoint` domain. A tampered checkpoint can't be made to collide with any other protocol hash.
+- **Versioned.** A 4-byte magic (`MFLC`) + a 4-byte version (`1`) at the front means older clients fail loudly on a newer format, and newer clients can branch on the version word to keep accepting older checkpoints.
+
+Cross-field invariants enforced on decode (defence-in-depth against malicious peers / corrupted files):
+
+| Invariant | Error variant |
+|---|---|
+| `validator_stats.len() == validators.len()` | `StatsLengthMismatch` |
+| `Validator::index` uniqueness | `DuplicateValidatorIndex` |
+| `pending_unbonds` strictly ascending by `validator_index` | `PendingUnbondsNotSorted` |
+| `bond_counters.next_validator_index > max(validator.index)` | `NextIndexBelowAssigned` |
+| `dhash(LIGHT_CHECKPOINT, payload)` matches the trailing tag | `IntegrityCheckFailed` |
+| Magic prefix and version word are recognised | `BadMagic` / `UnsupportedVersion` |
+| All-bytes-consumed contract | `TrailingBytes` |
+| Edwards-point and BLS-G1 decompression succeed | `InvalidVrfPublicKey` / `InvalidBlsPublicKey` / `InvalidPayoutViewPub` / `InvalidPayoutSpendPub` |
+
+For the full wire layout, design rationale, and 28-test matrix (7 header-codec unit + 13 checkpoint codec unit + 5 LightChain-level unit + 3 integration), see [`docs/M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md).
+
 ### Tests added for M2.0
 
 - `validator_set_root_empty_is_zero_sentinel` — empty set folds to the all-zero sentinel.

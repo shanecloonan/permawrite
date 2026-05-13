@@ -12,11 +12,11 @@
 | ed25519 primitives + ZK | `mfn-crypto` | 145 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**) | `mfn-storage` | 39 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers**) | `mfn-consensus` | 161 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec**) | `mfn-consensus` | 168 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests**) | `mfn-node` | 17 | ✓ live (skeleton) |
-| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution**) | `mfn-light` | 34 | ✓ live |
+| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization**) | `mfn-light` | 55 | ✓ live |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **412** | All checks green |
+| **Total** | | **440** | All checks green (+ 1 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -519,6 +519,41 @@ The architectural keystone: the four phases that mutate the validator set inside
 - **M2.3+ — In-browser wallets.** `mfn-light` is WASM-compatible and now follows rotations.
 
 See [`docs/M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md) for the full design note.
+
+---
+
+## Milestone M2.0.9 — Canonical header codec + LightChain checkpoint (✓ shipped)
+
+**Why it was next.** M2.0.8 made light clients follow the chain indefinitely from a *running* state. But every M2.0.8 light client still had to start from genesis: there was no way to *save* the trusted state, snapshot it to disk, ship it to a peer, or restore it after a crash. M2.0.9 closes that gap. It also adds the missing inverse of `block_header_bytes` — `decode_block_header` — which is the foundation for every future wire-format consumer (P2P, RPC, dump-and-replay).
+
+### What shipped
+
+- **`mfn-crypto::domain::LIGHT_CHECKPOINT`** — new domain-separated hash tag (`MFBN-1/light-checkpoint`) used by the checkpoint integrity tag.
+- **`mfn-consensus::decode_block_header`** — inverse of `block_header_bytes`. Typed `HeaderDecodeError` covers truncation, varint overflow, version-out-of-range, oversized producer-proof length, and trailing bytes. Property tests prove the codec has no dead bytes.
+- **`mfn-light::checkpoint`** — new module containing the `CheckpointParts` bundle, the deterministic `encode_checkpoint_bytes` / `decode_checkpoint_bytes` codec, and a typed `LightCheckpointError`. Trailing `dhash(LIGHT_CHECKPOINT, payload)` tag catches arbitrary corruption. Cross-field invariants enforced on decode (`StatsLengthMismatch`, `DuplicateValidatorIndex`, `PendingUnbondsNotSorted`, `NextIndexBelowAssigned`, …).
+- **`mfn-light::LightChain::{encode_checkpoint, decode_checkpoint}`** — thin methods marshalling the `LightChain`'s private state through `CheckpointParts`. Encoding is deterministic byte-for-byte; restore is bit-for-bit equal to the saved chain.
+
+### Test matrix
+
+- **7 new `mfn-consensus` unit tests** for the header codec (round-trip, empty `producer_proof`, every-prefix truncation, trailing bytes, version overflow, no-dead-bytes property, golden vector pinning the 274-byte genesis-shaped header).
+- **13 new `mfn-light::checkpoint` unit tests** for the pure codec (empty round-trip, full surface, f64 bits round-trip, bad magic, version reject, payload + tag tamper, truncation, duplicate indices, `next_validator_index` invariant, invalid BLS PK, invalid payout flag, linear-size growth).
+- **5 new `mfn-light::chain` unit tests** for the `LightChain`-level API (genesis round-trip, mid-chain resume, per-byte tamper rejection scan, public-accessor equality, deterministic encoded length).
+- **3 new `mfn-light::tests::follow_chain` integration tests**, including the headline `light_chain_checkpoint_round_trips_mid_chain_and_resumes` — two parallel light chains follow a real `Chain` for 2 blocks, one is snapshotted to bytes and restored, both then follow the chain for 3 more blocks, and *every* `AppliedBlock` outcome, tip, validator-stat, bond-counter, and validator-set root must agree byte-for-byte at every step.
+
+### What's intentionally *not* in M2.0.9
+
+- **Full `Block` codec (`encode_block` / `decode_block`).** Requires a `TransactionWire` round-trip codec (CLSAG sigs + bulletproofs decode) which is its own non-trivial slice. The M2.0.9 header codec is already enough for header-only sync.
+- **Persistent storage adapter.** The crate produces bytes; whether a caller writes them to disk / S3 / IPFS / Arweave is intentionally outside `mfn-light`'s remit.
+- **Multi-version codec.** Today version 1 is the only known version. When we bump it, the `version` switch in `decode_checkpoint_bytes` is the extension point.
+
+### What this unlocks
+
+- **Wallet UX.** Mobile / browser wallets can resume in milliseconds instead of replaying from genesis.
+- **Light-client P2P.** Peers can ship signed `(checkpoint, header_chain)` pairs to bootstrap newly-joining clients fast.
+- **Header-first sync.** `decode_block_header` is the foundation for the future "Headers" message protocol.
+- **M2.0.10 candidate** — `TransactionWire` round-trip codec → full `Block::encode` / `Block::decode`.
+
+See [`docs/M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md) for the full design note.
 
 ---
 

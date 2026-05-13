@@ -137,3 +137,10 @@ pub const SLASHING_LEAF: Domain = b"MFBN-1/slashing-leaf";
 /// preserved by the Merkle root (the chain rejects duplicate proofs
 /// per commitment, so canonical sorting is unnecessary).
 pub const STORAGE_PROOF_LEAF: Domain = b"MFBN-1/storage-proof-leaf";
+
+/// Integrity-check tag for `mfn-light`'s `LightChain` checkpoint
+/// serialization (M2.0.9). Hashes the full checkpoint payload (every
+/// byte except the trailing 32-byte tag itself) and is verified
+/// byte-for-byte on decode. Domain-separated so a tampered payload
+/// can't be made to collide with any other hash in the protocol.
+pub const LIGHT_CHECKPOINT: Domain = b"MFBN-1/light-checkpoint";

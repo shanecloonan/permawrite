@@ -17,6 +17,7 @@ mfn-bls = { path = "../mfn-bls" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-consensus = { path = "../mfn-consensus" }
 
+curve25519-dalek = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

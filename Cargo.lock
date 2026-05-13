@@ -262,6 +262,7 @@ dependencies = [
 name = "mfn-light"
 version = "0.1.0"
 dependencies = [
+ "curve25519-dalek",
  "hex",
  "mfn-bls",
  "mfn-consensus",

@@ -344,6 +344,87 @@ impl LightChain {
         }
     }
 
+    /// Serialize this light chain to a self-contained checkpoint
+    /// byte blob (M2.0.9).
+    ///
+    /// The returned bytes round-trip exactly through
+    /// [`LightChain::decode_checkpoint`]:
+    ///
+    /// ```text
+    /// LightChain::decode_checkpoint(&chain.encode_checkpoint())
+    ///   == Ok(equivalent chain)
+    /// ```
+    ///
+    /// The checkpoint includes everything required to resume
+    /// following the chain from `tip_height + 1` without replaying
+    /// from genesis: tip identity, genesis identity (for "what
+    /// chain is this?" checks), consensus + bonding params, the
+    /// trusted validator set, per-validator liveness stats, the
+    /// in-flight unbond queue, and the four bond-epoch counters.
+    /// See [`crate::checkpoint`] for the wire layout.
+    ///
+    /// Encoding is *deterministic* — two calls on equal chains
+    /// produce byte-identical output, including the trailing 32-byte
+    /// integrity tag. Useful for downstream content addressing /
+    /// snapshot hashing.
+    #[must_use]
+    pub fn encode_checkpoint(&self) -> Vec<u8> {
+        let parts = crate::checkpoint::CheckpointParts {
+            tip_height: self.tip_height,
+            tip_id: self.tip_id,
+            genesis_id: self.genesis_id,
+            params: self.params,
+            bonding_params: self.bonding_params,
+            validators: self.trusted_validators.clone(),
+            validator_stats: self.validator_stats.clone(),
+            pending_unbonds: self.pending_unbonds.clone(),
+            bond_counters: self.bond_counters,
+        };
+        crate::checkpoint::encode_checkpoint_bytes(&parts)
+    }
+
+    /// Restore a light chain from bytes produced by
+    /// [`LightChain::encode_checkpoint`] (M2.0.9).
+    ///
+    /// Verifies the magic, version, and 32-byte integrity tag, and
+    /// enforces all cross-field invariants the encode side
+    /// guarantees (stats length = validators length; pending unbonds
+    /// strictly ascending; `next_validator_index >
+    /// max(validator.index)`; no duplicate validator indices).
+    ///
+    /// After this returns `Ok(...)`:
+    ///
+    /// - `chain.tip_height()` / `chain.tip_id()` /
+    ///   `chain.genesis_id()` / `chain.params()` /
+    ///   `chain.bonding_params()` match the checkpoint exactly.
+    /// - `chain.trusted_validators()` / `chain.validator_stats()` /
+    ///   `chain.pending_unbonds()` / `chain.bond_counters()` match
+    ///   the checkpoint exactly.
+    /// - `chain.apply_block` and `chain.apply_header` resume
+    ///   advancing from `tip_height + 1`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LightCheckpointError`] for any malformed,
+    /// truncated, tampered, or invariant-violating checkpoint. The
+    /// `LightChain` is never partially constructed on failure.
+    pub fn decode_checkpoint(
+        bytes: &[u8],
+    ) -> Result<Self, crate::checkpoint::LightCheckpointError> {
+        let parts = crate::checkpoint::decode_checkpoint_bytes(bytes)?;
+        Ok(Self {
+            genesis_id: parts.genesis_id,
+            tip_height: parts.tip_height,
+            tip_id: parts.tip_id,
+            params: parts.params,
+            bonding_params: parts.bonding_params,
+            trusted_validators: parts.validators,
+            validator_stats: parts.validator_stats,
+            pending_unbonds: parts.pending_unbonds,
+            bond_counters: parts.bond_counters,
+        })
+    }
+
     /// Apply a candidate header.
     ///
     /// In order:
@@ -1226,6 +1307,166 @@ mod tests {
             assert_eq!(applied.validators_slashed_liveness, 0);
             assert_eq!(applied.validators_unbond_settled, 0);
         }
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0.9 — Checkpoint serialization round-trips                     *
+     * ----------------------------------------------------------------- */
+
+    /// Fresh LightChain at genesis: encode → decode → bit-for-bit equal.
+    #[test]
+    fn checkpoint_round_trips_at_genesis() {
+        let (cfg, _s0, _params, _v0) = single_validator_cfg();
+        let light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+        let bytes = light.encode_checkpoint();
+        let restored = LightChain::decode_checkpoint(&bytes).expect("decode");
+        assert_eq!(restored.tip_height(), light.tip_height());
+        assert_eq!(restored.tip_id(), light.tip_id());
+        assert_eq!(restored.genesis_id(), light.genesis_id());
+        assert_eq!(
+            restored.trusted_validators().len(),
+            light.trusted_validators().len()
+        );
+        assert_eq!(restored.validator_stats(), light.validator_stats());
+        assert_eq!(restored.pending_unbonds(), light.pending_unbonds());
+        assert_eq!(restored.bond_counters(), light.bond_counters());
+        assert_eq!(
+            restored.bonding_params().min_validator_stake,
+            light.bonding_params().min_validator_stake
+        );
+        assert_eq!(
+            restored.params().quorum_stake_bps,
+            light.params().quorum_stake_bps
+        );
+        // Re-encoding the restored chain yields byte-identical bytes
+        // — deterministic encoding.
+        assert_eq!(bytes, restored.encode_checkpoint());
+    }
+
+    /// Mid-chain: apply 3 blocks, encode, decode, and confirm the
+    /// restored chain accepts the next block exactly like the
+    /// non-snapshotted one would.
+    #[test]
+    fn checkpoint_resumes_chain_after_apply_block() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+        for h in 1..=3 {
+            let block = produce_block(&state, &v0, &s0, params, h);
+            state = match mfn_consensus::apply_block(&state, &block) {
+                mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+                other => panic!("block {h}: {other:?}"),
+            };
+            light.apply_block(&block).expect("light apply");
+        }
+
+        let bytes = light.encode_checkpoint();
+        let mut restored = LightChain::decode_checkpoint(&bytes).expect("decode");
+        assert_eq!(restored.stats(), light.stats());
+        assert_eq!(restored.validator_stats(), light.validator_stats());
+        assert_eq!(restored.bond_counters(), light.bond_counters());
+
+        // Apply block 4 to *both* chains; they must accept the same
+        // block and end in the same state.
+        let block4 = produce_block(&state, &v0, &s0, params, 4);
+        let live = light.apply_block(&block4).expect("live");
+        let restored_applied = restored.apply_block(&block4).expect("restored");
+        assert_eq!(live, restored_applied, "AppliedBlock must agree");
+        assert_eq!(light.stats(), restored.stats());
+        assert_eq!(light.validator_stats(), restored.validator_stats());
+    }
+
+    /// Tampering with the encoded checkpoint must be caught by the
+    /// integrity tag, regardless of which byte is flipped.
+    #[test]
+    fn checkpoint_decode_rejects_any_single_byte_tamper() {
+        let (cfg, _s0, _params, _v0) = single_validator_cfg();
+        let light = LightChain::from_genesis(LightChainConfig::new(cfg));
+        let bytes = light.encode_checkpoint();
+        // Sample a handful of offsets across the payload so the test
+        // stays fast yet covers magic, version, params, validators,
+        // and the tag itself.
+        let probe_offsets: Vec<usize> = (0..bytes.len()).step_by(31).collect();
+        for &off in &probe_offsets {
+            let mut tampered = bytes.clone();
+            tampered[off] ^= 0x01;
+            assert!(
+                LightChain::decode_checkpoint(&tampered).is_err(),
+                "flipping byte {off} must be detected",
+            );
+        }
+    }
+
+    /// A decoded chain matches the chain it was snapshotted from on
+    /// every observable accessor.
+    #[test]
+    fn checkpoint_decode_preserves_all_public_accessors() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let g = build_genesis(&cfg);
+        let mut state = apply_genesis(&g, &cfg).unwrap();
+        for h in 1..=2 {
+            let block = produce_block(&state, &v0, &s0, params, h);
+            state = match mfn_consensus::apply_block(&state, &block) {
+                mfn_consensus::ApplyOutcome::Ok { state, .. } => state,
+                other => panic!("{other:?}"),
+            };
+            light.apply_block(&block).expect("light apply");
+        }
+        let bytes = light.encode_checkpoint();
+        let restored = LightChain::decode_checkpoint(&bytes).expect("decode");
+        // Every public accessor must agree.
+        assert_eq!(restored.tip_height(), light.tip_height());
+        assert_eq!(restored.tip_id(), light.tip_id());
+        assert_eq!(restored.genesis_id(), light.genesis_id());
+        assert_eq!(restored.total_stake(), light.total_stake());
+        assert_eq!(
+            restored.next_validator_index(),
+            light.next_validator_index()
+        );
+        assert_eq!(restored.validator_stats(), light.validator_stats());
+        assert_eq!(restored.pending_unbonds(), light.pending_unbonds());
+        assert_eq!(restored.bond_counters(), light.bond_counters());
+        assert_eq!(
+            restored.params().quorum_stake_bps,
+            light.params().quorum_stake_bps
+        );
+        assert_eq!(
+            restored.bonding_params().min_validator_stake,
+            light.bonding_params().min_validator_stake,
+        );
+        // Validator set: byte-for-byte equal under the canonical
+        // validator-set Merkle root (which already pins index +
+        // stake + vrf_pk + bls_pk + payout).
+        assert_eq!(
+            mfn_consensus::validator_set_root(restored.trusted_validators()),
+            mfn_consensus::validator_set_root(light.trusted_validators()),
+        );
+    }
+
+    /// Encoded checkpoint length is the same for the same chain
+    /// (deterministic) and changes when state changes.
+    #[test]
+    fn checkpoint_encoded_length_is_deterministic_and_state_sensitive() {
+        let (cfg, s0, params, v0) = single_validator_cfg();
+        let mut light_a = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        let light_b = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+        // Two fresh chains → identical bytes.
+        let a0 = light_a.encode_checkpoint();
+        let b0 = light_b.encode_checkpoint();
+        assert_eq!(a0, b0, "identical chains → identical bytes");
+
+        // Advance one chain by one block → bytes must change.
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).unwrap();
+        let block1 = produce_block(&state, &v0, &s0, params, 1);
+        light_a.apply_block(&block1).expect("apply");
+        let a1 = light_a.encode_checkpoint();
+        assert_ne!(a0, a1, "advanced chain must serialize differently");
+        // Re-encode A → still deterministic.
+        assert_eq!(a1, light_a.encode_checkpoint());
     }
 
     /// `validator_set_root(light.trusted_validators())` must equal

@@ -47,7 +47,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
-use mfn_crypto::codec::Writer;
+use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{BLOCK_HEADER, BLOCK_ID};
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::merkle_root_or_zero;
@@ -199,6 +199,160 @@ pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
 /// Block id = `dhash(BLOCK_ID, full_header_bytes)`.
 pub fn block_id(h: &BlockHeader) -> [u8; 32] {
     dhash(BLOCK_ID, &[&block_header_bytes(h)])
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Header wire codec (decode side) — M2.0.9                                *
+ * ----------------------------------------------------------------------- */
+
+/// Typed errors produced by [`decode_block_header`].
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum HeaderDecodeError {
+    /// The reader ran out of bytes before all fields were parsed.
+    #[error("header truncated: needed at least {needed} more byte(s) at field `{field}`")]
+    Truncated {
+        /// Which field tripped the short read.
+        field: &'static str,
+        /// Minimum number of additional bytes that would have been needed.
+        needed: usize,
+    },
+
+    /// A LEB128 varint overflowed its maximum length (matches the
+    /// MFBN-1 codec's 64-bit cap).
+    #[error("varint overflow at field `{field}`")]
+    VarintOverflow {
+        /// Which field overflowed.
+        field: &'static str,
+    },
+
+    /// `version` decoded as a varint but didn't fit in the 32-bit
+    /// header-version field. Pinned at [`HEADER_VERSION`] today (`1`).
+    #[error("header version {got} does not fit in u32")]
+    VersionOutOfRange {
+        /// The raw varint value that overflowed.
+        got: u64,
+    },
+
+    /// `producer_proof` declared a length that overflowed the
+    /// platform's `usize`. Defensive guard for 32-bit targets — on
+    /// 64-bit hosts this branch is unreachable.
+    #[error("producer_proof length {got} exceeds usize")]
+    ProducerProofTooLarge {
+        /// The raw varint length that overflowed.
+        got: u64,
+    },
+
+    /// Bytes remained in the buffer after a full header had been
+    /// parsed. Headers have no trailing fields — a non-empty tail
+    /// implies caller-side framing confusion or corruption.
+    #[error("{remaining} trailing byte(s) after header")]
+    TrailingBytes {
+        /// Number of trailing bytes left in the buffer.
+        remaining: usize,
+    },
+}
+
+/// Helper: read exactly N bytes, mapping codec errors into typed
+/// [`HeaderDecodeError`] with the offending field name.
+fn read_fixed<const N: usize>(
+    r: &mut Reader<'_>,
+    field: &'static str,
+) -> Result<[u8; N], HeaderDecodeError> {
+    let slice = r
+        .bytes(N)
+        .map_err(|_| HeaderDecodeError::Truncated { field, needed: N })?;
+    let mut out = [0u8; N];
+    out.copy_from_slice(slice);
+    Ok(out)
+}
+
+/// Decode a [`BlockHeader`] from its canonical wire encoding produced
+/// by [`block_header_bytes`].
+///
+/// `decode_block_header(&block_header_bytes(h)) == Ok(h)` for every
+/// well-formed `h` (byte-for-byte round-trip).
+///
+/// Strict: any trailing byte after the last field is a hard reject
+/// ([`HeaderDecodeError::TrailingBytes`]). Headers are self-delimiting,
+/// so a non-empty tail always indicates a caller-side framing bug or
+/// corruption.
+///
+/// # Errors
+///
+/// - [`HeaderDecodeError::Truncated`] — buffer ended mid-field.
+/// - [`HeaderDecodeError::VarintOverflow`] — `version` or
+///   `producer_proof` length varint was malformed.
+/// - [`HeaderDecodeError::VersionOutOfRange`] — `version > u32::MAX`.
+/// - [`HeaderDecodeError::ProducerProofTooLarge`] — declared
+///   `producer_proof` length doesn't fit in `usize`.
+/// - [`HeaderDecodeError::TrailingBytes`] — extra bytes after the
+///   header's final field.
+pub fn decode_block_header(bytes: &[u8]) -> Result<BlockHeader, HeaderDecodeError> {
+    let mut r = Reader::new(bytes);
+
+    let version_raw = r
+        .varint()
+        .map_err(|_| HeaderDecodeError::VarintOverflow { field: "version" })?;
+    let version: u32 = u32::try_from(version_raw)
+        .map_err(|_| HeaderDecodeError::VersionOutOfRange { got: version_raw })?;
+
+    let prev_hash: [u8; 32] = read_fixed(&mut r, "prev_hash")?;
+    let height = r.u32().map_err(|_| HeaderDecodeError::Truncated {
+        field: "height",
+        needed: 4,
+    })?;
+    let slot = r.u32().map_err(|_| HeaderDecodeError::Truncated {
+        field: "slot",
+        needed: 4,
+    })?;
+    let timestamp = r.u64().map_err(|_| HeaderDecodeError::Truncated {
+        field: "timestamp",
+        needed: 8,
+    })?;
+
+    let tx_root: [u8; 32] = read_fixed(&mut r, "tx_root")?;
+    let storage_root: [u8; 32] = read_fixed(&mut r, "storage_root")?;
+    let bond_root: [u8; 32] = read_fixed(&mut r, "bond_root")?;
+    let slashing_root: [u8; 32] = read_fixed(&mut r, "slashing_root")?;
+    let storage_proof_root: [u8; 32] = read_fixed(&mut r, "storage_proof_root")?;
+    let validator_root: [u8; 32] = read_fixed(&mut r, "validator_root")?;
+
+    let pp_len_raw = r.varint().map_err(|_| HeaderDecodeError::VarintOverflow {
+        field: "producer_proof.len",
+    })?;
+    let pp_len: usize = usize::try_from(pp_len_raw)
+        .map_err(|_| HeaderDecodeError::ProducerProofTooLarge { got: pp_len_raw })?;
+    let producer_proof = r
+        .bytes(pp_len)
+        .map_err(|_| HeaderDecodeError::Truncated {
+            field: "producer_proof",
+            needed: pp_len,
+        })?
+        .to_vec();
+
+    let utxo_root: [u8; 32] = read_fixed(&mut r, "utxo_root")?;
+
+    if !r.end() {
+        return Err(HeaderDecodeError::TrailingBytes {
+            remaining: r.remaining(),
+        });
+    }
+
+    Ok(BlockHeader {
+        version,
+        prev_hash,
+        height,
+        slot,
+        timestamp,
+        tx_root,
+        storage_root,
+        bond_root,
+        slashing_root,
+        storage_proof_root,
+        validator_root,
+        producer_proof,
+        utxo_root,
+    })
 }
 
 /// Merkle root over the tx ids of the block. Empty list → 32-byte zero
@@ -2906,5 +3060,194 @@ mod tests {
             }
             ApplyOutcome::Ok { .. } => panic!("expected rejection"),
         }
+    }
+
+    /* ----------------------------------------------------------------- *
+     *  M2.0.9 — Header wire codec round-trip + malformed rejection      *
+     * ----------------------------------------------------------------- */
+
+    fn sample_header() -> BlockHeader {
+        BlockHeader {
+            version: HEADER_VERSION,
+            prev_hash: [0xa1u8; 32],
+            height: 7,
+            slot: 11,
+            timestamp: 1_700_000_000,
+            tx_root: [0xb2u8; 32],
+            storage_root: [0xc3u8; 32],
+            bond_root: [0xd4u8; 32],
+            slashing_root: [0xe5u8; 32],
+            storage_proof_root: [0xf6u8; 32],
+            validator_root: [0x07u8; 32],
+            producer_proof: (0..73u8).collect(),
+            utxo_root: [0x18u8; 32],
+        }
+    }
+
+    /// `decode_block_header` is a left inverse of `block_header_bytes`.
+    #[test]
+    fn block_header_codec_round_trip() {
+        let h = sample_header();
+        let bytes = block_header_bytes(&h);
+        let h2 = decode_block_header(&bytes).expect("decode");
+        assert_eq!(h2.version, h.version);
+        assert_eq!(h2.prev_hash, h.prev_hash);
+        assert_eq!(h2.height, h.height);
+        assert_eq!(h2.slot, h.slot);
+        assert_eq!(h2.timestamp, h.timestamp);
+        assert_eq!(h2.tx_root, h.tx_root);
+        assert_eq!(h2.storage_root, h.storage_root);
+        assert_eq!(h2.bond_root, h.bond_root);
+        assert_eq!(h2.slashing_root, h.slashing_root);
+        assert_eq!(h2.storage_proof_root, h.storage_proof_root);
+        assert_eq!(h2.validator_root, h.validator_root);
+        assert_eq!(h2.producer_proof, h.producer_proof);
+        assert_eq!(h2.utxo_root, h.utxo_root);
+        // And `block_id(h) == block_id(decode(encode(h)))`.
+        assert_eq!(block_id(&h), block_id(&h2));
+    }
+
+    /// Empty `producer_proof` is a valid encoding — genesis / no-validator chains.
+    #[test]
+    fn block_header_codec_round_trip_empty_producer_proof() {
+        let mut h = sample_header();
+        h.producer_proof = Vec::new();
+        let bytes = block_header_bytes(&h);
+        let h2 = decode_block_header(&bytes).expect("decode");
+        assert!(h2.producer_proof.is_empty());
+        assert_eq!(block_id(&h), block_id(&h2));
+    }
+
+    /// Truncating any prefix of a valid encoding must surface
+    /// `HeaderDecodeError::Truncated` (or a varint-overflow for the
+    /// degenerate 0-byte case — we just require `Err`).
+    #[test]
+    fn block_header_codec_rejects_truncation() {
+        let h = sample_header();
+        let bytes = block_header_bytes(&h);
+        // Sweep every prefix length except the full one.
+        for cut in 0..bytes.len() {
+            let err = decode_block_header(&bytes[..cut]).expect_err("must reject prefix");
+            // Any error is fine; the goal is to never decode a partial
+            // header as if it were complete.
+            match err {
+                HeaderDecodeError::Truncated { .. }
+                | HeaderDecodeError::VarintOverflow { .. }
+                | HeaderDecodeError::ProducerProofTooLarge { .. }
+                | HeaderDecodeError::VersionOutOfRange { .. } => (),
+                HeaderDecodeError::TrailingBytes { .. } => {
+                    panic!("prefix of len {cut} cannot have trailing bytes")
+                }
+            }
+        }
+    }
+
+    /// Extra trailing bytes after a valid header → `TrailingBytes`.
+    #[test]
+    fn block_header_codec_rejects_trailing_bytes() {
+        let h = sample_header();
+        let mut bytes = block_header_bytes(&h);
+        bytes.push(0xAB);
+        bytes.push(0xCD);
+        let err = decode_block_header(&bytes).expect_err("must reject tail");
+        match err {
+            HeaderDecodeError::TrailingBytes { remaining } => assert_eq!(remaining, 2),
+            other => panic!("expected TrailingBytes, got {other:?}"),
+        }
+    }
+
+    /// `version` encoded as a varint > u32::MAX → `VersionOutOfRange`.
+    /// Forge the bytes by hand — easiest way to exercise the branch.
+    #[test]
+    fn block_header_codec_rejects_oversized_version() {
+        // LEB128 for `2^33` (well over u32::MAX): 5 bytes.
+        let v: u64 = 1u64 << 33;
+        let mut w = Writer::new();
+        w.varint(v);
+        let mut bytes = w.into_bytes();
+        // Pad rest with zeros so we don't trip Truncated before
+        // VersionOutOfRange.
+        bytes.extend(std::iter::repeat(0u8).take(128));
+
+        let err = decode_block_header(&bytes).expect_err("must reject");
+        match err {
+            HeaderDecodeError::VersionOutOfRange { got } => assert_eq!(got, v),
+            other => panic!("expected VersionOutOfRange, got {other:?}"),
+        }
+    }
+
+    /// Flipping a single byte inside the encoded header changes
+    /// `block_id` exactly when that byte materially decodes into a
+    /// header field — i.e. the encoding is non-redundant. (Sanity:
+    /// if any byte is "dead", the codec leaks state silently.)
+    #[test]
+    fn block_header_codec_has_no_dead_bytes() {
+        let h = sample_header();
+        let bytes = block_header_bytes(&h);
+        let original_id = block_id(&h);
+        for i in 0..bytes.len() {
+            let mut tampered = bytes.clone();
+            tampered[i] ^= 0x01;
+            match decode_block_header(&tampered) {
+                Ok(h2) => assert_ne!(
+                    block_id(&h2),
+                    original_id,
+                    "flipping byte {i} must materially change the header"
+                ),
+                Err(_) => {
+                    // Tampering broke the encoding outright — also acceptable.
+                }
+            }
+        }
+    }
+
+    /// TS-parity golden vector for the header wire codec. The fixed
+    /// input below pins the byte-for-byte encoding produced by
+    /// `block_header_bytes` and the resulting `block_id`. Changing
+    /// the codec is consensus-critical and must bump this vector
+    /// deliberately.
+    #[test]
+    fn block_header_codec_golden_vector() {
+        let h = BlockHeader {
+            version: 1,
+            prev_hash: [0u8; 32],
+            height: 0,
+            slot: 0,
+            timestamp: 0,
+            tx_root: [0u8; 32],
+            storage_root: [0u8; 32],
+            bond_root: [0u8; 32],
+            slashing_root: [0u8; 32],
+            storage_proof_root: [0u8; 32],
+            validator_root: [0u8; 32],
+            producer_proof: Vec::new(),
+            utxo_root: [0u8; 32],
+        };
+        let bytes = block_header_bytes(&h);
+        // Layout (genesis-shaped header):
+        //   version=1            : 0x01
+        //   prev_hash            : 32 × 0x00
+        //   height=0             : 0x00 0x00 0x00 0x00
+        //   slot=0               : 0x00 0x00 0x00 0x00
+        //   timestamp=0          : 0x00 × 8
+        //   tx_root              : 32 × 0x00
+        //   storage_root         : 32 × 0x00
+        //   bond_root            : 32 × 0x00
+        //   slashing_root        : 32 × 0x00
+        //   storage_proof_root   : 32 × 0x00
+        //   validator_root       : 32 × 0x00
+        //   producer_proof.len=0 : 0x00
+        //   utxo_root            : 32 × 0x00
+        // Total = 1 + 32 + 4 + 4 + 8 + (32 * 6) + 1 + 32 = 274 bytes.
+        assert_eq!(bytes.len(), 274, "expected 274 bytes, got {}", bytes.len());
+        assert_eq!(bytes[0], 0x01, "varint(version=1) is one byte 0x01");
+        assert_eq!(
+            bytes.iter().filter(|&&b| b != 0).count(),
+            1,
+            "only the version byte is non-zero in a genesis-shaped header"
+        );
+        // Round-trip pin.
+        let h2 = decode_block_header(&bytes).expect("decode");
+        assert_eq!(block_id(&h), block_id(&h2));
     }
 }

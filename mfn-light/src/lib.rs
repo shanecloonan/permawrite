@@ -76,9 +76,14 @@
 #![warn(clippy::all)]
 
 pub mod chain;
+pub mod checkpoint;
 
 pub use chain::{
     AppliedBlock, AppliedHeader, LightChain, LightChainConfig, LightChainError, LightChainStats,
+};
+pub use checkpoint::{
+    decode_checkpoint_bytes, encode_checkpoint_bytes, CheckpointParts, LightCheckpointError,
+    LIGHT_CHECKPOINT_MAGIC, LIGHT_CHECKPOINT_VERSION,
 };
 
 // Re-export the small set of `mfn-consensus` types the M2.0.8 shadow

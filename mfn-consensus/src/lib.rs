@@ -62,10 +62,10 @@ pub mod validator_evolution;
 
 pub use block::{
     apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
-    header_signing_bytes, header_signing_hash, seal_block, storage_merkle_root, tx_merkle_root,
-    ApplyOutcome, Block, BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig,
-    GenesisOutput, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
-    HEADER_VERSION,
+    decode_block_header, header_signing_bytes, header_signing_hash, seal_block,
+    storage_merkle_root, tx_merkle_root, ApplyOutcome, Block, BlockError, BlockHeader, ChainState,
+    ConsensusParams, GenesisConfig, GenesisOutput, HeaderDecodeError, PendingUnbond, UtxoEntry,
+    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, register_signing_bytes,
