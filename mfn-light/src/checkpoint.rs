@@ -96,10 +96,14 @@
 
 use std::collections::BTreeMap;
 
-use mfn_bls::{decode_public_key, encode_public_key, BlsError, BlsPublicKey};
+use mfn_consensus::checkpoint_codec::{
+    check_validator_assignment, decode_bonding_params, decode_consensus_params,
+    decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
+    encode_consensus_params, encode_pending_unbond, encode_validator, encode_validator_stats,
+    CheckpointReadError,
+};
 use mfn_consensus::{
-    BondEpochCounters, BondingParams, ConsensusParams, PendingUnbond, Validator, ValidatorPayout,
-    ValidatorStats,
+    BondEpochCounters, BondingParams, ConsensusParams, PendingUnbond, Validator, ValidatorStats,
 };
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
@@ -121,6 +125,14 @@ pub const LIGHT_CHECKPOINT_VERSION: u32 = 1;
  * ----------------------------------------------------------------------- */
 
 /// Errors produced by the checkpoint codec.
+///
+/// Per-field decode failures (truncation, invalid public keys,
+/// validator-list invariants) flow through the
+/// [`Read`](Self::Read) variant carrying the shared
+/// [`CheckpointReadError`] from
+/// [`mfn_consensus::checkpoint_codec`] (M2.0.16). The light
+/// checkpoint family adds its own framing / integrity / trailing
+/// variants on top.
 #[derive(Debug, thiserror::Error)]
 pub enum LightCheckpointError {
     /// The first 4 bytes weren't [`LIGHT_CHECKPOINT_MAGIC`].
@@ -137,102 +149,11 @@ pub enum LightCheckpointError {
         got: u32,
     },
 
-    /// The buffer was too short to contain a complete field.
-    #[error("checkpoint truncated at field `{field}`: needed {needed} more byte(s)")]
-    Truncated {
-        /// Which field tripped the short read.
-        field: &'static str,
-        /// Minimum number of additional bytes that would have been needed.
-        needed: usize,
-    },
-
-    /// A LEB128 varint overflowed its maximum length.
-    #[error("varint overflow at field `{field}`")]
-    VarintOverflow {
-        /// Which field overflowed.
-        field: &'static str,
-    },
-
-    /// A varint length declared more bytes than fit in `usize`.
-    #[error("length {got} at field `{field}` exceeds usize")]
-    LengthOverflow {
-        /// The raw length value.
-        got: u64,
-        /// Which field overflowed.
-        field: &'static str,
-    },
-
-    /// `vrf_pk` at the given validator slot failed Edwards-point
-    /// decompression.
-    #[error("validator #{index}: invalid vrf_pk (decompression failed)")]
-    InvalidVrfPublicKey {
-        /// Zero-based position in the validators array.
-        index: usize,
-    },
-
-    /// `bls_pk` at the given validator slot failed BLS G1 decompression.
-    #[error("validator #{index}: invalid bls_pk: {source}")]
-    InvalidBlsPublicKey {
-        /// Zero-based position in the validators array.
-        index: usize,
-        /// Underlying BLS decode error.
-        #[source]
-        source: BlsError,
-    },
-
-    /// Payout `view_pub` (ed25519) failed Edwards-point decompression.
-    #[error("validator #{index}: invalid payout view_pub")]
-    InvalidPayoutViewPub {
-        /// Zero-based position in the validators array.
-        index: usize,
-    },
-
-    /// Payout `spend_pub` (ed25519) failed Edwards-point decompression.
-    #[error("validator #{index}: invalid payout spend_pub")]
-    InvalidPayoutSpendPub {
-        /// Zero-based position in the validators array.
-        index: usize,
-    },
-
-    /// `payout_flag` byte was neither 0 nor 1.
-    #[error("validator #{index}: invalid payout_flag {flag}")]
-    InvalidPayoutFlag {
-        /// Zero-based position in the validators array.
-        index: usize,
-        /// The flag byte actually observed.
-        flag: u8,
-    },
-
-    /// The `validator_stats` length doesn't equal the `validators`
-    /// length. The in-memory invariant is 1:1 — this can only occur
-    /// if a malicious peer or corrupted file feeds us a mismatched
-    /// pair.
-    #[error("validator_stats length {stats} does not match validators length {validators}")]
-    StatsLengthMismatch {
-        /// Number of validators in the payload.
-        validators: usize,
-        /// Number of stats in the payload.
-        stats: usize,
-    },
-
-    /// Two validators in the payload share the same `index`. The
-    /// chain enforces uniqueness of `Validator::index`.
-    #[error("duplicate validator index {index} in checkpoint")]
-    DuplicateValidatorIndex {
-        /// The duplicated index value.
-        index: u32,
-    },
-
-    /// Two `PendingUnbond` records share the same `validator_index`
-    /// key, or the records are not sorted ascending by
-    /// `validator_index`.
-    #[error(
-        "pending_unbonds not strictly sorted ascending by validator_index at position {index}"
-    )]
-    PendingUnbondsNotSorted {
-        /// Position in the pending_unbonds array where order broke.
-        index: usize,
-    },
+    /// A shared per-field decode failure (truncation, invalid public
+    /// key, validator-list invariant violation, etc.). Surfaced
+    /// verbatim from [`mfn_consensus::checkpoint_codec`].
+    #[error(transparent)]
+    Read(#[from] CheckpointReadError),
 
     /// `pending_unbonds[i].validator_index` doesn't match the
     /// embedded `validator_index` field (would be impossible from
@@ -245,17 +166,6 @@ pub enum LightCheckpointError {
         expected: u32,
         /// The embedded field value.
         got: u32,
-    },
-
-    /// `bond_counters.next_validator_index` is `≤ max(validator.index)`
-    /// in the payload. This invariant catches replays of older
-    /// checkpoint files that pre-date a validator's registration.
-    #[error("bond_counters.next_validator_index {next} ≤ max validator index {max_assigned}")]
-    NextIndexBelowAssigned {
-        /// The `next_validator_index` claimed by the checkpoint.
-        next: u32,
-        /// The highest `validator.index` actually present.
-        max_assigned: u32,
     },
 
     /// The trailing 32-byte integrity tag did not match
@@ -307,42 +217,17 @@ pub struct CheckpointParts {
  *  Encode                                                                  *
  * ----------------------------------------------------------------------- */
 
-fn encode_validator(w: &mut Writer, v: &Validator) {
-    w.u32(v.index);
-    w.u64(v.stake);
-    w.push(&v.vrf_pk.compress().to_bytes());
-    w.push(&encode_public_key(&v.bls_pk));
-    match &v.payout {
-        None => {
-            w.u8(0);
-        }
-        Some(p) => {
-            w.u8(1);
-            w.push(&p.view_pub.compress().to_bytes());
-            w.push(&p.spend_pub.compress().to_bytes());
-        }
-    }
-}
-
-fn encode_validator_stats(w: &mut Writer, s: &ValidatorStats) {
-    w.u32(s.consecutive_missed);
-    w.u64(s.total_signed);
-    w.u64(s.total_missed);
-    w.u32(s.liveness_slashes);
-}
-
-fn encode_pending_unbond(w: &mut Writer, p: &PendingUnbond) {
-    w.u32(p.validator_index);
-    w.u32(p.unlock_height);
-    w.u64(p.stake_at_request);
-    w.u32(p.request_height);
-}
-
 /// Encode a [`CheckpointParts`] bundle to its canonical bytes.
 ///
 /// Always produces the same output for the same input — including
 /// the final integrity tag. Length grows linearly in
 /// `validators + pending_unbonds`.
+///
+/// Every per-field sub-encoder (validator, validator-stats,
+/// pending-unbond, consensus-params, bonding-params) is supplied by
+/// [`mfn_consensus::checkpoint_codec`] (M2.0.16). The wire layout
+/// they emit is byte-identical to the M2.0.9 light-checkpoint
+/// codec.
 #[must_use]
 pub fn encode_checkpoint_bytes(parts: &CheckpointParts) -> Vec<u8> {
     let mut w = Writer::new();
@@ -356,22 +241,9 @@ pub fn encode_checkpoint_bytes(parts: &CheckpointParts) -> Vec<u8> {
     w.push(&parts.tip_id);
     w.push(&parts.genesis_id);
 
-    // ---- ConsensusParams ----
-    // f64 → u64 bits → big-endian for deterministic cross-platform
-    // round-trip. `f64::to_bits` is well-defined; `from_bits` on the
-    // same bit pattern reconstructs the exact value (including NaN
-    // payload, infinities, sub-normals).
-    w.u64(parts.params.expected_proposers_per_slot.to_bits());
-    w.u32(parts.params.quorum_stake_bps);
-    w.u32(parts.params.liveness_max_consecutive_missed);
-    w.u32(parts.params.liveness_slash_bps);
-
-    // ---- BondingParams ----
-    w.u64(parts.bonding_params.min_validator_stake);
-    w.u32(parts.bonding_params.unbond_delay_heights);
-    w.u32(parts.bonding_params.max_entry_churn_per_epoch);
-    w.u32(parts.bonding_params.max_exit_churn_per_epoch);
-    w.u32(parts.bonding_params.slots_per_epoch);
+    // ---- Frozen params (shared sub-encoders) ----
+    encode_consensus_params(&mut w, &parts.params);
+    encode_bonding_params(&mut w, &parts.bonding_params);
 
     // ---- Validators ----
     w.varint(parts.validators.len() as u64);
@@ -409,130 +281,27 @@ pub fn encode_checkpoint_bytes(parts: &CheckpointParts) -> Vec<u8> {
  *  Decode                                                                  *
  * ----------------------------------------------------------------------- */
 
+/// Light-checkpoint-local thin wrapper around
+/// [`mfn_consensus::checkpoint_codec::read_fixed`], specialised for
+/// the [`LightCheckpointError`] return type so the body of
+/// [`decode_checkpoint_bytes`] stays terse.
 fn read_fixed<const N: usize>(
     r: &mut Reader<'_>,
     field: &'static str,
 ) -> Result<[u8; N], LightCheckpointError> {
-    let slice = r
-        .bytes(N)
-        .map_err(|_| LightCheckpointError::Truncated { field, needed: N })?;
-    let mut out = [0u8; N];
-    out.copy_from_slice(slice);
-    Ok(out)
+    Ok(mfn_consensus::checkpoint_codec::read_fixed(r, field)?)
 }
 
 fn read_u32(r: &mut Reader<'_>, field: &'static str) -> Result<u32, LightCheckpointError> {
-    r.u32()
-        .map_err(|_| LightCheckpointError::Truncated { field, needed: 4 })
+    Ok(mfn_consensus::checkpoint_codec::read_u32(r, field)?)
 }
 
 fn read_u64(r: &mut Reader<'_>, field: &'static str) -> Result<u64, LightCheckpointError> {
-    r.u64()
-        .map_err(|_| LightCheckpointError::Truncated { field, needed: 8 })
-}
-
-fn read_varint(r: &mut Reader<'_>, field: &'static str) -> Result<u64, LightCheckpointError> {
-    r.varint()
-        .map_err(|_| LightCheckpointError::VarintOverflow { field })
+    Ok(mfn_consensus::checkpoint_codec::read_u64(r, field)?)
 }
 
 fn read_len(r: &mut Reader<'_>, field: &'static str) -> Result<usize, LightCheckpointError> {
-    let raw = read_varint(r, field)?;
-    usize::try_from(raw).map_err(|_| LightCheckpointError::LengthOverflow { got: raw, field })
-}
-
-/// Read 32 bytes and decompress as an ed25519 Edwards point,
-/// distinguishing truncation from invalid-point.
-fn read_edwards_point(
-    r: &mut Reader<'_>,
-    field: &'static str,
-) -> Result<curve25519_dalek::edwards::EdwardsPoint, EdwardsReadError> {
-    match r.point() {
-        Ok(p) => Ok(p),
-        Err(mfn_crypto::CryptoError::ShortBuffer { needed }) => {
-            Err(EdwardsReadError::Truncated { field, needed })
-        }
-        Err(_) => Err(EdwardsReadError::InvalidPoint),
-    }
-}
-
-enum EdwardsReadError {
-    Truncated { field: &'static str, needed: usize },
-    InvalidPoint,
-}
-
-fn decode_validator(r: &mut Reader<'_>, index: usize) -> Result<Validator, LightCheckpointError> {
-    let v_index = read_u32(r, "validators[i].index")?;
-    let stake = read_u64(r, "validators[i].stake")?;
-
-    let vrf_pk = read_edwards_point(r, "validators[i].vrf_pk").map_err(|e| match e {
-        EdwardsReadError::Truncated { field, needed } => {
-            LightCheckpointError::Truncated { field, needed }
-        }
-        EdwardsReadError::InvalidPoint => LightCheckpointError::InvalidVrfPublicKey { index },
-    })?;
-
-    let bls_pk_bytes: [u8; 48] = read_fixed(r, "validators[i].bls_pk")?;
-    let bls_pk: BlsPublicKey = decode_public_key(&bls_pk_bytes)
-        .map_err(|source| LightCheckpointError::InvalidBlsPublicKey { index, source })?;
-
-    let flag_byte = r.u8().map_err(|_| LightCheckpointError::Truncated {
-        field: "validators[i].payout_flag",
-        needed: 1,
-    })?;
-    let payout = match flag_byte {
-        0 => None,
-        1 => {
-            let view_pub =
-                read_edwards_point(r, "validators[i].payout.view_pub").map_err(|e| match e {
-                    EdwardsReadError::Truncated { field, needed } => {
-                        LightCheckpointError::Truncated { field, needed }
-                    }
-                    EdwardsReadError::InvalidPoint => {
-                        LightCheckpointError::InvalidPayoutViewPub { index }
-                    }
-                })?;
-            let spend_pub =
-                read_edwards_point(r, "validators[i].payout.spend_pub").map_err(|e| match e {
-                    EdwardsReadError::Truncated { field, needed } => {
-                        LightCheckpointError::Truncated { field, needed }
-                    }
-                    EdwardsReadError::InvalidPoint => {
-                        LightCheckpointError::InvalidPayoutSpendPub { index }
-                    }
-                })?;
-            Some(ValidatorPayout {
-                view_pub,
-                spend_pub,
-            })
-        }
-        other => return Err(LightCheckpointError::InvalidPayoutFlag { index, flag: other }),
-    };
-    Ok(Validator {
-        index: v_index,
-        vrf_pk,
-        bls_pk,
-        stake,
-        payout,
-    })
-}
-
-fn decode_validator_stats(r: &mut Reader<'_>) -> Result<ValidatorStats, LightCheckpointError> {
-    Ok(ValidatorStats {
-        consecutive_missed: read_u32(r, "validator_stats[i].consecutive_missed")?,
-        total_signed: read_u64(r, "validator_stats[i].total_signed")?,
-        total_missed: read_u64(r, "validator_stats[i].total_missed")?,
-        liveness_slashes: read_u32(r, "validator_stats[i].liveness_slashes")?,
-    })
-}
-
-fn decode_pending_unbond(r: &mut Reader<'_>) -> Result<PendingUnbond, LightCheckpointError> {
-    Ok(PendingUnbond {
-        validator_index: read_u32(r, "pending_unbonds[i].validator_index")?,
-        unlock_height: read_u32(r, "pending_unbonds[i].unlock_height")?,
-        stake_at_request: read_u64(r, "pending_unbonds[i].stake_at_request")?,
-        request_height: read_u32(r, "pending_unbonds[i].request_height")?,
-    })
+    Ok(mfn_consensus::checkpoint_codec::read_len(r, field)?)
 }
 
 /// Decode bytes produced by [`encode_checkpoint_bytes`] back into a
@@ -553,10 +322,11 @@ fn decode_pending_unbond(r: &mut Reader<'_>) -> Result<PendingUnbond, LightCheck
 /// violation are all hard rejects.
 pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightCheckpointError> {
     if bytes.len() < 4 + 4 + 32 {
-        return Err(LightCheckpointError::Truncated {
+        return Err(CheckpointReadError::Truncated {
             field: "magic+version+tag",
             needed: 40_usize.saturating_sub(bytes.len()),
-        });
+        }
+        .into());
     }
     // Split off the trailing integrity tag (always 32 bytes).
     let payload_len = bytes.len() - 32;
@@ -582,46 +352,22 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
     let tip_id: [u8; 32] = read_fixed(&mut r, "tip_id")?;
     let genesis_id: [u8; 32] = read_fixed(&mut r, "genesis_id")?;
 
-    let params = ConsensusParams {
-        expected_proposers_per_slot: f64::from_bits(read_u64(
-            &mut r,
-            "params.expected_proposers_per_slot",
-        )?),
-        quorum_stake_bps: read_u32(&mut r, "params.quorum_stake_bps")?,
-        liveness_max_consecutive_missed: read_u32(
-            &mut r,
-            "params.liveness_max_consecutive_missed",
-        )?,
-        liveness_slash_bps: read_u32(&mut r, "params.liveness_slash_bps")?,
-    };
-
-    let bonding_params = BondingParams {
-        min_validator_stake: read_u64(&mut r, "bonding_params.min_validator_stake")?,
-        unbond_delay_heights: read_u32(&mut r, "bonding_params.unbond_delay_heights")?,
-        max_entry_churn_per_epoch: read_u32(&mut r, "bonding_params.max_entry_churn_per_epoch")?,
-        max_exit_churn_per_epoch: read_u32(&mut r, "bonding_params.max_exit_churn_per_epoch")?,
-        slots_per_epoch: read_u32(&mut r, "bonding_params.slots_per_epoch")?,
-    };
+    let params: ConsensusParams = decode_consensus_params(&mut r)?;
+    let bonding_params: BondingParams = decode_bonding_params(&mut r)?;
 
     let validators_n = read_len(&mut r, "validators.len")?;
     let mut validators = Vec::with_capacity(validators_n);
-    let mut seen_indices = std::collections::HashSet::with_capacity(validators_n);
-    let mut max_assigned: Option<u32> = None;
     for i in 0..validators_n {
-        let v = decode_validator(&mut r, i)?;
-        if !seen_indices.insert(v.index) {
-            return Err(LightCheckpointError::DuplicateValidatorIndex { index: v.index });
-        }
-        max_assigned = Some(max_assigned.map_or(v.index, |m| m.max(v.index)));
-        validators.push(v);
+        validators.push(decode_validator(&mut r, i)?);
     }
 
     let stats_n = read_len(&mut r, "validator_stats.len")?;
     if stats_n != validators_n {
-        return Err(LightCheckpointError::StatsLengthMismatch {
+        return Err(CheckpointReadError::StatsLengthMismatch {
             validators: validators_n,
             stats: stats_n,
-        });
+        }
+        .into());
     }
     let mut validator_stats = Vec::with_capacity(stats_n);
     for _ in 0..stats_n {
@@ -638,12 +384,12 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
         // re-encode after decode is byte-identical to the input.
         if let Some(prev) = prev_idx {
             if p.validator_index <= prev {
-                return Err(LightCheckpointError::PendingUnbondsNotSorted { index: i });
+                return Err(CheckpointReadError::PendingUnbondsNotSorted { index: i }.into());
             }
         }
         prev_idx = Some(p.validator_index);
         if pending_unbonds.insert(p.validator_index, p).is_some() {
-            return Err(LightCheckpointError::PendingUnbondsNotSorted { index: i });
+            return Err(CheckpointReadError::PendingUnbondsNotSorted { index: i }.into());
         }
     }
 
@@ -663,17 +409,10 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
         });
     }
 
-    // Cross-field invariant: `next_validator_index` is the next
-    // index the chain will *assign*, so it must be strictly greater
-    // than every assigned validator's index.
-    if let Some(max_idx) = max_assigned {
-        if bond_counters.next_validator_index <= max_idx {
-            return Err(LightCheckpointError::NextIndexBelowAssigned {
-                next: bond_counters.next_validator_index,
-                max_assigned: max_idx,
-            });
-        }
-    }
+    // Cross-validator invariants (duplicate-index detection +
+    // `next_validator_index > max(validator.index)`) are enforced by
+    // the shared codec helper.
+    check_validator_assignment(&validators, bond_counters.next_validator_index)?;
 
     Ok(CheckpointParts {
         tip_height,
@@ -695,8 +434,8 @@ pub fn decode_checkpoint_bytes(bytes: &[u8]) -> Result<CheckpointParts, LightChe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mfn_bls::bls_keygen_from_seed;
-    use mfn_consensus::DEFAULT_BONDING_PARAMS;
+    use mfn_bls::{bls_keygen_from_seed, encode_public_key};
+    use mfn_consensus::{ValidatorPayout, DEFAULT_BONDING_PARAMS};
     use mfn_crypto::point::generator_g;
 
     fn sample_validator(index: u32, stake: u64, with_payout: bool) -> Validator {
@@ -940,8 +679,8 @@ mod tests {
         // Less than magic+version+tag minimum.
         let too_short = vec![0u8; 39];
         match decode_checkpoint_bytes(&too_short) {
-            Err(LightCheckpointError::Truncated { .. }) => (),
-            other => panic!("expected Truncated, got {other:?}"),
+            Err(LightCheckpointError::Read(CheckpointReadError::Truncated { .. })) => (),
+            other => panic!("expected Read(Truncated), got {other:?}"),
         }
     }
 
@@ -955,10 +694,10 @@ mod tests {
         // before any next-index check.
         let bytes = encode_checkpoint_bytes(&parts);
         match decode_checkpoint_bytes(&bytes) {
-            Err(LightCheckpointError::DuplicateValidatorIndex { index }) => {
-                assert_eq!(index, parts.validators[0].index)
-            }
-            other => panic!("expected DuplicateValidatorIndex, got {other:?}"),
+            Err(LightCheckpointError::Read(CheckpointReadError::DuplicateValidatorIndex {
+                index,
+            })) => assert_eq!(index, parts.validators[0].index),
+            other => panic!("expected Read(DuplicateValidatorIndex), got {other:?}"),
         }
     }
 
@@ -969,11 +708,14 @@ mod tests {
         parts.bond_counters.next_validator_index = 1; // we have indices 0,1,2 → max=2
         let bytes = encode_checkpoint_bytes(&parts);
         match decode_checkpoint_bytes(&bytes) {
-            Err(LightCheckpointError::NextIndexBelowAssigned { next, max_assigned }) => {
+            Err(LightCheckpointError::Read(CheckpointReadError::NextIndexBelowAssigned {
+                next,
+                max_assigned,
+            })) => {
                 assert_eq!(next, 1);
                 assert_eq!(max_assigned, 2);
             }
-            other => panic!("expected NextIndexBelowAssigned, got {other:?}"),
+            other => panic!("expected Read(NextIndexBelowAssigned), got {other:?}"),
         }
     }
 
@@ -1001,8 +743,11 @@ mod tests {
         let tag = dhash(LIGHT_CHECKPOINT, &[&bytes[..payload_len]]);
         bytes[payload_len..].copy_from_slice(&tag);
         match decode_checkpoint_bytes(&bytes) {
-            Err(LightCheckpointError::InvalidBlsPublicKey { index: 0, .. }) => (),
-            other => panic!("expected InvalidBlsPublicKey, got {other:?}"),
+            Err(LightCheckpointError::Read(CheckpointReadError::InvalidBlsPublicKey {
+                index: 0,
+                ..
+            })) => (),
+            other => panic!("expected Read(InvalidBlsPublicKey), got {other:?}"),
         }
     }
 
@@ -1018,8 +763,11 @@ mod tests {
         let tag = dhash(LIGHT_CHECKPOINT, &[&bytes[..payload_len]]);
         bytes[payload_len..].copy_from_slice(&tag);
         match decode_checkpoint_bytes(&bytes) {
-            Err(LightCheckpointError::InvalidPayoutFlag { index: 0, flag: 99 }) => (),
-            other => panic!("expected InvalidPayoutFlag, got {other:?}"),
+            Err(LightCheckpointError::Read(CheckpointReadError::InvalidPayoutFlag {
+                index: 0,
+                flag: 99,
+            })) => (),
+            other => panic!("expected Read(InvalidPayoutFlag), got {other:?}"),
         }
     }
 
@@ -1034,5 +782,34 @@ mod tests {
         // counting index+stake+vrf+bls; payout adds 64). 10 vs 1
         // must be at most 12x larger to catch quadratic accidents.
         assert!(big < small * 12, "size grew non-linearly: {small} → {big}",);
+    }
+
+    /// Anchor for M2.0.16 — confirm the light-checkpoint embedded
+    /// validator block is byte-identical to what
+    /// `mfn_consensus::checkpoint_codec::encode_validator` emits. If
+    /// the two codecs ever drift, this test fails fast.
+    #[test]
+    fn embedded_validator_block_matches_shared_encoder_byte_for_byte() {
+        let parts = sample_parts(3, 0);
+        let bytes = encode_checkpoint_bytes(&parts);
+
+        // The validator block starts after:
+        //   magic(4) + version(4) + tip_height(4) + tip_id(32)
+        //   + genesis_id(32) + consensus_params(20) + bonding_params(24)
+        //   + validators_len_varint(1)        // varint(3) = 1 byte
+        // = 121 bytes.
+        let validators_start = 4 + 4 + 4 + 32 + 32 + 20 + 24 + 1;
+
+        let mut shared = Writer::new();
+        for v in &parts.validators {
+            encode_validator(&mut shared, v);
+        }
+        let shared_bytes = shared.into_bytes();
+
+        let embedded = &bytes[validators_start..validators_start + shared_bytes.len()];
+        assert_eq!(
+            embedded, shared_bytes,
+            "light-checkpoint validator block must match shared encoder exactly"
+        );
     }
 }

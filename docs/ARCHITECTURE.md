@@ -687,8 +687,8 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
-- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header + light-body verification + validator-set-evolution + header codec + light checkpoint serialization primitives shipped in M2.0.5 / M2.0.7 / M2.0.8 / M2.0.9.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) / `verify_block_body` (M2.0.7) / shared `validator_evolution` helpers (M2.0.8) / round-trippable `BlockHeader` codec + `LightChain` checkpoint (M2.0.9) are all live. The block header now binds every body element, pure-function light verifiers exist to prove both halves stateless-ly, a shared evolution module guarantees byte-for-byte parity between the full-node and light-client validator-set transitions, AND a `LightChain` can be snapshotted to a deterministic self-contained byte blob and restored bit-for-bit — closing the "what about cold starts?" gap for wallets, browser clients, and embedded devices. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md), [`M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md), [`M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md), and [`M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md).
-- **Light client follows a chain across arbitrary rotations and survives restarts.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify.rs) M2.0.7) plus the shared evolution module ([`validator_evolution`](../mfn-consensus/src/validator_evolution.rs) M2.0.8) plus the chain-following driver ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7 + M2.0.8) plus the checkpoint codec ([`mfn-light::checkpoint`](../mfn-light/src/checkpoint.rs), M2.0.9) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance — no evolution) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + validator-set evolution + tip advance), and can be saved/restored byte-deterministically via `encode_checkpoint` / `decode_checkpoint` (integrity-tagged under the dedicated `MFBN-1/light-checkpoint` domain). State byte-for-byte preserved on any failure, typed errors distinguishing forged headers / body-tampered pairs / invalid bond ops / corrupted checkpoints. The light client now follows the chain indefinitely AND survives restarts. The P2P/daemon layer is the next slice.
+- **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header + light-body verification + validator-set-evolution + header codec + light/full-node checkpoint serialization primitives shipped in M2.0.5 / M2.0.7 / M2.0.8 / M2.0.9 / M2.0.15 / M2.0.16.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) / `verify_block_body` (M2.0.7) / shared `validator_evolution` helpers (M2.0.8) / round-trippable `BlockHeader` codec + `LightChain` checkpoint (M2.0.9) / deterministic `ChainState` checkpoint (M2.0.15) / shared checkpoint sub-encoders (M2.0.16) are all live. The block header now binds every body element, pure-function light verifiers exist to prove both halves stateless-ly, shared evolution + shared checkpoint-codec modules guarantee byte-for-byte parity where the light client and full node overlap, and both a `LightChain` and full-node `ChainState` can be snapshotted deterministically. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md), [`M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md), [`M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md), [`M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md), and [`M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md).
+- **Light client follows a chain across arbitrary rotations and survives restarts.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify.rs) M2.0.7) plus the shared evolution module ([`validator_evolution`](../mfn-consensus/src/validator_evolution.rs) M2.0.8) plus the chain-following driver ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7 + M2.0.8) plus the checkpoint codec ([`mfn-light::checkpoint`](../mfn-light/src/checkpoint.rs), M2.0.9 + M2.0.16) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance — no evolution) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + validator-set evolution + tip advance), and can be saved/restored byte-deterministically via `encode_checkpoint` / `decode_checkpoint` (integrity-tagged under the dedicated `MFBN-1/light-checkpoint` domain). State byte-for-byte preserved on any failure, typed errors distinguishing forged headers / body-tampered pairs / invalid bond ops / corrupted checkpoints. The light client now follows the chain indefinitely AND survives restarts. The P2P/daemon layer is the next slice.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -748,7 +748,7 @@ mfn-storage/        Permanence                 (44 tests)
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (194 tests: 180 unit + 14 integration)
+mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integration)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
@@ -771,23 +771,23 @@ mfn-consensus/      Chain state machine        (194 tests: 180 unit + 14 integra
 │                   both apply_block (full node) and mfn-light's chain
 │                   follower. Plus finality_bitmap_from_header for callers
 │                   that drive Phase B without re-decoding the proof.
+├── checkpoint_codec.rs M2.0.16 shared checkpoint sub-encoders:
+│                   Validator / ValidatorStats / PendingUnbond /
+│                   ConsensusParams / BondingParams encode+decode,
+│                   CheckpointReadError, and check_validator_assignment.
+│                   Both chain_checkpoint.rs and mfn-light/checkpoint.rs
+│                   import this module so checkpoint v1 sub-fields cannot
+│                   drift while the on-disk / over-wire bytes stay unchanged.
 ├── chain_checkpoint.rs M2.0.15 deterministic byte codec for the full-node
 │                   ChainCheckpoint { genesis_id, state }: magic "MFCC"
 │                   + u32 version + payload (every ChainState field,
 │                   hash-maps sorted by key for cross-platform determinism,
 │                   nested utxo_tree blob via encode_utxo_tree_state)
 │                   + 32-byte dhash(CHAIN_CHECKPOINT, &[payload]) integrity tag.
-│                   Typed ChainCheckpointError covers BadMagic /
-│                   UnsupportedVersion / Truncated / VarintOverflow /
-│                   LengthOverflow / InvalidHeightFlag / StatsLengthMismatch /
-│                   DuplicateValidatorIndex / NextIndexBelowAssigned /
-│                   InvalidVrfPublicKey / InvalidBlsPublicKey /
-│                   InvalidPayout{ViewPub,SpendPub,Flag} /
-│                   PendingUnbondsNotSorted / UtxoNotSorted /
-│                   InvalidUtxoCommit / SpentKeyImagesNotSorted /
-│                   StorageNotSorted / InvalidStorageCommitment /
-│                   InvalidUtxoTree / IntegrityCheckFailed / TrailingBytes.
-│                   Domain-separated from LIGHT_CHECKPOINT.
+│                   Typed ChainCheckpointError covers framing + chain-state
+│                   failures; M2.0.16 routes shared per-field failures through
+│                   Read(CheckpointReadError). Domain-separated from
+│                   LIGHT_CHECKPOINT.
 └── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
                     M2.0.2 storage-proof root binding. Each validator-set
                     mutation is a single call into validator_evolution.
@@ -834,7 +834,7 @@ mfn-node/           Node-side glue             (52 tests: 37 unit + 15 integrati
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
 
-mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integration, 1 ignored)
+mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,
 │                   AND the shadow state needed to evolve that set across
 │                   rotations (validator_stats, pending_unbonds,
@@ -850,15 +850,16 @@ mfn-light/          Light-client follower      (57 passing: 40 unit + 17 integra
 │                           round-trip the full shadow state byte-deterministically.
 │                   M2.0.10: integration-proven raw-block-byte path:
 │                            decode_block(bytes) → apply_block(&Block).
+│                   M2.0.16: checkpoint sub-fields import
+│                           mfn_consensus::checkpoint_codec.
 └── checkpoint.rs   M2.0.9 self-contained checkpoint codec: magic + version
                     + tip + identity + params + validators + stats +
                     pending_unbonds + bond_counters + dhash(LIGHT_CHECKPOINT)
-                    integrity tag. Typed LightCheckpointError covers
-                    BadMagic / UnsupportedVersion / Truncated /
-                    InvalidVrfPublicKey / InvalidBlsPublicKey /
-                    StatsLengthMismatch / DuplicateValidatorIndex /
-                    PendingUnbondsNotSorted / NextIndexBelowAssigned /
-                    IntegrityCheckFailed / TrailingBytes.
+                    integrity tag. M2.0.16 removes duplicated sub-encoders:
+                    Validator / ValidatorStats / PendingUnbond / params bytes
+                    now come from mfn_consensus::checkpoint_codec.
+                    LightCheckpointError keeps framing-specific variants and
+                    wraps shared per-field failures as Read(CheckpointReadError).
                     Pure-Rust deps only; WASM-friendly. Follows the chain
                     indefinitely from a single genesis bootstrap, AND
                     survives restarts via M2.0.9 checkpoint serialization.

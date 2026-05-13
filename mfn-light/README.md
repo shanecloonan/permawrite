@@ -1,14 +1,14 @@
 # `mfn-light`
 
-Light-client chain follower for Permawrite. Built on top of [`mfn_consensus::verify_header`](../mfn-consensus/src/header_verify.rs) (M2.0.5), [`mfn_consensus::verify_block_body`](../mfn-consensus/src/header_verify.rs) (M2.0.7), the shared [`mfn_consensus::validator_evolution`](../mfn-consensus/src/validator_evolution.rs) module (M2.0.8), the M2.0.9 checkpoint codec, and the M2.0.10 full-block wire codec. The foundation for wallets, WASM browser clients, and cross-chain bridges.
+Light-client chain follower for Permawrite. Built on top of [`mfn_consensus::verify_header`](../mfn-consensus/src/header_verify.rs) (M2.0.5), [`mfn_consensus::verify_block_body`](../mfn-consensus/src/header_verify.rs) (M2.0.7), the shared [`mfn_consensus::validator_evolution`](../mfn-consensus/src/validator_evolution.rs) module (M2.0.8), the M2.0.9 checkpoint codec, the M2.0.10 full-block wire codec, and the M2.0.16 shared [`mfn_consensus::checkpoint_codec`](../mfn-consensus/src/checkpoint_codec.rs) sub-encoders. The foundation for wallets, WASM browser clients, and cross-chain bridges.
 
-**Tests:** 57 passing (40 unit + 17 integration, 1 ignored placeholder) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 58 passing (41 unit + 17 integration, 1 ignored placeholder) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 ---
 
-## Status (M2.0.6 + M2.0.7 + M2.0.8 + M2.0.9 + M2.0.10)
+## Status (M2.0.6 + M2.0.7 + M2.0.8 + M2.0.9 + M2.0.10 + M2.0.16)
 
-This is a **production-ready light-client artifact**: a `LightChain` struct that follows the Permawrite chain across arbitrary rotations from a single genesis bootstrap, with full cryptographic verification at every step, a self-contained byte-deterministic checkpoint codec so the chain survives restarts, and an integration-proven path from canonical raw block bytes to `LightChain::apply_block`.
+This is a **production-ready light-client artifact**: a `LightChain` struct that follows the Permawrite chain across arbitrary rotations from a single genesis bootstrap, with full cryptographic verification at every step, a self-contained byte-deterministic checkpoint codec so the chain survives restarts, shared checkpoint sub-encoders with the full-node `ChainState` codec, and an integration-proven path from canonical raw block bytes to `LightChain::apply_block`.
 
 `LightChain` owns:
 
@@ -21,7 +21,7 @@ Three application paths:
 
 - **`apply_header(&BlockHeader)`** (M2.0.6) — strict monotonicity, `prev_hash` linkage, `verify_header`, tip advance. **Does not** evolve the validator set, so it's only useful for stable-validator windows or header-first sync.
 - **`apply_block(&Block)`** (M2.0.7 + M2.0.8) — the above *plus* `verify_block_body` (re-derives the four header-bound body roots) *plus* validator-set evolution (mirrors `apply_block`'s four phases byte-for-byte via the shared `validator_evolution` module). After this returns, the light client's trusted set is the same set the next block's header will commit to.
-- **`encode_checkpoint` / `decode_checkpoint`** (M2.0.9) — the chain's full state (tip + identity + params + validators + stats + pending unbonds + counters) serialises to a self-contained, byte-deterministic, integrity-tagged blob and restores bit-for-bit.
+- **`encode_checkpoint` / `decode_checkpoint`** (M2.0.9 + M2.0.16) — the chain's full state (tip + identity + params + validators + stats + pending unbonds + counters) serialises to a self-contained, byte-deterministic, integrity-tagged blob and restores bit-for-bit. M2.0.16 routes its shared sub-fields through `mfn_consensus::checkpoint_codec`, eliminating duplicated validator / params encoders while preserving v1 bytes.
 
 After a successful `apply_block`, the light client has cryptographic proof that the `(header, body)` pair it accepted is byte-for-byte what some honest 2/3-stake quorum signed over AND its trusted set is correctly evolved.
 
@@ -171,9 +171,9 @@ Splitting into its own crate keeps the dependency graph tight (`mfn-consensus`, 
 
 ## Test categories
 
-- **Unit (40 tests)** —
+- **Unit (41 tests)** —
   - `chain::tests` (27 tests). M2.0.6 (7), M2.0.7 (7), M2.0.8 (8), **M2.0.9 (5)**: genesis round-trip, mid-chain resume + accept of next block in lockstep, single-byte tamper rejection sweep, public-accessor equality across the round-trip, deterministic encoded length.
-  - `checkpoint::tests` (13 tests). **M2.0.9.** Empty round-trip, full surface (validators with/without payout + stats + pending unbonds), f64 round-trip across NaN / ±∞ / subnormals / π, bad-magic / unknown-version / payload tamper / tag tamper / truncation rejections, duplicate-index / `next_validator_index` / invalid-BLS-pk / invalid-payout-flag invariant rejections, linear-size growth.
+  - `checkpoint::tests` (14 tests). **M2.0.9 + M2.0.16.** Empty round-trip, full surface (validators with/without payout + stats + pending unbonds), f64 round-trip across NaN / ±∞ / subnormals / π, bad-magic / unknown-version / payload tamper / tag tamper / truncation rejections, duplicate-index / `next_validator_index` / invalid-BLS-pk / invalid-payout-flag invariant rejections, linear-size growth, and `embedded_validator_block_matches_shared_encoder_byte_for_byte` to pin the M2.0.16 byte-identity invariant.
 - **Integration (`tests/follow_chain.rs`, 18 tests)** —
   - **M2.0.6 set (5).** `LightChain` follows a full `mfn_node::Chain` through 3 real BLS-signed blocks reaching identical tips; skipped headers rejected with state preserved; cross-chain header-injection caught by `validator_root` check (load-bearing demonstration of why M2.0 matters); recovery after a rejected header; typed-error surface of `ValidatorRootMismatch`.
   - **M2.0.7 set (5).** Full-chain `apply_block` agreement across 3 blocks; body-tx-tamper rejection with state preserved; body-storage_proof-tamper rejection; recovery after body rejection; `apply_header` / `apply_block` agreement on clean chains.

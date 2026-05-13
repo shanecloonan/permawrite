@@ -254,7 +254,7 @@ via `ChainError::CheckpointDecode(ChainCheckpointError)`.
 
 - **No file IO.** The codec is `&[u8] ↔ Vec<u8>`. The daemon (M2.1.0) chooses the on-disk layout (single-file snapshot, atomic rename, sled, RocksDB column families, …).
 - **No incremental persistence.** Encoder produces a full snapshot per call. A future M2.x can add delta/block-log persistence; the snapshot codec is the safety net that bounds replay cost in either case.
-- **No mfn-light consolidation.** `mfn-light::checkpoint` and `mfn-consensus::chain_checkpoint` currently duplicate four small sub-encoders (`encode_validator`, `encode_validator_stats`, `encode_pending_unbond`, params encoders). The wire bytes match byte-for-byte; consolidation is left as a follow-up so M2.0.15 ships without churning mfn-light tests.
+- **M2.0.16 follow-up completed.** M2.0.15 intentionally shipped with duplicated light/full-node sub-encoders to avoid broadening the persistence milestone. M2.0.16 subsequently lifted those shared pieces into `mfn_consensus::checkpoint_codec` (`Validator`, `ValidatorStats`, `PendingUnbond`, `ConsensusParams`, `BondingParams`, plus `CheckpointReadError` and assignment-invariant checks). The checkpoint v1 wire bytes are unchanged; only the Rust ownership of the helpers changed.
 - **No `mfn-store` crate.** That naming is reserved for the future RocksDB/sled backend that consumes this codec.
 
 ## What this milestone unlocks

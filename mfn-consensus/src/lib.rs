@@ -52,6 +52,7 @@ pub mod block;
 pub mod bond_wire;
 pub mod bonding;
 pub mod chain_checkpoint;
+pub mod checkpoint_codec;
 pub mod coinbase;
 pub mod consensus;
 pub mod emission;
@@ -82,6 +83,12 @@ pub use bonding::{
 pub use chain_checkpoint::{
     decode_chain_checkpoint, encode_chain_checkpoint, ChainCheckpoint, ChainCheckpointError,
     CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
+};
+pub use checkpoint_codec::{
+    check_validator_assignment, decode_bonding_params, decode_consensus_params,
+    decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
+    encode_consensus_params, encode_pending_unbond, encode_validator, encode_validator_stats,
+    CheckpointReadError,
 };
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,

@@ -9,6 +9,12 @@
 >   `CheckpointParts`, `encode_checkpoint_bytes`, `decode_checkpoint_bytes`.
 > - `mfn-light/src/chain.rs` — `LightChain::encode_checkpoint`,
 >   `LightChain::decode_checkpoint`.
+>
+> **M2.0.16 follow-up:** `mfn-light::checkpoint` now imports the shared
+> `mfn_consensus::checkpoint_codec` sub-encoders for validators,
+> validator-stats, pending-unbonds, consensus params, and bonding params.
+> Checkpoint v1 bytes are unchanged; the refactor removes drift risk
+> between light-client checkpoints and full-node `ChainState` checkpoints.
 
 ## TL;DR
 

@@ -66,9 +66,6 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use curve25519_dalek::edwards::EdwardsPoint;
-
-use mfn_bls::{decode_public_key, encode_public_key, BlsError, BlsPublicKey};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::CHAIN_CHECKPOINT;
 use mfn_crypto::hash::dhash;
@@ -79,12 +76,15 @@ use mfn_storage::{
     decode_storage_commitment, encode_storage_commitment, EndowmentParams, DEFAULT_ENDOWMENT_PARAMS,
 };
 
-use crate::block::{
-    ChainState, ConsensusParams, PendingUnbond, StorageEntry, UtxoEntry, ValidatorStats,
-    DEFAULT_CONSENSUS_PARAMS,
+use crate::block::{ChainState, PendingUnbond, StorageEntry, UtxoEntry, DEFAULT_CONSENSUS_PARAMS};
+use crate::bonding::DEFAULT_BONDING_PARAMS;
+use crate::checkpoint_codec::{
+    check_validator_assignment, decode_bonding_params, decode_consensus_params,
+    decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
+    encode_consensus_params, encode_pending_unbond, encode_validator, encode_validator_stats,
+    read_edwards_point, read_fixed, read_len, read_u128, read_u16, read_u32, read_u64, read_u8,
+    CheckpointReadError, EdwardsReadError,
 };
-use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
-use crate::consensus::{Validator, ValidatorPayout};
 use crate::emission::{EmissionParams, DEFAULT_EMISSION_PARAMS};
 use crate::validator_evolution::BondEpochCounters;
 
@@ -98,7 +98,10 @@ pub const CHAIN_CHECKPOINT_VERSION: u32 = 1;
 /// Errors produced by the chain-checkpoint codec.
 ///
 /// `encode_chain_checkpoint` is infallible — every variant here is a
-/// **decode** failure.
+/// **decode** failure. Per-field decode failures (truncation, invalid
+/// public keys, validator-list invariants) flow through a single
+/// [`Read`](Self::Read) variant carrying the shared
+/// [`CheckpointReadError`] (M2.0.16).
 #[derive(Debug, thiserror::Error)]
 pub enum ChainCheckpointError {
     /// Magic bytes did not match [`CHAIN_CHECKPOINT_MAGIC`].
@@ -118,121 +121,17 @@ pub enum ChainCheckpointError {
         got: u32,
     },
 
-    /// The buffer ran out before the expected number of bytes were
-    /// available at `field`.
-    #[error("chain-checkpoint truncated at field `{field}`: needed {needed} more byte(s)")]
-    Truncated {
-        /// Symbolic name of the field that was being read when truncation hit.
-        field: &'static str,
-        /// Bytes still required.
-        needed: usize,
-    },
-
-    /// A length-prefix varint overflowed `u64`.
-    #[error("chain-checkpoint varint overflow at field `{field}`")]
-    VarintOverflow {
-        /// Field whose length was being read.
-        field: &'static str,
-    },
-
-    /// A `u64` length did not fit `usize` on this platform.
-    #[error("chain-checkpoint length {got} at field `{field}` exceeds usize")]
-    LengthOverflow {
-        /// The raw `u64` length read.
-        got: u64,
-        /// Field whose length was being read.
-        field: &'static str,
-    },
+    /// A shared per-field decode failure (truncation, invalid public
+    /// key, validator-list invariant violation, etc.). Surfaced
+    /// verbatim from [`mfn_consensus::checkpoint_codec`](crate::checkpoint_codec).
+    #[error(transparent)]
+    Read(#[from] CheckpointReadError),
 
     /// `height_flag` byte was not 0 or 1.
     #[error("chain-checkpoint invalid height_flag {flag} (must be 0 or 1)")]
     InvalidHeightFlag {
         /// Raw byte read.
         flag: u8,
-    },
-
-    /// `validator_stats.len() != validators.len()` — the codec preserves
-    /// the per-index alignment invariant the STF relies on.
-    #[error(
-        "chain-checkpoint validator_stats length {stats} does not match validators length {validators}"
-    )]
-    StatsLengthMismatch {
-        /// Decoded validator count.
-        validators: usize,
-        /// Decoded stats count.
-        stats: usize,
-    },
-
-    /// Two validators with the same `index` appeared in the payload —
-    /// the STF treats `Validator::index` as a primary key.
-    #[error("chain-checkpoint duplicate validator index {index}")]
-    DuplicateValidatorIndex {
-        /// The repeated index.
-        index: u32,
-    },
-
-    /// `next_validator_index <= max(validator.index)` — the on-chain
-    /// invariant `next_validator_index` always points one past the
-    /// highest assigned index was violated.
-    #[error(
-        "chain-checkpoint next_validator_index {next} \u{2264} max assigned index {max_assigned}"
-    )]
-    NextIndexBelowAssigned {
-        /// The encoded counter value.
-        next: u32,
-        /// The maximum `index` actually present in the payload.
-        max_assigned: u32,
-    },
-
-    /// A validator's `vrf_pk` did not decompress to a valid Edwards
-    /// point.
-    #[error("chain-checkpoint validator #{index}: invalid vrf_pk (decompression failed)")]
-    InvalidVrfPublicKey {
-        /// Position in the validator list.
-        index: usize,
-    },
-
-    /// A validator's `bls_pk` failed to decode as a G1 element.
-    #[error("chain-checkpoint validator #{index}: invalid bls_pk: {source}")]
-    InvalidBlsPublicKey {
-        /// Position in the validator list.
-        index: usize,
-        /// The underlying BLS decode error.
-        #[source]
-        source: BlsError,
-    },
-
-    /// A validator payout's `view_pub` did not decompress.
-    #[error("chain-checkpoint validator #{index}: invalid payout view_pub")]
-    InvalidPayoutViewPub {
-        /// Position in the validator list.
-        index: usize,
-    },
-
-    /// A validator payout's `spend_pub` did not decompress.
-    #[error("chain-checkpoint validator #{index}: invalid payout spend_pub")]
-    InvalidPayoutSpendPub {
-        /// Position in the validator list.
-        index: usize,
-    },
-
-    /// `payout_flag` byte for a validator was not 0 or 1.
-    #[error("chain-checkpoint validator #{index}: invalid payout_flag {flag} (must be 0 or 1)")]
-    InvalidPayoutFlag {
-        /// Position in the validator list.
-        index: usize,
-        /// Raw flag byte.
-        flag: u8,
-    },
-
-    /// `pending_unbonds` entries were not strictly ascending by
-    /// `validator_index`.
-    #[error(
-        "chain-checkpoint pending_unbonds not strictly sorted ascending by validator_index at position {index}"
-    )]
-    PendingUnbondsNotSorted {
-        /// Position in the `pending_unbonds` list.
-        index: usize,
     },
 
     /// A `utxo` map entry's key did not strictly exceed the previous
@@ -319,58 +218,6 @@ pub struct ChainCheckpoint {
 /* ----------------------------------------------------------------------- *
  *  Encode                                                                   *
  * ----------------------------------------------------------------------- */
-
-fn encode_validator(w: &mut Writer, v: &Validator) {
-    // NOTE — byte-identical to `mfn_light::checkpoint::encode_validator`.
-    // The two codecs are duplicated only to avoid pulling mfn-light's
-    // private helpers into mfn-consensus's stable surface; future
-    // consolidation should keep this layout untouched.
-    w.u32(v.index);
-    w.u64(v.stake);
-    w.push(&v.vrf_pk.compress().to_bytes());
-    w.push(&encode_public_key(&v.bls_pk));
-    match &v.payout {
-        None => {
-            w.u8(0);
-        }
-        Some(p) => {
-            w.u8(1);
-            w.push(&p.view_pub.compress().to_bytes());
-            w.push(&p.spend_pub.compress().to_bytes());
-        }
-    }
-}
-
-fn encode_validator_stats(w: &mut Writer, s: &ValidatorStats) {
-    w.u32(s.consecutive_missed);
-    w.u64(s.total_signed);
-    w.u64(s.total_missed);
-    w.u32(s.liveness_slashes);
-}
-
-fn encode_pending_unbond(w: &mut Writer, p: &PendingUnbond) {
-    w.u32(p.validator_index);
-    w.u32(p.unlock_height);
-    w.u64(p.stake_at_request);
-    w.u32(p.request_height);
-}
-
-fn encode_consensus_params(w: &mut Writer, p: &ConsensusParams) {
-    // `f64` → `u64` bits → big-endian for deterministic cross-platform
-    // round-trip (matches mfn-light's CheckpointParts layout).
-    w.u64(p.expected_proposers_per_slot.to_bits());
-    w.u32(p.quorum_stake_bps);
-    w.u32(p.liveness_max_consecutive_missed);
-    w.u32(p.liveness_slash_bps);
-}
-
-fn encode_bonding_params(w: &mut Writer, p: &BondingParams) {
-    w.u64(p.min_validator_stake);
-    w.u32(p.unbond_delay_heights);
-    w.u32(p.max_entry_churn_per_epoch);
-    w.u32(p.max_exit_churn_per_epoch);
-    w.u32(p.slots_per_epoch);
-}
 
 fn encode_emission_params(w: &mut Writer, p: &EmissionParams) {
     w.u64(p.initial_reward);
@@ -520,165 +367,6 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
  *  Decode                                                                   *
  * ----------------------------------------------------------------------- */
 
-fn read_fixed<const N: usize>(
-    r: &mut Reader<'_>,
-    field: &'static str,
-) -> Result<[u8; N], ChainCheckpointError> {
-    let slice = r
-        .bytes(N)
-        .map_err(|_| ChainCheckpointError::Truncated { field, needed: N })?;
-    let mut out = [0u8; N];
-    out.copy_from_slice(slice);
-    Ok(out)
-}
-
-fn read_u8(r: &mut Reader<'_>, field: &'static str) -> Result<u8, ChainCheckpointError> {
-    r.u8()
-        .map_err(|_| ChainCheckpointError::Truncated { field, needed: 1 })
-}
-
-fn read_u32(r: &mut Reader<'_>, field: &'static str) -> Result<u32, ChainCheckpointError> {
-    r.u32()
-        .map_err(|_| ChainCheckpointError::Truncated { field, needed: 4 })
-}
-
-fn read_u64(r: &mut Reader<'_>, field: &'static str) -> Result<u64, ChainCheckpointError> {
-    r.u64()
-        .map_err(|_| ChainCheckpointError::Truncated { field, needed: 8 })
-}
-
-fn read_u128(r: &mut Reader<'_>, field: &'static str) -> Result<u128, ChainCheckpointError> {
-    let b: [u8; 16] = read_fixed(r, field)?;
-    Ok(u128::from_be_bytes(b))
-}
-
-fn read_u16(r: &mut Reader<'_>, field: &'static str) -> Result<u16, ChainCheckpointError> {
-    let b: [u8; 2] = read_fixed(r, field)?;
-    Ok(u16::from_be_bytes(b))
-}
-
-fn read_varint(r: &mut Reader<'_>, field: &'static str) -> Result<u64, ChainCheckpointError> {
-    r.varint()
-        .map_err(|_| ChainCheckpointError::VarintOverflow { field })
-}
-
-fn read_len(r: &mut Reader<'_>, field: &'static str) -> Result<usize, ChainCheckpointError> {
-    let raw = read_varint(r, field)?;
-    usize::try_from(raw).map_err(|_| ChainCheckpointError::LengthOverflow { got: raw, field })
-}
-
-enum EdwardsReadError {
-    Truncated { field: &'static str, needed: usize },
-    InvalidPoint,
-}
-
-fn read_edwards_point(
-    r: &mut Reader<'_>,
-    field: &'static str,
-) -> Result<EdwardsPoint, EdwardsReadError> {
-    match r.point() {
-        Ok(p) => Ok(p),
-        Err(mfn_crypto::CryptoError::ShortBuffer { needed }) => {
-            Err(EdwardsReadError::Truncated { field, needed })
-        }
-        Err(_) => Err(EdwardsReadError::InvalidPoint),
-    }
-}
-
-fn decode_validator(r: &mut Reader<'_>, index: usize) -> Result<Validator, ChainCheckpointError> {
-    let v_index = read_u32(r, "validators[i].index")?;
-    let stake = read_u64(r, "validators[i].stake")?;
-
-    let vrf_pk = read_edwards_point(r, "validators[i].vrf_pk").map_err(|e| match e {
-        EdwardsReadError::Truncated { field, needed } => {
-            ChainCheckpointError::Truncated { field, needed }
-        }
-        EdwardsReadError::InvalidPoint => ChainCheckpointError::InvalidVrfPublicKey { index },
-    })?;
-
-    let bls_pk_bytes: [u8; 48] = read_fixed(r, "validators[i].bls_pk")?;
-    let bls_pk: BlsPublicKey = decode_public_key(&bls_pk_bytes)
-        .map_err(|source| ChainCheckpointError::InvalidBlsPublicKey { index, source })?;
-
-    let flag = read_u8(r, "validators[i].payout_flag")?;
-    let payout = match flag {
-        0 => None,
-        1 => {
-            let view_pub =
-                read_edwards_point(r, "validators[i].payout.view_pub").map_err(|e| match e {
-                    EdwardsReadError::Truncated { field, needed } => {
-                        ChainCheckpointError::Truncated { field, needed }
-                    }
-                    EdwardsReadError::InvalidPoint => {
-                        ChainCheckpointError::InvalidPayoutViewPub { index }
-                    }
-                })?;
-            let spend_pub =
-                read_edwards_point(r, "validators[i].payout.spend_pub").map_err(|e| match e {
-                    EdwardsReadError::Truncated { field, needed } => {
-                        ChainCheckpointError::Truncated { field, needed }
-                    }
-                    EdwardsReadError::InvalidPoint => {
-                        ChainCheckpointError::InvalidPayoutSpendPub { index }
-                    }
-                })?;
-            Some(ValidatorPayout {
-                view_pub,
-                spend_pub,
-            })
-        }
-        other => return Err(ChainCheckpointError::InvalidPayoutFlag { index, flag: other }),
-    };
-
-    Ok(Validator {
-        index: v_index,
-        vrf_pk,
-        bls_pk,
-        stake,
-        payout,
-    })
-}
-
-fn decode_validator_stats(r: &mut Reader<'_>) -> Result<ValidatorStats, ChainCheckpointError> {
-    Ok(ValidatorStats {
-        consecutive_missed: read_u32(r, "validator_stats[i].consecutive_missed")?,
-        total_signed: read_u64(r, "validator_stats[i].total_signed")?,
-        total_missed: read_u64(r, "validator_stats[i].total_missed")?,
-        liveness_slashes: read_u32(r, "validator_stats[i].liveness_slashes")?,
-    })
-}
-
-fn decode_pending_unbond(r: &mut Reader<'_>) -> Result<PendingUnbond, ChainCheckpointError> {
-    Ok(PendingUnbond {
-        validator_index: read_u32(r, "pending_unbonds[i].validator_index")?,
-        unlock_height: read_u32(r, "pending_unbonds[i].unlock_height")?,
-        stake_at_request: read_u64(r, "pending_unbonds[i].stake_at_request")?,
-        request_height: read_u32(r, "pending_unbonds[i].request_height")?,
-    })
-}
-
-fn decode_consensus_params(r: &mut Reader<'_>) -> Result<ConsensusParams, ChainCheckpointError> {
-    Ok(ConsensusParams {
-        expected_proposers_per_slot: f64::from_bits(read_u64(
-            r,
-            "params.expected_proposers_per_slot",
-        )?),
-        quorum_stake_bps: read_u32(r, "params.quorum_stake_bps")?,
-        liveness_max_consecutive_missed: read_u32(r, "params.liveness_max_consecutive_missed")?,
-        liveness_slash_bps: read_u32(r, "params.liveness_slash_bps")?,
-    })
-}
-
-fn decode_bonding_params(r: &mut Reader<'_>) -> Result<BondingParams, ChainCheckpointError> {
-    Ok(BondingParams {
-        min_validator_stake: read_u64(r, "bonding_params.min_validator_stake")?,
-        unbond_delay_heights: read_u32(r, "bonding_params.unbond_delay_heights")?,
-        max_entry_churn_per_epoch: read_u32(r, "bonding_params.max_entry_churn_per_epoch")?,
-        max_exit_churn_per_epoch: read_u32(r, "bonding_params.max_exit_churn_per_epoch")?,
-        slots_per_epoch: read_u32(r, "bonding_params.slots_per_epoch")?,
-    })
-}
-
 fn decode_emission_params(r: &mut Reader<'_>) -> Result<EmissionParams, ChainCheckpointError> {
     Ok(EmissionParams {
         initial_reward: read_u64(r, "emission_params.initial_reward")?,
@@ -705,7 +393,7 @@ fn decode_endowment_params(r: &mut Reader<'_>) -> Result<EndowmentParams, ChainC
 fn decode_utxo_entry(r: &mut Reader<'_>, index: usize) -> Result<UtxoEntry, ChainCheckpointError> {
     let commit = read_edwards_point(r, "utxo[i].commit").map_err(|e| match e {
         EdwardsReadError::Truncated { field, needed } => {
-            ChainCheckpointError::Truncated { field, needed }
+            ChainCheckpointError::Read(CheckpointReadError::Truncated { field, needed })
         }
         EdwardsReadError::InvalidPoint => ChainCheckpointError::InvalidUtxoCommit { index },
     })?;
@@ -723,7 +411,7 @@ fn decode_storage_entry(
     let commit_len = read_len(r, "storage[i].commit.len")?;
     let commit_slice = r
         .bytes(commit_len)
-        .map_err(|_| ChainCheckpointError::Truncated {
+        .map_err(|_| CheckpointReadError::Truncated {
             field: "storage[i].commit",
             needed: commit_len,
         })?;
@@ -758,10 +446,11 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     // Need at least magic + version + tag.
     const MIN_LEN: usize = 4 + 4 + 32;
     if bytes.len() < MIN_LEN {
-        return Err(ChainCheckpointError::Truncated {
+        return Err(CheckpointReadError::Truncated {
             field: "magic+version+tag",
             needed: MIN_LEN.saturating_sub(bytes.len()),
-        });
+        }
+        .into());
     }
     let payload_len = bytes.len() - 32;
     let payload = &bytes[..payload_len];
@@ -811,23 +500,17 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
 
     let validators_n = read_len(&mut r, "validators.len")?;
     let mut validators = Vec::with_capacity(validators_n);
-    let mut seen_indices: HashSet<u32> = HashSet::with_capacity(validators_n);
-    let mut max_assigned: Option<u32> = None;
     for i in 0..validators_n {
-        let v = decode_validator(&mut r, i)?;
-        if !seen_indices.insert(v.index) {
-            return Err(ChainCheckpointError::DuplicateValidatorIndex { index: v.index });
-        }
-        max_assigned = Some(max_assigned.map_or(v.index, |m| m.max(v.index)));
-        validators.push(v);
+        validators.push(decode_validator(&mut r, i)?);
     }
 
     let stats_n = read_len(&mut r, "validator_stats.len")?;
     if stats_n != validators_n {
-        return Err(ChainCheckpointError::StatsLengthMismatch {
+        return Err(CheckpointReadError::StatsLengthMismatch {
             validators: validators_n,
             stats: stats_n,
-        });
+        }
+        .into());
     }
     let mut validator_stats = Vec::with_capacity(stats_n);
     for _ in 0..stats_n {
@@ -841,12 +524,12 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         let p = decode_pending_unbond(&mut r)?;
         if let Some(prev) = prev_pidx {
             if p.validator_index <= prev {
-                return Err(ChainCheckpointError::PendingUnbondsNotSorted { index: i });
+                return Err(CheckpointReadError::PendingUnbondsNotSorted { index: i }.into());
             }
         }
         prev_pidx = Some(p.validator_index);
         if pending_unbonds.insert(p.validator_index, p).is_some() {
-            return Err(ChainCheckpointError::PendingUnbondsNotSorted { index: i });
+            return Err(CheckpointReadError::PendingUnbondsNotSorted { index: i }.into());
         }
     }
 
@@ -901,7 +584,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let utxo_tree_n = read_len(&mut r, "utxo_tree.len")?;
     let utxo_tree_bytes = r
         .bytes(utxo_tree_n)
-        .map_err(|_| ChainCheckpointError::Truncated {
+        .map_err(|_| CheckpointReadError::Truncated {
             field: "utxo_tree",
             needed: utxo_tree_n,
         })?;
@@ -914,14 +597,9 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         });
     }
 
-    if let Some(max_idx) = max_assigned {
-        if next_validator_index <= max_idx {
-            return Err(ChainCheckpointError::NextIndexBelowAssigned {
-                next: next_validator_index,
-                max_assigned: max_idx,
-            });
-        }
-    }
+    // Cross-validator invariants (duplicate-index + next-index) live
+    // in the shared codec.
+    check_validator_assignment(&validators, next_validator_index)?;
 
     let counters = BondEpochCounters {
         bond_epoch_id,
@@ -965,8 +643,11 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::block::ValidatorStats;
+    use crate::consensus::{Validator, ValidatorPayout};
+    use curve25519_dalek::edwards::EdwardsPoint;
     use curve25519_dalek::scalar::Scalar;
-    use mfn_bls::bls_keygen_from_seed;
+    use mfn_bls::{bls_keygen_from_seed, encode_public_key};
     use mfn_crypto::point::{generator_g, generator_h};
     use mfn_crypto::utxo_tree::{append_utxo, empty_utxo_tree, utxo_leaf_hash};
     use mfn_storage::{StorageCommitment, DEFAULT_CHUNK_SIZE};
@@ -1336,8 +1017,8 @@ mod tests {
     fn rejects_truncated_below_minimum() {
         let bytes = vec![0u8; 8];
         match decode_chain_checkpoint(&bytes) {
-            Err(ChainCheckpointError::Truncated { .. }) => {}
-            other => panic!("expected Truncated, got {other:?}"),
+            Err(ChainCheckpointError::Read(CheckpointReadError::Truncated { .. })) => {}
+            other => panic!("expected Read(Truncated), got {other:?}"),
         }
     }
 
@@ -1378,10 +1059,12 @@ mod tests {
         let mut bytes = payload;
         bytes.extend_from_slice(&tag);
         match decode_chain_checkpoint(&bytes) {
-            Err(ChainCheckpointError::DuplicateValidatorIndex { index }) => {
+            Err(ChainCheckpointError::Read(CheckpointReadError::DuplicateValidatorIndex {
+                index,
+            })) => {
                 assert_eq!(index, 7);
             }
-            other => panic!("expected DuplicateValidatorIndex, got {other:?}"),
+            other => panic!("expected Read(DuplicateValidatorIndex), got {other:?}"),
         }
     }
 
@@ -1420,11 +1103,14 @@ mod tests {
         let mut bytes = payload;
         bytes.extend_from_slice(&tag);
         match decode_chain_checkpoint(&bytes) {
-            Err(ChainCheckpointError::StatsLengthMismatch { validators, stats }) => {
+            Err(ChainCheckpointError::Read(CheckpointReadError::StatsLengthMismatch {
+                validators,
+                stats,
+            })) => {
                 assert_eq!(validators, 1);
                 assert_eq!(stats, 2);
             }
-            other => panic!("expected StatsLengthMismatch, got {other:?}"),
+            other => panic!("expected Read(StatsLengthMismatch), got {other:?}"),
         }
     }
 
@@ -1461,11 +1147,14 @@ mod tests {
         let mut bytes = payload;
         bytes.extend_from_slice(&tag);
         match decode_chain_checkpoint(&bytes) {
-            Err(ChainCheckpointError::NextIndexBelowAssigned { next, max_assigned }) => {
+            Err(ChainCheckpointError::Read(CheckpointReadError::NextIndexBelowAssigned {
+                next,
+                max_assigned,
+            })) => {
                 assert_eq!(next, 5);
                 assert_eq!(max_assigned, 5);
             }
-            other => panic!("expected NextIndexBelowAssigned, got {other:?}"),
+            other => panic!("expected Read(NextIndexBelowAssigned), got {other:?}"),
         }
     }
 

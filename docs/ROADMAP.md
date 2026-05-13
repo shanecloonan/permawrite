@@ -12,12 +12,12 @@
 | ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | 153 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec**) | `mfn-consensus` | 194 | ✓ live |
+| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
 | Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`**) | `mfn-node` | 52 | ✓ live (skeleton + mempool + persistence codec) |
-| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof**) | `mfn-light` | 57 | ✓ live |
+| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **558** | All checks green (+ 2 ignored) |
+| **Total** | | **571** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -863,6 +863,50 @@ See [`docs/M2_WALLET_UPLOAD.md`](./M2_WALLET_UPLOAD.md) for the full design note
 - **Debuggability.** Faulty chains can be encoded and byte-diffed against a known-good twin; typed decode errors localise drift to a single field name.
 
 See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full design note.
+
+---
+
+## Milestone M2.0.16 — Shared checkpoint sub-encoder consolidation (✓ shipped)
+
+**Why it was next.** M2.0.9 (`mfn-light::checkpoint`) and M2.0.15 (`mfn-consensus::chain_checkpoint`) shipped two checkpoint codecs that — by *design* — emit byte-identical sub-encodings for every shared building block: validators, validator-stats, pending-unbonds, consensus-params, bonding-params. Each codec carried its own private copy of those sub-encoders. Convention kept them aligned; no compiler-enforced invariant did. M2.0.16 lifts the shared sub-encoders into a single source of truth so any future drift would surface immediately as either a build error or a per-field unit-test failure.
+
+### What shipped
+
+- **`mfn-consensus/src/checkpoint_codec.rs`** — a new public module that hosts:
+  - The shared error enum [`CheckpointReadError`](../mfn-consensus/src/checkpoint_codec.rs) with every per-field decode failure (truncation, varint overflow, length overflow, invalid VRF / BLS / payout public keys, invalid payout flag, validator-stats length mismatch, duplicate validator index, pending-unbonds not strictly ascending, `next_validator_index` ≤ max assigned).
+  - Shared encoders: `encode_validator`, `encode_validator_stats`, `encode_pending_unbond`, `encode_consensus_params`, `encode_bonding_params`.
+  - Shared decoders: `decode_validator`, `decode_validator_stats`, `decode_pending_unbond`, `decode_consensus_params`, `decode_bonding_params`.
+  - Shared primitives: `read_fixed`, `read_u8/u16/u32/u64/u128`, `read_varint`, `read_len`, `read_edwards_point` (+ `EdwardsReadError`).
+  - A cross-validator invariant check `check_validator_assignment` that both codecs now call to enforce duplicate-index detection + `next_validator_index > max(validator.index)` in **one place**.
+- **`mfn-consensus::chain_checkpoint`** — now imports from `checkpoint_codec` and removes all duplicated inline encoders / decoders / read helpers. `ChainCheckpointError` adds a single `Read(CheckpointReadError)` variant with `#[from]`; the chain-specific framing (magic, version, integrity tag, height flag, UTXO / spent-key-image / storage sort-order, `InvalidUtxoTree`, `InvalidStorageCommitment`, `TrailingBytes`, `IntegrityCheckFailed`) stays put.
+- **`mfn-light::checkpoint`** — same surgery. `LightCheckpointError` adds `Read(CheckpointReadError)` with `#[from]`, all duplicated inline encoders/decoders removed; framing-specific variants (`BadMagic`, `UnsupportedVersion`, `IntegrityCheckFailed`, `TrailingBytes`, `PendingUnbondIndexMismatch`) stay. The encode body now calls `encode_consensus_params` / `encode_bonding_params` for the frozen-params block instead of inlining the 8+24 raw bytes.
+- **Byte-identity anchor test** in `mfn-light::checkpoint` —  `embedded_validator_block_matches_shared_encoder_byte_for_byte` builds a `CheckpointParts` with 3 validators, encodes it via `encode_checkpoint_bytes`, then re-encodes the same 3 validators with the shared `encode_validator` and asserts the two byte windows are equal. If the two codecs ever drift, this test fails on the next CI run.
+
+### Test matrix
+
+- **`mfn-consensus::checkpoint_codec` — 12 new unit tests** covering: validator round-trip (with + without payout), validator-stats round-trip, pending-unbond round-trip, consensus-params round-trip with f64-bits invariance, bonding-params round-trip, invalid payout-flag rejection, validator-decoder truncation at every byte offset, validator-assignment-check accepts well-formed lists, rejects duplicate indices, rejects `next ≤ max`, accepts any `next` for an empty list, deterministic encode of `DEFAULT_CONSENSUS_PARAMS`.
+- **`mfn-consensus::chain_checkpoint` — all 13 existing tests** continue to pass with mechanical match updates (`Truncated` → `Read(CheckpointReadError::Truncated)` etc.).
+- **`mfn-light::checkpoint` — all 40 existing unit tests + 17 follow-chain integration tests** continue to pass, plus 1 new byte-identity anchor test.
+- Workspace **+13 tests** total: 558 → **571**.
+
+### Properties preserved (must-haves)
+
+- **Byte-for-byte wire compatibility.** Every byte produced by `encode_checkpoint_bytes` (light) and `encode_chain_checkpoint` (full-node) is identical to its M2.0.15 counterpart. Existing checkpoint files / network payloads continue to decode unchanged.
+- **No consensus impact.** Nothing in the state-transition function or genesis hashing was touched; the codec is a serialisation concern that lives outside `apply_block`.
+- **Error fidelity.** Every previously-distinct per-field error variant is still reachable, just through `LightCheckpointError::Read(CheckpointReadError::...)` / `ChainCheckpointError::Read(CheckpointReadError::...)` instead of inline. Callers gain a `Display`-transparent error chain via `#[error(transparent)]`.
+
+### Scope decisions (what M2.0.16 explicitly does **not** do)
+
+- **No version bump.** `LIGHT_CHECKPOINT_VERSION` and `CHAIN_CHECKPOINT_VERSION` stay at `1`. The codec is the same; only its Rust-side organisation changed.
+- **No new wire fields.** Refactor only. Adding fields requires a version bump per the existing forward-compatibility plan.
+- **No `mfn-store` crate.** Still reserved for the future RocksDB / sled persistence backend.
+- **No mempool / network / RPC work.** Those are M2.1+ tier milestones.
+
+### What this unlocks
+
+- **One source of truth** for "what a validator's wire bytes look like." When M2.1+ adds a fast-sync RPC or a JSONRPC `getCheckpoint`, every layer agrees on the encoding by construction.
+- **Cheaper to add fields.** Any future per-field addition (e.g. a new `Validator` attribute, or a `ConsensusParams` knob) touches one encoder + one decoder + one test family.
+- **Compiler-enforced cohesion.** If someone adds a new field to `Validator` without updating the shared encoder, both `mfn-light` and `mfn-consensus` tests fail in unison — drift is impossible to merge silently.
 
 ---
 
