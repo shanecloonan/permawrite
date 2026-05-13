@@ -13,11 +13,11 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`**) | `mfn-node` | 52 | ✓ live (skeleton + mempool + persistence codec) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store**) | `mfn-node` | 57 | ✓ live (skeleton + mempool + checkpoint persistence store) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **571** | All checks green (+ 2 ignored) |
+| **Total** | | **576** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
 
@@ -850,7 +850,7 @@ See [`docs/M2_WALLET_UPLOAD.md`](./M2_WALLET_UPLOAD.md) for the full design note
 
 ### Scope decisions (what M2.0.15 explicitly does **not** do)
 
-- **No file IO.** The codec is `&[u8] ↔ Vec<u8>`. The daemon (M2.1.0) chooses on-disk layout (single-file snapshot, atomic rename, sled, RocksDB column families).
+- **No file IO.** The codec is `&[u8] ↔ Vec<u8>`. M2.1.0 later added the first daemon-side file snapshot store (`mfn_node::ChainStore`); richer sled / RocksDB layouts remain future work.
 - **No incremental persistence.** Encoder produces a full snapshot per call. Block-log persistence is a future M2.x; this codec is the safety net that bounds replay cost in either case.
 - **No mfn-light consolidation.** `mfn-light::checkpoint` and `mfn-consensus::chain_checkpoint` duplicate four small sub-encoders (`encode_validator`, etc). Wire bytes match byte-for-byte; consolidation is a future micro-milestone.
 - **No `mfn-store` crate.** That naming is reserved for the future RocksDB/sled backend that consumes this codec.
@@ -910,6 +910,49 @@ See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full desig
 
 ---
 
+## Milestone M2.1.0 — `mfn-node::store` filesystem checkpoint store (✓ shipped)
+
+**Why it was next.** M2.0.15 gave the full-node `ChainState` deterministic checkpoint bytes, and M2.0.16 made the shared checkpoint sub-encoders non-drifting. The next daemon-critical gap was the actual IO boundary: a process needs to boot from persisted bytes if present, fall back to genesis if not, and publish the latest state on shutdown without corrupting the last good snapshot. M2.1.0 is that smallest durable persistence primitive.
+
+### What shipped
+
+- **`mfn-node/src/store.rs`** — a stdlib-only filesystem checkpoint store over `Chain::encode_checkpoint` and `Chain::from_checkpoint_bytes`.
+- **`ChainStore`** — directory-owned, single-writer store with:
+  - `ChainStore::new(root)` — configure a store directory without touching disk.
+  - `load(cfg)` — read `chain.checkpoint` if present, restore it against the caller's `ChainConfig`, and return `Ok(None)` if no snapshot exists.
+  - `load_or_genesis(cfg)` — daemon boot primitive: restore checkpoint or construct a fresh genesis chain.
+  - `save(&chain)` — write canonical checkpoint bytes to `chain.checkpoint.tmp`, `sync_all` the temp file, rotate old `chain.checkpoint` to `chain.checkpoint.bak`, then publish the temp file as the new primary.
+  - `clear()` — remove primary, backup, and temp files.
+- **`StoreError`** — typed error boundary:
+  - `Io { op, path, source }` for filesystem failures.
+  - `Chain(ChainError)` for malformed / foreign-genesis checkpoint restore failures or genesis construction failures.
+- **Backup-slot recovery** — loads prefer `chain.checkpoint`, but if primary is absent they try `chain.checkpoint.bak`. This covers the interrupted-save window after old primary rotation but before new-primary publication, including Windows where `std::fs::rename` cannot portably replace an existing destination.
+
+### Test matrix
+
+- `missing_snapshot_loads_none_and_boots_genesis` — no files → `load` returns `None`; `load_or_genesis` boots height 0 and does not create a checkpoint implicitly.
+- `save_then_load_round_trips_chain_checkpoint` — save a genesis chain, load it, compare `ChainStats` and byte-identical checkpoint re-encoding.
+- `load_rejects_checkpoint_from_foreign_genesis` — saved checkpoint restored with a different `GenesisConfig` surfaces `ChainError::GenesisMismatch` through `StoreError::Chain`.
+- `load_recovers_from_backup_when_primary_is_missing` — simulates an interrupted rotation by moving primary to backup; `load` recovers from backup bytes.
+- `save_removes_stale_temp_file_and_clear_removes_all_store_files` — stale temp is removed before save; second save creates backup; `clear` deletes primary / backup / temp.
+
+Workspace **+5 tests** total: 571 → **576**.
+
+### Scope decisions
+
+- **No RocksDB / sled yet.** M2.1.0 is a full-snapshot file store. Block-log replay, compaction, retention, pruning, checksummed metadata, and column families remain future M2.x work.
+- **No async runtime.** The store is synchronous and stdlib-only. The daemon can call it on boot/shutdown without committing the repo to `tokio` or any runtime choice yet.
+- **No RPC / P2P / clock.** This is the persistence floor under those layers, not the layers themselves.
+- **No checkpoint version bump.** The store consumes M2.0.15 checkpoint v1 bytes unchanged.
+
+### What this unlocks
+
+- **M2.1 single-node daemon boot path.** The daemon can now express: `let chain = store.load_or_genesis(cfg)?; ...; store.save(&chain)?;`.
+- **Restart/chaos tests.** Long-running harnesses can persist, drop process state, reload, and continue against byte-identical `ChainState`.
+- **RPC-ready introspection.** Future `getCheckpoint` / `saveCheckpoint` / `restoreCheckpoint` RPC handlers have a small stable backend to call.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -926,7 +969,7 @@ See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full desig
 |---|---|
 | `mempool.rs` | Pending-tx admission, fee ordering, eviction. |
 | `network.rs` | libp2p / direct-TCP P2P gossip. Block + tx propagation. |
-| `store.rs` | RocksDB-backed persistent chain state. Snapshot/replay/restore. |
+| `store.rs` | M2.1.0 file checkpoint store is live; future RocksDB/sled snapshot + block-log replay extends it. |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
 | `bin/mfnd.rs` | The daemon entrypoint. |

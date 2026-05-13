@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-13T20:45:45.182Z
+**Generated (UTC):** 2026-05-13T21:55:11.308Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 115 |
-| Total lines (all scanned source-like files) | 44,842 |
-| Non-empty lines | 39,227 |
-| UTF-8 bytes (source-like) | 1,953,958 |
-| Paths visited (before binary/huge skip) | 120 |
+| Source-like files scanned | 116 |
+| Total lines (all scanned source-like files) | 45,286 |
+| Non-empty lines | 39,613 |
+| UTF-8 bytes (source-like) | 1,973,249 |
+| Paths visited (before binary/huge skip) | 121 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -24,9 +24,9 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 17 | 13,639 | 12,655 |
-| `docs` | 31 | 8,667 | 6,266 |
+| `docs` | 31 | 8,717 | 6,304 |
 | `mfn-crypto` | 22 | 6,625 | 5,950 |
-| `mfn-node` | 10 | 4,393 | 4,034 |
+| `mfn-node` | 11 | 4,787 | 4,382 |
 | `mfn-wallet` | 12 | 3,995 | 3,662 |
 | `mfn-light` | 6 | 3,692 | 3,369 |
 | `mfn-storage` | 6 | 1,960 | 1,782 |
@@ -39,8 +39,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 63 | 33,623 | 31,024 | 1,261,928 |
-| `.md` | 39 | 10,177 | 7,310 | 643,864 |
+| `.rs` | 64 | 34,009 | 31,365 | 1,276,383 |
+| `.md` | 39 | 10,235 | 7,355 | 648,700 |
 | `.svg` | 3 | 480 | 425 | 32,915 |
 | `.mjs` | 1 | 261 | 214 | 7,024 |
 | `.toml` | 8 | 244 | 204 | 6,884 |
@@ -56,11 +56,11 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 1,499 | `mfn-light/src/chain.rs` |
 | 1,353 | `mfn-consensus/src/transaction.rs` |
 | 1,204 | `mfn-consensus/src/chain_checkpoint.rs` |
-| 1,064 | `docs/ROADMAP.md` |
+| 1,107 | `docs/ROADMAP.md` |
 | 1,022 | `mfn-light/tests/follow_chain.rs` |
 | 1,011 | `mfn-consensus/src/consensus.rs` |
 | 949 | `mfn-wallet/src/upload.rs` |
-| 930 | `docs/ARCHITECTURE.md` |
+| 937 | `docs/ARCHITECTURE.md` |
 | 870 | `mfn-crypto/src/utxo_tree.rs` |
 | 816 | `mfn-light/src/checkpoint.rs` |
 | 804 | `mfn-storage/src/spora.rs` |

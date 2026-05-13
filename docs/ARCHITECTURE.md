@@ -795,7 +795,7 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (52 tests: 37 unit + 15 integration)
+mfn-node/           Node-side glue             (57 tests: 42 unit + 15 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
@@ -811,7 +811,7 @@ mfn-node/           Node-side glue             (52 tests: 37 unit + 15 integrati
 │                   produce_solo_block one-call helper for the single-validator
 │                   case. The shape future P2P / RPC / mempool integration
 │                   consumes.
-└── mempool.rs      M2.0.12 + M2.0.13 in-memory transaction pool. Mempool::admit
+├── mempool.rs      M2.0.12 + M2.0.13 in-memory transaction pool. Mempool::admit
                     replicates every per-tx gate apply_block runs — both the
                     PRIVACY gates (verify_transaction + ring-membership chain
                     guard with commit match + key-image dedup against
@@ -833,6 +833,13 @@ mfn-node/           Node-side glue             (52 tests: 37 unit + 15 integrati
                     StorageReplicationTooHigh, EndowmentMathFailed,
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
+└── store.rs        M2.1.0 filesystem checkpoint store. ChainStore::save writes
+                    Chain::encode_checkpoint() bytes through
+                    chain.checkpoint.tmp, rotates the previous primary to
+                    chain.checkpoint.bak, and publishes chain.checkpoint.
+                    ChainStore::load_or_genesis(cfg) restores from disk when
+                    present or builds genesis otherwise. StoreError separates
+                    filesystem failures from ChainError restore failures.
 
 mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,

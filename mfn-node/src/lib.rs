@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -26,14 +26,18 @@
 //!   key-image dedup against chain + mempool). Implements
 //!   replace-by-fee on key-image conflict, size-cap eviction of
 //!   the lowest-fee entry, and `drain(max)` for highest-fee-first
-//!   block inclusion. Storage-anchoring txs are gated behind a
-//!   future milestone via a typed error variant.
+//!   block inclusion. M2.0.13 adds storage-anchoring admission gates
+//!   that mirror `apply_block`'s permanence checks.
+//! - [`store`] (M2.1.0) — filesystem checkpoint store over
+//!   [`Chain::encode_checkpoint`] / [`Chain::from_checkpoint_bytes`].
+//!   This is the first IO-bearing node primitive: boot from a saved
+//!   checkpoint if present, otherwise build genesis; save latest state
+//!   via a temp-file + backup-slot rotation.
 //!
-//! Everything in this crate is **deterministic and synchronous**.
-//! Network / disk / clock concerns are deliberately absent — they belong
-//! in later M2.x sub-milestones. Keeping the chain driver pure makes it
-//! the same code path the producer loop, the RPC handler, and the (later)
-//! sync replay engine will all share.
+//! Everything below `Chain` / `producer` / `mempool` remains
+//! deterministic and synchronous. `store` is intentionally the first
+//! narrow IO boundary; network, RPC, and clock concerns remain later
+//! M2.x sub-milestones.
 //!
 //! ## Design — why a separate crate from `mfn-consensus`?
 //!
@@ -53,8 +57,9 @@
 //! ## Safety
 //!
 //! - `#![forbid(unsafe_code)]`.
-//! - No background threads, no clocks, no IO — every public method is
-//!   synchronous, deterministic, and re-entrant-safe.
+//! - No background threads, no clocks, no async runtime.
+//! - The only filesystem IO lives in [`store`], isolated behind typed
+//!   errors and deterministic checkpoint bytes.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -63,6 +68,7 @@
 pub mod chain;
 pub mod mempool;
 pub mod producer;
+pub mod store;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
@@ -70,3 +76,4 @@ pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,
 };
+pub use store::{ChainStore, StoreError, StoreSave};
