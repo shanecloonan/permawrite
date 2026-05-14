@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -587,6 +587,22 @@ fn mfnd_serve_get_mempool_lists_tx_after_submit() {
     let g = assert_rpc2_result(&resp_tx);
     assert_eq!(g["tx_id"], json!(tx_id_hex));
     assert_eq!(g["tx_hex"].as_str().expect("tx_hex"), tx_hex.as_str());
+
+    let req_rm = format!(
+        r#"{{"jsonrpc":"2.0","method":"remove_mempool_tx","params":{{"tx_id":"{tid}"}},"id":4}}"#
+    );
+    let resp_rm = tcp_request_json(sock, &req_rm);
+    let rm = assert_rpc2_result(&resp_rm);
+    assert_eq!(rm["removed"], json!(true));
+    assert_eq!(rm["pool_len"], json!(0));
+
+    let resp_empty = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":5}"#,
+    );
+    let me = assert_rpc2_result(&resp_empty);
+    assert_eq!(me["mempool_len"], json!(0));
+    assert_eq!(me["tx_ids"], json!([]));
 
     let _ = child.kill();
     let _ = child.wait();

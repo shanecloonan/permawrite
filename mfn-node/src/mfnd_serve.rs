@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -26,6 +26,10 @@
 //!
 //! **`get_mempool_tx`** (M2.1.13) returns `tx_id` + `tx_hex` (`encode_transaction`) for one
 //! pending entry; `params` are `{"tx_id": "<64 hex>"}` or `["<64 hex>"]` (optional `0x` prefix).
+//!
+//! **`remove_mempool_tx`** (M2.1.14) drops a pending entry by id if present (`Mempool::evict`);
+//! same `params` shapes as **`get_mempool_tx`**. Result is always success on valid params:
+//! `removed` (whether an entry was evicted) and `pool_len`.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -372,6 +376,24 @@ fn dispatch_serve_methods(
                     rpc_success(id, body)
                 }
             }
+        }
+        "remove_mempool_tx" => {
+            let hex_s = match extract_tx_id_param(req.get("params")) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let tid = match parse_tx_id_hex32(hex_s) {
+                Ok(b) => b,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let removed = pool.evict(&tid);
+            rpc_success(
+                id,
+                json!({
+                    "removed": removed,
+                    "pool_len": pool.len(),
+                }),
+            )
         }
         "submit_tx" => {
             let hex_s = match extract_submit_tx_hex(req.get("params")) {
@@ -1166,6 +1188,122 @@ mod tests {
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":"00","id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("object or a JSON array"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_missing_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_no_params");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","id":0}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("params"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_missing_tx_id_in_object() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("tx_id"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_array_empty() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_rejects_bad_hex() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_bad_hex");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":{"tx_id":"zz00000000000000000000000000000000000000000000000000000000000000"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("hex"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_rejects_wrong_hex_len() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_bad_len");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":{"tx_id":"abcd"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("64"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_absent_object_param() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_absent_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":{"tx_id":"0000000000000000000000000000000000000000000000000000000000000000"},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["removed"], json!(false));
+        assert_eq!(v["result"]["pool_len"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_absent_array_param() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_absent_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":["0000000000000000000000000000000000000000000000000000000000000000"],"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["removed"], json!(false));
+        assert_eq!(v["result"]["pool_len"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_remove_mempool_tx_params_must_be_object_or_array() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_rmtx_params_type");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"remove_mempool_tx","params":"00","id":1}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         assert!(v["error"]["message"]
