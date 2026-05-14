@@ -34,3 +34,4 @@ curve25519-dalek = { workspace = true }
 hex = { workspace = true }
 mfn-light = { path = "../mfn-light" }
 mfn-wallet = { path = "../mfn-wallet" }
+serde_json = { workspace = true }

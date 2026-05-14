@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -12,10 +12,12 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6) binds a loopback TCP port and answers one NDJSON
-//! request per connection (`get_tip`, `submit_tx`) against a live chain +
-//! mempool until the process exits.
-//! Full JSON-RPC 2.0 / P2P / durable mempool persistence still land in later M2.x milestones.
+//! **`serve`** (M2.1.6 + **M2.1.8**) binds a loopback TCP port and answers one
+//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`)
+//! against a live chain + mempool until the process exits; each response is a
+//! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
+//! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land
+//! in later M2.x milestones.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -84,8 +86,8 @@ fn usage() -> &'static str {
                (requires genesis with exactly one validator + payout;\n\
                 set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
                 same 64-hex seeds as in the JSON genesis for validator index 0)\n\
-       serve   load chain + empty mempool; TCP NDJSON control on --rpc-listen\n\
-               (one JSON request line per connection; methods: get_tip, submit_tx)\n"
+       serve   load chain + empty mempool; TCP newline-delimited JSON-RPC 2.0 on --rpc-listen\n\
+               (one request line per connection; methods: get_tip, submit_tx)\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {

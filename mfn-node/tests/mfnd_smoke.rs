@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -12,6 +12,7 @@ use mfn_crypto::seeded_rng;
 use mfn_crypto::stealth_wallet_from_seed;
 use mfn_node::{genesis_config_from_json_path, ChainConfig, ChainStore};
 use mfn_wallet::{TransferRecipient, Wallet, WalletKeys};
+use serde_json::{json, Value};
 
 /// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
 const DEVNET_SOLO_VRF_SEED_HEX: &str =
@@ -21,6 +22,32 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
 
 fn mfnd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mfnd"))
+}
+
+fn rpc_line(resp: &str) -> Value {
+    serde_json::from_str(resp.trim()).expect("serve response must be JSON")
+}
+
+fn assert_rpc2_result(resp: &str) -> Value {
+    let v = rpc_line(resp);
+    assert_eq!(v["jsonrpc"], "2.0", "resp={v}");
+    assert!(v.get("error").is_none() || v["error"].is_null(), "resp={v}");
+    assert!(v.get("result").is_some(), "resp={v}");
+    v["result"].clone()
+}
+
+fn assert_rpc2_error(resp: &str) -> (i64, String) {
+    let v = rpc_line(resp);
+    assert_eq!(v["jsonrpc"], "2.0", "resp={v}");
+    let err = v
+        .get("error")
+        .expect("error object")
+        .as_object()
+        .expect("error must be object");
+    (
+        err["code"].as_i64().expect("code"),
+        err["message"].as_str().expect("message").to_string(),
+    )
 }
 
 /// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
@@ -306,8 +333,23 @@ fn mfnd_serve_get_tip_over_tcp() {
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
-    assert!(resp.contains("\"ok\":true"), "resp={resp}");
-    assert!(resp.contains("tip_height"), "resp={resp}");
+    let r = assert_rpc2_result(&resp);
+    assert!(r.get("tip_height").is_some(), "r={r}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_tip_jsonrpc_echoes_id() {
+    let dir = unique_data_dir("serve_jsonrpc_id");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(sock, r#"{"jsonrpc":"2.0","method":"get_tip","id":"req-1"}"#);
+    let v = rpc_line(&resp);
+    assert_eq!(v["jsonrpc"], "2.0");
+    assert_eq!(v["id"], json!("req-1"));
+    assert!(v.get("result").is_some());
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
@@ -320,10 +362,11 @@ fn mfnd_serve_submit_tx_rejects_bad_hex() {
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = r#"{"method":"submit_tx","params":{"tx_hex":"gg"}}"#;
     let resp = tcp_request_json(sock, req);
-    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32602, "msg={msg}");
     assert!(
-        resp.contains("hex") || resp.contains("Hex"),
-        "expected hex decode error, resp={resp}"
+        msg.to_lowercase().contains("hex"),
+        "expected hex decode error, msg={msg}"
     );
     let _ = child.kill();
     let _ = child.wait();
@@ -337,10 +380,11 @@ fn mfnd_serve_submit_tx_rejects_truncated_wire() {
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = r#"{"method":"submit_tx","params":{"tx_hex":"00"}}"#;
     let resp = tcp_request_json(sock, req);
-    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32602, "msg={msg}");
     assert!(
-        resp.contains("decode_transaction") || resp.contains("decode"),
-        "resp={resp}"
+        msg.contains("decode_transaction") || msg.contains("decode"),
+        "msg={msg}"
     );
     let _ = child.kill();
     let _ = child.wait();
@@ -363,10 +407,11 @@ fn mfnd_serve_submit_tx_rejects_coinbase_shaped_wire() {
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = format!("{{\"method\":\"submit_tx\",\"params\":{{\"tx_hex\":\"{tx_hex}\"}}}}");
     let resp = tcp_request_json(sock, &req);
-    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32001, "msg={msg}");
     assert!(
-        resp.contains("admit:") || resp.contains("NoInputs") || resp.contains("no inputs"),
-        "resp={resp}"
+        msg.contains("mempool admit") && (msg.contains("no inputs") || msg.contains("NoInputs")),
+        "msg={msg}"
     );
     let _ = child.kill();
     let _ = child.wait();
@@ -379,8 +424,9 @@ fn mfnd_serve_submit_tx_rejects_missing_tx_hex() {
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let resp = tcp_request_json(sock, r#"{"method":"submit_tx","params":{}}"#);
-    assert!(resp.contains("\"ok\":false"), "resp={resp}");
-    assert!(resp.contains("tx_hex"), "resp={resp}");
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32602, "msg={msg}");
+    assert!(msg.contains("tx_hex"), "msg={msg}");
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
@@ -455,8 +501,8 @@ fn mfnd_step_writes_block_log_then_serve_submit_tx_admits_transfer() {
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = format!("{{\"method\":\"submit_tx\",\"params\":{{\"tx_hex\":\"{tx_hex}\"}}}}");
     let resp = tcp_request_json(sock, &req);
-    assert!(resp.contains("\"ok\":true"), "resp={resp}");
-    assert!(resp.contains("\"kind\":\"Fresh\""), "resp={resp}");
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["outcome"]["kind"], "Fresh", "r={r}");
 
     let _ = child.kill();
     let _ = child.wait();

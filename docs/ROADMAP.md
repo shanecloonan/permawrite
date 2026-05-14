@@ -13,13 +13,13 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`** + **M2.1.4 mempool-aware step + `--blocks N`** + **M2.1.5 `mfnd --checkpoint-each`** + **M2.1.6 `mfnd serve` TCP `get_tip` / `submit_tx`** + **M2.1.6.1 serve `submit_tx` TCP integration tests** + **M2.1.7 `chain.blocks` append log + optional `synthetic_decoy_utxos` + serve `submit_tx` happy path**) | `mfn-node` | 91 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis + solo step + narrow TCP serve + block sidecar) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`** + **M2.1.4 mempool-aware step + `--blocks N`** + **M2.1.5 `mfnd --checkpoint-each`** + **M2.1.6 `mfnd serve` TCP `get_tip` / `submit_tx`** + **M2.1.6.1 serve `submit_tx` TCP integration tests** + **M2.1.7 `chain.blocks` append log + optional `synthetic_decoy_utxos` + serve `submit_tx` happy path** + **M2.1.8 JSON-RPC 2.0 response envelope on `serve`**) | `mfn-node` | 100 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis + solo step + narrow TCP serve + block sidecar + JSON-RPC responses) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **611** | All checks green (+ 2 ignored) |
+| **Total** | | **620** | All checks green (+ 2 ignored) |
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), advances a solo devnet via `step` (mempool-aware, with `--blocks N` and optional `--checkpoint-each` for per-block durability) when operator seeds are set in the environment, persists an append-only **`chain.blocks`** log after each applied block (M2.1.7), and can **`serve`** a minimal TCP line protocol (`get_tip`, `submit_tx`) for local tools; P2P, full JSON-RPC, and the wallet CLI remain on the roadmap below.
+**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), advances a solo devnet via `step` (mempool-aware, with `--blocks N` and optional `--checkpoint-each` for per-block durability) when operator seeds are set in the environment, persists an append-only **`chain.blocks`** log after each applied block (M2.1.7), and can **`serve`** a minimal TCP line protocol (`get_tip`, `submit_tx`) whose responses follow **JSON-RPC 2.0** (M2.1.8: `jsonrpc`, `id`, `result` / structured `error`) for local tools; P2P, batching, HTTP/WebSocket RPC, and the wallet CLI remain on the roadmap below.
 
 ---
 
@@ -1111,7 +1111,7 @@ Workspace **+3 tests** vs the M2.1.4 line count: **595 → 598** passing.
 ### What shipped
 
 - **`mfnd serve`** — loads chain + store like other subcommands, holds an in-memory [`Mempool`], and listens on **`--rpc-listen HOST:PORT`** (default **`127.0.0.1:18731`**; **`127.0.0.1:0`** is allowed for ephemeral ports in tests). The first stdout line is **`mfnd_serve_listening=<SocketAddr>`** so harnesses can parse the bound address.
-- **Line protocol** — each accepted TCP client may send **one** UTF-8 line (no embedded newlines); the server replies with **one** JSON line and closes. Invalid JSON or unknown methods return `ok: false` with an `error` string.
+- **Line protocol** — each accepted TCP client may send **one** UTF-8 line (no embedded newlines); the server replies with **one** JSON line and closes. Since **M2.1.8**, every response is a JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`); the original M2.1.6 slice used ad-hoc `ok` / `error` string fields.
 - **`get_tip`** — returns `tip_height`, `tip_id`, `genesis_id` (64-char lowercase hex), `validator_count`, `mempool_len`.
 - **`submit_tx`** — `params.tx_hex` carries hex-encoded `encode_transaction` bytes (optional `0x` prefix); decoded tx is passed to `Mempool::admit`; response reports admission outcome or typed refusal.
 - **`--rpc-listen`** is accepted **only** with `serve` (rejected for `step` / `status` / …). **`serve`** does not require solo `step` env seeds (read-only tip query + mempool admission only).
@@ -1126,7 +1126,7 @@ Workspace **+4 tests** vs the M2.1.5 line count: **598 → 602** passing.
 
 ### Scope decisions
 
-- **Not JSON-RPC 2.0** — no batching, subscriptions, or HTTP; this is intentionally minimal NDJSON-over-TCP to unblock M2.2 P2P and a future `rpc` module without committing to a framework yet.
+- **JSON-RPC 2.0 envelope (M2.1.8)** — responses carry `"jsonrpc":"2.0"`, echo `id` (or `null`), and either `result` or `error` with numeric `code` (standard `-32700`…`-32603` plus **`-32001`** for mempool `admit` refusal). Still **no batching**, subscriptions, or HTTP; NDJSON-over-TCP remains the transport.
 - **Blocking accept loop** — one client at a time on the main thread matches the rest of `mfn-node`'s synchronous contract; a threaded/async server is deferred.
 
 ### What this unlocks
@@ -1194,6 +1194,30 @@ Workspace **+5 tests** vs the M2.1.6.1 line count: **606 → 611** passing.
 
 ---
 
+## Milestone M2.1.8 — `mfnd serve` JSON-RPC 2.0 responses (✓ shipped)
+
+**Why it was next.** M2.1.6 / M2.1.6.1 established a stable TCP harness and error taxonomy, but the wire used ad-hoc `ok` / `error` strings. Standard **JSON-RPC 2.0** responses let wallets, SDKs, and future `rpc` modules share one parsing model without changing the transport (still **one request line, one response line, close**).
+
+### What shipped
+
+- **`parse_and_dispatch_serve`** — central dispatcher used by the TCP loop; returns a single [`serde_json::Value`] with `jsonrpc`, `id`, and `result` or `error`.
+- **Request rules** — `method` must be a JSON string. Optional `jsonrpc`; when present it must be `"2.0"`. Omitted `id` is treated as `null` and echoed (the server **always** emits one response line per connection).
+- **Error codes** — `-32700` parse error; `-32600` invalid request; `-32601` method not found; `-32602` invalid params (bad hex, `decode_transaction`, missing `tx_hex`, wrong param types); `-32603` reserved for internal failures; **`-32001`** mempool `admit` refusal (message carries `AdmitError` display string prefixed with `mempool admit:`; see [`mempool.rs`](../mfn-node/src/mempool.rs)).
+- **`mfnd_smoke`** — assertions upgraded to parse JSON-RPC; **`mfnd_serve_get_tip_jsonrpc_echoes_id`** locks `id` round-trip; coinbase-shaped wire asserts **`-32001`**.
+- **Unit tests** (`mfnd_serve::tests`) — eight cases covering empty body, malformed JSON, bad `jsonrpc`, unknown method, `get_tip` success, `id` echo, missing `tx_hex`, non-string `method`.
+
+Workspace **+9 tests** vs the M2.1.7 line count: **611 → 620** passing.
+
+### Scope decisions
+
+- **No batch arrays**, **no notifications semantics** (TCP always responds once), **no HTTP** — same deliberate surface as M2.1.6 with a stricter envelope only.
+
+### What this unlocks
+
+- **`mfn-cli` / SDK** can treat `serve` as a baby JSON-RPC endpoint while the full `rpc` crate is still under construction.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -1213,11 +1237,11 @@ Workspace **+5 tests** vs the M2.1.6.1 line count: **606 → 611** passing.
 | `store.rs` | M2.1.0 file checkpoint store is live; **M2.1.7** append-only `chain.blocks` + `read_block_log`; future RocksDB/sled snapshot + fork-choice replay extends it. |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
-| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3–M2.1.5** — `step`, mempool drain, `--blocks N`, `--checkpoint-each`; **M2.1.6** — `serve` + `--rpc-listen`; **M2.1.7** — `chain.blocks` append on `step`. Full producer loop attaches later. |
+| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3–M2.1.5** — `step`, mempool drain, `--blocks N`, `--checkpoint-each`; **M2.1.6** — `serve` + `--rpc-listen`; **M2.1.7** — `chain.blocks` append on `step`; **M2.1.8** — JSON-RPC 2.0 responses on `serve`. Full producer loop attaches later. |
 
 ### Phases
 
-- **M2.1 — Single-node demo.** No P2P; `apply_block` is driven by **`step`** and, for local integration, a minimal **`serve`** TCP line server (`get_tip`, `submit_tx`). Full JSON-RPC lands in a later sub-milestone.
+- **M2.1 — Single-node demo.** No P2P; `apply_block` is driven by **`step`** and, for local integration, a minimal **`serve`** TCP line server (`get_tip`, `submit_tx`) with **JSON-RPC 2.0 responses (M2.1.8)**. A full `rpc` module (HTTP/WebSocket, richer methods) lands in a later sub-milestone.
 - **M2.2 — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
 - **M2.3 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
 
