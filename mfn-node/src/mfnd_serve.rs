@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -30,6 +30,10 @@
 //! **`remove_mempool_tx`** (M2.1.14) drops a pending entry by id if present (`Mempool::evict`);
 //! same `params` shapes as **`get_mempool_tx`**. Result is always success on valid params:
 //! `removed` (whether an entry was evicted) and `pool_len`.
+//!
+//! **`clear_mempool`** (M2.1.15) empties the entire pool (`Mempool::clear`); `params` must be
+//! omitted, `null`, `{}`, or `[]` (same rule as **`get_mempool`**). Success returns **`cleared_count`**
+//! (how many txs were removed) and **`pool_len`** (always `0`).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -214,16 +218,15 @@ fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
     Ok(id)
 }
 
-/// `get_mempool` accepts only absent / `null` / `{}` / `[]` `params`.
-fn reject_nonempty_get_mempool_params(params: Option<&Value>) -> Result<(), String> {
+/// `get_mempool`, `clear_mempool`, etc. accept only absent / `null` / `{}` / `[]` `params`.
+fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
         None | Some(Value::Null) => Ok(()),
         Some(Value::Object(o)) if o.is_empty() => Ok(()),
         Some(Value::Array(a)) if a.is_empty() => Ok(()),
-        Some(_) => Err(
-            "get_mempool does not accept non-empty params (omit `params` or use null, {}, or [])"
-                .to_string(),
-        ),
+        Some(_) => Err(format!(
+            "{method} does not accept non-empty params (omit `params` or use null, {{}}, or [])"
+        )),
     }
 }
 
@@ -341,7 +344,7 @@ fn dispatch_serve_methods(
             rpc_success(id, body)
         }
         "get_mempool" => {
-            if let Err(msg) = reject_nonempty_get_mempool_params(req.get("params")) {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_mempool") {
                 return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
             }
             let mut ids: Vec<String> = pool.iter().map(|e| hex32(&e.tx_id)).collect();
@@ -351,6 +354,20 @@ fn dispatch_serve_methods(
                 "tx_ids": ids,
             });
             rpc_success(id, body)
+        }
+        "clear_mempool" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "clear_mempool") {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            let cleared_count = pool.len();
+            pool.clear();
+            rpc_success(
+                id,
+                json!({
+                    "cleared_count": cleared_count,
+                    "pool_len": pool.len(),
+                }),
+            )
         }
         "get_mempool_tx" => {
             let hex_s = match extract_tx_id_param(req.get("params")) {
@@ -1310,6 +1327,67 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("object or a JSON array"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_clear_mempool_empty_pool_no_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_clr_empty");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","id":0}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["cleared_count"], json!(0));
+        assert_eq!(v["result"]["pool_len"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_clear_mempool_accepts_explicit_empty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_clr_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["cleared_count"], json!(0));
+        assert_eq!(v["result"]["pool_len"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_clear_mempool_accepts_empty_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_clr_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","params":[],"id":3}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["cleared_count"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_clear_mempool_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_clr_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","params":{"foo":1},"id":2}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("clear_mempool"));
         fs::remove_dir_all(&root).ok();
     }
 }

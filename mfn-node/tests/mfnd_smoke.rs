@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -599,6 +599,47 @@ fn mfnd_serve_get_mempool_lists_tx_after_submit() {
     let resp_empty = tcp_request_json(
         sock,
         r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":5}"#,
+    );
+    let me = assert_rpc2_result(&resp_empty);
+    assert_eq!(me["mempool_len"], json!(0));
+    assert_eq!(me["tx_ids"], json!([]));
+
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_clear_mempool_after_submit() {
+    let (dir, spec, tx_hex, tx_id_hex) =
+        synth_decoy_one_step_signed_transfer_fixture("serve_clear_mempool");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = format!(
+        r#"{{"jsonrpc":"2.0","method":"submit_tx","params":{{"tx_hex":"{tx_hex}"}},"id":1}}"#
+    );
+    let resp = tcp_request_json(sock, &req);
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["outcome"]["kind"], "Fresh", "r={r}");
+
+    let resp_m = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":2}"#,
+    );
+    let m = assert_rpc2_result(&resp_m);
+    assert_eq!(m["mempool_len"], json!(1), "m={m}");
+    assert_eq!(m["tx_ids"], json!([tx_id_hex]));
+
+    let resp_clr = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"clear_mempool","params":null,"id":3}"#,
+    );
+    let clr = assert_rpc2_result(&resp_clr);
+    assert_eq!(clr["cleared_count"], json!(1));
+    assert_eq!(clr["pool_len"], json!(0));
+
+    let resp_empty = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":4}"#,
     );
     let me = assert_rpc2_result(&resp_empty);
     assert_eq!(me["mempool_len"], json!(0));
