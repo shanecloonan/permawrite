@@ -13,13 +13,13 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store**) | `mfn-node` | 57 | ✓ live (skeleton + mempool + checkpoint persistence store) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary**) | `mfn-node` | 63 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` CLI) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **576** | All checks green (+ 2 ignored) |
+| **Total** | | **582** | All checks green (+ 2 ignored) |
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. There's no daemon, no mempool, no P2P, no wallet CLI yet. The roadmap below lays out the path from "consensus state machine in a test harness" to "running network."
+**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` reference binary (M2.1.1) exercises checkpoint load/save from a real process; P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
 
 ---
 
@@ -953,6 +953,40 @@ Workspace **+5 tests** total: 571 → **576**.
 
 ---
 
+## Milestone M2.1.1 — `mfnd` reference binary (✓ shipped)
+
+**Why it was next.** M2.1.0 proved the filesystem checkpoint lifecycle in unit tests, but operators still had no first-class process entrypoint. M2.1.1 ships the minimal `mfnd` binary so boot, status introspection, explicit save, and graceful shutdown (Ctrl+C → checkpoint write) are exercised end-to-end under `cargo test` and in manual runs.
+
+### What shipped
+
+- **`mfn-node/src/bin/mfnd.rs`** — thin `main` calling [`mfn_node::mfnd_main`].
+- **`mfn-node/src/mfnd_cli.rs`** — argument parsing and commands:
+  - `mfnd --data-dir <DIR> status` — prints tip height / tip id / genesis id / whether a durable checkpoint existed on disk before this boot.
+  - `mfnd --data-dir <DIR> save` — `load_or_genesis` then `ChainStore::save`.
+  - `mfnd --data-dir <DIR> run` — load-or-genesis, then wait for graceful shutdown: **Unix** installs `ctrlc` and saves on Ctrl+C; **Windows** waits for Enter (avoids a `windows-sys` dependency that breaks `windows-gnu` toolchains missing `dlltool`), then saves.
+- **`mfn-node/src/demo_genesis.rs`** — fixed empty-validator dev genesis shared with store tests, until deployment-specific genesis files are wired.
+- **`ChainStore::has_any_checkpoint`** — true when primary or backup checkpoint exists (ignores `.tmp` staging files).
+
+### Test matrix
+
+- `store` unit tests extended for `has_any_checkpoint` (including temp-only → false).
+- `mfnd_smoke` integration tests: status on empty dir, save→status, missing `--data-dir` error path.
+
+Workspace **+6 tests** total: 576 → **582**.
+
+### Scope decisions
+
+- **No block production loop** in `run` yet — the process only demonstrates persistence + operator ergonomics.
+- **No JSON-RPC / P2P.** Those remain later M2.x milestones.
+- **Dev genesis only** — production networks must load an agreed chain spec from out-of-band configuration.
+
+### What this unlocks
+
+- **Operator-visible lifecycle** — the same `load_or_genesis` / `save` path a future full daemon will use, now runnable from the shell.
+- **Signal-safe shutdown hook (Unix)** — Ctrl+C path saves before `process::exit`; Windows uses Enter instead so `windows-gnu` hosts stay buildable without `windows-sys`.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -972,7 +1006,7 @@ Workspace **+5 tests** total: 571 → **576**.
 | `store.rs` | M2.1.0 file checkpoint store is live; future RocksDB/sled snapshot + block-log replay extends it. |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
-| `bin/mfnd.rs` | The daemon entrypoint. |
+| `bin/mfnd.rs` | **M2.1.1** — minimal reference daemon (`status` / `save` / `run`); full producer loop attaches later. |
 
 ### Phases
 

@@ -8,6 +8,10 @@ authors.workspace = true
 repository.workspace = true
 description = "Permawrite — node-side glue around mfn-consensus: in-memory chain driver, block-application orchestration, future home of mempool / P2P / RPC."
 
+[[bin]]
+name = "mfnd"
+path = "src/bin/mfnd.rs"
+
 [lints.clippy]
 all = "warn"
 
@@ -18,6 +22,9 @@ mfn-storage = { path = "../mfn-storage" }
 mfn-consensus = { path = "../mfn-consensus" }
 
 thiserror = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+ctrlc = "3.4"
 
 [dev-dependencies]
 curve25519-dalek = { workspace = true }

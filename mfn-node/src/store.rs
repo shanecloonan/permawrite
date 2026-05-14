@@ -148,6 +148,15 @@ impl ChainStore {
         self.root.join(TEMP_FILE)
     }
 
+    /// Returns true if a durable checkpoint file exists (primary or backup).
+    ///
+    /// Staging files (`chain.checkpoint.tmp`) are ignored: an interrupted
+    /// save may leave a temp without a publishable primary.
+    #[must_use]
+    pub fn has_any_checkpoint(&self) -> bool {
+        self.checkpoint_path().exists() || self.backup_path().exists()
+    }
+
     /// Save `chain` to the primary checkpoint file.
     ///
     /// Existing primary bytes are retained as `chain.checkpoint.bak`.
@@ -310,6 +319,7 @@ mod tests {
     fn save_then_load_round_trips_chain_checkpoint() {
         let store = store_for("save_then_load_round_trips_chain_checkpoint");
         let cfg = ChainConfig::new(empty_genesis_cfg(0));
+        assert!(!store.has_any_checkpoint());
         let chain = Chain::from_genesis(cfg.clone()).unwrap();
 
         let saved = store.save(&chain).unwrap();
@@ -321,6 +331,16 @@ mod tests {
         let restored = store.load(cfg).unwrap().expect("checkpoint must exist");
         assert_eq!(restored.stats(), chain.stats());
         assert_eq!(restored.encode_checkpoint(), chain.encode_checkpoint());
+        assert!(store.has_any_checkpoint());
+        fs::remove_dir_all(store.root()).ok();
+    }
+
+    #[test]
+    fn has_any_checkpoint_false_when_only_stale_temp_exists() {
+        let store = store_for("has_any_checkpoint_false_when_only_stale_temp_exists");
+        fs::create_dir_all(store.root()).unwrap();
+        fs::write(store.temp_path(), b"x").unwrap();
+        assert!(!store.has_any_checkpoint());
         fs::remove_dir_all(store.root()).ok();
     }
 
@@ -348,6 +368,7 @@ mod tests {
         fs::rename(store.checkpoint_path(), store.backup_path()).unwrap();
         assert!(!store.checkpoint_path().exists());
         assert!(store.backup_path().exists());
+        assert!(store.has_any_checkpoint());
 
         let restored = store.load(cfg).unwrap().expect("backup should restore");
         assert_eq!(restored.encode_checkpoint(), chain.encode_checkpoint());

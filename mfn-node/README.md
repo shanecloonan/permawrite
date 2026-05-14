@@ -2,13 +2,13 @@
 
 Node-side glue around [`mfn-consensus`](../mfn-consensus/README.md). The future home of the mempool, P2P stack, persistent storage, RPC server, and producer / voter loops — the things that turn a state-transition function into a **running chain**.
 
-**Tests:** 57 passing (42 unit + 15 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 63 passing (45 unit + 18 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
 
 ---
 
-## Status (M2.0.3 `Chain` driver + M2.0.4 producer helpers + M2.0.5 light-header agreement + M2.0.12 `Mempool` + M2.0.13 storage-anchoring admission + M2.0.15 chain-state persistence adapter + M2.1.0 `ChainStore` landed; M2.0.6 / M2.0.7 consumed by `mfn-light`)
+## Status (M2.0.3 `Chain` driver + M2.0.4 producer + M2.0.5 light-header tests + M2.0.12 `Mempool` + M2.0.13 storage admission + M2.0.15 checkpoint adapter + M2.1.0 `ChainStore` + **M2.1.1 `mfnd` binary**; M2.0.6 / M2.0.7 consumed by `mfn-light`)
 
-This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Plus a `producer` module that wraps the consensus-layer building blocks (`build_unsealed_header` / `try_produce_slot` / `cast_vote` / `finalize` / `seal_block`) into a clean three-stage protocol with a one-call `produce_solo_block` convenience for the single-validator case, a `Mempool` that feeds the producer, and a `ChainStore` that persists checkpoint bytes to disk. Everything remains **synchronous and deterministic at the consensus boundary**; `store` is the first narrow IO layer, while clock / RPC / P2P stay in later M2.x milestones.
+This is the **smallest useful "running chain in a process"** artifact: a `Chain` struct owning a `ChainState`, exposing ergonomic read-only queries (`tip_id`, `tip_height`, `validators`, `treasury`, `stats`), and applying blocks sequentially through [`mfn_consensus::apply_block`]. Plus a `producer` module that wraps the consensus-layer building blocks (`build_unsealed_header` / `try_produce_slot` / `cast_vote` / `finalize` / `seal_block`) into a clean three-stage protocol with a one-call `produce_solo_block` convenience for the single-validator case, a `Mempool` that feeds the producer, and a `ChainStore` that persists checkpoint bytes to disk. The **`mfnd`** binary (`cargo run -p mfn-node --bin mfnd`) wires `load_or_genesis` / `save` to the shell (`status`, `save`, `run`). On Unix, `run` saves on Ctrl+C via the `ctrlc` crate; on Windows it waits for Enter so `windows-gnu` toolchains without MSVC link helpers are not pulled in through `windows-sys`. Everything remains **synchronous and deterministic at the consensus boundary** except the intentional IO in `store` / `mfnd`; clock / RPC / P2P stay in later M2.x milestones.
 
 The integration test [`tests/single_validator_flow.rs`](tests/single_validator_flow.rs) demonstrates the full end-to-end loop:
 
@@ -28,7 +28,9 @@ That's the same path a real validator daemon will run in a loop, just without th
 | [`chain`](src/chain.rs) | `Chain` driver, `ChainConfig`, `ChainError`, `ChainStats`. **M2.0.15** added `Chain::checkpoint()`, `Chain::encode_checkpoint()`, `Chain::from_checkpoint(cfg, ck)`, and `Chain::from_checkpoint_bytes(cfg, &[u8])` — the in-process adapter over [`mfn_consensus::chain_checkpoint`]'s deterministic byte codec. Restoration re-derives the local genesis_id from `ChainConfig` and rejects any mismatch with `ChainError::GenesisMismatch { expected, got }`; bad bytes surface as `ChainError::CheckpointDecode(ChainCheckpointError)`. |
 | [`producer`](src/producer.rs) | Block-production helpers. Three-stage protocol (`build_proposal` → `vote_on_proposal` → `seal_proposal`) plus one-call `produce_solo_block` for the single-validator case. The shape that future P2P / RPC / mempool integration will consume. |
 | [`mempool`](src/mempool.rs) | **M2.0.12 + M2.0.13** in-memory transaction pool. `Mempool::admit` runs every per-tx gate `apply_block` runs — both **privacy** (`verify_transaction` + ring-membership + commit match + key-image dedup against chain + pool) and **permanence** (M2.0.13: replication bounds, `required_endowment` math, treasury-share-vs-burden, with already-anchored and within-tx-duplicate data roots silently skipped — mirrors `apply_block` byte-for-byte). Replace-by-fee, lowest-fee eviction at the size cap, highest-fee-first `drain(max)` with `tx_id` tie-break for byte-deterministic block bodies. `remove_mined(&Block)` evicts mined entries after a block applies. |
-| [`store`](src/store.rs) | **M2.1.0** filesystem checkpoint store. `ChainStore::load(cfg)` restores a saved chain if `chain.checkpoint` exists; `load_or_genesis(cfg)` boots from checkpoint or genesis; `save(&chain)` writes checkpoint bytes through `chain.checkpoint.tmp`, rotates the old primary to `chain.checkpoint.bak`, and publishes the new primary. `clear()` removes all store files. |
+| [`store`](src/store.rs) | **M2.1.0 + M2.1.1** filesystem checkpoint store. `ChainStore::load(cfg)` restores a saved chain if `chain.checkpoint` exists; `load_or_genesis(cfg)` boots from checkpoint or genesis; `save(&chain)` writes checkpoint bytes through `chain.checkpoint.tmp`, rotates the old primary to `chain.checkpoint.bak`, and publishes the new primary. `has_any_checkpoint()` reports whether primary or backup exists (staging `.tmp` ignored). `clear()` removes all store files. |
+| [`demo_genesis`](src/demo_genesis.rs) | **M2.1.1** fixed empty-validator dev genesis used by `mfnd` and store tests until chain-spec loading exists. |
+| [`bin/mfnd`](src/bin/mfnd.rs) | **M2.1.1** process entrypoint calling [`mfn_node::mfnd_main`]; CLI lives in [`mfnd_cli`](src/mfnd_cli.rs). |
 
 Planned in future M2.x sub-milestones (deliberately *not* in this crate yet):
 
@@ -37,7 +39,6 @@ Planned in future M2.x sub-milestones (deliberately *not* in this crate yet):
 | `network` | libp2p / direct-TCP P2P gossip. Block + tx propagation. | M2.2 |
 | `store` extensions | Block-log replay, RocksDB/sled column families, pruning/retention, crash-fuzzing. The M2.1.0 file snapshot store is live. | M2.1+ |
 | `rpc` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. | M2.2 |
-| `bin/mfnd` | The daemon entrypoint. | M2.1+ |
 
 ---
 
