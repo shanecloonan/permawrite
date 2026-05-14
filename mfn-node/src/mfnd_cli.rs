@@ -11,7 +11,10 @@
 //! `produce_solo_block` → `apply` → `remove_mined`. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! JSON-RPC / P2P / durable mempool still land in later M2.x milestones.
+//! **`serve`** (M2.1.6) binds a loopback TCP port and answers one NDJSON
+//! request per connection (`get_tip`, `submit_tx`) against a live chain +
+//! mempool until the process exits.
+//! Full JSON-RPC 2.0 / P2P / durable mempool persistence still land in later M2.x milestones.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -45,6 +48,7 @@ enum Cmd {
     Save,
     Run,
     Step,
+    Serve,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,6 +60,8 @@ struct Parsed {
     step_count: u32,
     /// Solo `step` only: persist checkpoint after every block (not only at end).
     checkpoint_each_block: bool,
+    /// Solo `serve` only: `HOST:PORT` to bind (default `127.0.0.1:18731`).
+    rpc_listen: Option<String>,
 }
 
 fn usage() -> &'static str {
@@ -66,6 +72,7 @@ fn usage() -> &'static str {
        --blocks N       only for `step`: produce and apply N blocks in sequence\n\
                         (default 1; by default one checkpoint after the last block)\n\
        --checkpoint-each  only for `step`: write checkpoint after every applied block\n\
+       --rpc-listen ADDR:PORT   only for `serve` (default 127.0.0.1:18731)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -75,7 +82,9 @@ fn usage() -> &'static str {
        step    solo-validator: produce next block(s), apply, save checkpoint\n\
                (requires genesis with exactly one validator + payout;\n\
                 set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
-                same 64-hex seeds as in the JSON genesis for validator index 0)\n"
+                same 64-hex seeds as in the JSON genesis for validator index 0)\n\
+       serve   load chain + empty mempool; TCP NDJSON control on --rpc-listen\n\
+               (one JSON request line per connection; methods: get_tip, submit_tx)\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
@@ -327,6 +336,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 parsed.checkpoint_each_block,
             )?;
         }
+        Cmd::Serve => {
+            let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
+            crate::mfnd_serve::run_serve(&store, cfg, listen)?;
+        }
     }
     Ok(())
 }
@@ -361,6 +374,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut genesis_toml: Option<PathBuf> = None;
     let mut step_count: Option<u32> = None;
     let mut checkpoint_each_block = false;
+    let mut rpc_listen: Option<String> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -412,6 +426,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 1;
             continue;
         }
+        if a == "--rpc-listen" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--rpc-listen requires HOST:PORT (e.g. 127.0.0.1:18731)".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected HOST:PORT after --rpc-listen".into());
+            }
+            rpc_listen = Some(v.clone());
+            i += 2;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -427,6 +452,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         "save" => Cmd::Save,
         "run" => Cmd::Run,
         "step" => Cmd::Step,
+        "serve" => Cmd::Serve,
         other => return Err(format!("unknown command `{other}`\n{}", usage())),
     };
     let step_count = match (step_count, cmd) {
@@ -446,12 +472,19 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if rpc_listen.is_some() && cmd != Cmd::Serve {
+        return Err(format!(
+            "--rpc-listen is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
         cmd,
         step_count,
         checkpoint_each_block,
+        rpc_listen,
     })
 }
 
@@ -466,6 +499,41 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Step);
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
+        assert_eq!(p.rpc_listen, None);
+    }
+
+    #[test]
+    fn parse_args_serve() {
+        let args = vec!["--data-dir".into(), "/tmp/x".into(), "serve".into()];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(p.rpc_listen, None);
+    }
+
+    #[test]
+    fn parse_args_serve_rpc_listen() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-listen".into(),
+            "127.0.0.1:19999".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:19999"));
+    }
+
+    #[test]
+    fn parse_args_rpc_listen_rejected_without_serve() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-listen".into(),
+            "127.0.0.1:1".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]
@@ -482,6 +550,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Step);
         assert_eq!(p.step_count, 2);
         assert!(p.checkpoint_each_block);
+        assert_eq!(p.rpc_listen, None);
     }
 
     #[test]
@@ -508,6 +577,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Step);
         assert_eq!(p.step_count, 5);
         assert!(!p.checkpoint_each_block);
+        assert_eq!(p.rpc_listen, None);
     }
 
     #[test]
@@ -537,6 +607,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Status);
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
+        assert_eq!(p.rpc_listen, None);
     }
 
     #[test]
@@ -547,6 +618,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Status);
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
+        assert_eq!(p.rpc_listen, None);
     }
 
     #[test]

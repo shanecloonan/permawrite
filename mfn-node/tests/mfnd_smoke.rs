@@ -1,7 +1,9 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6).
 
+use std::io::{BufRead, BufReader, Write};
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
@@ -251,6 +253,45 @@ fn mfnd_step_checkpoint_each_writes_after_each_block() {
         "stdout={stdout}"
     );
     assert!(stdout.contains("new_tip_height=2"), "stdout={stdout}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_tip_over_tcp() {
+    let dir = unique_data_dir("serve_get_tip");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve");
+    let stdout = child.stdout.take().expect("stdout pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let mut listen_line = String::new();
+    out_reader
+        .read_line(&mut listen_line)
+        .expect("read mfnd_serve_listening");
+    let addr_s = listen_line
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim();
+    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
+    let mut tcp = TcpStream::connect(sock).expect("tcp connect");
+    writeln!(tcp, "{{\"method\":\"get_tip\"}}").expect("write request");
+    let mut resp = String::new();
+    BufReader::new(&tcp)
+        .read_line(&mut resp)
+        .expect("read response");
+    assert!(resp.contains("\"ok\":true"), "resp={resp}");
+    assert!(resp.contains("tip_height"), "resp={resp}");
+    let _ = child.kill();
+    let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
 }
 
