@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
     block_header_bytes, block_id, build_genesis, decode_block, decode_block_header, encode_block,
-    encode_transaction, TransactionWire, TX_VERSION,
+    encode_transaction, tx_id, TransactionWire, TX_VERSION,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
@@ -99,6 +99,78 @@ fn unique_data_dir(test: &str) -> PathBuf {
         "permawrite-mfnd-{test}-{}-{nanos}",
         std::process::id()
     ))
+}
+
+/// One `mfnd step` on `devnet_one_validator_synth_decoys.json`, then build a signed transfer from
+/// the post-step chain state. Caller uses `data_dir` + `spec` for `serve` and `tx_hex` for
+/// `submit_tx`; `tx_id_hex` matches `get_mempool` wire ids (64-char lowercase hex).
+fn synth_decoy_one_step_signed_transfer_fixture(test: &str) -> (PathBuf, PathBuf, String, String) {
+    let dir = unique_data_dir(test);
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_synth_decoys.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let store = ChainStore::new(&dir);
+    let blocks = store.read_block_log().expect("read blocks");
+    assert_eq!(
+        blocks.len(),
+        1,
+        "expected one block log record after one step"
+    );
+
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let chain_cfg = ChainConfig::new(gc.clone());
+    let genesis_block = build_genesis(&chain_cfg.genesis);
+
+    let mut bls_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
+    let mut alice = Wallet::from_keys(WalletKeys::from_stealth(stealth_wallet_from_seed(
+        &bls_seed,
+    )));
+    let bob = Wallet::from_seed(&[0xC0u8; 32]);
+
+    alice.ingest_block(&genesis_block);
+    alice.ingest_block(&blocks[0]);
+
+    let chain = store
+        .load_or_genesis(chain_cfg.clone())
+        .expect("load chain");
+
+    let mut rng = seeded_rng(0x7E11);
+    let signed = alice
+        .build_transfer(
+            &[TransferRecipient {
+                recipient: mfn_consensus::Recipient {
+                    view_pub: bob.keys().view_pub(),
+                    spend_pub: bob.keys().spend_pub(),
+                },
+                value: 50_000,
+            }],
+            10_000,
+            8,
+            chain.state(),
+            b"mfnd-serve",
+            &mut rng,
+        )
+        .expect("build transfer");
+
+    let id_hex = hex::encode(tx_id(&signed.tx));
+    let tx_hex = hex::encode(encode_transaction(&signed.tx));
+    (dir, spec, tx_hex, id_hex)
 }
 
 #[test]
@@ -472,75 +544,39 @@ fn mfnd_serve_submit_tx_rejects_missing_tx_hex() {
 
 #[test]
 fn mfnd_step_writes_block_log_then_serve_submit_tx_admits_transfer() {
-    let dir = unique_data_dir("serve_submit_ok");
-    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("testdata/devnet_one_validator_synth_decoys.json");
-    let step_out = mfnd()
-        .args(["--data-dir"])
-        .arg(&dir)
-        .arg("--genesis")
-        .arg(&spec)
-        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
-        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
-        .arg("step")
-        .output()
-        .expect("spawn mfnd step");
-    assert!(
-        step_out.status.success(),
-        "stderr={}",
-        String::from_utf8_lossy(&step_out.stderr)
-    );
-
-    let store = ChainStore::new(&dir);
-    let blocks = store.read_block_log().expect("read blocks");
-    assert_eq!(
-        blocks.len(),
-        1,
-        "expected one block log record after one step"
-    );
-
-    let gc = genesis_config_from_json_path(&spec).expect("genesis");
-    let chain_cfg = ChainConfig::new(gc.clone());
-    let genesis_block = build_genesis(&chain_cfg.genesis);
-
-    let mut bls_seed = [0u8; 32];
-    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
-    let mut alice = Wallet::from_keys(WalletKeys::from_stealth(stealth_wallet_from_seed(
-        &bls_seed,
-    )));
-    let bob = Wallet::from_seed(&[0xC0u8; 32]);
-
-    alice.ingest_block(&genesis_block);
-    alice.ingest_block(&blocks[0]);
-
-    let chain = store
-        .load_or_genesis(chain_cfg.clone())
-        .expect("load chain");
-
-    let mut rng = seeded_rng(0x7E11);
-    let signed = alice
-        .build_transfer(
-            &[TransferRecipient {
-                recipient: mfn_consensus::Recipient {
-                    view_pub: bob.keys().view_pub(),
-                    spend_pub: bob.keys().spend_pub(),
-                },
-                value: 50_000,
-            }],
-            10_000,
-            8,
-            chain.state(),
-            b"mfnd-serve",
-            &mut rng,
-        )
-        .expect("build transfer");
-
-    let tx_hex = hex::encode(encode_transaction(&signed.tx));
+    let (dir, spec, tx_hex, _) = synth_decoy_one_step_signed_transfer_fixture("serve_submit_ok");
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = format!("{{\"method\":\"submit_tx\",\"params\":{{\"tx_hex\":\"{tx_hex}\"}}}}");
     let resp = tcp_request_json(sock, &req);
     let r = assert_rpc2_result(&resp);
     assert_eq!(r["outcome"]["kind"], "Fresh", "r={r}");
+
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_mempool_lists_tx_after_submit() {
+    let (dir, spec, tx_hex, tx_id_hex) =
+        synth_decoy_one_step_signed_transfer_fixture("serve_mempool_nonempty");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = format!(
+        r#"{{"jsonrpc":"2.0","method":"submit_tx","params":{{"tx_hex":"{tx_hex}"}},"id":1}}"#
+    );
+    let resp = tcp_request_json(sock, &req);
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["outcome"]["kind"], "Fresh", "r={r}");
+
+    let resp_m = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":2}"#,
+    );
+    let m = assert_rpc2_result(&resp_m);
+    assert_eq!(m["mempool_len"], json!(1), "m={m}");
+    let ids = m["tx_ids"].as_array().expect("tx_ids");
+    assert_eq!(ids.len(), 1);
+    assert_eq!(ids[0], json!(tx_id_hex));
 
     let _ = child.kill();
     let _ = child.wait();

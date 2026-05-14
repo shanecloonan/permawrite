@@ -58,7 +58,7 @@
 //!   `params` as `{"tx_hex":"…"}` or a one-element array `["…"]` (**M2.1.8.1**).
 //!   Integration tests
 //!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12) drive `serve` over TCP
-//!   including `submit_tx` error paths and a signed-transfer happy path.
+//!   including `submit_tx` error paths, a signed-transfer happy path, and **`get_mempool`** (empty pool + nonempty after admit).
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains
