@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -577,6 +577,16 @@ fn mfnd_serve_get_mempool_lists_tx_after_submit() {
     let ids = m["tx_ids"].as_array().expect("tx_ids");
     assert_eq!(ids.len(), 1);
     assert_eq!(ids[0], json!(tx_id_hex));
+
+    let tid = r["tx_id"].as_str().expect("submit tx_id");
+    assert_eq!(tid, tx_id_hex.as_str());
+    let req_tx = format!(
+        r#"{{"jsonrpc":"2.0","method":"get_mempool_tx","params":{{"tx_id":"{tid}"}},"id":3}}"#
+    );
+    let resp_tx = tcp_request_json(sock, &req_tx);
+    let g = assert_rpc2_result(&resp_tx);
+    assert_eq!(g["tx_id"], json!(tx_id_hex));
+    assert_eq!(g["tx_hex"].as_str().expect("tx_hex"), tx_hex.as_str());
 
     let _ = child.kill();
     let _ = child.wait();

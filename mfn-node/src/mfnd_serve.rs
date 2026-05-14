@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -23,11 +23,17 @@
 //!
 //! **`get_mempool`** (M2.1.12) returns `mempool_len` and every pending tx id
 //! as lowercase hex in **`tx_ids`**, sorted lexicographically for a stable wire shape.
+//!
+//! **`get_mempool_tx`** (M2.1.13) returns `tx_id` + `tx_hex` (`encode_transaction`) for one
+//! pending entry; `params` are `{"tx_id": "<64 hex>"}` or `["<64 hex>"]` (optional `0x` prefix).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 
-use mfn_consensus::{block_header_bytes, block_id, decode_transaction, encode_block, tx_id, Block};
+use mfn_consensus::{
+    block_header_bytes, block_id, decode_transaction, encode_block, encode_transaction, tx_id,
+    Block,
+};
 use serde_json::{json, Value};
 
 use crate::{AdmitOutcome, Chain, ChainConfig, ChainStore, Mempool, MempoolConfig};
@@ -44,6 +50,8 @@ mod rpc_codes {
     pub const MEMPOOL_REJECT: i64 = -32001;
     /// [`crate::ChainStore`] / `chain.blocks` read or validation failed.
     pub const BLOCK_LOG_STORE: i64 = -32002;
+    /// No mempool entry for the requested [`TransactionWire`](mfn_consensus::TransactionWire) id.
+    pub const MEMPOOL_TX_NOT_FOUND: i64 = -32003;
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -155,6 +163,51 @@ fn extract_height_param(params: Option<&Value>) -> Result<u32, String> {
         _ => return Err("params must be a JSON object or a JSON array".to_string()),
     };
     parse_height_u32(n)
+}
+
+/// `get_mempool_tx` reads a 32-byte transaction id from hex (same shapes as height params).
+fn extract_tx_id_param(params: Option<&Value>) -> Result<&str, String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    match p {
+        Value::Object(obj) => match obj.get("tx_id") {
+            Some(Value::String(s)) => Ok(s.as_str()),
+            Some(_) => Err("params.tx_id must be a JSON string".to_string()),
+            None => Err("missing params.tx_id (64 hex digits, 32-byte tx id)".to_string()),
+        },
+        Value::Array(arr) => {
+            let first = arr.first().ok_or_else(|| {
+                "params array is empty (expected one tx_id hex string)".to_string()
+            })?;
+            match first {
+                Value::String(s) => Ok(s.as_str()),
+                _ => Err(
+                    "params[0] must be a JSON string (64 hex digits, 32-byte tx id)".to_string(),
+                ),
+            }
+        }
+        _ => Err("params must be a JSON object or a JSON array".to_string()),
+    }
+}
+
+fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
+    let s = s.trim();
+    let s = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .unwrap_or(s);
+    if s.len() != 64 {
+        return Err(format!(
+            "tx_id hex must be exactly 64 hex digits (32 bytes), got {} characters",
+            s.len()
+        ));
+    }
+    let bytes = hex::decode(s).map_err(|e| format!("tx_id hex decode: {e}"))?;
+    let mut id = [0u8; 32];
+    id.copy_from_slice(&bytes);
+    Ok(id)
 }
 
 /// `get_mempool` accepts only absent / `null` / `{}` / `[]` `params`.
@@ -294,6 +347,31 @@ fn dispatch_serve_methods(
                 "tx_ids": ids,
             });
             rpc_success(id, body)
+        }
+        "get_mempool_tx" => {
+            let hex_s = match extract_tx_id_param(req.get("params")) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let tid = match parse_tx_id_hex32(hex_s) {
+                Ok(id) => id,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            match pool.get(&tid) {
+                None => rpc_error(
+                    id,
+                    rpc_codes::MEMPOOL_TX_NOT_FOUND,
+                    "mempool has no transaction with that tx_id",
+                ),
+                Some(ent) => {
+                    let wire = encode_transaction(&ent.tx);
+                    let body = json!({
+                        "tx_id": hex32(&tid),
+                        "tx_hex": hex::encode(wire),
+                    });
+                    rpc_success(id, body)
+                }
+            }
         }
         "submit_tx" => {
             let hex_s = match extract_submit_tx_hex(req.get("params")) {
@@ -982,6 +1060,118 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"get_mempool","params":{"foo":1},"id":2}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_missing_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_no_params");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","id":0}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("params"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_missing_tx_id_in_object() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("tx_id"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_array_empty() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_rejects_bad_hex() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_bad_hex");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":{"tx_id":"zz00000000000000000000000000000000000000000000000000000000000000"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("hex"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_rejects_wrong_hex_len() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_bad_len");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":{"tx_id":"abcd"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("64"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_not_found_object_param() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_nf_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":{"tx_id":"0000000000000000000000000000000000000000000000000000000000000000"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::MEMPOOL_TX_NOT_FOUND);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_not_found_array_param() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_nf_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":["0000000000000000000000000000000000000000000000000000000000000000"],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::MEMPOOL_TX_NOT_FOUND);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_mempool_tx_params_must_be_object_or_array() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gmtx_params_type");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_mempool_tx","params":"00","id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("object or a JSON array"));
         fs::remove_dir_all(&root).ok();
     }
 }
