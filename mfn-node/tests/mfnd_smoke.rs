@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use mfn_consensus::{build_genesis, encode_transaction, TransactionWire, TX_VERSION};
+use mfn_consensus::{
+    build_genesis, decode_block, encode_block, encode_transaction, TransactionWire, TX_VERSION,
+};
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
 use mfn_crypto::stealth_wallet_from_seed;
@@ -559,6 +561,51 @@ fn mfnd_step_block_log_passes_validated_read() {
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].header.height, 1);
 
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_block_over_tcp_after_step() {
+    let dir = unique_data_dir("serve_get_block");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":1},"id":77}"#;
+    let resp = tcp_request_json(sock, req);
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["height"], json!(1));
+    let hex_s = r["block_hex"].as_str().expect("block_hex");
+    let bytes = hex::decode(hex_s).expect("hex decode");
+    let blk = decode_block(&bytes).expect("decode_block");
+    assert_eq!(blk.header.height, 1);
+
+    let store = ChainStore::new(&dir);
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let chain = store
+        .load_or_genesis(ChainConfig::new(gc))
+        .expect("load chain");
+    let blocks = store
+        .read_block_log_validated(&chain)
+        .expect("read_block_log_validated");
+    assert_eq!(bytes, encode_block(&blocks[0]));
+
+    let _ = child.kill();
+    let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
 }
 

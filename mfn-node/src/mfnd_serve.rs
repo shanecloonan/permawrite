@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -12,11 +12,15 @@
 //! **`submit_tx` params** may be either a JSON object `{"tx_hex":"…"}` or a
 //! one-element JSON array `["…"]` whose first entry is the same hex string
 //! (JSON-RPC positional style).
+//!
+//! **`get_block`** (M2.1.10) returns canonical block bytes for heights `1..=tip_height`
+//! from the on-disk `chain.blocks` log after [`crate::ChainStore::read_block_log_validated`];
+//! params are `{"height": <n>}` or `[<n>]`.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 
-use mfn_consensus::{decode_transaction, tx_id};
+use mfn_consensus::{decode_transaction, encode_block, tx_id};
 use serde_json::{json, Value};
 
 use crate::{AdmitOutcome, Chain, ChainConfig, ChainStore, Mempool, MempoolConfig};
@@ -31,6 +35,8 @@ mod rpc_codes {
     pub const INTERNAL_ERROR: i64 = -32603;
     /// Mempool [`crate::Mempool::admit`] rejected the decoded transaction.
     pub const MEMPOOL_REJECT: i64 = -32001;
+    /// [`crate::ChainStore`] / `chain.blocks` read or validation failed.
+    pub const BLOCK_LOG_STORE: i64 = -32002;
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -109,8 +115,47 @@ fn extract_submit_tx_hex(params: Option<&Value>) -> Result<&str, String> {
     }
 }
 
+fn parse_height_u32(n: u64) -> Result<u32, String> {
+    u32::try_from(n).map_err(|_| format!("height {n} is out of u32 range"))
+}
+
+/// `get_block` accepts `params` as `{"height": N}` or `[N]` (block heights ≥ 1).
+fn extract_height_param(params: Option<&Value>) -> Result<u32, String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let n = match p {
+        Value::Object(obj) => match obj.get("height") {
+            Some(Value::Number(num)) => num
+                .as_u64()
+                .ok_or_else(|| "params.height must be a non-negative JSON number".to_string())?,
+            Some(_) => return Err("params.height must be a JSON number".to_string()),
+            None => return Err("missing params.height".to_string()),
+        },
+        Value::Array(arr) => {
+            let first = arr
+                .first()
+                .ok_or_else(|| "params array is empty (expected one height)".to_string())?;
+            match first {
+                Value::Number(num) => num.as_u64().ok_or_else(|| {
+                    "params[0] height must be a non-negative JSON number".to_string()
+                })?,
+                _ => return Err("params[0] must be a JSON number (block height)".to_string()),
+            }
+        }
+        _ => return Err("params must be a JSON object or a JSON array".to_string()),
+    };
+    parse_height_u32(n)
+}
+
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
-pub(crate) fn parse_and_dispatch_serve(chain: &mut Chain, pool: &mut Mempool, line: &str) -> Value {
+pub(crate) fn parse_and_dispatch_serve(
+    store: &ChainStore,
+    chain: &mut Chain,
+    pool: &mut Mempool,
+    line: &str,
+) -> Value {
     let line = line.trim();
     if line.is_empty() {
         return rpc_error(
@@ -139,10 +184,16 @@ pub(crate) fn parse_and_dispatch_serve(chain: &mut Chain, pool: &mut Mempool, li
             );
         }
     }
-    dispatch_serve_methods(chain, pool, &req, &id)
+    dispatch_serve_methods(store, chain, pool, &req, &id)
 }
 
-fn dispatch_serve_methods(chain: &mut Chain, pool: &mut Mempool, req: &Value, id: &Value) -> Value {
+fn dispatch_serve_methods(
+    store: &ChainStore,
+    chain: &mut Chain,
+    pool: &mut Mempool,
+    req: &Value,
+    id: &Value,
+) -> Value {
     let method = match req.get("method") {
         Some(Value::String(s)) => s.as_str(),
         Some(_) => {
@@ -208,6 +259,54 @@ fn dispatch_serve_methods(chain: &mut Chain, pool: &mut Mempool, req: &Value, id
                 Err(e) => rpc_error(id, rpc_codes::MEMPOOL_REJECT, format!("mempool admit: {e}")),
             }
         }
+        "get_block" => {
+            let height = match extract_height_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            if height == 0 {
+                return rpc_error(
+                    id,
+                    rpc_codes::INVALID_PARAMS,
+                    "height must be at least 1 (genesis is not stored in chain.blocks)",
+                );
+            }
+            let tip_h = match chain.tip_height() {
+                Some(h) => h,
+                None => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::BLOCK_LOG_STORE,
+                        "chain tip_height is None (unexpected)",
+                    );
+                }
+            };
+            if height > tip_h {
+                return rpc_error(
+                    id,
+                    rpc_codes::INVALID_PARAMS,
+                    format!("height {height} exceeds chain tip_height {tip_h}"),
+                );
+            }
+            let blocks = match store.read_block_log_validated(chain) {
+                Ok(b) => b,
+                Err(e) => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::BLOCK_LOG_STORE,
+                        format!("read_block_log_validated: {e}"),
+                    );
+                }
+            };
+            let idx = (height - 1) as usize;
+            let block = &blocks[idx];
+            let bytes = encode_block(block);
+            let body = json!({
+                "height": height,
+                "block_hex": hex::encode(&bytes),
+            });
+            rpc_success(id, body)
+        }
         other => rpc_error(
             id,
             rpc_codes::METHOD_NOT_FOUND,
@@ -223,6 +322,7 @@ fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
 
 fn handle_client(
     stream: &mut TcpStream,
+    store: &ChainStore,
     chain: &mut Chain,
     pool: &mut Mempool,
 ) -> Result<(), String> {
@@ -234,7 +334,7 @@ fn handle_client(
     reader
         .read_line(&mut line)
         .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
-    let resp = parse_and_dispatch_serve(chain, pool, &line);
+    let resp = parse_and_dispatch_serve(store, chain, pool, &line);
     write_line(stream, &resp)
 }
 
@@ -267,7 +367,7 @@ pub(crate) fn run_serve(store: &ChainStore, cfg: ChainConfig, listen: &str) -> R
                 continue;
             }
         };
-        if let Err(e) = handle_client(&mut stream, &mut chain, &mut pool) {
+        if let Err(e) = handle_client(&mut stream, store, &mut chain, &mut pool) {
             let fallback = rpc_error(
                 &Value::Null,
                 rpc_codes::INTERNAL_ERROR,
@@ -281,97 +381,203 @@ pub(crate) fn run_serve(store: &ChainStore, cfg: ChainConfig, listen: &str) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{demo_genesis, Chain, ChainConfig, Mempool, MempoolConfig};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn test_chain_and_pool() -> (Chain, Mempool) {
-        let chain = Chain::from_genesis(ChainConfig::new(demo_genesis::empty_local_dev_genesis()))
-            .expect("genesis");
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{
+        build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, PayoutAddress,
+        Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::stealth::stealth_gen;
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+    use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+
+    use crate::{demo_genesis, produce_solo_block, BlockInputs};
+
+    fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let payout_wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: payout_wallet.view_pub,
+            spend_pub: payout_wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets)
+    }
+
+    fn solo_chain_fixture() -> (
+        Chain,
+        Validator,
+        ValidatorSecrets,
+        ConsensusParams,
+        ChainConfig,
+    ) {
+        let (v0, s0) = mk_validator(0, 1_000_000);
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6666,
+            liveness_max_consecutive_missed: 64,
+            liveness_slash_bps: 0,
+        };
+        let gc = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: vec![v0.clone()],
+            params,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let cfg = ChainConfig::new(gc);
+        let chain = Chain::from_genesis(cfg.clone()).expect("genesis");
+        (chain, v0, s0, params, cfg)
+    }
+
+    fn coinbase_inputs(producer: &Validator, height: u32) -> BlockInputs {
+        let p = producer.payout.unwrap();
+        let cb_payout = PayoutAddress {
+            view_pub: p.view_pub,
+            spend_pub: p.spend_pub,
+        };
+        let emission = emission_at_height(u64::from(height), &DEFAULT_EMISSION_PARAMS);
+        let cb = build_coinbase(u64::from(height), emission, &cb_payout).expect("cb");
+        BlockInputs {
+            height,
+            slot: height,
+            timestamp: u64::from(height) * 100,
+            txs: vec![cb],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+        }
+    }
+
+    fn test_store_chain_pool(test_name: &str) -> (ChainStore, Chain, Mempool, PathBuf) {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-serve-test-{test_name}-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+        let cfg = ChainConfig::new(demo_genesis::empty_local_dev_genesis());
+        let chain = store.load_or_genesis(cfg).expect("load_or_genesis");
         let pool = Mempool::new(MempoolConfig::default());
-        (chain, pool)
+        (store, chain, pool, root)
     }
 
     #[test]
     fn rpc_empty_line_is_invalid_request() {
-        let (mut c, mut p) = test_chain_and_pool();
-        let v = parse_and_dispatch_serve(&mut c, &mut p, "   \n");
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_empty_line");
+        let v = parse_and_dispatch_serve(&store, &mut c, &mut p, "   \n");
         assert_eq!(v["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_REQUEST);
         assert!(v["result"].is_null());
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_invalid_json_is_parse_error_with_null_id() {
-        let (mut c, mut p) = test_chain_and_pool();
-        let v = parse_and_dispatch_serve(&mut c, &mut p, "{not json");
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_invalid_json");
+        let v = parse_and_dispatch_serve(&store, &mut c, &mut p, "{not json");
         assert_eq!(v["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(v["error"]["code"], rpc_codes::PARSE_ERROR);
         assert_eq!(v["id"], Value::Null);
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_rejects_wrong_jsonrpc_version() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_wrong_jsonrpc");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"1.0","method":"get_tip","id":1}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_REQUEST);
         assert_eq!(v["id"], json!(1));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_unknown_method() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_unknown_method");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"nope","id":"abc"}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::METHOD_NOT_FOUND);
         assert_eq!(v["id"], json!("abc"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_get_tip_legacy_no_jsonrpc_echoes_null_id() {
-        let (mut c, mut p) = test_chain_and_pool();
-        let v = parse_and_dispatch_serve(&mut c, &mut p, r#"{"method":"get_tip"}"#);
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_get_tip_legacy");
+        let v = parse_and_dispatch_serve(&store, &mut c, &mut p, r#"{"method":"get_tip"}"#);
         assert_eq!(v["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(v["id"], Value::Null);
         assert_eq!(v["error"], Value::Null);
         let tip = &v["result"]["tip_height"];
         assert!(tip.is_number() || tip.is_null());
         assert!(v["result"]["genesis_id"].as_str().unwrap().len() == 64);
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_get_tip_echoes_numeric_id() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_get_tip_id");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"get_tip","id":42}"#,
         );
         assert_eq!(v["id"], json!(42));
         assert!(v["result"]["mempool_len"].as_u64() == Some(0));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_missing_tx_hex() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_missing_hex");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","params":{},"id":0}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         assert!(v["error"]["message"].as_str().unwrap().contains("tx_hex"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_array_params_truncated_wire() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_trunc");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","params":["00"],"id":1}"#,
@@ -382,24 +588,28 @@ mod tests {
             m.contains("decode_transaction") || m.contains("decode"),
             "m={m}"
         );
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_array_params_empty_array() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_empty_arr");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","params":[],"id":1}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         assert!(v["error"]["message"].as_str().unwrap().contains("array"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_array_params_first_not_string() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_arr_not_str");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","params":[1],"id":1}"#,
@@ -409,12 +619,14 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("params[0]"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_params_must_be_object_or_array() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_params_type");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","params":"00","id":1}"#,
@@ -424,25 +636,130 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("object or a JSON array"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_submit_tx_missing_params() {
-        let (mut c, mut p) = test_chain_and_pool();
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_submit_no_params");
         let v = parse_and_dispatch_serve(
+            &store,
             &mut c,
             &mut p,
             r#"{"jsonrpc":"2.0","method":"submit_tx","id":0}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         assert!(v["error"]["message"].as_str().unwrap().contains("params"));
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]
     fn rpc_method_must_be_string() {
-        let (mut c, mut p) = test_chain_and_pool();
-        let v =
-            parse_and_dispatch_serve(&mut c, &mut p, r#"{"jsonrpc":"2.0","method":7,"id":null}"#);
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_method_not_str");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":7,"id":null}"#,
+        );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_REQUEST);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_height_zero_is_invalid_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gb_h0");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":0},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("at least 1"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_height_exceeds_tip_at_genesis() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gb_exceeds");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":1},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        let m = v["error"]["message"].as_str().unwrap();
+        assert!(m.contains("exceeds"), "m={m}");
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_array_positional_height() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gb_array");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block","params":[1],"id":9}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_missing_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gb_no_params");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block","id":0}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_read_validated_failure_maps_to_block_log_store() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-serve-test-rpc_gb_bad_log-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        assert_eq!(chain.tip_height(), Some(1));
+        store
+            .save(&chain)
+            .expect("checkpoint tip 1 without block log sidecar");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":1},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::BLOCK_LOG_STORE);
+        let m = v["error"]["message"].as_str().unwrap();
+        assert!(
+            m.contains("read_block_log_validated") || m.contains("block log"),
+            "m={m}"
+        );
+        fs::remove_dir_all(&root).ok();
     }
 }
