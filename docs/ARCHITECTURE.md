@@ -796,7 +796,7 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (75 tests: 52 unit + 23 integration)
+mfn-node/           Node-side glue             (78 tests: 54 unit + 24 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
@@ -848,7 +848,8 @@ mfn-node/           Node-side glue             (75 tests: 52 unit + 23 integrati
                     M2.1.2: optional --genesis JSON path.
                     M2.1.3: `step` — solo produce/apply/save.
                     M2.1.4: `Mempool::drain` + fee-weighted coinbase + `remove_mined`;
-                    optional `--blocks N`; env seeds unchanged.
+                    optional `--blocks N`; M2.1.5: `--checkpoint-each` per-block save.
+                    Env seeds unchanged.
 
 mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,

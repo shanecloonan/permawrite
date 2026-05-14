@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -9,7 +9,8 @@
 //! when operator seeds are set in the environment; each iteration builds a
 //! coinbase plus any txs drained from an in-memory [`crate::Mempool`], then
 //! `produce_solo_block` → `apply` → `remove_mined`. Use `--blocks N` to apply
-//! N sequential blocks in one process (one checkpoint write at the end).
+//! N sequential blocks in one process (by default one checkpoint write at
+//! the end; `--checkpoint-each` writes after every applied block).
 //! JSON-RPC / P2P / durable mempool still land in later M2.x milestones.
 
 use std::path::{Path, PathBuf};
@@ -53,6 +54,8 @@ struct Parsed {
     cmd: Cmd,
     /// Solo `step` only: number of blocks to produce (default 1, max 10_000).
     step_count: u32,
+    /// Solo `step` only: persist checkpoint after every block (not only at end).
+    checkpoint_each_block: bool,
 }
 
 fn usage() -> &'static str {
@@ -61,7 +64,8 @@ fn usage() -> &'static str {
      options:\n\
        --genesis PATH   optional JSON genesis spec (version 1; see crate testdata/)\n\
        --blocks N       only for `step`: produce and apply N blocks in sequence\n\
-                        (default 1; writes one checkpoint after the last block)\n\
+                        (default 1; by default one checkpoint after the last block)\n\
+       --checkpoint-each  only for `step`: write checkpoint after every applied block\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -94,7 +98,12 @@ fn producer_fee_share_of_summed_fees(fee_sum: u128, fee_to_treasury_bps: u16) ->
     u64::try_from(producer).unwrap_or(u64::MAX)
 }
 
-fn run_solo_step(store: &ChainStore, cfg: &ChainConfig, step_count: u32) -> Result<(), String> {
+fn run_solo_step(
+    store: &ChainStore,
+    cfg: &ChainConfig,
+    step_count: u32,
+    checkpoint_each_block: bool,
+) -> Result<(), String> {
     if step_count == 0 {
         return Err("mfnd step: --blocks must be at least 1".into());
     }
@@ -140,7 +149,7 @@ fn run_solo_step(store: &ChainStore, cfg: &ChainConfig, step_count: u32) -> Resu
 
     let mut pool = Mempool::new(MempoolConfig::default());
 
-    for _ in 0..step_count {
+    for bi in 0..step_count {
         let tip = chain
             .tip_height()
             .ok_or_else(|| "mfnd step: internal error: missing tip height".to_string())?;
@@ -191,9 +200,25 @@ fn run_solo_step(store: &ChainStore, cfg: &ChainConfig, step_count: u32) -> Resu
             .apply(&block)
             .map_err(|e| format!("apply_block: {e}"))?;
         pool.remove_mined(&block);
+
+        if checkpoint_each_block {
+            let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
+            let h = chain.tip_height().expect("tip after apply");
+            println!(
+                "step_checkpoint tip_height={h} saved_checkpoint_bytes={} path={}",
+                meta.bytes_written,
+                meta.checkpoint_path.display()
+            );
+        } else if bi + 1 == step_count {
+            let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
+            println!(
+                "saved_checkpoint_bytes={} path={}",
+                meta.bytes_written,
+                meta.checkpoint_path.display()
+            );
+        }
     }
 
-    let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
     let last_tip_id = chain
         .tip_id()
         .ok_or_else(|| "mfnd step: internal error: missing tip id after apply".to_string())?;
@@ -202,11 +227,6 @@ fn run_solo_step(store: &ChainStore, cfg: &ChainConfig, step_count: u32) -> Resu
         chain.tip_height().expect("tip after apply")
     );
     println!("new_tip_id={}", hex32(last_tip_id));
-    println!(
-        "saved_checkpoint_bytes={} path={}",
-        meta.bytes_written,
-        meta.checkpoint_path.display()
-    );
     Ok(())
 }
 
@@ -300,7 +320,12 @@ fn run(args: Vec<String>) -> Result<(), String> {
             }
         }
         Cmd::Step => {
-            run_solo_step(&store, &cfg, parsed.step_count)?;
+            run_solo_step(
+                &store,
+                &cfg,
+                parsed.step_count,
+                parsed.checkpoint_each_block,
+            )?;
         }
     }
     Ok(())
@@ -335,6 +360,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut data_dir: Option<PathBuf> = None;
     let mut genesis_toml: Option<PathBuf> = None;
     let mut step_count: Option<u32> = None;
+    let mut checkpoint_each_block = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -381,6 +407,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--checkpoint-each" {
+            checkpoint_each_block = true;
+            i += 1;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -409,11 +440,18 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         (None, Cmd::Step) => 1,
         (None, _) => 1,
     };
+    if checkpoint_each_block && cmd != Cmd::Step {
+        return Err(format!(
+            "--checkpoint-each is only valid with the step command\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
         cmd,
         step_count,
+        checkpoint_each_block,
     })
 }
 
@@ -427,6 +465,34 @@ mod tests {
         let p = parse_args(&args).unwrap();
         assert_eq!(p.cmd, Cmd::Step);
         assert_eq!(p.step_count, 1);
+        assert!(!p.checkpoint_each_block);
+    }
+
+    #[test]
+    fn parse_args_step_checkpoint_each() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--checkpoint-each".into(),
+            "--blocks".into(),
+            "2".into(),
+            "step".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Step);
+        assert_eq!(p.step_count, 2);
+        assert!(p.checkpoint_each_block);
+    }
+
+    #[test]
+    fn parse_args_checkpoint_each_rejected_without_step() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--checkpoint-each".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]
@@ -441,6 +507,7 @@ mod tests {
         let p = parse_args(&args).unwrap();
         assert_eq!(p.cmd, Cmd::Step);
         assert_eq!(p.step_count, 5);
+        assert!(!p.checkpoint_each_block);
     }
 
     #[test]
@@ -469,6 +536,7 @@ mod tests {
         assert_eq!(p.genesis_toml, Some(PathBuf::from("/chain/genesis.toml")));
         assert_eq!(p.cmd, Cmd::Status);
         assert_eq!(p.step_count, 1);
+        assert!(!p.checkpoint_each_block);
     }
 
     #[test]
@@ -478,6 +546,7 @@ mod tests {
         assert_eq!(p.data_dir, PathBuf::from("/tmp/x"));
         assert_eq!(p.cmd, Cmd::Status);
         assert_eq!(p.step_count, 1);
+        assert!(!p.checkpoint_each_block);
     }
 
     #[test]

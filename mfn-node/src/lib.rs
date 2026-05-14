@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -35,7 +35,7 @@
 //!   This is the first IO-bearing node primitive: boot from a saved
 //!   checkpoint if present, otherwise build genesis; save latest state
 //!   via a temp-file + backup-slot rotation.
-//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4) — the `mfnd` reference binary (`status` /
+//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5) — the `mfnd` reference binary (`status` /
 //!   `save` / `run` / `step`) wired through [`mfnd_main`]. Boots from
 //!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a JSON
 //!   file via `--genesis` using [`genesis_config_from_json_path`]. The `step`
@@ -43,7 +43,7 @@
 //!   save for a single-validator genesis (devnet operator seeds via env vars);
 //!   each block prepends a mempool [`Mempool::drain`] pass (empty until RPC
 //!   lands) and credits tx fees into the coinbase; `--blocks N` applies N
-//!   blocks before one checkpoint write.
+//!   blocks per run, and `--checkpoint-each` persists after every block.
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains
 //! deterministic and synchronous. `store` is intentionally the first

@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5).
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -219,6 +219,38 @@ fn mfnd_step_blocks_advances_tip_in_one_invocation() {
     assert!(st.status.success());
     let stout = String::from_utf8_lossy(&st.stdout);
     assert!(stout.contains("tip_height=3"), "stdout={stout}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_step_checkpoint_each_writes_after_each_block() {
+    let dir = unique_data_dir("step_ckpt_each");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--blocks")
+        .arg("2")
+        .arg("--checkpoint-each")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(
+        stdout.matches("step_checkpoint").count(),
+        2,
+        "stdout={stdout}"
+    );
+    assert!(stdout.contains("new_tip_height=2"), "stdout={stdout}");
     std::fs::remove_dir_all(&dir).ok();
 }
 
