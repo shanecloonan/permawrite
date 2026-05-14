@@ -335,7 +335,7 @@ sequenceDiagram
     M->>P: Forward tx pool
 
     Note over P: Slot S elapses
-    P->>P: Compute VRF over slot_seed(prev_id&#44; S)<br/>Eligible iff output &lt; eligibility_threshold(stake&#44; total_stake)
+    P->>P: Compute VRF over slot_seed(prev_id, S)<br/>Eligible iff VRF output is below eligibility_threshold(stake, total_stake)
     P->>P: Gather txs + slashings + storage_proofs<br/>Build BlockHeader · broadcast for voting
 
     P->>C: header_signing_hash(header)
@@ -347,7 +347,7 @@ sequenceDiagram
     alt all phases pass
         S-->>S: Commit new ChainState · append block_id
     else any phase fails
-        S-->>P: Vec&lt;BlockError&gt; · block dropped
+        S-->>P: Vec of BlockError · block dropped
     end
 ```
 
