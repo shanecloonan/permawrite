@@ -22,6 +22,9 @@ mfn-storage = { path = "../mfn-storage" }
 mfn-consensus = { path = "../mfn-consensus" }
 
 thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 ctrlc = "3.4"

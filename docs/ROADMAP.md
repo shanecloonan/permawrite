@@ -9,17 +9,17 @@
 
 | Layer | Crate | Tests | Status |
 |---|---|---:|---|
-| ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | 153 | ✓ live |
+| ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | 154 | ✓ live |
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary**) | `mfn-node` | 63 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` CLI) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)**) | `mfn-node` | 68 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis file) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **582** | All checks green (+ 2 ignored) |
+| **Total** | | **588** | All checks green (+ 2 ignored) |
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` reference binary (M2.1.1) exercises checkpoint load/save from a real process; P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
+**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save and can boot from a shared JSON genesis spec (`--genesis`); P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
 
 ---
 
@@ -984,6 +984,38 @@ Workspace **+6 tests** total: 576 → **582**.
 
 - **Operator-visible lifecycle** — the same `load_or_genesis` / `save` path a future full daemon will use, now runnable from the shell.
 - **Signal-safe shutdown hook (Unix)** — Ctrl+C path saves before `process::exit`; Windows uses Enter instead so `windows-gnu` hosts stay buildable without `windows-sys`.
+
+---
+
+## Milestone M2.1.2 — JSON genesis spec + `mfnd --genesis` (✓ shipped)
+
+**Why it was next.** M2.1.1 always used a built-in empty-validator genesis. Real devnets—even single-validator ones—need a reproducible way to agree on `timestamp`, `ConsensusParams`, and validator keys before the first block. M2.1.2 adds a versioned JSON spec and wires it into `mfnd` without touching consensus wire formats.
+
+### What shipped
+
+- **`mfn-node/src/genesis_spec.rs`** — `genesis_config_from_json_bytes` / `genesis_config_from_json_path`, typed [`GenesisSpecError`], `serde` + `serde_json` with `deny_unknown_fields` on every table.
+- **`mfn_crypto::stealth_wallet_from_seed`** — deterministic payout keys for validators whose spec omits `payout_seed_hex` (defaults to deriving payout stealth keys from the BLS seed material).
+- **`mfnd --genesis PATH`** (alias `--genesis-spec`) — optional path alongside `--data-dir`; when absent, behavior matches M2.1.1 (`demo_genesis`).
+- **`mfnd status`** — prints `validator_count` for quick sanity checks.
+- **`mfn-node/testdata/devnet_one_validator.json`** — example single-validator spec aligned with `single_validator_flow` seeds.
+
+### Test matrix
+
+- `genesis_spec` unit tests: golden file parse, wrong `version`, non-contiguous validator indices.
+- `mfnd_smoke`: `mfnd_status_with_json_genesis_spec` — exercises `--genesis` against the checked-in JSON.
+
+Workspace **+6 tests** total: 582 → **588**.
+
+### Scope decisions
+
+- **JSON only (no TOML crate).** Human operators can still edit the file by hand; CI and nodes parse it with `serde_json`.
+- **No emission/endowment overrides in v1** — specs always inherit `DEFAULT_EMISSION_PARAMS` / `DEFAULT_ENDOWMENT_PARAMS` and `bonding_params: None`.
+- **No genesis UTXO / storage entries in v1** — empty `initial_outputs` / `initial_storage` only; richer fixtures are a future spec version bump.
+
+### What this unlocks
+
+- **Multi-operator devnets** — same file checked into a repo or distributed out-of-band yields byte-identical `GenesisConfig` and therefore identical `genesis_id`.
+- **Wallet / producer integration** — downstream tools can generate JSON from a higher-level UI while the daemon keeps a single loader.
 
 ---
 

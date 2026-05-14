@@ -81,6 +81,24 @@ pub fn stealth_gen() -> StealthWallet {
     }
 }
 
+/// Derive a stealth wallet deterministically from a 32-byte seed.
+///
+/// Used for reproducible genesis specs (validator payout keys) and tests.
+/// View and spend scalars are domain-separated [`hash_to_scalar`] outputs
+/// so the mapping is injective in practice and cannot collide with
+/// [`stealth_gen`] outputs used elsewhere.
+#[must_use]
+pub fn stealth_wallet_from_seed(seed: &[u8; 32]) -> StealthWallet {
+    let view_priv = hash_to_scalar(&[b"MFN-1/stealth-wallet/view", seed]);
+    let spend_priv = hash_to_scalar(&[b"MFN-1/stealth-wallet/spend", seed]);
+    StealthWallet {
+        view_priv,
+        view_pub: generator_g() * view_priv,
+        spend_priv,
+        spend_pub: generator_g() * spend_priv,
+    }
+}
+
 /// Public view of a receiving wallet (no secrets).
 #[derive(Debug, Clone, Copy)]
 pub struct StealthPubKeys {
@@ -242,5 +260,17 @@ mod tests {
         let x1 = indexed_stealth_spend_key(&r_point, 1, &alice);
         assert_eq!(generator_g() * x0, p0);
         assert_eq!(generator_g() * x1, p1);
+    }
+
+    #[test]
+    fn stealth_wallet_from_seed_is_deterministic() {
+        let seed = [7u8; 32];
+        let a = stealth_wallet_from_seed(&seed);
+        let b = stealth_wallet_from_seed(&seed);
+        assert_eq!(a.view_pub.compress(), b.view_pub.compress());
+        assert_eq!(a.spend_pub.compress(), b.spend_pub.compress());
+        let seed2 = [8u8; 32];
+        let c = stealth_wallet_from_seed(&seed2);
+        assert_ne!(a.view_pub.compress(), c.view_pub.compress());
     }
 }

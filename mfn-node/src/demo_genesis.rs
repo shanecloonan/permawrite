@@ -1,13 +1,11 @@
 //! Demonstration [`GenesisConfig`] for local single-node tooling.
 //!
-//! This is the fixed empty-validator genesis used by the [`crate::mfnd_main`]
-//! reference binary so operators can boot a chain without supplying a
-//! separate genesis file yet. **It is not appropriate for production
-//! networks** — production deployments must load a deployment-specific
-//! genesis from an out-of-band config source (JSON file, embedded
-//! chain-spec, …) so every participant agrees on initial validators,
-//! params, and timestamp.
-
+//! This is the fixed empty-validator genesis used by [`crate::mfnd_main`]
+//! when no `--genesis` path is supplied, so operators can boot a chain with
+//! zero extra files. **It is not appropriate for production networks** —
+//! production deployments must distribute an agreed genesis (for example via
+//! the JSON format in [`crate::genesis_spec`]) so every participant agrees on
+//! initial validators, params, and timestamp.
 use mfn_consensus::{ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 

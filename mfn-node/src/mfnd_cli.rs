@@ -1,19 +1,20 @@
-//! Minimal `mfnd` command-line driver (M2.1.1).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
 //! persist. On Unix the `run` command installs a Ctrl+C handler; on Windows it
 //! waits for Enter (so the crate stays buildable on `windows-gnu` hosts without
-//! pulling `windows-sys`). No JSON-RPC, mempool wiring, or block production
+//! pulling `windows-sys`). Optional `--genesis` loads a TOML chain spec; see
+//! [`crate::genesis_spec`]. No JSON-RPC, mempool wiring, or block production
 //! loop yet — those attach in later M2.x milestones.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 #[cfg(unix)]
 use std::thread;
 
-use crate::{demo_genesis, Chain, ChainConfig, ChainStore};
+use crate::{demo_genesis, genesis_config_from_json_path, Chain, ChainConfig, ChainStore};
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -36,11 +37,15 @@ enum Cmd {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Parsed {
     data_dir: PathBuf,
+    genesis_toml: Option<PathBuf>,
     cmd: Cmd,
 }
 
 fn usage() -> &'static str {
-    "usage: mfnd --data-dir <DIR> <COMMAND>\n\
+    "usage: mfnd --data-dir <DIR> [OPTIONS] <COMMAND>\n\
+     \n\
+     options:\n\
+       --genesis PATH   optional JSON genesis spec (version 1; see crate testdata/)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -49,11 +54,19 @@ fn usage() -> &'static str {
                Unix: Ctrl+C   Windows: press Enter\n"
 }
 
+fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
+    let genesis = match &parsed.genesis_toml {
+        Some(p) => genesis_config_from_json_path(Path::new(p)).map_err(|e| e.to_string())?,
+        None => demo_genesis::empty_local_dev_genesis(),
+    };
+    Ok(ChainConfig::new(genesis))
+}
+
 fn run(args: Vec<String>) -> Result<(), String> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
     let store = ChainStore::new(&parsed.data_dir);
-    let cfg = ChainConfig::new(demo_genesis::empty_local_dev_genesis());
+    let cfg = resolve_chain_config(&parsed)?;
 
     match parsed.cmd {
         Cmd::Status => {
@@ -155,6 +168,7 @@ fn print_status(chain: &Chain, had_checkpoint_on_disk: bool) {
     println!("tip_id={tip_id}");
     println!("genesis_id={genesis_id}");
     println!("had_checkpoint_on_disk={had_checkpoint_on_disk}");
+    println!("validator_count={}", chain.validators().len());
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -168,6 +182,7 @@ fn hex32(id: &[u8; 32]) -> String {
 
 fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut data_dir: Option<PathBuf> = None;
+    let mut genesis_toml: Option<PathBuf> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -180,6 +195,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
                 return Err("expected path after --data-dir".into());
             }
             data_dir = Some(PathBuf::from(v));
+            i += 2;
+            continue;
+        }
+        if a == "--genesis" || a == "--genesis-spec" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--genesis requires a path to a JSON genesis spec".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected path after --genesis".into());
+            }
+            genesis_toml = Some(PathBuf::from(v));
             i += 2;
             continue;
         }
@@ -199,12 +225,31 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         "run" => Cmd::Run,
         other => return Err(format!("unknown command `{other}`\n{}", usage())),
     };
-    Ok(Parsed { data_dir, cmd })
+    Ok(Parsed {
+        data_dir,
+        genesis_toml,
+        cmd,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_args_with_genesis() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--genesis".into(),
+            "/chain/genesis.toml".into(),
+            "status".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.data_dir, PathBuf::from("/tmp/x"));
+        assert_eq!(p.genesis_toml, Some(PathBuf::from("/chain/genesis.toml")));
+        assert_eq!(p.cmd, Cmd::Status);
+    }
 
     #[test]
     fn parse_args_status() {

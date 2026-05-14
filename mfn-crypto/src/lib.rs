@@ -96,7 +96,8 @@ pub use scalar::{bytes_to_scalar, random_scalar, scalar_to_bytes};
 pub use schnorr::{schnorr_keygen, schnorr_sign, schnorr_verify, SchnorrKeypair, SchnorrSignature};
 pub use stealth::{
     indexed_stealth_address, indexed_stealth_detect, indexed_stealth_spend_key, stealth_detect,
-    stealth_gen, stealth_send_to, stealth_spend_key, StealthOutput, StealthWallet,
+    stealth_gen, stealth_send_to, stealth_spend_key, stealth_wallet_from_seed, StealthOutput,
+    StealthWallet,
 };
 pub use utxo_tree::{
     append_utxo, decode_utxo_tree_state, empty_leaf, empty_utxo_tree, encode_utxo_tree_state,

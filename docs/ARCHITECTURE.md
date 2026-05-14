@@ -719,7 +719,7 @@ No hand-rolled curve code. No FFI. No `unsafe` in any first-party module.
 ## Crate layout
 
 ```
-mfn-crypto/         ed25519 primitives + ZK    (145 tests)
+mfn-crypto/         ed25519 primitives + ZK    (154 tests)
 ├── domain.rs       Domain-separation tags
 ├── codec.rs        MFBN-1 Writer/Reader
 ├── scalar.rs       Scalar helpers
@@ -727,7 +727,8 @@ mfn-crypto/         ed25519 primitives + ZK    (145 tests)
 ├── hash.rs         dhash, hash_to_scalar, hash_to_point
 ├── schnorr.rs      Schnorr signatures
 ├── pedersen.rs     Pedersen commitments
-├── stealth.rs      Dual-key stealth addresses (basic + indexed)
+├── stealth.rs      Dual-key stealth addresses (basic + indexed);
+│                   M2.1.2 stealth_wallet_from_seed for deterministic payout keys.
 ├── encrypted_amount.rs   RingCT-style encrypted-amount blobs
 ├── lsag.rs         LSAG ring signatures
 ├── clsag.rs        CLSAG ring signatures (production)
@@ -795,7 +796,7 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (63 tests: 45 unit + 18 integration)
+mfn-node/           Node-side glue             (68 tests: 49 unit + 19 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
@@ -833,15 +834,18 @@ mfn-node/           Node-side glue             (63 tests: 45 unit + 18 integrati
                     StorageReplicationTooHigh, EndowmentMathFailed,
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
-└── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`).
+├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
+├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
+├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`).
                     ChainStore::save writes Chain::encode_checkpoint() bytes through
                     chain.checkpoint.tmp, rotates the previous primary to
                     chain.checkpoint.bak, and publishes chain.checkpoint.
                     ChainStore::load_or_genesis(cfg) restores from disk when
                     present or builds genesis otherwise. StoreError separates
                     filesystem failures from ChainError restore failures.
-    bin/mfnd.rs     M2.1.1 — `mfnd_main`: status / save / run (Unix: Ctrl+C save;
+└── bin/mfnd.rs     M2.1.1 — `mfnd_main`: status / save / run (Unix: Ctrl+C save;
                     Windows: Enter to save, no ctrlc/windows-sys on GNU hosts).
+                    M2.1.2: optional --genesis JSON path.
 
 mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,

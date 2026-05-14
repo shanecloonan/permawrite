@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -28,15 +28,17 @@
 //!   the lowest-fee entry, and `drain(max)` for highest-fee-first
 //!   block inclusion. M2.0.13 adds storage-anchoring admission gates
 //!   that mirror `apply_block`'s permanence checks.
+//! - [`genesis_spec`] (M2.1.2) — versioned JSON → [`mfn_consensus::GenesisConfig`] for
+//!   operator-controlled devnets and tests (`--genesis` on `mfnd`).
 //! - [`store`] (M2.1.0) — filesystem checkpoint store over
 //!   [`Chain::encode_checkpoint`] / [`Chain::from_checkpoint_bytes`].
 //!   This is the first IO-bearing node primitive: boot from a saved
 //!   checkpoint if present, otherwise build genesis; save latest state
 //!   via a temp-file + backup-slot rotation.
-//! - **`mfnd`** (M2.1.1) — the `mfnd` reference binary (`status` /
-//!   `save` / `run`) wired through [`mfnd_main`], using
-//!   [`demo_genesis::empty_local_dev_genesis`] until deployment-specific
-//!   genesis loading lands.
+//! - **`mfnd`** (M2.1.1 + M2.1.2) — the `mfnd` reference binary (`status` /
+//!   `save` / `run`) wired through [`mfnd_main`]. Boots from
+//!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a TOML
+//!   file via `--genesis` using [`genesis_config_from_json_path`].
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains
 //! deterministic and synchronous. `store` is intentionally the first
@@ -62,8 +64,9 @@
 //!
 //! - `#![forbid(unsafe_code)]`.
 //! - No background threads, no clocks, no async runtime.
-//! - The only filesystem IO lives in [`store`], isolated behind typed
-//!   errors and deterministic checkpoint bytes.
+//! - The filesystem IO lives in [`store`] and in [`genesis_spec::genesis_config_from_json_path`]
+//!   (used by `mfnd --genesis`), isolated behind typed errors and deterministic
+//!   consensus inputs elsewhere.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -71,6 +74,7 @@
 
 pub mod chain;
 pub mod demo_genesis;
+pub mod genesis_spec;
 pub mod mempool;
 pub mod producer;
 pub mod store;
@@ -78,6 +82,9 @@ pub mod store;
 mod mfnd_cli;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
+pub use genesis_spec::{
+    genesis_config_from_json_bytes, genesis_config_from_json_path, GenesisSpecError,
+};
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
 pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,

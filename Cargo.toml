@@ -43,7 +43,9 @@ pairing = { version = "0.23", default-features = false }
 
 # General utilities
 thiserror = "1.0"
-hex = { version = "0.4", default-features = false, features = ["alloc"] }
+hex = { version = "0.4", default-features = false, features = ["alloc", "std"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0", default-features = false, features = ["std"] }
 
 [profile.release]
 opt-level = 3

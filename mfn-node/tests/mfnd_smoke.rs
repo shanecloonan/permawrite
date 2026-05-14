@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2).
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -39,6 +39,7 @@ fn mfnd_status_boots_genesis_without_checkpoint() {
         stdout.contains("had_checkpoint_on_disk=false"),
         "stdout={stdout}"
     );
+    assert!(stdout.contains("validator_count=0"), "stdout={stdout}");
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -64,6 +65,29 @@ fn mfnd_save_then_status_sees_checkpoint() {
         stdout.contains("had_checkpoint_on_disk=true"),
         "stdout={stdout}"
     );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_status_with_json_genesis_spec() {
+    let dir = unique_data_dir("genesis_spec");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("status")
+        .output()
+        .expect("spawn mfnd");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("tip_height=0"), "stdout={stdout}");
+    assert!(stdout.contains("validator_count=1"), "stdout={stdout}");
     std::fs::remove_dir_all(&dir).ok();
 }
 
