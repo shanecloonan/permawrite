@@ -13,13 +13,13 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`**) | `mfn-node` | 72 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis file + solo `step`) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`** + **M2.1.4 mempool-aware step + `--blocks N`**) | `mfn-node` | 75 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis + solo step) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **592** | All checks green (+ 2 ignored) |
+| **Total** | | **595** | All checks green (+ 2 ignored) |
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), and can advance a solo devnet one block at a time via `step` when operator seeds are set in the environment; P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
+**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), advances a solo devnet via `step` (now mempool-aware, with `--blocks N` for batched advances) when operator seeds are set in the environment; P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
 
 ---
 
@@ -1038,12 +1038,41 @@ Workspace **+4 tests** total vs the M2.1.2 release line count: **588 → 592** p
 
 ### Scope decisions
 
-- **Solo-only** — multi-validator scheduling, networking, and mempool-driven bodies remain later M2.x work.
+- **Solo-only** — multi-validator scheduling and networking remain later M2.x work; mempool-driven block bodies are now exercised in `mfnd step` (M2.1.4).
 - **Secrets in env** — convenient for CI and local scripts; production deployments will move to key files / HSM paths without changing consensus.
 
 ### What this unlocks
 
 - **Scriptable devnets** — CI and operators can advance height N with N invocations of `mfnd step`, reusing the same checkpoint files as `status` / `run`.
+
+---
+
+## Milestone M2.1.4 — mempool-aware `mfnd step` + `--blocks N` (✓ shipped)
+
+**Why it was next.** M2.1.3 proved solo production through the daemon, but each block bypassed the [`Mempool`] entirely — unlike every integration test that models real block bodies. Wiring the same drain → coinbase-fee → `remove_mined` path into `mfnd` keeps the reference binary aligned with the wallet→mempool→producer pipeline and prepares for a future RPC admit surface without changing consensus.
+
+### What shipped
+
+- **In-process [`Mempool`] per `step` run** — before each block, `drain` up to 256 txs (fee-priority); coinbase amount is `emission(height) + producer_fee_share(Σ tx fees)` using live `fee_to_treasury_bps` from chain state (same split as `apply_block`).
+- **`--blocks N`** — optional flag (only with `step`; default 1; max 10_000) to apply N sequential blocks in one process invocation, writing **one** checkpoint after the final height (crash windows remain explicit future work).
+- **CLI validation** — `--blocks` rejected for non-`step` commands.
+
+### Test matrix
+
+- `mfnd_cli` unit tests: `parse_args_step_blocks`, `parse_args_blocks_rejected_without_step`.
+- `mfnd_smoke`: `mfnd_step_blocks_advances_tip_in_one_invocation`.
+
+Workspace **+3 tests** vs the M2.1.3 line count: **592 → 595** passing.
+
+### Scope decisions
+
+- **Ephemeral mempool** — no persistence between `mfnd` invocations; txs must be re-admitted after each process exit until JSON-RPC exists.
+- **Drain cap** — 256 txs per block matches devnet scale; production caps may follow wire limits in a later milestone.
+
+### What this unlocks
+
+- **Single binary CI loops** — one `mfnd … step --blocks 100` warms state without subprocess overhead.
+- **RPC-shaped producer** — the next layer only needs to call `Mempool::admit` between steps.
 
 ---
 
@@ -1066,7 +1095,7 @@ Workspace **+4 tests** total vs the M2.1.2 release line count: **588 → 592** p
 | `store.rs` | M2.1.0 file checkpoint store is live; future RocksDB/sled snapshot + block-log replay extends it. |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
-| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3** — `step` (solo produce / apply / save). Full producer loop attaches later. |
+| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3–M2.1.4** — `step` + mempool drain + `--blocks N`. Full producer loop attaches later. |
 
 ### Phases
 

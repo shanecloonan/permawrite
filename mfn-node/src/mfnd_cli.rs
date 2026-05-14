@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -6,9 +6,11 @@
 //! waits for Enter (so the crate stays buildable on `windows-gnu` hosts without
 //! pulling `windows-sys`). Optional `--genesis` loads a JSON chain spec; see
 //! [`crate::genesis_spec`]. The `step` command advances a solo-validator chain
-//! one block when operator seeds are provided via environment variables.
-//! No JSON-RPC, mempool wiring, or continuous producer loop yet — those attach
-//! in later M2.x milestones.
+//! when operator seeds are set in the environment; each iteration builds a
+//! coinbase plus any txs drained from an in-memory [`crate::Mempool`], then
+//! `produce_solo_block` → `apply` → `remove_mined`. Use `--blocks N` to apply
+//! N sequential blocks in one process (one checkpoint write at the end).
+//! JSON-RPC / P2P / durable mempool still land in later M2.x milestones.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -22,7 +24,7 @@ use mfn_crypto::vrf::vrf_keygen_from_seed;
 
 use crate::{
     demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
-    Chain, ChainConfig, ChainStore,
+    Chain, ChainConfig, ChainStore, Mempool, MempoolConfig,
 };
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
@@ -49,6 +51,8 @@ struct Parsed {
     data_dir: PathBuf,
     genesis_toml: Option<PathBuf>,
     cmd: Cmd,
+    /// Solo `step` only: number of blocks to produce (default 1, max 10_000).
+    step_count: u32,
 }
 
 fn usage() -> &'static str {
@@ -56,13 +60,15 @@ fn usage() -> &'static str {
      \n\
      options:\n\
        --genesis PATH   optional JSON genesis spec (version 1; see crate testdata/)\n\
+       --blocks N       only for `step`: produce and apply N blocks in sequence\n\
+                        (default 1; writes one checkpoint after the last block)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
        save    persist the current chain checkpoint and exit\n\
        run     load or genesis, then wait for shutdown and save checkpoint:\n\
                Unix: Ctrl+C   Windows: press Enter\n\
-       step    solo-validator: produce next block, apply, save checkpoint\n\
+       step    solo-validator: produce next block(s), apply, save checkpoint\n\
                (requires genesis with exactly one validator + payout;\n\
                 set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
                 same 64-hex seeds as in the JSON genesis for validator index 0)\n"
@@ -79,7 +85,23 @@ fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
 const MFND_SOLO_VRF_SEED_HEX: &str = "MFND_SOLO_VRF_SEED_HEX";
 const MFND_SOLO_BLS_SEED_HEX: &str = "MFND_SOLO_BLS_SEED_HEX";
 
-fn run_solo_step(store: &ChainStore, cfg: &ChainConfig) -> Result<(), String> {
+/// Max regular txs pulled from the mempool into one block body (coinbase is extra).
+const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
+
+fn producer_fee_share_of_summed_fees(fee_sum: u128, fee_to_treasury_bps: u16) -> u64 {
+    let treasury = fee_sum.saturating_mul(u128::from(fee_to_treasury_bps)) / 10_000u128;
+    let producer = fee_sum.saturating_sub(treasury);
+    u64::try_from(producer).unwrap_or(u64::MAX)
+}
+
+fn run_solo_step(store: &ChainStore, cfg: &ChainConfig, step_count: u32) -> Result<(), String> {
+    if step_count == 0 {
+        return Err("mfnd step: --blocks must be at least 1".into());
+    }
+    if step_count > 10_000 {
+        return Err("mfnd step: --blocks exceeds maximum (10000)".into());
+    }
+
     let mut chain = store
         .load_or_genesis(cfg.clone())
         .map_err(|e| format!("{e}"))?;
@@ -115,42 +137,71 @@ fn run_solo_step(store: &ChainStore, cfg: &ChainConfig) -> Result<(), String> {
         vrf,
         bls: bls.clone(),
     };
-    let tip = chain
-        .tip_height()
-        .ok_or_else(|| "mfnd step: internal error: missing tip height".to_string())?;
-    let next_height = tip
-        .checked_add(1)
-        .ok_or_else(|| "mfnd step: tip height overflow".to_string())?;
-    let timestamp = cfg.genesis.timestamp.saturating_add(u64::from(next_height));
-    let state = chain.state();
-    let params = state.params;
-    let emission = emission_at_height(u64::from(next_height), &state.emission_params);
-    let cb_payout = PayoutAddress {
-        view_pub: payout.view_pub,
-        spend_pub: payout.spend_pub,
-    };
-    let cb = build_coinbase(u64::from(next_height), emission, &cb_payout)
-        .map_err(|e| format!("build_coinbase: {e}"))?;
-    let inputs = BlockInputs {
-        height: next_height,
-        slot: next_height,
-        timestamp,
-        txs: vec![cb],
-        bond_ops: Vec::new(),
-        slashings: Vec::new(),
-        storage_proofs: Vec::new(),
-    };
-    let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
-        .map_err(|e| format!("produce_solo_block: {e}"))?;
-    let tip_id = chain
-        .apply(&block)
-        .map_err(|e| format!("apply_block: {e}"))?;
+
+    let mut pool = Mempool::new(MempoolConfig::default());
+
+    for _ in 0..step_count {
+        let tip = chain
+            .tip_height()
+            .ok_or_else(|| "mfnd step: internal error: missing tip height".to_string())?;
+        let next_height = tip
+            .checked_add(1)
+            .ok_or_else(|| "mfnd step: tip height overflow".to_string())?;
+        let timestamp = cfg.genesis.timestamp.saturating_add(u64::from(next_height));
+        let (params, emission_params, emission) = {
+            let st = chain.state();
+            (
+                st.params,
+                st.emission_params,
+                emission_at_height(u64::from(next_height), &st.emission_params),
+            )
+        };
+
+        let drained = pool.drain(MFND_MEMPOOL_DRAIN_MAX);
+        let mut fee_sum: u128 = 0;
+        for t in &drained {
+            fee_sum = fee_sum.saturating_add(u128::from(t.fee));
+        }
+        let producer_extra =
+            producer_fee_share_of_summed_fees(fee_sum, emission_params.fee_to_treasury_bps);
+        let coinbase_amount = emission.saturating_add(producer_extra);
+
+        let cb_payout = PayoutAddress {
+            view_pub: payout.view_pub,
+            spend_pub: payout.spend_pub,
+        };
+        let cb = build_coinbase(u64::from(next_height), coinbase_amount, &cb_payout)
+            .map_err(|e| format!("build_coinbase: {e}"))?;
+        let mut txs = Vec::with_capacity(1 + drained.len());
+        txs.push(cb);
+        txs.extend(drained);
+
+        let inputs = BlockInputs {
+            height: next_height,
+            slot: next_height,
+            timestamp,
+            txs,
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+        };
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
+            .map_err(|e| format!("produce_solo_block: {e}"))?;
+        chain
+            .apply(&block)
+            .map_err(|e| format!("apply_block: {e}"))?;
+        pool.remove_mined(&block);
+    }
+
     let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
+    let last_tip_id = chain
+        .tip_id()
+        .ok_or_else(|| "mfnd step: internal error: missing tip id after apply".to_string())?;
     println!(
         "new_tip_height={}",
         chain.tip_height().expect("tip after apply")
     );
-    println!("new_tip_id={}", hex32(&tip_id));
+    println!("new_tip_id={}", hex32(last_tip_id));
     println!(
         "saved_checkpoint_bytes={} path={}",
         meta.bytes_written,
@@ -249,7 +300,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             }
         }
         Cmd::Step => {
-            run_solo_step(&store, &cfg)?;
+            run_solo_step(&store, &cfg, parsed.step_count)?;
         }
     }
     Ok(())
@@ -283,6 +334,7 @@ fn hex32(id: &[u8; 32]) -> String {
 fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut data_dir: Option<PathBuf> = None;
     let mut genesis_toml: Option<PathBuf> = None;
+    let mut step_count: Option<u32> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -309,6 +361,26 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--blocks" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--blocks requires a positive integer".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected integer after --blocks".into());
+            }
+            let n: u32 = v
+                .parse()
+                .map_err(|_| format!("invalid --blocks value `{v}`"))?;
+            if n == 0 {
+                return Err("--blocks must be at least 1".into());
+            }
+            if n > 10_000 {
+                return Err("--blocks exceeds maximum (10000)".into());
+            }
+            step_count = Some(n);
+            i += 2;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -326,10 +398,22 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         "step" => Cmd::Step,
         other => return Err(format!("unknown command `{other}`\n{}", usage())),
     };
+    let step_count = match (step_count, cmd) {
+        (Some(n), Cmd::Step) => n,
+        (Some(_), _) => {
+            return Err(format!(
+                "--blocks is only valid with the step command\n{}",
+                usage()
+            ));
+        }
+        (None, Cmd::Step) => 1,
+        (None, _) => 1,
+    };
     Ok(Parsed {
         data_dir,
         genesis_toml,
         cmd,
+        step_count,
     })
 }
 
@@ -342,6 +426,33 @@ mod tests {
         let args = vec!["--data-dir".into(), "/tmp/x".into(), "step".into()];
         let p = parse_args(&args).unwrap();
         assert_eq!(p.cmd, Cmd::Step);
+        assert_eq!(p.step_count, 1);
+    }
+
+    #[test]
+    fn parse_args_step_blocks() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--blocks".into(),
+            "5".into(),
+            "step".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Step);
+        assert_eq!(p.step_count, 5);
+    }
+
+    #[test]
+    fn parse_args_blocks_rejected_without_step() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--blocks".into(),
+            "2".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]
@@ -357,6 +468,7 @@ mod tests {
         assert_eq!(p.data_dir, PathBuf::from("/tmp/x"));
         assert_eq!(p.genesis_toml, Some(PathBuf::from("/chain/genesis.toml")));
         assert_eq!(p.cmd, Cmd::Status);
+        assert_eq!(p.step_count, 1);
     }
 
     #[test]
@@ -365,6 +477,7 @@ mod tests {
         let p = parse_args(&args).unwrap();
         assert_eq!(p.data_dir, PathBuf::from("/tmp/x"));
         assert_eq!(p.cmd, Cmd::Status);
+        assert_eq!(p.step_count, 1);
     }
 
     #[test]

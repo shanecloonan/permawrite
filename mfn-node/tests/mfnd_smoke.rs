@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4).
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -182,6 +182,43 @@ fn mfnd_step_twice_advances_tip_under_devnet_spec() {
         stout.contains("had_checkpoint_on_disk=true"),
         "stdout={stout}"
     );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_step_blocks_advances_tip_in_one_invocation() {
+    let dir = unique_data_dir("step_blocks");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--blocks")
+        .arg("3")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step --blocks 3");
+    assert!(
+        out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("new_tip_height=3"), "stdout={stdout}");
+    let st = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("status")
+        .output()
+        .expect("spawn mfnd status");
+    assert!(st.status.success());
+    let stout = String::from_utf8_lossy(&st.stdout);
+    assert!(stout.contains("tip_height=3"), "stdout={stout}");
     std::fs::remove_dir_all(&dir).ok();
 }
 
