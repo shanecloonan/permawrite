@@ -12,8 +12,8 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10**) binds a loopback TCP port and answers one
-//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`)
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11**) binds a loopback TCP port and answers one
+//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
 //! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land
@@ -87,9 +87,9 @@ fn usage() -> &'static str {
                 set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
                 same 64-hex seeds as in the JSON genesis for validator index 0)\n\
        serve   load chain + empty mempool; TCP newline-delimited JSON-RPC 2.0 on --rpc-listen\n\
-               (one request line per connection; methods: get_tip, submit_tx, get_block;\n\
+               (one request line per connection; methods: get_tip, submit_tx, get_block, get_block_header;\n\
                 submit_tx params: {\"tx_hex\":...} or [\"...\"] hex string;\n\
-                get_block params: {\"height\":N} or [N] for heights 1..=tip)\n"
+                get_block / get_block_header params: {\"height\":N} or [N] for heights 1..=tip)\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {

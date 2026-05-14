@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -16,11 +16,15 @@
 //! **`get_block`** (M2.1.10) returns canonical block bytes for heights `1..=tip_height`
 //! from the on-disk `chain.blocks` log after [`crate::ChainStore::read_block_log_validated`];
 //! params are `{"height": <n>}` or `[<n>]`.
+//!
+//! **`get_block_header`** (M2.1.11) returns the same height slice with
+//! [`mfn_consensus::block_header_bytes`] as `header_hex` plus lowercase
+//! [`mfn_consensus::block_id`] hex (no tx body).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 
-use mfn_consensus::{decode_transaction, encode_block, tx_id};
+use mfn_consensus::{block_header_bytes, block_id, decode_transaction, encode_block, tx_id, Block};
 use serde_json::{json, Value};
 
 use crate::{AdmitOutcome, Chain, ChainConfig, ChainStore, Mempool, MempoolConfig};
@@ -119,7 +123,8 @@ fn parse_height_u32(n: u64) -> Result<u32, String> {
     u32::try_from(n).map_err(|_| format!("height {n} is out of u32 range"))
 }
 
-/// `get_block` accepts `params` as `{"height": N}` or `[N]` (block heights ≥ 1).
+/// `get_block` / `get_block_header` accept `params` as `{"height": N}` or `[N]`
+/// (block heights ≥ 1).
 fn extract_height_param(params: Option<&Value>) -> Result<u32, String> {
     let p = match params {
         None | Some(Value::Null) => return Err("missing `params`".to_string()),
@@ -147,6 +152,48 @@ fn extract_height_param(params: Option<&Value>) -> Result<u32, String> {
         _ => return Err("params must be a JSON object or a JSON array".to_string()),
     };
     parse_height_u32(n)
+}
+
+/// Load `chain.blocks` validated against `chain` after height / tip checks.
+/// `height` must be parsed from params (caller maps `extract_height_param` errors).
+fn read_validated_blocks_for_height(
+    store: &ChainStore,
+    chain: &Chain,
+    height: u32,
+    id: &Value,
+) -> Result<Vec<Block>, Value> {
+    if height == 0 {
+        return Err(rpc_error(
+            id,
+            rpc_codes::INVALID_PARAMS,
+            "height must be at least 1 (genesis is not stored in chain.blocks)",
+        ));
+    }
+    let tip_h = match chain.tip_height() {
+        Some(h) => h,
+        None => {
+            return Err(rpc_error(
+                id,
+                rpc_codes::BLOCK_LOG_STORE,
+                "chain tip_height is None (unexpected)",
+            ));
+        }
+    };
+    if height > tip_h {
+        return Err(rpc_error(
+            id,
+            rpc_codes::INVALID_PARAMS,
+            format!("height {height} exceeds chain tip_height {tip_h}"),
+        ));
+    }
+    match store.read_block_log_validated(chain) {
+        Ok(b) => Ok(b),
+        Err(e) => Err(rpc_error(
+            id,
+            rpc_codes::BLOCK_LOG_STORE,
+            format!("read_block_log_validated: {e}"),
+        )),
+    }
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -264,39 +311,9 @@ fn dispatch_serve_methods(
                 Ok(h) => h,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
-            if height == 0 {
-                return rpc_error(
-                    id,
-                    rpc_codes::INVALID_PARAMS,
-                    "height must be at least 1 (genesis is not stored in chain.blocks)",
-                );
-            }
-            let tip_h = match chain.tip_height() {
-                Some(h) => h,
-                None => {
-                    return rpc_error(
-                        id,
-                        rpc_codes::BLOCK_LOG_STORE,
-                        "chain tip_height is None (unexpected)",
-                    );
-                }
-            };
-            if height > tip_h {
-                return rpc_error(
-                    id,
-                    rpc_codes::INVALID_PARAMS,
-                    format!("height {height} exceeds chain tip_height {tip_h}"),
-                );
-            }
-            let blocks = match store.read_block_log_validated(chain) {
+            let blocks = match read_validated_blocks_for_height(store, chain, height, id) {
                 Ok(b) => b,
-                Err(e) => {
-                    return rpc_error(
-                        id,
-                        rpc_codes::BLOCK_LOG_STORE,
-                        format!("read_block_log_validated: {e}"),
-                    );
-                }
+                Err(resp) => return resp,
             };
             let idx = (height - 1) as usize;
             let block = &blocks[idx];
@@ -304,6 +321,26 @@ fn dispatch_serve_methods(
             let body = json!({
                 "height": height,
                 "block_hex": hex::encode(&bytes),
+            });
+            rpc_success(id, body)
+        }
+        "get_block_header" => {
+            let height = match extract_height_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let blocks = match read_validated_blocks_for_height(store, chain, height, id) {
+                Ok(b) => b,
+                Err(resp) => return resp,
+            };
+            let idx = (height - 1) as usize;
+            let block = &blocks[idx];
+            let hbytes = block_header_bytes(&block.header);
+            let bid = block_id(&block.header);
+            let body = json!({
+                "height": height,
+                "block_id": hex32(&bid),
+                "header_hex": hex::encode(hbytes),
             });
             rpc_success(id, body)
         }
@@ -387,8 +424,9 @@ mod tests {
 
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
-        build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, PayoutAddress,
-        Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        block_header_bytes, build_coinbase, decode_block, decode_block_header, emission_at_height,
+        ConsensusParams, GenesisConfig, PayoutAddress, Validator, ValidatorPayout,
+        ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::stealth::stealth_gen;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -755,10 +793,109 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":1},"id":1}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::BLOCK_LOG_STORE);
+        let v2 = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block_header","params":{"height":1},"id":2}"#,
+        );
+        assert_eq!(v2["error"]["code"], rpc_codes::BLOCK_LOG_STORE);
         let m = v["error"]["message"].as_str().unwrap();
         assert!(
             m.contains("read_block_log_validated") || m.contains("block log"),
             "m={m}"
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_header_height_zero_is_invalid_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gbh_h0");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block_header","params":{"height":0},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("at least 1"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_header_missing_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gbh_no_params");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_block_header","id":0}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_header_matches_full_block_at_height_1() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-serve-test-rpc_gbh_ok-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append_block");
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let vh = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block_header","params":{"height":1},"id":1}"#,
+        );
+        assert_eq!(vh["error"], Value::Null);
+        let vb = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block","params":{"height":1},"id":2}"#,
+        );
+        assert_eq!(vb["error"], Value::Null);
+
+        let hdr_hex = vh["result"]["header_hex"].as_str().expect("header_hex");
+        let hdr_bytes = hex::decode(hdr_hex).expect("header hex");
+        let dec_hdr = decode_block_header(&hdr_bytes).expect("decode_block_header");
+        let bid_exp = super::block_id(&dec_hdr);
+        assert_eq!(
+            vh["result"]["block_id"].as_str().expect("block_id"),
+            hex32(&bid_exp)
+        );
+
+        let full_hex = vb["result"]["block_hex"].as_str().expect("block_hex");
+        let full = hex::decode(full_hex).expect("block hex");
+        let dec_block = decode_block(&full).expect("decode_block");
+        assert_eq!(
+            block_header_bytes(&dec_block.header),
+            hdr_bytes,
+            "decoded header bytes must match header-only response"
+        );
+        assert_eq!(
+            super::block_id(&dec_block.header),
+            bid_exp,
+            "header-only id must match full block"
         );
         fs::remove_dir_all(&root).ok();
     }

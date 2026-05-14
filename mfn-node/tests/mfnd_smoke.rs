@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -7,7 +7,8 @@ use std::process::{Child, Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
-    build_genesis, decode_block, encode_block, encode_transaction, TransactionWire, TX_VERSION,
+    block_header_bytes, block_id, build_genesis, decode_block, decode_block_header, encode_block,
+    encode_transaction, TransactionWire, TX_VERSION,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
@@ -603,6 +604,18 @@ fn mfnd_serve_get_block_over_tcp_after_step() {
         .read_block_log_validated(&chain)
         .expect("read_block_log_validated");
     assert_eq!(bytes, encode_block(&blocks[0]));
+
+    let hdr_exp = block_header_bytes(&blocks[0].header);
+    let req_h = r#"{"jsonrpc":"2.0","method":"get_block_header","params":{"height":1},"id":78}"#;
+    let resp_h = tcp_request_json(sock, req_h);
+    let rh = assert_rpc2_result(&resp_h);
+    assert_eq!(rh["height"], json!(1));
+    let hhex = rh["header_hex"].as_str().expect("header_hex");
+    let hb = hex::decode(hhex).expect("header hex");
+    assert_eq!(hb, hdr_exp);
+    let hdr = decode_block_header(&hb).expect("decode_block_header");
+    let bid_hex = rh["block_id"].as_str().expect("block_id");
+    assert_eq!(bid_hex, hex::encode(block_id(&hdr)));
 
     let _ = child.kill();
     let _ = child.wait();
