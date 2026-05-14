@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -361,6 +361,24 @@ fn mfnd_serve_submit_tx_rejects_bad_hex() {
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let req = r#"{"method":"submit_tx","params":{"tx_hex":"gg"}}"#;
+    let resp = tcp_request_json(sock, req);
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32602, "msg={msg}");
+    assert!(
+        msg.to_lowercase().contains("hex"),
+        "expected hex decode error, msg={msg}"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_submit_tx_array_params_rejects_bad_hex() {
+    let dir = unique_data_dir("serve_bad_hex_arr");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = r#"{"method":"submit_tx","params":["gg"]}"#;
     let resp = tcp_request_json(sock, req);
     let (code, msg) = assert_rpc2_error(&resp);
     assert_eq!(code, -32602, "msg={msg}");

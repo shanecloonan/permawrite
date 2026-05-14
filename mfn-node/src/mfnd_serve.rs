@@ -8,6 +8,10 @@
 //! Omitted `id` is treated as `null` and echoed back (the TCP server always
 //! emits one response line per connection, including for JSON-RPC
 //! notifications).
+//!
+//! **`submit_tx` params** may be either a JSON object `{"tx_hex":"…"}` or a
+//! one-element JSON array `["…"]` whose first entry is the same hex string
+//! (JSON-RPC positional style).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -77,6 +81,34 @@ fn request_id(req: &Value) -> Value {
     }
 }
 
+/// `submit_tx` accepts `params` as `{"tx_hex": "…"}` or `["…"]` (hex only).
+fn extract_submit_tx_hex(params: Option<&Value>) -> Result<&str, String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    match p {
+        Value::Object(obj) => match obj.get("tx_hex") {
+            Some(Value::String(s)) => Ok(s.as_str()),
+            Some(_) => Err("params.tx_hex must be a JSON string".to_string()),
+            None => Err("missing params.tx_hex (hex-encoded encode_transaction bytes)".to_string()),
+        },
+        Value::Array(arr) => {
+            let first = arr
+                .first()
+                .ok_or_else(|| "params array is empty (expected one hex string)".to_string())?;
+            match first {
+                Value::String(s) => Ok(s.as_str()),
+                _ => Err(
+                    "params[0] must be a JSON string (hex-encoded encode_transaction bytes)"
+                        .to_string(),
+                ),
+            }
+        }
+        _ => Err("params must be a JSON object or a JSON array".to_string()),
+    }
+}
+
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
 pub(crate) fn parse_and_dispatch_serve(chain: &mut Chain, pool: &mut Mempool, line: &str) -> Value {
     let line = line.trim();
@@ -138,22 +170,9 @@ fn dispatch_serve_methods(chain: &mut Chain, pool: &mut Mempool, req: &Value, id
             rpc_success(id, body)
         }
         "submit_tx" => {
-            let hex_s = match req.get("params").and_then(|p| p.get("tx_hex")) {
-                Some(Value::String(s)) => s.as_str(),
-                Some(_) => {
-                    return rpc_error(
-                        id,
-                        rpc_codes::INVALID_PARAMS,
-                        "params.tx_hex must be a JSON string",
-                    );
-                }
-                None => {
-                    return rpc_error(
-                        id,
-                        rpc_codes::INVALID_PARAMS,
-                        "missing params.tx_hex (hex-encoded encode_transaction bytes)",
-                    );
-                }
+            let hex_s = match extract_submit_tx_hex(req.get("params")) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
             let hex_s = hex_s.trim();
             let hex_s = hex_s
@@ -163,11 +182,7 @@ fn dispatch_serve_methods(chain: &mut Chain, pool: &mut Mempool, req: &Value, id
             let bytes = match hex::decode(hex_s) {
                 Ok(b) => b,
                 Err(e) => {
-                    return rpc_error(
-                        id,
-                        rpc_codes::INVALID_PARAMS,
-                        format!("params.tx_hex hex decode: {e}"),
-                    );
+                    return rpc_error(id, rpc_codes::INVALID_PARAMS, format!("hex decode: {e}"));
                 }
             };
             let tx = match decode_transaction(&bytes) {
@@ -351,6 +366,76 @@ mod tests {
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         assert!(v["error"]["message"].as_str().unwrap().contains("tx_hex"));
+    }
+
+    #[test]
+    fn rpc_submit_tx_array_params_truncated_wire() {
+        let (mut c, mut p) = test_chain_and_pool();
+        let v = parse_and_dispatch_serve(
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","params":["00"],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        let m = v["error"]["message"].as_str().unwrap();
+        assert!(
+            m.contains("decode_transaction") || m.contains("decode"),
+            "m={m}"
+        );
+    }
+
+    #[test]
+    fn rpc_submit_tx_array_params_empty_array() {
+        let (mut c, mut p) = test_chain_and_pool();
+        let v = parse_and_dispatch_serve(
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("array"));
+    }
+
+    #[test]
+    fn rpc_submit_tx_array_params_first_not_string() {
+        let (mut c, mut p) = test_chain_and_pool();
+        let v = parse_and_dispatch_serve(
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","params":[1],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("params[0]"));
+    }
+
+    #[test]
+    fn rpc_submit_tx_params_must_be_object_or_array() {
+        let (mut c, mut p) = test_chain_and_pool();
+        let v = parse_and_dispatch_serve(
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","params":"00","id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("object or a JSON array"));
+    }
+
+    #[test]
+    fn rpc_submit_tx_missing_params() {
+        let (mut c, mut p) = test_chain_and_pool();
+        let v = parse_and_dispatch_serve(
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","id":0}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"].as_str().unwrap().contains("params"));
     }
 
     #[test]
