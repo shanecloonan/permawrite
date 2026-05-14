@@ -80,7 +80,7 @@ Each crate has its own README with public API summary, test counts, and links in
 
 ## Status
 
-**Pre-network.** This is the consensus-critical primitive layer plus a working state-transition function. The `mfnd` binary exercises checkpoint persistence and optional JSON genesis (`--genesis`); there is no P2P network, JSON-RPC surface, or public testnet yet. As of the latest commit:
+**Pre-network.** This is the consensus-critical primitive layer plus a working state-transition function. The `mfnd` binary exercises checkpoint persistence, optional JSON genesis (`--genesis`), and solo **`step`** (produce → apply → save) for single-validator devnets; there is no P2P network, JSON-RPC surface, or public testnet yet. As of the latest commit:
 
 | Layer                      | Crate           | Tests | State |
 | -------------------------- | --------------- | :---: | ----- |
