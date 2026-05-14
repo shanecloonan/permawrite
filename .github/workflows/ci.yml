@@ -19,6 +19,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+      - run: rustup default stable && rustc --version && cargo --version
       - run: cargo fmt --all --check
 
   clippy:
@@ -29,6 +30,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - run: rustup default stable && rustc --version && cargo --version
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
@@ -42,6 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Ensure rustup-managed cargo is on PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Verify Rust toolchain
+        shell: bash
+        run: |
+          rustup default stable
+          rustc --version
+          cargo --version
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --release
 
@@ -51,6 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: rustup default stable && rustc --version && cargo --version
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-audit --locked
       - run: cargo audit
