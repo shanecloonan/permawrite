@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -35,7 +35,9 @@
 //!   **M2.1.7** adds `chain.blocks`: append-only `encode_block` records after
 //!   each successful `mfnd step` apply (length-prefixed) plus
 //!   [`ChainStore::read_block_log`] for wallet replay in tests.
-//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1) — the `mfnd` reference binary (`status` /
+//!   **M2.1.9** adds [`ChainStore::read_block_log_validated`] so tooling can
+//!   reject truncated or mismatched `chain.blocks` against the checkpoint tip.
+//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9) — the `mfnd` reference binary (`status` /
 //!   `save` / `run` / `step` / **`serve`**) wired through [`mfnd_main`]. Boots from
 //!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a JSON
 //!   file via `--genesis` using [`genesis_config_from_json_path`]. The `step`
@@ -50,7 +52,7 @@
 //!   include `"jsonrpc":"2.0"` and echo `id` (or `null`). **`submit_tx`** accepts
 //!   `params` as `{"tx_hex":"…"}` or a one-element array `["…"]` (**M2.1.8.1**).
 //!   Integration tests
-//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1) drive `serve` over TCP
+//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9) drive `serve` over TCP
 //!   including `submit_tx` error paths and a signed-transfer happy path.
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!

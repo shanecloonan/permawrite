@@ -7,6 +7,9 @@
 //! **M2.1.7** adds `chain.blocks`: after each successful `mfnd step` apply,
 //! canonical [`mfn_consensus::encode_block`] payloads are appended
 //! (length-prefixed) for local replay / wallet bootstrap in tests.
+//! **M2.1.9** adds [`ChainStore::read_block_log_validated`], which checks the
+//! log replays through to the current checkpoint tip (count, heights,
+//! `prev_hash` / `block_id` chain).
 //! The daemon can now express the essential restart lifecycle:
 //!
 //! ```text
@@ -38,15 +41,17 @@
 //! ## Scope
 //!
 //! Checkpoints remain full-snapshot. The block log is a **sidecar** (no
-//! fork-choice replay engine yet). Future `store` milestones can add
-//! pruning, checksums, column families, and compaction on top of the same
-//! bytes.
+//! fork-choice replay engine yet). **M2.1.9** validates the sidecar against
+//! the checkpoint tip (height / linkage / terminal `block_id`) for tooling
+//! and tests; full fork-choice replay remains future work. Future `store`
+//! milestones can add pruning, checksums, column families, and compaction on
+//! top of the same bytes.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use mfn_consensus::{decode_block, encode_block, Block};
+use mfn_consensus::{block_id, decode_block, encode_block, Block};
 
 use crate::{Chain, ChainConfig, ChainError};
 
@@ -235,6 +240,67 @@ impl ChainStore {
         Ok(out)
     }
 
+    /// Read `chain.blocks` and verify it replays consistently with `chain`.
+    ///
+    /// Intended for wallets, RPC, and tests after loading a checkpoint: the
+    /// append-only log must contain exactly **`tip_height`** records (zero at
+    /// genesis), each at heights `1..=tip_height`, with `prev_hash` chaining
+    /// from [`Chain::genesis_id`] through to [`Chain::tip_id`].
+    ///
+    /// This is **not** fork-choice: it assumes a single-writer store and only
+    /// catches truncation, accidental reordering, or mixed directories.
+    ///
+    /// # Errors
+    ///
+    /// Same as [`read_block_log`](Self::read_block_log) for IO / framing, plus
+    /// [`StoreError::BlockLog`] when linkage or counts disagree with `chain`.
+    pub fn read_block_log_validated(&self, chain: &Chain) -> Result<Vec<Block>, StoreError> {
+        let blocks = self.read_block_log()?;
+        let tip_h = chain
+            .tip_height()
+            .ok_or_else(|| StoreError::BlockLog("chain tip_height is None (unexpected)".into()))?;
+        let tip_id = chain
+            .tip_id()
+            .ok_or_else(|| StoreError::BlockLog("chain tip_id is None (unexpected)".into()))?;
+
+        if blocks.len() as u32 != tip_h {
+            return Err(StoreError::BlockLog(format!(
+                "block log has {} record(s) but chain tip_height is {tip_h}",
+                blocks.len()
+            )));
+        }
+        if blocks.is_empty() && tip_h != 0 {
+            return Err(StoreError::BlockLog(format!(
+                "block log is empty but chain tip_height is {tip_h}"
+            )));
+        }
+
+        let mut expected_prev = *chain.genesis_id();
+        for (i, b) in blocks.iter().enumerate() {
+            let expected_height = (i as u32) + 1;
+            if b.header.height != expected_height {
+                return Err(StoreError::BlockLog(format!(
+                    "block log record {i}: header.height {} != expected {expected_height}",
+                    b.header.height
+                )));
+            }
+            if b.header.prev_hash != expected_prev {
+                return Err(StoreError::BlockLog(format!(
+                    "block log record {i}: prev_hash does not extend chain from genesis/tip"
+                )));
+            }
+            expected_prev = block_id(&b.header);
+        }
+
+        if !blocks.is_empty() && expected_prev != *tip_id {
+            return Err(StoreError::BlockLog(
+                "block log terminal block_id does not match chain tip_id".into(),
+            ));
+        }
+
+        Ok(blocks)
+    }
+
     /// Returns true if a durable checkpoint file exists (primary or backup).
     ///
     /// Staging files (`chain.checkpoint.tmp`) are ignored: an interrupted
@@ -354,7 +420,7 @@ impl ChainStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mfn_consensus::{ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS};
+    use mfn_consensus::{build_genesis, ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS};
     use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -482,6 +548,35 @@ mod tests {
         assert!(!store.checkpoint_path().exists());
         assert!(!store.backup_path().exists());
         assert!(!store.temp_path().exists());
+        fs::remove_dir_all(store.root()).ok();
+    }
+
+    #[test]
+    fn read_block_log_validated_ok_at_genesis_empty_log() {
+        let store = store_for("read_block_log_validated_ok_at_genesis_empty_log");
+        let chain = Chain::from_genesis(ChainConfig::new(empty_genesis_cfg(0))).unwrap();
+        let blocks = store.read_block_log_validated(&chain).unwrap();
+        assert!(blocks.is_empty());
+        fs::remove_dir_all(store.root()).ok();
+    }
+
+    #[test]
+    fn read_block_log_validated_rejects_count_mismatch() {
+        let store = store_for("read_block_log_validated_rejects_count_mismatch");
+        let cfg = ChainConfig::new(empty_genesis_cfg(0));
+        let chain = Chain::from_genesis(cfg.clone()).unwrap();
+        let gb = build_genesis(&cfg.genesis);
+        store.append_block(&gb).unwrap();
+        let err = store.read_block_log_validated(&chain).unwrap_err();
+        match err {
+            StoreError::BlockLog(s) => {
+                assert!(
+                    s.contains("1") && s.contains("0"),
+                    "expected length vs tip_height mismatch: {s}"
+                );
+            }
+            e => panic!("expected BlockLog error, got {e:?}"),
+        }
         fs::remove_dir_all(store.root()).ok();
     }
 

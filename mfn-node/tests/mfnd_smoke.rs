@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -524,6 +524,41 @@ fn mfnd_step_writes_block_log_then_serve_submit_tx_admits_transfer() {
 
     let _ = child.kill();
     let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_step_block_log_passes_validated_read() {
+    let dir = unique_data_dir("step_block_log_validated");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let store = ChainStore::new(&dir);
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let chain = store
+        .load_or_genesis(ChainConfig::new(gc))
+        .expect("load chain");
+    assert_eq!(chain.tip_height(), Some(1));
+    let blocks = store
+        .read_block_log_validated(&chain)
+        .expect("read_block_log_validated");
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].header.height, 1);
+
     std::fs::remove_dir_all(&dir).ok();
 }
 

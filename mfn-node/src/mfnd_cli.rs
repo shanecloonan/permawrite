@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
