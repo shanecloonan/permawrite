@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -35,7 +35,7 @@
 //!   This is the first IO-bearing node primitive: boot from a saved
 //!   checkpoint if present, otherwise build genesis; save latest state
 //!   via a temp-file + backup-slot rotation.
-//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6) — the `mfnd` reference binary (`status` /
+//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1) — the `mfnd` reference binary (`status` /
 //!   `save` / `run` / `step` / **`serve`**) wired through [`mfnd_main`]. Boots from
 //!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a JSON
 //!   file via `--genesis` using [`genesis_config_from_json_path`]. The `step`
@@ -44,6 +44,8 @@
 //!   each block prepends a mempool [`Mempool::drain`] pass; **`serve`** keeps
 //!   chain + mempool in-process and answers newline-delimited JSON over TCP
 //!   (`get_tip`, `submit_tx`) on `--rpc-listen` (default `127.0.0.1:18731`).
+//!   Integration tests (`tests/mfnd_smoke.rs`, M2.1.6.1) drive `serve` over TCP
+//!   including `submit_tx` error paths.
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains

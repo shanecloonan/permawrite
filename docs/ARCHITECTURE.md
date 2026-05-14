@@ -796,7 +796,7 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (82 tests: 57 unit + 25 integration)
+mfn-node/           Node-side glue             (86 tests: 57 unit + 29 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /

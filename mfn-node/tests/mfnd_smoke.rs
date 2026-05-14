@@ -1,10 +1,13 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use mfn_consensus::{encode_transaction, TransactionWire, TX_VERSION};
+use mfn_crypto::point::generator_g;
 
 /// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
 const DEVNET_SOLO_VRF_SEED_HEX: &str =
@@ -14,6 +17,43 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
 
 fn mfnd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mfnd"))
+}
+
+/// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
+fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr) {
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(data_dir)
+        .arg("--genesis")
+        .arg(genesis_spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve");
+    let stdout = child.stdout.take().expect("stdout pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let mut listen_line = String::new();
+    out_reader
+        .read_line(&mut listen_line)
+        .expect("read mfnd_serve_listening");
+    let addr_s = listen_line
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim();
+    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
+    (child, sock)
+}
+
+fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
+    let mut tcp = TcpStream::connect(addr).expect("tcp connect");
+    writeln!(tcp, "{request_line}").expect("write request");
+    let mut resp = String::new();
+    BufReader::new(&tcp)
+        .read_line(&mut resp)
+        .expect("read response");
+    resp
 }
 
 fn unique_data_dir(test: &str) -> PathBuf {
@@ -260,36 +300,83 @@ fn mfnd_step_checkpoint_each_writes_after_each_block() {
 fn mfnd_serve_get_tip_over_tcp() {
     let dir = unique_data_dir("serve_get_tip");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let mut child = mfnd()
-        .args(["--data-dir"])
-        .arg(&dir)
-        .arg("--genesis")
-        .arg(&spec)
-        .arg("--rpc-listen")
-        .arg("127.0.0.1:0")
-        .arg("serve")
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("spawn mfnd serve");
-    let stdout = child.stdout.take().expect("stdout pipe");
-    let mut out_reader = BufReader::new(stdout);
-    let mut listen_line = String::new();
-    out_reader
-        .read_line(&mut listen_line)
-        .expect("read mfnd_serve_listening");
-    let addr_s = listen_line
-        .strip_prefix("mfnd_serve_listening=")
-        .expect("listening prefix")
-        .trim();
-    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
-    let mut tcp = TcpStream::connect(sock).expect("tcp connect");
-    writeln!(tcp, "{{\"method\":\"get_tip\"}}").expect("write request");
-    let mut resp = String::new();
-    BufReader::new(&tcp)
-        .read_line(&mut resp)
-        .expect("read response");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
     assert!(resp.contains("\"ok\":true"), "resp={resp}");
     assert!(resp.contains("tip_height"), "resp={resp}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_submit_tx_rejects_bad_hex() {
+    let dir = unique_data_dir("serve_bad_hex");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = r#"{"method":"submit_tx","params":{"tx_hex":"gg"}}"#;
+    let resp = tcp_request_json(sock, req);
+    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    assert!(
+        resp.contains("hex") || resp.contains("Hex"),
+        "expected hex decode error, resp={resp}"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_submit_tx_rejects_truncated_wire() {
+    let dir = unique_data_dir("serve_trunc");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = r#"{"method":"submit_tx","params":{"tx_hex":"00"}}"#;
+    let resp = tcp_request_json(sock, req);
+    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    assert!(
+        resp.contains("decode_transaction") || resp.contains("decode"),
+        "resp={resp}"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_submit_tx_rejects_coinbase_shaped_wire() {
+    let dir = unique_data_dir("serve_no_inputs");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let bogus = TransactionWire {
+        version: TX_VERSION,
+        r_pub: generator_g(),
+        inputs: Vec::new(),
+        outputs: Vec::new(),
+        fee: 0,
+        extra: Vec::new(),
+    };
+    let tx_hex = hex::encode(encode_transaction(&bogus));
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = format!("{{\"method\":\"submit_tx\",\"params\":{{\"tx_hex\":\"{tx_hex}\"}}}}");
+    let resp = tcp_request_json(sock, &req);
+    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    assert!(
+        resp.contains("admit:") || resp.contains("NoInputs") || resp.contains("no inputs"),
+        "resp={resp}"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_submit_tx_rejects_missing_tx_hex() {
+    let dir = unique_data_dir("serve_missing_hex");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(sock, r#"{"method":"submit_tx","params":{}}"#);
+    assert!(resp.contains("\"ok\":false"), "resp={resp}");
+    assert!(resp.contains("tx_hex"), "resp={resp}");
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

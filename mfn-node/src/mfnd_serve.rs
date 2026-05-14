@@ -1,4 +1,5 @@
-//! Minimal TCP control plane for `mfnd serve` (M2.1.6).
+//! Minimal TCP control plane for `mfnd serve` (M2.1.6; subprocess `submit_tx`
+//! negative-path coverage in `tests/mfnd_smoke.rs` — M2.1.6.1).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Intended for localhost
