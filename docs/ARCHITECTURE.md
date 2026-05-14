@@ -836,10 +836,11 @@ mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integrat
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
 ├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
 ├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
-├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 blocking TCP serve: one-line JSON request/response;
+├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 + M2.1.12 blocking TCP serve: one-line JSON request/response;
 │                   get_tip + submit_tx (hex tx bytes) into Mempool::admit;
 │                   get_block (validated chain.blocks → block_hex);
 │                   get_block_header (same slice → header_hex + block_id);
+│                   get_mempool (mempool_len + sorted tx_id hex list);
 │                   JSON-RPC 2.0 envelope on every response line.
 ├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`;
 │                   M2.1.7 `chain.blocks` append log + `read_block_log`).
@@ -855,7 +856,7 @@ mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integrat
                     M2.1.3: `step` — solo produce/apply/save.
                     M2.1.4: `Mempool::drain` + fee-weighted coinbase + `remove_mined`;
                     optional `--blocks N`; M2.1.5: `--checkpoint-each` per-block save.
-                    M2.1.6–M2.1.8: `serve` — TCP line JSON-RPC (`get_tip`, `submit_tx`, `get_block`, `get_block_header`); `--rpc-listen`.
+                    M2.1.6–M2.1.8: `serve` — TCP line JSON-RPC (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`); `--rpc-listen`.
                     M2.1.7: append `encode_block` to `chain.blocks` after each `step` apply.
                     Env seeds unchanged for `step`.
 

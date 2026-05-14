@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -353,6 +353,23 @@ fn mfnd_serve_get_tip_jsonrpc_echoes_id() {
     assert_eq!(v["jsonrpc"], "2.0");
     assert_eq!(v["id"], json!("req-1"));
     assert!(v.get("result").is_some());
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_mempool_over_tcp_empty() {
+    let dir = unique_data_dir("serve_get_mempool");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","params":null,"id":9}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["mempool_len"], json!(0));
+    assert_eq!(r["tx_ids"], json!([]));
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

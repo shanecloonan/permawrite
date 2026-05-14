@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -12,8 +12,8 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11**) binds a loopback TCP port and answers one
-//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`)
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12**) binds a loopback TCP port and answers one
+//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
 //! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land
@@ -87,9 +87,10 @@ fn usage() -> &'static str {
                 set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
                 same 64-hex seeds as in the JSON genesis for validator index 0)\n\
        serve   load chain + empty mempool; TCP newline-delimited JSON-RPC 2.0 on --rpc-listen\n\
-               (one request line per connection; methods: get_tip, submit_tx, get_block, get_block_header;\n\
+               (one request line per connection; methods: get_tip, submit_tx, get_block, get_block_header, get_mempool;\n\
                 submit_tx params: {\"tx_hex\":...} or [\"...\"] hex string;\n\
-                get_block / get_block_header params: {\"height\":N} or [N] for heights 1..=tip)\n"
+                get_block / get_block_header params: {\"height\":N} or [N] for heights 1..=tip;\n\
+                get_mempool params: omit, null, {}, or [])\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
