@@ -13,13 +13,13 @@
 | BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
 | Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
 | Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)**) | `mfn-node` | 68 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis file) |
+| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`**) | `mfn-node` | 72 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis file + solo `step`) |
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **588** | All checks green (+ 2 ignored) |
+| **Total** | | **592** | All checks green (+ 2 ignored) |
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save and can boot from a shared JSON genesis spec (`--genesis`); P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
+**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), and can advance a solo devnet one block at a time via `step` when operator seeds are set in the environment; P2P, JSON-RPC, and the wallet CLI remain on the roadmap below.
 
 ---
 
@@ -978,7 +978,7 @@ Workspace **+6 tests** total: 576 → **582**.
 
 - **No block production loop** in `run` yet — the process only demonstrates persistence + operator ergonomics.
 - **No JSON-RPC / P2P.** Those remain later M2.x milestones.
-- **Dev genesis only** — production networks must load an agreed chain spec from out-of-band configuration.
+- **Default genesis** — without `--genesis`, `mfnd` still uses the built-in empty-validator dev config; production networks must distribute an agreed spec file (or equivalent) out-of-band.
 
 ### What this unlocks
 
@@ -1019,6 +1019,34 @@ Workspace **+6 tests** total: 582 → **588**.
 
 ---
 
+## Milestone M2.1.3 — `mfnd step` solo block + checkpoint (✓ shipped)
+
+**Why it was next.** M2.1.2 made devnet genesis reproducible, but operators still had no first-class shell path to **produce** the next block and persist it through the same `ChainStore` lifecycle as `save` / `run`. `step` closes that gap for the single-validator + payout case used in local demos.
+
+### What shipped
+
+- **`mfnd step`** — loads chain (`load_or_genesis`), requires exactly one genesis validator with a **payout** (coinbase route), reads `MFND_SOLO_VRF_SEED_HEX` and `MFND_SOLO_BLS_SEED_HEX` (64 hex chars, same decoding rules as JSON seeds), checks derived keys match validator index 0, builds coinbase via `emission_at_height` + `build_coinbase`, calls `produce_solo_block`, `Chain::apply`, then `ChainStore::save`.
+- **`genesis_spec::hex_seed32`** — public helper for env parsing (wraps the same 32-byte hex rules as the JSON spec).
+- **Monotonic block timestamp** — `genesis.timestamp + height` for the block being produced (deterministic devnet clock).
+
+### Test matrix
+
+- `mfnd_smoke`: `mfnd_step_twice_advances_tip_under_devnet_spec`, `mfnd_step_requires_solo_seed_env`, `mfnd_step_rejects_empty_validator_genesis`.
+- `mfnd_cli::tests::parse_args_step`.
+
+Workspace **+4 tests** total vs the M2.1.2 release line count: **588 → 592** passing.
+
+### Scope decisions
+
+- **Solo-only** — multi-validator scheduling, networking, and mempool-driven bodies remain later M2.x work.
+- **Secrets in env** — convenient for CI and local scripts; production deployments will move to key files / HSM paths without changing consensus.
+
+### What this unlocks
+
+- **Scriptable devnets** — CI and operators can advance height N with N invocations of `mfnd step`, reusing the same checkpoint files as `status` / `run`.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -1038,7 +1066,7 @@ Workspace **+6 tests** total: 582 → **588**.
 | `store.rs` | M2.1.0 file checkpoint store is live; future RocksDB/sled snapshot + block-log replay extends it. |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
-| `bin/mfnd.rs` | **M2.1.1** — minimal reference daemon (`status` / `save` / `run`); full producer loop attaches later. |
+| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3** — `step` (solo produce / apply / save). Full producer loop attaches later. |
 
 ### Phases
 

@@ -79,7 +79,7 @@ pub enum GenesisSpecError {
     BadValidatorIndexOrder {
         /// Position in the spec file array.
         pos: usize,
-        /// Index field read from TOML.
+        /// Index field read from JSON.
         got: u32,
     },
 
@@ -108,6 +108,14 @@ fn parse_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);
     Ok(out)
+}
+
+/// Parse exactly 32 bytes from a 64-character hex string (optional `0x` / `0X` prefix).
+///
+/// Used by `mfnd step` for [`std::env::var`] seeds; decoding rules match the
+/// `vrf_seed_hex` / `bls_seed_hex` fields in [`genesis_config_from_json_bytes`].
+pub fn hex_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
+    parse_seed32(field, s)
 }
 
 #[derive(Debug, Deserialize)]

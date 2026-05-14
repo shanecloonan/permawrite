@@ -1,8 +1,14 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3).
 
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
+const DEVNET_SOLO_VRF_SEED_HEX: &str =
+    "0101010101010101010101010101010101010101010101010101010101010101";
+const DEVNET_SOLO_BLS_SEED_HEX: &str =
+    "6565656565656565656565656565656565656565656565656565656565656565";
 
 fn mfnd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mfnd"))
@@ -100,4 +106,101 @@ fn mfnd_errors_without_data_dir() {
         stderr.contains("--data-dir") || stderr.contains("data-dir"),
         "stderr={stderr}"
     );
+}
+
+#[test]
+fn mfnd_step_requires_solo_seed_env() {
+    let dir = unique_data_dir("step_no_env");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env_remove("MFND_SOLO_VRF_SEED_HEX")
+        .env_remove("MFND_SOLO_BLS_SEED_HEX")
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        !out.status.success(),
+        "expected failure without seeds, stdout={}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("MFND_SOLO_VRF_SEED_HEX") || stderr.contains("MFND_SOLO_BLS_SEED_HEX"),
+        "stderr={stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_step_twice_advances_tip_under_devnet_spec() {
+    let dir = unique_data_dir("step_twice");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let run_step = || {
+        mfnd()
+            .args(["--data-dir"])
+            .arg(&dir)
+            .arg("--genesis")
+            .arg(&spec)
+            .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+            .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+            .arg("step")
+            .output()
+            .expect("spawn mfnd step")
+    };
+    let o1 = run_step();
+    assert!(
+        o1.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&o1.stderr)
+    );
+    let stdout1 = String::from_utf8_lossy(&o1.stdout);
+    assert!(stdout1.contains("new_tip_height=1"), "stdout={stdout1}");
+    let o2 = run_step();
+    assert!(
+        o2.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&o2.stderr)
+    );
+    let stdout2 = String::from_utf8_lossy(&o2.stdout);
+    assert!(stdout2.contains("new_tip_height=2"), "stdout={stdout2}");
+    let st = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("status")
+        .output()
+        .expect("spawn mfnd status");
+    assert!(st.status.success());
+    let stout = String::from_utf8_lossy(&st.stdout);
+    assert!(stout.contains("tip_height=2"), "stdout={stout}");
+    assert!(
+        stout.contains("had_checkpoint_on_disk=true"),
+        "stdout={stout}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_step_rejects_empty_validator_genesis() {
+    let dir = unique_data_dir("step_empty_vals");
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("exactly one validator") || stderr.contains("got 0"),
+        "stderr={stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
 }

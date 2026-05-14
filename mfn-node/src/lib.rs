@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -35,10 +35,12 @@
 //!   This is the first IO-bearing node primitive: boot from a saved
 //!   checkpoint if present, otherwise build genesis; save latest state
 //!   via a temp-file + backup-slot rotation.
-//! - **`mfnd`** (M2.1.1 + M2.1.2) — the `mfnd` reference binary (`status` /
-//!   `save` / `run`) wired through [`mfnd_main`]. Boots from
-//!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a TOML
-//!   file via `--genesis` using [`genesis_config_from_json_path`].
+//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3) — the `mfnd` reference binary (`status` /
+//!   `save` / `run` / `step`) wired through [`mfnd_main`]. Boots from
+//!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a JSON
+//!   file via `--genesis` using [`genesis_config_from_json_path`]. The `step`
+//!   command runs one [`produce_solo_block`] + [`Chain::apply`] + checkpoint
+//!   save for a single-validator genesis (devnet operator seeds via env vars).
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains
 //! deterministic and synchronous. `store` is intentionally the first
@@ -83,7 +85,7 @@ mod mfnd_cli;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
 pub use genesis_spec::{
-    genesis_config_from_json_bytes, genesis_config_from_json_path, GenesisSpecError,
+    genesis_config_from_json_bytes, genesis_config_from_json_path, hex_seed32, GenesisSpecError,
 };
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
 pub use producer::{

@@ -4,9 +4,11 @@
 //! status, save checkpoints, or block until a graceful shutdown trigger then
 //! persist. On Unix the `run` command installs a Ctrl+C handler; on Windows it
 //! waits for Enter (so the crate stays buildable on `windows-gnu` hosts without
-//! pulling `windows-sys`). Optional `--genesis` loads a TOML chain spec; see
-//! [`crate::genesis_spec`]. No JSON-RPC, mempool wiring, or block production
-//! loop yet — those attach in later M2.x milestones.
+//! pulling `windows-sys`). Optional `--genesis` loads a JSON chain spec; see
+//! [`crate::genesis_spec`]. The `step` command advances a solo-validator chain
+//! one block when operator seeds are provided via environment variables.
+//! No JSON-RPC, mempool wiring, or continuous producer loop yet — those attach
+//! in later M2.x milestones.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -14,7 +16,14 @@ use std::sync::{Arc, Mutex};
 #[cfg(unix)]
 use std::thread;
 
-use crate::{demo_genesis, genesis_config_from_json_path, Chain, ChainConfig, ChainStore};
+use mfn_bls::bls_keygen_from_seed;
+use mfn_consensus::{build_coinbase, emission_at_height, PayoutAddress, ValidatorSecrets};
+use mfn_crypto::vrf::vrf_keygen_from_seed;
+
+use crate::{
+    demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
+    Chain, ChainConfig, ChainStore,
+};
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -32,6 +41,7 @@ enum Cmd {
     Status,
     Save,
     Run,
+    Step,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,7 +61,11 @@ fn usage() -> &'static str {
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
        save    persist the current chain checkpoint and exit\n\
        run     load or genesis, then wait for shutdown and save checkpoint:\n\
-               Unix: Ctrl+C   Windows: press Enter\n"
+               Unix: Ctrl+C   Windows: press Enter\n\
+       step    solo-validator: produce next block, apply, save checkpoint\n\
+               (requires genesis with exactly one validator + payout;\n\
+                set MFND_SOLO_VRF_SEED_HEX and MFND_SOLO_BLS_SEED_HEX to the\n\
+                same 64-hex seeds as in the JSON genesis for validator index 0)\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
@@ -60,6 +74,89 @@ fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
         None => demo_genesis::empty_local_dev_genesis(),
     };
     Ok(ChainConfig::new(genesis))
+}
+
+const MFND_SOLO_VRF_SEED_HEX: &str = "MFND_SOLO_VRF_SEED_HEX";
+const MFND_SOLO_BLS_SEED_HEX: &str = "MFND_SOLO_BLS_SEED_HEX";
+
+fn run_solo_step(store: &ChainStore, cfg: &ChainConfig) -> Result<(), String> {
+    let mut chain = store
+        .load_or_genesis(cfg.clone())
+        .map_err(|e| format!("{e}"))?;
+    let vals = chain.validators();
+    if vals.len() != 1 {
+        return Err(format!(
+            "mfnd step requires exactly one validator in genesis (got {})",
+            vals.len()
+        ));
+    }
+    let producer = vals[0].clone();
+    let payout = producer.payout.as_ref().ok_or_else(|| {
+        "mfnd step: genesis validator[0] must have a payout (coinbase route)".to_string()
+    })?;
+    let vrf_hex = std::env::var(MFND_SOLO_VRF_SEED_HEX).map_err(|_| {
+        format!("mfnd step: set {MFND_SOLO_VRF_SEED_HEX} to the 64-hex vrf seed for validator[0]")
+    })?;
+    let bls_hex = std::env::var(MFND_SOLO_BLS_SEED_HEX).map_err(|_| {
+        format!("mfnd step: set {MFND_SOLO_BLS_SEED_HEX} to the 64-hex bls seed for validator[0]")
+    })?;
+    let vrf_seed = hex_seed32(MFND_SOLO_VRF_SEED_HEX, &vrf_hex).map_err(|e| e.to_string())?;
+    let bls_seed = hex_seed32(MFND_SOLO_BLS_SEED_HEX, &bls_hex).map_err(|e| e.to_string())?;
+    let vrf =
+        vrf_keygen_from_seed(&vrf_seed).map_err(|e| format!("{MFND_SOLO_VRF_SEED_HEX}: {e}"))?;
+    let bls = bls_keygen_from_seed(&bls_seed);
+    if vrf.pk != producer.vrf_pk || bls.pk != producer.bls_pk {
+        return Err(
+            "mfnd step: keys derived from env seeds do not match genesis validator[0]".into(),
+        );
+    }
+    let secrets = ValidatorSecrets {
+        index: producer.index,
+        vrf,
+        bls: bls.clone(),
+    };
+    let tip = chain
+        .tip_height()
+        .ok_or_else(|| "mfnd step: internal error: missing tip height".to_string())?;
+    let next_height = tip
+        .checked_add(1)
+        .ok_or_else(|| "mfnd step: tip height overflow".to_string())?;
+    let timestamp = cfg.genesis.timestamp.saturating_add(u64::from(next_height));
+    let state = chain.state();
+    let params = state.params;
+    let emission = emission_at_height(u64::from(next_height), &state.emission_params);
+    let cb_payout = PayoutAddress {
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
+    };
+    let cb = build_coinbase(u64::from(next_height), emission, &cb_payout)
+        .map_err(|e| format!("build_coinbase: {e}"))?;
+    let inputs = BlockInputs {
+        height: next_height,
+        slot: next_height,
+        timestamp,
+        txs: vec![cb],
+        bond_ops: Vec::new(),
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
+    };
+    let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
+        .map_err(|e| format!("produce_solo_block: {e}"))?;
+    let tip_id = chain
+        .apply(&block)
+        .map_err(|e| format!("apply_block: {e}"))?;
+    let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
+    println!(
+        "new_tip_height={}",
+        chain.tip_height().expect("tip after apply")
+    );
+    println!("new_tip_id={}", hex32(&tip_id));
+    println!(
+        "saved_checkpoint_bytes={} path={}",
+        meta.bytes_written,
+        meta.checkpoint_path.display()
+    );
+    Ok(())
 }
 
 fn run(args: Vec<String>) -> Result<(), String> {
@@ -151,6 +248,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 );
             }
         }
+        Cmd::Step => {
+            run_solo_step(&store, &cfg)?;
+        }
     }
     Ok(())
 }
@@ -223,6 +323,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         "status" => Cmd::Status,
         "save" => Cmd::Save,
         "run" => Cmd::Run,
+        "step" => Cmd::Step,
         other => return Err(format!("unknown command `{other}`\n{}", usage())),
     };
     Ok(Parsed {
@@ -235,6 +336,13 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_args_step() {
+        let args = vec!["--data-dir".into(), "/tmp/x".into(), "step".into()];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Step);
+    }
 
     #[test]
     fn parse_args_with_genesis() {
