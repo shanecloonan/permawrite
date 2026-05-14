@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -34,6 +34,10 @@
 //! **`clear_mempool`** (M2.1.15) empties the entire pool (`Mempool::clear`); `params` must be
 //! omitted, `null`, `{}`, or `[]` (same rule as **`get_mempool`**). Success returns **`cleared_count`**
 //! (how many txs were removed) and **`pool_len`** (always `0`).
+//!
+//! **`get_checkpoint`** (M2.1.16) returns canonical [`crate::Chain::encode_checkpoint`] bytes as
+//! lowercase hex plus **`byte_len`**; same empty-only `params` rule as **`get_mempool`**. This is
+//! the in-memory snapshot (what `mfnd save` would persist), not a separate disk read.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -218,7 +222,7 @@ fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
     Ok(id)
 }
 
-/// `get_mempool`, `clear_mempool`, etc. accept only absent / `null` / `{}` / `[]` `params`.
+/// `get_mempool`, `clear_mempool`, `get_checkpoint`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
         None | Some(Value::Null) => Ok(()),
@@ -342,6 +346,19 @@ fn dispatch_serve_methods(
                 "mempool_len": pool.len(),
             });
             rpc_success(id, body)
+        }
+        "get_checkpoint" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_checkpoint") {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            let bytes = chain.encode_checkpoint();
+            rpc_success(
+                id,
+                json!({
+                    "checkpoint_hex": hex::encode(&bytes),
+                    "byte_len": bytes.len(),
+                }),
+            )
         }
         "get_mempool" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_mempool") {
@@ -577,7 +594,7 @@ mod tests {
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
-    use crate::{demo_genesis, produce_solo_block, BlockInputs};
+    use crate::{demo_genesis, produce_solo_block, BlockInputs, Chain, ChainConfig};
 
     fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
         let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
@@ -1327,6 +1344,77 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("object or a JSON array"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_checkpoint_no_params_matches_chain_encode() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcp_ok");
+        let expect = c.encode_checkpoint();
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_checkpoint","id":0}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        let hx = v["result"]["checkpoint_hex"]
+            .as_str()
+            .expect("checkpoint_hex");
+        let got = hex::decode(hx).expect("hex decode");
+        assert_eq!(v["result"]["byte_len"], json!(got.len()));
+        assert_eq!(got, expect);
+        let cfg = ChainConfig::new(demo_genesis::empty_local_dev_genesis());
+        let restored = Chain::from_checkpoint_bytes(cfg, &got).expect("from_checkpoint_bytes");
+        assert_eq!(restored.encode_checkpoint(), expect);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_checkpoint_accepts_explicit_empty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcp_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_checkpoint","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert!(v["result"]["checkpoint_hex"].as_str().unwrap().len() >= 64);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_checkpoint_accepts_empty_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcp_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_checkpoint","params":[],"id":3}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(
+            v["result"]["byte_len"].as_u64().unwrap() as usize * 2,
+            v["result"]["checkpoint_hex"].as_str().unwrap().len()
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_checkpoint_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcp_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_checkpoint","params":{"x":1},"id":2}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("get_checkpoint"));
         fs::remove_dir_all(&root).ok();
     }
 

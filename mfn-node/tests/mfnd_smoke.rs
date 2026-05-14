@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -13,7 +13,7 @@ use mfn_consensus::{
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
 use mfn_crypto::stealth_wallet_from_seed;
-use mfn_node::{genesis_config_from_json_path, ChainConfig, ChainStore};
+use mfn_node::{genesis_config_from_json_path, Chain, ChainConfig, ChainStore};
 use mfn_wallet::{TransferRecipient, Wallet, WalletKeys};
 use serde_json::{json, Value};
 
@@ -644,6 +644,51 @@ fn mfnd_serve_clear_mempool_after_submit() {
     let me = assert_rpc2_result(&resp_empty);
     assert_eq!(me["mempool_len"], json!(0));
     assert_eq!(me["tx_ids"], json!([]));
+
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_checkpoint_round_trips_over_tcp_after_step() {
+    let dir = unique_data_dir("serve_gcp_step");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_checkpoint","params":null,"id":1}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    let hx = r["checkpoint_hex"].as_str().expect("checkpoint_hex");
+    let bytes = hex::decode(hx).expect("checkpoint hex");
+    assert_eq!(r["byte_len"], json!(bytes.len()));
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let restored = Chain::from_checkpoint_bytes(ChainConfig::new(gc), &bytes).expect("restore");
+    assert_eq!(restored.tip_height(), Some(1));
+
+    let resp_tip = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_tip","params":null,"id":2}"#,
+    );
+    let tip = assert_rpc2_result(&resp_tip);
+    assert_eq!(tip["tip_height"], json!(1));
 
     let _ = child.kill();
     let _ = child.wait();
