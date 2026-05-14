@@ -30,8 +30,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: rustup default stable && rustc --version && cargo --version
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
+      - name: Verify Rust toolchain
+        shell: bash
+        run: |
+          rustup default stable
+          rustc --version
+          cargo --version
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   test:
@@ -49,13 +57,16 @@ jobs:
         shell: pwsh
         run: |
           "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
       - name: Verify Rust toolchain
         shell: bash
         run: |
           rustup default stable
           rustc --version
           cargo --version
-      - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --release
 
   audit:
@@ -64,7 +75,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: rustup default stable && rustc --version && cargo --version
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
+      - name: Verify Rust toolchain
+        shell: bash
+        run: |
+          rustup default stable
+          rustc --version
+          cargo --version
       - run: cargo install cargo-audit --locked
       - run: cargo audit
