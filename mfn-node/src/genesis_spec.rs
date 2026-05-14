@@ -1,4 +1,5 @@
-//! Human-editable genesis chain spec (JSON, version 1) for operators and tests (M2.1.2).
+//! Human-editable genesis chain spec (JSON, version 1) for operators and tests
+//! (M2.1.2 + **M2.1.7** optional `synthetic_decoy_utxos` for local ring decoys).
 //!
 //! Maps a small declarative file into [`mfn_consensus::GenesisConfig`]. This
 //! is **not** the canonical on-wire genesis block — that remains
@@ -11,8 +12,11 @@ use std::path::Path;
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    ConsensusParams, GenesisConfig, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
+    ConsensusParams, GenesisConfig, GenesisOutput, Validator, ValidatorPayout,
+    DEFAULT_EMISSION_PARAMS,
 };
+use mfn_crypto::point::{generator_g, generator_h};
+use mfn_crypto::scalar::bytes_to_scalar;
 use mfn_crypto::stealth_wallet_from_seed;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
@@ -86,6 +90,10 @@ pub enum GenesisSpecError {
     /// `omit_payout = true` cannot be combined with `payout_seed_hex`.
     #[error("validator index {0}: omit_payout conflicts with payout_seed_hex")]
     ConflictingPayoutOptions(u32),
+
+    /// `synthetic_decoy_utxos` exceeds the hard cap (local devnets only).
+    #[error("synthetic_decoy_utxos {0} exceeds maximum {1}")]
+    SyntheticDecoyCountTooLarge(u32, u32),
 }
 
 fn parse_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
@@ -123,6 +131,11 @@ pub fn hex_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
 struct GenesisFile {
     version: u32,
     timestamp: u64,
+    /// Optional count of synthetic `GenesisOutput` rows (not spendable by any
+    /// wallet in the spec) to widen the on-chain UTXO set for **local** ring
+    /// decoys. Capped at [`MAX_SYNTHETIC_DECOY_UTXOS`].
+    #[serde(default)]
+    synthetic_decoy_utxos: Option<u32>,
     #[serde(default)]
     consensus: Option<ConsensusSection>,
     #[serde(default)]
@@ -150,6 +163,38 @@ struct ValidatorSection {
     /// When true, on-chain `payout` is `None` (coinbase burns).
     #[serde(default)]
     omit_payout: bool,
+}
+
+/// Upper bound for [`GenesisFile::synthetic_decoy_utxos`] (devnet / tests).
+pub const MAX_SYNTHETIC_DECOY_UTXOS: u32 = 4096;
+
+fn synthetic_genesis_outputs(
+    timestamp: u64,
+    count: u32,
+) -> Result<Vec<GenesisOutput>, GenesisSpecError> {
+    if count > MAX_SYNTHETIC_DECOY_UTXOS {
+        return Err(GenesisSpecError::SyntheticDecoyCountTooLarge(
+            count,
+            MAX_SYNTHETIC_DECOY_UTXOS,
+        ));
+    }
+    let mut out = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&timestamp.to_le_bytes());
+        seed[8..12].copy_from_slice(&i.to_le_bytes());
+        seed[12..16].copy_from_slice(b"MFD1");
+        let sp = bytes_to_scalar(&seed);
+        seed[16] = 0x01;
+        let bp = bytes_to_scalar(&seed);
+        seed[16] = 0x02;
+        let vp = bytes_to_scalar(&seed);
+        out.push(GenesisOutput {
+            one_time_addr: generator_g() * sp,
+            amount: (generator_g() * bp) + (generator_h() * vp),
+        });
+    }
+    Ok(out)
 }
 
 fn merge_consensus(base: ConsensusParams, file: Option<ConsensusSection>) -> ConsensusParams {
@@ -231,9 +276,14 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         });
     }
 
+    let initial_outputs = match file.synthetic_decoy_utxos {
+        None | Some(0) => Vec::new(),
+        Some(n) => synthetic_genesis_outputs(file.timestamp, n)?,
+    };
+
     Ok(GenesisConfig {
         timestamp: file.timestamp,
-        initial_outputs: Vec::new(),
+        initial_outputs,
         initial_storage: Vec::new(),
         validators,
         params,
@@ -261,6 +311,7 @@ mod tests {
     use super::*;
 
     const ONE_VAL: &str = include_str!("../testdata/devnet_one_validator.json");
+    const SYNTH: &str = include_str!("../testdata/devnet_one_validator_synth_decoys.json");
 
     #[test]
     fn one_validator_spec_loads() {
@@ -271,6 +322,22 @@ mod tests {
         assert_eq!(g.validators[0].stake, 1_000_000);
         assert!(g.validators[0].payout.is_some());
         assert!((g.params.expected_proposers_per_slot - 10.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn synth_decoys_spec_loads() {
+        let g = genesis_config_from_json_bytes(SYNTH.as_bytes()).expect("parse");
+        assert_eq!(g.initial_outputs.len(), 24);
+        assert_eq!(g.validators.len(), 1);
+    }
+
+    #[test]
+    fn rejects_synthetic_decoy_count_too_large() {
+        let s = r#"{"version":1,"timestamp":0,"synthetic_decoy_utxos":99999,"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::SyntheticDecoyCountTooLarge(99999, _))
+        ));
     }
 
     #[test]

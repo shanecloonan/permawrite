@@ -1,11 +1,13 @@
-//! Filesystem-backed chain checkpoint store (M2.1.0).
+//! Filesystem-backed chain checkpoint store (M2.1.0 + M2.1.7 block sidecar).
 //!
 //! This module is the first deliberately-IO-bearing piece of
 //! `mfn-node`: a tiny persistence adapter over
 //! [`Chain::encode_checkpoint`] and [`Chain::from_checkpoint_bytes`].
-//! It does not introduce RocksDB, async IO, networking, fork choice, or
-//! block-log replay. The daemon can now express the essential restart
-//! lifecycle:
+//! It does not introduce RocksDB, async IO, networking, or fork choice.
+//! **M2.1.7** adds `chain.blocks`: after each successful `mfnd step` apply,
+//! canonical [`mfn_consensus::encode_block`] payloads are appended
+//! (length-prefixed) for local replay / wallet bootstrap in tests.
+//! The daemon can now express the essential restart lifecycle:
 //!
 //! ```text
 //!   boot:     load checkpoint if present, otherwise build genesis
@@ -15,13 +17,16 @@
 //!
 //! ## File layout
 //!
-//! A [`ChainStore`] owns one directory and uses three files inside it:
+//! A [`ChainStore`] owns one directory and uses these files inside it:
 //!
 //! - `chain.checkpoint` — primary snapshot.
 //! - `chain.checkpoint.bak` — previous primary, kept for recovery if a
 //!   process dies after rotating the primary away but before publishing
 //!   the replacement.
 //! - `chain.checkpoint.tmp` — staging file for the next snapshot.
+//! - `chain.blocks` — optional append-only block log (M2.1.7): each record is
+//!   `u64_be(length) || encode_block(bytes)` so wallets can replay `mfnd step`
+//!   history without a full archive node yet.
 //!
 //! Saves write and `sync_all` the temp file before rotating. The old
 //! primary is moved to the backup slot, then the temp file is renamed
@@ -32,20 +37,23 @@
 //!
 //! ## Scope
 //!
-//! This store is intentionally a full-snapshot store. A future M2.x
-//! `store` milestone can layer block logs, column families, pruning,
-//! compaction, and checksummed metadata on top of the same checkpoint
+//! Checkpoints remain full-snapshot. The block log is a **sidecar** (no
+//! fork-choice replay engine yet). Future `store` milestones can add
+//! pruning, checksums, column families, and compaction on top of the same
 //! bytes.
 
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use mfn_consensus::{decode_block, encode_block, Block};
 
 use crate::{Chain, ChainConfig, ChainError};
 
 const CHECKPOINT_FILE: &str = "chain.checkpoint";
 const BACKUP_FILE: &str = "chain.checkpoint.bak";
 const TEMP_FILE: &str = "chain.checkpoint.tmp";
+const BLOCK_LOG_FILE: &str = "chain.blocks";
 
 /// Result metadata returned after a successful checkpoint save.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,6 +89,10 @@ pub enum StoreError {
     /// [`ChainStore::load_or_genesis`]).
     #[error("chain restore failed: {0}")]
     Chain(#[from] ChainError),
+
+    /// Append-only block log framing / decode failure.
+    #[error("block log: {0}")]
+    BlockLog(String),
 }
 
 fn io_error(op: &'static str, path: impl Into<PathBuf>, source: std::io::Error) -> StoreError {
@@ -146,6 +158,81 @@ impl ChainStore {
     #[must_use]
     pub fn temp_path(&self) -> PathBuf {
         self.root.join(TEMP_FILE)
+    }
+
+    /// Append-only block log path (`chain.blocks`).
+    #[must_use]
+    pub fn block_log_path(&self) -> PathBuf {
+        self.root.join(BLOCK_LOG_FILE)
+    }
+
+    /// Append one canonical [`encode_block`] record to `chain.blocks`.
+    ///
+    /// Framing: `u64` length in **big-endian**, followed by exactly that many
+    /// bytes (the output of [`mfn_consensus::encode_block`]). The file is
+    /// created on first append. Intended to be called after every successful
+    /// `apply` in `mfnd step` (M2.1.7).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError::Io`] on filesystem failures or [`StoreError::BlockLog`]
+    /// if the encoded block exceeds `u64::MAX` bytes (impossible in practice).
+    pub fn append_block(&self, block: &Block) -> Result<(), StoreError> {
+        fs::create_dir_all(&self.root).map_err(|e| io_error("create_dir_all", &self.root, e))?;
+        let path = self.block_log_path();
+        let payload = encode_block(block);
+        let len_u64 = u64::try_from(payload.len())
+            .map_err(|_| StoreError::BlockLog("encoded block length does not fit u64".into()))?;
+        let mut f = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|e| io_error("open_block_log", &path, e))?;
+        f.write_all(&len_u64.to_be_bytes())
+            .map_err(|e| io_error("write_block_log_len", &path, e))?;
+        f.write_all(&payload)
+            .map_err(|e| io_error("write_block_log_payload", &path, e))?;
+        f.sync_all()
+            .map_err(|e| io_error("sync_block_log", &path, e))?;
+        Ok(())
+    }
+
+    /// Read every block stored in `chain.blocks` in order.
+    ///
+    /// Missing file ⇒ empty vector. Malformed trailing bytes ⇒
+    /// [`StoreError::BlockLog`].
+    pub fn read_block_log(&self) -> Result<Vec<Block>, StoreError> {
+        let path = self.block_log_path();
+        let bytes = match fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if is_not_found(&e) => return Ok(Vec::new()),
+            Err(e) => return Err(io_error("read_block_log", &path, e)),
+        };
+        let mut out = Vec::new();
+        let mut off = 0usize;
+        while off < bytes.len() {
+            if off + 8 > bytes.len() {
+                return Err(StoreError::BlockLog(format!(
+                    "truncated length header at offset {off}"
+                )));
+            }
+            let len_u64 = u64::from_be_bytes(bytes[off..off + 8].try_into().expect("8 bytes"));
+            off += 8;
+            let len = usize::try_from(len_u64).map_err(|_| {
+                StoreError::BlockLog(format!("record byte length {len_u64} does not fit usize"))
+            })?;
+            if off + len > bytes.len() {
+                return Err(StoreError::BlockLog(format!(
+                    "truncated payload at offset {off}: need {len} bytes"
+                )));
+            }
+            let block = decode_block(&bytes[off..off + len]).map_err(|e| {
+                StoreError::BlockLog(format!("decode_block at payload offset {}: {e}", off - 8))
+            })?;
+            off += len;
+            out.push(block);
+        }
+        Ok(out)
     }
 
     /// Returns true if a durable checkpoint file exists (primary or backup).
@@ -259,6 +346,7 @@ impl ChainStore {
         remove_if_exists(&self.checkpoint_path(), "remove_checkpoint")?;
         remove_if_exists(&self.backup_path(), "remove_backup")?;
         remove_if_exists(&self.temp_path(), "remove_temp")?;
+        remove_if_exists(&self.block_log_path(), "remove_block_log")?;
         Ok(())
     }
 }
@@ -394,6 +482,23 @@ mod tests {
         assert!(!store.checkpoint_path().exists());
         assert!(!store.backup_path().exists());
         assert!(!store.temp_path().exists());
+        fs::remove_dir_all(store.root()).ok();
+    }
+
+    #[test]
+    fn read_block_log_empty_when_missing() {
+        let store = store_for("read_block_log_empty_when_missing");
+        assert!(store.read_block_log().unwrap().is_empty());
+        fs::remove_dir_all(store.root()).ok();
+    }
+
+    #[test]
+    fn clear_removes_block_log() {
+        let store = store_for("clear_removes_block_log");
+        fs::create_dir_all(store.root()).unwrap();
+        fs::write(store.block_log_path(), b"x").unwrap();
+        store.clear().unwrap();
+        assert!(!store.block_log_path().exists());
         fs::remove_dir_all(store.root()).ok();
     }
 }

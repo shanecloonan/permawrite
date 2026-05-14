@@ -796,7 +796,7 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     block_header_bytes) with typed HeaderDecodeError.
                     M2.0.10 adds encode_block / decode_block.
 
-mfn-node/           Node-side glue             (86 tests: 57 unit + 29 integration)
+mfn-node/           Node-side glue             (91 tests: 61 unit + 30 integration)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
@@ -838,13 +838,14 @@ mfn-node/           Node-side glue             (86 tests: 57 unit + 29 integrati
 ├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
 ├── mfnd_serve.rs   M2.1.6 blocking TCP serve: one-line JSON request/response;
 │                   get_tip + submit_tx (hex tx bytes) into Mempool::admit.
-├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`).
-                    ChainStore::save writes Chain::encode_checkpoint() bytes through
-                    chain.checkpoint.tmp, rotates the previous primary to
-                    chain.checkpoint.bak, and publishes chain.checkpoint.
-                    ChainStore::load_or_genesis(cfg) restores from disk when
-                    present or builds genesis otherwise. StoreError separates
-                    filesystem failures from ChainError restore failures.
+├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`;
+│                   M2.1.7 `chain.blocks` append log + `read_block_log`).
+│                   ChainStore::save writes Chain::encode_checkpoint() bytes through
+│                   chain.checkpoint.tmp, rotates the previous primary to
+│                   chain.checkpoint.bak, and publishes chain.checkpoint.
+│                   ChainStore::load_or_genesis(cfg) restores from disk when
+│                   present or builds genesis otherwise. StoreError separates
+│                   filesystem failures from ChainError restore failures.
 └── bin/mfnd.rs     M2.1.1 — `mfnd_main`: status / save / run (Unix: Ctrl+C save;
                     Windows: Enter to save, no ctrlc/windows-sys on GNU hosts).
                     M2.1.2: optional --genesis JSON path.
@@ -852,6 +853,7 @@ mfn-node/           Node-side glue             (86 tests: 57 unit + 29 integrati
                     M2.1.4: `Mempool::drain` + fee-weighted coinbase + `remove_mined`;
                     optional `--blocks N`; M2.1.5: `--checkpoint-each` per-block save.
                     M2.1.6: `serve` — TCP line JSON (`get_tip`, `submit_tx`); `--rpc-listen`.
+                    M2.1.7: append `encode_block` to `chain.blocks` after each `step` apply.
                     Env seeds unchanged for `step`.
 
 mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)

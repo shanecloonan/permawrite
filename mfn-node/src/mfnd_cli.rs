@@ -8,7 +8,8 @@
 //! [`crate::genesis_spec`]. The `step` command advances a solo-validator chain
 //! when operator seeds are set in the environment; each iteration builds a
 //! coinbase plus any txs drained from an in-memory [`crate::Mempool`], then
-//! `produce_solo_block` → `apply` → `remove_mined`. Use `--blocks N` to apply
+//! `produce_solo_block` → `apply` → `remove_mined` → **`append_block`** (M2.1.7
+//! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
 //! **`serve`** (M2.1.6) binds a loopback TCP port and answers one NDJSON
@@ -209,6 +210,9 @@ fn run_solo_step(
             .apply(&block)
             .map_err(|e| format!("apply_block: {e}"))?;
         pool.remove_mined(&block);
+        store
+            .append_block(&block)
+            .map_err(|e| format!("append_block: {e}"))?;
 
         if checkpoint_each_block {
             let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
