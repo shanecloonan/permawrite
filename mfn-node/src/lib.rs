@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + **M2.3.0 `network` scaffold** + **M2.3.1 P2P length-prefix framing**)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + **M2.3.0 `network` scaffold** + **M2.3.1 P2P length-prefix framing** + **M2.3.2 `HelloV1` TCP handshake**)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -28,9 +28,9 @@
 //!   the lowest-fee entry, and `drain(max)` for highest-fee-first
 //!   block inclusion. M2.0.13 adds storage-anchoring admission gates
 //!   that mirror `apply_block`'s permanence checks.
-//! - [`network`] (**M2.3.0** scaffold + **M2.3.1** [`network::frame`] codec) — length-prefixed
-//!   TCP frames (`encode_frame` / `read_frame` / [`network::frame::HelloV1`]) for future gossip;
-//!   [`NetworkConfig`] holds listener/dial defaults only.
+//! - [`network`] (**M2.3.0** scaffold + **M2.3.1** [`network::frame`] + **M2.3.2** [`network::handshake`])
+//!   — length-prefixed frames and [`network::hello_v1_handshake`] (symmetric genesis binding on a
+//!   duplex stream); [`NetworkConfig`] holds listener/dial defaults only.
 //! - [`genesis_spec`] (M2.1.2) — versioned JSON → [`mfn_consensus::GenesisConfig`] for
 //!   operator-controlled devnets and tests (`--genesis` on `mfnd`).
 //! - [`store`] (M2.1.0) — filesystem checkpoint store over

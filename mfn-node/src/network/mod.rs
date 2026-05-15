@@ -2,17 +2,22 @@
 //!
 //! **M2.3.0** reserved this module path and [`NetworkConfig`]. **M2.3.1** adds
 //! [`frame`]: length-prefixed binary frames plus a minimal [`frame::HelloV1`]
-//! handshake binding connections to a **genesis id** before block/tx payloads.
+//! payload. **M2.3.2** adds [`handshake`]: send/recv that payload over `Read` /
+//! `Write` (including symmetric [`hello_v1_handshake`] on a TCP stream).
 //!
 //! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
 //! milestones (listener loop, admission, fork choice). No async runtime here.
 
 pub mod frame;
+pub mod handshake;
 
 pub use frame::{
     decode_frame_prefix, encode_frame, read_frame, write_frame_io, FrameDecodeError,
     FrameEncodeError, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
     MAX_FRAME_PAYLOAD_LEN,
+};
+pub use handshake::{
+    hello_v1_handshake, recv_hello, recv_hello_expect, send_hello, HelloHandshakeError,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).
