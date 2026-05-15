@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello + **M2.3.6** optional `--p2p-dial`).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello + **M2.3.6** optional `--p2p-dial` + **M2.3.7** shared P2P socket I/O timeouts).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -62,7 +62,6 @@
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
-use std::time::Duration;
 
 use mfn_consensus::block::StorageEntry;
 use mfn_consensus::{
@@ -987,7 +986,6 @@ fn handle_client(
 }
 
 fn spawn_p2p_handshake_loop(listener: TcpListener, genesis_id: [u8; 32]) -> Result<(), String> {
-    const P2P_IO_TIMEOUT: Duration = Duration::from_secs(30);
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
@@ -998,8 +996,10 @@ fn spawn_p2p_handshake_loop(listener: TcpListener, genesis_id: [u8; 32]) -> Resu
                     continue;
                 }
             };
-            let _ = sock.set_read_timeout(Some(P2P_IO_TIMEOUT));
-            let _ = sock.set_write_timeout(Some(P2P_IO_TIMEOUT));
+            let _ =
+                sock.set_read_timeout(Some(crate::network::handshake::P2P_HANDSHAKE_IO_TIMEOUT));
+            let _ =
+                sock.set_write_timeout(Some(crate::network::handshake::P2P_HANDSHAKE_IO_TIMEOUT));
             if let Err(e) = crate::network::hello_v1_handshake(&mut sock, &genesis_id) {
                 eprintln!("mfnd p2p: handshake from {peer}: {e}");
                 continue;

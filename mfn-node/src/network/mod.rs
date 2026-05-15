@@ -5,7 +5,8 @@
 //! payload. **M2.3.2** adds [`handshake`]: send/recv that payload over `Read` /
 //! `Write` (including symmetric [`hello_v1_handshake`] on a TCP stream). **M2.3.4** adds
 //! [`handshake::tcp_connect_hello_v1_handshake`] for outbound dials. **M2.3.5** adds [`PingV1`] /
-//! [`PongV1`] and [`tcp_connect_peer_v1_handshake`] (hello + dialer ping / listener pong).
+//! [`PongV1`] and [`tcp_connect_peer_v1_handshake`] (hello + dialer ping / listener pong). **M2.3.7**
+//! shares [`handshake::P2P_HANDSHAKE_IO_TIMEOUT`] across outbound dials and `mfnd serve` accepts.
 //!
 //! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
 //! milestones (full gossip, admission, fork choice). **M2.3.3** wires an optional P2P listen into
@@ -22,7 +23,7 @@ pub use frame::{
 pub use handshake::{
     hello_v1_handshake, recv_hello, recv_hello_expect, recv_ping_send_pong, send_hello,
     send_ping_recv_pong, tcp_connect_hello_v1_handshake, tcp_connect_peer_v1_handshake,
-    HelloHandshakeError,
+    HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

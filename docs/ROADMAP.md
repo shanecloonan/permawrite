@@ -1509,6 +1509,21 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ---
 
+## Milestone M2.3.7 — P2P handshake TCP I/O timeouts on dials (✓ shipped)
+
+**Why it was next.** `mfnd serve --p2p-listen` applied **30s** read/write timeouts on accepted P2P sockets, but [`tcp_connect_peer_v1_handshake`](../mfn-node/src/network/handshake.rs) (and [`tcp_connect_hello_v1_handshake`](../mfn-node/src/network/handshake.rs)) left outbound [`TcpStream`]s at OS defaults, so a stuck remote could block `--p2p-dial` threads without bound.
+
+### What shipped
+
+- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — public **`P2P_HANDSHAKE_IO_TIMEOUT`** (**30s**); set immediately after **`TcpStream::connect`** in both TCP dial helpers.
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — P2P accept thread uses the same constant (replaces a local `Duration::from_secs(30)`).
+
+### Tests
+
+- **`network::handshake::tests::tcp_connect_peer_v1_handshake_sets_io_timeouts`**
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:

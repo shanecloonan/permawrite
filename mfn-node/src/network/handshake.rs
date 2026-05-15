@@ -2,12 +2,18 @@
 //! **M2.3.4** adds [`tcp_connect_hello_v1_handshake`] for outbound TCP dials.
 //! **M2.3.5** adds [`send_ping_recv_pong`] / [`recv_ping_send_pong`] after hello (dialer → listener),
 //! and [`tcp_connect_peer_v1_handshake`] (connect + hello + ping/pong as dialer).
+//! **M2.3.7** applies [`P2P_HANDSHAKE_IO_TIMEOUT`] on outbound [`TcpStream`]s from those dial helpers
+//! (same default as `mfnd serve --p2p-listen` per accepted socket).
 //!
 //! Each side sends one length-prefixed [`HelloV1`] frame, then reads the peer's frame and
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
 
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::time::Duration;
+
+/// Read/write timeout for P2P handshake framing on [`TcpStream`] (dial + `mfnd serve` accept path).
+pub const P2P_HANDSHAKE_IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 use super::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
@@ -96,6 +102,8 @@ pub fn tcp_connect_hello_v1_handshake<A: ToSocketAddrs>(
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
     let mut stream = TcpStream::connect(addrs)?;
+    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
     hello_v1_handshake(&mut stream, genesis_id)?;
     Ok(stream)
 }
@@ -124,6 +132,8 @@ pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
     let mut stream = TcpStream::connect(addrs)?;
+    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
     Ok(stream)
@@ -204,6 +214,34 @@ mod tests {
         });
 
         let _ = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
+
+        server.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn tcp_connect_peer_v1_handshake_sets_io_timeouts() {
+        let genesis = [0x22u8; 32];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (mut sock, _) = listener.accept().unwrap();
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            sock.set_write_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            hello_v1_handshake(&mut sock, &genesis)?;
+            recv_ping_send_pong(&mut sock)
+        });
+
+        let sock = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
+        assert_eq!(
+            sock.read_timeout().expect("read_timeout"),
+            Some(P2P_HANDSHAKE_IO_TIMEOUT)
+        );
+        assert_eq!(
+            sock.write_timeout().expect("write_timeout"),
+            Some(P2P_HANDSHAKE_IO_TIMEOUT)
+        );
 
         server.join().unwrap().unwrap();
     }
