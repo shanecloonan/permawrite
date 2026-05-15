@@ -1,14 +1,21 @@
 //! P2P gossip and block/tx propagation (**M2.3 — Multi-node testnet**).
 //!
-//! This module is intentionally a **thin scaffold** today: it reserves the
-//! `mfn_node::network` path, documents the integration boundary with
-//! [`crate::Mempool`] and [`crate::Chain`], and carries **operator-tunable defaults**
-//! so later commits can add transports without reshuffling crate exports.
+//! **M2.3.0** reserved this module path and [`NetworkConfig`]. **M2.3.1** adds
+//! [`frame`]: length-prefixed binary frames plus a minimal [`frame::HelloV1`]
+//! handshake binding connections to a **genesis id** before block/tx payloads.
 //!
-//! Non-goals for the first wire landings: consensus rule changes, fork-choice,
-//! and async runtimes — those stay in `mfn-consensus` / future `runner` work.
+//! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
+//! milestones (listener loop, admission, fork choice). No async runtime here.
 
-/// Tunables for a future gossip listener + dialer (no sockets are opened yet).
+pub mod frame;
+
+pub use frame::{
+    decode_frame_prefix, encode_frame, read_frame, write_frame_io, FrameDecodeError,
+    FrameEncodeError, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
+    MAX_FRAME_PAYLOAD_LEN,
+};
+
+/// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NetworkConfig {
     /// Host/port (or future multiaddr string) to bind for inbound peers.
