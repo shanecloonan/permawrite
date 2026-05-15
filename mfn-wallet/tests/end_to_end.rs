@@ -692,8 +692,7 @@ fn publish_claim_tx_round_trip_through_chain() {
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
     };
-    let block4 =
-        produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
+    let block4 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
     chain.apply(&block4).expect("chain applies claim block");
 
     let recs = chain

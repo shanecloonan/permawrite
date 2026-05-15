@@ -62,7 +62,10 @@ use mfn_storage::{
 
 use crate::bond_wire::{bond_merkle_root, decode_bond_op, encode_bond_op, BondOp, BondWireError};
 use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
-use crate::claims::{claim_to_record, claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx};
+use crate::claims::{
+    claim_to_record, claims_merkle_root, collect_claim_merkle_leaves_for_txs,
+    verified_claims_for_tx, VerifiedClaimsForTxResult,
+};
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
 use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
@@ -1250,12 +1253,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // Header `claims_root` binds every verified claim leaf in block order
     // (non-coinbase txs only). Parse+verify once here; the tx walk reuses
     // the results when mutating [`ChainState::claims`].
-    let per_tx_claims: Vec<
-        Result<
-            (Vec<mfn_crypto::authorship::AuthorshipClaim>, Vec<[u8; 32]>),
-            crate::claims::AuthorshipClaimVerifyError,
-        >,
-    > = block
+    let per_tx_claims: Vec<VerifiedClaimsForTxResult> = block
         .txs
         .iter()
         .enumerate()
@@ -1571,13 +1569,8 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 for (ci, c) in clist.iter().enumerate() {
                     let lh = leaves[ci];
                     if next.claim_submitted.insert(lh) {
-                        let rec = claim_to_record(
-                            c,
-                            tid,
-                            block.header.height,
-                            ti as u32,
-                            ci as u32,
-                        );
+                        let rec =
+                            claim_to_record(c, tid, block.header.height, ti as u32, ci as u32);
                         next.claims.entry(c.data_root).or_default().push(rec);
                     }
                 }

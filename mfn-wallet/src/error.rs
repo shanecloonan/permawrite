@@ -37,6 +37,16 @@ pub enum WalletError {
         max: usize,
     },
 
+    /// Non-empty `extra` cannot be combined with authorship claims (wire
+    /// `extra` is exactly the MFEX claim envelope).
+    #[error("cannot set both `extra` and `authorship_claims` on a storage upload")]
+    UploadExtraConflictsWithAuthorshipClaims,
+
+    /// An authorship claim's `data_root` did not match this upload's
+    /// [`mfn_storage::StorageCommitment::data_root`].
+    #[error("authorship claim data_root does not match storage commitment data_root")]
+    AuthorshipClaimDataRootMismatch,
+
     /// Caller asked to send `requested` atomic units but the wallet only
     /// holds `available` in unspent owned outputs (plus fee, if any).
     #[error("insufficient funds: requested {requested}, available {available}")]

@@ -86,16 +86,16 @@ pub use chain_checkpoint::{
     decode_chain_checkpoint, encode_chain_checkpoint, ChainCheckpoint, ChainCheckpointError,
     CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
 };
-pub use claims::{
-    authorship_claim_merkle_leaf, build_mfex_extra, claim_to_record, claims_merkle_root,
-    collect_claim_merkle_leaves_for_txs, verified_claims_for_tx, AuthorshipClaimRecord,
-    AuthorshipClaimVerifyError,
-};
 pub use checkpoint_codec::{
     check_validator_assignment, decode_bonding_params, decode_consensus_params,
     decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
     encode_consensus_params, encode_pending_unbond, encode_validator, encode_validator_stats,
     CheckpointReadError,
+};
+pub use claims::{
+    authorship_claim_merkle_leaf, build_mfex_extra, claim_to_record, claims_merkle_root,
+    collect_claim_merkle_leaves_for_txs, verified_claims_for_tx, AuthorshipClaimRecord,
+    AuthorshipClaimVerifyError, VerifiedClaimsForTxResult, VerifiedTxClaims,
 };
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,

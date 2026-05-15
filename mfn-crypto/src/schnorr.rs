@@ -73,7 +73,9 @@ pub fn encode_schnorr_signature(sig: &SchnorrSignature) -> [u8; SCHNORR_SIGNATUR
 }
 
 /// Decode a [`SchnorrSignature`] from 64 bytes.
-pub fn decode_schnorr_signature(bytes: &[u8; SCHNORR_SIGNATURE_BYTES]) -> crate::Result<SchnorrSignature> {
+pub fn decode_schnorr_signature(
+    bytes: &[u8; SCHNORR_SIGNATURE_BYTES],
+) -> crate::Result<SchnorrSignature> {
     let mut rb = [0u8; 32];
     rb.copy_from_slice(&bytes[..32]);
     let r = CompressedEdwardsY(rb)

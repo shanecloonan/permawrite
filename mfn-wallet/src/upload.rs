@@ -69,7 +69,7 @@
 //! be wired up at a higher layer without re-running the chunking step.
 
 use curve25519_dalek::scalar::Scalar;
-use mfn_consensus::{sign_transaction, InputSpec, OutputSpec, SignedTransaction};
+use mfn_consensus::{build_mfex_extra, sign_transaction, InputSpec, OutputSpec, SignedTransaction};
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::{select_gamma_decoys, DecoyCandidate, DEFAULT_GAMMA_PARAMS};
 use mfn_storage::{build_storage_commitment, required_endowment, BuiltCommitment, EndowmentParams};
@@ -163,7 +163,14 @@ pub struct StorageUploadPlan<'a, R: FnMut() -> f64> {
     /// front via [`WalletError::UploadUnderfunded`].
     pub fee: u64,
     /// Opaque memo committed to by the tx preimage. Pass `&[]` for none.
+    /// When [`Self::authorship_claims`] is non-empty, this must be empty
+    /// — the wire `extra` is exactly [`build_mfex_extra`]`(authorship_claims)`.
     pub extra: &'a [u8],
+    /// Optional signed authorship claims (MFEX/MFCL) in `tx.extra`. When
+    /// non-empty, [`Self::extra`] must be `&[]`, and every claim's
+    /// `data_root` must match the upload's [`mfn_storage::StorageCommitment::data_root`]
+    /// (enforced in [`build_storage_upload`]).
+    pub authorship_claims: &'a [mfn_crypto::authorship::AuthorshipClaim],
     /// Anonymity-set size **including** the real input. ≥ 2.
     pub ring_size: usize,
     /// Decoy candidate pool. Must be sorted by height ascending — use
@@ -364,6 +371,17 @@ where
         plan.endowment_blinding,
     )?;
 
+    if !plan.authorship_claims.is_empty() {
+        if !plan.extra.is_empty() {
+            return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
+        }
+        for c in plan.authorship_claims {
+            if c.data_root != built.commit.data_root {
+                return Err(WalletError::AuthorshipClaimDataRootMismatch);
+            }
+        }
+    }
+
     let mut input_specs: Vec<InputSpec> = Vec::with_capacity(plan.inputs.len());
     let decoys_per_input = plan.ring_size - 1;
 
@@ -432,7 +450,12 @@ where
     }
 
     // (8) RingCT ceremony.
-    let signed = sign_transaction(input_specs, output_specs, plan.fee, plan.extra.to_vec())?;
+    let extra_wire: Vec<u8> = if plan.authorship_claims.is_empty() {
+        plan.extra.to_vec()
+    } else {
+        build_mfex_extra(plan.authorship_claims)?
+    };
+    let signed = sign_transaction(input_specs, output_specs, plan.fee, extra_wire)?;
 
     Ok(UploadArtifacts {
         signed,
@@ -546,6 +569,7 @@ mod tests {
             change_recipients: &change,
             fee,
             extra: b"upload-1",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -621,6 +645,7 @@ mod tests {
             change_recipients: &[],
             fee: 999_000,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -661,6 +686,7 @@ mod tests {
             change_recipients: &[],
             fee: 999_000,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -702,6 +728,7 @@ mod tests {
             change_recipients: &[],
             fee: 1, // grossly insufficient
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -751,6 +778,7 @@ mod tests {
             change_recipients: &[],
             fee: 1_000_000,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -791,6 +819,7 @@ mod tests {
             change_recipients: &[],
             fee,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -880,6 +909,7 @@ mod tests {
             change_recipients: &[],
             fee: 0,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,
@@ -930,6 +960,7 @@ mod tests {
             change_recipients: &change,
             fee,
             extra: b"",
+            authorship_claims: &[],
             ring_size: 4,
             decoy_pool: &pool,
             current_height: 1,

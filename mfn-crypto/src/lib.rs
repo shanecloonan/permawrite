@@ -65,8 +65,8 @@ pub mod vrf;
 
 pub use authorship::{
     claim_digest, decode_authorship_claim, encode_authorship_claim, sign_claim, sign_claim_with,
-    verify_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIM_MESSAGE_LEN,
-    MAX_CLAIMS_PER_TX, MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MAX_WIRE_LEN, MFCL_MIN_WIRE_LEN,
+    verify_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIMS_PER_TX,
+    MAX_CLAIM_MESSAGE_LEN, MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MAX_WIRE_LEN, MFCL_MIN_WIRE_LEN,
     MFCL_WIRE_VERSION,
 };
 pub use bulletproofs::{

@@ -6,8 +6,8 @@
 //! **`MFCL`** authorship claim frames (see [`mfn_crypto::authorship`]).
 
 use mfn_crypto::authorship::{
-    decode_authorship_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MFCL_HEADER_LEN,
-    MFCL_MAGIC, MFCL_MIN_WIRE_LEN, MAX_CLAIMS_PER_TX,
+    decode_authorship_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIMS_PER_TX,
+    MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MIN_WIRE_LEN,
 };
 use thiserror::Error;
 
@@ -57,7 +57,9 @@ pub enum ExtraClaimsParseError {
 
 /// If `extra` begins with [`MFEX_MAGIC`], parse v1 as a concatenation of
 /// `MFCL` claim frames. Otherwise returns an empty list (opaque legacy `extra`).
-pub fn parse_mfex_authorship_claims(extra: &[u8]) -> Result<Vec<AuthorshipClaim>, ExtraClaimsParseError> {
+pub fn parse_mfex_authorship_claims(
+    extra: &[u8],
+) -> Result<Vec<AuthorshipClaim>, ExtraClaimsParseError> {
     if extra.len() < 5 {
         if extra.starts_with(MFEX_MAGIC) {
             return Err(ExtraClaimsParseError::Truncated {
@@ -104,10 +106,11 @@ pub fn parse_mfex_authorship_claims(extra: &[u8]) -> Result<Vec<AuthorshipClaim>
             });
         }
         let frame = &extra[i..i + frame_len];
-        let claim = decode_authorship_claim(frame).map_err(|e| ExtraClaimsParseError::MfclDecode {
-            offset: i,
-            source: e,
-        })?;
+        let claim =
+            decode_authorship_claim(frame).map_err(|e| ExtraClaimsParseError::MfclDecode {
+                offset: i,
+                source: e,
+            })?;
         out.push(claim);
         if out.len() > MAX_CLAIMS_PER_TX {
             return Err(ExtraClaimsParseError::TooManyClaims {
@@ -140,7 +143,9 @@ mod tests {
 
     #[test]
     fn legacy_opaque_extra_yields_empty_claims() {
-        assert!(parse_mfex_authorship_claims(b"hello-memo").unwrap().is_empty());
+        assert!(parse_mfex_authorship_claims(b"hello-memo")
+            .unwrap()
+            .is_empty());
         assert!(parse_mfex_authorship_claims(&[]).unwrap().is_empty());
     }
 
@@ -155,8 +160,8 @@ mod tests {
         let kp = schnorr_keygen();
         let data_root = [3u8; 32];
         let msg = b"hi";
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng)
+            .expect("sign");
         let claim = AuthorshipClaim {
             wire_version: MFCL_WIRE_VERSION,
             data_root,

@@ -102,7 +102,6 @@ use mfn_storage::{
 
 use crate::block::{ChainState, PendingUnbond, StorageEntry, UtxoEntry, DEFAULT_CONSENSUS_PARAMS};
 use crate::bonding::DEFAULT_BONDING_PARAMS;
-use crate::claims::AuthorshipClaimRecord;
 use crate::checkpoint_codec::{
     check_validator_assignment, decode_bonding_params, decode_consensus_params,
     decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
@@ -110,6 +109,7 @@ use crate::checkpoint_codec::{
     read_edwards_point, read_fixed, read_len, read_u128, read_u16, read_u32, read_u64, read_u8,
     CheckpointReadError, EdwardsReadError,
 };
+use crate::claims::AuthorshipClaimRecord;
 use crate::emission::{EmissionParams, DEFAULT_EMISSION_PARAMS};
 use crate::validator_evolution::BondEpochCounters;
 
@@ -137,9 +137,7 @@ pub enum ChainCheckpointError {
     },
 
     /// Format version is not supported by this build.
-    #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 and 2"
-    )]
+    #[error("unsupported chain-checkpoint version {got}; this build supports versions 1 and 2")]
     UnsupportedVersion {
         /// The version encoded in the payload.
         got: u32,
@@ -523,9 +521,7 @@ fn decode_authorship_claim_record(
             needed: wire_len,
         })?;
     let claim = decode_authorship_claim(wire).map_err(|e| {
-        ChainCheckpointError::AuthorshipClaimWire(format!(
-            "claims[{outer}].records[{inner}]: {e}"
-        ))
+        ChainCheckpointError::AuthorshipClaimWire(format!("claims[{outer}].records[{inner}]: {e}"))
     })?;
     if &claim.data_root != expected_data_root {
         return Err(ChainCheckpointError::ClaimsRecordKeyMismatch { outer, inner });
@@ -543,10 +539,12 @@ fn decode_authorship_claim_record(
     })
 }
 
-fn decode_claims_state(
-    r: &mut Reader<'_>,
-) -> Result<(BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>>, HashSet<[u8; 32]>), ChainCheckpointError>
-{
+type DecodedClaimsState = (
+    BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>>,
+    HashSet<[u8; 32]>,
+);
+
+fn decode_claims_state(r: &mut Reader<'_>) -> Result<DecodedClaimsState, ChainCheckpointError> {
     let claims_n = read_len(r, "claims.len")?;
     let mut claims: BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>> = BTreeMap::new();
     let mut prev_key: Option<[u8; 32]> = None;

@@ -21,7 +21,9 @@ use std::collections::{HashMap, HashSet};
 
 use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::{build_mfex_extra, Block, ChainState, Recipient, SignedTransaction};
-use mfn_crypto::authorship::{sign_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN, MFCL_WIRE_VERSION};
+use mfn_crypto::authorship::{
+    sign_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN, MFCL_WIRE_VERSION,
+};
 
 use crate::claiming::ClaimingIdentity;
 use crate::decoy::build_decoy_pool;
@@ -299,6 +301,7 @@ impl Wallet {
     /// `tx.extra` as MFEX-wrapped MFCL; the spend is a minimal
     /// self-payment (`1` unit) plus `fee`, with the remainder returned as
     /// change — the same RingCT path as [`Self::build_transfer`].
+    #[allow(clippy::too_many_arguments)]
     pub fn publish_claim_tx<R>(
         &mut self,
         identity: &ClaimingIdentity,
@@ -438,6 +441,7 @@ impl Wallet {
             change_recipients: &change_recipients,
             fee,
             extra,
+            authorship_claims: &[],
             ring_size,
             decoy_pool: &pool,
             current_height,
@@ -538,6 +542,7 @@ impl Wallet {
             change_recipients: &change_recipients,
             fee,
             extra,
+            authorship_claims: &[],
             ring_size,
             decoy_pool: &pool,
             current_height,

@@ -39,7 +39,8 @@ pub const MFCL_HEADER_LEN: usize = 4 + 1 + 32 + 32 + 1;
 pub const MFCL_MIN_WIRE_LEN: usize = MFCL_HEADER_LEN + SCHNORR_SIGNATURE_BYTES;
 
 /// Maximum `MFCL` frame size (`message` = [`MAX_CLAIM_MESSAGE_LEN`]).
-pub const MFCL_MAX_WIRE_LEN: usize = MFCL_HEADER_LEN + MAX_CLAIM_MESSAGE_LEN + SCHNORR_SIGNATURE_BYTES;
+pub const MFCL_MAX_WIRE_LEN: usize =
+    MFCL_HEADER_LEN + MAX_CLAIM_MESSAGE_LEN + SCHNORR_SIGNATURE_BYTES;
 
 /// One decoded authorship claim (`MFCL` wire). Signature is **not** verified by [`decode_authorship_claim`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -98,7 +99,9 @@ pub enum AuthorshipClaimDecodeError {
 /// Encode [`AuthorshipClaim`] as canonical `MFCL` bytes (version must be [`MFCL_WIRE_VERSION`]).
 pub fn encode_authorship_claim(claim: &AuthorshipClaim) -> Result<Vec<u8>> {
     if claim.wire_version != MFCL_WIRE_VERSION {
-        return Err(CryptoError::AuthorshipClaimBadWireVersion(claim.wire_version));
+        return Err(CryptoError::AuthorshipClaimBadWireVersion(
+            claim.wire_version,
+        ));
     }
     if claim.message.len() > MAX_CLAIM_MESSAGE_LEN {
         return Err(CryptoError::InvalidLength {
@@ -106,7 +109,8 @@ pub fn encode_authorship_claim(claim: &AuthorshipClaim) -> Result<Vec<u8>> {
             got: claim.message.len(),
         });
     }
-    let mut out = Vec::with_capacity(MFCL_HEADER_LEN + claim.message.len() + SCHNORR_SIGNATURE_BYTES);
+    let mut out =
+        Vec::with_capacity(MFCL_HEADER_LEN + claim.message.len() + SCHNORR_SIGNATURE_BYTES);
     out.extend_from_slice(MFCL_MAGIC);
     out.push(claim.wire_version);
     out.extend_from_slice(&claim.data_root);
@@ -114,7 +118,10 @@ pub fn encode_authorship_claim(claim: &AuthorshipClaim) -> Result<Vec<u8>> {
     out.push(claim.message.len() as u8);
     out.extend_from_slice(&claim.message);
     out.extend_from_slice(&encode_schnorr_signature(&claim.sig));
-    debug_assert_eq!(out.len(), MFCL_HEADER_LEN + claim.message.len() + SCHNORR_SIGNATURE_BYTES);
+    debug_assert_eq!(
+        out.len(),
+        MFCL_HEADER_LEN + claim.message.len() + SCHNORR_SIGNATURE_BYTES
+    );
     Ok(out)
 }
 
@@ -162,13 +169,15 @@ pub fn decode_authorship_claim(
         });
     }
     let msg = buf[70..70 + msg_len].to_vec();
-    let sig_slice: &[u8; SCHNORR_SIGNATURE_BYTES] = buf[70 + msg_len..]
-        .try_into()
-        .map_err(|_| AuthorshipClaimDecodeError::Truncated {
-            need_at_least: total,
-            got: buf.len(),
-        })?;
-    let sig = decode_schnorr_signature(sig_slice).map_err(|_| AuthorshipClaimDecodeError::InvalidSchnorrEncoding)?;
+    let sig_slice: &[u8; SCHNORR_SIGNATURE_BYTES] =
+        buf[70 + msg_len..]
+            .try_into()
+            .map_err(|_| AuthorshipClaimDecodeError::Truncated {
+                need_at_least: total,
+                got: buf.len(),
+            })?;
+    let sig = decode_schnorr_signature(sig_slice)
+        .map_err(|_| AuthorshipClaimDecodeError::InvalidSchnorrEncoding)?;
     Ok(AuthorshipClaim {
         wire_version,
         data_root,
@@ -298,8 +307,8 @@ mod tests {
         let data_root = [1u8; 32];
         let kp = schnorr_keygen();
         let msg = b"hello-permaweb";
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng)
+            .expect("sign");
         assert!(verify_claim(&data_root, &kp.pub_key, msg, &sig).expect("verify"));
     }
 
@@ -307,8 +316,8 @@ mod tests {
     fn wrong_message_fails() {
         let data_root = [2u8; 32];
         let kp = schnorr_keygen();
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, b"a", &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, b"a", &kp, &mut rand_core::OsRng)
+            .expect("sign");
         assert!(!verify_claim(&data_root, &kp.pub_key, b"b", &sig).expect("verify"));
     }
 
@@ -317,8 +326,8 @@ mod tests {
         let data_root = [3u8; 32];
         let kp = schnorr_keygen();
         let other = schnorr_keygen();
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, b"x", &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, b"x", &kp, &mut rand_core::OsRng)
+            .expect("sign");
         assert!(!verify_claim(&data_root, &other.pub_key, b"x", &sig).expect("verify"));
     }
 
@@ -335,14 +344,8 @@ mod tests {
         let data_root = [5u8; 32];
         let kp = schnorr_keygen();
         let other = schnorr_keygen();
-        let err = sign_claim_with(
-            &data_root,
-            &other.pub_key,
-            b"m",
-            &kp,
-            &mut rand_core::OsRng,
-        )
-        .expect_err("expect mismatch");
+        let err = sign_claim_with(&data_root, &other.pub_key, b"m", &kp, &mut rand_core::OsRng)
+            .expect_err("expect mismatch");
         match err {
             CryptoError::ClaimSigningKeyMismatch => {}
             e => panic!("unexpected err: {e:?}"),
@@ -360,8 +363,8 @@ mod tests {
         let kp = schnorr_keygen();
         let data_root = [0x11u8; 32];
         let msg = b"byline";
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng)
+            .expect("sign");
         let claim = AuthorshipClaim {
             wire_version: MFCL_WIRE_VERSION,
             data_root,
@@ -370,18 +373,23 @@ mod tests {
             sig,
         };
         let wire = encode_authorship_claim(&claim).expect("encode");
-        assert_eq!(wire.len(), MFCL_HEADER_LEN + msg.len() + SCHNORR_SIGNATURE_BYTES);
+        assert_eq!(
+            wire.len(),
+            MFCL_HEADER_LEN + msg.len() + SCHNORR_SIGNATURE_BYTES
+        );
         let got = decode_authorship_claim(&wire).expect("decode");
         assert_eq!(got, claim);
-        assert!(verify_claim(&got.data_root, &got.claim_pubkey, &got.message, &got.sig).expect("v"));
+        assert!(
+            verify_claim(&got.data_root, &got.claim_pubkey, &got.message, &got.sig).expect("v")
+        );
     }
 
     #[test]
     fn encode_decode_empty_message_is_min_wire() {
         let kp = schnorr_keygen();
         let data_root = [0u8; 32];
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, &[], &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, &[], &kp, &mut rand_core::OsRng)
+            .expect("sign");
         let claim = AuthorshipClaim {
             wire_version: MFCL_WIRE_VERSION,
             data_root,
@@ -419,8 +427,8 @@ mod tests {
     fn decode_trailing_bytes_rejected() {
         let kp = schnorr_keygen();
         let data_root = [7u8; 32];
-        let sig =
-            sign_claim_with(&data_root, &kp.pub_key, b"x", &kp, &mut rand_core::OsRng).expect("sign");
+        let sig = sign_claim_with(&data_root, &kp.pub_key, b"x", &kp, &mut rand_core::OsRng)
+            .expect("sign");
         let claim = AuthorshipClaim {
             wire_version: MFCL_WIRE_VERSION,
             data_root,
@@ -444,7 +452,8 @@ mod tests {
             data_root: [1u8; 32],
             claim_pubkey: kp.pub_key,
             message: vec![],
-            sig: sign_claim_with(&[1u8; 32], &kp.pub_key, &[], &kp, &mut rand_core::OsRng).expect("s"),
+            sig: sign_claim_with(&[1u8; 32], &kp.pub_key, &[], &kp, &mut rand_core::OsRng)
+                .expect("s"),
         };
         assert!(matches!(
             encode_authorship_claim(&claim),

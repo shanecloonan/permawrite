@@ -64,13 +64,20 @@ pub fn claims_merkle_root(leaves: &[[u8; 32]]) -> [u8; 32] {
     merkle_root_or_zero(leaves)
 }
 
+/// Verified claims + merkle leaves for one transaction ([`verified_claims_for_tx`]).
+pub type VerifiedTxClaims = (Vec<AuthorshipClaim>, Vec<[u8; 32]>);
+
+/// Result of [`verified_claims_for_tx`].
+pub type VerifiedClaimsForTxResult = Result<VerifiedTxClaims, AuthorshipClaimVerifyError>;
+
 /// Parse and verify signatures; returns `(claims, leaf_hashes)` in parse order.
 pub fn verified_claims_for_tx(
     tx: &TransactionWire,
     tx_index: u32,
     height: u32,
-) -> Result<(Vec<AuthorshipClaim>, Vec<[u8; 32]>), AuthorshipClaimVerifyError> {
-    let claims = parse_mfex_authorship_claims(&tx.extra).map_err(AuthorshipClaimVerifyError::Parse)?;
+) -> VerifiedClaimsForTxResult {
+    let claims =
+        parse_mfex_authorship_claims(&tx.extra).map_err(AuthorshipClaimVerifyError::Parse)?;
     let tid = tx_id(tx);
     let mut leaves = Vec::with_capacity(claims.len());
     for (i, c) in claims.iter().enumerate() {
