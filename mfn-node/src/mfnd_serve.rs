@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -43,6 +43,9 @@
 //! rotation semantics as `mfnd save`); same empty-only `params` as **`get_mempool`**. Success returns
 //! **`bytes_written`**, **`checkpoint_path`**, and **`backup_path`** strings. IO failures map to **`-32004`**
 //! (`CHECKPOINT_SAVE`).
+//!
+//! **`list_methods`** (M2.1.18) returns **`methods`**: every implemented JSON-RPC method name as a JSON
+//! string, sorted lexicographically (includes **`list_methods`**); same empty-only `params` as **`get_mempool`**.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -229,7 +232,7 @@ fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
     Ok(id)
 }
 
-/// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, etc. accept only absent / `null` / `{}` / `[]` `params`.
+/// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
         None | Some(Value::Null) => Ok(()),
@@ -239,6 +242,27 @@ fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<
             "{method} does not accept non-empty params (omit `params` or use null, {{}}, or [])"
         )),
     }
+}
+
+/// Method names implemented by [`dispatch_serve_methods`], sorted for a stable wire shape.
+///
+/// **Keep in sync** when adding a new `match` arm (include the new name here).
+fn serve_rpc_methods_json_result() -> Value {
+    let mut methods: Vec<&'static str> = vec![
+        "clear_mempool",
+        "get_block",
+        "get_block_header",
+        "get_checkpoint",
+        "get_mempool",
+        "get_mempool_tx",
+        "get_tip",
+        "list_methods",
+        "remove_mempool_tx",
+        "save_checkpoint",
+        "submit_tx",
+    ];
+    methods.sort_unstable();
+    json!({ "methods": methods })
 }
 
 /// Load `chain.blocks` validated against `chain` after height / tip checks.
@@ -353,6 +377,12 @@ fn dispatch_serve_methods(
                 "mempool_len": pool.len(),
             });
             rpc_success(id, body)
+        }
+        "list_methods" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "list_methods") {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            rpc_success(id, serve_rpc_methods_json_result())
         }
         "get_checkpoint" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_checkpoint") {
@@ -1513,6 +1543,91 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("save_checkpoint"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_methods_sorted_includes_dispatch_names() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lm_ok");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_methods","id":0}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        let arr = v["result"]["methods"].as_array().expect("methods array");
+        let names: Vec<&str> = arr
+            .iter()
+            .map(|x| x.as_str().expect("method name str"))
+            .collect();
+        let mut sorted = names.clone();
+        sorted.sort_unstable();
+        assert_eq!(names, sorted, "methods must be lexicographically sorted");
+        for expected in [
+            "clear_mempool",
+            "get_block",
+            "get_block_header",
+            "get_checkpoint",
+            "get_mempool",
+            "get_mempool_tx",
+            "get_tip",
+            "list_methods",
+            "remove_mempool_tx",
+            "save_checkpoint",
+            "submit_tx",
+        ] {
+            assert!(names.contains(&expected), "missing {expected}");
+        }
+        assert_eq!(names.len(), 11);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_methods_accepts_explicit_empty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lm_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 11);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_methods_accepts_empty_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lm_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_methods","params":[],"id":3}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert!(v["result"]["methods"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("list_methods")));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_methods_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lm_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_methods","params":{"x":1},"id":2}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("list_methods"));
         fs::remove_dir_all(&root).ok();
     }
 

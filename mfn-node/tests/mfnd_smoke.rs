@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -714,6 +714,31 @@ fn mfnd_serve_save_checkpoint_creates_checkpoint_file() {
     let _ = child.wait();
     let store2 = ChainStore::new(&dir);
     assert!(store2.has_any_checkpoint());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_list_methods_over_tcp() {
+    let dir = unique_data_dir("serve_list_methods");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"list_methods","params":null,"id":1}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    let arr = r["methods"].as_array().expect("methods");
+    let names: Vec<&str> = arr
+        .iter()
+        .map(|x| x.as_str().expect("method str"))
+        .collect();
+    assert!(names.contains(&"get_tip"));
+    assert!(names.contains(&"list_methods"));
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    assert_eq!(names, sorted);
+    let _ = child.kill();
+    let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
 }
 
