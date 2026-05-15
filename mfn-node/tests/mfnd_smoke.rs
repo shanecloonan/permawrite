@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -692,6 +692,28 @@ fn mfnd_serve_get_checkpoint_round_trips_over_tcp_after_step() {
 
     let _ = child.kill();
     let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_save_checkpoint_creates_checkpoint_file() {
+    let dir = unique_data_dir("serve_save_checkpoint");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let store = ChainStore::new(&dir);
+    assert!(!store.has_any_checkpoint());
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"save_checkpoint","params":null,"id":1}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    assert!(r["bytes_written"].as_u64().unwrap() > 0);
+    let cp = r["checkpoint_path"].as_str().expect("checkpoint_path");
+    assert!(cp.contains("chain.checkpoint"));
+    let _ = child.kill();
+    let _ = child.wait();
+    let store2 = ChainStore::new(&dir);
+    assert!(store2.has_any_checkpoint());
     std::fs::remove_dir_all(&dir).ok();
 }
 

@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -38,6 +38,11 @@
 //! **`get_checkpoint`** (M2.1.16) returns canonical [`crate::Chain::encode_checkpoint`] bytes as
 //! lowercase hex plus **`byte_len`**; same empty-only `params` rule as **`get_mempool`**. This is
 //! the in-memory snapshot (what `mfnd save` would persist), not a separate disk read.
+//!
+//! **`save_checkpoint`** (M2.1.17) persists the live chain via [`crate::ChainStore::save`] (same
+//! rotation semantics as `mfnd save`); same empty-only `params` as **`get_mempool`**. Success returns
+//! **`bytes_written`**, **`checkpoint_path`**, and **`backup_path`** strings. IO failures map to **`-32004`**
+//! (`CHECKPOINT_SAVE`).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -64,6 +69,8 @@ mod rpc_codes {
     pub const BLOCK_LOG_STORE: i64 = -32002;
     /// No mempool entry for the requested [`TransactionWire`](mfn_consensus::TransactionWire) id.
     pub const MEMPOOL_TX_NOT_FOUND: i64 = -32003;
+    /// [`crate::ChainStore::save`] failed (IO or other store error).
+    pub const CHECKPOINT_SAVE: i64 = -32004;
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -222,7 +229,7 @@ fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
     Ok(id)
 }
 
-/// `get_mempool`, `clear_mempool`, `get_checkpoint`, etc. accept only absent / `null` / `{}` / `[]` `params`.
+/// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
         None | Some(Value::Null) => Ok(()),
@@ -359,6 +366,26 @@ fn dispatch_serve_methods(
                     "byte_len": bytes.len(),
                 }),
             )
+        }
+        "save_checkpoint" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "save_checkpoint") {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            match store.save(chain) {
+                Ok(meta) => rpc_success(
+                    id,
+                    json!({
+                        "bytes_written": meta.bytes_written,
+                        "checkpoint_path": meta.checkpoint_path.display().to_string(),
+                        "backup_path": meta.backup_path.display().to_string(),
+                    }),
+                ),
+                Err(e) => rpc_error(
+                    id,
+                    rpc_codes::CHECKPOINT_SAVE,
+                    format!("checkpoint save: {e}"),
+                ),
+            }
         }
         "get_mempool" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_mempool") {
@@ -1415,6 +1442,77 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("get_checkpoint"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_save_checkpoint_writes_primary_and_returns_meta() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_save_cp_ok");
+        assert!(!store.checkpoint_path().exists());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"save_checkpoint","id":7}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        let bw = v["result"]["bytes_written"]
+            .as_u64()
+            .expect("bytes_written");
+        assert!(bw > 0);
+        let cp = v["result"]["checkpoint_path"]
+            .as_str()
+            .expect("checkpoint_path");
+        assert!(
+            cp.contains("chain.checkpoint") && !cp.contains("chain.checkpoint.bak"),
+            "cp={cp}"
+        );
+        assert!(store.checkpoint_path().exists());
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_save_checkpoint_accepts_explicit_empty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_save_cp_empty_obj");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"save_checkpoint","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert!(v["result"]["bytes_written"].as_u64().unwrap() > 0);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_save_checkpoint_accepts_empty_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_save_cp_empty_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"save_checkpoint","params":[],"id":3}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert!(v["result"]["backup_path"].as_str().unwrap().contains("bak"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_save_checkpoint_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_save_cp_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"save_checkpoint","params":{"n":1},"id":2}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("save_checkpoint"));
         fs::remove_dir_all(&root).ok();
     }
 
