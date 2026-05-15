@@ -1425,7 +1425,26 @@ Workspace **+10 tests** vs the M2.1.18 line count: **680 → 690** passing.
 
 ---
 
-## Milestone series M2.2 — Authorship claim layer (in progress)
+## Milestone M2.2.9 — Authorship docs + cross-links (✓ shipped)
+
+**Why it was next.** With **M2.2.0–M2.2.8** in the tree, readers hit stale “planned / until shipped” language and missing pointers from the overview, porting tracker, and glossary-adjacent docs back to the normative spec.
+
+### What shipped
+
+- **[`docs/AUTHORSHIP.md`](../docs/AUTHORSHIP.md)** — status block reflects **live Rust**; implementation milestone section maps ids → crates/modules; cross-links expanded (`GLOSSARY`, `README`, `mfn-node` README).
+- **[`README.md`](../README.md)** — doc index line for authorship mentions **`mfnd serve`** discovery (**M2.2.8**).
+- **[`docs/OVERVIEW.md`](../docs/OVERVIEW.md)** — “Where to read next” points at **AUTHORSHIP**.
+- **[`PORTING.md`](../PORTING.md)** — `mfn-consensus` authorship row; `mfn-node` **`mfnd`** / mempool rows marked live where implemented.
+
+Workspace test count unchanged vs **M2.2.8**.
+
+### Scope decisions
+
+- **No new code paths** — documentation and tracker alignment only; **M2.2.10** remains the next *code* milestone for discovery ergonomics.
+
+---
+
+## Milestone series M2.2 — Authorship claim layer (in progress; **M2.2.10** remaining)
 
 **Why now.** Permanent storage is content-addressed and **anonymous-by-default** at the RingCT layer: `StorageCommitment` must not grow an author field. Permaweb-style discovery still needs an **optional**, **cryptographically verifiable** signal (“this stable pubkey attests this `data_root` + short message”) without a second token type and without weakening financial privacy.
 
@@ -1435,16 +1454,16 @@ Workspace **+10 tests** vs the M2.1.18 line count: **680 → 690** passing.
 
 | Id | Deliverable |
 |----|----------------|
-| **M2.2.0** | `mfn-crypto`: `AuthorshipClaim` digest + `sign_claim` / `verify_claim` + tests + domain constant. |
-| **M2.2.1** | `mfn-crypto`: `encode_authorship_claim` / `decode_authorship_claim` (`MFCL` + version) + typed decode errors + golden vectors. |
-| **M2.2.2** | `mfn-consensus`: `extra_codec` — `MFEX` envelope + strict parse when prefixed; legacy opaque `extra` otherwise. |
-| **M2.2.3** | `mfn-consensus`: `apply_block` validates every claim (signature, limits); bad sig rejects block. |
-| **M2.2.4** | `mfn-consensus`: `ChainState.claims` map + checkpoint codec round-trip + replay idempotency. |
-| **M2.2.5** | `mfn-consensus`: `BlockHeader.claims_root` + `verify_block_body` + light-client agreement tests. |
-| **M2.2.6** | `mfn-wallet`: `ClaimingIdentity` + standalone claim tx path + e2e mempool → block. |
-| **M2.2.7** | `mfn-wallet`: `build_storage_upload_with_claims` bundles claims in `extra` + e2e storage + claims. |
+| **M2.2.0** (✓ shipped) | `mfn-crypto`: `AuthorshipClaim` digest + `sign_claim` / `verify_claim` + tests + domain constant. |
+| **M2.2.1** (✓ shipped) | `mfn-crypto`: `encode_authorship_claim` / `decode_authorship_claim` (`MFCL` + version) + typed decode errors + golden vectors. |
+| **M2.2.2** (✓ shipped) | `mfn-consensus`: `extra_codec` — `MFEX` envelope + strict parse when prefixed; legacy opaque `extra` otherwise. |
+| **M2.2.3** (✓ shipped) | `mfn-consensus`: `apply_block` validates every claim (signature, limits); bad sig rejects block. |
+| **M2.2.4** (✓ shipped) | `mfn-consensus`: `ChainState.claims` map + checkpoint codec round-trip + replay idempotency. |
+| **M2.2.5** (✓ shipped) | `mfn-consensus`: `BlockHeader.claims_root` + `verify_block_body` + light-client agreement tests. |
+| **M2.2.6** (✓ shipped) | `mfn-wallet`: `ClaimingIdentity` + standalone claim tx path + e2e mempool → block. |
+| **M2.2.7** (✓ shipped) | `mfn-wallet`: storage uploads carry optional `authorship_claims` in `extra` (`StorageUploadPlan` + `build_storage_upload`) + e2e coverage. |
 | **M2.2.8** (✓ shipped) | `mfn-node` `mfnd serve`: `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads` + TCP tests. |
-| **M2.2.9** | Docs pass (AUTHORSHIP + cross-links; this roadmap row marked shipped). |
+| **M2.2.9** (✓ shipped) | Docs pass (AUTHORSHIP + cross-links; [`PORTING.md`](../PORTING.md) + overview; roadmap milestone text). |
 | **M2.2.10** | `mfn-node`: derived indexer views for discovery (no consensus change). |
 
 **Renumbering note.** An earlier roadmap draft used “M2.2” for **multi-node P2P**. That work is **M2.3 — Multi-node testnet** in the phase list below; **M2.4 — Public testnet** follows. The numeric **M2.2.x** patch series is reserved for authorship claims so specs and code refer to one unambiguous label.

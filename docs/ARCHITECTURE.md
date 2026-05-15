@@ -172,7 +172,7 @@ Reusing a tag for a new purpose is a hard fork by construction.
 | SPoRA storage proof | `mfn-storage` | `spora.rs` | ✓ |
 | Endowment math (incl. PPB accumulator) | `mfn-storage` | `endowment.rs` | ✓ |
 
-For the math of each primitive, see [`PRIVACY.md`](./PRIVACY.md) and [`STORAGE.md`](./STORAGE.md). Optional **authorship claims** (publishing identity separate from RingCT keys) are specified in [`AUTHORSHIP.md`](./AUTHORSHIP.md).
+For the math of each primitive, see [`PRIVACY.md`](./PRIVACY.md) and [`STORAGE.md`](./STORAGE.md). Optional **authorship claims** (publishing identity separate from RingCT keys) are specified in [`AUTHORSHIP.md`](./AUTHORSHIP.md) (**M2.2.x**; discovery RPCs on `mfnd serve`: **M2.2.8**; docs alignment: **M2.2.9**).
 
 ---
 

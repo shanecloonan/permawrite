@@ -2,7 +2,7 @@
 
 > **Audience.** Protocol designers, wallet engineers, and anyone asking how Permawrite can stay **anonymous-by-default** for uploads while still supporting an optional, **cryptographically verifiable** “I published this `data_root`” signal for permaweb-style discovery.
 >
-> **Status.** This document is the **normative specification** for the M2.2.x milestone series. Until those milestones ship in Rust, treat wire constants and header fields here as the target; the implementation checklist lives in [`ROADMAP.md`](./ROADMAP.md) under **Milestone series M2.2 — Authorship claim layer**.
+> **Status.** This document remains the **normative specification** for optional authorship claims (wire tags, digest, limits, header binding). The **M2.2.0–M2.2.8** checklist in [`ROADMAP.md`](./ROADMAP.md) is **implemented in Rust on `main`**: crypto (`mfn_crypto::authorship`), consensus (`mfn_consensus` `claims` / `extra_codec` / `apply_block` / `claims_root` / checkpoint v2), wallet ([`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), uploads with [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs)), and read-only discovery on **`mfnd serve`** ([`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**). **M2.2.10** (derived indexer views beyond in-memory `serve`) is still open.
 
 ---
 
@@ -166,7 +166,17 @@ Exact JSON shapes mirror existing `get_block` / object-or-array param convention
 
 ## Implementation milestones (M2.2.0–M2.2.10)
 
-See [`ROADMAP.md`](./ROADMAP.md) **Milestone series M2.2 — Authorship claim layer** for the ordered checklist (crypto primitive → wire codec → `extra` envelope → `apply_block` validation → `ChainState` + checkpoint → header `claims_root` → wallet → serve RPC → docs polish → indexer conveniences).
+Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Milestone series M2.2 — Authorship claim layer**. **M2.2.0–M2.2.9** are complete in this repository (implementation **M2.2.0–M2.2.8** plus the **M2.2.9** documentation pass). **M2.2.10** tracks richer indexer-style views beyond in-memory `serve` projections.
+
+| Id | Rust entrypoints (non-exhaustive) |
+|----|-----------------------------------|
+| M2.2.0–M2.2.1 | [`mfn_crypto::authorship`](../mfn-crypto/src/authorship.rs) |
+| M2.2.2 | [`mfn_consensus::extra_codec`](../mfn-consensus/src/extra_codec.rs) |
+| M2.2.3–M2.2.5 | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block` / `claims_root`](../mfn-consensus/src/block.rs), [`verify_block_body`](../mfn-consensus/src/header_verify.rs) |
+| M2.2.6 | [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs) |
+| M2.2.7 | [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs) + [`build_storage_upload`](../mfn-wallet/src/upload.rs) |
+| M2.2.8 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) discovery RPCs |
+| M2.2.10 | Planned: derived views (see roadmap). |
 
 ---
 
@@ -175,3 +185,5 @@ See [`ROADMAP.md`](./ROADMAP.md) **Milestone series M2.2 — Authorship claim la
 - [`STORAGE.md`](./STORAGE.md) — `StorageCommitment`, `data_root`, permanence.
 - [`PRIVACY.md`](./PRIVACY.md) — CLSAG, stealth keys, what is hidden vs public.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — `apply_block`, header roots, domain separation.
+- [`GLOSSARY.md`](./GLOSSARY.md) — **authorship claim**, **MFCL**, **MFEX**, **claims_root**.
+- [`README.md`](../README.md) — repo map; [`mfn-node/README.md`](../mfn-node/README.md) — `mfnd serve` control plane.

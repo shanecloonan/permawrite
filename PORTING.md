@@ -62,6 +62,7 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `consensus.ts`   | `consensus.rs`    | [x] live    |
 | `slashing.ts`    | `slashing.rs`     | [x] live    |
 | `block.ts`       | `block.rs`        | [x] live (full state-transition: txs, slashing, finality, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement) |
+| — (authorship / `MFEX` / `claims_root`) | `claims.rs`, `extra_codec.rs`, `block.rs` (claims index + header) | [x] live — see [`docs/AUTHORSHIP.md`](./docs/AUTHORSHIP.md) |
 
 ### `mfn-node` — daemon binary (planned crate)
 
@@ -69,9 +70,9 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | --------------------- | --------------------------- | ----------- |
 | `rpc.ts`              | `rpc.rs` (JSON-RPC over HTTP) | [ ] pending |
 | `store.ts`            | `store.rs` (RocksDB-backed)   | [ ] pending |
-| `mempool.ts`          | `mempool.rs`                | [ ] pending |
+| `mempool.ts`          | `mempool.rs`                | [x] live (`mfn-node`) |
 | —                     | `network.rs` (libp2p gossip)| [ ] pending |
-| —                     | `bin/mfnd.rs` (daemon entry)| [ ] pending |
+| —                     | `bin/mfnd.rs` + `mfnd_serve.rs` (devnet TCP JSON-RPC incl. authorship discovery **M2.2.8**) | [x] live (`mfn-node`) |
 
 ### `mfn-wallet` — wallet binary (planned crate)
 

@@ -53,7 +53,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md) — system-wide architecture: layers, data flow, state-transition function
 - [**docs/PRIVACY.md**](./docs/PRIVACY.md) — the privacy half: stealth addresses, Pedersen commitments, CLSAG ring signatures, Bulletproof range proofs, decoy selection, the Tier-1/2/3/4 anonymity progression
 - [**docs/STORAGE.md**](./docs/STORAGE.md) — the permanence half: chunking, Merkle commitment, SPoRA per-block challenges, endowment math, the PPB-precision yield accumulator
-- [**docs/AUTHORSHIP.md**](./docs/AUTHORSHIP.md) — optional Schnorr-signed claims on `data_root` (anonymous-by-default uploads; separate publishing identity; `MFCL` / `MFEX` wire; header `claims_root`; planned RPC)
+- [**docs/AUTHORSHIP.md**](./docs/AUTHORSHIP.md) — optional Schnorr-signed claims on `data_root` (anonymous-by-default uploads; separate publishing identity; `MFCL` / `MFEX` wire; header `claims_root`; **`mfnd serve`** discovery RPCs **M2.2.8**)
 - [**docs/CONSENSUS.md**](./docs/CONSENSUS.md) — the consensus engine: slot-based PoS, stake-weighted VRF leader election, BLS12-381 committee finality, equivocation slashing, liveness slashing
 - [**docs/ECONOMICS.md**](./docs/ECONOMICS.md) — hybrid emission, two-sided fee split, treasury settlement, the `E₀ = C₀·(1+i)/(r−i)` permanence derivation
 

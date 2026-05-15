@@ -215,4 +215,5 @@ These are not blockers. They're acknowledged design tensions. The project is bui
 - **For the consensus engine (PoS + slashing)** → [`docs/CONSENSUS.md`](./CONSENSUS.md)
 - **For tokenomics + the endowment formula** → [`docs/ECONOMICS.md`](./ECONOMICS.md)
 - **For the whole-system architecture** → [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md)
+- **For optional permaweb-style publishing identity (separate from spend keys)** → [`docs/AUTHORSHIP.md`](./AUTHORSHIP.md)
 - **For the planned rollout** → [`docs/ROADMAP.md`](./ROADMAP.md)
