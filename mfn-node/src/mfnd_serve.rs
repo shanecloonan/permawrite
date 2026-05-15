@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -54,6 +54,10 @@
 //! matches (**`limit`** defaults to **50**, max **500**), newest by **`height`** first. **`list_recent_uploads`** (`params` object only: optional
 //! **`limit`** default **20** max **200**, **`offset`** default **0**, **`include_claims`** boolean default **false**) pages **`ChainState.storage`**
 //! by **`last_proven_height`** descending; when **`include_claims`** is true, each row may include a **`claims`** array for that row’s **`data_root`**.
+//!
+//! **Derived indexer views (M2.2.10)** — same object-only **`limit`** / **`offset`** bounds as **`list_recent_uploads`**:
+//! **`list_recent_claims`** flattens every indexed claim, sorted newest-first by **`(height, tx_id, tx_index, claim_index)`**, then pages.
+//! **`list_data_roots_with_claims`** lists each **`data_root`** that has at least one claim, sorted by **`max_claim_height`** descending (tie-break: lexicographic **`data_root`**), with **`claim_count`** and **`max_claim_height`** per row.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
@@ -320,16 +324,10 @@ fn extract_claim_pubkey_and_limit(params: Option<&Value>) -> Result<([u8; 32], u
     Ok((root, lim_usize))
 }
 
-fn extract_list_recent_uploads_params(
-    params: Option<&Value>,
-) -> Result<(usize, usize, bool), String> {
-    let p = match params {
-        None | Some(Value::Null) => return Err("missing `params`".to_string()),
-        Some(v) => v,
-    };
-    let Value::Object(obj) = p else {
-        return Err("params must be a JSON object".to_string());
-    };
+/// Shared **`limit`** / **`offset`** parsing for paged discovery RPCs (`list_recent_uploads`, M2.2.10).
+fn extract_list_limit_offset_from_object(
+    obj: &Map<String, Value>,
+) -> Result<(usize, usize), String> {
     let limit_u = match obj.get("limit") {
         None => DEFAULT_RECENT_UPLOADS_LIMIT,
         Some(Value::Number(n)) => n
@@ -344,14 +342,39 @@ fn extract_list_recent_uploads_params(
             .ok_or_else(|| "params.offset must be a non-negative JSON number".to_string())?,
         Some(_) => return Err("params.offset must be a JSON number".to_string()),
     };
+    let limit_u = limit_u.clamp(1, MAX_RECENT_UPLOADS_LIMIT);
+    let limit = usize::try_from(limit_u).map_err(|_| "limit out of usize range".to_string())?;
+    let offset = usize::try_from(offset_u).map_err(|_| "offset out of usize range".to_string())?;
+    Ok((limit, offset))
+}
+
+fn extract_list_limit_offset_params(params: Option<&Value>) -> Result<(usize, usize), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let Value::Object(obj) = p else {
+        return Err("params must be a JSON object".to_string());
+    };
+    extract_list_limit_offset_from_object(obj)
+}
+
+fn extract_list_recent_uploads_params(
+    params: Option<&Value>,
+) -> Result<(usize, usize, bool), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let Value::Object(obj) = p else {
+        return Err("params must be a JSON object".to_string());
+    };
+    let (limit, offset) = extract_list_limit_offset_from_object(obj)?;
     let include_claims = match obj.get("include_claims") {
         None | Some(Value::Null) => false,
         Some(Value::Bool(b)) => *b,
         Some(_) => return Err("params.include_claims must be a JSON boolean".to_string()),
     };
-    let limit_u = limit_u.clamp(1, MAX_RECENT_UPLOADS_LIMIT);
-    let limit = usize::try_from(limit_u).map_err(|_| "limit out of usize range".to_string())?;
-    let offset = usize::try_from(offset_u).map_err(|_| "offset out of usize range".to_string())?;
     Ok((limit, offset, include_claims))
 }
 
@@ -426,6 +449,42 @@ fn collect_claims_for_pubkey<'a>(
     out
 }
 
+fn collect_all_claims_sorted_recent_first(chain: &Chain) -> Vec<&AuthorshipClaimRecord> {
+    let mut out: Vec<&AuthorshipClaimRecord> = Vec::new();
+    for v in chain.state().claims.values() {
+        for rec in v {
+            out.push(rec);
+        }
+    }
+    out.sort_by(|a, b| {
+        b.height
+            .cmp(&a.height)
+            .then_with(|| a.tx_id.cmp(&b.tx_id))
+            .then_with(|| a.tx_index.cmp(&b.tx_index))
+            .then_with(|| a.claim_index.cmp(&b.claim_index))
+    });
+    out
+}
+
+fn collect_data_roots_with_claims_sorted(chain: &Chain) -> Vec<([u8; 32], u32, usize)> {
+    let mut rows: Vec<([u8; 32], u32, usize)> = Vec::new();
+    for (root, v) in chain.state().claims.iter() {
+        if v.is_empty() {
+            continue;
+        }
+        let max_h = v
+            .iter()
+            .map(|r| r.height)
+            .max()
+            .expect("non-empty claim vec");
+        rows.push((*root, max_h, v.len()));
+    }
+    rows.sort_by(|(ra, ha, _), (rb, hb, _)| {
+        hb.cmp(ha).then_with(|| ra.as_slice().cmp(rb.as_slice()))
+    });
+    rows
+}
+
 /// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
@@ -452,7 +511,9 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_mempool",
         "get_mempool_tx",
         "get_tip",
+        "list_data_roots_with_claims",
         "list_methods",
+        "list_recent_claims",
         "list_recent_uploads",
         "remove_mempool_tx",
         "save_checkpoint",
@@ -806,6 +867,58 @@ fn dispatch_serve_methods(
                     "claim_pubkey": hex32(&pk),
                     "limit": limit,
                     "claims": claims,
+                }),
+            )
+        }
+        "list_data_roots_with_claims" => {
+            let (limit, offset) = match extract_list_limit_offset_params(req.get("params")) {
+                Ok(x) => x,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let rows = collect_data_roots_with_claims_sorted(chain);
+            let total = rows.len();
+            let roots: Vec<Value> = rows
+                .into_iter()
+                .skip(offset)
+                .take(limit)
+                .map(|(root, max_h, n)| {
+                    json!({
+                        "data_root": hex32(&root),
+                        "claim_count": n,
+                        "max_claim_height": max_h,
+                    })
+                })
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "roots": roots,
+                    "total": total,
+                    "offset": offset,
+                    "limit": limit,
+                }),
+            )
+        }
+        "list_recent_claims" => {
+            let (limit, offset) = match extract_list_limit_offset_params(req.get("params")) {
+                Ok(x) => x,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let flat = collect_all_claims_sorted_recent_first(chain);
+            let total = flat.len();
+            let claims: Vec<Value> = flat
+                .into_iter()
+                .skip(offset)
+                .take(limit)
+                .map(authorship_claim_record_json)
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "claims": claims,
+                    "total": total,
+                    "offset": offset,
+                    "limit": limit,
                 }),
             )
         }
@@ -1851,7 +1964,9 @@ mod tests {
             "get_mempool",
             "get_mempool_tx",
             "get_tip",
+            "list_data_roots_with_claims",
             "list_methods",
+            "list_recent_claims",
             "list_recent_uploads",
             "remove_mempool_tx",
             "save_checkpoint",
@@ -1859,7 +1974,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 14);
+        assert_eq!(names.len(), 16);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1873,7 +1988,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 14);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 16);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2047,6 +2162,66 @@ mod tests {
         );
         assert_eq!(v["error"], Value::Null);
         assert_eq!(v["result"]["uploads"], json!([]));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_recent_claims_defaults_on_empty_chain() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lrc_def");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_recent_claims","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["claims"], json!([]));
+        assert_eq!(v["result"]["total"], json!(0));
+        assert_eq!(v["result"]["offset"], json!(0));
+        assert_eq!(v["result"]["limit"], json!(20));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_recent_claims_rejects_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lrc_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_recent_claims","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_data_roots_with_claims_defaults_on_empty_chain() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_ldr_def");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_data_roots_with_claims","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["roots"], json!([]));
+        assert_eq!(v["result"]["total"], json!(0));
+        assert_eq!(v["result"]["offset"], json!(0));
+        assert_eq!(v["result"]["limit"], json!(20));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_data_roots_with_claims_rejects_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_ldr_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_data_roots_with_claims","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
         fs::remove_dir_all(&root).ok();
     }
 

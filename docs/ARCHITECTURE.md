@@ -172,7 +172,7 @@ Reusing a tag for a new purpose is a hard fork by construction.
 | SPoRA storage proof | `mfn-storage` | `spora.rs` | ✓ |
 | Endowment math (incl. PPB accumulator) | `mfn-storage` | `endowment.rs` | ✓ |
 
-For the math of each primitive, see [`PRIVACY.md`](./PRIVACY.md) and [`STORAGE.md`](./STORAGE.md). Optional **authorship claims** (publishing identity separate from RingCT keys) are specified in [`AUTHORSHIP.md`](./AUTHORSHIP.md) (**M2.2.x**; discovery RPCs on `mfnd serve`: **M2.2.8**; docs alignment: **M2.2.9**).
+For the math of each primitive, see [`PRIVACY.md`](./PRIVACY.md) and [`STORAGE.md`](./STORAGE.md). Optional **authorship claims** (publishing identity separate from RingCT keys) are specified in [`AUTHORSHIP.md`](./AUTHORSHIP.md) (**M2.2.x**; discovery RPCs on `mfnd serve`: **M2.2.8**; derived browse/feed views: **M2.2.10**; docs alignment: **M2.2.9**).
 
 ---
 
@@ -836,7 +836,7 @@ mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integrat
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
 ├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
 ├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
-├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 blocking TCP serve: one-line JSON request/response;
+├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 blocking TCP serve: one-line JSON request/response;
 │                   get_tip + submit_tx (hex tx bytes) into Mempool::admit;
 │                   get_block (validated chain.blocks → block_hex);
 │                   get_block_header (same slice → header_hex + block_id);

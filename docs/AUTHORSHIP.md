@@ -2,7 +2,7 @@
 
 > **Audience.** Protocol designers, wallet engineers, and anyone asking how Permawrite can stay **anonymous-by-default** for uploads while still supporting an optional, **cryptographically verifiable** “I published this `data_root`” signal for permaweb-style discovery.
 >
-> **Status.** This document remains the **normative specification** for optional authorship claims (wire tags, digest, limits, header binding). The **M2.2.0–M2.2.8** checklist in [`ROADMAP.md`](./ROADMAP.md) is **implemented in Rust on `main`**: crypto (`mfn_crypto::authorship`), consensus (`mfn_consensus` `claims` / `extra_codec` / `apply_block` / `claims_root` / checkpoint v2), wallet ([`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), uploads with [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs)), and read-only discovery on **`mfnd serve`** ([`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**). **M2.2.10** (derived indexer views beyond in-memory `serve`) is still open.
+> **Status.** This document remains the **normative specification** for optional authorship claims (wire tags, digest, limits, header binding). The **M2.2.0–M2.2.10** checklist in [`ROADMAP.md`](./ROADMAP.md) is **implemented in Rust on `main`**: crypto (`mfn_crypto::authorship`), consensus (`mfn_consensus` `claims` / `extra_codec` / `apply_block` / `claims_root` / checkpoint v2), wallet ([`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), uploads with [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs)), and read-only discovery on **`mfnd serve`** ([`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**).
 
 ---
 
@@ -141,17 +141,19 @@ A transaction that spends MFN (ring-hidden as usual) but whose **only** purpose 
 
 ## RPC (node)
 
-`mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing methods) — **M2.2.8** ships the first three as in-memory projections of [`ChainState`](../mfn-consensus/src/block.rs):
+`mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing methods) — **M2.2.8** ships direct projections of [`ChainState`](../mfn-consensus/src/block.rs); **M2.2.10** adds **derived** (sorted / flattened) views over the same in-memory indexes:
 
 | Method | Purpose |
 |--------|---------|
 | `get_claims_for` | Params: `data_root` hex (32 bytes). Returns all indexed claims for that root. |
 | `get_claims_by_pubkey` | Params: `claim_pubkey` hex + `limit`. Returns recent claims from that pubkey. |
 | `list_recent_uploads` | Params: `limit`, `offset`, optional `include_claims`. Discovery helper over anchored storage + optional claim join. |
+| `list_recent_claims` | Params: `limit`, `offset` (JSON object). Flattened global claim feed, newest block height first (same secondary ordering as `get_claims_by_pubkey`). |
+| `list_data_roots_with_claims` | Params: `limit`, `offset` (JSON object). Rows: `data_root`, `claim_count`, `max_claim_height`; sorted by `max_claim_height` desc. |
 
 Exact JSON shapes mirror existing `get_block` / object-or-array param conventions.
 
-**Implementation (M2.2.8).** These three methods are live on `mfnd serve` in [`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs): in-memory reads of [`ChainState::claims` / `ChainState::storage`](../mfn-consensus/src/block.rs); see [`ROADMAP.md`](./ROADMAP.md) milestone **M2.2.8**.
+**Implementation.** **M2.2.8** and **M2.2.10** methods are live on `mfnd serve` in [`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs): in-memory reads of [`ChainState::claims` / `ChainState::storage`](../mfn-consensus/src/block.rs); see [`ROADMAP.md`](./ROADMAP.md) milestones **M2.2.8** and **M2.2.10**.
 
 ---
 
@@ -166,7 +168,7 @@ Exact JSON shapes mirror existing `get_block` / object-or-array param convention
 
 ## Implementation milestones (M2.2.0–M2.2.10)
 
-Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Milestone series M2.2 — Authorship claim layer**. **M2.2.0–M2.2.9** are complete in this repository (implementation **M2.2.0–M2.2.8** plus the **M2.2.9** documentation pass). **M2.2.10** tracks richer indexer-style views beyond in-memory `serve` projections.
+Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Milestone series M2.2 — Authorship claim layer**. **M2.2.0–M2.2.10** are complete in this repository (implementation **M2.2.0–M2.2.8** plus **M2.2.9** docs plus **M2.2.10** derived `serve` views).
 
 | Id | Rust entrypoints (non-exhaustive) |
 |----|-----------------------------------|
@@ -175,8 +177,9 @@ Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Mileston
 | M2.2.3–M2.2.5 | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block` / `claims_root`](../mfn-consensus/src/block.rs), [`verify_block_body`](../mfn-consensus/src/header_verify.rs) |
 | M2.2.6 | [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs) |
 | M2.2.7 | [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs) + [`build_storage_upload`](../mfn-wallet/src/upload.rs) |
-| M2.2.8 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) discovery RPCs |
-| M2.2.10 | Planned: derived views (see roadmap). |
+| M2.2.8 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) discovery RPCs (`get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`) |
+| M2.2.9 | Docs + cross-links (this file, [`PORTING.md`](../PORTING.md), overview, roadmap) |
+| M2.2.10 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) — `list_recent_claims`, `list_data_roots_with_claims` |
 
 ---
 

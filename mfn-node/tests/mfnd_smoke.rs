@@ -772,6 +772,21 @@ fn mfnd_serve_authorship_discovery_rpcs_over_tcp() {
     assert_eq!(r3["total"], json!(0));
     assert_eq!(r3["limit"], json!(3));
 
+    let r4 = assert_rpc2_result(&tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"list_recent_claims","params":{"limit":2,"offset":0},"id":4}"#,
+    ));
+    assert_eq!(r4["claims"], json!([]));
+    assert_eq!(r4["total"], json!(0));
+    assert_eq!(r4["limit"], json!(2));
+
+    let r5 = assert_rpc2_result(&tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"list_data_roots_with_claims","params":{},"id":5}"#,
+    ));
+    assert_eq!(r5["roots"], json!([]));
+    assert_eq!(r5["total"], json!(0));
+
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

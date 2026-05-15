@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -12,8 +12,8 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8**) binds a loopback TCP port and answers one
-//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`)
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10**) binds a loopback TCP port and answers one
+//! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
 //! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land
