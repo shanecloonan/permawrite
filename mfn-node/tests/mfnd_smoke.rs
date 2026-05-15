@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -474,6 +474,51 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_p2p_dial_hits_peer_listener() {
+    let dir_a = unique_data_dir("serve_p2p_dial_a");
+    let dir_b = unique_data_dir("serve_p2p_dial_b");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn dialer mfnd serve");
+    let stdout = child_b.stdout.take().expect("stdout pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let mut l1 = String::new();
+    out_reader
+        .read_line(&mut l1)
+        .expect("read mfnd_serve_listening from dialer");
+    assert!(
+        l1.starts_with("mfnd_serve_listening="),
+        "expected mfnd_serve_listening, got {l1:?}"
+    );
+    let mut l2 = String::new();
+    out_reader
+        .read_line(&mut l2)
+        .expect("read mfnd_p2p_dial_ok from dialer");
+    assert!(
+        l2.starts_with("mfnd_p2p_dial_ok="),
+        "expected mfnd_p2p_dial_ok, got {l2:?}"
+    );
+    let _ = child_b.kill();
+    let _ = child_b.wait();
+    let _ = child_a.kill();
+    let _ = child_a.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
 }
 
 #[test]

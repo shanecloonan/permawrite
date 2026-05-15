@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello + **M2.3.6** optional `--p2p-dial`).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -1012,17 +1012,37 @@ fn spawn_p2p_handshake_loop(listener: TcpListener, genesis_id: [u8; 32]) -> Resu
     Ok(())
 }
 
+fn spawn_p2p_outbound_dial(addr: String, genesis_id: [u8; 32]) -> Result<(), String> {
+    thread::Builder::new()
+        .name("mfnd-p2p-dial".into())
+        .spawn(move || {
+            match crate::network::tcp_connect_peer_v1_handshake(addr.as_str(), &genesis_id) {
+                Ok(_sock) => {
+                    println!("mfnd_p2p_dial_ok={addr}");
+                    let _ = std::io::stdout().flush();
+                }
+                Err(e) => eprintln!("mfnd p2p dial `{addr}`: {e}"),
+            }
+        })
+        .map_err(|e| format!("mfnd serve: spawn p2p dial thread: {e}"))?;
+    Ok(())
+}
+
 /// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
 /// serve one JSON line per connection until the process exits.
 ///
 /// When `p2p_listen` is `Some`, binds a second listener, prints `mfnd_p2p_listening=…`, and
 /// spawns a background thread that accepts peers, runs [`crate::network::hello_v1_handshake`]
 /// then [`crate::network::recv_ping_send_pong`] (same genesis id as the loaded chain), then closes each connection.
+///
+/// When `p2p_dial` is `Some`, spawns a background thread that runs [`crate::network::tcp_connect_peer_v1_handshake`]
+/// against that address and prints `mfnd_p2p_dial_ok=…` on success (stderr on failure).
 pub(crate) fn run_serve(
     store: &ChainStore,
     cfg: ChainConfig,
     rpc_listen: &str,
     p2p_listen: Option<&str>,
+    p2p_dial: Option<&str>,
 ) -> Result<(), String> {
     let mut chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
     let mut pool = Mempool::new(MempoolConfig::default());
@@ -1053,6 +1073,10 @@ pub(crate) fn run_serve(
             .flush()
             .map_err(|e| format!("mfnd serve: stdout flush (p2p): {e}"))?;
         spawn_p2p_handshake_loop(pl, genesis_id)?;
+    }
+
+    if let Some(dial) = p2p_dial {
+        spawn_p2p_outbound_dial(dial.to_string(), genesis_id)?;
     }
 
     #[cfg(unix)]

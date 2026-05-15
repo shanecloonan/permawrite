@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.6).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -12,7 +12,7 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen`) binds a loopback TCP port and answers one
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.6** optional `--p2p-dial`) binds a loopback TCP port and answers one
 //! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
@@ -67,6 +67,8 @@ struct Parsed {
     rpc_listen: Option<String>,
     /// Solo `serve` only: optional second `HOST:PORT` for binary P2P [`hello_v1_handshake`](crate::network::hello_v1_handshake).
     p2p_listen: Option<String>,
+    /// Solo `serve` only: optional peer `HOST:PORT`; background dial runs [`crate::network::tcp_connect_peer_v1_handshake`].
+    p2p_dial: Option<String>,
 }
 
 fn usage() -> &'static str {
@@ -80,6 +82,8 @@ fn usage() -> &'static str {
        --rpc-listen ADDR:PORT   only for `serve` (default 127.0.0.1:18731)\n\
        --p2p-listen ADDR:PORT   only for `serve` (optional): length-prefixed HelloV1 handshake\n\
                                   on a separate TCP port (see `network::handshake`)\n\
+       --p2p-dial ADDR:PORT     only for `serve` (optional): outbound dial to a peer P2P listener;\n\
+                                  runs hello + dialer ping / listener pong (`tcp_connect_peer_v1_handshake`)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -352,7 +356,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         Cmd::Serve => {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
-            crate::mfnd_serve::run_serve(&store, cfg, listen, parsed.p2p_listen.as_deref())?;
+            crate::mfnd_serve::run_serve(
+                &store,
+                cfg,
+                listen,
+                parsed.p2p_listen.as_deref(),
+                parsed.p2p_dial.as_deref(),
+            )?;
         }
     }
     Ok(())
@@ -390,6 +400,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut checkpoint_each_block = false;
     let mut rpc_listen: Option<String> = None;
     let mut p2p_listen: Option<String> = None;
+    let mut p2p_dial: Option<String> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -463,6 +474,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--p2p-dial" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--p2p-dial requires HOST:PORT (peer P2P listener)".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected HOST:PORT after --p2p-dial".into());
+            }
+            p2p_dial = Some(v.clone());
+            i += 2;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -510,6 +532,12 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if p2p_dial.is_some() && cmd != Cmd::Serve {
+        return Err(format!(
+            "--p2p-dial is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
@@ -518,6 +546,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         checkpoint_each_block,
         rpc_listen,
         p2p_listen,
+        p2p_dial,
     })
 }
 
@@ -534,6 +563,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -543,6 +573,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -558,6 +589,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:19999"));
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -575,6 +607,25 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
         assert_eq!(p.p2p_listen.as_deref(), Some("127.0.0.1:0"));
+        assert_eq!(p.p2p_dial, None);
+    }
+
+    #[test]
+    fn parse_args_serve_p2p_dial() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-listen".into(),
+            "127.0.0.1:18731".into(),
+            "--p2p-dial".into(),
+            "127.0.0.1:19998".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
+        assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial.as_deref(), Some("127.0.0.1:19998"));
     }
 
     #[test]
@@ -584,6 +635,18 @@ mod tests {
             "/tmp/x".into(),
             "--p2p-listen".into(),
             "127.0.0.1:0".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn parse_args_p2p_dial_rejected_without_serve() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--p2p-dial".into(),
+            "127.0.0.1:1".into(),
             "status".into(),
         ];
         assert!(parse_args(&args).is_err());
@@ -617,6 +680,7 @@ mod tests {
         assert!(p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -645,6 +709,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -676,6 +741,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
@@ -688,6 +754,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
+        assert_eq!(p.p2p_dial, None);
     }
 
     #[test]
