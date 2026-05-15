@@ -20,8 +20,10 @@
 use std::collections::{HashMap, HashSet};
 
 use curve25519_dalek::scalar::Scalar;
-use mfn_consensus::{Block, ChainState, Recipient, SignedTransaction};
+use mfn_consensus::{build_mfex_extra, Block, ChainState, Recipient, SignedTransaction};
+use mfn_crypto::authorship::{sign_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN, MFCL_WIRE_VERSION};
 
+use crate::claiming::ClaimingIdentity;
 use crate::decoy::build_decoy_pool;
 use crate::error::WalletError;
 use crate::keys::{wallet_from_seed, WalletKeys};
@@ -289,6 +291,48 @@ impl Wallet {
         }
 
         Ok(signed)
+    }
+
+    /// Publish an on-chain **authorship claim** binding `message` (≤
+    /// [`MAX_CLAIM_MESSAGE_LEN`] bytes) to `data_root` under
+    /// `identity`'s public claiming key. The claim is packed into
+    /// `tx.extra` as MFEX-wrapped MFCL; the spend is a minimal
+    /// self-payment (`1` unit) plus `fee`, with the remainder returned as
+    /// change — the same RingCT path as [`Self::build_transfer`].
+    pub fn publish_claim_tx<R>(
+        &mut self,
+        identity: &ClaimingIdentity,
+        data_root: [u8; 32],
+        message: &[u8],
+        fee: u64,
+        ring_size: usize,
+        chain_state: &ChainState,
+        rng: &mut R,
+    ) -> Result<SignedTransaction, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        if message.len() > MAX_CLAIM_MESSAGE_LEN {
+            return Err(WalletError::ClaimMessageTooLong {
+                max: MAX_CLAIM_MESSAGE_LEN,
+                got: message.len(),
+            });
+        }
+        let pk = identity.claim_pubkey();
+        let sig = sign_claim(&data_root, &pk, message, identity.keypair())?;
+        let claim = AuthorshipClaim {
+            wire_version: MFCL_WIRE_VERSION,
+            data_root,
+            claim_pubkey: pk,
+            message: message.to_vec(),
+            sig,
+        };
+        let extra = build_mfex_extra(std::slice::from_ref(&claim))?;
+        let recipients = vec![TransferRecipient {
+            recipient: self.recipient(),
+            value: 1,
+        }];
+        self.build_transfer(&recipients, fee, ring_size, chain_state, &extra, rng)
     }
 
     /// High-level **storage upload**: pick inputs greedily, build the

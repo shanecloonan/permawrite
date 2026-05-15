@@ -612,3 +612,96 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
         other => panic!("expected UploadUnderfunded, got {other:?}"),
     }
 }
+
+/// Authorship claim tx: `Mempool::admit` → solo block → `apply_block`
+/// populates `ChainState::claims` for the claimed `data_root`.
+#[test]
+fn publish_claim_tx_round_trip_through_chain() {
+    use mfn_wallet::ClaimingIdentity;
+
+    let alice_keys = wallet_from_seed(&[0x31; 32]);
+    let mut alice = Wallet::from_keys(alice_keys.clone());
+    let claiming = ClaimingIdentity::from_seed(&[0x31; 32]);
+
+    let alice_payout = ValidatorPayout {
+        view_pub: alice_keys.view_pub(),
+        spend_pub: alice_keys.spend_pub(),
+    };
+    let (producer, secrets) = validator_with_payout(0, 1_000_000, alice_payout);
+
+    let params = consensus_params();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: decoy_seed_genesis_outputs(20),
+        initial_storage: Vec::new(),
+        validators: vec![producer.clone()],
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+
+    let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
+
+    for h in 1u32..=3 {
+        let inputs = BlockInputs {
+            height: h,
+            slot: h,
+            timestamp: u64::from(h) * 100,
+            txs: vec![coinbase_for(&producer, h, 0)],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+        };
+        let block =
+            produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
+        chain.apply(&block).expect("apply");
+        alice.ingest_block(&block);
+    }
+
+    let fee = 10_000u64;
+    let treasury_fee_bps = 9000u64;
+    let producer_fee = fee - (fee * treasury_fee_bps / 10_000);
+    let data_root = [0x77u8; 32];
+    let mut rng = seeded_rng(0xfeed_beef);
+
+    let signed = alice
+        .publish_claim_tx(
+            &claiming,
+            data_root,
+            b"signed by claiming key",
+            fee,
+            4,
+            chain.state(),
+            &mut rng,
+        )
+        .expect("publish claim");
+
+    let mut pool = Mempool::new(MempoolConfig::default());
+    let admit = pool
+        .admit(signed.tx.clone(), chain.state())
+        .expect("mempool admits claim tx");
+    assert!(matches!(admit, AdmitOutcome::Fresh { .. }));
+
+    let inputs = BlockInputs {
+        height: 4,
+        slot: 4,
+        timestamp: 400,
+        txs: vec![coinbase_for(&producer, 4, producer_fee), signed.tx.clone()],
+        bond_ops: Vec::new(),
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
+    };
+    let block4 =
+        produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
+    chain.apply(&block4).expect("chain applies claim block");
+
+    let recs = chain
+        .state()
+        .claims
+        .get(&data_root)
+        .expect("claim index must list this data_root");
+    assert_eq!(recs.len(), 1);
+    assert_eq!(recs[0].claim.claim_pubkey, claiming.claim_pubkey());
+    assert_eq!(recs[0].claim.message, b"signed by claiming key".as_slice());
+}

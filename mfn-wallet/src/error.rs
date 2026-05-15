@@ -28,6 +28,15 @@ pub enum WalletError {
     #[error("no recipients supplied")]
     NoRecipients,
 
+    /// Authorship claim message exceeds the consensus wire limit.
+    #[error("claim message length {got} exceeds max {max}")]
+    ClaimMessageTooLong {
+        /// Bytes supplied.
+        got: usize,
+        /// [`mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN`].
+        max: usize,
+    },
+
     /// Caller asked to send `requested` atomic units but the wallet only
     /// holds `available` in unspent owned outputs (plus fee, if any).
     #[error("insufficient funds: requested {requested}, available {available}")]

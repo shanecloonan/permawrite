@@ -47,6 +47,7 @@
 
 #![warn(missing_docs)]
 
+pub mod claiming;
 pub mod decoy;
 pub mod error;
 pub mod keys;
@@ -56,6 +57,7 @@ pub mod spend;
 pub mod upload;
 pub mod wallet;
 
+pub use claiming::ClaimingIdentity;
 pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
 pub use error::WalletError;
 pub use keys::{wallet_from_seed, WalletKeys};
