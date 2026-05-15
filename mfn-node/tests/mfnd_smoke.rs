@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.3.3).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -469,8 +469,8 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     assert_eq!(bytes.len(), 32);
     let mut genesis_id = [0u8; 32];
     genesis_id.copy_from_slice(&bytes);
-    let mut p2p = TcpStream::connect(p2p_addr).expect("p2p tcp connect");
-    mfn_node::network::hello_v1_handshake(&mut p2p, &genesis_id).expect("p2p hello_v1_handshake");
+    mfn_node::network::tcp_connect_hello_v1_handshake(p2p_addr, &genesis_id)
+        .expect("p2p tcp_connect_hello_v1_handshake");
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

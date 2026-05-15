@@ -3,7 +3,8 @@
 //! **M2.3.0** reserved this module path and [`NetworkConfig`]. **M2.3.1** adds
 //! [`frame`]: length-prefixed binary frames plus a minimal [`frame::HelloV1`]
 //! payload. **M2.3.2** adds [`handshake`]: send/recv that payload over `Read` /
-//! `Write` (including symmetric [`hello_v1_handshake`] on a TCP stream).
+//! `Write` (including symmetric [`hello_v1_handshake`] on a TCP stream). **M2.3.4** adds
+//! [`handshake::tcp_connect_hello_v1_handshake`] for outbound dials.
 //!
 //! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
 //! milestones (full gossip, admission, fork choice). **M2.3.3** wires an optional P2P listen into
@@ -18,7 +19,8 @@ pub use frame::{
     MAX_FRAME_PAYLOAD_LEN,
 };
 pub use handshake::{
-    hello_v1_handshake, recv_hello, recv_hello_expect, send_hello, HelloHandshakeError,
+    hello_v1_handshake, recv_hello, recv_hello_expect, send_hello, tcp_connect_hello_v1_handshake,
+    HelloHandshakeError,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

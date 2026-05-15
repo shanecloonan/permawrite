@@ -1,9 +1,11 @@
 //! Symmetric [`HelloV1`](super::HelloV1) exchange over a duplex byte stream (**M2.3.2**).
+//! **M2.3.4** adds [`tcp_connect_hello_v1_handshake`] for outbound TCP dials.
 //!
 //! Each side sends one length-prefixed [`HelloV1`] frame, then reads the peer's frame and
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
 
 use std::io::{Read, Write};
+use std::net::{TcpStream, ToSocketAddrs};
 
 use super::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
@@ -79,6 +81,19 @@ pub fn hello_v1_handshake<S: Read + Write>(
     Ok(())
 }
 
+/// [`TcpStream::connect`] to `addrs`, then run [`hello_v1_handshake`] on the connected stream.
+///
+/// On success returns the open `TcpStream` positioned after the handshake (no extra bytes
+/// consumed beyond the peer's hello frame).
+pub fn tcp_connect_hello_v1_handshake<A: ToSocketAddrs>(
+    addrs: A,
+    genesis_id: &[u8; 32],
+) -> Result<TcpStream, HelloHandshakeError> {
+    let mut stream = TcpStream::connect(addrs)?;
+    hello_v1_handshake(&mut stream, genesis_id)?;
+    Ok(stream)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::frame::{write_frame_io, HelloV1 as FrameHello};
@@ -109,6 +124,31 @@ mod tests {
             .set_write_timeout(Some(Duration::from_secs(5)))
             .unwrap();
         hello_v1_handshake(&mut client, &genesis).unwrap();
+
+        server.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn tcp_connect_hello_v1_handshake_round_trip() {
+        let genesis = [0xcdu8; 32];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (mut sock, _) = listener.accept().unwrap();
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            sock.set_write_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            hello_v1_handshake(&mut sock, &genesis)
+        });
+
+        let client = tcp_connect_hello_v1_handshake(addr, &genesis).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        client
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
 
         server.join().unwrap().unwrap();
     }
