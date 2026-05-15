@@ -62,6 +62,7 @@ use mfn_storage::{
 
 use crate::bond_wire::{bond_merkle_root, decode_bond_op, encode_bond_op, BondOp, BondWireError};
 use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
+use crate::claims::{claim_to_record, claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx};
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
 use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
@@ -120,6 +121,9 @@ pub struct BlockHeader {
     /// applied by this block move the *next* header's `validator_root`.
     /// All-zero only if the chain is bootstrapped without validators.
     pub validator_root: [u8; 32],
+    /// Merkle root of authorship claim leaves for this block's txs
+    /// (M2.2.x). All-zero when no claims appear in any non-coinbase tx.
+    pub claims_root: [u8; 32],
     /// MFBN-encoded [`crate::consensus::FinalityProof`]. Empty for genesis
     /// and for chains running in legacy/centralized mode (no validator
     /// set).
@@ -171,6 +175,7 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.slashing_root);
     w.push(&h.storage_proof_root);
     w.push(&h.validator_root);
+    w.push(&h.claims_root);
     w.into_bytes()
 }
 
@@ -195,6 +200,7 @@ pub fn block_header_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.slashing_root);
     w.push(&h.storage_proof_root);
     w.push(&h.validator_root);
+    w.push(&h.claims_root);
     w.blob(&h.producer_proof);
     w.push(&h.utxo_root);
     w.into_bytes()
@@ -320,6 +326,7 @@ pub fn decode_block_header(bytes: &[u8]) -> Result<BlockHeader, HeaderDecodeErro
     let slashing_root: [u8; 32] = read_fixed(&mut r, "slashing_root")?;
     let storage_proof_root: [u8; 32] = read_fixed(&mut r, "storage_proof_root")?;
     let validator_root: [u8; 32] = read_fixed(&mut r, "validator_root")?;
+    let claims_root: [u8; 32] = read_fixed(&mut r, "claims_root")?;
 
     let pp_len_raw = r.varint().map_err(|_| HeaderDecodeError::VarintOverflow {
         field: "producer_proof.len",
@@ -354,6 +361,7 @@ pub fn decode_block_header(bytes: &[u8]) -> Result<BlockHeader, HeaderDecodeErro
         slashing_root,
         storage_proof_root,
         validator_root,
+        claims_root,
         producer_proof,
         utxo_root,
     })
@@ -619,13 +627,13 @@ fn peek_block_header_len(r: &Reader<'_>) -> Result<usize, BlockDecodeError> {
         .map_err(|_| HeaderDecodeError::VarintOverflow { field: "version" })?;
     // prev_hash + height + slot + timestamp +
     // tx_root + storage_root + bond_root + slashing_root +
-    // storage_proof_root + validator_root.
-    //                32  + 4 +  4 +  8 + 32*6 = 240 bytes total.
+    // storage_proof_root + validator_root + claims_root.
+    //                32  + 4 +  4 +  8 + 32*7 = 272 bytes total.
     let _ = probe
-        .bytes(32 + 4 + 4 + 8 + 32 * 6)
+        .bytes(32 + 4 + 4 + 8 + 32 * 7)
         .map_err(|_| HeaderDecodeError::Truncated {
             field: "header.fixed-section",
-            needed: 32 + 4 + 4 + 8 + 32 * 6,
+            needed: 32 + 4 + 4 + 8 + 32 * 7,
         })?;
     // producer_proof (length-prefixed blob)
     let _ = probe.blob().map_err(|_| HeaderDecodeError::Truncated {
@@ -788,6 +796,10 @@ pub struct ChainState {
     /// (last-proven slot, pending PPB yield) updated by each accepted
     /// SPoRA proof.
     pub storage: HashMap<[u8; 32], StorageEntry>,
+    /// Authorship claims indexed by `data_root` (sorted map keys on wire).
+    pub claims: BTreeMap<[u8; 32], Vec<crate::claims::AuthorshipClaimRecord>>,
+    /// Leaf hashes of accepted claims (global dedup across the chain).
+    pub claim_submitted: HashSet<[u8; 32]>,
     /// Block-id chain: `[genesis_id, block1_id, ...]`.
     pub block_ids: Vec<[u8; 32]>,
     /// Active validator set. Frozen at genesis in v0.1; epoch reconfig
@@ -838,6 +850,8 @@ impl ChainState {
             utxo: HashMap::new(),
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
+            claims: BTreeMap::new(),
+            claim_submitted: HashSet::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),
             validator_stats: Vec::new(),
@@ -926,6 +940,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         slashing_root: [0u8; 32],
         storage_proof_root: [0u8; 32],
         validator_root: [0u8; 32],
+        claims_root: [0u8; 32],
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&tree),
     };
@@ -1039,6 +1054,11 @@ pub fn build_unsealed_header(
 
     let prev_hash = state.tip_id().copied().unwrap_or([0u8; 32]);
 
+    let claim_leaves = collect_claim_merkle_leaves_for_txs(txs, next_height).unwrap_or_else(|e| {
+        panic!("build_unsealed_header: invalid authorship MFEX/MFCL in tx list: {e}")
+    });
+    let claims_root = claims_merkle_root(&claim_leaves);
+
     BlockHeader {
         version: HEADER_VERSION,
         prev_hash,
@@ -1055,6 +1075,7 @@ pub fn build_unsealed_header(
         // slashing applied in this block moves the *next* header's
         // validator_root, not this one's.
         validator_root: crate::consensus::validator_set_root(&state.validators),
+        claims_root,
         producer_proof: Vec::new(),
         utxo_root: utxo_tree_root(&projected_tree),
     }
@@ -1222,6 +1243,45 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let expected_validator_root = crate::consensus::validator_set_root(&state.validators);
     if expected_validator_root != block.header.validator_root {
         errors.push(BlockError::ValidatorRootMismatch);
+    }
+
+    // ---- Authorship claims Merkle root (M2.2.x) ----
+    //
+    // Header `claims_root` binds every verified claim leaf in block order
+    // (non-coinbase txs only). Parse+verify once here; the tx walk reuses
+    // the results when mutating [`ChainState::claims`].
+    let per_tx_claims: Vec<
+        Result<
+            (Vec<mfn_crypto::authorship::AuthorshipClaim>, Vec<[u8; 32]>),
+            crate::claims::AuthorshipClaimVerifyError,
+        >,
+    > = block
+        .txs
+        .iter()
+        .enumerate()
+        .map(|(ti, tx)| {
+            if ti == 0 && is_coinbase_shaped(tx) {
+                Ok((Vec::new(), Vec::new()))
+            } else {
+                verified_claims_for_tx(tx, ti as u32, block.header.height)
+            }
+        })
+        .collect();
+
+    let mut header_claim_leaves: Vec<[u8; 32]> = Vec::new();
+    for (ti, res) in per_tx_claims.iter().enumerate() {
+        match res {
+            Ok((_, leaves)) => {
+                if !(ti == 0 && is_coinbase_shaped(&block.txs[ti])) {
+                    header_claim_leaves.extend_from_slice(leaves);
+                }
+            }
+            Err(e) => errors.push(BlockError::AuthorshipClaims(e.to_string())),
+        }
+    }
+    let expected_claims_root = claims_merkle_root(&header_claim_leaves);
+    if expected_claims_root != block.header.claims_root {
+        errors.push(BlockError::ClaimsRootMismatch);
     }
 
     // ---- Producer/finality proof ----
@@ -1502,6 +1562,25 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                     fee: tx.fee,
                     fee_to_treasury_bps: next.emission_params.fee_to_treasury_bps,
                 });
+            }
+        }
+
+        if !(ti == 0 && is_coinbase_shaped(tx)) {
+            if let Ok((clist, leaves)) = &per_tx_claims[ti] {
+                let tid = tx_id(tx);
+                for (ci, c) in clist.iter().enumerate() {
+                    let lh = leaves[ci];
+                    if next.claim_submitted.insert(lh) {
+                        let rec = claim_to_record(
+                            c,
+                            tid,
+                            block.header.height,
+                            ti as u32,
+                            ci as u32,
+                        );
+                        next.claims.entry(c.data_root).or_default().push(rec);
+                    }
+                }
             }
         }
     }
@@ -1827,6 +1906,13 @@ pub enum BlockError {
     /// root over the pre-block validator set (M2.0).
     #[error("validator_root mismatch")]
     ValidatorRootMismatch,
+    /// Header `claims_root` didn't match the Merkle root recomputed from
+    /// this block's non-coinbase `tx.extra` authorship payloads (M2.2.x).
+    #[error("claims_root mismatch")]
+    ClaimsRootMismatch,
+    /// Authorship claim parse or signature verification failed for a tx.
+    #[error("authorship claims: {0}")]
+    AuthorshipClaims(String),
     /// A bond operation failed validation or conflicted with on-chain state.
     #[error("bond_ops[{index}]: {message}")]
     BondOpRejected {
@@ -3364,6 +3450,7 @@ mod tests {
             slashing_root: [0xe5u8; 32],
             storage_proof_root: [0xf6u8; 32],
             validator_root: [0x07u8; 32],
+            claims_root: [0x29u8; 32],
             producer_proof: (0..73u8).collect(),
             utxo_root: [0x18u8; 32],
         }
@@ -3386,6 +3473,7 @@ mod tests {
         assert_eq!(h2.slashing_root, h.slashing_root);
         assert_eq!(h2.storage_proof_root, h.storage_proof_root);
         assert_eq!(h2.validator_root, h.validator_root);
+        assert_eq!(h2.claims_root, h.claims_root);
         assert_eq!(h2.producer_proof, h.producer_proof);
         assert_eq!(h2.utxo_root, h.utxo_root);
         // And `block_id(h) == block_id(decode(encode(h)))`.
@@ -3505,6 +3593,7 @@ mod tests {
             slashing_root: [0u8; 32],
             storage_proof_root: [0u8; 32],
             validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
             producer_proof: Vec::new(),
             utxo_root: [0u8; 32],
         };
@@ -3521,10 +3610,11 @@ mod tests {
         //   slashing_root        : 32 × 0x00
         //   storage_proof_root   : 32 × 0x00
         //   validator_root       : 32 × 0x00
+        //   claims_root          : 32 × 0x00
         //   producer_proof.len=0 : 0x00
         //   utxo_root            : 32 × 0x00
-        // Total = 1 + 32 + 4 + 4 + 8 + (32 * 6) + 1 + 32 = 274 bytes.
-        assert_eq!(bytes.len(), 274, "expected 274 bytes, got {}", bytes.len());
+        // Total = 1 + 32 + 4 + 4 + 8 + (32 * 7) + 1 + 32 = 306 bytes.
+        assert_eq!(bytes.len(), 306, "expected 306 bytes, got {}", bytes.len());
         assert_eq!(bytes[0], 0x01, "varint(version=1) is one byte 0x01");
         assert_eq!(
             bytes.iter().filter(|&&b| b != 0).count(),
@@ -3548,8 +3638,10 @@ mod tests {
     /// integration test, which uses `mfn-node::Chain` to build
     /// fully-signed blocks.
     fn sample_empty_block() -> Block {
+        let mut header = sample_header();
+        header.producer_proof = Vec::new();
         Block {
-            header: sample_header(),
+            header,
             txs: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
@@ -3649,8 +3741,8 @@ mod tests {
     }
 
     /// Golden vector for the empty-body encoding shape: a genesis-
-    /// shaped block must serialise to exactly the 274 header bytes
-    /// followed by four `0x00` count varints (= 278 bytes total).
+    /// shaped block must serialise to exactly the 306 header bytes
+    /// followed by four `0x00` count varints (= 310 bytes total).
     /// Pins the wire layout so any unintentional codec change
     /// trips a hard failure.
     #[test]
@@ -3667,6 +3759,7 @@ mod tests {
             slashing_root: [0u8; 32],
             storage_proof_root: [0u8; 32],
             validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
             producer_proof: Vec::new(),
             utxo_root: [0u8; 32],
         };
@@ -3678,10 +3771,10 @@ mod tests {
             bond_ops: Vec::new(),
         };
         let bytes = encode_block(&b);
-        // 274 (header) + 4 (four zero-length section varints) = 278.
-        assert_eq!(bytes.len(), 278);
+        // 306 (header) + 4 (four zero-length section varints) = 310.
+        assert_eq!(bytes.len(), 310);
         // Last four bytes are the empty-section count varints.
-        assert_eq!(&bytes[274..], &[0u8, 0u8, 0u8, 0u8]);
+        assert_eq!(&bytes[306..], &[0u8, 0u8, 0u8, 0u8]);
         // Round-trip pin.
         let b2 = decode_block(&bytes).expect("decode");
         assert_eq!(block_id(&b.header), block_id(&b2.header));

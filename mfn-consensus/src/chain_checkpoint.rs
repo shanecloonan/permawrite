@@ -5,11 +5,32 @@
 //! Pair the encoder with any persistence backend (file, RocksDB, S3 …);
 //! this module concerns itself only with *what* the bytes are.
 //!
-//! ## Wire layout (v1)
+//! ## Wire layout (v2, current)
+//!
+//! v2 extends v1 by inserting authorship-claim persistence **after** the
+//! `storage` map and **before** the `utxo_tree` blob:
+//!
+//! ```text
+//!   claims.len()              varint   (sorted ascending by 32-byte data_root key)
+//!     data_root                 [32]
+//!     records.len()           varint
+//!       wire.len()            varint
+//!       wire                    bytes   MFCL authorship claim
+//!       tx_id                   [32]
+//!       height                  u32
+//!       tx_index                u32
+//!       claim_index             u32
+//!
+//!   claim_submitted.len()    varint   (sorted ascending 32-byte leaf hashes)
+//!     leaf_hash                 [32]
+//! ```
+//!
+//! v1 checkpoints (version field `1`) omit this section entirely; decoders
+//! populate empty `claims` / `claim_submitted` maps.
 //!
 //! ```text
 //!   magic                       [4]   "MFCC" (M(oney)F(und) C(hain) C(heckpoint))
-//!   version                      u32   currently 1
+//!   version                      u32   currently 2 (v1 supported on decode only)
 //!
 //!   genesis_id                  [32]
 //!   height_flag                   u8   0 = pre-genesis, 1 = present
@@ -48,6 +69,8 @@
 //!     key                       [32]
 //!     StorageEntry             (encode_storage_commitment + u32 + u64 + u128)
 //!
+//!   (v2 only) authorship `claims` + `claim_submitted` — see the v2 section above
+//!
 //!   utxo_tree                  bytes   (encode_utxo_tree_state wire form,
 //!                                       length-prefixed)
 //!
@@ -66,6 +89,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use mfn_crypto::authorship::{decode_authorship_claim, encode_authorship_claim};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::CHAIN_CHECKPOINT;
 use mfn_crypto::hash::dhash;
@@ -78,6 +102,7 @@ use mfn_storage::{
 
 use crate::block::{ChainState, PendingUnbond, StorageEntry, UtxoEntry, DEFAULT_CONSENSUS_PARAMS};
 use crate::bonding::DEFAULT_BONDING_PARAMS;
+use crate::claims::AuthorshipClaimRecord;
 use crate::checkpoint_codec::{
     check_validator_assignment, decode_bonding_params, decode_consensus_params,
     decode_pending_unbond, decode_validator, decode_validator_stats, encode_bonding_params,
@@ -93,7 +118,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 1;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 2;
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -113,8 +138,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports {supported}",
-        supported = CHAIN_CHECKPOINT_VERSION
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 and 2"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.
@@ -162,6 +186,33 @@ pub enum ChainCheckpointError {
         /// Position in the `storage` list.
         index: usize,
     },
+
+    /// `claims` map keys were not strictly ascending.
+    #[error("chain-checkpoint claims entries not strictly ascending at position {index}")]
+    ClaimsNotSorted {
+        /// Position in the sorted `claims` key list.
+        index: usize,
+    },
+
+    /// A claim record's `data_root` key did not match the embedded MFCL payload.
+    #[error("chain-checkpoint claims[{outer}].records[{inner}]: data_root key mismatch")]
+    ClaimsRecordKeyMismatch {
+        /// Claim map entry index.
+        outer: usize,
+        /// Record index within that entry.
+        inner: usize,
+    },
+
+    /// `claim_submitted` hashes were not strictly ascending.
+    #[error("chain-checkpoint claim_submitted not strictly ascending at position {index}")]
+    ClaimSubmittedNotSorted {
+        /// Position in the sorted leaf list.
+        index: usize,
+    },
+
+    /// MFCL decode failed for a persisted claim record.
+    #[error("chain-checkpoint authorship claim wire: {0}")]
+    AuthorshipClaimWire(String),
 
     /// A `StorageEntry.commit` failed to decode.
     #[error("chain-checkpoint storage[{index}]: invalid storage commitment: {source}")]
@@ -257,6 +308,34 @@ fn encode_storage_entry(w: &mut Writer, e: &StorageEntry) {
     encode_u128(w, e.pending_yield_ppb);
 }
 
+fn encode_authorship_claim_record(w: &mut Writer, rec: &AuthorshipClaimRecord) {
+    let wire = encode_authorship_claim(&rec.claim)
+        .expect("checkpoint only serializes consensus-valid authorship claims");
+    w.varint(wire.len() as u64);
+    w.push(&wire);
+    w.push(&rec.tx_id);
+    w.u32(rec.height);
+    w.u32(rec.tx_index);
+    w.u32(rec.claim_index);
+}
+
+fn encode_claims_state(w: &mut Writer, state: &ChainState) {
+    w.varint(state.claims.len() as u64);
+    for (data_root, records) in &state.claims {
+        w.push(data_root);
+        w.varint(records.len() as u64);
+        for rec in records {
+            encode_authorship_claim_record(w, rec);
+        }
+    }
+    let mut submitted: Vec<&[u8; 32]> = state.claim_submitted.iter().collect();
+    submitted.sort();
+    w.varint(submitted.len() as u64);
+    for h in submitted {
+        w.push(h.as_slice());
+    }
+}
+
 /// Encode a [`ChainCheckpoint`] to its canonical bytes.
 ///
 /// Always produces the same output for the same input — including the
@@ -350,6 +429,8 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
         encode_storage_entry(&mut w, &parts.state.storage[k]);
     }
 
+    encode_claims_state(&mut w, &parts.state);
+
     // ---- UTXO accumulator (length-prefixed nested blob) ----
     let utxo_tree_bytes = encode_utxo_tree_state(&parts.state.utxo_tree);
     w.varint(utxo_tree_bytes.len() as u64);
@@ -428,6 +509,79 @@ fn decode_storage_entry(
     })
 }
 
+fn decode_authorship_claim_record(
+    r: &mut Reader<'_>,
+    outer: usize,
+    inner: usize,
+    expected_data_root: &[u8; 32],
+) -> Result<AuthorshipClaimRecord, ChainCheckpointError> {
+    let wire_len = read_len(r, "claims.record.wire.len")?;
+    let wire = r
+        .bytes(wire_len)
+        .map_err(|_| CheckpointReadError::Truncated {
+            field: "claims.record.wire",
+            needed: wire_len,
+        })?;
+    let claim = decode_authorship_claim(wire).map_err(|e| {
+        ChainCheckpointError::AuthorshipClaimWire(format!(
+            "claims[{outer}].records[{inner}]: {e}"
+        ))
+    })?;
+    if &claim.data_root != expected_data_root {
+        return Err(ChainCheckpointError::ClaimsRecordKeyMismatch { outer, inner });
+    }
+    let tx_id = read_fixed(r, "claims.record.tx_id")?;
+    let height = read_u32(r, "claims.record.height")?;
+    let tx_index = read_u32(r, "claims.record.tx_index")?;
+    let claim_index = read_u32(r, "claims.record.claim_index")?;
+    Ok(AuthorshipClaimRecord {
+        claim,
+        tx_id,
+        height,
+        tx_index,
+        claim_index,
+    })
+}
+
+fn decode_claims_state(
+    r: &mut Reader<'_>,
+) -> Result<(BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>>, HashSet<[u8; 32]>), ChainCheckpointError>
+{
+    let claims_n = read_len(r, "claims.len")?;
+    let mut claims: BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>> = BTreeMap::new();
+    let mut prev_key: Option<[u8; 32]> = None;
+    for i in 0..claims_n {
+        let data_root: [u8; 32] = read_fixed(r, "claims[i].key")?;
+        if let Some(prev) = prev_key {
+            if data_root <= prev {
+                return Err(ChainCheckpointError::ClaimsNotSorted { index: i });
+            }
+        }
+        prev_key = Some(data_root);
+        let rec_n = read_len(r, "claims[i].records.len")?;
+        let mut vec = Vec::with_capacity(rec_n);
+        for j in 0..rec_n {
+            vec.push(decode_authorship_claim_record(r, i, j, &data_root)?);
+        }
+        claims.insert(data_root, vec);
+    }
+
+    let submitted_n = read_len(r, "claim_submitted.len")?;
+    let mut claim_submitted: HashSet<[u8; 32]> = HashSet::with_capacity(submitted_n);
+    let mut prev_leaf: Option<[u8; 32]> = None;
+    for i in 0..submitted_n {
+        let h: [u8; 32] = read_fixed(r, "claim_submitted[i]")?;
+        if let Some(prev) = prev_leaf {
+            if h <= prev {
+                return Err(ChainCheckpointError::ClaimSubmittedNotSorted { index: i });
+            }
+        }
+        prev_leaf = Some(h);
+        claim_submitted.insert(h);
+    }
+    Ok((claims, claim_submitted))
+}
+
 /// Decode a [`ChainCheckpoint`] from canonical bytes produced by
 /// [`encode_chain_checkpoint`]. Strict on every invariant:
 ///
@@ -467,7 +621,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if version != CHAIN_CHECKPOINT_VERSION {
+    if version != 1 && version != 2 {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -580,6 +734,12 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         storage.insert(key, entry);
     }
 
+    let (claims, claim_submitted) = if version >= 2 {
+        decode_claims_state(&mut r)?
+    } else {
+        (BTreeMap::new(), HashSet::new())
+    };
+
     // ---- UTXO accumulator ----
     let utxo_tree_n = read_len(&mut r, "utxo_tree.len")?;
     let utxo_tree_bytes = r
@@ -621,6 +781,8 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         utxo,
         spent_key_images,
         storage,
+        claims,
+        claim_submitted,
         block_ids,
         validators,
         validator_stats,
@@ -658,6 +820,8 @@ mod tests {
             utxo: HashMap::new(),
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
+            claims: BTreeMap::new(),
+            claim_submitted: HashSet::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),
             validator_stats: Vec::new(),
@@ -727,6 +891,8 @@ mod tests {
         assert!(cp2.state.utxo.is_empty());
         assert!(cp2.state.spent_key_images.is_empty());
         assert!(cp2.state.storage.is_empty());
+        assert!(cp2.state.claims.is_empty());
+        assert!(cp2.state.claim_submitted.is_empty());
         assert!(cp2.state.validators.is_empty());
         // Re-encode must produce identical bytes.
         let bytes2 = encode_chain_checkpoint(&cp2);
@@ -863,6 +1029,8 @@ mod tests {
             assert_eq!(rv.height, v.height);
         }
         assert_eq!(r.spent_key_images, s.spent_key_images);
+        assert_eq!(r.claims, s.claims);
+        assert_eq!(r.claim_submitted, s.claim_submitted);
         assert_eq!(r.storage.len(), s.storage.len());
         for (k, v) in &s.storage {
             let rv = r.storage.get(k).expect("storage key preserved");
@@ -898,6 +1066,8 @@ mod tests {
             utxo: HashMap::new(),
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
+            claims: s_a.claims.clone(),
+            claim_submitted: s_a.claim_submitted.clone(),
             block_ids: s_a.block_ids.clone(),
             validators: s_a.validators.clone(),
             validator_stats: s_a.validator_stats.clone(),
@@ -1027,7 +1197,7 @@ mod tests {
         // Manually craft a tiny payload with two validators sharing index 0.
         let mut w = Writer::new();
         w.push(&CHAIN_CHECKPOINT_MAGIC);
-        w.u32(CHAIN_CHECKPOINT_VERSION);
+        w.u32(1); // v1 wire (no claims section)
         w.push(&[0u8; 32]); // genesis_id
         w.u8(0); // height_flag = pre-genesis
         w.varint(0); // block_ids
@@ -1072,7 +1242,7 @@ mod tests {
     fn rejects_stats_validators_mismatch() {
         let mut w = Writer::new();
         w.push(&CHAIN_CHECKPOINT_MAGIC);
-        w.u32(CHAIN_CHECKPOINT_VERSION);
+        w.u32(1); // v1 wire (no claims section)
         w.push(&[0u8; 32]);
         w.u8(0);
         w.varint(0);
@@ -1118,7 +1288,7 @@ mod tests {
     fn rejects_next_index_at_or_below_max_assigned() {
         let mut w = Writer::new();
         w.push(&CHAIN_CHECKPOINT_MAGIC);
-        w.u32(CHAIN_CHECKPOINT_VERSION);
+        w.u32(1); // v1 wire (no claims section)
         w.push(&[0u8; 32]);
         w.u8(0);
         w.varint(0);

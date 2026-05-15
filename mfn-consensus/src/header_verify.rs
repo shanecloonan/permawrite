@@ -9,9 +9,9 @@
 //!   commitments (validator-set commitment + producer proof + BLS
 //!   finality aggregate).
 //! - [`verify_block_body`] (M2.0.7) — given a [`crate::block::Block`],
-//!   re-derive the four body-bound Merkle roots that are pure
+//!   re-derive the five body-bound Merkle roots that are pure
 //!   functions of the block body (`tx_root`, `bond_root`,
-//!   `slashing_root`, `storage_proof_root`) and verify they match
+//!   `slashing_root`, `storage_proof_root`, `claims_root`) and verify they match
 //!   the header. The other two header-bound roots (`storage_root`,
 //!   `utxo_root`) are state-dependent and out-of-scope for stateless
 //!   verification — they're already cryptographically bound through
@@ -80,6 +80,7 @@
 
 use crate::block::{header_signing_hash, tx_merkle_root, Block, BlockHeader, ConsensusParams};
 use crate::bond_wire::bond_merkle_root;
+use crate::claims::{claims_merkle_root, collect_claim_merkle_leaves_for_txs};
 use crate::consensus::{
     decode_finality_proof, validator_set_root, verify_finality_proof, ConsensusCheck,
     ConsensusDecodeError, SlotContext, Validator,
@@ -320,9 +321,23 @@ pub enum BodyVerifyError {
         /// Root the verifier computed from `block.storage_proofs`.
         got: [u8; 32],
     },
+
+    /// `header.claims_root` didn't match the Merkle root over verified
+    /// authorship claim leaves (M2.2.x).
+    #[error("claims_root mismatch")]
+    ClaimsRootMismatch {
+        /// Root the header claims.
+        expected: [u8; 32],
+        /// Root the verifier computed from `block.txs` extras.
+        got: [u8; 32],
+    },
+
+    /// Malformed `MFEX` / `MFCL` or an invalid claim signature in some tx.
+    #[error("authorship claims body invalid: {0}")]
+    AuthorshipClaimsBody(String),
 }
 
-/// Verify that a delivered [`Block`] body matches the four
+/// Verify that a delivered [`Block`] body matches the five
 /// header-bound body roots that are pure functions of the block body
 /// alone:
 ///
@@ -330,10 +345,12 @@ pub enum BodyVerifyError {
 /// - [`BlockHeader::bond_root`] == `bond_merkle_root(&block.bond_ops)`
 /// - [`BlockHeader::slashing_root`] == `slashing_merkle_root(&block.slashings)`
 /// - [`BlockHeader::storage_proof_root`] == `storage_proof_merkle_root(&block.storage_proofs)`
+/// - [`BlockHeader::claims_root`] == Merkle root over verified authorship
+///   claim leaves in block order (non-coinbase txs; see M2.2.x)
 ///
 /// Combined with [`verify_header`] — which verifies that
 /// `header_signing_hash` was BLS-signed by a quorum of the trusted
-/// validator set, and `header_signing_hash` binds all four of these
+/// validator set, and `header_signing_hash` binds all five of these
 /// roots — this gives a light client cryptographic confidence that
 /// the delivered body is **the** body the producer signed over. A
 /// malicious peer cannot deliver a tampered body without one of
@@ -397,6 +414,16 @@ pub fn verify_block_body(block: &Block) -> Result<(), BodyVerifyError> {
         return Err(BodyVerifyError::StorageProofRootMismatch {
             expected: block.header.storage_proof_root,
             got: storage_proof_root,
+        });
+    }
+
+    let claim_leaves = collect_claim_merkle_leaves_for_txs(&block.txs, block.header.height)
+        .map_err(|e| BodyVerifyError::AuthorshipClaimsBody(e.to_string()))?;
+    let claims_root = claims_merkle_root(&claim_leaves);
+    if claims_root != block.header.claims_root {
+        return Err(BodyVerifyError::ClaimsRootMismatch {
+            expected: block.header.claims_root,
+            got: claims_root,
         });
     }
 
@@ -713,6 +740,15 @@ mod tests {
             err,
             BodyVerifyError::StorageProofRootMismatch { .. }
         ));
+    }
+
+    /// Tampered `claims_root` → typed `ClaimsRootMismatch`.
+    #[test]
+    fn verify_block_body_rejects_tampered_claims_root() {
+        let (mut block, _validators, _params, _s0) = build_signed_block_1();
+        block.header.claims_root[0] ^= 0xff;
+        let err = verify_block_body(&block).expect_err("must reject");
+        assert!(matches!(err, BodyVerifyError::ClaimsRootMismatch { .. }));
     }
 
     /// Re-ordering txs (swap two equivalent-but-distinct txs)

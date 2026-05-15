@@ -53,9 +53,11 @@ pub mod bond_wire;
 pub mod bonding;
 pub mod chain_checkpoint;
 pub mod checkpoint_codec;
+pub mod claims;
 pub mod coinbase;
 pub mod consensus;
 pub mod emission;
+pub mod extra_codec;
 pub mod header_verify;
 pub mod slashing;
 pub mod storage;
@@ -83,6 +85,11 @@ pub use bonding::{
 pub use chain_checkpoint::{
     decode_chain_checkpoint, encode_chain_checkpoint, ChainCheckpoint, ChainCheckpointError,
     CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION,
+};
+pub use claims::{
+    authorship_claim_merkle_leaf, build_mfex_extra, claim_to_record, claims_merkle_root,
+    collect_claim_merkle_leaves_for_txs, verified_claims_for_tx, AuthorshipClaimRecord,
+    AuthorshipClaimVerifyError,
 };
 pub use checkpoint_codec::{
     check_validator_assignment, decode_bonding_params, decode_consensus_params,

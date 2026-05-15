@@ -17,6 +17,7 @@
 //! - [`point`] — point helpers, generators `G` and `H`.
 //! - [`hash`] — `hash_to_scalar`, `hash_to_point`.
 //! - [`schnorr`] — Schnorr signatures.
+//! - [`authorship`] — optional authorship claims over `data_root` (M2.2.x).
 //! - [`pedersen`] — Pedersen commitments (RingCT-style hiding+binding).
 //! - [`stealth`] — CryptoNote dual-key stealth addresses (basic + indexed).
 //! - [`encrypted_amount`] — RingCT-style encrypted (value, blinding) blobs.
@@ -42,6 +43,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod authorship;
 pub mod bulletproofs;
 pub mod clsag;
 pub mod codec;
@@ -61,6 +63,12 @@ pub mod stealth;
 pub mod utxo_tree;
 pub mod vrf;
 
+pub use authorship::{
+    claim_digest, decode_authorship_claim, encode_authorship_claim, sign_claim, sign_claim_with,
+    verify_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIM_MESSAGE_LEN,
+    MAX_CLAIMS_PER_TX, MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MAX_WIRE_LEN, MFCL_MIN_WIRE_LEN,
+    MFCL_WIRE_VERSION,
+};
 pub use bulletproofs::{
     bp_proof_size, bp_prove, bp_verify, decode_bulletproof, encode_bulletproof, BpProveOutput,
     BulletproofRange, IpaProof,
@@ -93,7 +101,10 @@ pub use range::{
     RangeProveOutput, RANGE_N_BITS_DEFAULT,
 };
 pub use scalar::{bytes_to_scalar, random_scalar, scalar_to_bytes};
-pub use schnorr::{schnorr_keygen, schnorr_sign, schnorr_verify, SchnorrKeypair, SchnorrSignature};
+pub use schnorr::{
+    decode_schnorr_signature, encode_schnorr_signature, schnorr_keygen, schnorr_sign,
+    schnorr_verify, SchnorrKeypair, SchnorrSignature, SCHNORR_SIGNATURE_BYTES,
+};
 pub use stealth::{
     indexed_stealth_address, indexed_stealth_detect, indexed_stealth_spend_key, stealth_detect,
     stealth_gen, stealth_send_to, stealth_spend_key, stealth_wallet_from_seed, StealthOutput,
@@ -153,6 +164,13 @@ pub enum CryptoError {
         /// Number of bytes left in the buffer after the last field.
         remaining: usize,
     },
+    /// [`crate::authorship::sign_claim`] was called with a keypair whose public
+    /// key does not match the supplied `claim_pubkey`.
+    #[error("claim signing key does not match claim_pubkey")]
+    ClaimSigningKeyMismatch,
+    /// [`crate::authorship::encode_authorship_claim`] was called with an unsupported `wire_version`.
+    #[error("unsupported authorship claim wire version {0}")]
+    AuthorshipClaimBadWireVersion(u8),
 }
 
 /// Result type used throughout this crate.

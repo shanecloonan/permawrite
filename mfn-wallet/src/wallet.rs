@@ -571,6 +571,7 @@ mod tests {
             slashing_root: [0u8; 32],
             storage_proof_root: [0u8; 32],
             validator_root: [0u8; 32],
+            claims_root: [0u8; 32],
             producer_proof: Vec::new(),
             utxo_root: [0u8; 32],
         }

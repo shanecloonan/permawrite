@@ -26,6 +26,9 @@ pub const BLOCK_HEADER: Domain = b"MFBN-1/block-header";
 /// Storage commitment.
 pub const STORAGE_COMMIT: Domain = b"MFBN-1/storage-commit";
 
+/// Authorship claim digest (`claim_digest` in `mfn_crypto::authorship`, M2.2.x).
+pub const AUTHORSHIP_CLAIM_DIGEST: Domain = b"MFBN-1/AUTHORSHIP/v1";
+
 /// Per-chunk content hash.
 pub const CHUNK_HASH: Domain = b"MFBN-1/chunk-hash";
 
@@ -137,6 +140,10 @@ pub const SLASHING_LEAF: Domain = b"MFBN-1/slashing-leaf";
 /// preserved by the Merkle root (the chain rejects duplicate proofs
 /// per commitment, so canonical sorting is unnecessary).
 pub const STORAGE_PROOF_LEAF: Domain = b"MFBN-1/storage-proof-leaf";
+
+/// Merkle leaf for an authorship claim record under the block header's
+/// `claims_root` (M2.2.x).
+pub const CLAIM_LEAF: Domain = b"MFBN-1/claim-leaf";
 
 /// Integrity-check tag for `mfn-light`'s `LightChain` checkpoint
 /// serialization (M2.0.9). Hashes the full checkpoint payload (every

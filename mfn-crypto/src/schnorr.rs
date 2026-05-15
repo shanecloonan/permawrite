@@ -26,7 +26,7 @@
 //! ring signatures and zero-knowledge proofs, which are all built on the same
 //! Schnorr identification.
 
-use curve25519_dalek::edwards::EdwardsPoint;
+use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;
 use rand_core::CryptoRngCore;
 use zeroize::Zeroize;
@@ -59,6 +59,30 @@ pub struct SchnorrSignature {
     pub r: EdwardsPoint,
     /// Response `s = r + e·x mod ℓ`.
     pub s: Scalar,
+}
+
+/// Canonical on-wire size: compressed `R` (32) + little-endian `s` (32).
+pub const SCHNORR_SIGNATURE_BYTES: usize = 32 + 32;
+
+/// Encode [`SchnorrSignature`] as 64 bytes (compressed `R`, little-endian `s`).
+pub fn encode_schnorr_signature(sig: &SchnorrSignature) -> [u8; SCHNORR_SIGNATURE_BYTES] {
+    let mut out = [0u8; SCHNORR_SIGNATURE_BYTES];
+    out[..32].copy_from_slice(&sig.r.compress().to_bytes());
+    out[32..].copy_from_slice(&sig.s.to_bytes());
+    out
+}
+
+/// Decode a [`SchnorrSignature`] from 64 bytes.
+pub fn decode_schnorr_signature(bytes: &[u8; SCHNORR_SIGNATURE_BYTES]) -> crate::Result<SchnorrSignature> {
+    let mut rb = [0u8; 32];
+    rb.copy_from_slice(&bytes[..32]);
+    let r = CompressedEdwardsY(rb)
+        .decompress()
+        .ok_or(crate::CryptoError::InvalidPoint)?;
+    let mut sb = [0u8; 32];
+    sb.copy_from_slice(&bytes[32..]);
+    let s = Scalar::from_bytes_mod_order(sb);
+    Ok(SchnorrSignature { r, s })
 }
 
 /// Generate a fresh Schnorr keypair using the OS CSPRNG.
@@ -111,6 +135,17 @@ pub fn schnorr_verify(msg: &[u8], sig: &SchnorrSignature, pub_key: &EdwardsPoint
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn schnorr_sig_encode_decode_round_trip() {
+        let kp = schnorr_keygen();
+        let sig = schnorr_sign(b"abc", &kp);
+        let b = encode_schnorr_signature(&sig);
+        let sig2 = decode_schnorr_signature(&b).expect("decode");
+        assert_eq!(sig.r, sig2.r);
+        assert_eq!(sig.s, sig2.s);
+        assert!(schnorr_verify(b"abc", &sig2, &kp.pub_key));
+    }
 
     #[test]
     fn sign_verify_round_trip() {
