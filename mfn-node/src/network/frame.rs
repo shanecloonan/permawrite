@@ -1,4 +1,4 @@
-//! Length-prefixed binary frames for P2P (**M2.3.1**).
+//! Length-prefixed binary frames for P2P (**M2.3.1** + **M2.3.5** control payloads).
 //!
 //! Wire shape: **`[u32_be length][payload]`** where `length` counts only `payload`
 //! bytes. Every frame is self-delimiting so blocking TCP `read_exact` loops can
@@ -7,6 +7,9 @@
 //! [`HelloV1`] is the first structured payload: it binds a connection to an
 //! expected **genesis id** (same 32-byte id [`Chain::genesis_id`](crate::Chain::genesis_id)
 //! materializes from config) before any block or tx bytes are accepted.
+//!
+//! **M2.3.5** adds [`PingV1`] / [`PongV1`]: single-byte keepalive-style control payloads after
+//! [`HelloV1`] (dialer sends ping, listener replies pong).
 
 use std::io::{Read, Write};
 
@@ -15,6 +18,9 @@ pub const MAX_FRAME_PAYLOAD_LEN: u32 = 4 * 1024 * 1024;
 
 const HELLO_V1_TAG: u8 = 0x01;
 const HELLO_V1_LEN: usize = 1 + 32;
+
+const PING_V1_TAG: u8 = 0x02;
+const PONG_V1_TAG: u8 = 0x03;
 
 /// First gossip handshake: advertises which chain instance the peer expects.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -61,6 +67,99 @@ pub enum HelloDecodeError {
     /// First byte is not the `HelloV1` tag.
     #[error("unknown hello tag: 0x{0:02x}")]
     UnknownTag(u8),
+}
+
+/// Post-hello liveness probe: one byte `0x02` inside a length-prefixed frame (**M2.3.5**).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PingV1;
+
+/// Reply to [`PingV1`]: one byte `0x03` inside a length-prefixed frame (**M2.3.5**).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PongV1;
+
+impl PingV1 {
+    /// On-wire payload size (single tag byte).
+    pub const WIRE_LEN: usize = 1;
+
+    /// Encode to exactly one byte.
+    pub fn encode(self) -> [u8; 1] {
+        [PING_V1_TAG]
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode(payload: &[u8]) -> Result<Self, PingPongDecodeError> {
+        if payload.len() != Self::WIRE_LEN {
+            return Err(PingPongDecodeError::WrongLength { got: payload.len() });
+        }
+        if payload[0] != PING_V1_TAG {
+            return Err(PingPongDecodeError::expected_ping(payload[0]));
+        }
+        Ok(Self)
+    }
+}
+
+impl PongV1 {
+    /// On-wire payload size (single tag byte).
+    pub const WIRE_LEN: usize = 1;
+
+    /// Encode to exactly one byte.
+    pub fn encode(self) -> [u8; 1] {
+        [PONG_V1_TAG]
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode(payload: &[u8]) -> Result<Self, PingPongDecodeError> {
+        if payload.len() != Self::WIRE_LEN {
+            return Err(PingPongDecodeError::WrongLength { got: payload.len() });
+        }
+        if payload[0] != PONG_V1_TAG {
+            return Err(PingPongDecodeError::expected_pong(payload[0]));
+        }
+        Ok(Self)
+    }
+}
+
+/// Failed to interpret a [`PingV1`] or [`PongV1`] payload.
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum PingPongDecodeError {
+    /// Payload size is not exactly one byte.
+    #[error("ping/pong v1 payload must be 1 byte, got {got}")]
+    WrongLength {
+        /// Observed byte length.
+        got: usize,
+    },
+    /// Expected a [`PingV1`] tag.
+    #[error("expected ping v1 tag 0x{expected:02x}, got 0x{got:02x}")]
+    ExpectedPing {
+        /// Observed first byte.
+        got: u8,
+        /// Tag value for [`PingV1`].
+        expected: u8,
+    },
+    /// Expected a [`PongV1`] tag.
+    #[error("expected pong v1 tag 0x{expected:02x}, got 0x{got:02x}")]
+    ExpectedPong {
+        /// Observed first byte.
+        got: u8,
+        /// Tag value for [`PongV1`].
+        expected: u8,
+    },
+}
+
+impl PingPongDecodeError {
+    fn expected_ping(got: u8) -> Self {
+        Self::ExpectedPing {
+            got,
+            expected: PING_V1_TAG,
+        }
+    }
+
+    fn expected_pong(got: u8) -> Self {
+        Self::ExpectedPong {
+            got,
+            expected: PONG_V1_TAG,
+        }
+    }
 }
 
 /// `encode_frame` rejected the payload size.
@@ -212,6 +311,17 @@ mod tests {
         let mut cur = std::io::Cursor::new(wire);
         let out = read_frame(&mut cur).unwrap();
         assert_eq!(out, payload);
+    }
+
+    #[test]
+    fn ping_v1_and_pong_v1_encode_decode() {
+        let ping = PingV1;
+        assert_eq!(PingV1::decode(&ping.encode()).unwrap(), ping);
+        let pong = PongV1;
+        assert_eq!(PongV1::decode(&pong.encode()).unwrap(), pong);
+        let framed = encode_frame(&ping.encode()).unwrap();
+        let body = decode_frame_prefix(&framed).unwrap().unwrap();
+        assert_eq!(PingV1::decode(body).unwrap(), ping);
     }
 
     #[test]

@@ -1,5 +1,7 @@
 //! Symmetric [`HelloV1`](super::HelloV1) exchange over a duplex byte stream (**M2.3.2**).
 //! **M2.3.4** adds [`tcp_connect_hello_v1_handshake`] for outbound TCP dials.
+//! **M2.3.5** adds [`send_ping_recv_pong`] / [`recv_ping_send_pong`] after hello (dialer → listener),
+//! and [`tcp_connect_peer_v1_handshake`] (connect + hello + ping/pong as dialer).
 //!
 //! Each side sends one length-prefixed [`HelloV1`] frame, then reads the peer's frame and
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
@@ -9,6 +11,7 @@ use std::net::{TcpStream, ToSocketAddrs};
 
 use super::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
+    PingPongDecodeError, PingV1, PongV1,
 };
 
 /// Failed to complete a [`hello_v1_handshake`].
@@ -26,6 +29,9 @@ pub enum HelloHandshakeError {
     /// Peer's first frame was not a valid [`HelloV1`] payload.
     #[error(transparent)]
     Hello(#[from] HelloDecodeError),
+    /// Ping / pong frame after hello was malformed.
+    #[error(transparent)]
+    PingPong(#[from] PingPongDecodeError),
     /// Peer's genesis id differs from `genesis_id` passed to [`hello_v1_handshake`].
     #[error("peer genesis id does not match expected chain genesis")]
     GenesisMismatch {
@@ -94,6 +100,35 @@ pub fn tcp_connect_hello_v1_handshake<A: ToSocketAddrs>(
     Ok(stream)
 }
 
+/// After [`hello_v1_handshake`], **dialer** sends [`PingV1`] and reads [`PongV1`].
+pub fn send_ping_recv_pong<S: Read + Write>(stream: &mut S) -> Result<(), HelloHandshakeError> {
+    write_frame_io(stream, &PingV1.encode())?;
+    stream.flush()?;
+    let payload = read_frame(stream)?;
+    PongV1::decode(&payload)?;
+    Ok(())
+}
+
+/// After [`hello_v1_handshake`], **listener** reads [`PingV1`] and sends [`PongV1`].
+pub fn recv_ping_send_pong<S: Read + Write>(stream: &mut S) -> Result<(), HelloHandshakeError> {
+    let payload = read_frame(stream)?;
+    PingV1::decode(&payload)?;
+    write_frame_io(stream, &PongV1.encode())?;
+    stream.flush()?;
+    Ok(())
+}
+
+/// [`TcpStream::connect`] + [`hello_v1_handshake`] + [`send_ping_recv_pong`] (full dialer path).
+pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
+    addrs: A,
+    genesis_id: &[u8; 32],
+) -> Result<TcpStream, HelloHandshakeError> {
+    let mut stream = TcpStream::connect(addrs)?;
+    hello_v1_handshake(&mut stream, genesis_id)?;
+    send_ping_recv_pong(&mut stream)?;
+    Ok(stream)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::frame::{write_frame_io, HelloV1 as FrameHello};
@@ -149,6 +184,26 @@ mod tests {
         client
             .set_write_timeout(Some(Duration::from_secs(5)))
             .unwrap();
+
+        server.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn tcp_peer_v1_handshake_round_trip() {
+        let genesis = [0x11u8; 32];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (mut sock, _) = listener.accept().unwrap();
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            sock.set_write_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            hello_v1_handshake(&mut sock, &genesis)?;
+            recv_ping_send_pong(&mut sock)
+        });
+
+        let _ = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
 
         server.join().unwrap().unwrap();
     }
