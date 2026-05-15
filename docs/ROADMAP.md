@@ -1432,7 +1432,7 @@ Workspace **+10 tests** vs the M2.1.18 line count: **680 → 690** passing.
 ### What shipped
 
 - **[`docs/AUTHORSHIP.md`](../docs/AUTHORSHIP.md)** — status block reflects **live Rust**; implementation milestone section maps ids → crates/modules; cross-links expanded (`GLOSSARY`, `README`, `mfn-node` README).
-- **[`README.md`](../README.md)** — doc index line for authorship mentions **`mfnd serve`** discovery (**M2.2.8**).
+- **[`README.md`](../README.md)** — doc index line for authorship mentions **`mfnd serve`** discovery (**M2.2.8**) and derived views (**M2.2.10**).
 - **[`docs/OVERVIEW.md`](../docs/OVERVIEW.md)** — “Where to read next” points at **AUTHORSHIP**.
 - **[`PORTING.md`](../PORTING.md)** — `mfn-consensus` authorship row; `mfn-node` **`mfnd`** / mempool rows marked live where implemented.
 
@@ -1484,6 +1484,8 @@ Workspace **+4 tests** vs the M2.2.9 line count: **690 → 694** passing.
 | **M2.2.8** (✓ shipped) | `mfn-node` `mfnd serve`: `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads` + TCP tests. |
 | **M2.2.9** (✓ shipped) | Docs pass (AUTHORSHIP + cross-links; [`PORTING.md`](../PORTING.md) + overview; roadmap milestone text). |
 | **M2.2.10** (✓ shipped) | `mfn-node` `mfnd serve`: `list_recent_claims`, `list_data_roots_with_claims` + unit/smoke tests (no consensus change). |
+
+**Next (node layer).** **M2.3 — Multi-node testnet** (below): P2P gossip, cross-node mempools, and a small multi-validator local harness — separate from the **M2.2.x** authorship patch series above.
 
 **Renumbering note.** An earlier roadmap draft used “M2.2” for **multi-node P2P**. That work is **M2.3 — Multi-node testnet** in the phase list below; **M2.4 — Public testnet** follows. The numeric **M2.2.x** patch series is reserved for authorship claims so specs and code refer to one unambiguous label.
 
