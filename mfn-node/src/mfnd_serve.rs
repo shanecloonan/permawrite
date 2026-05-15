@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen`).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -61,6 +61,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
+use std::thread;
 
 use mfn_consensus::block::StorageEntry;
 use mfn_consensus::{
@@ -984,14 +985,49 @@ fn handle_client(
     write_line(stream, &resp)
 }
 
+fn spawn_p2p_handshake_loop(listener: TcpListener, genesis_id: [u8; 32]) -> Result<(), String> {
+    thread::Builder::new()
+        .name("mfnd-p2p".into())
+        .spawn(move || loop {
+            let (mut sock, peer) = match listener.accept() {
+                Ok(x) => x,
+                Err(e) => {
+                    eprintln!("mfnd p2p: accept: {e}");
+                    continue;
+                }
+            };
+            if let Err(e) = crate::network::hello_v1_handshake(&mut sock, &genesis_id) {
+                eprintln!("mfnd p2p: handshake from {peer}: {e}");
+            }
+        })
+        .map_err(|e| format!("mfnd serve: spawn p2p thread: {e}"))?;
+    Ok(())
+}
+
 /// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
 /// serve one JSON line per connection until the process exits.
-pub(crate) fn run_serve(store: &ChainStore, cfg: ChainConfig, listen: &str) -> Result<(), String> {
+///
+/// When `p2p_listen` is `Some`, binds a second listener, prints `mfnd_p2p_listening=…`, and
+/// spawns a background thread that accepts peers and runs [`crate::network::hello_v1_handshake`]
+/// (same genesis id as the loaded chain) then closes each connection.
+pub(crate) fn run_serve(
+    store: &ChainStore,
+    cfg: ChainConfig,
+    rpc_listen: &str,
+    p2p_listen: Option<&str>,
+) -> Result<(), String> {
     let mut chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
     let mut pool = Mempool::new(MempoolConfig::default());
+    let genesis_id = *chain.genesis_id();
 
-    let listener =
-        TcpListener::bind(listen).map_err(|e| format!("mfnd serve: bind `{listen}`: {e}"))?;
+    let p2p_listener = if let Some(addr) = p2p_listen {
+        Some(TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?)
+    } else {
+        None
+    };
+
+    let listener = TcpListener::bind(rpc_listen)
+        .map_err(|e| format!("mfnd serve: bind `{rpc_listen}`: {e}"))?;
     let addr = listener
         .local_addr()
         .map_err(|e| format!("mfnd serve: local_addr: {e}"))?;
@@ -999,6 +1035,17 @@ pub(crate) fn run_serve(store: &ChainStore, cfg: ChainConfig, listen: &str) -> R
     std::io::stdout()
         .flush()
         .map_err(|e| format!("mfnd serve: stdout flush: {e}"))?;
+
+    if let Some(pl) = p2p_listener {
+        let p2p_addr = pl
+            .local_addr()
+            .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
+        println!("mfnd_p2p_listening={p2p_addr}");
+        std::io::stdout()
+            .flush()
+            .map_err(|e| format!("mfnd serve: stdout flush (p2p): {e}"))?;
+        spawn_p2p_handshake_loop(pl, genesis_id)?;
+    }
 
     #[cfg(unix)]
     {

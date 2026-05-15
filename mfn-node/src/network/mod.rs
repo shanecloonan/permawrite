@@ -6,7 +6,8 @@
 //! `Write` (including symmetric [`hello_v1_handshake`] on a TCP stream).
 //!
 //! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
-//! milestones (listener loop, admission, fork choice). No async runtime here.
+//! milestones (full gossip, admission, fork choice). **M2.3.3** wires an optional P2P listen into
+//! `mfnd serve` (`--p2p-listen`). No async runtime in [`network`] itself.
 
 pub mod frame;
 pub mod handshake;

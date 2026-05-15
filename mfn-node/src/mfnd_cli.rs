@@ -12,7 +12,7 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10**) binds a loopback TCP port and answers one
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen`) binds a loopback TCP port and answers one
 //! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
@@ -65,6 +65,8 @@ struct Parsed {
     checkpoint_each_block: bool,
     /// Solo `serve` only: `HOST:PORT` to bind (default `127.0.0.1:18731`).
     rpc_listen: Option<String>,
+    /// Solo `serve` only: optional second `HOST:PORT` for binary P2P [`hello_v1_handshake`](crate::network::hello_v1_handshake).
+    p2p_listen: Option<String>,
 }
 
 fn usage() -> &'static str {
@@ -76,6 +78,8 @@ fn usage() -> &'static str {
                         (default 1; by default one checkpoint after the last block)\n\
        --checkpoint-each  only for `step`: write checkpoint after every applied block\n\
        --rpc-listen ADDR:PORT   only for `serve` (default 127.0.0.1:18731)\n\
+       --p2p-listen ADDR:PORT   only for `serve` (optional): length-prefixed HelloV1 handshake\n\
+                                  on a separate TCP port (see `network::handshake`)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -348,7 +352,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         Cmd::Serve => {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
-            crate::mfnd_serve::run_serve(&store, cfg, listen)?;
+            crate::mfnd_serve::run_serve(&store, cfg, listen, parsed.p2p_listen.as_deref())?;
         }
     }
     Ok(())
@@ -385,6 +389,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut step_count: Option<u32> = None;
     let mut checkpoint_each_block = false;
     let mut rpc_listen: Option<String> = None;
+    let mut p2p_listen: Option<String> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -447,6 +452,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--p2p-listen" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--p2p-listen requires HOST:PORT (e.g. 127.0.0.1:0)".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected HOST:PORT after --p2p-listen".into());
+            }
+            p2p_listen = Some(v.clone());
+            i += 2;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -488,6 +504,12 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if p2p_listen.is_some() && cmd != Cmd::Serve {
+        return Err(format!(
+            "--p2p-listen is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
@@ -495,6 +517,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         step_count,
         checkpoint_each_block,
         rpc_listen,
+        p2p_listen,
     })
 }
 
@@ -510,6 +533,7 @@ mod tests {
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]
@@ -518,6 +542,7 @@ mod tests {
         let p = parse_args(&args).unwrap();
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]
@@ -532,6 +557,36 @@ mod tests {
         let p = parse_args(&args).unwrap();
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:19999"));
+        assert_eq!(p.p2p_listen, None);
+    }
+
+    #[test]
+    fn parse_args_serve_p2p_listen() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-listen".into(),
+            "127.0.0.1:18731".into(),
+            "--p2p-listen".into(),
+            "127.0.0.1:0".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
+        assert_eq!(p.p2p_listen.as_deref(), Some("127.0.0.1:0"));
+    }
+
+    #[test]
+    fn parse_args_p2p_listen_rejected_without_serve() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--p2p-listen".into(),
+            "127.0.0.1:0".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]
@@ -561,6 +616,7 @@ mod tests {
         assert_eq!(p.step_count, 2);
         assert!(p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]
@@ -588,6 +644,7 @@ mod tests {
         assert_eq!(p.step_count, 5);
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]
@@ -618,6 +675,7 @@ mod tests {
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]
@@ -629,6 +687,7 @@ mod tests {
         assert_eq!(p.step_count, 1);
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
+        assert_eq!(p.p2p_listen, None);
     }
 
     #[test]

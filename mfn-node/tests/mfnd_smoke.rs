@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.3.3).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -78,6 +78,48 @@ fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr)
         .trim();
     let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
     (child, sock)
+}
+
+/// Spawns `mfnd serve` with `--rpc-listen` and `--p2p-listen` on ephemeral ports; reads
+/// `mfnd_serve_listening=` then `mfnd_p2p_listening=` from stdout.
+fn spawn_mfnd_serve_with_p2p(
+    data_dir: &Path,
+    genesis_spec: &Path,
+) -> (Child, SocketAddr, SocketAddr) {
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(data_dir)
+        .arg("--genesis")
+        .arg(genesis_spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve with p2p");
+    let stdout = child.stdout.take().expect("stdout pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let mut rpc_line = String::new();
+    out_reader
+        .read_line(&mut rpc_line)
+        .expect("read mfnd_serve_listening");
+    let rpc_s = rpc_line
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("rpc listening prefix")
+        .trim();
+    let rpc_addr: SocketAddr = rpc_s.parse().expect("parse rpc socket addr");
+    let mut p2p_line = String::new();
+    out_reader
+        .read_line(&mut p2p_line)
+        .expect("read mfnd_p2p_listening");
+    let p2p_s = p2p_line
+        .strip_prefix("mfnd_p2p_listening=")
+        .expect("p2p listening prefix")
+        .trim();
+    let p2p_addr: SocketAddr = p2p_s.parse().expect("parse p2p socket addr");
+    (child, rpc_addr, p2p_addr)
 }
 
 fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
@@ -410,6 +452,25 @@ fn mfnd_serve_get_tip_over_tcp() {
     let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
     let r = assert_rpc2_result(&resp);
     assert!(r.get("tip_height").is_some(), "r={r}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_p2p_hello_handshake_over_tcp() {
+    let dir = unique_data_dir("serve_p2p_handshake");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, rpc_addr, p2p_addr) = spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip = assert_rpc2_result(&resp);
+    let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
+    let bytes = hex::decode(gid_hex).expect("decode genesis_id hex");
+    assert_eq!(bytes.len(), 32);
+    let mut genesis_id = [0u8; 32];
+    genesis_id.copy_from_slice(&bytes);
+    let mut p2p = TcpStream::connect(p2p_addr).expect("p2p tcp connect");
+    mfn_node::network::hello_v1_handshake(&mut p2p, &genesis_id).expect("p2p hello_v1_handshake");
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

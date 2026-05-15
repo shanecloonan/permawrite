@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + **M2.3.0 `network` scaffold** + **M2.3.1 P2P length-prefix framing** + **M2.3.2 `HelloV1` TCP handshake**)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + **M2.3.0 `network` scaffold** + **M2.3.1 P2P length-prefix framing** + **M2.3.2 `HelloV1` TCP handshake** + **M2.3.3 `mfnd serve --p2p-listen`**)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -30,7 +30,8 @@
 //!   that mirror `apply_block`'s permanence checks.
 //! - [`network`] (**M2.3.0** scaffold + **M2.3.1** [`network::frame`] + **M2.3.2** [`network::handshake`])
 //!   — length-prefixed frames and [`network::hello_v1_handshake`] (symmetric genesis binding on a
-//!   duplex stream); [`NetworkConfig`] holds listener/dial defaults only.
+//!   duplex stream); **M2.3.3** wires optional **`serve --p2p-listen`** (binary hello accept thread).
+//!   [`NetworkConfig`] holds listener/dial defaults for future full gossip.
 //! - [`genesis_spec`] (M2.1.2) — versioned JSON → [`mfn_consensus::GenesisConfig`] for
 //!   operator-controlled devnets and tests (`--genesis` on `mfnd`).
 //! - [`store`] (M2.1.0) — filesystem checkpoint store over
@@ -51,7 +52,9 @@
 //!   apply (M2.1.7). **`serve`** keeps
 //!   chain + mempool in-process and answers **JSON-RPC 2.0** (one UTF-8 line per
 //!   connection; methods `get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**) on `--rpc-listen` (default
-//!   `127.0.0.1:18731`). Requests may omit `jsonrpc` (legacy); responses always
+//!   `127.0.0.1:18731`). **M2.3.3**: optional **`--p2p-listen ADDR`** binds a second TCP port, prints
+//!   `mfnd_p2p_listening=…`, and spawns a background accept thread that runs [`network::hello_v1_handshake`]
+//!   per peer (JSON-RPC stays on the main thread). Requests may omit `jsonrpc` (legacy); responses always
 //!   include `"jsonrpc":"2.0"` and echo `id` (or `null`). **`get_block`** (M2.1.10) returns
 //!   `block_hex` for heights `1..=tip_height` via [`ChainStore::read_block_log_validated`].
 //!   **`get_block_header`** (M2.1.11) returns `header_hex` ([`mfn_consensus::block_header_bytes`])
@@ -67,7 +70,7 @@
 //!   **`submit_tx`** accepts
 //!   `params` as `{"tx_hex":"…"}` or a one-element array `["…"]` (**M2.1.8.1**).
 //!   Integration tests
-//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10) drive `serve` over TCP
+//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3) drive `serve` over TCP
 //!   including `submit_tx` error paths, a signed-transfer happy path, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`** / **`get_claims_by_pubkey`** / **`list_recent_uploads`** / **`list_recent_claims`** / **`list_data_roots_with_claims`** (empty pool + nonempty + wire round-trip + evict).
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!
@@ -95,8 +98,9 @@
 //! ## Safety
 //!
 //! - `#![forbid(unsafe_code)]`.
-//! - No background threads in the library, no clocks, no async runtime.
-//!   `mfnd serve` uses a blocking `std::net::TcpListener` loop on the main thread.
+//! - No background threads in the core chain/mempool/store APIs; no clocks, no async runtime.
+//!   `mfnd serve` runs JSON-RPC on a blocking `std::net::TcpListener` loop on the main thread.
+//!   **M2.3.3** `serve --p2p-listen` additionally spawns one `std::thread` for P2P hello accepts only.
 //! - The filesystem IO lives in [`store`] and in [`genesis_spec::genesis_config_from_json_path`]
 //!   (used by `mfnd --genesis`), isolated behind typed errors and deterministic
 //!   consensus inputs elsewhere.
