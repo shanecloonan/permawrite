@@ -15,6 +15,8 @@
 
 **audit (cryptographic)** — In Permawrite contexts, two meanings: (1) an external third-party security review of the code; (2) the protocol-level per-block storage challenge enforced by SPoRA, which "audits" operators' continued possession of their data.
 
+**authorship claim** — Optional Schnorr-signed statement binding a **claiming pubkey** and a short **message** to a **`data_root`**, carried in `TransactionWire.extra` (see `MFCL` / `MFEX`). Separate from RingCT identity; does not prove possession of file bytes. → [`AUTHORSHIP.md`](./AUTHORSHIP.md)
+
 ---
 
 ## B
@@ -41,11 +43,15 @@
 
 ## C
 
-**ChainState** — The mutable state of a Permawrite chain: UTXO set, spent key images, storage registry, validator set + stats, treasury, accumulator root, block-id chain, consensus + emission + endowment params. → `mfn_consensus::ChainState`
+**ChainState** — The mutable state of a Permawrite chain: UTXO set, spent key images, storage registry, optional indexed **authorship claims** (M2.2.x), validator set + stats, treasury, accumulator root, block-id chain, consensus + emission + endowment params. → `mfn_consensus::ChainState`
 
 **chunk** — A 256 KiB slice of a stored file. Files are chunked, each chunk is hashed, and the hashes form a Merkle tree whose root is the `data_root`. → [`STORAGE.md`](./STORAGE.md)
 
 **CLSAG** — **C**oncise **L**inkable **S**pontaneous **A**nonymous **G**roup signature. The modern compact ring signature scheme Permawrite uses for transaction inputs. Hides which of N ring members signed; reveals a deterministic key image that prevents double-spending. → [`PRIVACY.md § CLSAG ring signatures`](./PRIVACY.md#3-clsag-ring-signatures)
+
+**ClaimRecord** — On-chain row materialized when a valid authorship claim is processed: includes `data_root`, claiming pubkey, message, and a pointer into consensus history (e.g. tx id + height) for deduplication and RPC. → [`AUTHORSHIP.md`](./AUTHORSHIP.md)
+
+**claims_root** — Merkle root in the block header committing to all `ClaimRecord` leaves produced in that block; `[0u8; 32]` when empty. Verified by `verify_block_body`. → [`AUTHORSHIP.md`](./AUTHORSHIP.md)
 
 **coinbase** — A synthetic transaction at position 0 of a block that produces the block's reward output (subsidy + producer fee share). Structurally distinguishable from regular txs (zero inputs). Deterministic — anyone can replay byte-for-byte. → `mfn_consensus::coinbase`
 
@@ -176,6 +182,10 @@
 ---
 
 ## M
+
+**MFCL** — Magic bytes prefixing a single **authorship claim** blob inside `TransactionWire.extra` (`M` `F` `C` `L`). → [`AUTHORSHIP.md`](./AUTHORSHIP.md)
+
+**MFEX** — Magic bytes prefixing a **versioned multi-payload** `extra` envelope when the entire `extra` is structured (claims first; future tags reserved). If `extra` does not start with `MFEX`, claim parsing treats `extra` as opaque. → [`AUTHORSHIP.md`](./AUTHORSHIP.md)
 
 **Merkle tree** — A binary tree where each internal node is the hash of its two children. The root is a constant-size commitment to the whole leaf set. Permawrite uses Merkle trees for: tx root, storage root, chunk root (SPoRA `data_root`), and the UTXO accumulator (sparse Merkle). → `mfn_crypto::merkle`
 

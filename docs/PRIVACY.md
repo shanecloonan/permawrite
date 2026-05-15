@@ -27,6 +27,12 @@ What's **not** hidden:
 - **Block-level timing.** When you broadcast matters; Tor / Dandelion-style mixnet handling is the wallet layer's concern.
 - **Fee values.** Fees are public (must be, for the chain to verify the balance equation including fee deduction).
 
+### Authorship claims (optional) — key separation
+
+The planned **authorship claim** feature ([`AUTHORSHIP.md`](./AUTHORSHIP.md)) uses a **separate Schnorr keypair** (“claiming” / publishing identity) to sign a digest binding `(data_root, message)`. That signature is **intentionally** verifiable by everyone; it is **not** a ring signature and does **not** hide the claiming pubkey.
+
+**Do not** derive the claiming key from the same seed path as stealth **view** or **spend** keys used for RingCT. Reusing or correlating those keys would let observers link financial activity to a stable public label. Reference wallets should default to an independent derivation for `ClaimingIdentity` and document the threat model in [`AUTHORSHIP.md`](./AUTHORSHIP.md).
+
 ---
 
 ## Threat model

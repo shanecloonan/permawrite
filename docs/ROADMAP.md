@@ -1389,6 +1389,32 @@ Workspace **+5 tests** vs the M2.1.16 line count: **670 → 675** passing.
 
 ---
 
+## Milestone series M2.2 — Authorship claim layer (in progress)
+
+**Why now.** Permanent storage is content-addressed and **anonymous-by-default** at the RingCT layer: `StorageCommitment` must not grow an author field. Permaweb-style discovery still needs an **optional**, **cryptographically verifiable** signal (“this stable pubkey attests this `data_root` + short message”) without a second token type and without weakening financial privacy.
+
+**Normative spec.** [**docs/AUTHORSHIP.md**](./AUTHORSHIP.md) (domain tag `MFBN-1/AUTHORSHIP/v1`, digest, Schnorr signature, `MFCL` per-claim encoding, optional `MFEX` multi-payload `extra`, `ChainState` claims index, header `claims_root`, RPC sketch).
+
+**Sub-milestones (implementation order).**
+
+| Id | Deliverable |
+|----|----------------|
+| **M2.2.0** | `mfn-crypto`: `AuthorshipClaim` digest + `sign_claim` / `verify_claim` + tests + domain constant. |
+| **M2.2.1** | `mfn-crypto`: `encode_authorship_claim` / `decode_authorship_claim` (`MFCL` + version) + typed decode errors + golden vectors. |
+| **M2.2.2** | `mfn-consensus`: `extra_codec` — `MFEX` envelope + strict parse when prefixed; legacy opaque `extra` otherwise. |
+| **M2.2.3** | `mfn-consensus`: `apply_block` validates every claim (signature, limits); bad sig rejects block. |
+| **M2.2.4** | `mfn-consensus`: `ChainState.claims` map + checkpoint codec round-trip + replay idempotency. |
+| **M2.2.5** | `mfn-consensus`: `BlockHeader.claims_root` + `verify_block_body` + light-client agreement tests. |
+| **M2.2.6** | `mfn-wallet`: `ClaimingIdentity` + standalone claim tx path + e2e mempool → block. |
+| **M2.2.7** | `mfn-wallet`: `build_storage_upload_with_claims` bundles claims in `extra` + e2e storage + claims. |
+| **M2.2.8** | `mfn-node` `mfnd serve`: `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads` + TCP tests. |
+| **M2.2.9** | Docs pass (AUTHORSHIP + cross-links; this roadmap row marked shipped). |
+| **M2.2.10** | `mfn-node`: derived indexer views for discovery (no consensus change). |
+
+**Renumbering note.** An earlier roadmap draft used “M2.2” for **multi-node P2P**. That work is **M2.3 — Multi-node testnet** in the phase list below; **M2.4 — Public testnet** follows. The numeric **M2.2.x** patch series is reserved for authorship claims so specs and code refer to one unambiguous label.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -1413,8 +1439,8 @@ Workspace **+5 tests** vs the M2.1.16 line count: **670 → 675** passing.
 ### Phases
 
 - **M2.1 — Single-node demo.** No P2P; `apply_block` is driven by **`step`** and, for local integration, a minimal **`serve`** TCP line server (`get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**) with **JSON-RPC 2.0 responses (M2.1.8)** and **`submit_tx`** **array `params` (M2.1.8.1)**; **`chain.blocks`** can be checked with **`read_block_log_validated` (M2.1.9)** and read over **`serve`** via **`get_block` (M2.1.10)** or **`get_block_header` (M2.1.11)**; **`get_mempool` (M2.1.12)** snapshots the pending set; **`get_mempool_tx` (M2.1.13)** fetches one pending tx by id; **`remove_mempool_tx` (M2.1.14)** evicts by id when present; **`clear_mempool` (M2.1.15)** clears the pool in one call; **`get_checkpoint` (M2.1.16)** returns canonical checkpoint bytes for the live chain state; **`save_checkpoint` (M2.1.17)** writes that state through **`ChainStore::save`**. A full `rpc` module (HTTP/WebSocket, richer methods) lands in a later sub-milestone.
-- **M2.2 — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
-- **M2.3 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
+- **M2.3 — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
+- **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
 
 ### Not in M2.x
 

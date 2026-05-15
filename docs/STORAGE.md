@@ -20,6 +20,14 @@ The user does **not** get:
 - **Hidden file contents by default.** Upload plaintext, get plaintext on-chain. Encrypt locally if you need confidentiality.
 - **Ability to delete.** Permanence is an explicit commitment. There is no `unannounce_file()`.
 
+### Anonymity vs optional authorship
+
+**Uploads are anonymous-by-default at the RingCT layer:** which UTXO paid the endowment is hidden by CLSAG; `StorageCommitment` deliberately carries **no** author or stable publisher field so the permanence wire format stays minimal.
+
+**Optional authorship** is a separate, voluntary layer: a user can attach one or more **Schnorr-signed claims** (claiming pubkey + short message + signature over a domain-separated digest of `data_root`) inside `TransactionWire.extra`, indexed by the chain for permaweb-style discovery. That pubkey is **not** the stealth spend/view key material; wallets should use a dedicated “publishing identity” keypair so leaking a claim key does not compromise financial privacy.
+
+Full specification: [**docs/AUTHORSHIP.md**](./AUTHORSHIP.md).
+
 ---
 
 ## Threat model
