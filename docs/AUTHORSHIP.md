@@ -141,7 +141,7 @@ A transaction that spends MFN (ring-hidden as usual) but whose **only** purpose 
 
 ## RPC (node)
 
-Planned `mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing methods):
+`mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing methods) — **M2.2.8** ships the first three as in-memory projections of [`ChainState`](../mfn-consensus/src/block.rs):
 
 | Method | Purpose |
 |--------|---------|
@@ -150,6 +150,8 @@ Planned `mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing
 | `list_recent_uploads` | Params: `limit`, `offset`, optional `include_claims`. Discovery helper over anchored storage + optional claim join. |
 
 Exact JSON shapes mirror existing `get_block` / object-or-array param conventions.
+
+**Implementation (M2.2.8).** These three methods are live on `mfnd serve` in [`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs): in-memory reads of [`ChainState::claims` / `ChainState::storage`](../mfn-consensus/src/block.rs); see [`ROADMAP.md`](./ROADMAP.md) milestone **M2.2.8**.
 
 ---
 

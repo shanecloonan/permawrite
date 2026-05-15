@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18**).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8**).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -46,15 +46,25 @@
 //!
 //! **`list_methods`** (M2.1.18) returns **`methods`**: every implemented JSON-RPC method name as a JSON
 //! string, sorted lexicographically (includes **`list_methods`**); same empty-only `params` as **`get_mempool`**.
+//!
+//! **Authorship discovery (M2.2.8)** — read [`mfn_consensus::ChainState::claims`] / [`mfn_consensus::ChainState::storage`]:
+//! **`get_claims_for`** (`params`: `{"data_root":"…"}` or `[hex]` — 64 hex digits, 32-byte root) returns **`claims`**
+//! (array of records: `height`, `tx_id`, indices, `wire_version`, `data_root`, `claim_pubkey`, `message_hex`, `sig_hex`).
+//! **`get_claims_by_pubkey`** (`params`: `{"claim_pubkey":"…","limit":N}` or `[hex]` / `[hex, N]`) scans the index and returns up to **`limit`**
+//! matches (**`limit`** defaults to **50**, max **500**), newest by **`height`** first. **`list_recent_uploads`** (`params` object only: optional
+//! **`limit`** default **20** max **200**, **`offset`** default **0**, **`include_claims`** boolean default **false**) pages **`ChainState.storage`**
+//! by **`last_proven_height`** descending; when **`include_claims`** is true, each row may include a **`claims`** array for that row’s **`data_root`**.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 
+use mfn_consensus::block::StorageEntry;
 use mfn_consensus::{
     block_header_bytes, block_id, decode_transaction, encode_block, encode_transaction, tx_id,
-    Block,
+    AuthorshipClaimRecord, Block,
 };
-use serde_json::{json, Value};
+use mfn_crypto::schnorr::encode_schnorr_signature;
+use serde_json::{json, Map, Value};
 
 use crate::{AdmitOutcome, Chain, ChainConfig, ChainStore, Mempool, MempoolConfig};
 
@@ -232,6 +242,190 @@ fn parse_tx_id_hex32(s: &str) -> Result<[u8; 32], String> {
     Ok(id)
 }
 
+const DEFAULT_CLAIMS_BY_PUBKEY_LIMIT: u64 = 50;
+const MAX_CLAIMS_BY_PUBKEY_LIMIT: u64 = 500;
+const DEFAULT_RECENT_UPLOADS_LIMIT: u64 = 20;
+const MAX_RECENT_UPLOADS_LIMIT: u64 = 200;
+
+fn extract_data_root_param(params: Option<&Value>) -> Result<&str, String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    match p {
+        Value::Object(obj) => match obj.get("data_root") {
+            Some(Value::String(s)) => Ok(s.as_str()),
+            Some(_) => Err("params.data_root must be a JSON string".to_string()),
+            None => Err("missing params.data_root (64 hex digits, 32-byte data root)".to_string()),
+        },
+        Value::Array(arr) => {
+            let first = arr.first().ok_or_else(|| {
+                "params array is empty (expected one data_root hex string)".to_string()
+            })?;
+            match first {
+                Value::String(s) => Ok(s.as_str()),
+                _ => Err(
+                    "params[0] must be a JSON string (64 hex digits, 32-byte data root)"
+                        .to_string(),
+                ),
+            }
+        }
+        _ => Err("params must be a JSON object or a JSON array".to_string()),
+    }
+}
+
+fn extract_claim_pubkey_and_limit(params: Option<&Value>) -> Result<([u8; 32], usize), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let (pk_str, lim_u64) = match p {
+        Value::Object(obj) => {
+            let pk = match obj.get("claim_pubkey") {
+                Some(Value::String(s)) => s.as_str(),
+                Some(_) => return Err("params.claim_pubkey must be a JSON string".to_string()),
+                None => return Err("missing params.claim_pubkey (64 hex digits)".to_string()),
+            };
+            let lim = match obj.get("limit") {
+                None => DEFAULT_CLAIMS_BY_PUBKEY_LIMIT,
+                Some(Value::Number(n)) => n
+                    .as_u64()
+                    .ok_or_else(|| "params.limit must be a non-negative JSON number".to_string())?,
+                Some(_) => return Err("params.limit must be a JSON number".to_string()),
+            };
+            (pk, lim)
+        }
+        Value::Array(arr) => {
+            let first = arr
+                .first()
+                .ok_or_else(|| "params array is empty (expected claim_pubkey hex)".to_string())?;
+            let pk = match first {
+                Value::String(s) => s.as_str(),
+                _ => return Err("params[0] must be a JSON string (claim_pubkey hex)".to_string()),
+            };
+            let lim = match arr.get(1) {
+                None => DEFAULT_CLAIMS_BY_PUBKEY_LIMIT,
+                Some(Value::Number(n)) => n.as_u64().ok_or_else(|| {
+                    "params[1] limit must be a non-negative JSON number".to_string()
+                })?,
+                Some(_) => return Err("params[1] must be a JSON number (limit)".to_string()),
+            };
+            (pk, lim)
+        }
+        _ => return Err("params must be a JSON object or a JSON array".to_string()),
+    };
+    let root = parse_tx_id_hex32(pk_str)?;
+    let lim = lim_u64.clamp(1, MAX_CLAIMS_BY_PUBKEY_LIMIT);
+    let lim_usize = usize::try_from(lim).map_err(|_| "limit out of usize range".to_string())?;
+    Ok((root, lim_usize))
+}
+
+fn extract_list_recent_uploads_params(
+    params: Option<&Value>,
+) -> Result<(usize, usize, bool), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let Value::Object(obj) = p else {
+        return Err("params must be a JSON object".to_string());
+    };
+    let limit_u = match obj.get("limit") {
+        None => DEFAULT_RECENT_UPLOADS_LIMIT,
+        Some(Value::Number(n)) => n
+            .as_u64()
+            .ok_or_else(|| "params.limit must be a non-negative JSON number".to_string())?,
+        Some(_) => return Err("params.limit must be a JSON number".to_string()),
+    };
+    let offset_u = match obj.get("offset") {
+        None => 0u64,
+        Some(Value::Number(n)) => n
+            .as_u64()
+            .ok_or_else(|| "params.offset must be a non-negative JSON number".to_string())?,
+        Some(_) => return Err("params.offset must be a JSON number".to_string()),
+    };
+    let include_claims = match obj.get("include_claims") {
+        None | Some(Value::Null) => false,
+        Some(Value::Bool(b)) => *b,
+        Some(_) => return Err("params.include_claims must be a JSON boolean".to_string()),
+    };
+    let limit_u = limit_u.clamp(1, MAX_RECENT_UPLOADS_LIMIT);
+    let limit = usize::try_from(limit_u).map_err(|_| "limit out of usize range".to_string())?;
+    let offset = usize::try_from(offset_u).map_err(|_| "offset out of usize range".to_string())?;
+    Ok((limit, offset, include_claims))
+}
+
+fn authorship_claim_record_json(rec: &AuthorshipClaimRecord) -> Value {
+    let c = &rec.claim;
+    json!({
+        "height": rec.height,
+        "tx_id": hex32(&rec.tx_id),
+        "tx_index": rec.tx_index,
+        "claim_index": rec.claim_index,
+        "wire_version": c.wire_version,
+        "data_root": hex32(&c.data_root),
+        "claim_pubkey": hex32(c.claim_pubkey.compress().as_bytes()),
+        "message_hex": hex::encode(&c.message),
+        "sig_hex": hex::encode(encode_schnorr_signature(&c.sig)),
+    })
+}
+
+fn json_storage_upload_row(
+    commitment_hash: &[u8; 32],
+    entry: &StorageEntry,
+    chain: &Chain,
+    include_claims: bool,
+) -> Value {
+    let c = &entry.commit;
+    let mut m = Map::new();
+    m.insert("commitment_hash".into(), json!(hex32(commitment_hash)));
+    m.insert("data_root".into(), json!(hex32(&c.data_root)));
+    m.insert("size_bytes".into(), json!(c.size_bytes));
+    m.insert("chunk_size".into(), json!(c.chunk_size));
+    m.insert("num_chunks".into(), json!(c.num_chunks));
+    m.insert("replication".into(), json!(c.replication));
+    m.insert(
+        "endowment_hex".into(),
+        json!(hex32(c.endowment.compress().as_bytes())),
+    );
+    m.insert("last_proven_height".into(), json!(entry.last_proven_height));
+    m.insert("last_proven_slot".into(), json!(entry.last_proven_slot));
+    if include_claims {
+        let claims_json: Vec<Value> = chain
+            .state()
+            .claims
+            .get(&c.data_root)
+            .map(|v| v.iter().map(authorship_claim_record_json).collect())
+            .unwrap_or_default();
+        m.insert("claims".into(), Value::Array(claims_json));
+    }
+    Value::Object(m)
+}
+
+fn collect_claims_for_pubkey<'a>(
+    chain: &'a Chain,
+    pk: &[u8; 32],
+    limit: usize,
+) -> Vec<&'a AuthorshipClaimRecord> {
+    let mut out: Vec<&AuthorshipClaimRecord> = Vec::new();
+    for v in chain.state().claims.values() {
+        for rec in v {
+            if rec.claim.claim_pubkey.compress().as_bytes().as_slice() == pk.as_slice() {
+                out.push(rec);
+            }
+        }
+    }
+    out.sort_by(|a, b| {
+        b.height
+            .cmp(&a.height)
+            .then_with(|| a.tx_id.cmp(&b.tx_id))
+            .then_with(|| a.tx_index.cmp(&b.tx_index))
+            .then_with(|| a.claim_index.cmp(&b.claim_index))
+    });
+    out.truncate(limit);
+    out
+}
+
 /// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
@@ -252,11 +446,14 @@ fn serve_rpc_methods_json_result() -> Value {
         "clear_mempool",
         "get_block",
         "get_block_header",
+        "get_claims_by_pubkey",
+        "get_claims_for",
         "get_checkpoint",
         "get_mempool",
         "get_mempool_tx",
         "get_tip",
         "list_methods",
+        "list_recent_uploads",
         "remove_mempool_tx",
         "save_checkpoint",
         "submit_tx",
@@ -562,6 +759,86 @@ fn dispatch_serve_methods(
                 "header_hex": hex::encode(hbytes),
             });
             rpc_success(id, body)
+        }
+        "get_claims_for" => {
+            let hex_s = match extract_data_root_param(req.get("params")) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let root = match parse_tx_id_hex32(hex_s) {
+                Ok(r) => r,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let claims: Vec<Value> = chain
+                .state()
+                .claims
+                .get(&root)
+                .map(|v| {
+                    let mut rows: Vec<_> = v.iter().collect();
+                    rows.sort_by(|a, b| {
+                        a.height
+                            .cmp(&b.height)
+                            .then_with(|| a.tx_id.cmp(&b.tx_id))
+                            .then_with(|| a.tx_index.cmp(&b.tx_index))
+                            .then_with(|| a.claim_index.cmp(&b.claim_index))
+                    });
+                    rows.into_iter().map(authorship_claim_record_json).collect()
+                })
+                .unwrap_or_default();
+            rpc_success(
+                id,
+                json!({
+                    "data_root": hex32(&root),
+                    "claims": claims,
+                }),
+            )
+        }
+        "get_claims_by_pubkey" => {
+            let (pk, limit) = match extract_claim_pubkey_and_limit(req.get("params")) {
+                Ok(x) => x,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let rows = collect_claims_for_pubkey(chain, &pk, limit);
+            let claims: Vec<Value> = rows.into_iter().map(authorship_claim_record_json).collect();
+            rpc_success(
+                id,
+                json!({
+                    "claim_pubkey": hex32(&pk),
+                    "limit": limit,
+                    "claims": claims,
+                }),
+            )
+        }
+        "list_recent_uploads" => {
+            let (limit, offset, include_claims) =
+                match extract_list_recent_uploads_params(req.get("params")) {
+                    Ok(x) => x,
+                    Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+                };
+            let st = chain.state();
+            let total = st.storage.len();
+            let mut rows: Vec<(&[u8; 32], &StorageEntry)> = st.storage.iter().collect();
+            rows.sort_by(|(ha, ea), (hb, eb)| {
+                eb.last_proven_height
+                    .cmp(&ea.last_proven_height)
+                    .then_with(|| ha.cmp(hb))
+            });
+            let uploads: Vec<Value> = rows
+                .into_iter()
+                .skip(offset)
+                .take(limit)
+                .map(|(h, e)| json_storage_upload_row(h, e, chain, include_claims))
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "uploads": uploads,
+                    "total": total,
+                    "offset": offset,
+                    "limit": limit,
+                    "include_claims": include_claims,
+                }),
+            )
         }
         other => rpc_error(
             id,
@@ -1568,18 +1845,21 @@ mod tests {
             "clear_mempool",
             "get_block",
             "get_block_header",
+            "get_claims_by_pubkey",
+            "get_claims_for",
             "get_checkpoint",
             "get_mempool",
             "get_mempool_tx",
             "get_tip",
             "list_methods",
+            "list_recent_uploads",
             "remove_mempool_tx",
             "save_checkpoint",
             "submit_tx",
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 11);
+        assert_eq!(names.len(), 14);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1593,7 +1873,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 11);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 14);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1628,6 +1908,145 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("list_methods"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_for_missing_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcf_miss");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_claims_for","id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_for_bad_hex_len() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcf_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_claims_for","params":{"data_root":"00"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_for_empty_when_unknown_root() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcf_empty");
+        let z = "0000000000000000000000000000000000000000000000000000000000000000";
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            &format!(
+                r#"{{"jsonrpc":"2.0","method":"get_claims_for","params":{{"data_root":"{z}"}},"id":1}}"#
+            ),
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["data_root"], json!(z));
+        assert_eq!(v["result"]["claims"], json!([]));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_by_pubkey_object_default_limit() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcbp_obj");
+        let z = "0101010101010101010101010101010101010101010101010101010101010101";
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            &format!(
+                r#"{{"jsonrpc":"2.0","method":"get_claims_by_pubkey","params":{{"claim_pubkey":"{z}"}},"id":1}}"#
+            ),
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["claim_pubkey"], json!(z));
+        assert_eq!(v["result"]["limit"], json!(50));
+        assert_eq!(v["result"]["claims"], json!([]));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_by_pubkey_array_positional_limit() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcbp_arr");
+        let z = "0202020202020202020202020202020202020202020202020202020202020202";
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            &format!(
+                r#"{{"jsonrpc":"2.0","method":"get_claims_by_pubkey","params":["{z}",3],"id":1}}"#
+            ),
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["limit"], json!(3));
+        assert_eq!(v["result"]["claims"], json!([]));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_claims_by_pubkey_rejects_bad_hex() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gcbp_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_claims_by_pubkey","params":{"claim_pubkey":"gg"},"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_recent_uploads_defaults_on_empty_chain() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lru_def");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_recent_uploads","params":{},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["uploads"], json!([]));
+        assert_eq!(v["result"]["total"], json!(0));
+        assert_eq!(v["result"]["offset"], json!(0));
+        assert_eq!(v["result"]["limit"], json!(20));
+        assert_eq!(v["result"]["include_claims"], json!(false));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_recent_uploads_rejects_array_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lru_arr");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_recent_uploads","params":[],"id":1}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_recent_uploads_include_claims_adds_key_on_row() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lru_claims");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_recent_uploads","params":{"limit":5,"offset":0,"include_claims":true},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["uploads"], json!([]));
         fs::remove_dir_all(&root).ok();
     }
 

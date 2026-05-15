@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -737,6 +737,41 @@ fn mfnd_serve_list_methods_over_tcp() {
     let mut sorted = names.clone();
     sorted.sort_unstable();
     assert_eq!(names, sorted);
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_authorship_discovery_rpcs_over_tcp() {
+    let dir = unique_data_dir("serve_authorship_rpc");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let z = "0000000000000000000000000000000000000000000000000000000000000000";
+    let req_cf = format!(
+        r#"{{"jsonrpc":"2.0","method":"get_claims_for","params":{{"data_root":"{z}"}},"id":1}}"#
+    );
+    let r1 = assert_rpc2_result(&tcp_request_json(sock, &req_cf));
+    assert_eq!(r1["data_root"], json!(z));
+    assert_eq!(r1["claims"], json!([]));
+
+    let pk = "0101010101010101010101010101010101010101010101010101010101010101";
+    let req_cb = format!(
+        r#"{{"jsonrpc":"2.0","method":"get_claims_by_pubkey","params":{{"claim_pubkey":"{pk}","limit":2}},"id":2}}"#
+    );
+    let r2 = assert_rpc2_result(&tcp_request_json(sock, &req_cb));
+    assert_eq!(r2["claim_pubkey"], json!(pk));
+    assert_eq!(r2["limit"], json!(2));
+    assert_eq!(r2["claims"], json!([]));
+
+    let r3 = assert_rpc2_result(&tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"list_recent_uploads","params":{"limit":3,"offset":0},"id":3}"#,
+    ));
+    assert_eq!(r3["uploads"], json!([]));
+    assert_eq!(r3["total"], json!(0));
+    assert_eq!(r3["limit"], json!(3));
+
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

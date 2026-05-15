@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -37,7 +37,7 @@
 //!   [`ChainStore::read_block_log`] for wallet replay in tests.
 //!   **M2.1.9** adds [`ChainStore::read_block_log_validated`] so tooling can
 //!   reject truncated or mismatched `chain.blocks` against the checkpoint tip.
-//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18) — the `mfnd` reference binary (`status` /
+//! - **`mfnd`** (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8) — the `mfnd` reference binary (`status` /
 //!   `save` / `run` / `step` / **`serve`**) wired through [`mfnd_main`]. Boots from
 //!   [`demo_genesis::empty_local_dev_genesis`] by default, or from a JSON
 //!   file via `--genesis` using [`genesis_config_from_json_path`]. The `step`
@@ -47,7 +47,7 @@
 //!   appends canonical block bytes to `chain.blocks` after every successful
 //!   apply (M2.1.7). **`serve`** keeps
 //!   chain + mempool in-process and answers **JSON-RPC 2.0** (one UTF-8 line per
-//!   connection; methods `get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**) on `--rpc-listen` (default
+//!   connection; methods `get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**) on `--rpc-listen` (default
 //!   `127.0.0.1:18731`). Requests may omit `jsonrpc` (legacy); responses always
 //!   include `"jsonrpc":"2.0"` and echo `id` (or `null`). **`get_block`** (M2.1.10) returns
 //!   `block_hex` for heights `1..=tip_height` via [`ChainStore::read_block_log_validated`].
@@ -60,11 +60,12 @@
 //!   **`get_checkpoint`** (M2.1.16) returns canonical [`Chain::encode_checkpoint`](crate::Chain::encode_checkpoint) bytes as **`checkpoint_hex`** plus **`byte_len`**; same empty-only **`params`** as **`get_mempool`** (in-memory state, not a fresh disk read).
 //!   **`save_checkpoint`** (M2.1.17) calls [`ChainStore::save`](crate::ChainStore::save) (same rotation as **`mfnd save`**); same empty-only **`params`**; success returns **`bytes_written`**, **`checkpoint_path`**, **`backup_path`**; IO errors use **`-32004`** (`CHECKPOINT_SAVE`).
 //!   **`list_methods`** (M2.1.18) returns **`methods`**: every implemented method name as a JSON string, sorted lexicographically (includes **`list_methods`**); same empty-only **`params`** as **`get_mempool`**.
+//!   **`get_claims_for`** (M2.2.8) returns **`claims`** for a **`data_root`** (`params`: `{"data_root":"…"}` or `[hex]`); **`get_claims_by_pubkey`** returns up to **`limit`** matches for a compressed pubkey (`params` object or `[pub, limit]`); **`list_recent_uploads`** pages **`ChainState.storage`** (`params` object: **`limit`**, **`offset`**, **`include_claims`**).
 //!   **`submit_tx`** accepts
 //!   `params` as `{"tx_hex":"…"}` or a one-element array `["…"]` (**M2.1.8.1**).
 //!   Integration tests
-//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18) drive `serve` over TCP
-//!   including `submit_tx` error paths, a signed-transfer happy path, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`** (empty pool + nonempty + wire round-trip + evict).
+//!   (`tests/mfnd_smoke.rs`, M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8) drive `serve` over TCP
+//!   including `submit_tx` error paths, a signed-transfer happy path, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`** / **`get_claims_by_pubkey`** / **`list_recent_uploads`** (empty pool + nonempty + wire round-trip + evict).
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!
 //! Everything below `Chain` / `producer` / `mempool` remains
