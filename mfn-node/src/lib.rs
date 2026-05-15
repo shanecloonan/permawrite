@@ -5,7 +5,7 @@
 //! / voter loops — the things that turn a state-transition function into
 //! a **running chain**.
 //!
-//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10)
+//! ## What this crate provides today (M2.0.3 + M2.0.4 + M2.0.12 + M2.1.0 + M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + **M2.3.0 `network` scaffold**)
 //!
 //! - [`Chain`] — an in-memory chain driver that owns a [`ChainState`],
 //!   exposes ergonomic queries (`tip_id`, `tip_height`, `validators`,
@@ -28,6 +28,8 @@
 //!   the lowest-fee entry, and `drain(max)` for highest-fee-first
 //!   block inclusion. M2.0.13 adds storage-anchoring admission gates
 //!   that mirror `apply_block`'s permanence checks.
+//! - [`network`] (**M2.3.0** scaffold) — reserved home for P2P gossip; exports
+//!   [`network::NetworkConfig`] defaults only (no sockets, no libp2p yet).
 //! - [`genesis_spec`] (M2.1.2) — versioned JSON → [`mfn_consensus::GenesisConfig`] for
 //!   operator-controlled devnets and tests (`--genesis` on `mfnd`).
 //! - [`store`] (M2.1.0) — filesystem checkpoint store over
@@ -68,8 +70,8 @@
 //!   including `submit_tx` error paths, a signed-transfer happy path, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`** / **`get_claims_by_pubkey`** / **`list_recent_uploads`** / **`list_recent_claims`** / **`list_data_roots_with_claims`** (empty pool + nonempty + wire round-trip + evict).
 //!   `--blocks N` applies N blocks per `step` run; `--checkpoint-each` persists after every block.
 //!
-//! Everything below `Chain` / `producer` / `mempool` remains
-//! deterministic and synchronous. `store` is intentionally the first
+//! Everything below `Chain` / `producer` / `mempool` / `network` remains
+//! deterministic and synchronous at the consensus boundary. `store` is intentionally the first
 //! narrow IO boundary; `mfnd serve` adds a minimal blocking TCP loop on
 //! localhost only by default; async runtimes and wide-area P2P remain later
 //! M2.x sub-milestones.
@@ -106,6 +108,7 @@ pub mod chain;
 pub mod demo_genesis;
 pub mod genesis_spec;
 pub mod mempool;
+pub mod network;
 pub mod producer;
 pub mod store;
 
@@ -118,6 +121,7 @@ pub use genesis_spec::{
     MAX_SYNTHETIC_DECOY_UTXOS,
 };
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
+pub use network::NetworkConfig;
 pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,

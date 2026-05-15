@@ -71,7 +71,7 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `rpc.ts`              | `rpc.rs` (JSON-RPC over HTTP) | [ ] pending |
 | `store.ts`            | `store.rs` (RocksDB-backed)   | [ ] pending |
 | `mempool.ts`          | `mempool.rs`                | [x] live (`mfn-node`) |
-| —                     | `network.rs` (libp2p gossip)| [ ] pending |
+| —                     | `network.rs` (**M2.3.0** scaffold: `NetworkConfig` only; gossip TBD) | [x] live (`mfn-node`) |
 | —                     | `bin/mfnd.rs` + `mfnd_serve.rs` (devnet TCP JSON-RPC incl. authorship discovery **M2.2.8** + derived views **M2.2.10**) | [x] live (`mfn-node`) |
 
 ### `mfn-wallet` — wallet binary (planned crate)

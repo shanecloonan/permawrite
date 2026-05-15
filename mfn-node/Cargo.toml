@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Permawrite — node-side glue around mfn-consensus: in-memory chain driver, block-application orchestration, future home of mempool / P2P / RPC."
+description = "Permawrite — node-side glue around mfn-consensus: in-memory chain driver, block-application orchestration, mempool, M2.3 `network` scaffold, future P2P/RPC."
 
 [[bin]]
 name = "mfnd"

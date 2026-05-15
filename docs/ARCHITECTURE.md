@@ -834,6 +834,8 @@ mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integrat
                     StorageReplicationTooHigh, EndowmentMathFailed,
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
+├── network.rs      M2.3.0 scaffold: `NetworkConfig` defaults for a future gossip
+│                   listener + dialer (no sockets / wire yet).
 ├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
 ├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
 ├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 blocking TCP serve: one-line JSON request/response;
@@ -850,6 +852,7 @@ mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integrat
 │                   get_claims_for (data_root → indexed AuthorshipClaimRecord list);
 │                   get_claims_by_pubkey (compressed pubkey + limit → recent claims);
 │                   list_recent_uploads (paged storage entries, optional claims join);
+│                   list_recent_claims + list_data_roots_with_claims (M2.2.10 derived discovery);
 │                   JSON-RPC 2.0 envelope on every response line.
 ├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`;
 │                   M2.1.7 `chain.blocks` append log + `read_block_log`).
