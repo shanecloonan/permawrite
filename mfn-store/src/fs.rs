@@ -15,7 +15,11 @@ const BACKUP_FILE: &str = "chain.checkpoint.bak";
 const TEMP_FILE: &str = "chain.checkpoint.tmp";
 const BLOCK_LOG_FILE: &str = "chain.blocks";
 
-pub(crate) fn io_error(op: &'static str, path: impl Into<PathBuf>, source: std::io::Error) -> StoreError {
+pub(crate) fn io_error(
+    op: &'static str,
+    path: impl Into<PathBuf>,
+    source: std::io::Error,
+) -> StoreError {
     StoreError::Io {
         op,
         path: path.into(),

@@ -18,10 +18,7 @@ pub type AuthorshipClaimKey = ([u8; 32], [u8; 32]);
 
 /// Build the canonical [`AuthorshipClaimKey`] for a claim.
 pub fn authorship_claim_key(claim: &AuthorshipClaim) -> AuthorshipClaimKey {
-    (
-        claim.data_root,
-        claim.claim_pubkey.compress().to_bytes(),
-    )
+    (claim.data_root, claim.claim_pubkey.compress().to_bytes())
 }
 
 /// One accepted authorship claim anchored at `height` / `tx_id`.
@@ -211,6 +208,63 @@ pub fn collect_claim_merkle_leaves_for_txs(
         out.extend_from_slice(&leaves);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod apply_rules_tests {
+    use super::*;
+    use mfn_crypto::authorship::{build_signed_claim, UNBOUND_COMMIT_HASH};
+    use mfn_crypto::schnorr::schnorr_keygen;
+    use mfn_storage::{storage_commitment_hash, StorageCommitment};
+
+    #[test]
+    fn storage_binding_requires_anchored_commit() {
+        let kp = schnorr_keygen();
+        let data_root = [1u8; 32];
+        let mut commit_hash = [2u8; 32];
+        let claim = build_signed_claim(data_root, commit_hash, b"x", &kp).expect("sign");
+        let storage: HashMap<[u8; 32], StorageEntry> = HashMap::new();
+        assert!(!check_claim_storage_binding(&claim, &storage));
+
+        let sc = StorageCommitment {
+            data_root,
+            size_bytes: 1,
+            chunk_size: 256,
+            num_chunks: 1,
+            replication: 1,
+            endowment: mfn_crypto::point::generator_g(),
+        };
+        commit_hash = storage_commitment_hash(&sc);
+        let claim2 = build_signed_claim(data_root, commit_hash, b"x", &kp).expect("sign");
+        let mut storage = HashMap::new();
+        storage.insert(
+            commit_hash,
+            StorageEntry {
+                commit: sc,
+                last_proven_height: 1,
+                last_proven_slot: 1,
+                pending_yield_ppb: 0,
+            },
+        );
+        assert!(check_claim_storage_binding(&claim2, &storage));
+    }
+
+    #[test]
+    fn claim_key_unique_per_pubkey_and_root() {
+        let kp = schnorr_keygen();
+        let data_root = [9u8; 32];
+        let c1 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"a", &kp).expect("s");
+        let c2 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"b", &kp).expect("s");
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            authorship_claim_key(&c1),
+            claim_to_record(&c1, [0u8; 32], 1, 0, 0),
+        );
+        assert!(!check_claim_key_unique(&c2, &map));
+        let other = schnorr_keygen();
+        let c3 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"c", &other).expect("s");
+        assert!(check_claim_key_unique(&c3, &map));
+    }
 }
 
 /// Pack `MFEX` ‖ v1 ‖ concatenated [`encode_authorship_claim`] outputs.

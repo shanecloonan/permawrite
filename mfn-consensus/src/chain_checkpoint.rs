@@ -135,7 +135,9 @@ pub enum ChainCheckpointError {
     },
 
     /// Format version is not supported by this build.
-    #[error("unsupported chain-checkpoint version {got}; this build supports versions 1, 2, and 3")]
+    #[error(
+        "unsupported chain-checkpoint version {got}; this build supports versions 1, 2, and 3"
+    )]
     UnsupportedVersion {
         /// The version encoded in the payload.
         got: u32,
@@ -510,9 +512,8 @@ fn decode_authorship_claim_record_v3(
             field: "claims.record.wire",
             needed: wire_len,
         })?;
-    let claim = decode_authorship_claim(wire).map_err(|e| {
-        ChainCheckpointError::AuthorshipClaimWire(format!("claims[{index}]: {e}"))
-    })?;
+    let claim = decode_authorship_claim(wire)
+        .map_err(|e| ChainCheckpointError::AuthorshipClaimWire(format!("claims[{index}]: {e}")))?;
     if &claim.data_root != expected_data_root {
         return Err(ChainCheckpointError::ClaimsRecordKeyMismatch {
             outer: index,

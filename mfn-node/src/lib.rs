@@ -23,14 +23,12 @@ mod mfnd_cli;
 mod mfnd_serve;
 
 // Re-export runtime orchestration (prefer `mfn_runtime` in new code).
+pub use mfn_runtime::{build_proposal, produce_solo_block, seal_proposal, vote_on_proposal};
 pub use mfn_runtime::{
-    genesis_config_from_json_bytes, genesis_config_from_json_path, hex_seed32,
-    AdmitError, AdmitOutcome, BlockInputs, BlockProposal, Chain, ChainConfig, ChainError,
-    ChainStats, GenesisSpecError, Mempool, MempoolConfig, MempoolEntry, ProducerError,
+    genesis_config_from_json_bytes, genesis_config_from_json_path, hex_seed32, AdmitError,
+    AdmitOutcome, BlockInputs, BlockProposal, Chain, ChainConfig, ChainError, ChainStats,
+    GenesisSpecError, Mempool, MempoolConfig, MempoolEntry, ProducerError,
     MAX_SYNTHETIC_DECOY_UTXOS,
-};
-pub use mfn_runtime::{
-    build_proposal, produce_solo_block, seal_proposal, vote_on_proposal,
 };
 pub mod chain {
     //! Re-exported from [`mfn_runtime::chain`].
@@ -57,8 +55,8 @@ pub mod store {
     pub use mfn_store::*;
 }
 
-pub use network::NetworkConfig;
 pub use mfn_store::{ChainPersistence, ChainStore, StoreError, StoreSave};
+pub use network::NetworkConfig;
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).
 #[must_use]

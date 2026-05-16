@@ -91,12 +91,11 @@ pub fn parse_mfex_authorship_claims(
         if extra[i..i + 4] != MFCL_MAGIC[..] {
             return Err(ExtraClaimsParseError::ExpectedMfcl { offset: i });
         }
-        let frame_len = mfcl_frame_wire_len(&extra[i..]).map_err(|e| {
-            ExtraClaimsParseError::MfclDecode {
+        let frame_len =
+            mfcl_frame_wire_len(&extra[i..]).map_err(|e| ExtraClaimsParseError::MfclDecode {
                 offset: i,
                 source: e,
-            }
-        })?;
+            })?;
         if i + frame_len > extra.len() {
             return Err(ExtraClaimsParseError::Truncated {
                 need_at_least: i + frame_len,
@@ -125,7 +124,8 @@ pub fn parse_mfex_authorship_claims(
 mod tests {
     use super::*;
     use mfn_crypto::authorship::{
-        build_signed_claim_version, encode_authorship_claim, MFCL_WIRE_VERSION_V2, UNBOUND_COMMIT_HASH,
+        build_signed_claim_version, encode_authorship_claim, MFCL_WIRE_VERSION_V2,
+        UNBOUND_COMMIT_HASH,
     };
     use mfn_crypto::schnorr::schnorr_keygen;
 

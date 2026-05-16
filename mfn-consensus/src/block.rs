@@ -1586,8 +1586,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                         ));
                         continue;
                     }
-                    let rec =
-                        claim_to_record(c, tid, block.header.height, ti as u32, ci_u32);
+                    let rec = claim_to_record(c, tid, block.header.height, ti as u32, ci_u32);
                     next.claims.insert(authorship_claim_key(c), rec);
                 }
             }

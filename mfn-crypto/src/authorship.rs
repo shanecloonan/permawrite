@@ -417,11 +417,7 @@ pub fn verify_claim(claim: &AuthorshipClaim) -> Result<bool> {
         &claim.claim_pubkey,
         &claim.message,
     )?;
-    Ok(schnorr_verify(
-        &digest,
-        &claim.sig,
-        &claim.claim_pubkey,
-    ))
+    Ok(schnorr_verify(&digest, &claim.sig, &claim.claim_pubkey))
 }
 
 #[cfg(test)]
@@ -465,14 +461,7 @@ mod tests {
         )
         .expect("d");
         let h = [2u8; 32];
-        let b = claim_digest(
-            MFCL_WIRE_VERSION_V2,
-            &data_root,
-            &h,
-            &kp.pub_key,
-            b"x",
-        )
-        .expect("d");
+        let b = claim_digest(MFCL_WIRE_VERSION_V2, &data_root, &h, &kp.pub_key, b"x").expect("d");
         assert_ne!(a, b);
     }
 

@@ -471,8 +471,7 @@ fn collect_claims_for_pubkey<'a>(
 }
 
 fn collect_all_claims_sorted_recent_first(chain: &Chain) -> Vec<&AuthorshipClaimRecord> {
-    let mut out: Vec<&AuthorshipClaimRecord> =
-        chain.state().claims.values().collect();
+    let mut out: Vec<&AuthorshipClaimRecord> = chain.state().claims.values().collect();
     out.sort_by(|a, b| {
         b.height
             .cmp(&a.height)

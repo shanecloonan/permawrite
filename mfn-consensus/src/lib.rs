@@ -95,8 +95,8 @@ pub use checkpoint_codec::{
 pub use claims::{
     authorship_claim_key, authorship_claim_merkle_leaf, build_mfex_extra, claim_to_record,
     claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx,
-    AuthorshipClaimKey, AuthorshipClaimRecord, AuthorshipClaimVerifyError, VerifiedClaimsForTxResult,
-    VerifiedTxClaims,
+    AuthorshipClaimKey, AuthorshipClaimRecord, AuthorshipClaimVerifyError,
+    VerifiedClaimsForTxResult, VerifiedTxClaims,
 };
 pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,
