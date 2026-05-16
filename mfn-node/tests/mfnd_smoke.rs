@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13 + M2.3.14).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -70,6 +70,69 @@ fn mfnd_p2p_hid_from_line(line: &str) -> u64 {
         }
     }
     panic!("no hid= token in line={line:?}");
+}
+
+/// Reads **`mfnd_p2p_peer_tip`** / **`mfnd_p2p_height_cmp`** / **`mfnd_p2p_handshake_ms`** from a listener
+/// `mfnd serve` stdout after an external client has completed
+/// [`mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange`]. Returns the session **`hid`**.
+fn read_listener_p2p_handshake_session(
+    child_out: &mut BufReader<ChildStdout>,
+    tip_h: u32,
+    tip_id_hex: &str,
+) -> u64 {
+    let mut peer_tip_line = String::new();
+    child_out
+        .read_line(&mut peer_tip_line)
+        .expect("read mfnd_p2p_peer_tip from listener");
+    assert!(
+        peer_tip_line.starts_with("mfnd_p2p_peer_tip "),
+        "expected mfnd_p2p_peer_tip, got {peer_tip_line:?}"
+    );
+    assert!(
+        peer_tip_line.contains(&format!("height={tip_h} ")),
+        "peer_tip_line={peer_tip_line:?}"
+    );
+    assert!(
+        peer_tip_line.contains(&format!("tip_id={tip_id_hex}")),
+        "peer_tip_line={peer_tip_line:?}"
+    );
+    let hid = mfnd_p2p_hid_from_line(&peer_tip_line);
+    let mut height_cmp_line = String::new();
+    child_out
+        .read_line(&mut height_cmp_line)
+        .expect("read mfnd_p2p_height_cmp from listener");
+    assert!(
+        height_cmp_line.starts_with("mfnd_p2p_height_cmp "),
+        "expected mfnd_p2p_height_cmp, got {height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains(&format!("local_height={tip_h} ")),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains(&format!("remote_height={tip_h} ")),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains("cmp=equal"),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert_eq!(
+        mfnd_p2p_hid_from_line(&height_cmp_line),
+        hid,
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    let mut handshake_ms_line = String::new();
+    child_out
+        .read_line(&mut handshake_ms_line)
+        .expect("read mfnd_p2p_handshake_ms from listener");
+    assert_mfnd_p2p_handshake_ms_line(&handshake_ms_line);
+    assert_eq!(
+        mfnd_p2p_hid_from_line(&handshake_ms_line),
+        hid,
+        "handshake_ms_line={handshake_ms_line:?}"
+    );
+    hid
 }
 
 /// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
@@ -505,57 +568,48 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
         &local_tip,
     )
     .expect("p2p tcp_connect_peer_v1_handshake_with_tip_exchange");
-    let mut peer_tip_line = String::new();
-    child_out
-        .read_line(&mut peer_tip_line)
-        .expect("read mfnd_p2p_peer_tip from listener");
-    assert!(
-        peer_tip_line.starts_with("mfnd_p2p_peer_tip "),
-        "expected mfnd_p2p_peer_tip, got {peer_tip_line:?}"
-    );
-    assert!(
-        peer_tip_line.contains(&format!("height={tip_h} ")),
-        "peer_tip_line={peer_tip_line:?}"
-    );
-    assert!(
-        peer_tip_line.contains(&format!("tip_id={tip_id_hex}")),
-        "peer_tip_line={peer_tip_line:?}"
-    );
-    let hid = mfnd_p2p_hid_from_line(&peer_tip_line);
-    let mut height_cmp_line = String::new();
-    child_out
-        .read_line(&mut height_cmp_line)
-        .expect("read mfnd_p2p_height_cmp from listener");
-    assert!(
-        height_cmp_line.starts_with("mfnd_p2p_height_cmp "),
-        "expected mfnd_p2p_height_cmp, got {height_cmp_line:?}"
-    );
-    assert!(
-        height_cmp_line.contains(&format!("local_height={tip_h} ")),
-        "height_cmp_line={height_cmp_line:?}"
-    );
-    assert!(
-        height_cmp_line.contains(&format!("remote_height={tip_h} ")),
-        "height_cmp_line={height_cmp_line:?}"
-    );
-    assert!(
-        height_cmp_line.contains("cmp=equal"),
-        "height_cmp_line={height_cmp_line:?}"
-    );
+    read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_p2p_listener_two_handshakes_increment_hid() {
+    let dir = unique_data_dir("serve_p2p_two_hid");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, mut child_out, rpc_addr, p2p_addr) = spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip = assert_rpc2_result(&resp);
+    let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
+    let bytes = hex::decode(gid_hex).expect("decode genesis_id hex");
+    assert_eq!(bytes.len(), 32);
+    let mut genesis_id = [0u8; 32];
+    genesis_id.copy_from_slice(&bytes);
+    let tip_h = tip["tip_height"]
+        .as_u64()
+        .expect("tip_height must be a JSON number") as u32;
+    let tip_id_hex = tip["tip_id"].as_str().expect("tip_id hex");
+    let mut tip_id = [0u8; 32];
+    hex::decode_to_slice(tip_id_hex, &mut tip_id).expect("decode tip_id hex");
+    let local_tip = mfn_node::network::ChainTipV1 {
+        height: tip_h,
+        tip_id,
+    };
+    for _ in 0..2 {
+        mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
+            p2p_addr,
+            &genesis_id,
+            &local_tip,
+        )
+        .expect("p2p tcp_connect_peer_v1_handshake_with_tip_exchange");
+    }
+    let hid0 = read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
+    let hid1 = read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
     assert_eq!(
-        mfnd_p2p_hid_from_line(&height_cmp_line),
-        hid,
-        "height_cmp_line={height_cmp_line:?}"
-    );
-    let mut handshake_ms_line = String::new();
-    child_out
-        .read_line(&mut handshake_ms_line)
-        .expect("read mfnd_p2p_handshake_ms from listener");
-    assert_mfnd_p2p_handshake_ms_line(&handshake_ms_line);
-    assert_eq!(
-        mfnd_p2p_hid_from_line(&handshake_ms_line),
-        hid,
-        "handshake_ms_line={handshake_ms_line:?}"
+        hid1,
+        hid0 + 1,
+        "expected monotonic hid across sequential accepts"
     );
     let _ = child.kill();
     let _ = child.wait();

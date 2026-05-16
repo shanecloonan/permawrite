@@ -1621,6 +1621,20 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ---
 
+## Milestone M2.3.14 — Sequential P2P accepts: `hid` monotonicity smoke (✓ shipped)
+
+**Why it was next.** **M2.3.13** guarantees a process-wide monotonic **`hid`**, but a single-handshake smoke test cannot prove the counter advances across **back-to-back** connections on the **`--p2p-listen`** thread. Two sequential full handshakes from the same test client should yield **`hid`** then **`hid+1`** on the listener’s stdout.
+
+### What shipped
+
+- **[`mfn-node/tests/mfnd_smoke.rs`](../mfn-node/tests/mfnd_smoke.rs)** — Shared helper **`read_listener_p2p_handshake_session`** (read + assert **`mfnd_p2p_peer_tip`** / **`mfnd_p2p_height_cmp`** / **`mfnd_p2p_handshake_ms`** + matching **`hid=`** vs `get_tip`); refactors **`mfnd_serve_p2p_hello_handshake_over_tcp`** to use it; new **`mfnd_serve_p2p_listener_two_handshakes_increment_hid`** runs two outbound tip handshakes then asserts **`hid1 == hid0 + 1`**.
+
+### Tests
+
+- **`tests::mfnd_smoke::mfnd_serve_p2p_listener_two_handshakes_increment_hid`**
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:

@@ -7,7 +7,7 @@
 //! [`handshake::tcp_connect_hello_v1_handshake`] for outbound dials. **M2.3.5** adds [`PingV1`] /
 //! [`PongV1`] and [`tcp_connect_peer_v1_handshake`] (hello + dialer ping / listener pong). **M2.3.7**
 //! shares [`handshake::P2P_HANDSHAKE_IO_TIMEOUT`] across outbound dials and `mfnd serve` accepts.
-//! **M2.3.8** adds [`ChainTipV1`] + post–ping/pong tip exchange ([`tcp_connect_peer_v1_handshake_with_tip_exchange`], `mfnd serve` P2P). **M2.3.9** logs each remote tip on stdout as **`mfnd_p2p_peer_tip`** after a successful exchange. **M2.3.10** adds [`GoodbyeV1`] after the tip on that same full peer path. **M2.3.11** adds **`mfnd_p2p_height_cmp`** on stdout from **`mfnd serve`** (local vs remote height). **M2.3.12** adds **`mfnd_p2p_handshake_ms`**. **M2.3.13** adds a per-process monotonic **`hid=`** on those three **`mfnd serve`** stdout lines so concurrent sessions stay attributable.
+//! **M2.3.8** adds [`ChainTipV1`] + post–ping/pong tip exchange ([`tcp_connect_peer_v1_handshake_with_tip_exchange`], `mfnd serve` P2P). **M2.3.9** logs each remote tip on stdout as **`mfnd_p2p_peer_tip`** after a successful exchange. **M2.3.10** adds [`GoodbyeV1`] after the tip on that same full peer path. **M2.3.11** adds **`mfnd_p2p_height_cmp`**. **M2.3.12** adds **`mfnd_p2p_handshake_ms`**. **M2.3.13** adds a per-process monotonic **`hid=`** on those three **`mfnd serve`** stdout lines so concurrent sessions stay attributable. **M2.3.14** adds integration smoke that two sequential inbound handshakes advance **`hid`** by one each time.
 //!
 //! Integration with [`crate::Mempool`] / [`crate::Chain`] lands in later M2.3.x
 //! milestones (full gossip, admission, fork choice). **M2.3.3** wires an optional P2P listen into
