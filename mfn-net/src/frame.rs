@@ -5,8 +5,7 @@
 //! recover stream boundaries without JSON or line discipline.
 //!
 //! [`HelloV1`] is the first structured payload: it binds a connection to an
-//! expected **genesis id** (same 32-byte id [`Chain::genesis_id`](crate::Chain::genesis_id)
-//! materializes from config) before any block or tx bytes are accepted.
+//! expected **genesis id** (32-byte chain identity from genesis config) before any block or tx bytes are accepted.
 //!
 //! **M2.3.5** adds [`PingV1`] / [`PongV1`]: single-byte keepalive-style control payloads after
 //! [`HelloV1`] (dialer sends ping, listener replies pong).
@@ -15,7 +14,7 @@
 //! (32 bytes) as a minimal chain-head advertisement (no fork choice; snapshot only).
 //!
 //! **M2.3.10** adds [`GoodbyeV1`]: a one-byte “session complete” marker after the tip exchange on the
-//! full [`crate::network::handshake::tcp_connect_peer_v1_handshake_with_tip_exchange`] path (dialer
+//! full [`crate::handshake::tcp_connect_peer_v1_handshake_with_tip_exchange`] path (dialer
 //! sends first, mirroring [`ChainTipV1`] ordering).
 
 use std::io::{Read, Write};
@@ -37,7 +36,7 @@ const GOODBYE_V1_TAG: u8 = 0x05;
 /// First gossip handshake: advertises which chain instance the peer expects.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HelloV1 {
-    /// Expected chain genesis id (`Chain::genesis_id()`).
+    /// Expected chain genesis id (32-byte identity both peers must share).
     pub genesis_id: [u8; 32],
 }
 

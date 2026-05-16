@@ -11,7 +11,8 @@
 //! | `mfn-runtime` | In-memory chain + mempool |
 //! | `mfn-store` | Checkpoint + block log reads/writes |
 //! | **`mfn-rpc`** | JSON-RPC dispatch (no sockets) |
-//! | `mfn-node` | TCP accept loop, P2P, `mfnd` binary |
+//! | `mfn-net` | P2P framing + handshakes |
+//! | `mfn-node` | RPC TCP loop + `mfnd` binary |
 //!
 //! ## Safety
 //!

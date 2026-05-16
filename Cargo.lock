@@ -329,6 +329,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-net"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "mfn-node"
 version = "0.1.0"
 dependencies = [
@@ -339,6 +346,7 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-light",
+ "mfn-net",
  "mfn-rpc",
  "mfn-runtime",
  "mfn-storage",

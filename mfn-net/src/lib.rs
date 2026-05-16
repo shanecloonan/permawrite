@@ -1,0 +1,82 @@
+//! # `mfn-net`
+//!
+//! Blocking TCP P2P: length-prefixed frames, versioned handshakes, and optional
+//! `mfnd serve` accept/dial loops (stdout harness lines for integration tests).
+//!
+//! ## Crate boundaries
+//!
+//! | Crate | Role |
+//! |-------|------|
+//! | `mfn-consensus` | Pure STF + wire formats |
+//! | `mfn-runtime` | In-memory chain + mempool |
+//! | `mfn-store` | Persistence |
+//! | `mfn-rpc` | JSON-RPC dispatch |
+//! | **`mfn-net`** | P2P framing + handshakes + serve P2P threads |
+//! | `mfn-node` | RPC TCP loop + `mfnd` binary |
+//!
+//! ## Safety
+//!
+//! - `#![forbid(unsafe_code)]`.
+//! - No async runtime in this crate.
+
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(clippy::all)]
+
+pub mod frame;
+pub mod handshake;
+pub mod serve;
+
+pub use frame::{
+    decode_frame_prefix, encode_frame, read_frame, write_frame_io, ChainTipV1, FrameDecodeError,
+    FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1, GoodbyeV1DecodeError,
+    HelloDecodeError, HelloV1, PingPongDecodeError, PingV1, PongV1, TipV1DecodeError,
+    MAX_FRAME_PAYLOAD_LEN,
+};
+pub use handshake::{
+    exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
+    exchange_goodbye_v1_as_dialer, exchange_goodbye_v1_as_listener, hello_v1_handshake,
+    recv_chain_tip_v1, recv_hello, recv_hello_expect, recv_ping_send_pong, send_chain_tip_v1,
+    send_hello, send_ping_recv_pong, tcp_connect_hello_v1_handshake, tcp_connect_peer_v1_handshake,
+    tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
+};
+pub use serve::{
+    height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, HidCounter, TipSnapshot,
+};
+
+/// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkConfig {
+    /// Host/port (or future multiaddr string) to bind for inbound peers.
+    pub listen_addr: String,
+    /// Cap on simultaneous outbound dials the node will attempt to maintain.
+    pub max_outbound_peers: u32,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            listen_addr: "127.0.0.1:0".into(),
+            max_outbound_peers: 8,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn network_config_default_is_loopback_unspecified_port() {
+        let c = NetworkConfig::default();
+        assert_eq!(c.listen_addr, "127.0.0.1:0");
+        assert_eq!(c.max_outbound_peers, 8);
+    }
+
+    #[test]
+    fn height_cmp_label_orders_remote_vs_local() {
+        assert_eq!(height_cmp_label(0, 0), "equal");
+        assert_eq!(height_cmp_label(0, 1), "ahead");
+        assert_eq!(height_cmp_label(2, 1), "behind");
+    }
+}

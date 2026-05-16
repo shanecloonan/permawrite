@@ -19,6 +19,7 @@ all = "warn"
 mfn-runtime = { path = "../mfn-runtime" }
 mfn-store = { path = "../mfn-store" }
 mfn-rpc = { path = "../mfn-rpc" }
+mfn-net = { path = "../mfn-net" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-bls = { path = "../mfn-bls" }
 mfn-storage = { path = "../mfn-storage" }

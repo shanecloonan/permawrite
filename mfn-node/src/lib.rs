@@ -1,14 +1,15 @@
 //! # `mfn-node`
 //!
 //! Permawrite node daemon: JSON-RPC + P2P ([`mfnd`]) and composition of
-//! [`mfn_runtime`] (chain driver) and [`mfn_store`] (persistence).
+//! [`mfn_runtime`] (chain driver), [`mfn_store`] (persistence), [`mfn_rpc`], and [`mfn_net`].
 //!
 //! ## Crate boundaries
 //!
 //! - [`mfn_runtime`] — in-process chain + mempool + producer (no IO).
 //! - [`mfn_store`] — checkpoint + block-log persistence.
 //! - [`mfn_rpc`] — JSON-RPC dispatch (no sockets).
-//! - **`mfn-node`** (this crate) — `network`, TCP serve loop, `mfnd` binary.
+//! - [`mfn_net`] — P2P framing, handshakes, serve P2P threads.
+//! - **`mfn-node`** (this crate) — RPC TCP accept loop, `mfnd` binary.
 //! - [`mfn_consensus`] — pure state-transition function.
 //!
 //! Public types from [`mfn_runtime`] and [`mfn_store`] are re-exported for
@@ -18,10 +19,13 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
-pub mod network;
-
 mod mfnd_cli;
 mod mfnd_serve;
+
+pub mod network {
+    //! Re-exported from [`mfn_net`] (frame, handshake, serve helpers).
+    pub use mfn_net::*;
+}
 
 // Re-export runtime orchestration (prefer `mfn_runtime` in new code).
 pub use mfn_runtime::{build_proposal, produce_solo_block, seal_proposal, vote_on_proposal};

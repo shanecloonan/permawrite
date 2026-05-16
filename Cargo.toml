@@ -8,6 +8,7 @@ members = [
     "mfn-runtime",
     "mfn-store",
     "mfn-rpc",
+    "mfn-net",
     "mfn-node",
     "mfn-light",
     "mfn-wallet",
