@@ -26,8 +26,11 @@ pub const BLOCK_HEADER: Domain = b"MFBN-1/block-header";
 /// Storage commitment.
 pub const STORAGE_COMMIT: Domain = b"MFBN-1/storage-commit";
 
-/// Authorship claim digest (`claim_digest` in `mfn_crypto::authorship`, M2.2.x).
+/// Authorship claim digest (MFCL wire v1 — no `commit_hash` in preimage).
 pub const AUTHORSHIP_CLAIM_DIGEST: Domain = b"MFBN-1/AUTHORSHIP/v1";
+
+/// Authorship claim digest (MFCL wire v2 — binds optional storage `commit_hash`).
+pub const AUTHORSHIP_CLAIM_DIGEST_V2: Domain = b"MFBN-1/AUTHORSHIP/v2";
 
 /// Per-chunk content hash.
 pub const CHUNK_HASH: Domain = b"MFBN-1/chunk-hash";

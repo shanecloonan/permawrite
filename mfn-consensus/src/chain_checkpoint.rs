@@ -5,32 +5,30 @@
 //! Pair the encoder with any persistence backend (file, RocksDB, S3 …);
 //! this module concerns itself only with *what* the bytes are.
 //!
-//! ## Wire layout (v2, current)
+//! ## Wire layout (v3, current)
 //!
-//! v2 extends v1 by inserting authorship-claim persistence **after** the
-//! `storage` map and **before** the `utxo_tree` blob:
+//! v3 extends v2 by replacing the nested `data_root → Vec<record>` map and the
+//! separate `claim_submitted` set with a flat map keyed by
+//! (`data_root`, `claim_pubkey`):
 //!
 //! ```text
-//!   claims.len()              varint   (sorted ascending by 32-byte data_root key)
+//!   claims.len()              varint   (sorted ascending by (data_root, claim_pubkey))
 //!     data_root                 [32]
-//!     records.len()           varint
-//!       wire.len()            varint
-//!       wire                    bytes   MFCL authorship claim
-//!       tx_id                   [32]
-//!       height                  u32
-//!       tx_index                u32
-//!       claim_index             u32
-//!
-//!   claim_submitted.len()    varint   (sorted ascending 32-byte leaf hashes)
-//!     leaf_hash                 [32]
+//!     claim_pubkey              [32]
+//!     wire.len()                varint
+//!     wire                      bytes   MFCL authorship claim
+//!     tx_id                     [32]
+//!     height                    u32
+//!     tx_index                  u32
+//!     claim_index               u32
 //! ```
 //!
-//! v1 checkpoints (version field `1`) omit this section entirely; decoders
-//! populate empty `claims` / `claim_submitted` maps.
+//! v2 checkpoints decode into the v3 in-memory shape (legacy nested map +
+//! `claim_submitted` are not persisted on re-encode). v1 omits claims entirely.
 //!
 //! ```text
 //!   magic                       [4]   "MFCC" (M(oney)F(und) C(hain) C(heckpoint))
-//!   version                      u32   currently 2 (v1 supported on decode only)
+//!   version                      u32   currently 3 (v1–v2 supported on decode)
 //!
 //!   genesis_id                  [32]
 //!   height_flag                   u8   0 = pre-genesis, 1 = present
@@ -69,7 +67,7 @@
 //!     key                       [32]
 //!     StorageEntry             (encode_storage_commitment + u32 + u64 + u128)
 //!
-//!   (v2 only) authorship `claims` + `claim_submitted` — see the v2 section above
+//!   (v2/v3) authorship `claims` — see the v3 section above (v2 legacy layout)
 //!
 //!   utxo_tree                  bytes   (encode_utxo_tree_state wire form,
 //!                                       length-prefixed)
@@ -109,7 +107,7 @@ use crate::checkpoint_codec::{
     read_edwards_point, read_fixed, read_len, read_u128, read_u16, read_u32, read_u64, read_u8,
     CheckpointReadError, EdwardsReadError,
 };
-use crate::claims::AuthorshipClaimRecord;
+use crate::claims::{authorship_claim_key, AuthorshipClaimKey, AuthorshipClaimRecord};
 use crate::emission::{EmissionParams, DEFAULT_EMISSION_PARAMS};
 use crate::validator_evolution::BondEpochCounters;
 
@@ -118,7 +116,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 2;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 3;
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -137,7 +135,7 @@ pub enum ChainCheckpointError {
     },
 
     /// Format version is not supported by this build.
-    #[error("unsupported chain-checkpoint version {got}; this build supports versions 1 and 2")]
+    #[error("unsupported chain-checkpoint version {got}; this build supports versions 1, 2, and 3")]
     UnsupportedVersion {
         /// The version encoded in the payload.
         got: u32,
@@ -319,18 +317,10 @@ fn encode_authorship_claim_record(w: &mut Writer, rec: &AuthorshipClaimRecord) {
 
 fn encode_claims_state(w: &mut Writer, state: &ChainState) {
     w.varint(state.claims.len() as u64);
-    for (data_root, records) in &state.claims {
+    for ((data_root, claim_pubkey), rec) in &state.claims {
         w.push(data_root);
-        w.varint(records.len() as u64);
-        for rec in records {
-            encode_authorship_claim_record(w, rec);
-        }
-    }
-    let mut submitted: Vec<&[u8; 32]> = state.claim_submitted.iter().collect();
-    submitted.sort();
-    w.varint(submitted.len() as u64);
-    for h in submitted {
-        w.push(h.as_slice());
+        w.push(claim_pubkey);
+        encode_authorship_claim_record(w, rec);
     }
 }
 
@@ -507,7 +497,48 @@ fn decode_storage_entry(
     })
 }
 
-fn decode_authorship_claim_record(
+fn decode_authorship_claim_record_v3(
+    r: &mut Reader<'_>,
+    index: usize,
+    expected_data_root: &[u8; 32],
+    expected_claim_pubkey: &[u8; 32],
+) -> Result<AuthorshipClaimRecord, ChainCheckpointError> {
+    let wire_len = read_len(r, "claims.record.wire.len")?;
+    let wire = r
+        .bytes(wire_len)
+        .map_err(|_| CheckpointReadError::Truncated {
+            field: "claims.record.wire",
+            needed: wire_len,
+        })?;
+    let claim = decode_authorship_claim(wire).map_err(|e| {
+        ChainCheckpointError::AuthorshipClaimWire(format!("claims[{index}]: {e}"))
+    })?;
+    if &claim.data_root != expected_data_root {
+        return Err(ChainCheckpointError::ClaimsRecordKeyMismatch {
+            outer: index,
+            inner: 0,
+        });
+    }
+    if claim.claim_pubkey.compress().as_bytes() != expected_claim_pubkey {
+        return Err(ChainCheckpointError::ClaimsRecordKeyMismatch {
+            outer: index,
+            inner: 0,
+        });
+    }
+    let tx_id = read_fixed(r, "claims.record.tx_id")?;
+    let height = read_u32(r, "claims.record.height")?;
+    let tx_index = read_u32(r, "claims.record.tx_index")?;
+    let claim_index = read_u32(r, "claims.record.claim_index")?;
+    Ok(AuthorshipClaimRecord {
+        claim,
+        tx_id,
+        height,
+        tx_index,
+        claim_index,
+    })
+}
+
+fn decode_authorship_claim_record_v2(
     r: &mut Reader<'_>,
     outer: usize,
     inner: usize,
@@ -539,14 +570,33 @@ fn decode_authorship_claim_record(
     })
 }
 
-type DecodedClaimsState = (
-    BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>>,
-    HashSet<[u8; 32]>,
-);
-
-fn decode_claims_state(r: &mut Reader<'_>) -> Result<DecodedClaimsState, ChainCheckpointError> {
+fn decode_claims_state_v3(
+    r: &mut Reader<'_>,
+) -> Result<BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord>, ChainCheckpointError> {
     let claims_n = read_len(r, "claims.len")?;
-    let mut claims: BTreeMap<[u8; 32], Vec<AuthorshipClaimRecord>> = BTreeMap::new();
+    let mut claims: BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord> = BTreeMap::new();
+    let mut prev_key: Option<AuthorshipClaimKey> = None;
+    for i in 0..claims_n {
+        let data_root: [u8; 32] = read_fixed(r, "claims[i].data_root")?;
+        let claim_pubkey: [u8; 32] = read_fixed(r, "claims[i].claim_pubkey")?;
+        let key = (data_root, claim_pubkey);
+        if let Some(prev) = prev_key {
+            if key <= prev {
+                return Err(ChainCheckpointError::ClaimsNotSorted { index: i });
+            }
+        }
+        prev_key = Some(key);
+        let rec = decode_authorship_claim_record_v3(r, i, &data_root, &claim_pubkey)?;
+        claims.insert(key, rec);
+    }
+    Ok(claims)
+}
+
+fn decode_claims_state_v2(
+    r: &mut Reader<'_>,
+) -> Result<BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord>, ChainCheckpointError> {
+    let claims_n = read_len(r, "claims.len")?;
+    let mut claims: BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord> = BTreeMap::new();
     let mut prev_key: Option<[u8; 32]> = None;
     for i in 0..claims_n {
         let data_root: [u8; 32] = read_fixed(r, "claims[i].key")?;
@@ -557,27 +607,18 @@ fn decode_claims_state(r: &mut Reader<'_>) -> Result<DecodedClaimsState, ChainCh
         }
         prev_key = Some(data_root);
         let rec_n = read_len(r, "claims[i].records.len")?;
-        let mut vec = Vec::with_capacity(rec_n);
         for j in 0..rec_n {
-            vec.push(decode_authorship_claim_record(r, i, j, &data_root)?);
+            let rec = decode_authorship_claim_record_v2(r, i, j, &data_root)?;
+            let key = authorship_claim_key(&rec.claim);
+            claims.insert(key, rec);
         }
-        claims.insert(data_root, vec);
     }
-
+    // Legacy `claim_submitted` leaf set — skip on load (superseded by keyed map).
     let submitted_n = read_len(r, "claim_submitted.len")?;
-    let mut claim_submitted: HashSet<[u8; 32]> = HashSet::with_capacity(submitted_n);
-    let mut prev_leaf: Option<[u8; 32]> = None;
-    for i in 0..submitted_n {
-        let h: [u8; 32] = read_fixed(r, "claim_submitted[i]")?;
-        if let Some(prev) = prev_leaf {
-            if h <= prev {
-                return Err(ChainCheckpointError::ClaimSubmittedNotSorted { index: i });
-            }
-        }
-        prev_leaf = Some(h);
-        claim_submitted.insert(h);
+    for _ in 0..submitted_n {
+        let _: [u8; 32] = read_fixed(r, "claim_submitted[i]")?;
     }
-    Ok((claims, claim_submitted))
+    Ok(claims)
 }
 
 /// Decode a [`ChainCheckpoint`] from canonical bytes produced by
@@ -619,7 +660,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if version != 1 && version != 2 {
+    if version != 1 && version != 2 && version != 3 {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -732,10 +773,13 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         storage.insert(key, entry);
     }
 
-    let (claims, claim_submitted) = if version >= 2 {
-        decode_claims_state(&mut r)?
-    } else {
-        (BTreeMap::new(), HashSet::new())
+    let claims = match version {
+        1 => BTreeMap::new(),
+        2 => decode_claims_state_v2(&mut r)?,
+        3 => decode_claims_state_v3(&mut r)?,
+        _ => {
+            return Err(ChainCheckpointError::UnsupportedVersion { got: version });
+        }
     };
 
     // ---- UTXO accumulator ----
@@ -780,7 +824,6 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         spent_key_images,
         storage,
         claims,
-        claim_submitted,
         block_ids,
         validators,
         validator_stats,
@@ -819,7 +862,6 @@ mod tests {
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
             claims: BTreeMap::new(),
-            claim_submitted: HashSet::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),
             validator_stats: Vec::new(),
@@ -890,7 +932,6 @@ mod tests {
         assert!(cp2.state.spent_key_images.is_empty());
         assert!(cp2.state.storage.is_empty());
         assert!(cp2.state.claims.is_empty());
-        assert!(cp2.state.claim_submitted.is_empty());
         assert!(cp2.state.validators.is_empty());
         // Re-encode must produce identical bytes.
         let bytes2 = encode_chain_checkpoint(&cp2);
@@ -1028,7 +1069,6 @@ mod tests {
         }
         assert_eq!(r.spent_key_images, s.spent_key_images);
         assert_eq!(r.claims, s.claims);
-        assert_eq!(r.claim_submitted, s.claim_submitted);
         assert_eq!(r.storage.len(), s.storage.len());
         for (k, v) in &s.storage {
             let rv = r.storage.get(k).expect("storage key preserved");
@@ -1065,7 +1105,6 @@ mod tests {
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
             claims: s_a.claims.clone(),
-            claim_submitted: s_a.claim_submitted.clone(),
             block_ids: s_a.block_ids.clone(),
             validators: s_a.validators.clone(),
             validator_stats: s_a.validator_stats.clone(),

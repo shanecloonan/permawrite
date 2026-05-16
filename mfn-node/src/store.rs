@@ -53,7 +53,7 @@ use std::path::{Path, PathBuf};
 
 use mfn_consensus::{block_id, decode_block, encode_block, Block};
 
-use crate::{Chain, ChainConfig, ChainError};
+use mfn_runtime::{Chain, ChainConfig, ChainError};
 
 const CHECKPOINT_FILE: &str = "chain.checkpoint";
 const BACKUP_FILE: &str = "chain.checkpoint.bak";

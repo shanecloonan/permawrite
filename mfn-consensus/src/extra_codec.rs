@@ -4,10 +4,13 @@
 //! begins with the **`MFEX`** magic, the remainder is a versioned container
 //! whose v1 body is a concatenation of zero or more self-delimiting
 //! **`MFCL`** authorship claim frames (see [`mfn_crypto::authorship`]).
+//!
+//! **`MFEX`** is the only normative structured-`extra` envelope; future tagged
+//! inner payloads extend this container without forking claim parsing.
 
 use mfn_crypto::authorship::{
-    decode_authorship_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIMS_PER_TX,
-    MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MIN_WIRE_LEN,
+    decode_authorship_claim, mfcl_frame_wire_len, AuthorshipClaim, AuthorshipClaimDecodeError,
+    MAX_CLAIMS_PER_TX, MFCL_MAGIC, MFCL_V2_MIN_WIRE_LEN,
 };
 use thiserror::Error;
 
@@ -79,26 +82,21 @@ pub fn parse_mfex_authorship_claims(
     let mut i = 5usize;
     let mut out = Vec::new();
     while i < extra.len() {
-        if i + MFCL_MIN_WIRE_LEN > extra.len() {
+        if i + MFCL_V2_MIN_WIRE_LEN > extra.len() {
             return Err(ExtraClaimsParseError::Truncated {
-                need_at_least: i + MFCL_MIN_WIRE_LEN,
+                need_at_least: i + MFCL_V2_MIN_WIRE_LEN,
                 got: extra.len(),
             });
         }
         if extra[i..i + 4] != MFCL_MAGIC[..] {
             return Err(ExtraClaimsParseError::ExpectedMfcl { offset: i });
         }
-        let msg_len = extra[i + 69] as usize;
-        if msg_len > mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN {
-            return Err(ExtraClaimsParseError::MfclDecode {
+        let frame_len = mfcl_frame_wire_len(&extra[i..]).map_err(|e| {
+            ExtraClaimsParseError::MfclDecode {
                 offset: i,
-                source: AuthorshipClaimDecodeError::MessageTooLong {
-                    got: msg_len,
-                    max: mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN,
-                },
-            });
-        }
-        let frame_len = MFCL_HEADER_LEN + msg_len + 64;
+                source: e,
+            }
+        })?;
         if i + frame_len > extra.len() {
             return Err(ExtraClaimsParseError::Truncated {
                 need_at_least: i + frame_len,
@@ -127,7 +125,7 @@ pub fn parse_mfex_authorship_claims(
 mod tests {
     use super::*;
     use mfn_crypto::authorship::{
-        encode_authorship_claim, sign_claim_with, AuthorshipClaim, MFCL_WIRE_VERSION,
+        build_signed_claim_version, encode_authorship_claim, MFCL_WIRE_VERSION_V2, UNBOUND_COMMIT_HASH,
     };
     use mfn_crypto::schnorr::schnorr_keygen;
 
@@ -159,16 +157,15 @@ mod tests {
     fn mfex_one_claim_round_trip() {
         let kp = schnorr_keygen();
         let data_root = [3u8; 32];
-        let msg = b"hi";
-        let sig = sign_claim_with(&data_root, &kp.pub_key, msg, &kp, &mut rand_core::OsRng)
-            .expect("sign");
-        let claim = AuthorshipClaim {
-            wire_version: MFCL_WIRE_VERSION,
+        let claim = build_signed_claim_version(
+            MFCL_WIRE_VERSION_V2,
             data_root,
-            claim_pubkey: kp.pub_key,
-            message: msg.to_vec(),
-            sig,
-        };
+            UNBOUND_COMMIT_HASH,
+            b"hi",
+            &kp,
+            &mut rand_core::OsRng,
+        )
+        .expect("sign");
         let frame = encode_authorship_claim(&claim).expect("enc");
         let extra = mfex_wrap(&[frame]);
         let got = parse_mfex_authorship_claims(&extra).expect("parse");

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "timestamp": 1700000000,
+  "synthetic_decoy_utxos": 24,
+  "consensus": {
+    "expected_proposers_per_slot": 10.0,
+    "quorum_stake_bps": 6666,
+    "liveness_max_consecutive_missed": 64,
+    "liveness_slash_bps": 0
+  },
+  "validators": [
+    {
+      "index": 0,
+      "vrf_seed_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "bls_seed_hex": "6565656565656565656565656565656565656565656565656565656565656565",
+      "stake": 1000000
+    }
+  ]
+}

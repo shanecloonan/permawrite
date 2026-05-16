@@ -60,6 +60,7 @@
 //! **`list_data_roots_with_claims`** lists each **`data_root`** that has at least one claim, sorted by **`max_claim_height`** descending (tie-break: lexicographic **`data_root`**), with **`claim_count`** and **`max_claim_height`** per row.
 
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
@@ -398,6 +399,7 @@ fn authorship_claim_record_json(rec: &AuthorshipClaimRecord) -> Value {
         "claim_index": rec.claim_index,
         "wire_version": c.wire_version,
         "data_root": hex32(&c.data_root),
+        "commit_hash": hex32(&c.commit_hash),
         "claim_pubkey": hex32(c.claim_pubkey.compress().as_bytes()),
         "message_hex": hex::encode(&c.message),
         "sig_hex": hex::encode(encode_schnorr_signature(&c.sig)),
@@ -425,12 +427,18 @@ fn json_storage_upload_row(
     m.insert("last_proven_height".into(), json!(entry.last_proven_height));
     m.insert("last_proven_slot".into(), json!(entry.last_proven_slot));
     if include_claims {
-        let claims_json: Vec<Value> = chain
+        let mut claims_json: Vec<Value> = chain
             .state()
             .claims
-            .get(&c.data_root)
-            .map(|v| v.iter().map(authorship_claim_record_json).collect())
-            .unwrap_or_default();
+            .iter()
+            .filter(|((root, _), _)| *root == c.data_root)
+            .map(|(_, rec)| authorship_claim_record_json(rec))
+            .collect();
+        claims_json.sort_by(|a, b| {
+            let ha = a.get("height").and_then(|v| v.as_u64()).unwrap_or(0);
+            let hb = b.get("height").and_then(|v| v.as_u64()).unwrap_or(0);
+            ha.cmp(&hb)
+        });
         m.insert("claims".into(), Value::Array(claims_json));
     }
     Value::Object(m)
@@ -441,14 +449,16 @@ fn collect_claims_for_pubkey<'a>(
     pk: &[u8; 32],
     limit: usize,
 ) -> Vec<&'a AuthorshipClaimRecord> {
-    let mut out: Vec<&AuthorshipClaimRecord> = Vec::new();
-    for v in chain.state().claims.values() {
-        for rec in v {
-            if rec.claim.claim_pubkey.compress().as_bytes().as_slice() == pk.as_slice() {
-                out.push(rec);
-            }
-        }
-    }
+    let mut out: Vec<&AuthorshipClaimRecord> = chain
+        .state()
+        .claims
+        .iter()
+        .filter(|((_, claim_pk), rec)| {
+            *claim_pk == *pk
+                && rec.claim.claim_pubkey.compress().as_bytes().as_slice() == pk.as_slice()
+        })
+        .map(|(_, rec)| rec)
+        .collect();
     out.sort_by(|a, b| {
         b.height
             .cmp(&a.height)
@@ -461,12 +471,8 @@ fn collect_claims_for_pubkey<'a>(
 }
 
 fn collect_all_claims_sorted_recent_first(chain: &Chain) -> Vec<&AuthorshipClaimRecord> {
-    let mut out: Vec<&AuthorshipClaimRecord> = Vec::new();
-    for v in chain.state().claims.values() {
-        for rec in v {
-            out.push(rec);
-        }
-    }
+    let mut out: Vec<&AuthorshipClaimRecord> =
+        chain.state().claims.values().collect();
     out.sort_by(|a, b| {
         b.height
             .cmp(&a.height)
@@ -479,16 +485,18 @@ fn collect_all_claims_sorted_recent_first(chain: &Chain) -> Vec<&AuthorshipClaim
 
 fn collect_data_roots_with_claims_sorted(chain: &Chain) -> Vec<([u8; 32], u32, usize)> {
     let mut rows: Vec<([u8; 32], u32, usize)> = Vec::new();
-    for (root, v) in chain.state().claims.iter() {
-        if v.is_empty() {
-            continue;
-        }
-        let max_h = v
-            .iter()
-            .map(|r| r.height)
-            .max()
-            .expect("non-empty claim vec");
-        rows.push((*root, max_h, v.len()));
+    let mut counts: BTreeMap<[u8; 32], (u32, usize)> = BTreeMap::new();
+    for ((root, _), rec) in chain.state().claims.iter() {
+        counts
+            .entry(*root)
+            .and_modify(|(max_h, n)| {
+                *max_h = (*max_h).max(rec.height);
+                *n += 1;
+            })
+            .or_insert((rec.height, 1));
+    }
+    for (root, (max_h, n)) in counts {
+        rows.push((root, max_h, n));
     }
     rows.sort_by(|(ra, ha, _), (rb, hb, _)| {
         hb.cmp(ha).then_with(|| ra.as_slice().cmp(rb.as_slice()))
@@ -841,22 +849,21 @@ fn dispatch_serve_methods(
                 Ok(r) => r,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
-            let claims: Vec<Value> = chain
+            let mut rows: Vec<&AuthorshipClaimRecord> = chain
                 .state()
                 .claims
-                .get(&root)
-                .map(|v| {
-                    let mut rows: Vec<_> = v.iter().collect();
-                    rows.sort_by(|a, b| {
-                        a.height
-                            .cmp(&b.height)
-                            .then_with(|| a.tx_id.cmp(&b.tx_id))
-                            .then_with(|| a.tx_index.cmp(&b.tx_index))
-                            .then_with(|| a.claim_index.cmp(&b.claim_index))
-                    });
-                    rows.into_iter().map(authorship_claim_record_json).collect()
-                })
-                .unwrap_or_default();
+                .iter()
+                .filter(|((data_root, _), _)| *data_root == root)
+                .map(|(_, rec)| rec)
+                .collect();
+            rows.sort_by(|a, b| {
+                a.height
+                    .cmp(&b.height)
+                    .then_with(|| a.tx_id.cmp(&b.tx_id))
+                    .then_with(|| a.tx_index.cmp(&b.tx_index))
+                    .then_with(|| a.claim_index.cmp(&b.claim_index))
+            });
+            let claims: Vec<Value> = rows.into_iter().map(authorship_claim_record_json).collect();
             rpc_success(
                 id,
                 json!({

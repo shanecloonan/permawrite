@@ -47,6 +47,11 @@ pub enum WalletError {
     #[error("authorship claim data_root does not match storage commitment data_root")]
     AuthorshipClaimDataRootMismatch,
 
+    /// An authorship claim's `commit_hash` is neither unbound nor the
+    /// hash of this upload's [`mfn_storage::StorageCommitment`].
+    #[error("authorship claim commit_hash does not match storage commitment hash")]
+    AuthorshipClaimCommitHashMismatch,
+
     /// Caller asked to send `requested` atomic units but the wallet only
     /// holds `available` in unspent owned outputs (plus fee, if any).
     #[error("insufficient funds: requested {requested}, available {available}")]

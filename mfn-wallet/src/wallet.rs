@@ -21,9 +21,7 @@ use std::collections::{HashMap, HashSet};
 
 use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::{build_mfex_extra, Block, ChainState, Recipient, SignedTransaction};
-use mfn_crypto::authorship::{
-    sign_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN, MFCL_WIRE_VERSION,
-};
+use mfn_crypto::authorship::{build_signed_claim, MAX_CLAIM_MESSAGE_LEN};
 
 use crate::claiming::ClaimingIdentity;
 use crate::decoy::build_decoy_pool;
@@ -306,6 +304,7 @@ impl Wallet {
         &mut self,
         identity: &ClaimingIdentity,
         data_root: [u8; 32],
+        commit_hash: [u8; 32],
         message: &[u8],
         fee: u64,
         ring_size: usize,
@@ -321,15 +320,7 @@ impl Wallet {
                 got: message.len(),
             });
         }
-        let pk = identity.claim_pubkey();
-        let sig = sign_claim(&data_root, &pk, message, identity.keypair())?;
-        let claim = AuthorshipClaim {
-            wire_version: MFCL_WIRE_VERSION,
-            data_root,
-            claim_pubkey: pk,
-            message: message.to_vec(),
-            sig,
-        };
+        let claim = build_signed_claim(data_root, commit_hash, message, identity.keypair())?;
         let extra = build_mfex_extra(std::slice::from_ref(&claim))?;
         let recipients = vec![TransferRecipient {
             recipient: self.recipient(),

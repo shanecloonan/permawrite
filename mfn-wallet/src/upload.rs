@@ -375,9 +375,15 @@ where
         if !plan.extra.is_empty() {
             return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
         }
+        let commit_hash = mfn_storage::storage_commitment_hash(&built.commit);
         for c in plan.authorship_claims {
             if c.data_root != built.commit.data_root {
                 return Err(WalletError::AuthorshipClaimDataRootMismatch);
+            }
+            if c.commit_hash != mfn_crypto::authorship::UNBOUND_COMMIT_HASH
+                && c.commit_hash != commit_hash
+            {
+                return Err(WalletError::AuthorshipClaimCommitHashMismatch);
             }
         }
     }

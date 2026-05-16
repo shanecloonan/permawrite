@@ -63,8 +63,9 @@ use mfn_storage::{
 use crate::bond_wire::{bond_merkle_root, decode_bond_op, encode_bond_op, BondOp, BondWireError};
 use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use crate::claims::{
-    claim_to_record, claims_merkle_root, collect_claim_merkle_leaves_for_txs,
-    verified_claims_for_tx, VerifiedClaimsForTxResult,
+    authorship_claim_key, check_claim_key_unique, check_claim_storage_binding, claim_to_record,
+    claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx,
+    AuthorshipClaimVerifyError, VerifiedClaimsForTxResult,
 };
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
 use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext, Validator};
@@ -799,10 +800,8 @@ pub struct ChainState {
     /// (last-proven slot, pending PPB yield) updated by each accepted
     /// SPoRA proof.
     pub storage: HashMap<[u8; 32], StorageEntry>,
-    /// Authorship claims indexed by `data_root` (sorted map keys on wire).
-    pub claims: BTreeMap<[u8; 32], Vec<crate::claims::AuthorshipClaimRecord>>,
-    /// Leaf hashes of accepted claims (global dedup across the chain).
-    pub claim_submitted: HashSet<[u8; 32]>,
+    /// Authorship claims indexed by (`data_root`, `claim_pubkey` bytes).
+    pub claims: BTreeMap<crate::claims::AuthorshipClaimKey, crate::claims::AuthorshipClaimRecord>,
     /// Block-id chain: `[genesis_id, block1_id, ...]`.
     pub block_ids: Vec<[u8; 32]>,
     /// Active validator set. Frozen at genesis in v0.1; epoch reconfig
@@ -854,7 +853,6 @@ impl ChainState {
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
             claims: BTreeMap::new(),
-            claim_submitted: HashSet::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),
             validator_stats: Vec::new(),
@@ -1564,15 +1562,33 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
 
         if !(ti == 0 && is_coinbase_shaped(tx)) {
-            if let Ok((clist, leaves)) = &per_tx_claims[ti] {
+            if let Ok((clist, _leaves)) = &per_tx_claims[ti] {
                 let tid = tx_id(tx);
                 for (ci, c) in clist.iter().enumerate() {
-                    let lh = leaves[ci];
-                    if next.claim_submitted.insert(lh) {
-                        let rec =
-                            claim_to_record(c, tid, block.header.height, ti as u32, ci as u32);
-                        next.claims.entry(c.data_root).or_default().push(rec);
+                    let ci_u32 = ci as u32;
+                    if !check_claim_storage_binding(c, &next.storage) {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::CommitHashNotAnchored {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
                     }
+                    if !check_claim_key_unique(c, &next.claims) {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::DuplicateClaimKey {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
+                    }
+                    let rec =
+                        claim_to_record(c, tid, block.header.height, ti as u32, ci_u32);
+                    next.claims.insert(authorship_claim_key(c), rec);
                 }
             }
         }

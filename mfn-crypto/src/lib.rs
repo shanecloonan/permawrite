@@ -64,10 +64,12 @@ pub mod utxo_tree;
 pub mod vrf;
 
 pub use authorship::{
-    claim_digest, decode_authorship_claim, encode_authorship_claim, sign_claim, sign_claim_with,
-    verify_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIMS_PER_TX,
+    build_signed_claim, build_signed_claim_version, claim_digest, claim_digest_for,
+    decode_authorship_claim, encode_authorship_claim, mfcl_frame_wire_len, sign_claim,
+    sign_claim_with, verify_claim, AuthorshipClaim, AuthorshipClaimDecodeError, MAX_CLAIMS_PER_TX,
     MAX_CLAIM_MESSAGE_LEN, MFCL_HEADER_LEN, MFCL_MAGIC, MFCL_MAX_WIRE_LEN, MFCL_MIN_WIRE_LEN,
-    MFCL_WIRE_VERSION,
+    MFCL_V1_MAX_WIRE_LEN, MFCL_V1_MIN_WIRE_LEN, MFCL_V2_MAX_WIRE_LEN, MFCL_V2_MIN_WIRE_LEN,
+    MFCL_WIRE_VERSION, MFCL_WIRE_VERSION_V1, MFCL_WIRE_VERSION_V2, UNBOUND_COMMIT_HASH,
 };
 pub use bulletproofs::{
     bp_proof_size, bp_prove, bp_verify, decode_bulletproof, encode_bulletproof, BpProveOutput,

@@ -669,6 +669,7 @@ fn publish_claim_tx_round_trip_through_chain() {
         .publish_claim_tx(
             &claiming,
             data_root,
+            mfn_crypto::authorship::UNBOUND_COMMIT_HASH,
             b"signed by claiming key",
             fee,
             4,
@@ -695,12 +696,12 @@ fn publish_claim_tx_round_trip_through_chain() {
     let block4 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
     chain.apply(&block4).expect("chain applies claim block");
 
-    let recs = chain
+    let pk_bytes = claiming.claim_pubkey().compress().to_bytes();
+    let rec = chain
         .state()
         .claims
-        .get(&data_root)
-        .expect("claim index must list this data_root");
-    assert_eq!(recs.len(), 1);
-    assert_eq!(recs[0].claim.claim_pubkey, claiming.claim_pubkey());
-    assert_eq!(recs[0].claim.message, b"signed by claiming key".as_slice());
+        .get(&(data_root, pk_bytes))
+        .expect("claim index must list (data_root, claim_pubkey)");
+    assert_eq!(rec.claim.claim_pubkey, claiming.claim_pubkey());
+    assert_eq!(rec.claim.message, b"signed by claiming key".as_slice());
 }

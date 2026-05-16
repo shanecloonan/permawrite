@@ -339,8 +339,24 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-light",
+ "mfn-runtime",
  "mfn-storage",
  "mfn-wallet",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mfn-runtime"
+version = "0.1.0"
+dependencies = [
+ "curve25519-dalek",
+ "hex",
+ "mfn-bls",
+ "mfn-consensus",
+ "mfn-crypto",
+ "mfn-storage",
  "serde",
  "serde_json",
  "thiserror",

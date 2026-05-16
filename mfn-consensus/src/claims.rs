@@ -1,13 +1,28 @@
 //! Authorship claims indexed in [`crate::block::ChainState`] (M2.2.x).
 
-use mfn_crypto::authorship::{encode_authorship_claim, verify_claim, AuthorshipClaim};
+use mfn_crypto::authorship::{
+    encode_authorship_claim, verify_claim, AuthorshipClaim, UNBOUND_COMMIT_HASH,
+};
 use mfn_crypto::domain::CLAIM_LEAF;
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::merkle_root_or_zero;
 
+use crate::block::StorageEntry;
 use crate::coinbase::is_coinbase_shaped;
 use crate::extra_codec::parse_mfex_authorship_claims;
 use crate::transaction::{tx_id, TransactionWire};
+use std::collections::HashMap;
+
+/// Index key: (`data_root`, compressed claiming pubkey bytes).
+pub type AuthorshipClaimKey = ([u8; 32], [u8; 32]);
+
+/// Build the canonical [`AuthorshipClaimKey`] for a claim.
+pub fn authorship_claim_key(claim: &AuthorshipClaim) -> AuthorshipClaimKey {
+    (
+        claim.data_root,
+        claim.claim_pubkey.compress().to_bytes(),
+    )
+}
 
 /// One accepted authorship claim anchored at `height` / `tx_id`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,8 +97,7 @@ pub fn verified_claims_for_tx(
     let mut leaves = Vec::with_capacity(claims.len());
     for (i, c) in claims.iter().enumerate() {
         let i_u32 = u32::try_from(i).map_err(|_| AuthorshipClaimVerifyError::TooManyClaims)?;
-        let ok = verify_claim(&c.data_root, &c.claim_pubkey, &c.message, &c.sig)
-            .map_err(AuthorshipClaimVerifyError::Crypto)?;
+        let ok = verify_claim(c).map_err(AuthorshipClaimVerifyError::Crypto)?;
         if !ok {
             return Err(AuthorshipClaimVerifyError::BadSignature {
                 tx_index,
@@ -117,6 +131,47 @@ pub enum AuthorshipClaimVerifyError {
     /// Claim count overflow (defensive).
     #[error("too many claims in one transaction")]
     TooManyClaims,
+    /// Non-zero `commit_hash` does not match an anchored storage commitment.
+    #[error(
+        "authorship claim commit_hash not anchored or data_root mismatch at tx_index {tx_index} claim_index {claim_index}"
+    )]
+    CommitHashNotAnchored {
+        /// Transaction index in block.
+        tx_index: u32,
+        /// Claim index in tx.
+        claim_index: u32,
+    },
+    /// Same (`data_root`, `claim_pubkey`) already indexed.
+    #[error(
+        "duplicate authorship claim for data_root and claim_pubkey at tx_index {tx_index} claim_index {claim_index}"
+    )]
+    DuplicateClaimKey {
+        /// Transaction index in block.
+        tx_index: u32,
+        /// Claim index in tx.
+        claim_index: u32,
+    },
+}
+
+/// Returns `Ok(())` when `claim`'s optional storage binding is satisfied by `storage`.
+pub fn check_claim_storage_binding(
+    claim: &AuthorshipClaim,
+    storage: &HashMap<[u8; 32], StorageEntry>,
+) -> bool {
+    if claim.commit_hash == UNBOUND_COMMIT_HASH {
+        return true;
+    }
+    storage
+        .get(&claim.commit_hash)
+        .is_some_and(|e| e.commit.data_root == claim.data_root)
+}
+
+/// Returns `Ok(())` when (`data_root`, `claim_pubkey`) is not already in `claims`.
+pub fn check_claim_key_unique(
+    claim: &AuthorshipClaim,
+    claims: &std::collections::BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord>,
+) -> bool {
+    !claims.contains_key(&authorship_claim_key(claim))
 }
 
 impl From<mfn_crypto::CryptoError> for AuthorshipClaimVerifyError {
