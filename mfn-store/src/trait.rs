@@ -9,8 +9,7 @@ use crate::{StoreError, StoreSave};
 
 /// Chain checkpoint + block-log persistence.
 ///
-/// The default implementation is [`crate::fs::ChainStore`] (directory-backed).
-/// Future milestones (`redb`, etc.) add additional implementors behind this trait.
+/// Implementations: [`crate::fs::ChainStore`] (flat files) and [`crate::RedbChainStore`] (`redb`).
 pub trait ChainPersistence {
     /// Root directory or datastore identifier (filesystem: data dir).
     fn root(&self) -> &Path;

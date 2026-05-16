@@ -60,7 +60,7 @@ pub mod store {
     pub use mfn_store::*;
 }
 
-pub use mfn_store::{ChainPersistence, ChainStore, StoreError, StoreSave};
+pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 pub use network::NetworkConfig;
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).

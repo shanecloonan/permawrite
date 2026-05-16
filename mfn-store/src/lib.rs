@@ -16,8 +16,9 @@
 //!
 //! ## Backends
 //!
-//! - [`fs::ChainStore`] — directory with `chain.checkpoint` + `chain.blocks` (today).
-//! - [`ChainPersistence`] — trait seam for future `redb` / column-family backends.
+//! - [`fs::ChainStore`] — directory with `chain.checkpoint` + `chain.blocks`.
+//! - [`redb_store::RedbChainStore`] — embedded `chain.redb` KV database.
+//! - [`ChainPersistence`] — trait seam shared by both backends.
 //!
 //! ## Safety
 //!
@@ -30,9 +31,12 @@
 
 pub mod error;
 pub mod fs;
+pub mod redb_store;
 #[path = "trait.rs"]
 pub mod r#trait;
+mod validate;
 
 pub use error::{StoreError, StoreSave};
 pub use fs::ChainStore;
 pub use r#trait::ChainPersistence;
+pub use redb_store::RedbChainStore;

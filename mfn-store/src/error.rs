@@ -37,4 +37,8 @@ pub enum StoreError {
     /// Append-only block log framing / decode failure.
     #[error("block log: {0}")]
     BlockLog(String),
+
+    /// Embedded KV store (`redb`) operation failed.
+    #[error("store database: {0}")]
+    Database(String),
 }
