@@ -341,6 +341,7 @@ dependencies = [
  "mfn-light",
  "mfn-runtime",
  "mfn-storage",
+ "mfn-store",
  "mfn-wallet",
  "serde",
  "serde_json",
@@ -370,6 +371,16 @@ dependencies = [
  "hex",
  "mfn-crypto",
  "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "mfn-store"
+version = "0.1.0"
+dependencies = [
+ "mfn-consensus",
+ "mfn-runtime",
+ "mfn-storage",
  "thiserror",
 ]
 

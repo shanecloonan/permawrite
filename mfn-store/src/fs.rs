@@ -1,106 +1,21 @@
-//! Filesystem-backed chain checkpoint store (M2.1.0 + M2.1.7 block sidecar).
-//!
-//! This module is the first deliberately-IO-bearing piece of
-//! `mfn-node`: a tiny persistence adapter over
-//! [`Chain::encode_checkpoint`] and [`Chain::from_checkpoint_bytes`].
-//! It does not introduce RocksDB, async IO, networking, or fork choice.
-//! **M2.1.7** adds `chain.blocks`: after each successful `mfnd step` apply,
-//! canonical [`mfn_consensus::encode_block`] payloads are appended
-//! (length-prefixed) for local replay / wallet bootstrap in tests.
-//! **M2.1.9** adds [`ChainStore::read_block_log_validated`], which checks the
-//! log replays through to the current checkpoint tip (count, heights,
-//! `prev_hash` / `block_id` chain).
-//! The daemon can now express the essential restart lifecycle:
-//!
-//! ```text
-//!   boot:     load checkpoint if present, otherwise build genesis
-//!   runtime:  apply blocks through Chain
-//!   shutdown: save the latest checkpoint
-//! ```
-//!
-//! ## File layout
-//!
-//! A [`ChainStore`] owns one directory and uses these files inside it:
-//!
-//! - `chain.checkpoint` — primary snapshot.
-//! - `chain.checkpoint.bak` — previous primary, kept for recovery if a
-//!   process dies after rotating the primary away but before publishing
-//!   the replacement.
-//! - `chain.checkpoint.tmp` — staging file for the next snapshot.
-//! - `chain.blocks` — optional append-only block log (M2.1.7): each record is
-//!   `u64_be(length) || encode_block(bytes)` so wallets can replay `mfnd step`
-//!   history without a full archive node yet.
-//!
-//! Saves write and `sync_all` the temp file before rotating. The old
-//! primary is moved to the backup slot, then the temp file is renamed
-//! into the primary slot. On platforms where replacing an existing file
-//! with [`std::fs::rename`] is not portable (notably Windows), the
-//! backup slot gives us deterministic recovery without pulling a
-//! platform-specific filesystem dependency into this early milestone.
-//!
-//! ## Scope
-//!
-//! Checkpoints remain full-snapshot. The block log is a **sidecar** (no
-//! fork-choice replay engine yet). **M2.1.9** validates the sidecar against
-//! the checkpoint tip (height / linkage / terminal `block_id`) for tooling
-//! and tests; full fork-choice replay remains future work. Future `store`
-//! milestones can add pruning, checksums, column families, and compaction on
-//! top of the same bytes.
+//! Filesystem-backed [`ChainStore`] (M2.1.0 checkpoint + M2.1.7 block sidecar).
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use mfn_consensus::{block_id, decode_block, encode_block, Block};
+use mfn_runtime::{Chain, ChainConfig};
 
-use mfn_runtime::{Chain, ChainConfig, ChainError};
+use crate::r#trait::ChainPersistence;
+use crate::{StoreError, StoreSave};
 
 const CHECKPOINT_FILE: &str = "chain.checkpoint";
 const BACKUP_FILE: &str = "chain.checkpoint.bak";
 const TEMP_FILE: &str = "chain.checkpoint.tmp";
 const BLOCK_LOG_FILE: &str = "chain.blocks";
 
-/// Result metadata returned after a successful checkpoint save.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoreSave {
-    /// Number of bytes written to the primary checkpoint file.
-    pub bytes_written: usize,
-    /// Path to the primary checkpoint file that now contains the saved
-    /// chain state.
-    pub checkpoint_path: PathBuf,
-    /// Path to the backup checkpoint file. It may or may not exist
-    /// after the first save, but subsequent saves keep the previous
-    /// primary here for interrupted-write recovery.
-    pub backup_path: PathBuf,
-}
-
-/// Errors produced by [`ChainStore`].
-#[derive(Debug, thiserror::Error)]
-pub enum StoreError {
-    /// A filesystem operation failed.
-    #[error("store io `{op}` failed for `{}`: {source}", path.display())]
-    Io {
-        /// Short operation label, useful for logs and tests.
-        op: &'static str,
-        /// Path involved in the failing operation.
-        path: PathBuf,
-        /// Underlying OS error.
-        #[source]
-        source: std::io::Error,
-    },
-
-    /// The checkpoint bytes decoded, but could not be restored against
-    /// the caller's [`ChainConfig`] (or genesis construction failed in
-    /// [`ChainStore::load_or_genesis`]).
-    #[error("chain restore failed: {0}")]
-    Chain(#[from] ChainError),
-
-    /// Append-only block log framing / decode failure.
-    #[error("block log: {0}")]
-    BlockLog(String),
-}
-
-fn io_error(op: &'static str, path: impl Into<PathBuf>, source: std::io::Error) -> StoreError {
+pub(crate) fn io_error(op: &'static str, path: impl Into<PathBuf>, source: std::io::Error) -> StoreError {
     StoreError::Io {
         op,
         path: path.into(),
@@ -120,22 +35,16 @@ fn remove_if_exists(path: &Path, op: &'static str) -> Result<(), StoreError> {
     }
 }
 
-/// A directory-backed store for the latest [`Chain`] checkpoint.
+/// Directory-backed store for the latest [`Chain`] checkpoint and `chain.blocks` log.
 ///
-/// The store is deliberately single-writer. Future daemon code should
-/// route all state mutation through one owner of [`Chain`] and one
-/// owner of [`ChainStore`], rather than allowing concurrent writers to
-/// race on the snapshot files.
+/// Single-writer by convention: one daemon process owns mutations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChainStore {
     root: PathBuf,
 }
 
 impl ChainStore {
-    /// Create a store rooted at `root`.
-    ///
-    /// This does not touch the filesystem; directories are created on
-    /// [`save`](Self::save).
+    /// Create a store rooted at `root` (no IO until [`Self::save`]).
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
@@ -144,45 +53,159 @@ impl ChainStore {
     /// Root directory owned by this store.
     #[must_use]
     pub fn root(&self) -> &Path {
-        &self.root
+        ChainPersistence::root(self)
     }
 
     /// Primary checkpoint path.
     #[must_use]
     pub fn checkpoint_path(&self) -> PathBuf {
-        self.root.join(CHECKPOINT_FILE)
+        ChainPersistence::checkpoint_path(self)
     }
 
     /// Backup checkpoint path.
     #[must_use]
     pub fn backup_path(&self) -> PathBuf {
-        self.root.join(BACKUP_FILE)
+        ChainPersistence::backup_path(self)
     }
 
     /// Temporary checkpoint path used while staging a save.
     #[must_use]
     pub fn temp_path(&self) -> PathBuf {
-        self.root.join(TEMP_FILE)
+        ChainPersistence::temp_path(self)
     }
 
     /// Append-only block log path (`chain.blocks`).
     #[must_use]
     pub fn block_log_path(&self) -> PathBuf {
+        ChainPersistence::block_log_path(self)
+    }
+
+    /// Returns true if a durable checkpoint file exists (primary or backup).
+    #[must_use]
+    pub fn has_any_checkpoint(&self) -> bool {
+        ChainPersistence::has_any_checkpoint(self)
+    }
+
+    /// Save `chain` to the primary checkpoint file.
+    pub fn save(&self, chain: &Chain) -> Result<StoreSave, StoreError> {
+        ChainPersistence::save(self, chain)
+    }
+
+    /// Load the latest checkpoint if one exists.
+    pub fn load(&self, cfg: ChainConfig) -> Result<Option<Chain>, StoreError> {
+        ChainPersistence::load(self, cfg)
+    }
+
+    /// Load a checkpoint if present; otherwise construct a fresh genesis chain.
+    pub fn load_or_genesis(&self, cfg: ChainConfig) -> Result<Chain, StoreError> {
+        ChainPersistence::load_or_genesis(self, cfg)
+    }
+
+    /// Append one canonical block record to `chain.blocks`.
+    pub fn append_block(&self, block: &Block) -> Result<(), StoreError> {
+        ChainPersistence::append_block(self, block)
+    }
+
+    /// Read every block in `chain.blocks` in order.
+    pub fn read_block_log(&self) -> Result<Vec<Block>, StoreError> {
+        ChainPersistence::read_block_log(self)
+    }
+
+    /// Read `chain.blocks` and verify it replays consistently with `chain`.
+    pub fn read_block_log_validated(&self, chain: &Chain) -> Result<Vec<Block>, StoreError> {
+        ChainPersistence::read_block_log_validated(self, chain)
+    }
+
+    /// Remove primary, backup, temp, and block-log files if present.
+    pub fn clear(&self) -> Result<(), StoreError> {
+        ChainPersistence::clear(self)
+    }
+}
+
+impl ChainPersistence for ChainStore {
+    fn root(&self) -> &Path {
+        &self.root
+    }
+
+    fn checkpoint_path(&self) -> PathBuf {
+        self.root.join(CHECKPOINT_FILE)
+    }
+
+    fn backup_path(&self) -> PathBuf {
+        self.root.join(BACKUP_FILE)
+    }
+
+    fn temp_path(&self) -> PathBuf {
+        self.root.join(TEMP_FILE)
+    }
+
+    fn block_log_path(&self) -> PathBuf {
         self.root.join(BLOCK_LOG_FILE)
     }
 
-    /// Append one canonical [`encode_block`] record to `chain.blocks`.
-    ///
-    /// Framing: `u64` length in **big-endian**, followed by exactly that many
-    /// bytes (the output of [`mfn_consensus::encode_block`]). The file is
-    /// created on first append. Intended to be called after every successful
-    /// `apply` in `mfnd step` (M2.1.7).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Io`] on filesystem failures or [`StoreError::BlockLog`]
-    /// if the encoded block exceeds `u64::MAX` bytes (impossible in practice).
-    pub fn append_block(&self, block: &Block) -> Result<(), StoreError> {
+    fn has_any_checkpoint(&self) -> bool {
+        self.checkpoint_path().exists() || self.backup_path().exists()
+    }
+
+    fn save(&self, chain: &Chain) -> Result<StoreSave, StoreError> {
+        fs::create_dir_all(&self.root).map_err(|e| io_error("create_dir_all", &self.root, e))?;
+
+        let checkpoint_path = self.checkpoint_path();
+        let backup_path = self.backup_path();
+        let temp_path = self.temp_path();
+        remove_if_exists(&temp_path, "remove_stale_temp")?;
+
+        let bytes = chain.encode_checkpoint();
+        {
+            let mut file =
+                File::create(&temp_path).map_err(|e| io_error("create_temp", &temp_path, e))?;
+            file.write_all(&bytes)
+                .map_err(|e| io_error("write_temp", &temp_path, e))?;
+            file.sync_all()
+                .map_err(|e| io_error("sync_temp", &temp_path, e))?;
+        }
+
+        remove_if_exists(&backup_path, "remove_old_backup")?;
+        match fs::rename(&checkpoint_path, &backup_path) {
+            Ok(()) => {}
+            Err(e) if is_not_found(&e) => {}
+            Err(e) => return Err(io_error("rotate_primary_to_backup", &checkpoint_path, e)),
+        }
+
+        fs::rename(&temp_path, &checkpoint_path)
+            .map_err(|e| io_error("publish_temp", &checkpoint_path, e))?;
+
+        Ok(StoreSave {
+            bytes_written: bytes.len(),
+            checkpoint_path,
+            backup_path,
+        })
+    }
+
+    fn load(&self, cfg: ChainConfig) -> Result<Option<Chain>, StoreError> {
+        let checkpoint_path = self.checkpoint_path();
+        match fs::read(&checkpoint_path) {
+            Ok(bytes) => return Ok(Some(Chain::from_checkpoint_bytes(cfg, &bytes)?)),
+            Err(e) if is_not_found(&e) => {}
+            Err(e) => return Err(io_error("read_checkpoint", checkpoint_path, e)),
+        }
+
+        let backup_path = self.backup_path();
+        match fs::read(&backup_path) {
+            Ok(bytes) => Ok(Some(Chain::from_checkpoint_bytes(cfg, &bytes)?)),
+            Err(e) if is_not_found(&e) => Ok(None),
+            Err(e) => Err(io_error("read_backup", backup_path, e)),
+        }
+    }
+
+    fn load_or_genesis(&self, cfg: ChainConfig) -> Result<Chain, StoreError> {
+        match self.load(cfg.clone())? {
+            Some(chain) => Ok(chain),
+            None => Ok(Chain::from_genesis(cfg)?),
+        }
+    }
+
+    fn append_block(&self, block: &Block) -> Result<(), StoreError> {
         fs::create_dir_all(&self.root).map_err(|e| io_error("create_dir_all", &self.root, e))?;
         let path = self.block_log_path();
         let payload = encode_block(block);
@@ -202,11 +225,7 @@ impl ChainStore {
         Ok(())
     }
 
-    /// Read every block stored in `chain.blocks` in order.
-    ///
-    /// Missing file ⇒ empty vector. Malformed trailing bytes ⇒
-    /// [`StoreError::BlockLog`].
-    pub fn read_block_log(&self) -> Result<Vec<Block>, StoreError> {
+    fn read_block_log(&self) -> Result<Vec<Block>, StoreError> {
         let path = self.block_log_path();
         let bytes = match fs::read(&path) {
             Ok(b) => b,
@@ -240,21 +259,7 @@ impl ChainStore {
         Ok(out)
     }
 
-    /// Read `chain.blocks` and verify it replays consistently with `chain`.
-    ///
-    /// Intended for wallets, RPC, and tests after loading a checkpoint: the
-    /// append-only log must contain exactly **`tip_height`** records (zero at
-    /// genesis), each at heights `1..=tip_height`, with `prev_hash` chaining
-    /// from [`Chain::genesis_id`] through to [`Chain::tip_id`].
-    ///
-    /// This is **not** fork-choice: it assumes a single-writer store and only
-    /// catches truncation, accidental reordering, or mixed directories.
-    ///
-    /// # Errors
-    ///
-    /// Same as [`read_block_log`](Self::read_block_log) for IO / framing, plus
-    /// [`StoreError::BlockLog`] when linkage or counts disagree with `chain`.
-    pub fn read_block_log_validated(&self, chain: &Chain) -> Result<Vec<Block>, StoreError> {
+    fn read_block_log_validated(&self, chain: &Chain) -> Result<Vec<Block>, StoreError> {
         let blocks = self.read_block_log()?;
         let tip_h = chain
             .tip_height()
@@ -301,114 +306,7 @@ impl ChainStore {
         Ok(blocks)
     }
 
-    /// Returns true if a durable checkpoint file exists (primary or backup).
-    ///
-    /// Staging files (`chain.checkpoint.tmp`) are ignored: an interrupted
-    /// save may leave a temp without a publishable primary.
-    #[must_use]
-    pub fn has_any_checkpoint(&self) -> bool {
-        self.checkpoint_path().exists() || self.backup_path().exists()
-    }
-
-    /// Save `chain` to the primary checkpoint file.
-    ///
-    /// Existing primary bytes are retained as `chain.checkpoint.bak`.
-    /// Any stale temp file from a previous interrupted save is removed
-    /// before the new temp file is written.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Io`] if directory creation, write, sync,
-    /// rotation, or rename fails.
-    pub fn save(&self, chain: &Chain) -> Result<StoreSave, StoreError> {
-        fs::create_dir_all(&self.root).map_err(|e| io_error("create_dir_all", &self.root, e))?;
-
-        let checkpoint_path = self.checkpoint_path();
-        let backup_path = self.backup_path();
-        let temp_path = self.temp_path();
-        remove_if_exists(&temp_path, "remove_stale_temp")?;
-
-        let bytes = chain.encode_checkpoint();
-        {
-            let mut file =
-                File::create(&temp_path).map_err(|e| io_error("create_temp", &temp_path, e))?;
-            file.write_all(&bytes)
-                .map_err(|e| io_error("write_temp", &temp_path, e))?;
-            file.sync_all()
-                .map_err(|e| io_error("sync_temp", &temp_path, e))?;
-        }
-
-        remove_if_exists(&backup_path, "remove_old_backup")?;
-        match fs::rename(&checkpoint_path, &backup_path) {
-            Ok(()) => {}
-            Err(e) if is_not_found(&e) => {}
-            Err(e) => return Err(io_error("rotate_primary_to_backup", &checkpoint_path, e)),
-        }
-
-        fs::rename(&temp_path, &checkpoint_path)
-            .map_err(|e| io_error("publish_temp", &checkpoint_path, e))?;
-
-        Ok(StoreSave {
-            bytes_written: bytes.len(),
-            checkpoint_path,
-            backup_path,
-        })
-    }
-
-    /// Load the latest checkpoint if one exists.
-    ///
-    /// Primary checkpoint bytes are preferred. If no primary exists,
-    /// the backup checkpoint is tried; this covers the interrupted-save
-    /// window after the old primary was rotated into backup but before
-    /// a new primary was published.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Io`] for filesystem failures other than a
-    /// missing snapshot, or [`StoreError::Chain`] if checkpoint bytes
-    /// fail to restore against `cfg`.
-    pub fn load(&self, cfg: ChainConfig) -> Result<Option<Chain>, StoreError> {
-        let checkpoint_path = self.checkpoint_path();
-        match fs::read(&checkpoint_path) {
-            Ok(bytes) => return Ok(Some(Chain::from_checkpoint_bytes(cfg, &bytes)?)),
-            Err(e) if is_not_found(&e) => {}
-            Err(e) => return Err(io_error("read_checkpoint", checkpoint_path, e)),
-        }
-
-        let backup_path = self.backup_path();
-        match fs::read(&backup_path) {
-            Ok(bytes) => Ok(Some(Chain::from_checkpoint_bytes(cfg, &bytes)?)),
-            Err(e) if is_not_found(&e) => Ok(None),
-            Err(e) => Err(io_error("read_backup", backup_path, e)),
-        }
-    }
-
-    /// Load a checkpoint if present; otherwise construct a fresh
-    /// genesis chain from `cfg`.
-    ///
-    /// This is the daemon boot primitive for M2.1: the caller can boot
-    /// with one line and then periodically call [`save`](Self::save).
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError`] for any load failure or genesis
-    /// construction failure.
-    pub fn load_or_genesis(&self, cfg: ChainConfig) -> Result<Chain, StoreError> {
-        match self.load(cfg.clone())? {
-            Some(chain) => Ok(chain),
-            None => Ok(Chain::from_genesis(cfg)?),
-        }
-    }
-
-    /// Remove primary, backup, and temp snapshot files if present.
-    ///
-    /// The root directory is left in place.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Io`] if any existing file cannot be
-    /// removed.
-    pub fn clear(&self) -> Result<(), StoreError> {
+    fn clear(&self) -> Result<(), StoreError> {
         remove_if_exists(&self.checkpoint_path(), "remove_checkpoint")?;
         remove_if_exists(&self.backup_path(), "remove_backup")?;
         remove_if_exists(&self.temp_path(), "remove_temp")?;
@@ -447,7 +345,7 @@ mod tests {
             .expect("system clock before unix epoch")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "mfn-node-store-{test_name}-{}-{nanos}",
+            "mfn-store-{test_name}-{}-{nanos}",
             std::process::id()
         ))
     }
@@ -506,7 +404,7 @@ mod tests {
 
         let foreign = ChainConfig::new(empty_genesis_cfg(99));
         match store.load(foreign) {
-            Err(StoreError::Chain(ChainError::GenesisMismatch { .. })) => {}
+            Err(StoreError::Chain(mfn_runtime::ChainError::GenesisMismatch { .. })) => {}
             other => panic!("expected foreign genesis mismatch, got {other:?}"),
         }
         fs::remove_dir_all(store.root()).ok();
@@ -539,7 +437,6 @@ mod tests {
         store.save(&chain).unwrap();
         assert!(!store.temp_path().exists());
 
-        // A second save creates a backup slot.
         store.save(&chain).unwrap();
         assert!(store.checkpoint_path().exists());
         assert!(store.backup_path().exists());
@@ -571,7 +468,7 @@ mod tests {
         match err {
             StoreError::BlockLog(s) => {
                 assert!(
-                    s.contains("1") && s.contains("0"),
+                    s.contains('1') && s.contains('0'),
                     "expected length vs tip_height mismatch: {s}"
                 );
             }

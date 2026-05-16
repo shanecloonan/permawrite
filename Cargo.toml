@@ -6,6 +6,7 @@ members = [
     "mfn-storage",
     "mfn-consensus",
     "mfn-runtime",
+    "mfn-store",
     "mfn-node",
     "mfn-light",
     "mfn-wallet",

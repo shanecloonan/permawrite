@@ -1,23 +1,23 @@
 //! # `mfn-node`
 //!
-//! Permawrite node daemon: persistence ([`store`]), JSON-RPC + P2P ([`mfnd`]),
-//! and composition of [`mfn_runtime`] (chain driver, mempool, producer).
+//! Permawrite node daemon: JSON-RPC + P2P ([`mfnd`]) and composition of
+//! [`mfn_runtime`] (chain driver) and [`mfn_store`] (persistence).
 //!
 //! ## Crate boundaries
 //!
 //! - [`mfn_runtime`] — in-process chain + mempool + producer (no IO).
-//! - **`mfn-node`** (this crate) — filesystem store, `network`, `mfnd` binary.
+//! - [`mfn_store`] — checkpoint + block-log persistence.
+//! - **`mfn-node`** (this crate) — `network`, `mfnd` binary.
 //! - [`mfn_consensus`] — pure state-transition function.
 //!
-//! Public types from [`mfn_runtime`] are re-exported here for backward compatibility
-//! (`Chain`, `Mempool`, `produce_solo_block`, genesis helpers, …).
+//! Public types from [`mfn_runtime`] and [`mfn_store`] are re-exported for
+//! backward compatibility (`Chain`, `ChainStore`, …).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
 pub mod network;
-pub mod store;
 
 mod mfnd_cli;
 mod mfnd_serve;
@@ -52,9 +52,13 @@ pub mod producer {
     //! Re-exported from [`mfn_runtime::producer`].
     pub use mfn_runtime::producer::*;
 }
+pub mod store {
+    //! Re-exported from [`mfn_store`].
+    pub use mfn_store::*;
+}
 
 pub use network::NetworkConfig;
-pub use store::{ChainStore, StoreError, StoreSave};
+pub use mfn_store::{ChainPersistence, ChainStore, StoreError, StoreSave};
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).
 #[must_use]
