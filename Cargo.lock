@@ -339,6 +339,7 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-light",
+ "mfn-rpc",
  "mfn-runtime",
  "mfn-storage",
  "mfn-store",
@@ -346,6 +347,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mfn-rpc"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mfn-bls",
+ "mfn-consensus",
+ "mfn-crypto",
+ "mfn-runtime",
+ "mfn-storage",
+ "mfn-store",
+ "serde_json",
 ]
 
 [[package]]

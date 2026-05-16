@@ -1,0 +1,25 @@
+[package]
+name = "mfn-rpc"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite — JSON-RPC 2.0 control plane for mfnd serve (no TCP, no P2P)."
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+mfn-runtime = { path = "../mfn-runtime" }
+mfn-store = { path = "../mfn-store" }
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-crypto = { path = "../mfn-crypto" }
+
+serde_json = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+mfn-bls = { path = "../mfn-bls" }
+mfn-storage = { path = "../mfn-storage" }

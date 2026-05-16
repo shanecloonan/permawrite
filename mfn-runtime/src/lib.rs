@@ -19,7 +19,9 @@
 //! |-------|------|
 //! | `mfn-consensus` | Pure STF + wire formats (no IO) |
 //! | **`mfn-runtime`** | Chain + mempool + producer (no IO) |
-//! | `mfn-node` | Daemon: store, RPC, P2P, `mfnd` binary |
+//! | `mfn-store` | Checkpoint + block log persistence |
+//! | `mfn-rpc` | JSON-RPC dispatch (no sockets) |
+//! | `mfn-node` | Daemon: TCP serve, P2P, `mfnd` binary |
 //!
 //! Light clients and wallets depend on `mfn-consensus` (and optionally
 //! `mfn-runtime` for tests); they must not depend on `mfn-node`.

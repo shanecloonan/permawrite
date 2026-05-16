@@ -7,7 +7,8 @@
 //!
 //! - [`mfn_runtime`] — in-process chain + mempool + producer (no IO).
 //! - [`mfn_store`] — checkpoint + block-log persistence.
-//! - **`mfn-node`** (this crate) — `network`, `mfnd` binary.
+//! - [`mfn_rpc`] — JSON-RPC dispatch (no sockets).
+//! - **`mfn-node`** (this crate) — `network`, TCP serve loop, `mfnd` binary.
 //! - [`mfn_consensus`] — pure state-transition function.
 //!
 //! Public types from [`mfn_runtime`] and [`mfn_store`] are re-exported for

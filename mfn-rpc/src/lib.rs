@@ -1,0 +1,28 @@
+//! # `mfn-rpc`
+//!
+//! JSON-RPC 2.0 request parsing and method dispatch for `mfnd serve`: chain,
+//! mempool, checkpoint, block log, and authorship discovery views.
+//!
+//! ## Crate boundaries
+//!
+//! | Crate | Role |
+//! |-------|------|
+//! | `mfn-consensus` | Pure STF + wire formats |
+//! | `mfn-runtime` | In-memory chain + mempool |
+//! | `mfn-store` | Checkpoint + block log reads/writes |
+//! | **`mfn-rpc`** | JSON-RPC dispatch (no sockets) |
+//! | `mfn-node` | TCP accept loop, P2P, `mfnd` binary |
+//!
+//! ## Safety
+//!
+//! - `#![forbid(unsafe_code)]`.
+//! - No TCP listeners and no background threads in this crate.
+
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(clippy::all)]
+
+mod dispatch;
+
+pub use dispatch::rpc_codes;
+pub use dispatch::{parse_and_dispatch_serve, rpc_error, rpc_success};

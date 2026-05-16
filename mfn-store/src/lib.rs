@@ -10,7 +10,8 @@
 //! | `mfn-consensus` | Pure STF + wire formats |
 //! | `mfn-runtime` | In-memory chain driver (no IO) |
 //! | **`mfn-store`** | Checkpoint + block log persistence |
-//! | `mfn-node` | Daemon: RPC, P2P, `mfnd` |
+//! | `mfn-rpc` | JSON-RPC dispatch (no sockets) |
+//! | `mfn-node` | Daemon: TCP serve, P2P, `mfnd` |
 //!
 //! ## Backends
 //!

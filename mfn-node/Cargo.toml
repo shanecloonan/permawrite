@@ -18,6 +18,7 @@ all = "warn"
 [dependencies]
 mfn-runtime = { path = "../mfn-runtime" }
 mfn-store = { path = "../mfn-store" }
+mfn-rpc = { path = "../mfn-rpc" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-bls = { path = "../mfn-bls" }
 mfn-storage = { path = "../mfn-storage" }
