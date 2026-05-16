@@ -31,7 +31,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `mfn-light` | 6 | 3,692 | 3,369 |
 | `mfn-storage` | 6 | 1,960 | 1,782 |
 | `mfn-bls` | 4 | 862 | 755 |
-| `(root)` | 5 | 695 | 494 |
+| `(root)` | 5 | 696 | 494 |
 | `scripts` | 1 | 261 | 214 |
 | `.github` | 1 | 90 | 83 |
 

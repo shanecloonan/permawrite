@@ -1,4 +1,4 @@
-//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello + **M2.3.6** optional `--p2p-dial` + **M2.3.7** shared P2P socket I/O timeouts + **M2.3.8** [`ChainTipV1`] exchange on P2P streams + **M2.3.9** `mfnd_p2p_peer_tip` stdout + **M2.3.10** [`GoodbyeV1`] after tip on the full peer path + **M2.3.11** `mfnd_p2p_height_cmp` stdout + **M2.3.12** `mfnd_p2p_handshake_ms` stdout + **M2.3.13** `hid=` per successful P2P session on those stdout lines).
+//! TCP control plane for `mfnd serve` (M2.1.6 + M2.1.6.1 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.5** P2P ping/pong after hello + **M2.3.6** optional `--p2p-dial` + **M2.3.7** shared P2P socket I/O timeouts + **M2.3.8** [`ChainTipV1`] exchange on P2P streams + **M2.3.9** `mfnd_p2p_peer_tip` stdout + **M2.3.10** [`GoodbyeV1`] after tip on the full peer path + **M2.3.11** `mfnd_p2p_height_cmp` stdout + **M2.3.12** `mfnd_p2p_handshake_ms` stdout + **M2.3.13** `hid=` per P2P session on stdout + **M2.3.15** `mfnd_p2p_handshake_abort` stderr on inbound listener failures).
 //!
 //! One request per accepted connection: a single UTF-8 line of JSON, then
 //! one JSON response line and the connection closes. Responses follow
@@ -80,7 +80,7 @@ use crate::{AdmitOutcome, Chain, ChainConfig, ChainStore, Mempool, MempoolConfig
 /// Shared `(tip_height, tip_id)` snapshot for P2P [`crate::network::ChainTipV1`] exchange (M2.3.8).
 type P2pTipShared = Arc<Mutex<(u32, [u8; 32])>>;
 
-/// Monotonic handshake id counter for P2P stdout correlation (**M2.3.13** `hid=`).
+/// Monotonic handshake id counter for P2P stdout correlation (**M2.3.13** `hid=`; **M2.3.15** inbound: reserved at **`accept`**).
 type P2pHidCounter = Arc<AtomicU64>;
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -1059,17 +1059,18 @@ fn spawn_p2p_handshake_loop(
                     continue;
                 }
             };
+            let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
             let t0 = Instant::now();
             let _ =
                 sock.set_read_timeout(Some(crate::network::handshake::P2P_HANDSHAKE_IO_TIMEOUT));
             let _ =
                 sock.set_write_timeout(Some(crate::network::handshake::P2P_HANDSHAKE_IO_TIMEOUT));
             if let Err(e) = crate::network::hello_v1_handshake(&mut sock, &genesis_id) {
-                eprintln!("mfnd p2p: handshake from {peer}: {e}");
+                eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=hello {e}");
                 continue;
             }
             if let Err(e) = crate::network::recv_ping_send_pong(&mut sock) {
-                eprintln!("mfnd p2p: ping/pong from {peer}: {e}");
+                eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=ping_pong {e}");
                 continue;
             }
             let local = {
@@ -1082,14 +1083,17 @@ fn spawn_p2p_handshake_loop(
             match crate::network::exchange_chain_tip_v1_as_listener(&mut sock, &local) {
                 Ok(remote) => match crate::network::exchange_goodbye_v1_as_listener(&mut sock) {
                     Ok(()) => {
-                        let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
                         p2p_log_peer_tip(hid, &peer.to_string(), &remote);
                         p2p_log_height_cmp(hid, &peer.to_string(), local.height, &remote);
                         p2p_log_handshake_ms(hid, &peer.to_string(), t0.elapsed());
                     }
-                    Err(e) => eprintln!("mfnd p2p: goodbye from {peer}: {e}"),
+                    Err(e) => {
+                        eprintln!(
+                            "mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=goodbye {e}"
+                        );
+                    }
                 },
-                Err(e) => eprintln!("mfnd p2p: chain tip exchange from {peer}: {e}"),
+                Err(e) => eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=tip {e}"),
             }
         })
         .map_err(|e| format!("mfnd serve: spawn p2p thread: {e}"))?;
@@ -1141,7 +1145,7 @@ fn spawn_p2p_outbound_dial(
 /// then [`crate::network::recv_ping_send_pong`] then [`crate::network::exchange_chain_tip_v1_as_listener`]
 /// then [`crate::network::exchange_goodbye_v1_as_listener`]
 /// (same genesis id as the loaded chain; tip snapshot from the live chain after each successful RPC),
-/// then prints **`mfnd_p2p_peer_tip`** (with monotonic per-process **`hid=`**), remote height + tip id, then **`mfnd_p2p_height_cmp`** / **`mfnd_p2p_handshake_ms`** with the same **`hid`**, then closes each connection.
+/// then prints **`mfnd_p2p_peer_tip`** (with per-process **`hid=`** reserved immediately after each **`accept`**), remote height + tip id, then **`mfnd_p2p_height_cmp`** / **`mfnd_p2p_handshake_ms`** with the same **`hid`** on full success, or **`mfnd_p2p_handshake_abort`** on stderr with that **`hid`** and a **`stage=`** tag on failure (`hello`, `ping_pong`, `tip`, `goodbye`), then closes each connection.
 ///
 /// When `p2p_dial` is `Some`, spawns a background thread that runs [`crate::network::tcp_connect_peer_v1_handshake_with_tip_exchange`]
 /// against that address and prints `mfnd_p2p_dial_ok=…` then **`mfnd_p2p_peer_tip`** / **`mfnd_p2p_height_cmp`** / **`mfnd_p2p_handshake_ms`** sharing one **`hid`** on success (stderr on failure).
