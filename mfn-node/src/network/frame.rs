@@ -1,4 +1,4 @@
-//! Length-prefixed binary frames for P2P (**M2.3.1** + **M2.3.5** control payloads).
+//! Length-prefixed binary frames for P2P (**M2.3.1** + **M2.3.5** control payloads + **M2.3.8** [`ChainTipV1`] + **M2.3.10** [`GoodbyeV1`]).
 //!
 //! Wire shape: **`[u32_be length][payload]`** where `length` counts only `payload`
 //! bytes. Every frame is self-delimiting so blocking TCP `read_exact` loops can
@@ -10,6 +10,13 @@
 //!
 //! **M2.3.5** adds [`PingV1`] / [`PongV1`]: single-byte keepalive-style control payloads after
 //! [`HelloV1`] (dialer sends ping, listener replies pong).
+//!
+//! **M2.3.8** adds [`ChainTipV1`]: after ping/pong, peers may exchange **height** + **tip block id**
+//! (32 bytes) as a minimal chain-head advertisement (no fork choice; snapshot only).
+//!
+//! **M2.3.10** adds [`GoodbyeV1`]: a one-byte “session complete” marker after the tip exchange on the
+//! full [`crate::network::handshake::tcp_connect_peer_v1_handshake_with_tip_exchange`] path (dialer
+//! sends first, mirroring [`ChainTipV1`] ordering).
 
 use std::io::{Read, Write};
 
@@ -21,6 +28,11 @@ const HELLO_V1_LEN: usize = 1 + 32;
 
 const PING_V1_TAG: u8 = 0x02;
 const PONG_V1_TAG: u8 = 0x03;
+
+const CHAIN_TIP_V1_TAG: u8 = 0x04;
+const CHAIN_TIP_V1_LEN: usize = 1 + 4 + 32;
+
+const GOODBYE_V1_TAG: u8 = 0x05;
 
 /// First gossip handshake: advertises which chain instance the peer expects.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -160,6 +172,107 @@ impl PingPongDecodeError {
             expected: PONG_V1_TAG,
         }
     }
+}
+
+/// Post–ping/pong chain head advertisement: **height** + **tip block id** (**M2.3.8**).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ChainTipV1 {
+    /// Current tip height (`0` at genesis).
+    pub height: u32,
+    /// [`mfn_consensus::block_id`] bytes for the tip block.
+    pub tip_id: [u8; 32],
+}
+
+impl ChainTipV1 {
+    /// Canonical on-wire size (tag + big-endian height + tip id).
+    pub const WIRE_LEN: usize = CHAIN_TIP_V1_LEN;
+
+    /// Encode to exactly [`ChainTipV1::WIRE_LEN`] bytes.
+    pub fn encode(self) -> [u8; CHAIN_TIP_V1_LEN] {
+        let mut out = [0u8; CHAIN_TIP_V1_LEN];
+        out[0] = CHAIN_TIP_V1_TAG;
+        out[1..5].copy_from_slice(&self.height.to_be_bytes());
+        out[5..].copy_from_slice(&self.tip_id);
+        out
+    }
+
+    /// Decode from a payload taken from [`read_frame`].
+    pub fn decode(payload: &[u8]) -> Result<Self, TipV1DecodeError> {
+        if payload.len() != CHAIN_TIP_V1_LEN {
+            return Err(TipV1DecodeError::WrongLength { got: payload.len() });
+        }
+        if payload[0] != CHAIN_TIP_V1_TAG {
+            return Err(TipV1DecodeError::UnknownTag(payload[0]));
+        }
+        let height = u32::from_be_bytes(payload[1..5].try_into().unwrap());
+        let mut tip_id = [0u8; 32];
+        tip_id.copy_from_slice(&payload[5..]);
+        Ok(Self { height, tip_id })
+    }
+}
+
+/// Session-complete marker after [`ChainTipV1`] on the full peer handshake (**M2.3.10**).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GoodbyeV1;
+
+impl GoodbyeV1 {
+    /// On-wire payload size (single tag byte).
+    pub const WIRE_LEN: usize = 1;
+
+    /// Encode to exactly one byte.
+    pub fn encode(self) -> [u8; 1] {
+        [GOODBYE_V1_TAG]
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode(payload: &[u8]) -> Result<Self, GoodbyeV1DecodeError> {
+        if payload.len() != Self::WIRE_LEN {
+            return Err(GoodbyeV1DecodeError::WrongLength { got: payload.len() });
+        }
+        if payload[0] != GOODBYE_V1_TAG {
+            return Err(GoodbyeV1DecodeError::ExpectedGoodbye {
+                got: payload[0],
+                expected: GOODBYE_V1_TAG,
+            });
+        }
+        Ok(Self)
+    }
+}
+
+/// Failed to interpret a [`GoodbyeV1`] payload.
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum GoodbyeV1DecodeError {
+    /// Payload size is not exactly one byte.
+    #[error("goodbye v1 payload must be 1 byte, got {got}")]
+    WrongLength {
+        /// Observed byte length.
+        got: usize,
+    },
+    /// Expected a [`GoodbyeV1`] tag.
+    #[error("expected goodbye v1 tag 0x{expected:02x}, got 0x{got:02x}")]
+    ExpectedGoodbye {
+        /// Observed first byte.
+        got: u8,
+        /// Tag value for [`GoodbyeV1`].
+        expected: u8,
+    },
+}
+
+/// Failed to interpret a [`ChainTipV1`] payload.
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum TipV1DecodeError {
+    /// Payload size is not exactly [`ChainTipV1::WIRE_LEN`].
+    #[error(
+        "chain tip v1 payload must be {} bytes, got {got}",
+        ChainTipV1::WIRE_LEN
+    )]
+    WrongLength {
+        /// Observed byte length.
+        got: usize,
+    },
+    /// First byte is not the `ChainTipV1` tag.
+    #[error("unknown chain tip v1 tag: 0x{0:02x}")]
+    UnknownTag(u8),
 }
 
 /// `encode_frame` rejected the payload size.
@@ -346,5 +459,39 @@ mod tests {
     #[test]
     fn hello_v1_decode_rejects_wrong_length() {
         assert!(HelloV1::decode(&[0u8; 10]).is_err());
+    }
+
+    #[test]
+    fn chain_tip_v1_round_trip() {
+        let t = ChainTipV1 {
+            height: 42,
+            tip_id: [0xeeu8; 32],
+        };
+        let wire = t.encode();
+        assert_eq!(ChainTipV1::decode(&wire).unwrap(), t);
+        let framed = encode_frame(&wire).unwrap();
+        let body = decode_frame_prefix(&framed).unwrap().unwrap();
+        assert_eq!(ChainTipV1::decode(body).unwrap(), t);
+    }
+
+    #[test]
+    fn chain_tip_v1_decode_rejects_unknown_tag() {
+        let mut bad = [0u8; 37];
+        bad[0] = 0x99;
+        assert!(ChainTipV1::decode(&bad).is_err());
+    }
+
+    #[test]
+    fn goodbye_v1_round_trip() {
+        let g = GoodbyeV1;
+        assert_eq!(GoodbyeV1::decode(&g.encode()).unwrap(), g);
+        let framed = encode_frame(&g.encode()).unwrap();
+        let body = decode_frame_prefix(&framed).unwrap().unwrap();
+        assert_eq!(GoodbyeV1::decode(body).unwrap(), g);
+    }
+
+    #[test]
+    fn goodbye_v1_decode_rejects_unknown_tag() {
+        assert!(GoodbyeV1::decode(&[0x99]).is_err());
     }
 }

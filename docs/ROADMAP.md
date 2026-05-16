@@ -1524,6 +1524,103 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ---
 
+## Milestone M2.3.8 — P2P chain tip on the wire (`ChainTipV1`) (✓ shipped)
+
+**Why it was next.** After **M2.3.5** ping/pong, peers still had no shared notion of the remote chain head. A minimal fixed-width **tip** frame after pong unblocks later gossip/sync work without changing the hello or ping/pong shapes.
+
+### What shipped
+
+- **[`mfn-node/src/network/frame.rs`](../mfn-node/src/network/frame.rs)** — **`ChainTipV1`** (tag **0x04**, **37** bytes on the wire: big-endian **`height`** + **32-byte `tip_id`**), decode errors for bad tags/lengths.
+- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — symmetric **`send_chain_tip_v1` / `recv_chain_tip_v1`**, **`exchange_chain_tip_v1_as_dialer` / `exchange_chain_tip_v1_as_listener`**, and **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (hello + ping/pong + dialer-side tip exchange, with **M2.3.7** I/O timeouts; **M2.3.10** later appended [`GoodbyeV1`](../mfn-node/src/network/frame.rs) to this helper — see **M2.3.10**). **`tcp_connect_peer_v1_handshake`** remains for callers that only need ping/pong.
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — When **`--p2p-listen`** or **`--p2p-dial`** is set, a shared tip snapshot (**`height`**, **`tip_id`**) is updated after each successful JSON-RPC **`handle_client`**; the P2P accept path runs the listener tip exchange after pong; **`--p2p-dial`** uses the full handshake helper with tip exchange.
+
+### Tests
+
+- **`network::frame::tests::chain_tip_v1_round_trip`**, **`network::frame::tests::chain_tip_v1_decode_rejects_unknown_tag`**
+- **`network::handshake::tests::tcp_peer_v1_handshake_with_tip_exchange_round_trip`**
+- **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** (asserts tip exchange against a live **`mfnd serve --p2p-listen`**)
+
+**Compatibility note.** **`mfnd serve --p2p-listen`** now expects the tip exchange after pong; a client that stops after ping/pong will hit **30s** read/write timeouts on both sides until the listener gives up on the missing tip frame. **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (**M2.3.8** + **M2.3.10**) also expects a [`GoodbyeV1`](../mfn-node/src/network/frame.rs) exchange immediately after tips; a client that stops after the tip frames but never sends goodbye hits the same **30s** timeouts and never receives **`mfnd_p2p_peer_tip`** on the listener.
+
+---
+
+## Milestone M2.3.9 — P2P peer tip on stdout (`mfnd_p2p_peer_tip`) (✓ shipped)
+
+**Why it was next.** **M2.3.8** exchanges [`ChainTipV1`](../mfn-node/src/network/frame.rs) on the wire, but operators and integration tests had no stable, parse-friendly record of what the **remote** claimed after a successful handshake.
+
+### What shipped
+
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — After each successful tip exchange, prints one stdout line: **`mfnd_p2p_peer_tip hid=<u64> peer=<display> height=<u32> tip_id=<64 lower-hex>`** (same line shape for inbound accepts and for **`--p2p-dial`** success, immediately after **`mfnd_p2p_dial_ok=…`**; **`hid`** is **M2.3.13** — monotonic per process). (Listener path: **M2.3.10** requires a successful [`GoodbyeV1`](../mfn-node/src/network/frame.rs) exchange after the tip before this line is emitted.)
+
+### Tests
+
+- **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** — reads **`mfnd_p2p_peer_tip`** from the listener’s stdout after the client handshake.
+- **`tests::mfnd_smoke::mfnd_serve_p2p_dial_hits_peer_listener`** — reads the dialer’s third stdout line as **`mfnd_p2p_peer_tip`**.
+
+---
+
+## Milestone M2.3.10 — P2P `GoodbyeV1` after chain tip (✓ shipped)
+
+**Why it was next.** Tip exchange (**M2.3.8**) left the session with no explicit “handshake complete” marker. A one-byte [`GoodbyeV1`](../mfn-node/src/network/frame.rs) frame (tag **0x05**, same framing as [`PingV1`](../mfn-node/src/network/frame.rs)) after tips gives both sides a clear full-duplex shutdown point before the TCP connection drops.
+
+### What shipped
+
+- **[`mfn-node/src/network/frame.rs`](../mfn-node/src/network/frame.rs)** — **`GoodbyeV1`** + **`GoodbyeV1DecodeError`**; unit tests **`goodbye_v1_round_trip`**, **`goodbye_v1_decode_rejects_unknown_tag`**.
+- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — **`exchange_goodbye_v1_as_dialer`** / **`exchange_goodbye_v1_as_listener`** (dialer sends first, mirroring [`ChainTipV1`](../mfn-node/src/network/frame.rs)); **`tcp_connect_peer_v1_handshake_with_tip_exchange`** now ends with this exchange; **`HelloHandshakeError::Goodbye`**.
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — P2P accept path runs the listener goodbye exchange before emitting **`mfnd_p2p_peer_tip`**.
+
+### Tests
+
+- **`network::handshake::tests::tcp_peer_v1_handshake_with_tip_exchange_round_trip`** (covers tip + goodbye).
+- Smoke tests **`mfnd_serve_p2p_hello_handshake_over_tcp`** / **`mfnd_serve_p2p_dial_hits_peer_listener`** (still use **`tcp_connect_peer_v1_handshake_with_tip_exchange`** end-to-end).
+
+**Compatibility note.** Peers that perform the **M2.3.8** tip exchange but do not send **`GoodbyeV1`** will leave the **`mfnd serve --p2p-listen`** thread blocked on the goodbye read until **30s** I/O timeouts fire; **`mfnd_p2p_peer_tip`** is not printed until the goodbye round-trip succeeds on the listener.
+
+---
+
+## Milestone M2.3.11 — P2P height comparison on stdout (`mfnd_p2p_height_cmp`) (✓ shipped)
+
+**Why it was next.** **`mfnd_p2p_peer_tip`** (**M2.3.9**) already prints the remote height, but operators still had to diff it mentally against the local snapshot used in the same handshake. A second machine-parsable line makes “who is ahead?” obvious in logs and tests.
+
+### What shipped
+
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — After **`mfnd_p2p_peer_tip`**, prints **`mfnd_p2p_height_cmp hid=<u64> peer=<display> local_height=<u32> remote_height=<u32> cmp=ahead|equal|behind`** (remote height compared to the local tip height captured for that session’s tip exchange; **`hid`** matches **M2.3.13**). **`p2p_height_cmp_label`** unit coverage in **`mfnd_serve::tests`**.
+
+### Tests
+
+- **`mfnd_serve::tests::p2p_height_cmp_label_orders_remote_vs_local`**
+- **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** / **`tests::mfnd_smoke::mfnd_serve_p2p_dial_hits_peer_listener`** — assert the height-cmp line on listener and dialer stdout when both chains share the same genesis tip.
+
+---
+
+## Milestone M2.3.12 — P2P handshake wall-clock on stdout (`mfnd_p2p_handshake_ms`) (✓ shipped)
+
+**Why it was next.** Height comparison (**M2.3.11**) answers “who is ahead?” but not “how long did this peer take?” A single **`ms=`** line after the full hello → ping/pong → tip → goodbye path makes slow peers obvious in logs and gives smoke tests a cheap sanity bound without parsing nested frames.
+
+### What shipped
+
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — After **`mfnd_p2p_height_cmp`**, prints **`mfnd_p2p_handshake_ms … ms=<u128>`** using wall time from immediately after a successful **`accept`** (listener) or immediately before **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (dialer) through the same success point as the tip / height lines. (**M2.3.13** later adds a matching **`hid=<u64>`** token on this line.)
+
+### Tests
+
+- **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** / **`tests::mfnd_smoke::mfnd_serve_p2p_dial_hits_peer_listener`** — read **`mfnd_p2p_handshake_ms`** after **`mfnd_p2p_height_cmp`**, assert prefix + parseable **`ms=`** under a loose upper bound.
+
+---
+
+## Milestone M2.3.13 — P2P stdout handshake correlation id (`hid=`) (✓ shipped)
+
+**Why it was next.** **`mfnd_p2p_peer_tip`**, **`mfnd_p2p_height_cmp`**, and **`mfnd_p2p_handshake_ms`** already print in order for one peer, but concurrent accepts (or **`--p2p-listen`** plus **`--p2p-dial`** in one process) can interleave lines from different sessions. A shared monotonic **`hid`** on those three lines lets operators and tests group rows without relying on wall-clock ordering alone.
+
+### What shipped
+
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — One **`Arc<AtomicU64>`** per `mfnd serve` process when P2P is enabled (listen and/or dial). On each **successful** full handshake (same point as today’s stdout), allocates the next id and prints **`hid=<u64>`** immediately after the line kind on **`mfnd_p2p_peer_tip`**, **`mfnd_p2p_height_cmp`**, and **`mfnd_p2p_handshake_ms`** (inbound and outbound share the counter so ids are unique per process). **`mfnd_p2p_dial_ok=…`** is unchanged.
+
+### Tests
+
+- **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** / **`tests::mfnd_smoke::mfnd_serve_p2p_dial_hits_peer_listener`** — parse **`hid=`** from **`mfnd_p2p_peer_tip`** and assert the same value on the following **`mfnd_p2p_height_cmp`** and **`mfnd_p2p_handshake_ms`** lines.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:

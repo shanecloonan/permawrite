@@ -1,9 +1,9 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdout, Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
@@ -53,6 +53,25 @@ fn assert_rpc2_error(resp: &str) -> (i64, String) {
     )
 }
 
+fn assert_mfnd_p2p_handshake_ms_line(line: &str) {
+    assert!(
+        line.starts_with("mfnd_p2p_handshake_ms "),
+        "expected mfnd_p2p_handshake_ms, got {line:?}"
+    );
+    let ms_s = line.split(" ms=").nth(1).expect("ms field").trim();
+    let ms: u64 = ms_s.parse().expect("parse ms as u64");
+    assert!(ms < 60_000, "handshake took {ms}ms, line={line:?}");
+}
+
+fn mfnd_p2p_hid_from_line(line: &str) -> u64 {
+    for tok in line.split_whitespace() {
+        if let Some(v) = tok.strip_prefix("hid=") {
+            return v.parse().expect("parse hid");
+        }
+    }
+    panic!("no hid= token in line={line:?}");
+}
+
 /// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
 fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr) {
     let mut child = mfnd()
@@ -81,11 +100,12 @@ fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr)
 }
 
 /// Spawns `mfnd serve` with `--rpc-listen` and `--p2p-listen` on ephemeral ports; reads
-/// `mfnd_serve_listening=` then `mfnd_p2p_listening=` from stdout.
+/// `mfnd_serve_listening=` then `mfnd_p2p_listening=` from stdout. Returns a [`BufReader`] so
+/// callers can read further lines (e.g. **`mfnd_p2p_peer_tip`** after a P2P handshake).
 fn spawn_mfnd_serve_with_p2p(
     data_dir: &Path,
     genesis_spec: &Path,
-) -> (Child, SocketAddr, SocketAddr) {
+) -> (Child, BufReader<ChildStdout>, SocketAddr, SocketAddr) {
     let mut child = mfnd()
         .args(["--data-dir"])
         .arg(data_dir)
@@ -119,7 +139,7 @@ fn spawn_mfnd_serve_with_p2p(
         .expect("p2p listening prefix")
         .trim();
     let p2p_addr: SocketAddr = p2p_s.parse().expect("parse p2p socket addr");
-    (child, rpc_addr, p2p_addr)
+    (child, out_reader, rpc_addr, p2p_addr)
 }
 
 fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
@@ -461,7 +481,7 @@ fn mfnd_serve_get_tip_over_tcp() {
 fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     let dir = unique_data_dir("serve_p2p_handshake");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let (mut child, rpc_addr, p2p_addr) = spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let (mut child, mut child_out, rpc_addr, p2p_addr) = spawn_mfnd_serve_with_p2p(&dir, &spec);
     let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
     let tip = assert_rpc2_result(&resp);
     let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
@@ -469,8 +489,74 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     assert_eq!(bytes.len(), 32);
     let mut genesis_id = [0u8; 32];
     genesis_id.copy_from_slice(&bytes);
-    mfn_node::network::tcp_connect_peer_v1_handshake(p2p_addr, &genesis_id)
-        .expect("p2p tcp_connect_peer_v1_handshake");
+    let tip_h = tip["tip_height"]
+        .as_u64()
+        .expect("tip_height must be a JSON number") as u32;
+    let tip_id_hex = tip["tip_id"].as_str().expect("tip_id hex");
+    let mut tip_id = [0u8; 32];
+    hex::decode_to_slice(tip_id_hex, &mut tip_id).expect("decode tip_id hex");
+    let local_tip = mfn_node::network::ChainTipV1 {
+        height: tip_h,
+        tip_id,
+    };
+    mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
+        p2p_addr,
+        &genesis_id,
+        &local_tip,
+    )
+    .expect("p2p tcp_connect_peer_v1_handshake_with_tip_exchange");
+    let mut peer_tip_line = String::new();
+    child_out
+        .read_line(&mut peer_tip_line)
+        .expect("read mfnd_p2p_peer_tip from listener");
+    assert!(
+        peer_tip_line.starts_with("mfnd_p2p_peer_tip "),
+        "expected mfnd_p2p_peer_tip, got {peer_tip_line:?}"
+    );
+    assert!(
+        peer_tip_line.contains(&format!("height={tip_h} ")),
+        "peer_tip_line={peer_tip_line:?}"
+    );
+    assert!(
+        peer_tip_line.contains(&format!("tip_id={tip_id_hex}")),
+        "peer_tip_line={peer_tip_line:?}"
+    );
+    let hid = mfnd_p2p_hid_from_line(&peer_tip_line);
+    let mut height_cmp_line = String::new();
+    child_out
+        .read_line(&mut height_cmp_line)
+        .expect("read mfnd_p2p_height_cmp from listener");
+    assert!(
+        height_cmp_line.starts_with("mfnd_p2p_height_cmp "),
+        "expected mfnd_p2p_height_cmp, got {height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains(&format!("local_height={tip_h} ")),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains(&format!("remote_height={tip_h} ")),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert!(
+        height_cmp_line.contains("cmp=equal"),
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    assert_eq!(
+        mfnd_p2p_hid_from_line(&height_cmp_line),
+        hid,
+        "height_cmp_line={height_cmp_line:?}"
+    );
+    let mut handshake_ms_line = String::new();
+    child_out
+        .read_line(&mut handshake_ms_line)
+        .expect("read mfnd_p2p_handshake_ms from listener");
+    assert_mfnd_p2p_handshake_ms_line(&handshake_ms_line);
+    assert_eq!(
+        mfnd_p2p_hid_from_line(&handshake_ms_line),
+        hid,
+        "handshake_ms_line={handshake_ms_line:?}"
+    );
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
@@ -481,7 +567,7 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
     let dir_a = unique_data_dir("serve_p2p_dial_a");
     let dir_b = unique_data_dir("serve_p2p_dial_b");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let (mut child_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    let (mut child_a, _out_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
     let mut child_b = mfnd()
         .args(["--data-dir"])
         .arg(&dir_b)
@@ -513,6 +599,35 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
         l2.starts_with("mfnd_p2p_dial_ok="),
         "expected mfnd_p2p_dial_ok, got {l2:?}"
     );
+    let mut l3 = String::new();
+    out_reader
+        .read_line(&mut l3)
+        .expect("read mfnd_p2p_peer_tip from dialer");
+    assert!(
+        l3.starts_with("mfnd_p2p_peer_tip "),
+        "expected mfnd_p2p_peer_tip, got {l3:?}"
+    );
+    assert!(
+        l3.contains("height=") && l3.contains("tip_id="),
+        "l3={l3:?}"
+    );
+    let hid = mfnd_p2p_hid_from_line(&l3);
+    let mut l4 = String::new();
+    out_reader
+        .read_line(&mut l4)
+        .expect("read mfnd_p2p_height_cmp from dialer");
+    assert!(
+        l4.starts_with("mfnd_p2p_height_cmp "),
+        "expected mfnd_p2p_height_cmp, got {l4:?}"
+    );
+    assert!(l4.contains("cmp=equal"), "l4={l4:?}");
+    assert_eq!(mfnd_p2p_hid_from_line(&l4), hid, "l4={l4:?}");
+    let mut l5 = String::new();
+    out_reader
+        .read_line(&mut l5)
+        .expect("read mfnd_p2p_handshake_ms from dialer");
+    assert_mfnd_p2p_handshake_ms_line(&l5);
+    assert_eq!(mfnd_p2p_hid_from_line(&l5), hid, "l5={l5:?}");
     let _ = child_b.kill();
     let _ = child_b.wait();
     let _ = child_a.kill();

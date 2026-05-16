@@ -4,6 +4,8 @@
 //! and [`tcp_connect_peer_v1_handshake`] (connect + hello + ping/pong as dialer).
 //! **M2.3.7** applies [`P2P_HANDSHAKE_IO_TIMEOUT`] on outbound [`TcpStream`]s from those dial helpers
 //! (same default as `mfnd serve --p2p-listen` per accepted socket).
+//! **M2.3.8** adds [`ChainTipV1`] exchange after ping/pong ([`exchange_chain_tip_v1_as_listener`]) and [`tcp_connect_peer_v1_handshake_with_tip_exchange`].
+//! **M2.3.10** adds [`GoodbyeV1`] after the tip exchange on that full peer path (symmetric one-byte frame; dialer sends first).
 //!
 //! Each side sends one length-prefixed [`HelloV1`] frame, then reads the peer's frame and
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
@@ -16,8 +18,9 @@ use std::time::Duration;
 pub const P2P_HANDSHAKE_IO_TIMEOUT: Duration = Duration::from_secs(30);
 
 use super::frame::{
-    read_frame, write_frame_io, FrameReadError, FrameWriteError, HelloDecodeError, HelloV1,
-    PingPongDecodeError, PingV1, PongV1,
+    read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError, GoodbyeV1,
+    GoodbyeV1DecodeError, HelloDecodeError, HelloV1, PingPongDecodeError, PingV1, PongV1,
+    TipV1DecodeError,
 };
 
 /// Failed to complete a [`hello_v1_handshake`].
@@ -38,6 +41,12 @@ pub enum HelloHandshakeError {
     /// Ping / pong frame after hello was malformed.
     #[error(transparent)]
     PingPong(#[from] PingPongDecodeError),
+    /// [`ChainTipV1`] frame after ping/pong was malformed.
+    #[error(transparent)]
+    Tip(#[from] TipV1DecodeError),
+    /// [`GoodbyeV1`] frame after the tip exchange was malformed.
+    #[error(transparent)]
+    Goodbye(#[from] GoodbyeV1DecodeError),
     /// Peer's genesis id differs from `genesis_id` passed to [`hello_v1_handshake`].
     #[error("peer genesis id does not match expected chain genesis")]
     GenesisMismatch {
@@ -126,6 +135,60 @@ pub fn recv_ping_send_pong<S: Read + Write>(stream: &mut S) -> Result<(), HelloH
     Ok(())
 }
 
+/// Write one framed [`ChainTipV1`] after ping/pong (**M2.3.8**).
+pub fn send_chain_tip_v1<W: Write>(w: &mut W, tip: &ChainTipV1) -> Result<(), HelloHandshakeError> {
+    write_frame_io(w, &tip.encode())?;
+    w.flush()?;
+    Ok(())
+}
+
+/// Read one [`ChainTipV1`] frame after ping/pong.
+pub fn recv_chain_tip_v1<R: Read>(r: &mut R) -> Result<ChainTipV1, HelloHandshakeError> {
+    let payload = read_frame(r)?;
+    Ok(ChainTipV1::decode(&payload)?)
+}
+
+/// Dialer order after pong: send local tip, read peer tip.
+pub fn exchange_chain_tip_v1_as_dialer<S: Read + Write>(
+    stream: &mut S,
+    local: &ChainTipV1,
+) -> Result<ChainTipV1, HelloHandshakeError> {
+    send_chain_tip_v1(stream, local)?;
+    recv_chain_tip_v1(stream)
+}
+
+/// Listener order after pong: read peer tip, send local tip.
+pub fn exchange_chain_tip_v1_as_listener<S: Read + Write>(
+    stream: &mut S,
+    local: &ChainTipV1,
+) -> Result<ChainTipV1, HelloHandshakeError> {
+    let remote = recv_chain_tip_v1(stream)?;
+    send_chain_tip_v1(stream, local)?;
+    Ok(remote)
+}
+
+/// After [`exchange_chain_tip_v1_as_dialer`], **dialer** sends [`GoodbyeV1`] then reads one back (**M2.3.10**).
+pub fn exchange_goodbye_v1_as_dialer<S: Read + Write>(
+    stream: &mut S,
+) -> Result<(), HelloHandshakeError> {
+    write_frame_io(stream, &GoodbyeV1.encode())?;
+    stream.flush()?;
+    let payload = read_frame(stream)?;
+    GoodbyeV1::decode(&payload)?;
+    Ok(())
+}
+
+/// After [`exchange_chain_tip_v1_as_listener`], **listener** reads [`GoodbyeV1`] then sends one (**M2.3.10**).
+pub fn exchange_goodbye_v1_as_listener<S: Read + Write>(
+    stream: &mut S,
+) -> Result<(), HelloHandshakeError> {
+    let payload = read_frame(stream)?;
+    GoodbyeV1::decode(&payload)?;
+    write_frame_io(stream, &GoodbyeV1.encode())?;
+    stream.flush()?;
+    Ok(())
+}
+
 /// [`TcpStream::connect`] + [`hello_v1_handshake`] + [`send_ping_recv_pong`] (full dialer path).
 pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
     addrs: A,
@@ -137,6 +200,25 @@ pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
     Ok(stream)
+}
+
+/// Like [`tcp_connect_peer_v1_handshake`], then exchanges [`ChainTipV1`] with the peer (**M2.3.8**),
+/// then runs [`exchange_goodbye_v1_as_dialer`] (**M2.3.10**).
+///
+/// Returns the open stream (positioned after the peer's goodbye frame) and the **remote** tip.
+pub fn tcp_connect_peer_v1_handshake_with_tip_exchange<A: ToSocketAddrs>(
+    addrs: A,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+) -> Result<(TcpStream, ChainTipV1), HelloHandshakeError> {
+    let mut stream = TcpStream::connect(addrs)?;
+    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    hello_v1_handshake(&mut stream, genesis_id)?;
+    send_ping_recv_pong(&mut stream)?;
+    let remote = exchange_chain_tip_v1_as_dialer(&mut stream, local_tip)?;
+    exchange_goodbye_v1_as_dialer(&mut stream)?;
+    Ok((stream, remote))
 }
 
 #[cfg(test)]
@@ -215,6 +297,42 @@ mod tests {
 
         let _ = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
 
+        server.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn tcp_peer_v1_handshake_with_tip_exchange_round_trip() {
+        use super::super::frame::ChainTipV1;
+        let genesis = [0x33u8; 32];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        let listener_tip = ChainTipV1 {
+            height: 100,
+            tip_id: [0xaau8; 32],
+        };
+        let dial_tip = ChainTipV1 {
+            height: 7,
+            tip_id: [0xbbu8; 32],
+        };
+        let expect_remote = listener_tip;
+
+        let server = thread::spawn(move || {
+            let (mut sock, _) = listener.accept().unwrap();
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            sock.set_write_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            hello_v1_handshake(&mut sock, &genesis)?;
+            recv_ping_send_pong(&mut sock)?;
+            let remote = exchange_chain_tip_v1_as_listener(&mut sock, &listener_tip)?;
+            exchange_goodbye_v1_as_listener(&mut sock)?;
+            assert_eq!(remote, dial_tip);
+            Ok::<(), HelloHandshakeError>(())
+        });
+
+        let (_stream, remote) =
+            tcp_connect_peer_v1_handshake_with_tip_exchange(addr, &genesis, &dial_tip).unwrap();
+        assert_eq!(remote, expect_remote);
         server.join().unwrap().unwrap();
     }
 

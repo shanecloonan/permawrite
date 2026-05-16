@@ -1,4 +1,4 @@
-//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.6).
+//! Minimal `mfnd` command-line driver (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.6 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13).
 //!
 //! Backs the `mfnd` binary: load-or-genesis against a [`ChainStore`], print
 //! status, save checkpoints, or block until a graceful shutdown trigger then
@@ -12,7 +12,7 @@
 //! `chain.blocks`) → checkpoint save. Use `--blocks N` to apply
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
-//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.6** optional `--p2p-dial`) binds a loopback TCP port and answers one
+//! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.6** optional `--p2p-dial` + **M2.3.8** P2P ChainTipV1 + **M2.3.9** `mfnd_p2p_peer_tip` + **M2.3.10** GoodbyeV1 + **M2.3.11** `mfnd_p2p_height_cmp` + **M2.3.12** `mfnd_p2p_handshake_ms` + **M2.3.13** `hid=`) binds a loopback TCP port and answers one
 //! newline-delimited JSON request per connection (`get_tip`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
@@ -67,7 +67,7 @@ struct Parsed {
     rpc_listen: Option<String>,
     /// Solo `serve` only: optional second `HOST:PORT` for binary P2P [`hello_v1_handshake`](crate::network::hello_v1_handshake).
     p2p_listen: Option<String>,
-    /// Solo `serve` only: optional peer `HOST:PORT`; background dial runs [`crate::network::tcp_connect_peer_v1_handshake`].
+    /// Solo `serve` only: optional peer `HOST:PORT`; background dial runs [`crate::network::tcp_connect_peer_v1_handshake_with_tip_exchange`] (hello + ping/pong + [`crate::network::ChainTipV1`] + [`crate::network::GoodbyeV1`]).
     p2p_dial: Option<String>,
 }
 
@@ -83,7 +83,10 @@ fn usage() -> &'static str {
        --p2p-listen ADDR:PORT   only for `serve` (optional): length-prefixed HelloV1 handshake\n\
                                   on a separate TCP port (see `network::handshake`)\n\
        --p2p-dial ADDR:PORT     only for `serve` (optional): outbound dial to a peer P2P listener;\n\
-                                  runs hello + dialer ping / listener pong (`tcp_connect_peer_v1_handshake`)\n\
+                                  runs hello + dialer ping / listener pong + ChainTipV1 + GoodbyeV1\n\
+                                  (tcp_connect_peer_v1_handshake_with_tip_exchange); on success prints\n\
+                                  mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip / mfnd_p2p_height_cmp /\n\
+                                  mfnd_p2p_handshake_ms (each with matching hid=; see mfnd_serve)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
