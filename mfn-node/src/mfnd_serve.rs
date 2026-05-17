@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use mfn_net::serve::{spawn_inbound_handshake_loop, spawn_outbound_dial, HidCounter, TipSnapshot};
 use mfn_rpc::parse_and_dispatch_serve;
 use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
-use mfn_store::ChainStore;
+use mfn_store::ChainPersistence;
 use serde_json::Value;
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
@@ -21,7 +21,7 @@ fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
 
 fn handle_client(
     stream: &mut TcpStream,
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
 ) -> Result<(), String> {
@@ -49,7 +49,7 @@ fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
 /// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
 /// serve one JSON line per connection until the process exits.
 pub(crate) fn run_serve(
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     cfg: ChainConfig,
     rpc_listen: &str,
     p2p_listen: Option<&str>,

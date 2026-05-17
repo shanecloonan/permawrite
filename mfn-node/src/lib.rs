@@ -21,6 +21,9 @@
 
 mod mfnd_cli;
 mod mfnd_serve;
+mod node_store;
+
+pub use node_store::{NodeStore, StoreBackend};
 
 pub mod network {
     //! Re-exported from [`mfn_net`] (frame, handshake, serve helpers).

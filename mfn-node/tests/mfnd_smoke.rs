@@ -551,6 +551,46 @@ fn mfnd_serve_get_tip_over_tcp() {
 }
 
 #[test]
+fn mfnd_serve_redb_store_get_tip_over_tcp() {
+    let dir = unique_data_dir("serve_redb_get_tip");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("redb")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve --store redb");
+    let stdout = child.stdout.take().expect("stdout pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let mut listen_line = String::new();
+    out_reader
+        .read_line(&mut listen_line)
+        .expect("read mfnd_serve_listening");
+    let addr_s = listen_line
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim();
+    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
+    let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
+    let r = assert_rpc2_result(&resp);
+    assert!(r.get("tip_height").is_some(), "r={r}");
+    assert!(
+        dir.join("chain.redb").exists(),
+        "expected chain.redb under data dir"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     let dir = unique_data_dir("serve_p2p_handshake");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");

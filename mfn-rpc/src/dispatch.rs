@@ -11,7 +11,7 @@ use mfn_crypto::schnorr::encode_schnorr_signature;
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{AdmitOutcome, Chain, Mempool};
-use mfn_store::ChainStore;
+use mfn_store::ChainPersistence;
 
 const JSONRPC_VERSION: &str = "2.0";
 /// JSON-RPC 2.0 standard codes and Permawrite application error codes.
@@ -476,7 +476,7 @@ fn serve_rpc_methods_json_result() -> Value {
 /// Load `chain.blocks` validated against `chain` after height / tip checks.
 /// `height` must be parsed from params (caller maps `extract_height_param` errors).
 fn read_validated_blocks_for_height(
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     chain: &Chain,
     height: u32,
     id: &Value,
@@ -517,7 +517,7 @@ fn read_validated_blocks_for_height(
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
 pub fn parse_and_dispatch_serve(
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
     line: &str,
@@ -554,7 +554,7 @@ pub fn parse_and_dispatch_serve(
 }
 
 fn dispatch_serve_methods(
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
     req: &Value,

@@ -31,8 +31,9 @@ use mfn_crypto::vrf::vrf_keygen_from_seed;
 
 use crate::{
     demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
-    Chain, ChainConfig, ChainStore, Mempool, MempoolConfig,
+    Chain, ChainConfig, Mempool, MempoolConfig, NodeStore, StoreBackend,
 };
+use mfn_store::ChainPersistence;
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -69,12 +70,15 @@ struct Parsed {
     p2p_listen: Option<String>,
     /// Solo `serve` only: optional peer `HOST:PORT`; background dial runs [`crate::network::tcp_connect_peer_v1_handshake_with_tip_exchange`] (hello + ping/pong + [`crate::network::ChainTipV1`] + [`crate::network::GoodbyeV1`]).
     p2p_dial: Option<String>,
+    /// Persistence backend (`fs` default, or `redb`).
+    store_backend: StoreBackend,
 }
 
 fn usage() -> &'static str {
     "usage: mfnd --data-dir <DIR> [OPTIONS] <COMMAND>\n\
      \n\
      options:\n\
+       --store BACKEND  checkpoint backend: `fs` (default) or `redb` (`chain.redb`)\n\
        --genesis PATH   optional JSON genesis spec (version 1; see crate testdata/)\n\
        --blocks N       only for `step`: produce and apply N blocks in sequence\n\
                         (default 1; by default one checkpoint after the last block)\n\
@@ -126,7 +130,7 @@ fn producer_fee_share_of_summed_fees(fee_sum: u128, fee_to_treasury_bps: u16) ->
 }
 
 fn run_solo_step(
-    store: &ChainStore,
+    store: &dyn ChainPersistence,
     cfg: &ChainConfig,
     step_count: u32,
     checkpoint_each_block: bool,
@@ -263,14 +267,15 @@ fn run_solo_step(
 fn run(args: Vec<String>) -> Result<(), String> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
-    let store = ChainStore::new(&parsed.data_dir);
+    let store =
+        NodeStore::open(parsed.store_backend, &parsed.data_dir).map_err(|e| format!("{e}"))?;
     let cfg = resolve_chain_config(&parsed)?;
 
     match parsed.cmd {
         Cmd::Status => {
             let had_checkpoint = store.has_any_checkpoint();
             let chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
-            print_status(&chain, had_checkpoint);
+            print_status(&chain, had_checkpoint, parsed.store_backend);
         }
         Cmd::Save => {
             let chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
@@ -307,6 +312,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
             {
                 let chain_c = Arc::clone(&chain);
                 let dir = parsed.data_dir.clone();
+                let backend = parsed.store_backend;
                 ctrlc::set_handler(move || {
                     let guard = match chain_c.lock() {
                         Ok(g) => g,
@@ -315,7 +321,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                             std::process::exit(1);
                         }
                     };
-                    match ChainStore::new(&dir).save(&guard) {
+                    match NodeStore::open(backend, &dir).and_then(|s| s.save(&guard)) {
                         Ok(m) => {
                             eprintln!(
                                 "mfnd: saved {} bytes to {}",
@@ -339,7 +345,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 let guard = chain
                     .lock()
                     .map_err(|_| "mfnd: internal error: chain mutex poisoned".to_string())?;
-                let meta = ChainStore::new(&parsed.data_dir)
+                let meta = NodeStore::open(parsed.store_backend, &parsed.data_dir)
+                    .map_err(|e| format!("{e}"))?
                     .save(&guard)
                     .map_err(|e| format!("{e}"))?;
                 println!(
@@ -371,7 +378,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-fn print_status(chain: &Chain, had_checkpoint_on_disk: bool) {
+fn print_status(chain: &Chain, had_checkpoint_on_disk: bool, store_backend: StoreBackend) {
     let tip_h = chain
         .tip_height()
         .map_or_else(|| "none".to_string(), |h| h.to_string());
@@ -384,6 +391,7 @@ fn print_status(chain: &Chain, had_checkpoint_on_disk: bool) {
     println!("tip_id={tip_id}");
     println!("genesis_id={genesis_id}");
     println!("had_checkpoint_on_disk={had_checkpoint_on_disk}");
+    println!("store_backend={}", store_backend.as_str());
     println!("validator_count={}", chain.validators().len());
 }
 
@@ -404,6 +412,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut rpc_listen: Option<String> = None;
     let mut p2p_listen: Option<String> = None;
     let mut p2p_dial: Option<String> = None;
+    let mut store_backend = StoreBackend::default();
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -416,6 +425,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
                 return Err("expected path after --data-dir".into());
             }
             data_dir = Some(PathBuf::from(v));
+            i += 2;
+            continue;
+        }
+        if a == "--store" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--store requires `fs` or `redb`".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected backend name after --store".into());
+            }
+            store_backend = StoreBackend::parse(v)?;
             i += 2;
             continue;
         }
@@ -550,6 +570,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         rpc_listen,
         p2p_listen,
         p2p_dial,
+        store_backend,
     })
 }
 
@@ -763,5 +784,37 @@ mod tests {
     #[test]
     fn parse_args_rejects_missing_data_dir() {
         assert!(parse_args(&["status".into()]).is_err());
+    }
+
+    #[test]
+    fn parse_args_store_defaults_to_fs() {
+        let args = vec!["--data-dir".into(), "/tmp/x".into(), "status".into()];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.store_backend, StoreBackend::Fs);
+    }
+
+    #[test]
+    fn parse_args_store_redb() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--store".into(),
+            "redb".into(),
+            "status".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.store_backend, StoreBackend::Redb);
+    }
+
+    #[test]
+    fn parse_args_store_rejects_unknown() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--store".into(),
+            "rocksdb".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 }
