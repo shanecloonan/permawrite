@@ -7,9 +7,10 @@ use mfn_runtime::{Chain, ChainConfig};
 use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 
 /// Checkpoint / block-log backend selected on the CLI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StoreBackend {
     /// Flat files: `chain.checkpoint` + `chain.blocks`.
+    #[default]
     Fs,
     /// Embedded `chain.redb`.
     Redb,
@@ -31,12 +32,6 @@ impl StoreBackend {
             Self::Fs => "fs",
             Self::Redb => "redb",
         }
-    }
-}
-
-impl Default for StoreBackend {
-    fn default() -> Self {
-        Self::Fs
     }
 }
 

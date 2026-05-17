@@ -210,6 +210,17 @@ pub fn collect_claim_merkle_leaves_for_txs(
     Ok(out)
 }
 
+/// Pack `MFEX` ‖ v1 ‖ concatenated [`encode_authorship_claim`] outputs.
+pub fn build_mfex_extra(claims: &[AuthorshipClaim]) -> mfn_crypto::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    out.extend_from_slice(crate::extra_codec::MFEX_MAGIC);
+    out.push(crate::extra_codec::MFEX_VERSION);
+    for c in claims {
+        out.extend_from_slice(&encode_authorship_claim(c)?);
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod apply_rules_tests {
     use super::*;
@@ -265,15 +276,4 @@ mod apply_rules_tests {
         let c3 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"c", &other).expect("s");
         assert!(check_claim_key_unique(&c3, &map));
     }
-}
-
-/// Pack `MFEX` ‖ v1 ‖ concatenated [`encode_authorship_claim`] outputs.
-pub fn build_mfex_extra(claims: &[AuthorshipClaim]) -> mfn_crypto::Result<Vec<u8>> {
-    let mut out = Vec::new();
-    out.extend_from_slice(crate::extra_codec::MFEX_MAGIC);
-    out.push(crate::extra_codec::MFEX_VERSION);
-    for c in claims {
-        out.extend_from_slice(&encode_authorship_claim(c)?);
-    }
-    Ok(out)
 }

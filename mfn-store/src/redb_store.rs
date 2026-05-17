@@ -416,7 +416,7 @@ mod tests {
             table.remove(KEY_PRIMARY).unwrap();
         }
         write_txn.commit().unwrap();
-        assert!(!store.read_checkpoint_bytes(KEY_PRIMARY).unwrap().is_some());
+        assert!(store.read_checkpoint_bytes(KEY_PRIMARY).unwrap().is_none());
 
         let restored = store.load(cfg).unwrap().expect("backup restores");
         assert_eq!(restored.encode_checkpoint(), chain.encode_checkpoint());
