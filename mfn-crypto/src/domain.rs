@@ -11,6 +11,9 @@
 /// callers can pass it directly into the [`crate::codec::Writer::blob`] API.
 pub type Domain = &'static [u8];
 
+/// Diagnostic hash over sorted mempool `tx_id`s (**M2.3.21**, not consensus).
+pub const MEMPOOL_ROOT: Domain = b"MFBN-1/mempool-root";
+
 /// Canonical transaction identifier.
 pub const TX_ID: Domain = b"MFBN-1/tx-id";
 

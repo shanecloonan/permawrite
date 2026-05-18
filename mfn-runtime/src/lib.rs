@@ -41,6 +41,7 @@ pub mod chain;
 pub mod demo_genesis;
 pub mod genesis_spec;
 pub mod mempool;
+pub mod mempool_snapshot;
 pub mod producer;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
@@ -49,6 +50,11 @@ pub use genesis_spec::{
     MAX_SYNTHETIC_DECOY_UTXOS,
 };
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
+pub use mempool_snapshot::{
+    decode_mempool_snapshot, encode_mempool_snapshot, mempool_root, MempoolRestoreStats,
+    MempoolSnapshotEntry, MempoolSnapshotError, MEMPOOL_HEIGHT_UNKNOWN, MEMPOOL_SNAPSHOT_MAGIC,
+    MEMPOOL_SNAPSHOT_VERSION,
+};
 pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,

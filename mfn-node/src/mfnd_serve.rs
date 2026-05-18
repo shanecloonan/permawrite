@@ -13,8 +13,8 @@ use mfn_net::serve::{
     FanoutPeerSetHook, HidCounter, TipSnapshot,
 };
 use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
-use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
-use mfn_store::ChainPersistence;
+use mfn_runtime::{mempool_root, Chain, ChainConfig, Mempool, MempoolConfig};
+use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
@@ -54,6 +54,31 @@ fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
     (height, tip_id)
 }
 
+fn log_mempool_save(meta: &mfn_store::MempoolSaveMeta) {
+    println!(
+        "mfnd_mempool_save_ok bytes={} tx_count={}",
+        meta.bytes_written, meta.tx_count
+    );
+    let _ = std::io::stdout().flush();
+}
+
+fn log_mempool_load(stats: &mfn_runtime::MempoolRestoreStats) {
+    if stats.loaded > 0 {
+        println!(
+            "mfnd_mempool_load_ok loaded={} admitted={} skipped={}",
+            stats.loaded, stats.admitted, stats.skipped
+        );
+        let _ = std::io::stdout().flush();
+    }
+}
+
+fn persist_mempool(store: &dyn ChainPersistence, pool: &Mempool) {
+    match save_mempool(store, pool) {
+        Ok(m) => log_mempool_save(&m),
+        Err(e) => eprintln!("mfnd_mempool_save_abort {e}"),
+    }
+}
+
 fn serve_dispatch_opts(fanout_peers: Option<&FanoutPeerSetHook>) -> ServeDispatchOpts {
     ServeDispatchOpts {
         on_fresh_tx: fanout_peers.map(|ps| {
@@ -65,7 +90,7 @@ fn serve_dispatch_opts(fanout_peers: Option<&FanoutPeerSetHook>) -> ServeDispatc
     }
 }
 
-/// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
+/// Run a blocking TCP loop: load chain + mempool snapshot, print bound address, then
 /// serve one JSON line per connection until the process exits.
 pub(crate) fn run_serve(
     store: Arc<dyn ChainPersistence + Send + Sync>,
@@ -78,6 +103,17 @@ pub(crate) fn run_serve(
         store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
     ));
     let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    {
+        let guard = chain
+            .lock()
+            .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
+        let mut pool_guard = pool
+            .lock()
+            .map_err(|_| "mfnd serve: pool mutex poisoned".to_string())?;
+        let stats = load_mempool(store.as_ref(), &mut pool_guard, guard.state())
+            .map_err(|e| format!("mfnd serve: load mempool: {e}"))?;
+        log_mempool_load(&stats);
+    }
     let genesis_id = {
         let guard = chain
             .lock()
@@ -198,7 +234,15 @@ pub(crate) fn run_serve(
 
     #[cfg(unix)]
     {
-        let _ = ctrlc::set_handler(|| std::process::exit(0));
+        let store_c = Arc::clone(&store);
+        let pool_c = Arc::clone(&pool);
+        ctrlc::set_handler(move || {
+            if let Ok(guard) = pool_c.lock() {
+                persist_mempool(store_c.as_ref(), &guard);
+            }
+            std::process::exit(0);
+        })
+        .map_err(|e| format!("mfnd serve: install Ctrl+C handler: {e}"))?;
     }
 
     loop {
@@ -217,6 +261,7 @@ pub(crate) fn run_serve(
             eprintln!("mfnd serve: pool mutex poisoned");
             continue;
         };
+        let root_before = mempool_root(&pool_guard);
         match handle_client(
             &mut stream,
             store.as_ref(),
@@ -225,6 +270,9 @@ pub(crate) fn run_serve(
             dispatch_opts.clone(),
         ) {
             Ok(()) => {
+                if mempool_root(&pool_guard) != root_before {
+                    persist_mempool(store.as_ref(), &pool_guard);
+                }
                 if let Some(tc) = &p2p_tip_cell {
                     if let Ok(mut g) = tc.lock() {
                         *g = snapshot_chain_tip_for_p2p(&chain_guard);

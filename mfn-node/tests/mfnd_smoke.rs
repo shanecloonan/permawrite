@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
@@ -30,7 +31,15 @@ fn mfnd() -> Command {
 
 /// Same backend `mfnd` uses when `--store` is omitted (currently `redb`).
 fn open_mfnd_store(dir: &Path) -> NodeStore {
-    NodeStore::open(StoreBackend::default(), dir).expect("open mfnd store")
+    open_mfnd_store_with_backend(dir, None)
+}
+
+fn open_mfnd_store_with_backend(dir: &Path, store: Option<&str>) -> NodeStore {
+    let backend = match store {
+        Some(s) => StoreBackend::parse(s).expect("parse store"),
+        None => StoreBackend::default(),
+    };
+    NodeStore::open(backend, dir).expect("open mfnd store")
 }
 
 /// Skips unrelated stdout lines (parallel tests may inherit the same console).
@@ -165,13 +174,25 @@ fn read_listener_p2p_handshake_session(
 
 /// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
 fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr) {
-    let mut child = mfnd()
-        .args(["--data-dir"])
+    spawn_mfnd_serve_with_store(data_dir, genesis_spec, None)
+}
+
+fn spawn_mfnd_serve_with_store(
+    data_dir: &Path,
+    genesis_spec: &Path,
+    store: Option<&str>,
+) -> (Child, SocketAddr) {
+    let mut cmd = mfnd();
+    cmd.args(["--data-dir"])
         .arg(data_dir)
         .arg("--genesis")
         .arg(genesis_spec)
         .arg("--rpc-listen")
-        .arg("127.0.0.1:0")
+        .arg("127.0.0.1:0");
+    if let Some(s) = store {
+        cmd.arg("--store").arg(s);
+    }
+    let mut child = cmd
         .arg("serve")
         .stdout(Stdio::piped())
         .spawn()
@@ -179,6 +200,15 @@ fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr)
     let stdout = child.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
     let sock = read_mfnd_serve_listening_addr(&mut out_reader);
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_reader.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
     (child, sock)
 }
 
@@ -314,26 +344,34 @@ fn unique_data_dir(test: &str) -> PathBuf {
 /// the post-step chain state. Caller uses `data_dir` + `spec` for `serve` and `tx_hex` for
 /// `submit_tx`; `tx_id_hex` matches `get_mempool` wire ids (64-char lowercase hex).
 fn synth_decoy_one_step_signed_transfer_fixture(test: &str) -> (PathBuf, PathBuf, String, String) {
+    synth_decoy_one_step_signed_transfer_fixture_with_store(test, None)
+}
+
+fn synth_decoy_one_step_signed_transfer_fixture_with_store(
+    test: &str,
+    store: Option<&str>,
+) -> (PathBuf, PathBuf, String, String) {
     let dir = unique_data_dir(test);
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("testdata/devnet_one_validator_synth_decoys.json");
-    let step_out = mfnd()
-        .args(["--data-dir"])
+    let mut step = mfnd();
+    step.args(["--data-dir"])
         .arg(&dir)
         .arg("--genesis")
         .arg(&spec)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
-        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
-        .arg("step")
-        .output()
-        .expect("spawn mfnd step");
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX);
+    if let Some(s) = store {
+        step.arg("--store").arg(s);
+    }
+    let step_out = step.arg("step").output().expect("spawn mfnd step");
     assert!(
         step_out.status.success(),
         "stderr={}",
         String::from_utf8_lossy(&step_out.stderr)
     );
 
-    let store = open_mfnd_store(&dir);
+    let store = open_mfnd_store_with_backend(&dir, store);
     let blocks = store.read_block_log().expect("read blocks");
     assert_eq!(
         blocks.len(),
@@ -1213,6 +1251,65 @@ fn mfnd_serve_get_tip_jsonrpc_echoes_id() {
     assert!(v.get("result").is_some());
     let _ = child.kill();
     let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_mempool_survives_restart() {
+    let (dir, spec, tx_hex, tx_id_hex) =
+        synth_decoy_one_step_signed_transfer_fixture_with_store("serve_mempool_restart", Some("fs"));
+    let (mut child1, rpc1) = spawn_mfnd_serve_with_store(&dir, &spec, Some("fs"));
+    let submit = format!(
+        r#"{{"jsonrpc":"2.0","method":"submit_tx","params":{{"tx_hex":"{tx_hex}"}},"id":1}}"#
+    );
+    let sub_r = assert_rpc2_result(&tcp_request_json(rpc1, &submit));
+    assert_eq!(
+        sub_r["outcome"]["kind"].as_str(),
+        Some("Fresh"),
+        "submit resp={sub_r}"
+    );
+    let tip1 = assert_rpc2_result(&tcp_request_json(
+        rpc1,
+        r#"{"jsonrpc":"2.0","method":"get_tip","id":2}"#,
+    ));
+    let root1 = tip1["mempool_root"]
+        .as_str()
+        .expect("mempool_root hex after submit");
+    assert!(
+        mfn_store::mempool_path(&dir).exists(),
+        "expected mempool.bytes after submit"
+    );
+    let _ = child1.kill();
+    let _ = child1.wait();
+    std::thread::sleep(Duration::from_millis(500));
+
+    let snap = std::fs::read(mfn_store::mempool_path(&dir)).expect("read mempool.bytes");
+    let entries = mfn_runtime::decode_mempool_snapshot(&snap).expect("decode mempool.bytes");
+    assert_eq!(entries.len(), 1, "snapshot should contain one tx");
+
+    let (mut child2, rpc2) = spawn_mfnd_serve_with_store(&dir, &spec, Some("fs"));
+    std::thread::sleep(Duration::from_millis(200));
+    let mp = assert_rpc2_result(&tcp_request_json(
+        rpc2,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","id":3}"#,
+    ));
+    assert_eq!(mp["mempool_len"], json!(1), "mp={mp}");
+    let ids = mp["tx_ids"].as_array().expect("tx_ids");
+    assert!(
+        ids.iter().any(|v| v.as_str() == Some(tx_id_hex.as_str())),
+        "restarted mempool missing tx_id={tx_id_hex} mp={mp}"
+    );
+    let tip2 = assert_rpc2_result(&tcp_request_json(
+        rpc2,
+        r#"{"jsonrpc":"2.0","method":"get_tip","id":4}"#,
+    ));
+    assert_eq!(
+        tip2["mempool_root"].as_str(),
+        Some(root1),
+        "mempool_root changed across restart"
+    );
+    let _ = child2.kill();
+    let _ = child2.wait();
     std::fs::remove_dir_all(&dir).ok();
 }
 

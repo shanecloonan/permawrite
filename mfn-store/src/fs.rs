@@ -28,11 +28,11 @@ pub(crate) fn io_error(
     }
 }
 
-fn is_not_found(err: &std::io::Error) -> bool {
+pub(crate) fn is_not_found(err: &std::io::Error) -> bool {
     err.kind() == std::io::ErrorKind::NotFound
 }
 
-fn remove_if_exists(path: &Path, op: &'static str) -> Result<(), StoreError> {
+pub(crate) fn remove_if_exists(path: &Path, op: &'static str) -> Result<(), StoreError> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(e) if is_not_found(&e) => Ok(()),
@@ -275,6 +275,7 @@ impl ChainPersistence for ChainStore {
         remove_if_exists(&self.backup_path(), "remove_backup")?;
         remove_if_exists(&self.temp_path(), "remove_temp")?;
         remove_if_exists(&self.block_log_path(), "remove_block_log")?;
+        crate::mempool_persist::remove_mempool_file(self.root())?;
         Ok(())
     }
 }

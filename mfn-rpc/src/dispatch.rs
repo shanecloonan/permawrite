@@ -11,7 +11,7 @@ use mfn_consensus::{
 use mfn_crypto::schnorr::encode_schnorr_signature;
 use serde_json::{json, Map, Value};
 
-use mfn_runtime::{AdmitOutcome, Chain, Mempool};
+use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
 use mfn_store::ChainPersistence;
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -603,6 +603,7 @@ fn dispatch_serve_methods(
                 "genesis_id": genesis_id,
                 "validator_count": chain.validators().len(),
                 "mempool_len": pool.len(),
+                "mempool_root": hex32(&mempool_root(pool)),
             });
             rpc_success(id, body)
         }

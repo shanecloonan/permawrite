@@ -1912,13 +1912,31 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.3.21+ to reach a 3-validator local testnet
+## Milestone M2.3.21 — Durable mempool (✓ shipped)
+
+**Why it was next.** M2.3.20 propagates txs across peers, but a process restart still dropped every locally queued submission.
+
+### What shipped
+
+- **[`mfn-runtime/src/mempool_snapshot.rs`](../mfn-runtime/src/mempool_snapshot.rs)** — Canonical `mempool.bytes` encode/decode + [`mempool_root`] diagnostic hash.
+- **[`mfn-store/src/mempool_persist.rs`](../mfn-store/src/mempool_persist.rs)** — Atomic save/load under the data directory; cleared with [`ChainPersistence::clear`].
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — Reload on boot (`mfnd_mempool_load_ok`); save after each RPC and on Ctrl+C (`mfnd_mempool_save_ok`).
+- **`get_tip`** — Returns `mempool_root` (64-char hex, not consensus-critical).
+
+### Tests
+
+- **`mfn-runtime`**: snapshot round-trip / bad-magic decode.
+- **`mfn-store`**: empty save/load.
+- **`tests::mfnd_smoke::mfnd_serve_mempool_survives_restart`** — `submit_tx`, kill `serve`, restart; tx and `mempool_root` match.
+
+---
+
+## Coming next — M2.3.22+ to reach a 3-validator local testnet
 
 These are the concrete remaining sub-milestones in dependency order. Each is sized to be a single committable unit in the same "one small thing per commit" rhythm as M2.1.x / M2.2.x / M2.3.x to date.
 
 | Id (planned) | Deliverable | Why it's blocking |
 |---|---|---|
-| **M2.3.21** | **Durable mempool.** Snapshot pending txs to a `mempool.bytes` file under the data dir on shutdown; reload on boot. Optional `mempool_root` exposed for diagnostics, not consensus. | A `mfnd` restart today loses every queued submission. |
 | **M2.3.22** | **Persistent peer set.** Track successful-handshake peers in `peers.json`; reconnect to them on boot up to `max_outbound_peers`. | First step toward seed-list / discovery without hard-coding addresses on the command line. |
 | **M2.3.23** | **Multi-validator block-production loop.** Replace the `step`-only flow with a slot-driven producer that wakes on `slot_duration_ms`, checks VRF eligibility against the current `ChainState.validators`, builds a proposal via `producer::build_proposal`, broadcasts it as a new `ProposalV1` frame, collects `CommitteeVote`s via a `VoteV1` frame, and seals once quorum is reached. | The actual mechanism that makes a 3-validator testnet *produce* blocks instead of just exchanging them. |
 | **M2.3.24** | **3-validator local harness + smoke.** Integration test that spawns three `mfnd` processes on loopback with a shared JSON genesis spec containing three operator validators, runs them for N slots, and asserts they all reach the same `tip_id` and apply each other's coinbase. | The end-to-end proof of life for M2.3. |
@@ -1961,7 +1979,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-node/src/bin/mfnd.rs` | Reference daemon binary. `status` / `save` / `run` / `step` (+ `--blocks N` / `--checkpoint-each`) / `serve` (+ `--rpc-listen` / `--p2p-listen` / `--p2p-dial` / `--store fs\|redb`). | ✓ live |
 | Block-sync handler | `GetBlocksByHeightV1` / `BlocksV1` reply + `pull_blocks_to_tip` when remote is ahead (**M2.3.18–M2.3.19**). | ✓ live |
 | Mempool fan-out | Forward `Fresh` admissions to registered P2P peers (**M2.3.20**). | ✓ live |
-| Durable mempool (planned) | Snapshot pending txs on shutdown; reload on boot. | ⏳ M2.3.21 |
+| Durable mempool | `mempool.bytes` snapshot + reload (**M2.3.21**). | ✓ live |
 | Persistent peer set (planned) | `peers.json` + reconnect loop. | ⏳ M2.3.22 |
 | `runner.rs` (planned) | Slot-driven block production + vote propagation + finality assembly. | ⏳ M2.3.23 |
 
@@ -1969,7 +1987,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
-- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.20), M2.3.21+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, and fan out freshly admitted txs to known peers; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
+- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.21), M2.3.22+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, and persist the mempool across `mfnd serve` restarts; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
 - **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
 
 ### Not in M2.x

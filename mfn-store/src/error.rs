@@ -41,4 +41,13 @@ pub enum StoreError {
     /// Embedded KV store (`redb`) operation failed.
     #[error("store database: {0}")]
     Database(String),
+
+    /// `mempool.bytes` decode failure (**M2.3.21**).
+    #[error("mempool snapshot `{}`: {detail}", path.display())]
+    MempoolSnapshot {
+        /// Snapshot path.
+        path: PathBuf,
+        /// Decode error detail.
+        detail: String,
+    },
 }

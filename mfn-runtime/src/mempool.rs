@@ -24,10 +24,8 @@
 //!   until they conflict, are mined, or are explicitly evicted. Adding
 //!   age-based eviction is straightforward but unnecessary while the
 //!   pool fits in memory.
-//! - **Persistent storage / restart recovery.** Mempool state is
-//!   in-memory; a node restart loses pending txs. This matches
-//!   Bitcoin / Monero behaviour at this layer (mempool is best-effort
-//!   anyway — finality lives on the chain).
+//! - **Persistent storage / restart recovery** lands in **`mfn-store`**
+//!   (`mempool.bytes`, **M2.3.21**); this module stays pure in-memory.
 //! - **Wallet-built storage uploads.** The mempool admits
 //!   storage-anchoring txs (M2.0.13), but the wallet does not yet
 //!   *build* them. Construction lands in M2.0.14.
