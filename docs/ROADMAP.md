@@ -1966,13 +1966,9 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.3.24 to reach a 3-validator local testnet
+## Coming next — M2.4 public testnet
 
-| Id (planned) | Deliverable | Why it's blocking |
-|---|---|---|
-| **M2.3.24** | **3-validator local harness + smoke.** Integration test that spawns three `mfnd` processes on loopback with a shared JSON genesis spec containing three operator validators, runs them for N slots, and asserts they all reach the same `tip_id` and apply each other's coinbase. | The end-to-end proof of life for M2.3. |
-
-After M2.3.24, the door to **M2.4 — Public testnet** is open (documentation + bootstrapping nodes + an external operator invitation list).
+After **M2.3.24** (shipped), the door to **M2.4 — Public testnet** is open (documentation + bootstrapping nodes + an external operator invitation list).
 
 ### Why this order
 
@@ -2013,13 +2009,15 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | Durable mempool | `mempool.bytes` snapshot + reload (**M2.3.21**). | ✓ live |
 | Persistent peer set | `peers.json` + boot reconnect (**M2.3.22**). | ✓ live |
 | `runner.rs` | Slot-driven block production + vote propagation + finality assembly. | ✓ live (M2.3.23) |
+| `mfnd --committee-vote` | Committee vote handler without slot loop; hub `--produce` + two `--committee-vote` peers. | ✓ live (M2.3.24) |
+| 3-validator process smoke | `tests/three_validator_produce_smoke.rs` — hub produces, followers vote, shared tip at height 1. | ✓ live (M2.3.24) |
 
 ### Phases
 
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
-- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.23), M2.3.24 in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, reconnect to saved peers on boot, and run a slot-driven multi-validator producer (`--produce` + `ProposalV1` / `VoteV1`); mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: 3-validator process harness smoke (see "Coming next" above).
-- **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
+- **M2.3 — Multi-node testnet.** ✓ Shipped (M2.3.0–M2.3.24). Peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, reconnect to saved peers on boot, run a slot-driven multi-validator producer (`--produce` + `ProposalV1` / `VoteV1`), and pass a three-process loopback harness (hub `--produce`, two `--committee-vote` followers, shared tip at height 1 via `tests/three_validator_produce_smoke.rs`).
+- **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
 
 ### Not in M2.x
 

@@ -106,6 +106,7 @@ struct ValidatorNode {
     p2p: SocketAddr,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_produce_validator(
     data_dir: &Path,
     genesis_spec: &Path,
@@ -194,7 +195,6 @@ fn read_startup_addrs(
 }
 
 fn shutdown_child(child: &mut Child) {
-    let pid = child.id();
     let _ = child.kill();
     for _ in 0..20 {
         if child.try_wait().ok().flatten().is_some() {
@@ -204,6 +204,7 @@ fn shutdown_child(child: &mut Child) {
     }
     #[cfg(windows)]
     {
+        let pid = child.id();
         let _ = Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .status();
