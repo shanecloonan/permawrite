@@ -2,7 +2,7 @@
 
 > **Audience.** Protocol designers, wallet engineers, and anyone asking how Permawrite can stay **anonymous-by-default** for uploads while still supporting an optional, **cryptographically verifiable** “I published this `data_root`” signal for permaweb-style discovery.
 >
-> **Status.** This document remains the **normative specification** for optional authorship claims (wire tags, digest, limits, header binding). The **M2.2.0–M2.2.10** checklist in [`ROADMAP.md`](./ROADMAP.md) is **implemented in Rust on `main`**: crypto (`mfn_crypto::authorship`), consensus (`mfn_consensus` `claims` / `extra_codec` / `apply_block` / `claims_root` / checkpoint v2), wallet ([`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), uploads with [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs)), and read-only discovery on **`mfnd serve`** ([`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**).
+> **Status.** Normative spec for optional authorship claims. **M2.2.0–M2.2.10** shipped the initial layer; **M2.2.11** tightens guarantees (MFCL v2 + storage binding, keyed index, 256-byte messages) without changing the privacy model.
 
 ---
 
@@ -22,84 +22,111 @@ The authorship layer solves (3) without weakening (1) or bloating (2).
 |-----------|-------------|
 | **Anonymous by default** | Uploads work exactly as today if the user does nothing extra. No author field is added to `StorageCommitment`. |
 | **Separate identity key** | Claims use a **Schnorr** signing keypair that is **not** the stealth view/spend key material. Leaking a “publishing pubkey” must not compromise wallet scanning or spending. |
-| **Optional, explicit** | A claim is opt-in. Anyone can post a claim about any `data_root` (even before that root is anchored); the chain does **not** pick a “winner” between competing claims. |
+| **Optional, explicit** | A claim is opt-in. Unbound v2 claims (or v1) can still attest to any `data_root`; bound v2 claims require an on-chain storage commitment. |
 | **Single native asset** | No second coin for “transparent vs private.” Fees and endowments stay in MFN; claims are metadata, not a new token class. |
-| **Header binding** | Each block header carries a `claims_root` (Merkle root over claims processed in that block) so light clients can verify inclusion the same way as other body roots. |
+| **Header binding** | Each block header carries a `claims_root` (Merkle root over claim leaves in that block) so light clients can verify inclusion the same way as other body roots. The cost is 32 bytes per header forever; the benefit is SPV-style claim inclusion proofs without a separate indexer. |
 | **Domain separation** | Every digest uses an MFBN-1 domain tag; new tags are hard-fork boundaries. |
+| **One claim per pubkey per root** | Consensus rejects a second claim with the same (`data_root`, `claim_pubkey`). Different pubkeys may still claim the same `data_root` (social resolution). |
 
 ---
 
 ## Cryptographic objects
 
-### Domain tag (digest input)
+### Domain tags (digest input)
 
 ```text
-AUTHORSHIP_V1 = "MFBN-1/AUTHORSHIP/v1"   // exact UTF-8 bytes, no NUL terminator
+AUTHORSHIP_V1 = "MFBN-1/AUTHORSHIP/v1"   // MFCL wire version 1
+AUTHORSHIP_V2 = "MFBN-1/AUTHORSHIP/v2"   // MFCL wire version 2
 ```
 
-(When implemented, this string is also registered in `mfn_crypto::domain` as a `Domain` constant.)
+Registered in `mfn_crypto::domain` as `AUTHORSHIP_CLAIM_DIGEST` and `AUTHORSHIP_CLAIM_DIGEST_V2`.
 
 ### Claim digest
 
-The message signed by Schnorr is **not** the user-visible UTF-8 string alone; it is a 32-byte digest:
+The message signed by Schnorr is a 32-byte digest (not the raw UTF-8 alone).
+
+**MFCL v1** (legacy, still accepted):
 
 ```text
 claim_digest = dhash(AUTHORSHIP_V1, [
-    data_root,           // 32 bytes
-    claim_pubkey_bytes, // 32 bytes, compressed Edwards encoding
-    [message_len_u8],    // single byte, 0..=MAX_CLAIM_MESSAGE_LEN
-    message,             // `message_len` bytes (may be empty)
+    data_root,            // 32
+    claim_pubkey_bytes,   // 32 compressed
+    [message_len as u8],
+    message,
 ])
 ```
 
-Where `dhash` is the usual MFBN-1 domain-separated SHA-256 used throughout the codebase ([`PRIVACY.md`](./PRIVACY.md), [`ARCHITECTURE.md`](./ARCHITECTURE.md)).
+**MFCL v2** (default for new claims):
 
-**Signature:** `SchnorrSignature = schnorr_sign(claim_digest, claiming_keypair)` using the existing curve25519-dalek Schnorr construction in `mfn_crypto::schnorr` (same `R || P || m` transcript as other protocol Schnorr uses, with `m = claim_digest`).
+```text
+claim_digest = dhash(AUTHORSHIP_V2, [
+    data_root,            // 32
+    commit_hash,          // 32 — all-zero = unbound bulletin board
+    claim_pubkey_bytes,   // 32 compressed
+    [message_len as u8],
+    message,
+])
+```
 
-**Verification:** `schnorr_verify(claim_digest, sig, claim_pubkey)`.
-
-The **`claim_pubkey`** in the wire object must equal `claiming_keypair.pub_key` (the verifier checks both equality and signature).
+**Signature / verification:** standard protocol Schnorr over `claim_digest` (`mfn_crypto::schnorr`).
 
 ### Limits (consensus-enforced)
 
 | Constant | Value | Rationale |
 |----------|------:|-----------|
-| `MAX_CLAIM_MESSAGE_LEN` | **128** | Short attestation (handle, license SPDX, version string). Fits in one IPv6-mtu-friendly `extra` segment with other framing. |
+| `MAX_CLAIM_MESSAGE_LEN` | **256** | Short on-chain attestation (handle, license, version). Larger payloads belong off-chain or in the stored file. |
 | `MAX_CLAIMS_PER_TX` | **4** | Caps worst-case verification work per transaction. |
 
 ---
 
 ## Wire format: one claim (`MFCL`)
 
-Claims are carried inside `TransactionWire.extra` (opaque bytes already committed in the CLSAG preimage). Each encoded claim is a **fixed-prefix** blob so parsers can scan concatenated payloads.
+Claims live in `TransactionWire.extra` (committed in the CLSAG preimage). Each frame is self-delimiting.
+
+### MFCL version 1 (legacy)
 
 ```text
-MFCL                    // 4 bytes: 0x4D 0x46 0x43 0x4C ("MFCL")
-version                 // u8, currently 0x01
+MFCL                    // 4 bytes
+version                 // u8 = 0x01
 data_root               // [u8; 32]
-claim_pubkey            // [u8; 32], compressed Edwards point
-message_len             // u8, 0..=128
+claim_pubkey            // [u8; 32]
+message_len             // u8
 message                 // message_len bytes
-signature               // 64 bytes (Schnorr: compressed R + little-endian s), exact layout matches encode/decode of Schnorr in mfn-crypto
+signature               // 64 bytes
 ```
 
-**Total length:** `4 + 1 + 32 + 32 + 1 + message_len + 64` ∈ **[134, 262]** bytes per claim.
+Length ∈ **[134, 390]** bytes (`message_len` ≤ 256).
 
-Implementations **must** reject:
+### MFCL version 2 (current default)
 
-- Wrong magic, unknown `version`, `message_len > MAX_CLAIM_MESSAGE_LEN`, malformed point, malformed signature encoding, or trailing garbage inside a single `MFCL` frame.
-- More than `MAX_CLAIMS_PER_TX` well-formed `MFCL` frames in one transaction’s `extra` (after parsing the optional outer envelope; see below).
+```text
+MFCL                    // 4 bytes
+version                 // u8 = 0x02
+data_root               // [u8; 32]
+commit_hash             // [u8; 32] — see “Storage binding” below
+claim_pubkey            // [u8; 32]
+message_len             // u8
+message                 // message_len bytes
+signature               // 64 bytes
+```
 
-### Outer envelope: `MFEX` (optional multi-payload `extra`)
+Length ∈ **[166, 422]** bytes.
 
-To leave room for future tagged payloads in `extra` without breaking legacy txs (opaque bytes, arbitrary length), normative **`MFEX`** framing applies when **all** of the following hold:
+**Storage binding.** If `commit_hash == [0u8; 32]`, the claim is an **unbound** attestation (same strength as v1). If `commit_hash != 0`, consensus **must** reject the claim unless `ChainState.storage` already contains that commitment hash and `storage[commit_hash].commit.data_root == claim.data_root`. Claims in the **same transaction** as a new storage output are validated **after** that output is registered, so upload+bundled-claim txs work.
 
-- `extra.len() >= 4` and `extra[0..4] == b"MFEX"`.
-- The remainder decodes as a **versioned** list of inner tagged blobs (first ship: only `MFCL` claim segments).
+Implementations **must** reject: wrong magic, unknown `version`, `message_len > MAX_CLAIM_MESSAGE_LEN`, malformed point/signature, trailing bytes, or more than `MAX_CLAIMS_PER_TX` frames per tx (after `MFEX` parsing).
 
-If `extra` does **not** start with `MFEX`, consensus treats the entire `extra` as **opaque** for claim parsing (no claims indexed from that tx). Wallets may still use legacy unconstrained memos at their own risk until they migrate to `MFEX`.
+### Outer envelope: `MFEX` (normative structured `extra`)
 
-**Legacy rule:** `extra == []` is valid and implies no claims.
+**`MFEX` is the only normative structured-`extra` envelope** for consensus-visible payloads today. Future inner tags extend this container without forking claim parsing.
+
+```text
+MFEX                    // 4 bytes
+version                 // u8 = 0x01
+body                    // concatenation of zero or more MFCL frames
+```
+
+If `extra` does **not** start with `MFEX`, consensus treats it as **opaque** (no claims indexed). `extra == []` is valid (no claims).
 
 ---
 
@@ -107,21 +134,19 @@ If `extra` does **not** start with `MFEX`, consensus treats the entire `extra` a
 
 ### `ChainState` index (full node)
 
-Normative map:
-
 ```text
-claims: BTreeMap<[u8; 32] /* data_root */, Vec<ClaimRecord>>
+claims: BTreeMap<(data_root, claim_pubkey_bytes), ClaimRecord>
 ```
 
-Each `ClaimRecord` stores at least: `claim_pubkey`, `message` (bounded copy), `tx_id` (or height+tx index), `block_height`, and a **claim_id** (e.g. `dhash` over canonical record bytes) for idempotent replay: applying the same block twice must not duplicate the same logical claim.
+At most one live claim per (`data_root`, `claim_pubkey`). Replacing requires a future revocation mechanism (not shipped).
 
-**Ordering:** Vec append order follows **deterministic** tx order within the block (coinbase excluded from claims if coinbase has no claim-bearing `extra`; regular txs in block order; within a tx, `MFCL` segments in left-to-right `extra` order).
+Each `ClaimRecord` stores the full signed `MFCL` claim plus `tx_id`, `height`, `tx_index`, `claim_index`.
 
 ### `claims_root` in `BlockHeader`
 
-- `claims_root` is a 32-byte Merkle root over all **ClaimRecord** leaves added in that block (canonical leaf encoding TBD in implementation; domain-separated like other header roots).
-- **Empty block** (no claims): use **`[0u8; 32]`** sentinel (same pattern as `bond_root` for empty bond ops).
-- `verify_block_body` recomputes the root and compares to `header.claims_root`.
+- Merkle root over **claim leaves** in block order (non-coinbase txs; left-to-right `MFCL` order within `extra`).
+- Leaf = `dhash(CLAIM_LEAF, [canonical_MFCL_wire, tx_id, tx_index, claim_index, height])`.
+- **Empty block:** `[0u8; 32]` sentinel.
 
 ---
 
@@ -129,57 +154,57 @@ Each `ClaimRecord` stores at least: `claim_pubkey`, `message` (bounded copy), `t
 
 ### A. Upload + bundled claims
 
-User builds a normal storage upload (RingCT + first output `Some(StorageCommitment)`). Optionally packs one or more `MFCL` blobs inside `extra` (via `MFEX` envelope when multiple payloads exist).
+Normal storage upload with optional `MFCL` claims in `extra` (via `MFEX`). Wallets should set `commit_hash` to the upload’s `storage_commitment_hash` for a **bound** claim.
 
-**Privacy note:** CLSAG still hides the ring position; the **claiming pubkey** is public on purpose. Do not reuse wallet stealth keys as the claiming key.
+**Privacy — temporal correlation:** Bundling a claim **inside** the upload transaction links the public `claim_pubkey` to that upload event in time (same tx). A **standalone** claim tx (pattern B) breaks that link while still allowing a bound `commit_hash` once the upload is anchored.
+
+**Privacy — keys:** Do not reuse stealth spend/view keys as the claiming key.
 
 ### B. Standalone claim tx
 
-A transaction that spends MFN (ring-hidden as usual) but whose **only** purpose is to publish claims: same `extra` rules, possibly `outputs` paying change only. Useful to attach a claim **after** upload or for a `data_root` not yet on chain.
+Ring-signed spend with claims only in `extra`. Use `commit_hash = 0` for bulletin-board claims, or the real commitment hash after the upload is on-chain.
 
 ---
 
 ## RPC (node)
 
-`mfnd serve` methods (JSON-RPC 2.0, same TCP line discipline as existing methods) — **M2.2.8** ships direct projections of [`ChainState`](../mfn-consensus/src/block.rs); **M2.2.10** adds **derived** (sorted / flattened) views over the same in-memory indexes:
+`mfnd serve` JSON-RPC methods project `ChainState.claims` (and `storage` for uploads). Claim JSON includes `commit_hash` (hex) as of M2.2.11.
 
 | Method | Purpose |
 |--------|---------|
-| `get_claims_for` | Params: `data_root` hex (32 bytes). Returns all indexed claims for that root. |
-| `get_claims_by_pubkey` | Params: `claim_pubkey` hex + `limit`. Returns recent claims from that pubkey. |
-| `list_recent_uploads` | Params: `limit`, `offset`, optional `include_claims`. Discovery helper over anchored storage + optional claim join. |
-| `list_recent_claims` | Params: `limit`, `offset` (JSON object). Flattened global claim feed, newest block height first (same secondary ordering as `get_claims_by_pubkey`). |
-| `list_data_roots_with_claims` | Params: `limit`, `offset` (JSON object). Rows: `data_root`, `claim_count`, `max_claim_height`; sorted by `max_claim_height` desc. |
-
-Exact JSON shapes mirror existing `get_block` / object-or-array param conventions.
-
-**Implementation.** **M2.2.8** and **M2.2.10** methods are live on `mfnd serve` in [`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs): in-memory reads of [`ChainState::claims` / `ChainState::storage`](../mfn-consensus/src/block.rs); see [`ROADMAP.md`](./ROADMAP.md) milestones **M2.2.8** and **M2.2.10**.
+| `get_claims_for` | All claims for a `data_root`. |
+| `get_claims_by_pubkey` | Recent claims from one `claim_pubkey`. |
+| `list_recent_uploads` | Storage index; optional `include_claims`. |
+| `list_recent_claims` | Global claim feed. |
+| `list_data_roots_with_claims` | Catalog by recent claim activity. |
 
 ---
 
 ## Threat model and limitations
 
-- **Claims are not ownership of the preimage.** Anyone can sign “I claim `data_root` X” without proving they possess the file bytes. Binding content possession is a **separate** problem (e.g. reveal-a-challenge, proof-of-storage to a third party, or publishing the file).
-- **No on-chain handle registry** in v1. Mapping `claim_pubkey` → human name is intentionally off-chain (websites, DNS, social).
-- **Spam:** claims cost transaction fees like any other tx; `MAX_CLAIMS_PER_TX` bounds per-tx work.
-- **Social resolution:** multiple claims on the same `data_root` are allowed; readers decide trust.
+- **Not proof of file possession.** Binding `commit_hash` proves the claim refers to an **on-chain anchored upload**, not that the signer holds the preimage bytes.
+- **Unbound claims remain weak.** `commit_hash = 0` is intentional for pre-upload or third-party curation signals.
+- **No on-chain handle registry.** Human names stay off-chain.
+- **Spam:** bounded by tx fees and `MAX_CLAIMS_PER_TX`; duplicate (`data_root`, pubkey) pairs are rejected.
+- **Social resolution:** different pubkeys may claim the same `data_root`.
 
 ---
 
-## Implementation milestones (M2.2.0–M2.2.10)
+## Checkpoints
 
-Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Milestone series M2.2 — Authorship claim layer**. **M2.2.0–M2.2.10** are complete in this repository (implementation **M2.2.0–M2.2.8** plus **M2.2.9** docs plus **M2.2.10** derived `serve` views).
+Chain checkpoints **v3** persist the flat `claims` map. **v2** checkpoints decode into the same in-memory shape (legacy nested map + `claim_submitted` set are not re-encoded).
 
-| Id | Rust entrypoints (non-exhaustive) |
-|----|-----------------------------------|
-| M2.2.0–M2.2.1 | [`mfn_crypto::authorship`](../mfn-crypto/src/authorship.rs) |
-| M2.2.2 | [`mfn_consensus::extra_codec`](../mfn-consensus/src/extra_codec.rs) |
-| M2.2.3–M2.2.5 | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block` / `claims_root`](../mfn-consensus/src/block.rs), [`verify_block_body`](../mfn-consensus/src/header_verify.rs) |
-| M2.2.6 | [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs) |
-| M2.2.7 | [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs) + [`build_storage_upload`](../mfn-wallet/src/upload.rs) |
-| M2.2.8 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) discovery RPCs (`get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`) |
-| M2.2.9 | Docs + cross-links (this file, [`PORTING.md`](../PORTING.md), overview, roadmap) |
-| M2.2.10 | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) — `list_recent_claims`, `list_data_roots_with_claims` |
+---
+
+## Implementation entrypoints
+
+| Area | Rust |
+|------|------|
+| Crypto / wire | [`mfn_crypto::authorship`](../mfn-crypto/src/authorship.rs) |
+| Parse `extra` | [`mfn_consensus::extra_codec`](../mfn-consensus/src/extra_codec.rs) |
+| Verify + index | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block`](../mfn-consensus/src/block.rs) |
+| Wallet | [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs) |
+| RPC | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) |
 
 ---
 
@@ -189,4 +214,3 @@ Milestone IDs and ordering live in [`ROADMAP.md`](./ROADMAP.md) under **Mileston
 - [`PRIVACY.md`](./PRIVACY.md) — CLSAG, stealth keys, what is hidden vs public.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — `apply_block`, header roots, domain separation.
 - [`GLOSSARY.md`](./GLOSSARY.md) — **authorship claim**, **MFCL**, **MFEX**, **claims_root**.
-- [`README.md`](../README.md) — repo map; [`mfn-node/README.md`](../mfn-node/README.md) — `mfnd serve` control plane.
