@@ -19,6 +19,9 @@
 //!
 //! **M2.3.16** adds [`TxV1`], [`BlockV1`], and [`GossipEndV1`]: post-goodbye gossip payloads carrying
 //! consensus `encode_transaction` / `encode_block` bytes (tag + body).
+//!
+//! **M2.3.18** adds [`crate::block_sync::GetBlocksByHeightV1`] (`0x09`) and
+//! [`crate::block_sync::BlocksV1`] (`0x0a`) for block-sync request/response after the handshake.
 
 use std::io::{Read, Write};
 

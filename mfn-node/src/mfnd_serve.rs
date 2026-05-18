@@ -8,12 +8,15 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
-use mfn_net::serve::{spawn_inbound_handshake_loop, spawn_outbound_dial, HidCounter, TipSnapshot};
+use mfn_net::serve::{
+    spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncHook, HidCounter, TipSnapshot,
+};
 use mfn_rpc::parse_and_dispatch_serve;
 use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
 use mfn_store::ChainPersistence;
 use serde_json::Value;
 
+use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_gossip::P2pGossipHandler;
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
@@ -69,10 +72,11 @@ pub(crate) fn run_serve(
     };
 
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
-    let (p2p_tip_cell, p2p_hid_counter, gossip_hook): (
+    let (p2p_tip_cell, p2p_hid_counter, gossip_hook, block_sync_hook): (
         Option<TipSnapshot>,
         Option<HidCounter>,
         Option<mfn_net::GossipHook>,
+        Option<BlockSyncHook>,
     ) = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -86,13 +90,15 @@ pub(crate) fn run_serve(
             Arc::clone(&store),
             Arc::clone(&tip_cell),
         );
+        let sync_hook = P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
         (
             Some(tip_cell),
             Some(Arc::new(AtomicU64::new(0))),
             Some(hook),
+            Some(sync_hook),
         )
     } else {
-        (None, None, None)
+        (None, None, None, None)
     };
 
     let p2p_listener = if let Some(addr) = p2p_listen {
@@ -131,6 +137,7 @@ pub(crate) fn run_serve(
                 .expect("p2p hid counter when p2p listen")
                 .clone(),
             gossip_hook.clone(),
+            block_sync_hook.clone(),
         )?;
     }
 

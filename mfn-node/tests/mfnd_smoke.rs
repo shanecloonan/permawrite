@@ -702,6 +702,85 @@ fn mfnd_serve_p2p_tx_gossip_after_handshake() {
 }
 
 #[test]
+fn mfnd_serve_p2p_blocks_reply_after_handshake() {
+    let dir = unique_data_dir("serve_p2p_blocks_sync");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_synth_decoys.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (mut child, mut child_out, _child_err, rpc_addr, p2p_addr) =
+        spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip = assert_rpc2_result(&resp);
+    let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
+    let bytes = hex::decode(gid_hex).expect("decode genesis_id hex");
+    let mut genesis_id = [0u8; 32];
+    genesis_id.copy_from_slice(&bytes);
+    let tip_h = tip["tip_height"]
+        .as_u64()
+        .expect("tip_height must be a JSON number") as u32;
+    assert_eq!(tip_h, 1, "expected one block after step");
+    let tip_id_hex = tip["tip_id"].as_str().expect("tip_id hex");
+    let mut tip_id = [0u8; 32];
+    hex::decode_to_slice(tip_id_hex, &mut tip_id).expect("decode tip_id hex");
+    let local_tip = mfn_node::network::ChainTipV1 {
+        height: tip_h,
+        tip_id,
+    };
+    let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
+        p2p_addr,
+        &genesis_id,
+        &local_tip,
+    )
+    .expect("p2p handshake with tip exchange");
+    let req = mfn_node::network::GetBlocksByHeightV1 {
+        start_height: 1,
+        count: 8,
+    };
+    mfn_node::network::send_get_blocks_by_height_v1(&mut sock, req)
+        .expect("send GetBlocksByHeightV1");
+    let blocks = mfn_node::network::recv_blocks_v1(&mut sock).expect("recv BlocksV1");
+    assert_eq!(
+        blocks.block_wires.len(),
+        1,
+        "expected one block in BlocksV1 reply"
+    );
+    let block = mfn_consensus::decode_block(&blocks.block_wires[0]).expect("decode block");
+    assert_eq!(block.header.height, 1);
+
+    read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
+    let mut reply_line = String::new();
+    child_out
+        .read_line(&mut reply_line)
+        .expect("read mfnd_p2p_blocks_reply");
+    assert!(
+        reply_line.starts_with("mfnd_p2p_blocks_reply "),
+        "expected mfnd_p2p_blocks_reply, got {reply_line:?}"
+    );
+    assert!(
+        reply_line.contains("returned=1"),
+        "reply_line={reply_line:?}"
+    );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn mfnd_serve_p2p_listener_two_handshakes_increment_hid() {
     let dir = unique_data_dir("serve_p2p_two_hid");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");

@@ -10,13 +10,16 @@ use std::time::Instant;
 
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
-    recv_gossip_v1, recv_ping_send_pong, send_gossip_end_v1,
-    tcp_connect_peer_v1_handshake_with_tip_exchange, ChainTipV1, GossipHandler, GossipRecvStats,
-    P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
+    recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
+    tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncProvider, ChainTipV1, GossipHandler,
+    GossipRecvStats, P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 
 /// Shared gossip admission hook for inbound P2P sessions (**M2.3.16**).
 pub type GossipHook = Arc<dyn GossipHandler>;
+
+/// Block-log query hook for inbound [`GetBlocksByHeightV1`] (**M2.3.18**).
+pub type BlockSyncHook = Arc<dyn BlockSyncProvider>;
 
 /// Shared `(tip_height, tip_id)` snapshot for [`ChainTipV1`] exchange during `mfnd serve`.
 pub type TipSnapshot = Arc<Mutex<(u32, [u8; 32])>>;
@@ -120,6 +123,34 @@ impl GossipHandler for InboundGossip {
     }
 }
 
+fn log_blocks_reply(
+    hid: u64,
+    peer: &str,
+    start_height: u32,
+    requested: u32,
+    returned: usize,
+) {
+    println!(
+        "mfnd_p2p_blocks_reply hid={hid} peer={peer} start_height={start_height} requested={requested} returned={returned}"
+    );
+    let _ = std::io::stdout().flush();
+}
+
+struct InboundBlockSync {
+    inner: BlockSyncHook,
+    hid: u64,
+    peer: String,
+}
+
+impl BlockSyncProvider for InboundBlockSync {
+    fn blocks_from_height(&self, start_height: u32, count: u32) -> Vec<Vec<u8>> {
+        let requested = count.min(crate::block_sync::MAX_BLOCKS_PER_GET_V1);
+        let wires = self.inner.blocks_from_height(start_height, requested);
+        log_blocks_reply(self.hid, &self.peer, start_height, count, wires.len());
+        wires
+    }
+}
+
 fn recv_inbound_gossip(sock: &mut TcpStream, hid: u64, peer: &str, handler: &GossipHook) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
@@ -128,12 +159,48 @@ fn recv_inbound_gossip(sock: &mut TcpStream, hid: u64, peer: &str, handler: &Gos
         hid,
         peer: peer.to_string(),
     };
-    match recv_gossip_v1(sock, &session) {
+    match crate::gossip::recv_gossip_v1(sock, &session) {
         Ok(stats) => {
             if stats.tx_frames > 0 || stats.block_frames > 0 {
                 log_gossip_end(hid, peer, &stats);
             }
         }
+        Err(e) => eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}"),
+    }
+}
+
+fn recv_post_handshake(
+    sock: &mut TcpStream,
+    hid: u64,
+    peer: &str,
+    gossip: &GossipHook,
+    block_sync: Option<&BlockSyncHook>,
+) {
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let session = InboundGossip {
+        inner: gossip.clone(),
+        hid,
+        peer: peer.to_string(),
+    };
+    let result = if let Some(sync) = block_sync {
+        let logging = InboundBlockSync {
+            inner: sync.clone(),
+            hid,
+            peer: peer.to_string(),
+        };
+        serve_post_handshake_v1(sock, &logging, &session)
+    } else {
+        recv_inbound_gossip(sock, hid, peer, gossip);
+        return;
+    };
+    match result {
+        Ok(Some(stats)) => {
+            if stats.tx_frames > 0 || stats.block_frames > 0 {
+                log_gossip_end(hid, peer, &stats);
+            }
+        }
+        Ok(None) => {}
         Err(e) => eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}"),
     }
 }
@@ -145,6 +212,7 @@ pub fn spawn_inbound_handshake_loop(
     tip_cell: TipSnapshot,
     hid_counter: HidCounter,
     gossip: Option<GossipHook>,
+    block_sync: Option<BlockSyncHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p".into())
@@ -183,7 +251,7 @@ pub fn spawn_inbound_handshake_loop(
                         log_height_cmp(hid, &peer_s, local.height, &remote);
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
                         if let Some(h) = &gossip {
-                            recv_inbound_gossip(&mut sock, hid, &peer_s, h);
+                            recv_post_handshake(&mut sock, hid, &peer_s, h, block_sync.as_ref());
                         }
                     }
                     Err(e) => {

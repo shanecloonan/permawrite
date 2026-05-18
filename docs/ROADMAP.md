@@ -1861,13 +1861,29 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.3.18+ to reach a 3-validator local testnet
+## Milestone M2.3.18 — Block-sync request/response over P2P (✓ shipped)
+
+**Why it was next.** M2.3.16 gossips *new* txs/blocks after handshake, but a lagging peer has no way to pull historical blocks when its tip is behind. Block-sync request/response closes that gap before the outbound tip-based sync loop (M2.3.19).
+
+### What shipped
+
+- **[`mfn-net/src/block_sync.rs`](../mfn-net/src/block_sync.rs)** — Post-handshake tags **`GetBlocksByHeightV1` (`0x09`)** and **`BlocksV1` (`0x0a`)**. Request carries `start_height` + `count` (capped at 64 blocks per reply). Response carries length-prefixed canonical `encode_block` blobs. **`serve_post_handshake_v1`** multiplexes sync requests with the existing gossip burst (`0x06`–`0x08`).
+- **[`mfn-node/src/p2p_block_sync.rs`](../mfn-node/src/p2p_block_sync.rs)** — `P2pBlockSyncHandler` implements [`BlockSyncProvider`] by reading **`ChainPersistence::read_block_log_validated`** and filtering by `header.height >= start_height`.
+- **[`mfn-net/src/serve.rs`](../mfn-net/src/serve.rs)** — Inbound listener runs block-sync + gossip after handshake; stdout **`mfnd_p2p_blocks_reply hid=… start_height=… requested=… returned=…`**.
+
+### Tests
+
+- **`mfn-net`**: `get_blocks_by_height_v1_round_trip`, `blocks_v1_round_trip`.
+- **`tests::mfnd_smoke::mfnd_serve_p2p_blocks_reply_after_handshake`** — one `mfnd step`, then `serve` with P2P; external dialer sends `GetBlocksByHeightV1` after handshake and receives one canonical block; listener stdout includes `mfnd_p2p_blocks_reply … returned=1`.
+
+---
+
+## Coming next — M2.3.19+ to reach a 3-validator local testnet
 
 These are the concrete remaining sub-milestones in dependency order. Each is sized to be a single committable unit in the same "one small thing per commit" rhythm as M2.1.x / M2.2.x / M2.3.x to date.
 
 | Id (planned) | Deliverable | Why it's blocking |
 |---|---|---|
-| **M2.3.18** | **Block-sync request/response over P2P.** `GetBlocksByHeightV1` / `BlocksV1` frames in `mfn-net`; inbound handler in `mfn-node` queries `ChainPersistence::read_block_log_validated` and replies with canonical `encode_block` bytes. | Two nodes that diverge today have no way to catch the lagging peer up; M2.3.16 only gossips *new* blocks. |
 | **M2.3.19** | **Outbound tip-based sync loop.** After handshake, if the remote tip is higher, request the missing range and apply each `BlockV1` through `Chain::apply` + `ChainPersistence::append_block`. | Required before two `mfnd` processes can survive desync and converge. |
 | **M2.3.20** | **Mempool fan-out.** When `Mempool::admit` returns `Fresh`, forward the tx to every connected P2P peer via `TxV1`; idempotent on the receiving side because `admit` already dedups by `tx_id`. | Today gossip is single-hop; for 3+ nodes we need transitive propagation. |
 | **M2.3.21** | **Durable mempool.** Snapshot pending txs to a `mempool.bytes` file under the data dir on shutdown; reload on boot. Optional `mempool_root` exposed for diagnostics, not consensus. | A `mfnd` restart today loses every queued submission. |
@@ -1911,7 +1927,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-node::p2p_gossip` | `GossipHandler` impl that admits inbound `TxV1` to the mempool and applies inbound `BlockV1` through chain + persistence. | ✓ live |
 | `mfn-node::node_store` | Picks `ChainStore` (filesystem) or `RedbChainStore` based on `--store fs\|redb`. | ✓ live |
 | `mfn-node/src/bin/mfnd.rs` | Reference daemon binary. `status` / `save` / `run` / `step` (+ `--blocks N` / `--checkpoint-each`) / `serve` (+ `--rpc-listen` / `--p2p-listen` / `--p2p-dial` / `--store fs\|redb`). | ✓ live |
-| Block-sync handler (planned) | `GetBlocksByHeightV1` / `BlocksV1` reply + outbound tip-based sync loop. | ⏳ M2.3.18–M2.3.19 |
+| Block-sync handler | `GetBlocksByHeightV1` / `BlocksV1` reply over P2P (**M2.3.18**). Outbound tip-based sync loop still planned. | ✓ reply path live; ⏳ M2.3.19 sync loop |
 | Mempool fan-out (planned) | Forward `Fresh` admissions to all connected peers. | ⏳ M2.3.20 |
 | Durable mempool (planned) | Snapshot pending txs on shutdown; reload on boot. | ⏳ M2.3.21 |
 | Persistent peer set (planned) | `peers.json` + reconnect loop. | ⏳ M2.3.22 |
@@ -1921,7 +1937,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
-- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.17), M2.3.18+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes and exchange `TxV1` / `BlockV1` gossip frames; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: block-sync request/response, mempool fan-out, durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
+- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.18), M2.3.19+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange `TxV1` / `BlockV1` gossip frames, and answer `GetBlocksByHeightV1` with validated `BlocksV1` from the local block log; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: outbound tip-based sync loop, mempool fan-out, durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
 - **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
 
 ### Not in M2.x
