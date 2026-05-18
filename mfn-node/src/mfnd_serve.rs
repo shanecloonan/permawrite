@@ -12,13 +12,14 @@ use mfn_net::serve::{
     spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
     FanoutPeerSetHook, HidCounter, TipSnapshot,
 };
+use mfn_net::FanoutPeerSet;
 use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
 use mfn_runtime::{mempool_root, Chain, ChainConfig, Mempool, MempoolConfig};
 use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
-use crate::p2p_fanout::P2pPeerSet;
+use crate::p2p_fanout::{spawn_reconnect_saved_peers, P2pPeerSet};
 use crate::p2p_gossip::P2pGossipHandler;
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
@@ -79,12 +80,12 @@ fn persist_mempool(store: &dyn ChainPersistence, pool: &Mempool) {
     }
 }
 
-fn serve_dispatch_opts(fanout_peers: Option<&FanoutPeerSetHook>) -> ServeDispatchOpts {
+fn serve_dispatch_opts(fanout_peers: Option<&Arc<P2pPeerSet>>) -> ServeDispatchOpts {
     ServeDispatchOpts {
         on_fresh_tx: fanout_peers.map(|ps| {
             let ps = Arc::clone(ps);
             Arc::new(move |bytes: &[u8]| {
-                ps.fanout_fresh_tx(bytes, None);
+                FanoutPeerSet::fanout_fresh_tx(ps.as_ref(), bytes, None);
             }) as Arc<dyn Fn(&[u8]) + Send + Sync>
         }),
     }
@@ -135,7 +136,7 @@ pub(crate) fn run_serve(
         Option<mfn_net::GossipHook>,
         Option<BlockSyncHook>,
         Option<BlockSyncApplierHook>,
-        Option<FanoutPeerSetHook>,
+        Option<Arc<P2pPeerSet>>,
     ) = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -143,7 +144,11 @@ pub(crate) fn run_serve(
                 .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
             snapshot_chain_tip_for_p2p(&guard)
         }));
-        let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip_cell));
+        let fanout = P2pPeerSet::new(
+            genesis_id,
+            Arc::clone(&tip_cell),
+            store.root().to_path_buf(),
+        );
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),
             Arc::clone(&pool),
@@ -207,7 +212,9 @@ pub(crate) fn run_serve(
             gossip_hook.clone(),
             block_sync_hook.clone(),
             block_applier_hook.clone(),
-            fanout_peers.clone(),
+            fanout_peers
+                .as_ref()
+                .map(|p| Arc::clone(p) as FanoutPeerSetHook),
         )?;
     }
 
@@ -223,10 +230,32 @@ pub(crate) fn run_serve(
                 .as_ref()
                 .expect("p2p hid counter when p2p dial")
                 .clone(),
+            gossip_hook.clone(),
+            block_applier_hook.clone(),
+            fanout_peers
+                .as_ref()
+                .map(|p| Arc::clone(p) as FanoutPeerSetHook),
+            local_p2p_listen,
+        )?;
+    }
+
+    if let (Some(ps), Some(tc), Some(hid)) = (
+        fanout_peers.as_ref(),
+        p2p_tip_cell.as_ref(),
+        p2p_hid_counter.as_ref(),
+    ) {
+        spawn_reconnect_saved_peers(
+            ps,
+            genesis_id,
+            Arc::clone(tc),
+            Arc::clone(hid),
             gossip_hook,
             block_applier_hook,
-            fanout_peers.clone(),
+            fanout_peers
+                .as_ref()
+                .map(|p| Arc::clone(p) as FanoutPeerSetHook),
             local_p2p_listen,
+            p2p_dial,
         )?;
     }
 
@@ -236,9 +265,13 @@ pub(crate) fn run_serve(
     {
         let store_c = Arc::clone(&store);
         let pool_c = Arc::clone(&pool);
+        let peers_c = fanout_peers.clone();
         ctrlc::set_handler(move || {
             if let Ok(guard) = pool_c.lock() {
                 persist_mempool(store_c.as_ref(), &guard);
+            }
+            if let Some(ps) = peers_c.as_ref() {
+                ps.persist();
             }
             std::process::exit(0);
         })

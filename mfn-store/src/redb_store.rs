@@ -333,6 +333,7 @@ impl ChainPersistence for RedbChainStore {
         }
         write_txn.commit().map_err(|e| db_err("commit clear", e))?;
         crate::mempool_persist::remove_mempool_file(self.root())?;
+        crate::peers_persist::remove_peers_file(self.root())?;
         Ok(())
     }
 }

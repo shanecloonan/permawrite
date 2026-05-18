@@ -379,14 +379,14 @@ pub fn spawn_outbound_dial(
             ) {
                 Ok((mut sock, remote)) => {
                     let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
+                    if let Some(ps) = &fanout_peers {
+                        ps.register_peer(&addr);
+                    }
                     println!("mfnd_p2p_dial_ok={addr}");
                     let _ = std::io::stdout().flush();
                     log_peer_tip(hid, addr.as_str(), &remote);
                     log_height_cmp(hid, addr.as_str(), local.height, &remote);
                     log_handshake_ms(hid, addr.as_str(), t0.elapsed());
-                    if let Some(ps) = &fanout_peers {
-                        ps.register_peer(&addr);
-                    }
                     if let Some(listen) = local_p2p_listen {
                         let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
                         let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));

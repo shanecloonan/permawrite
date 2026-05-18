@@ -405,6 +405,8 @@ dependencies = [
  "mfn-runtime",
  "mfn-storage",
  "redb",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

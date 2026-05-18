@@ -50,4 +50,13 @@ pub enum StoreError {
         /// Decode error detail.
         detail: String,
     },
+
+    /// `peers.json` read/write failure (**M2.3.22**).
+    #[error("peers file `{}`: {detail}", path.display())]
+    PeersJson {
+        /// Peers file path.
+        path: PathBuf,
+        /// Error detail.
+        detail: String,
+    },
 }

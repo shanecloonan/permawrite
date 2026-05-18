@@ -16,6 +16,8 @@ mfn-runtime = { path = "../mfn-runtime" }
 mfn-consensus = { path = "../mfn-consensus" }
 redb = "2.4"
 thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 mfn-storage = { path = "../mfn-storage" }

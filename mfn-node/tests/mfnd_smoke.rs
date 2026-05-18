@@ -965,6 +965,101 @@ fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
 }
 
 #[test]
+fn mfnd_p2p_reconnects_saved_peers_on_restart() {
+    let dir_a = unique_data_dir("p2p_reconnect_a");
+    let dir_b = unique_data_dir("p2p_reconnect_b");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child_a, mut out_a, _err_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_a.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve with dial");
+    let stdout_b = child_b.stdout.take().expect("stdout b");
+    let mut out_b = BufReader::new(stdout_b);
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b);
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=");
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_b.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+    let peers_raw =
+        std::fs::read_to_string(mfn_store::peers_path(&dir_b)).expect("read peers.json");
+    assert!(
+        peers_raw.contains(&p2p_a.to_string()),
+        "peers.json should list peer A, got {peers_raw}"
+    );
+
+    let _ = child_b.kill();
+    let _ = child_b.wait();
+    std::thread::sleep(Duration::from_millis(300));
+
+    let mut child_b2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve reconnect");
+    let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
+    let mut out_b2 = BufReader::new(stdout_b2);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ");
+    let _ = read_mfnd_serve_listening_addr(&mut out_b2);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=");
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ");
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=");
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_b2.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+
+    let _ = child_a.kill();
+    let _ = child_b2.kill();
+    let _ = child_a.wait();
+    let _ = child_b2.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
+}
+
+#[test]
 fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
     let (dir_a, spec, tx_hex, tx_id_hex) =
         synth_decoy_one_step_signed_transfer_fixture("p2p_tx_fanout_abc");
@@ -1170,7 +1265,16 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
     let dir_a = unique_data_dir("serve_p2p_dial_a");
     let dir_b = unique_data_dir("serve_p2p_dial_b");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let (mut child_a, _out_a, _err_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    let (mut child_a, mut out_a, _err_a, _rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_a.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
     let mut child_b = mfnd()
         .args(["--data-dir"])
         .arg(&dir_b)
@@ -1186,22 +1290,8 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
         .expect("spawn dialer mfnd serve");
     let stdout = child_b.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let mut l1 = String::new();
-    out_reader
-        .read_line(&mut l1)
-        .expect("read mfnd_serve_listening from dialer");
-    assert!(
-        l1.starts_with("mfnd_serve_listening="),
-        "expected mfnd_serve_listening, got {l1:?}"
-    );
-    let mut l2 = String::new();
-    out_reader
-        .read_line(&mut l2)
-        .expect("read mfnd_p2p_dial_ok from dialer");
-    assert!(
-        l2.starts_with("mfnd_p2p_dial_ok="),
-        "expected mfnd_p2p_dial_ok, got {l2:?}"
-    );
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_reader);
+    read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_dial_ok=");
     let mut l3 = String::new();
     out_reader
         .read_line(&mut l3)

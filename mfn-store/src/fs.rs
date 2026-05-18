@@ -276,6 +276,7 @@ impl ChainPersistence for ChainStore {
         remove_if_exists(&self.temp_path(), "remove_temp")?;
         remove_if_exists(&self.block_log_path(), "remove_block_log")?;
         crate::mempool_persist::remove_mempool_file(self.root())?;
+        crate::peers_persist::remove_peers_file(self.root())?;
         Ok(())
     }
 }
