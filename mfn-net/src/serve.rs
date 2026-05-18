@@ -10,9 +10,10 @@ use std::time::Instant;
 
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
-    recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
-    tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncProvider, ChainTipV1, GossipHandler,
-    GossipRecvStats, P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
+    pull_blocks_to_tip, recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
+    tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
+    ChainTipV1, GossipHandler, GossipRecvStats, PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT,
+    P2P_HANDSHAKE_IO_TIMEOUT,
 };
 
 /// Shared gossip admission hook for inbound P2P sessions (**M2.3.16**).
@@ -20,6 +21,9 @@ pub type GossipHook = Arc<dyn GossipHandler>;
 
 /// Block-log query hook for inbound [`GetBlocksByHeightV1`] (**M2.3.18**).
 pub type BlockSyncHook = Arc<dyn BlockSyncProvider>;
+
+/// Apply hook for outbound/inbound catch-up pulls (**M2.3.19**).
+pub type BlockSyncApplierHook = Arc<dyn BlockSyncApplier>;
 
 /// Shared `(tip_height, tip_id)` snapshot for [`ChainTipV1`] exchange during `mfnd serve`.
 pub type TipSnapshot = Arc<Mutex<(u32, [u8; 32])>>;
@@ -84,6 +88,45 @@ fn log_gossip_block(hid: u64, peer: &str, outcome: &str, height: Option<u32>) {
         None => println!("mfnd_p2p_block_apply hid={hid} peer={peer} outcome={outcome}"),
     }
     let _ = std::io::stdout().flush();
+}
+
+fn log_sync_start(hid: u64, peer: &str, local_height: u32, remote_height: u32) {
+    println!(
+        "mfnd_p2p_sync_start hid={hid} peer={peer} local_height={local_height} remote_height={remote_height}"
+    );
+    let _ = std::io::stdout().flush();
+}
+
+fn log_sync_end(hid: u64, peer: &str, stats: &PullBlocksStats) {
+    println!(
+        "mfnd_p2p_sync_end hid={hid} peer={peer} applied={} final_height={}",
+        stats.blocks_applied, stats.local_height_after
+    );
+    let _ = std::io::stdout().flush();
+}
+
+fn log_sync_abort(hid: u64, peer: &str, err: &impl std::fmt::Display) {
+    eprintln!("mfnd_p2p_sync_abort hid={hid} peer={peer} {err}");
+}
+
+fn maybe_pull_blocks_if_behind(
+    sock: &mut TcpStream,
+    hid: u64,
+    peer: &str,
+    local: &ChainTipV1,
+    remote: &ChainTipV1,
+    applier: &BlockSyncApplierHook,
+) {
+    if remote.height <= local.height {
+        return;
+    }
+    log_sync_start(hid, peer, local.height, remote.height);
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    match pull_blocks_to_tip(sock, local.height, remote.height, applier.as_ref()) {
+        Ok(stats) => log_sync_end(hid, peer, &stats),
+        Err(e) => log_sync_abort(hid, peer, &e),
+    }
 }
 
 fn log_gossip_end(hid: u64, peer: &str, stats: &GossipRecvStats) {
@@ -213,6 +256,7 @@ pub fn spawn_inbound_handshake_loop(
     hid_counter: HidCounter,
     gossip: Option<GossipHook>,
     block_sync: Option<BlockSyncHook>,
+    block_applier: Option<BlockSyncApplierHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p".into())
@@ -250,6 +294,11 @@ pub fn spawn_inbound_handshake_loop(
                         log_peer_tip(hid, &peer_s, &remote);
                         log_height_cmp(hid, &peer_s, local.height, &remote);
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
+                        if let Some(a) = &block_applier {
+                            maybe_pull_blocks_if_behind(
+                                &mut sock, hid, &peer_s, &local, &remote, a,
+                            );
+                        }
                         if let Some(h) = &gossip {
                             recv_post_handshake(&mut sock, hid, &peer_s, h, block_sync.as_ref());
                         }
@@ -274,6 +323,7 @@ pub fn spawn_outbound_dial(
     tip_cell: TipSnapshot,
     hid_counter: HidCounter,
     gossip: Option<GossipHook>,
+    block_applier: Option<BlockSyncApplierHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p-dial".into())
@@ -298,6 +348,11 @@ pub fn spawn_outbound_dial(
                     log_peer_tip(hid, addr.as_str(), &remote);
                     log_height_cmp(hid, addr.as_str(), local.height, &remote);
                     log_handshake_ms(hid, addr.as_str(), t0.elapsed());
+                    if let Some(a) = &block_applier {
+                        maybe_pull_blocks_if_behind(
+                            &mut sock, hid, addr.as_str(), &local, &remote, a,
+                        );
+                    }
                     if gossip.is_some() {
                         let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
                         let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));

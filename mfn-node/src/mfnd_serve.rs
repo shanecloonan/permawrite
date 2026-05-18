@@ -9,7 +9,8 @@ use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
 use mfn_net::serve::{
-    spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncHook, HidCounter, TipSnapshot,
+    spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
+    HidCounter, TipSnapshot,
 };
 use mfn_rpc::parse_and_dispatch_serve;
 use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
@@ -72,11 +73,12 @@ pub(crate) fn run_serve(
     };
 
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
-    let (p2p_tip_cell, p2p_hid_counter, gossip_hook, block_sync_hook): (
+    let (p2p_tip_cell, p2p_hid_counter, gossip_hook, block_sync_hook, block_applier_hook): (
         Option<TipSnapshot>,
         Option<HidCounter>,
         Option<mfn_net::GossipHook>,
         Option<BlockSyncHook>,
+        Option<BlockSyncApplierHook>,
     ) = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -91,14 +93,17 @@ pub(crate) fn run_serve(
             Arc::clone(&tip_cell),
         );
         let sync_hook = P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
+        let gossip_hook: mfn_net::GossipHook = hook.clone();
+        let applier_hook: BlockSyncApplierHook = hook;
         (
             Some(tip_cell),
             Some(Arc::new(AtomicU64::new(0))),
-            Some(hook),
+            Some(gossip_hook),
             Some(sync_hook),
+            Some(applier_hook),
         )
     } else {
-        (None, None, None, None)
+        (None, None, None, None, None)
     };
 
     let p2p_listener = if let Some(addr) = p2p_listen {
@@ -138,6 +143,7 @@ pub(crate) fn run_serve(
                 .clone(),
             gossip_hook.clone(),
             block_sync_hook.clone(),
+            block_applier_hook.clone(),
         )?;
     }
 
@@ -154,6 +160,7 @@ pub(crate) fn run_serve(
                 .expect("p2p hid counter when p2p dial")
                 .clone(),
             gossip_hook,
+            block_applier_hook,
         )?;
     }
 

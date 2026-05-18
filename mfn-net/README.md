@@ -3,7 +3,7 @@
 Blocking TCP P2P: length-prefixed frames, versioned handshakes, and post-goodbye gossip.
 
 - **`frame`** — `HelloV1`, ping/pong, `ChainTipV1`, `GoodbyeV1`, **`TxV1`** / **`BlockV1`** / **`GossipEndV1`** (**M2.3.16**).
-- **`block_sync`** — **`GetBlocksByHeightV1`** / **`BlocksV1`** request/response after handshake (**M2.3.18**).
+- **`block_sync`** — **`GetBlocksByHeightV1`** / **`BlocksV1`** request/response (**M2.3.18**) and **`pull_blocks_to_tip`** catch-up when the remote tip is ahead (**M2.3.19**).
 - **`handshake`** — symmetric hello + dial helpers.
 - **`gossip`** — `recv_gossip_v1` / `send_tx_v1` with a pluggable `GossipHandler`.
 - **`serve`** — `mfnd serve` accept/dial threads and stdout harness lines (`mfnd_p2p_*`).

@@ -1,4 +1,4 @@
-//! Block-sync request/response over P2P (**M2.3.18**).
+//! Block-sync request/response over P2P (**M2.3.18**) and outbound catch-up (**M2.3.19**).
 //!
 //! After the Hello → Ping/Pong → Tip → Goodbye handshake, peers may exchange
 //! [`GetBlocksByHeightV1`] / [`BlocksV1`] frames before or instead of the gossip
@@ -131,6 +131,25 @@ pub trait BlockSyncProvider: Send + Sync {
     fn blocks_from_height(&self, start_height: u32, count: u32) -> Vec<Vec<u8>>;
 }
 
+/// Apply blocks pulled from a peer (implemented in `mfn-node`).
+pub trait BlockSyncApplier: Send + Sync {
+    /// Apply one canonical `encode_block` blob; returns the new chain tip height on success.
+    fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String>;
+}
+
+/// Outcome of [`pull_blocks_to_tip`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PullBlocksStats {
+    /// Local tip height before any pull.
+    pub local_height_before: u32,
+    /// Remote tip height advertised in handshake.
+    pub remote_height: u32,
+    /// Blocks successfully applied during this pull.
+    pub blocks_applied: u32,
+    /// Local tip height after pull (unchanged if nothing applied).
+    pub local_height_after: u32,
+}
+
 /// Failed to encode a [`BlocksV1`] payload.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum BlockSyncEncodeError {
@@ -186,6 +205,61 @@ pub fn send_get_blocks_by_height_v1<W: Write>(
 pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError> {
     let payload = read_frame(r).map_err(BlockSyncRecvError::Frame)?;
     BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode)
+}
+
+/// Request and apply blocks until local height reaches `remote_height` or the peer has no more.
+///
+/// No-op when `remote_height <= local_height`. Issues one or more
+/// [`GetBlocksByHeightV1`] / [`BlocksV1`] round-trips in batches of up to
+/// [`MAX_BLOCKS_PER_GET_V1`].
+pub fn pull_blocks_to_tip<S: Read + Write>(
+    stream: &mut S,
+    local_height: u32,
+    remote_height: u32,
+    applier: &dyn BlockSyncApplier,
+) -> Result<PullBlocksStats, PullBlocksError> {
+    let mut stats = PullBlocksStats {
+        local_height_before: local_height,
+        remote_height,
+        blocks_applied: 0,
+        local_height_after: local_height,
+    };
+    if remote_height <= local_height {
+        return Ok(stats);
+    }
+    let mut cur = local_height;
+    while cur < remote_height {
+        let start = cur.saturating_add(1);
+        let need = remote_height - cur;
+        let count = need.min(MAX_BLOCKS_PER_GET_V1);
+        send_get_blocks_by_height_v1(
+            stream,
+            GetBlocksByHeightV1 {
+                start_height: start,
+                count,
+            },
+        )?;
+        let blocks = recv_blocks_v1(stream)?;
+        if blocks.block_wires.is_empty() {
+            break;
+        }
+        let prev = cur;
+        for wire in &blocks.block_wires {
+            let height = applier
+                .apply_synced_block(wire)
+                .map_err(PullBlocksError::Apply)?;
+            stats.blocks_applied = stats.blocks_applied.saturating_add(1);
+            cur = height;
+            stats.local_height_after = height;
+        }
+        if cur == prev {
+            break;
+        }
+        if cur >= remote_height {
+            break;
+        }
+    }
+    Ok(stats)
 }
 
 /// Read post-handshake frames until the peer closes or sends gossip.
@@ -286,6 +360,20 @@ pub enum PostHandshakeError {
     /// Unknown post-handshake tag.
     #[error("unknown post-handshake tag 0x{0:02x}")]
     UnknownTag(u8),
+}
+
+/// Failure while pulling blocks from a peer.
+#[derive(Debug, thiserror::Error)]
+pub enum PullBlocksError {
+    /// Failed to send a request frame.
+    #[error("write: {0}")]
+    Write(#[from] FrameWriteError),
+    /// Failed to read a response frame.
+    #[error("recv: {0}")]
+    Recv(#[from] BlockSyncRecvError),
+    /// Block application rejected the wire blob.
+    #[error("apply: {0}")]
+    Apply(String),
 }
 
 /// Failure while receiving a [`BlocksV1`] frame.

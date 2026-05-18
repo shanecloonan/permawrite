@@ -1878,13 +1878,28 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.3.19+ to reach a 3-validator local testnet
+## Milestone M2.3.19 — Outbound tip-based sync loop (✓ shipped)
+
+**Why it was next.** M2.3.18 let a peer *serve* blocks by height, but a lagging node never *requested* them automatically. Without a tip-based pull loop, two `mfnd` processes could not converge after desync.
+
+### What shipped
+
+- **[`mfn-net/src/block_sync.rs`](../mfn-net/src/block_sync.rs)** — [`BlockSyncApplier`] trait + [`pull_blocks_to_tip`]: when `remote_height > local_height`, batched `GetBlocksByHeightV1` / `BlocksV1` round-trips until caught up or the peer returns an empty batch.
+- **[`mfn-net/src/serve.rs`](../mfn-net/src/serve.rs)** — After handshake on **inbound** and **outbound** P2P sessions, calls `pull_blocks_to_tip` when the remote tip is ahead; stdout **`mfnd_p2p_sync_start`** / **`mfnd_p2p_sync_end`** / **`mfnd_p2p_sync_abort`**.
+- **[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs)** — `P2pGossipHandler` implements [`BlockSyncApplier`] via the same `Chain::apply` + `append_block` + `remove_mined` path as inbound `BlockV1` gossip.
+
+### Tests
+
+- **`tests::mfnd_smoke::mfnd_p2p_dial_syncs_blocks_from_ahead_peer`** — peer A runs `step --blocks 3` then `serve --p2p-listen`; peer B boots genesis-only and `serve --p2p-dial A`; B reaches `tip_height=3` with `mfnd_p2p_sync_end applied=3`.
+
+---
+
+## Coming next — M2.3.20+ to reach a 3-validator local testnet
 
 These are the concrete remaining sub-milestones in dependency order. Each is sized to be a single committable unit in the same "one small thing per commit" rhythm as M2.1.x / M2.2.x / M2.3.x to date.
 
 | Id (planned) | Deliverable | Why it's blocking |
 |---|---|---|
-| **M2.3.19** | **Outbound tip-based sync loop.** After handshake, if the remote tip is higher, request the missing range and apply each `BlockV1` through `Chain::apply` + `ChainPersistence::append_block`. | Required before two `mfnd` processes can survive desync and converge. |
 | **M2.3.20** | **Mempool fan-out.** When `Mempool::admit` returns `Fresh`, forward the tx to every connected P2P peer via `TxV1`; idempotent on the receiving side because `admit` already dedups by `tx_id`. | Today gossip is single-hop; for 3+ nodes we need transitive propagation. |
 | **M2.3.21** | **Durable mempool.** Snapshot pending txs to a `mempool.bytes` file under the data dir on shutdown; reload on boot. Optional `mempool_root` exposed for diagnostics, not consensus. | A `mfnd` restart today loses every queued submission. |
 | **M2.3.22** | **Persistent peer set.** Track successful-handshake peers in `peers.json`; reconnect to them on boot up to `max_outbound_peers`. | First step toward seed-list / discovery without hard-coding addresses on the command line. |
@@ -1927,7 +1942,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-node::p2p_gossip` | `GossipHandler` impl that admits inbound `TxV1` to the mempool and applies inbound `BlockV1` through chain + persistence. | ✓ live |
 | `mfn-node::node_store` | Picks `ChainStore` (filesystem) or `RedbChainStore` based on `--store fs\|redb`. | ✓ live |
 | `mfn-node/src/bin/mfnd.rs` | Reference daemon binary. `status` / `save` / `run` / `step` (+ `--blocks N` / `--checkpoint-each`) / `serve` (+ `--rpc-listen` / `--p2p-listen` / `--p2p-dial` / `--store fs\|redb`). | ✓ live |
-| Block-sync handler | `GetBlocksByHeightV1` / `BlocksV1` reply over P2P (**M2.3.18**). Outbound tip-based sync loop still planned. | ✓ reply path live; ⏳ M2.3.19 sync loop |
+| Block-sync handler | `GetBlocksByHeightV1` / `BlocksV1` reply + `pull_blocks_to_tip` when remote is ahead (**M2.3.18–M2.3.19**). | ✓ live |
 | Mempool fan-out (planned) | Forward `Fresh` admissions to all connected peers. | ⏳ M2.3.20 |
 | Durable mempool (planned) | Snapshot pending txs on shutdown; reload on boot. | ⏳ M2.3.21 |
 | Persistent peer set (planned) | `peers.json` + reconnect loop. | ⏳ M2.3.22 |
@@ -1937,7 +1952,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
-- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.18), M2.3.19+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange `TxV1` / `BlockV1` gossip frames, and answer `GetBlocksByHeightV1` with validated `BlocksV1` from the local block log; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: outbound tip-based sync loop, mempool fan-out, durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
+- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.19), M2.3.20+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, and automatically pull missing blocks when the remote tip is ahead; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: mempool fan-out, durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
 - **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
 
 ### Not in M2.x

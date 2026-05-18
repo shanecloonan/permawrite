@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{decode_block, decode_transaction, tx_id};
-use mfn_net::{GossipHandler, TipSnapshot};
+use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool};
 use mfn_store::ChainPersistence;
 
@@ -39,6 +39,23 @@ impl P2pGossipHandler {
                 .copied()
                 .unwrap_or_else(|| *chain.genesis_id());
             *g = (height, tip_id);
+        }
+    }
+}
+
+impl BlockSyncApplier for P2pGossipHandler {
+    fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
+        let label = self.on_block_v1(block_wire);
+        if let Some(rest) = label.strip_prefix("applied:") {
+            let height = rest
+                .split(':')
+                .next()
+                .ok_or_else(|| label.clone())?
+                .parse::<u32>()
+                .map_err(|_| label.clone())?;
+            Ok(height)
+        } else {
+            Err(label)
         }
     }
 }

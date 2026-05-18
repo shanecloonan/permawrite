@@ -781,6 +781,99 @@ fn mfnd_serve_p2p_blocks_reply_after_handshake() {
 }
 
 #[test]
+fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let dir_a = unique_data_dir("p2p_sync_a");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_a)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .args(["step", "--blocks", "3"])
+        .output()
+        .expect("spawn mfnd step --blocks 3 on peer A");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (mut child_a, _out_a, _err_a, rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+    let tip_a = tcp_request_json(rpc_a, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip_a_r = assert_rpc2_result(&tip_a);
+    assert_eq!(
+        tip_a_r["tip_height"].as_u64(),
+        Some(3),
+        "peer A tip_height resp={tip_a_r}"
+    );
+
+    let dir_b = unique_data_dir("p2p_sync_b");
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn dialer mfnd serve");
+    let stdout = child_b.stdout.take().expect("stdout pipe");
+    let mut out_b = BufReader::new(stdout);
+    let mut line = String::new();
+    out_b
+        .read_line(&mut line)
+        .expect("read mfnd_serve_listening");
+    assert!(line.starts_with("mfnd_serve_listening="));
+    let rpc_b: SocketAddr = line
+        .strip_prefix("mfnd_serve_listening=")
+        .unwrap()
+        .trim()
+        .parse()
+        .expect("parse rpc addr");
+
+    let mut sync_end = String::new();
+    loop {
+        sync_end.clear();
+        out_b.read_line(&mut sync_end).expect("read dialer stdout");
+        if sync_end.starts_with("mfnd_p2p_sync_end ") {
+            break;
+        }
+        if sync_end.starts_with("mfnd_p2p_sync_abort ") {
+            panic!("sync failed: {sync_end}");
+        }
+    }
+    assert!(
+        sync_end.contains("applied=3"),
+        "expected three blocks applied, got {sync_end:?}"
+    );
+    assert!(
+        sync_end.contains("final_height=3"),
+        "sync_end={sync_end:?}"
+    );
+
+    let tip_b = tcp_request_json(rpc_b, r#"{"jsonrpc":"2.0","method":"get_tip","id":2}"#);
+    let tip_b_r = assert_rpc2_result(&tip_b);
+    assert_eq!(
+        tip_b_r["tip_height"].as_u64(),
+        Some(3),
+        "dialer tip after sync resp={tip_b_r}"
+    );
+
+    let _ = child_a.kill();
+    let _ = child_b.kill();
+    let _ = child_a.wait();
+    let _ = child_b.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
+}
+
+#[test]
 fn mfnd_serve_p2p_listener_two_handshakes_increment_hid() {
     let dir = unique_data_dir("serve_p2p_two_hid");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");

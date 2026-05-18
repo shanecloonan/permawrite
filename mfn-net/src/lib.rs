@@ -36,9 +36,10 @@ pub use frame::{
     PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
 };
 pub use block_sync::{
-    recv_blocks_v1, send_get_blocks_by_height_v1, serve_post_handshake_v1, BlockSyncDecodeError,
-    BlockSyncEncodeError, BlockSyncProvider, BlockSyncRecvError, BlocksV1, GetBlocksByHeightV1,
-    PostHandshakeError, MAX_BLOCKS_PER_GET_V1,
+    pull_blocks_to_tip, recv_blocks_v1, send_get_blocks_by_height_v1, serve_post_handshake_v1,
+    BlockSyncApplier, BlockSyncDecodeError, BlockSyncEncodeError, BlockSyncProvider,
+    BlockSyncRecvError, BlocksV1, GetBlocksByHeightV1, PostHandshakeError, PullBlocksError,
+    PullBlocksStats, MAX_BLOCKS_PER_GET_V1,
 };
 pub use gossip::{
     recv_gossip_v1, send_block_v1, send_gossip_end_v1, send_tx_v1, GossipHandler, GossipRecvError,
@@ -52,8 +53,8 @@ pub use handshake::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 pub use serve::{
-    height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncHook, GossipHook,
-    HidCounter, TipSnapshot,
+    height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook,
+    BlockSyncHook, GossipHook, HidCounter, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).
