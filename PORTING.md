@@ -61,18 +61,47 @@ only when the Rust impl is **byte-for-byte compatible** with the TS reference
 | `coinbase.ts`    | `coinbase.rs`     | [x] live    |
 | `consensus.ts`   | `consensus.rs`    | [x] live    |
 | `slashing.ts`    | `slashing.rs`     | [x] live    |
-| `block.ts`       | `block.rs`        | [x] live (full state-transition: txs, slashing, finality, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement) |
+| `block.ts`       | `block/` (module) | [x] live (full state-transition: txs, slashing, finality, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement) |
 | — (authorship / `MFEX` / `claims_root`) | `claims.rs`, `extra_codec.rs`, `block.rs` (claims index + header) | [x] live — see [`docs/AUTHORSHIP.md`](./docs/AUTHORSHIP.md) |
 
-### `mfn-node` — daemon binary (planned crate)
+### `mfn-runtime` — in-process chain + mempool (extracted crate)
+
+| TS file (`lib/node/`) | Rust module (`mfn-runtime/src/`) | Status      |
+| --------------------- | -------------------------------- | ----------- |
+| — (chain driver)      | `chain.rs`                       | [x] live    |
+| `mempool.ts`          | `mempool.rs`                     | [x] live    |
+| — (producer)          | `producer.rs`                    | [x] live    |
+
+### `mfn-store` — checkpoint + block-log persistence (extracted crate)
+
+| TS file (`lib/node/`) | Rust module (`mfn-store/src/`) | Status      |
+| --------------------- | ------------------------------ | ----------- |
+| `store.ts` (subset)   | `fs.rs`, `redb_store.rs`, `trait.rs` (`ChainPersistence`) | [x] live (filesystem + `redb`; RocksDB TBD) |
+
+### `mfn-rpc` — JSON-RPC dispatch (extracted crate)
+
+| TS file (`lib/node/`) | Rust module (`mfn-rpc/src/`) | Status      |
+| --------------------- | ---------------------------- | ----------- |
+| `rpc.ts` (subset)     | `dispatch.rs`                | [x] live (TCP line server in `mfnd serve`; HTTP/WebSocket TBD) |
+
+### `mfn-net` — P2P framing + handshakes + gossip (extracted crate)
+
+| TS file (`lib/node/`) | Rust module (`mfn-net/src/`) | Status      |
+| --------------------- | ---------------------------- | ----------- |
+| — (wire framing)      | `frame.rs`                   | [x] live (`HelloV1` … `GossipEndV1`) |
+| — (handshake)         | `handshake.rs`               | [x] live    |
+| — (gossip)            | `gossip.rs`                  | [x] live (**M2.3.16** `TxV1` / `BlockV1` post-goodbye) |
+| — (serve threads)     | `serve.rs`                   | [x] live (`mfnd serve` P2P accept/dial loops) |
+
+### `mfn-node` — daemon binary (thin composition crate)
 
 | TS file (`lib/node/`) | Rust impl                   | Status      |
 | --------------------- | --------------------------- | ----------- |
-| `rpc.ts`              | `rpc.rs` (JSON-RPC over HTTP) | [ ] pending |
-| `store.ts`            | `store.rs` (RocksDB-backed)   | [ ] pending |
-| `mempool.ts`          | `mempool.rs`                | [x] live (`mfn-node`) |
-| —                     | `network.rs` (**M2.3.0** scaffold: `NetworkConfig` only; gossip TBD) | [x] live (`mfn-node`) |
-| —                     | `bin/mfnd.rs` + `mfnd_serve.rs` (devnet TCP JSON-RPC incl. authorship discovery **M2.2.8** + derived views **M2.2.10**) | [x] live (`mfn-node`) |
+| `rpc.ts` (HTTP/WS)    | —                           | [ ] pending (line JSON-RPC lives in **`mfn-rpc`** + `mfnd serve`) |
+| `store.ts` (RocksDB)  | —                           | [ ] pending (**`mfn-store`**: fs + `redb` shipped) |
+| `mempool.ts`          | re-export **`mfn-runtime`** | [x] live    |
+| —                     | re-export **`mfn-net`** (`network` module) | [x] live (**M2.3.16** gossip wired via `p2p_gossip.rs`) |
+| —                     | `bin/mfnd.rs` + `mfnd_serve.rs` + `p2p_gossip.rs` | [x] live |
 
 ### `mfn-wallet` — wallet binary (planned crate)
 

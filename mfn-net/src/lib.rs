@@ -24,14 +24,19 @@
 #![warn(clippy::all)]
 
 pub mod frame;
+pub mod gossip;
 pub mod handshake;
 pub mod serve;
 
 pub use frame::{
-    decode_frame_prefix, encode_frame, read_frame, write_frame_io, ChainTipV1, FrameDecodeError,
-    FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1, GoodbyeV1DecodeError,
-    HelloDecodeError, HelloV1, PingPongDecodeError, PingV1, PongV1, TipV1DecodeError,
-    MAX_FRAME_PAYLOAD_LEN,
+    decode_frame_prefix, encode_frame, read_frame, write_frame_io, BlockV1, ChainTipV1,
+    FrameDecodeError, FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1,
+    GoodbyeV1DecodeError, GossipEndV1, GossipPayloadDecodeError, HelloDecodeError, HelloV1,
+    PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
+};
+pub use gossip::{
+    recv_gossip_v1, send_block_v1, send_gossip_end_v1, send_tx_v1, GossipHandler, GossipRecvError,
+    GossipRecvStats, P2P_GOSSIP_IO_TIMEOUT,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
@@ -41,7 +46,8 @@ pub use handshake::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 pub use serve::{
-    height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, HidCounter, TipSnapshot,
+    height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, GossipHook, HidCounter,
+    TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

@@ -366,8 +366,10 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         Cmd::Serve => {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
+            let store: std::sync::Arc<dyn mfn_store::ChainPersistence + Send + Sync> =
+                std::sync::Arc::new(store);
             crate::mfnd_serve::run_serve(
-                &store,
+                store,
                 cfg,
                 listen,
                 parsed.p2p_listen.as_deref(),

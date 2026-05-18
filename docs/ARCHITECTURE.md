@@ -825,7 +825,7 @@ mfn-node/           Node-side glue             (175 tests)
                     StorageReplicationTooHigh, EndowmentMathFailed,
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
-├── network.rs      M2.3.0 scaffold: `NetworkConfig` defaults for a future gossip
+├── mfn-net         M2.3.0–M2.3.16: P2P framing, handshake, post-goodbye `TxV1` / `BlockV1` gossip (`mfn-node` re-exports as `network`)
 │                   listener + dialer (no sockets / wire yet).
 ├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
 ├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.

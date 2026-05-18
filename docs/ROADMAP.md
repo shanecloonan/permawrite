@@ -16,7 +16,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 | Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
 | Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
 | Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **696** | All checks green (+ 2 ignored) |
+| **Total** | | **699** | All checks green (+ 2 ignored) |
 
 **Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), advances a solo devnet via `step` (mempool-aware, with `--blocks N` and optional `--checkpoint-each` for per-block durability) when operator seeds are set in the environment, persists an append-only **`chain.blocks`** log after each applied block (M2.1.7) with optional **validated replay** against the checkpoint tip (M2.1.9), and can **`serve`** a minimal TCP line protocol (`get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**) whose responses follow **JSON-RPC 2.0** (M2.1.8: `jsonrpc`, `id`, `result` / structured `error`) with **`submit_tx`** accepting either object or one-element array **`params`** (M2.1.8.1) for local tools; **`get_block`** (M2.1.10) returns canonical block bytes from the validated log; **`get_block_header`** (M2.1.11) returns header bytes + `block_id` without the body; **`get_mempool`** (M2.1.12) returns `mempool_len` + sorted pending **`tx_ids`**, including after a successful **`submit_tx`** in subprocess tests; **`get_mempool_tx`** (M2.1.13) returns **`tx_hex`** for a pending id or **`MEMPOOL_TX_NOT_FOUND`** when absent; **`remove_mempool_tx`** (M2.1.14) evicts by id when present (`removed` + `pool_len`); **`clear_mempool`** (M2.1.15) drops every pending tx at once (`cleared_count` + `pool_len`); **`get_checkpoint`** (M2.1.16) returns in-memory [`Chain::encode_checkpoint`](../mfn-node/src/chain.rs) bytes as hex (`checkpoint_hex` + `byte_len`); **`save_checkpoint`** (M2.1.17) persists via [`ChainStore::save`](../mfn-node/src/store.rs) (IO errors **`-32004`**); **`list_methods`** (M2.1.18) returns a lexicographically sorted **`methods`** array of every implemented JSON-RPC method name (including **`list_methods`**); **`get_claims_for`** / **`get_claims_by_pubkey`** / **`list_recent_uploads`** (M2.2.8) plus **`list_recent_claims`** / **`list_data_roots_with_claims`** (M2.2.10) read the live [`ChainState`](../mfn-consensus/src/block.rs) **`claims`** / **`storage`** indexes for permaweb-style discovery over the same TCP line discipline; P2P, batching, HTTP/WebSocket RPC, and the wallet CLI remain on the roadmap below.
 
@@ -1650,6 +1650,29 @@ Workspace **+1 test** vs the M2.3.14 line count: **695 → 696** passing.
 
 ---
 
+## Milestone M2.3.16 — P2P tx/block gossip (`TxV1` / `BlockV1` / `GossipEndV1`) (✓ shipped)
+
+**Why it was next.** Handshake + tip exchange proved peers share a genesis, but multi-node testnet, public testnet, and a wallet RPC client all need **real tx (and block) propagation** after the session is established — not just height comparison stdout.
+
+### What shipped
+
+- **[`mfn-net/src/frame.rs`](../mfn-net/src/frame.rs)** — Post-goodbye gossip tags: **`TxV1` (`0x06`)**, **`BlockV1` (`0x07`)**, **`GossipEndV1` (`0x08`)** wrapping consensus `encode_transaction` / `encode_block` bytes inside the existing length-prefixed frame envelope.
+- **[`mfn-net/src/gossip.rs`](../mfn-net/src/gossip.rs)** — `GossipHandler` trait, `recv_gossip_v1`, `send_tx_v1` / `send_block_v1` / `send_gossip_end_v1`, **`P2P_GOSSIP_IO_TIMEOUT`** (10s).
+- **[`mfn-net/src/serve.rs`](../mfn-net/src/serve.rs)** — Inbound: after handshake stdout, **`recv_gossip_v1`** until **`GossipEndV1`**; stdout **`mfnd_p2p_tx_admit`**, **`mfnd_p2p_block_apply`**, **`mfnd_p2p_gossip_end`**. Outbound dial sends **`GossipEndV1`** (empty burst) after handshake.
+- **[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs)** — `P2pGossipHandler`: `Mempool::admit` for txs, `Chain::apply` + **`ChainPersistence::append_block`** + `remove_mined` for blocks; shared **`Arc<Mutex<Chain>>`** / mempool with the JSON-RPC loop.
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — `run_serve` holds chain/mempool behind mutexes so P2P and RPC share one process view.
+
+### Tests
+
+- **`mfn-net`**: `gossip::recv_gossip_v1_tx_then_end`, frame round-trips for **`TxV1`** / **`GossipEndV1`**.
+- **`tests::mfnd_smoke::mfnd_serve_p2p_tx_gossip_after_handshake`** — external dialer sends **`TxV1`** + **`GossipEndV1`** after full handshake; listener stdout **`mfnd_p2p_tx_admit … outcome=accepted`**; **`get_mempool`** contains the gossiped **`tx_id`**.
+
+Workspace **+3 tests** vs M2.3.15: **696 → 699** passing.
+
+**Not in M2.3.16:** proactive block sync when remote tip is ahead (request/response by height), mempool fan-out to multiple peers, durable mempool — still M2.3.x follow-ups.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
@@ -1665,8 +1688,10 @@ Workspace **+1 test** vs the M2.3.14 line count: **695 → 696** passing.
 | Module | Purpose |
 |---|---|
 | `mempool.rs` | Pending-tx admission, fee ordering, eviction. |
-| `network.rs` | **M2.3.0** scaffold live: [`NetworkConfig`](../mfn-node/src/network.rs) defaults only; libp2p / direct-TCP gossip + block/tx propagation TBD. |
-| `store.rs` | M2.1.0 file checkpoint store is live; **M2.1.7** append-only `chain.blocks` + `read_block_log`; **M2.1.9** `read_block_log_validated`; future RocksDB/sled snapshot + fork-choice replay extends it. |
+| `mfn-net` | **M2.3.0–M2.3.16** P2P framing + handshake + post-goodbye **tx/block gossip** (`TxV1` / `BlockV1` / `GossipEndV1`). |
+| `mfn-store` | **M2.1.0** filesystem + **`redb`** checkpoint + block log; trait [`ChainPersistence`](../mfn-store/src/trait.rs). |
+| `mfn-rpc` | JSON-RPC dispatch (no sockets); **`mfnd serve`** calls [`parse_and_dispatch_serve`](../mfn-rpc/src/dispatch.rs). |
+| `mfn-runtime` | In-process **`Chain`** + **`Mempool`** + producer helpers (extracted from `mfn-node`). |
 | `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
 | `runner.rs` | Block production loop, finality voting loop, mempool flush. |
 | `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3–M2.1.5** — `step`, mempool drain, `--blocks N`, `--checkpoint-each`; **M2.1.6** — `serve` + `--rpc-listen`; **M2.1.7** — `chain.blocks` append on `step`; **M2.1.8** — JSON-RPC 2.0 responses on `serve`; **M2.1.8.1** — `submit_tx` array `params`; **M2.1.9** — validated block log read; **M2.1.10** — `serve` `get_block`; **M2.1.11** — `serve` `get_block_header`; **M2.1.12** — `serve` `get_mempool`; **M2.1.13** — `serve` `get_mempool_tx`; **M2.1.14** — `serve` `remove_mempool_tx`; **M2.1.15** — `serve` `clear_mempool`; **M2.1.16** — `serve` `get_checkpoint`; **M2.1.17** — `serve` `save_checkpoint`; **M2.1.18** — `serve` `list_methods`; **M2.2.8** — `serve` `get_claims_for` / `get_claims_by_pubkey` / `list_recent_uploads`; **M2.2.10** — `serve` `list_recent_claims` / `list_data_roots_with_claims`; **M2.3.0** — `network` module (`NetworkConfig` defaults only). Full producer loop attaches later. |

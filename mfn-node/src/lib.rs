@@ -22,6 +22,7 @@
 mod mfnd_cli;
 mod mfnd_serve;
 mod node_store;
+mod p2p_gossip;
 
 pub use node_store::{NodeStore, StoreBackend};
 

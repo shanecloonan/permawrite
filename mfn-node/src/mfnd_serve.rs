@@ -14,6 +14,8 @@ use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
 use mfn_store::ChainPersistence;
 use serde_json::Value;
 
+use crate::p2p_gossip::P2pGossipHandler;
+
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
     let s = v.to_string();
     writeln!(stream, "{s}").map_err(|e| format!("mfnd serve: write response: {e}"))
@@ -49,25 +51,49 @@ fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
 /// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
 /// serve one JSON line per connection until the process exits.
 pub(crate) fn run_serve(
-    store: &dyn ChainPersistence,
+    store: Arc<dyn ChainPersistence + Send + Sync>,
     cfg: ChainConfig,
     rpc_listen: &str,
     p2p_listen: Option<&str>,
     p2p_dial: Option<&str>,
 ) -> Result<(), String> {
-    let mut chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
-    let mut pool = Mempool::new(MempoolConfig::default());
-    let genesis_id = *chain.genesis_id();
+    let chain = Arc::new(Mutex::new(
+        store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
+    ));
+    let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    let genesis_id = {
+        let guard = chain
+            .lock()
+            .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
+        *guard.genesis_id()
+    };
 
-    let (p2p_tip_cell, p2p_hid_counter): (Option<TipSnapshot>, Option<HidCounter>) =
-        if p2p_listen.is_some() || p2p_dial.is_some() {
-            (
-                Some(Arc::new(Mutex::new(snapshot_chain_tip_for_p2p(&chain)))),
-                Some(Arc::new(AtomicU64::new(0))),
-            )
-        } else {
-            (None, None)
-        };
+    let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
+    let (p2p_tip_cell, p2p_hid_counter, gossip_hook): (
+        Option<TipSnapshot>,
+        Option<HidCounter>,
+        Option<mfn_net::GossipHook>,
+    ) = if p2p_enabled {
+        let tip_cell = Arc::new(Mutex::new({
+            let guard = chain
+                .lock()
+                .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
+            snapshot_chain_tip_for_p2p(&guard)
+        }));
+        let hook = P2pGossipHandler::new(
+            Arc::clone(&chain),
+            Arc::clone(&pool),
+            Arc::clone(&store),
+            Arc::clone(&tip_cell),
+        );
+        (
+            Some(tip_cell),
+            Some(Arc::new(AtomicU64::new(0))),
+            Some(hook),
+        )
+    } else {
+        (None, None, None)
+    };
 
     let p2p_listener = if let Some(addr) = p2p_listen {
         Some(TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?)
@@ -104,6 +130,7 @@ pub(crate) fn run_serve(
                 .as_ref()
                 .expect("p2p hid counter when p2p listen")
                 .clone(),
+            gossip_hook.clone(),
         )?;
     }
 
@@ -119,6 +146,7 @@ pub(crate) fn run_serve(
                 .as_ref()
                 .expect("p2p hid counter when p2p dial")
                 .clone(),
+            gossip_hook,
         )?;
     }
 
@@ -135,11 +163,24 @@ pub(crate) fn run_serve(
                 continue;
             }
         };
-        match handle_client(&mut stream, store, &mut chain, &mut pool) {
+        let Ok(mut chain_guard) = chain.lock() else {
+            eprintln!("mfnd serve: chain mutex poisoned");
+            continue;
+        };
+        let Ok(mut pool_guard) = pool.lock() else {
+            eprintln!("mfnd serve: pool mutex poisoned");
+            continue;
+        };
+        match handle_client(
+            &mut stream,
+            store.as_ref(),
+            &mut chain_guard,
+            &mut pool_guard,
+        ) {
             Ok(()) => {
                 if let Some(tc) = &p2p_tip_cell {
                     if let Ok(mut g) = tc.lock() {
-                        *g = snapshot_chain_tip_for_p2p(&chain);
+                        *g = snapshot_chain_tip_for_p2p(&chain_guard);
                     }
                 }
             }

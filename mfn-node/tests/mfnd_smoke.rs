@@ -1,4 +1,4 @@
-//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13 + M2.3.14 + M2.3.15).
+//! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13 + M2.3.14 + M2.3.15 + M2.3.16).
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -633,6 +633,69 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
     )
     .expect("p2p tcp_connect_peer_v1_handshake_with_tip_exchange");
     read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_p2p_tx_gossip_after_handshake() {
+    let (dir, spec, tx_hex, tx_id_hex) =
+        synth_decoy_one_step_signed_transfer_fixture("serve_p2p_tx_gossip");
+    let (mut child, mut child_out, _child_err, rpc_addr, p2p_addr) =
+        spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip = assert_rpc2_result(&resp);
+    let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
+    let bytes = hex::decode(gid_hex).expect("decode genesis_id hex");
+    let mut genesis_id = [0u8; 32];
+    genesis_id.copy_from_slice(&bytes);
+    let tip_h = tip["tip_height"]
+        .as_u64()
+        .expect("tip_height must be a JSON number") as u32;
+    let tip_id_hex = tip["tip_id"].as_str().expect("tip_id hex");
+    let mut tip_id = [0u8; 32];
+    hex::decode_to_slice(tip_id_hex, &mut tip_id).expect("decode tip_id hex");
+    let local_tip = mfn_node::network::ChainTipV1 {
+        height: tip_h,
+        tip_id,
+    };
+    let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
+        p2p_addr,
+        &genesis_id,
+        &local_tip,
+    )
+    .expect("p2p handshake with tip exchange");
+    let tx_wire = hex::decode(tx_hex.trim()).expect("decode tx hex");
+    mfn_node::network::send_tx_v1(&mut sock, &tx_wire).expect("send TxV1");
+    mfn_node::network::send_gossip_end_v1(&mut sock).expect("send GossipEndV1");
+    read_listener_p2p_handshake_session(&mut child_out, tip_h, tip_id_hex);
+    let mut admit_line = String::new();
+    child_out
+        .read_line(&mut admit_line)
+        .expect("read mfnd_p2p_tx_admit");
+    assert!(
+        admit_line.starts_with("mfnd_p2p_tx_admit "),
+        "expected mfnd_p2p_tx_admit, got {admit_line:?}"
+    );
+    assert!(
+        admit_line.contains("outcome=accepted"),
+        "admit_line={admit_line:?}"
+    );
+    assert!(
+        admit_line.contains(&format!("tx_id={tx_id_hex}")),
+        "admit_line={admit_line:?}"
+    );
+    let mp = tcp_request_json(
+        rpc_addr,
+        r#"{"jsonrpc":"2.0","method":"get_mempool","id":2}"#,
+    );
+    let mp_r = assert_rpc2_result(&mp);
+    let ids = mp_r["tx_ids"].as_array().expect("tx_ids array");
+    assert!(
+        ids.iter().any(|v| v.as_str() == Some(tx_id_hex.as_str())),
+        "mempool missing gossiped tx_id={tx_id_hex} resp={mp_r}"
+    );
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

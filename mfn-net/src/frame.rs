@@ -16,6 +16,9 @@
 //! **M2.3.10** adds [`GoodbyeV1`]: a one-byte “session complete” marker after the tip exchange on the
 //! full [`crate::handshake::tcp_connect_peer_v1_handshake_with_tip_exchange`] path (dialer
 //! sends first, mirroring [`ChainTipV1`] ordering).
+//!
+//! **M2.3.16** adds [`TxV1`], [`BlockV1`], and [`GossipEndV1`]: post-goodbye gossip payloads carrying
+//! consensus `encode_transaction` / `encode_block` bytes (tag + body).
 
 use std::io::{Read, Write};
 
@@ -32,6 +35,10 @@ const CHAIN_TIP_V1_TAG: u8 = 0x04;
 const CHAIN_TIP_V1_LEN: usize = 1 + 4 + 32;
 
 const GOODBYE_V1_TAG: u8 = 0x05;
+
+const TX_V1_TAG: u8 = 0x06;
+const BLOCK_V1_TAG: u8 = 0x07;
+const GOSSIP_END_V1_TAG: u8 = 0x08;
 
 /// First gossip handshake: advertises which chain instance the peer expects.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -255,6 +262,110 @@ pub enum GoodbyeV1DecodeError {
         /// Tag value for [`GoodbyeV1`].
         expected: u8,
     },
+}
+
+/// Post-goodbye transaction gossip: tag `0x06` + consensus tx wire bytes (**M2.3.16**).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TxV1(pub Vec<u8>);
+
+impl TxV1 {
+    /// Wrap consensus `encode_transaction` bytes for a length-prefixed frame.
+    pub fn encode_payload(tx_wire: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(1 + tx_wire.len());
+        out.push(TX_V1_TAG);
+        out.extend_from_slice(tx_wire);
+        out
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode_payload(payload: &[u8]) -> Result<Self, GossipPayloadDecodeError> {
+        if payload.is_empty() {
+            return Err(GossipPayloadDecodeError::Empty);
+        }
+        if payload[0] != TX_V1_TAG {
+            return Err(GossipPayloadDecodeError::UnknownTag(payload[0]));
+        }
+        Ok(Self(payload[1..].to_vec()))
+    }
+
+    /// Consensus transaction wire bytes (without the tag byte).
+    #[must_use]
+    pub fn tx_wire(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Post-goodbye block gossip: tag `0x07` + consensus block wire bytes (**M2.3.16**).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BlockV1(pub Vec<u8>);
+
+impl BlockV1 {
+    /// Wrap consensus `encode_block` bytes for a length-prefixed frame.
+    pub fn encode_payload(block_wire: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(1 + block_wire.len());
+        out.push(BLOCK_V1_TAG);
+        out.extend_from_slice(block_wire);
+        out
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode_payload(payload: &[u8]) -> Result<Self, GossipPayloadDecodeError> {
+        if payload.is_empty() {
+            return Err(GossipPayloadDecodeError::Empty);
+        }
+        if payload[0] != BLOCK_V1_TAG {
+            return Err(GossipPayloadDecodeError::UnknownTag(payload[0]));
+        }
+        Ok(Self(payload[1..].to_vec()))
+    }
+
+    /// Consensus block wire bytes (without the tag byte).
+    #[must_use]
+    pub fn block_wire(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// End of the post-goodbye gossip burst (**M2.3.16**).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GossipEndV1;
+
+impl GossipEndV1 {
+    /// On-wire payload size (single tag byte).
+    pub const WIRE_LEN: usize = 1;
+
+    /// Encode to exactly one byte.
+    pub fn encode(self) -> [u8; 1] {
+        [GOSSIP_END_V1_TAG]
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode(payload: &[u8]) -> Result<Self, GossipPayloadDecodeError> {
+        if payload.len() != Self::WIRE_LEN {
+            return Err(GossipPayloadDecodeError::WrongLength { got: payload.len() });
+        }
+        if payload[0] != GOSSIP_END_V1_TAG {
+            return Err(GossipPayloadDecodeError::UnknownTag(payload[0]));
+        }
+        Ok(Self)
+    }
+}
+
+/// Failed to interpret a gossip payload ([`TxV1`], [`BlockV1`], [`GossipEndV1`]).
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum GossipPayloadDecodeError {
+    /// Empty payload.
+    #[error("gossip payload is empty")]
+    Empty,
+    /// Payload size is not exactly one byte (for [`GossipEndV1`]).
+    #[error("gossip end v1 payload must be 1 byte, got {got}")]
+    WrongLength {
+        /// Observed byte length.
+        got: usize,
+    },
+    /// First byte is not a known gossip tag.
+    #[error("unknown gossip tag: 0x{0:02x}")]
+    UnknownTag(u8),
 }
 
 /// Failed to interpret a [`ChainTipV1`] payload.
@@ -492,5 +603,21 @@ mod tests {
     #[test]
     fn goodbye_v1_decode_rejects_unknown_tag() {
         assert!(GoodbyeV1::decode(&[0x99]).is_err());
+    }
+
+    #[test]
+    fn tx_v1_and_block_v1_round_trip() {
+        let tx_wire = vec![0xabu8; 64];
+        let tx = TxV1::decode_payload(&TxV1::encode_payload(&tx_wire)).unwrap();
+        assert_eq!(tx.tx_wire(), tx_wire.as_slice());
+        let block_wire = vec![0xccu8; 128];
+        let block = BlockV1::decode_payload(&BlockV1::encode_payload(&block_wire)).unwrap();
+        assert_eq!(block.block_wire(), block_wire.as_slice());
+    }
+
+    #[test]
+    fn gossip_end_v1_round_trip() {
+        let g = GossipEndV1;
+        assert_eq!(GossipEndV1::decode(&g.encode()).unwrap(), g);
     }
 }
