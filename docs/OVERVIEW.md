@@ -1,13 +1,12 @@
 # Permawrite — Overview
 
-> **Audience.** Smart people who want to understand what's happening without reading the formulas.
-> Everything in this document has a rigorous counterpart in the [technical docs](./ARCHITECTURE.md). Anywhere you want the math, follow the **→ deep dive** links.
+Everything here has a rigorous counterpart in the [technical docs](./ARCHITECTURE.md). Where you want the math, follow the **→ deep dive** links.
 
 ---
 
 ## The one-sentence pitch
 
-**Permawrite is a blockchain that's as private as Monero and stores data more permanently than Arweave — at the same time, in the same chain, with the same coin.**
+**Permawrite is a blockchain that's as private as Monero and stores data as permanently as Arweave — at the same time, in the same chain, with the same coin.**
 
 The deep idea: **the fees people pay for financial privacy** are exactly what **funds permanent data storage**.
 

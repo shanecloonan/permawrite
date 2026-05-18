@@ -1,7 +1,6 @@
 # Architecture
 
-> **Audience.** Engineers, cryptographers, and protocol designers. Whitepaper-grade depth, but kept readable.
-> If you'd rather read the intuition first, start with [`OVERVIEW.md`](./OVERVIEW.md).
+Whitepaper-grade system specification. For intuition first, see [`OVERVIEW.md`](./OVERVIEW.md).
 
 ---
 

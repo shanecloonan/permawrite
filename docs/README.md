@@ -1,6 +1,6 @@
 # Permawrite Documentation
 
-Welcome. These docs cover the full design of the Permawrite blockchain — privacy-preserving, permanent-storage, single chain.
+Welcome. These docs cover the full design of Permawrite — a novel blockchain that funds permanent storage with fees from private transactions.
 
 <p align="center">
   <img src="./img/architecture-stack.svg" alt="Permawrite crate dependency stack" width="100%">
@@ -10,7 +10,7 @@ Welcome. These docs cover the full design of the Permawrite blockchain — priva
 
 ### Just want to understand what this is?
 
-- 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Smart-layperson level: no heavy formulas, lots of intuition.
+- 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Intuition first, with links to the technical specs.
 - 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network (freedom, incentives, economics).
 - 📚 [**GLOSSARY.md**](./GLOSSARY.md) — every acronym and protocol-specific term, alphabetical. Reach for it whenever you hit unfamiliar jargon.
 

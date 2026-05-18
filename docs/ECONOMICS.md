@@ -1,7 +1,6 @@
 # Economic Model
 
-> **Audience.** Anyone who wants to understand the money — researchers, validators, storage operators, casual readers willing to follow algebra at the pace of a careful proof.
-> The non-formula version is in [`OVERVIEW.md`](./OVERVIEW.md).
+For intuition first, see [`OVERVIEW.md`](./OVERVIEW.md).
 
 ---
 

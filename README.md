@@ -2,9 +2,9 @@
 
 # Permawrite
 
-**A privacy-preserving, permanent-storage blockchain.**
+**A novel blockchain that funds permanent storage with fees generated from private transactions.**
 
-*Monero-grade financial privacy fused with greater-than-Arweave-grade data permanence — in a single chain.*
+*Monero-grade financial privacy fused with Arweave-grade data permanence — in a single chain.*
 
 [![Tests](https://img.shields.io/badge/tests-675_passing-brightgreen)](#status)
 [![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
@@ -19,7 +19,7 @@
 
 ## What this is
 
-Permawrite is the **reference Rust implementation** of a new layer-1 blockchain (internally codenamed **MoneyFund Network**, MFBN-1 on the wire) that fuses two things which currently exist only in separate chains:
+Permawrite is the **Rust implementation** of a new layer-1 blockchain (internally codenamed **MoneyFund Network**, MFBN-1 on the wire) that fuses two things which currently exist only in separate chains:
 
 1. **Financial privacy at least as strong as Monero** — confidential amounts, stealth addresses, decoy-based ring signatures with deniable spending, no public address book, no visible balances.
 2. **Data permanence at least as strong as Arweave** — content-addressed uploads anchored on-chain with an upfront endowment that funds storage operators forever, audited every block via succinct random-access proofs.
@@ -40,9 +40,9 @@ Three reading paths depending on what you want:
 
 ### 🧭 I want to understand what this is
 
-Start here. Plain-language framing for someone who's smart but doesn't want to read formulas yet.
+Start here. Plain-language framing before the technical specs.
 
-- [**docs/OVERVIEW.md**](./docs/OVERVIEW.md) — the project, the vision, why it's hard, how it works (intuition only, no math)
+- [**docs/OVERVIEW.md**](./docs/OVERVIEW.md) — the project, the vision, why it's hard, how it works (intuition first)
 - [**docs/PRIVACY_AND_PERMANENCE.md**](./docs/PRIVACY_AND_PERMANENCE.md) — why privacy and permanence are fused here (freedom, incentives, economics)
 - [**docs/GLOSSARY.md**](./docs/GLOSSARY.md) — every acronym and term used anywhere in the docs
 
@@ -148,7 +148,7 @@ permawrite/
 ├── LICENSE-MIT / LICENSE-APACHE
 │
 ├── docs/                        ← all design documentation
-│   ├── OVERVIEW.md              ← smart-layperson explanation
+│   ├── OVERVIEW.md              ← project overview (intuition first)
 │   ├── ARCHITECTURE.md          ← whitepaper-grade technical spec
 │   ├── PRIVACY.md               ← the privacy half (deep dive)
 │   ├── STORAGE.md               ← the permanence half (deep dive)

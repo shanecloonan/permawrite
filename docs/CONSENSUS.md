@@ -1,6 +1,6 @@
 # Consensus Subsystem
 
-> **Audience.** Protocol engineers and PoS designers. The non-formula version is in [`OVERVIEW.md`](./OVERVIEW.md); the high-level architecture lens is in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+For intuition and context, see [`OVERVIEW.md`](./OVERVIEW.md) and [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Public discourse, personal records, journalism, science, and creative work all depend on two properties at once: **what you say must be able to survive**, and **how you pay and coordinate must not expose you to retaliation, profiling, or extraction**. When either property fails, freedom of thought and action erodes—not always dramatically, but steadily.
 
-**Permawrite** is a protocol design that treats those requirements as a single engineering problem rather than two unrelated products. This repository holds its reference Rust implementation.
+**Permawrite** is a protocol design that treats those requirements as a single engineering problem rather than two unrelated products. This repository holds its Rust implementation.
 
 ## Two pillars of freedom
 

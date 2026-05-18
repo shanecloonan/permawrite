@@ -1,7 +1,6 @@
 # Roadmap
 
-> **Audience.** Anyone trying to understand "what's done, what's coming, and in what order."
-> The tier system maps the conceptual roadmap onto concrete code milestones.
+The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ---
 

@@ -1,7 +1,6 @@
 # Privacy Subsystem
 
-> **Audience.** Cryptographers and protocol engineers. Each section opens with a one-paragraph **intuition** that's accessible without formulas, then the full mechanism.
-> See [`OVERVIEW.md`](./OVERVIEW.md) for the prose-only version and [`GLOSSARY.md`](./GLOSSARY.md) for term definitions.
+Each section opens with a short **intuition** paragraph, then the full mechanism. See [`OVERVIEW.md`](./OVERVIEW.md) and [`GLOSSARY.md`](./GLOSSARY.md).
 
 ---
 

@@ -1,7 +1,6 @@
 # Storage Subsystem
 
-> **Audience.** Protocol designers, storage-system engineers, and cryptographers. Sections open with **intuition** in plain language before the math.
-> The non-formula version lives in [`OVERVIEW.md § How the permanence half works`](./OVERVIEW.md#how-the-permanence-half-works-no-formulas).
+Sections open with **intuition** in plain language before the math. See also [`OVERVIEW.md § How the permanence half works`](./OVERVIEW.md#how-the-permanence-half-works-no-formulas).
 
 ---
 

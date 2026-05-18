@@ -1,8 +1,8 @@
 # Authorship claim layer
 
-> **Audience.** Protocol designers, wallet engineers, and anyone asking how Permawrite can stay **anonymous-by-default** for uploads while still supporting an optional, **cryptographically verifiable** “I published this `data_root`” signal for permaweb-style discovery.
->
-> **Status.** Normative spec for optional authorship claims. **M2.2.0–M2.2.10** shipped the initial layer; **M2.2.11** tightens guarantees (MFCL v2 + storage binding, keyed index, 256-byte messages) without changing the privacy model.
+Optional Schnorr-signed claims keep uploads **anonymous-by-default** while still allowing a **cryptographically verifiable** “I published this `data_root`” signal for permaweb-style discovery.
+
+**Status.** Normative spec for optional authorship claims. **M2.2.0–M2.2.10** shipped the initial layer; **M2.2.11** tightens guarantees (MFCL v2 + storage binding, keyed index, 256-byte messages) without changing the privacy model.
 
 ---
 

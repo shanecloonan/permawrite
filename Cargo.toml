@@ -20,7 +20,7 @@ rust-version = "1.75"
 license = "MIT OR Apache-2.0"
 authors = ["Shane Cloonan", "Permawrite contributors"]
 repository = "https://github.com/shanecloonan/permawrite"
-description = "Permawrite — privacy-preserving permanent-storage blockchain (reference Rust implementation)"
+description = "A novel blockchain that funds permanent storage with fees generated from private transactions (Rust implementation)"
 
 [workspace.dependencies]
 # Cryptographic primitives ─ all audited, all the libraries Signal / Zcash /
