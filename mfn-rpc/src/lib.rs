@@ -26,4 +26,7 @@
 mod dispatch;
 
 pub use dispatch::rpc_codes;
-pub use dispatch::{parse_and_dispatch_serve, rpc_error, rpc_success};
+pub use dispatch::{
+    parse_and_dispatch_serve, parse_and_dispatch_serve_opts, rpc_error, rpc_success,
+    ServeDispatchOpts,
+};

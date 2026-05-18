@@ -2,6 +2,6 @@
 
 JSON-RPC 2.0 method dispatch for `mfnd serve` (no TCP/HTTP).
 
-- **`parse_and_dispatch_serve`** — `get_tip`, `submit_tx`, `get_block`, mempool methods, checkpoint I/O, authorship discovery (**M2.2.8** / **M2.2.10**).
+- **`parse_and_dispatch_serve`** / **`parse_and_dispatch_serve_opts`** — `get_tip`, `submit_tx`, `get_block`, mempool methods, checkpoint I/O, authorship discovery (**M2.2.8** / **M2.2.10**); optional **`ServeDispatchOpts::on_fresh_tx`** for P2P mempool fan-out (**M2.3.20**).
 
 `mfn-node` binds a blocking TCP listener and passes one request line per connection.

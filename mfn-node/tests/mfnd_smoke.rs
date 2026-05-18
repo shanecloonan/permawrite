@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
     block_header_bytes, block_id, build_genesis, decode_block, decode_block_header, encode_block,
@@ -234,6 +234,59 @@ fn spawn_mfnd_serve_with_p2p(
         .trim();
     let p2p_addr: SocketAddr = p2p_s.parse().expect("parse p2p socket addr");
     (child, out_reader, err_reader, rpc_addr, p2p_addr)
+}
+
+fn wait_mempool_contains(rpc: SocketAddr, tx_id_hex: &str, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let mp = tcp_request_json(
+            rpc,
+            r#"{"jsonrpc":"2.0","method":"get_mempool","id":99}"#,
+        );
+        let mp_r = assert_rpc2_result(&mp);
+        let ids = mp_r["tx_ids"].as_array().expect("tx_ids array");
+        if ids.iter().any(|v| v.as_str() == Some(tx_id_hex)) {
+            return;
+        }
+        if Instant::now() >= deadline {
+            panic!("timeout waiting for tx_id={tx_id_hex} in mempool resp={mp_r}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn read_stdout_line_with_prefix(
+    out: &mut BufReader<ChildStdout>,
+    prefix: &str,
+) -> String {
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let n = out.read_line(&mut line).expect("read mfnd stdout");
+        if n == 0 {
+            panic!("mfnd exited before `{prefix}` (last line={line:?})");
+        }
+        if line.starts_with(prefix) {
+            return line;
+        }
+    }
+}
+
+fn read_stdout_until_p2p_sync_end(out: &mut BufReader<ChildStdout>) -> String {
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let n = out.read_line(&mut line).expect("read mfnd stdout");
+        if n == 0 {
+            panic!("mfnd exited before mfnd_p2p_sync_end (last line={line:?})");
+        }
+        if line.starts_with("mfnd_p2p_sync_end ") {
+            return line;
+        }
+        if line.starts_with("mfnd_p2p_sync_abort ") {
+            panic!("block sync failed: {line}");
+        }
+    }
 }
 
 fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
@@ -871,6 +924,96 @@ fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
     let _ = child_b.wait();
     std::fs::remove_dir_all(&dir_a).ok();
     std::fs::remove_dir_all(&dir_b).ok();
+}
+
+#[test]
+fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
+    let (dir_a, spec, tx_hex, tx_id_hex) =
+        synth_decoy_one_step_signed_transfer_fixture("p2p_tx_fanout_abc");
+    let (mut child_a, _out_a, _err_a, rpc_a, p2p_a) = spawn_mfnd_serve_with_p2p(&dir_a, &spec);
+
+    let dir_b = unique_data_dir("p2p_tx_fanout_b");
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn relay mfnd serve");
+    let stdout_b = child_b.stdout.take().expect("stdout b");
+    let mut out_b = BufReader::new(stdout_b);
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b);
+    let p2p_b_line = read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_listening=");
+    let p2p_b: SocketAddr = p2p_b_line
+        .strip_prefix("mfnd_p2p_listening=")
+        .unwrap()
+        .trim()
+        .parse()
+        .expect("parse p2p b");
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=");
+    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b);
+    assert!(
+        sync_b.contains("applied=1"),
+        "relay B should sync one block from A, got {sync_b:?}"
+    );
+
+    let dir_c = unique_data_dir("p2p_tx_fanout_c");
+    let mut child_c = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_c)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_b.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn leaf mfnd serve");
+    let stdout_c = child_c.stdout.take().expect("stdout c");
+    let mut out_c = BufReader::new(stdout_c);
+    let rpc_c = read_mfnd_serve_listening_addr(&mut out_c);
+    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_listening=");
+    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_dial_ok=");
+    let sync_c = read_stdout_until_p2p_sync_end(&mut out_c);
+    assert!(
+        sync_c.contains("applied=1"),
+        "leaf C should sync one block from B, got {sync_c:?}"
+    );
+
+    let submit = format!(
+        r#"{{"jsonrpc":"2.0","method":"submit_tx","params":{{"tx_hex":"{tx_hex}"}},"id":1}}"#
+    );
+    let sub_r = assert_rpc2_result(&tcp_request_json(rpc_a, &submit));
+    assert_eq!(
+        sub_r["outcome"]["kind"].as_str(),
+        Some("Fresh"),
+        "submit on A resp={sub_r}"
+    );
+
+    wait_mempool_contains(rpc_b, &tx_id_hex, Duration::from_secs(15));
+    wait_mempool_contains(rpc_c, &tx_id_hex, Duration::from_secs(15));
+
+    let _ = child_a.kill();
+    let _ = child_b.kill();
+    let _ = child_c.kill();
+    let _ = child_a.wait();
+    let _ = child_b.wait();
+    let _ = child_c.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
+    std::fs::remove_dir_all(&dir_c).ok();
 }
 
 #[test]

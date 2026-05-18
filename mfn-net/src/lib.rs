@@ -42,8 +42,9 @@ pub use block_sync::{
     PullBlocksStats, MAX_BLOCKS_PER_GET_V1,
 };
 pub use gossip::{
-    recv_gossip_v1, send_block_v1, send_gossip_end_v1, send_tx_v1, GossipHandler, GossipRecvError,
-    GossipRecvStats, P2P_GOSSIP_IO_TIMEOUT,
+    push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1, send_gossip_end_v1, send_tx_v1,
+    FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats, PushTxGossipError,
+    P2P_GOSSIP_IO_TIMEOUT,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
@@ -54,7 +55,7 @@ pub use handshake::{
 };
 pub use serve::{
     height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook,
-    BlockSyncHook, GossipHook, HidCounter, TipSnapshot,
+    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

@@ -1,6 +1,7 @@
 //! JSON-RPC 2.0 dispatch for `mfnd serve` (methods, params, error codes).
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use mfn_consensus::block::StorageEntry;
 use mfn_consensus::{
@@ -515,12 +516,30 @@ fn read_validated_blocks_for_height(
     }
 }
 
+/// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
+#[derive(Clone, Default)]
+pub struct ServeDispatchOpts {
+    /// Called with canonical tx wire bytes when [`Mempool::admit`] returns [`AdmitOutcome::Fresh`].
+    pub on_fresh_tx: Option<Arc<dyn Fn(&[u8]) + Send + Sync>>,
+}
+
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
 pub fn parse_and_dispatch_serve(
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
     line: &str,
+) -> Value {
+    parse_and_dispatch_serve_opts(store, chain, pool, line, ServeDispatchOpts::default())
+}
+
+/// Like [`parse_and_dispatch_serve`] with optional post-admit hooks.
+pub fn parse_and_dispatch_serve_opts(
+    store: &dyn ChainPersistence,
+    chain: &mut Chain,
+    pool: &mut Mempool,
+    line: &str,
+    opts: ServeDispatchOpts,
 ) -> Value {
     let line = line.trim();
     if line.is_empty() {
@@ -550,7 +569,7 @@ pub fn parse_and_dispatch_serve(
             );
         }
     }
-    dispatch_serve_methods(store, chain, pool, &req, &id)
+    dispatch_serve_methods(store, chain, pool, &req, &id, &opts)
 }
 
 fn dispatch_serve_methods(
@@ -559,6 +578,7 @@ fn dispatch_serve_methods(
     pool: &mut Mempool,
     req: &Value,
     id: &Value,
+    opts: &ServeDispatchOpts,
 ) -> Value {
     let method = match req.get("method") {
         Some(Value::String(s)) => s.as_str(),
@@ -723,6 +743,11 @@ fn dispatch_serve_methods(
             let tid = tx_id(&tx);
             match pool.admit(tx, chain.state()) {
                 Ok(outcome) => {
+                    if matches!(outcome, AdmitOutcome::Fresh { .. }) {
+                        if let Some(cb) = &opts.on_fresh_tx {
+                            cb(&bytes);
+                        }
+                    }
                     let body = json!({
                         "tx_id": hex32(&tid),
                         "pool_len": pool.len(),

@@ -81,11 +81,10 @@ impl GossipHandler for P2pGossipHandler {
             Err(_) => return format!("rejected:pool_mutex tx_id={id_hex}"),
         };
         match pool.admit(tx, chain.state()) {
-            Ok(
-                AdmitOutcome::Fresh { .. }
-                | AdmitOutcome::ReplacedByFee { .. }
-                | AdmitOutcome::EvictedLowest { .. },
-            ) => format!("accepted:{id_hex}"),
+            Ok(AdmitOutcome::Fresh { .. }) => format!("fresh:{id_hex}"),
+            Ok(AdmitOutcome::ReplacedByFee { .. } | AdmitOutcome::EvictedLowest { .. }) => {
+                format!("accepted:{id_hex}")
+            }
             Err(AdmitError::DuplicateTx { .. }) => format!("rejected:duplicate:{id_hex}"),
             Err(e) => format!("rejected:admit:{e}:{id_hex}"),
         }

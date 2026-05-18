@@ -9,7 +9,9 @@ use std::io::{Read, Write};
 use crate::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
 };
-use crate::gossip::{recv_gossip_v1, GossipHandler, GossipRecvError, GossipRecvStats};
+use crate::gossip::{
+    recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
+};
 
 /// Maximum blocks returned per [`GetBlocksByHeightV1`] (defense in depth).
 pub const MAX_BLOCKS_PER_GET_V1: u32 = 64;
@@ -270,6 +272,7 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
     stream: &mut S,
     sync: &dyn BlockSyncProvider,
     gossip: &dyn GossipHandler,
+    fanout_peers: Option<&dyn FanoutPeerSet>,
 ) -> Result<Option<GossipRecvStats>, PostHandshakeError> {
     loop {
         let payload = match read_frame(stream) {
@@ -295,6 +298,13 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
                 stream
                     .flush()
                     .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+            }
+            0x0b => {
+                let addr = crate::gossip::P2pAdvertiseV1::decode_payload(&payload)
+                    .map_err(|e| PostHandshakeError::Advertise(e.to_string()))?;
+                if let Some(ps) = fanout_peers {
+                    ps.register_peer(addr);
+                }
             }
             tag @ (0x06..=0x08) => {
                 let stats = recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
@@ -360,6 +370,9 @@ pub enum PostHandshakeError {
     /// Unknown post-handshake tag.
     #[error("unknown post-handshake tag 0x{0:02x}")]
     UnknownTag(u8),
+    /// Invalid [`P2pAdvertiseV1`] payload.
+    #[error("p2p advertise: {0}")]
+    Advertise(String),
 }
 
 /// Failure while pulling blocks from a peer.

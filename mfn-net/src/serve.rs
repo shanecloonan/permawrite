@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 use std::io::Write;
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -11,6 +11,9 @@ use std::time::Instant;
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
     pull_blocks_to_tip, recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
+};
+use crate::gossip::send_p2p_advertise_v1;
+use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
     ChainTipV1, GossipHandler, GossipRecvStats, PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT,
     P2P_HANDSHAKE_IO_TIMEOUT,
@@ -137,16 +140,25 @@ fn log_gossip_end(hid: u64, peer: &str, stats: &GossipRecvStats) {
     let _ = std::io::stdout().flush();
 }
 
+/// Registry of peers for mempool fan-out (**M2.3.20**).
+pub type FanoutPeerSetHook = Arc<dyn crate::gossip::FanoutPeerSet>;
+
 struct InboundGossip {
     inner: GossipHook,
     hid: u64,
     peer: String,
+    fanout_peers: Option<FanoutPeerSetHook>,
 }
 
 impl GossipHandler for InboundGossip {
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
         let label = self.inner.on_tx_v1(tx_wire);
-        if let Some(tx_id) = label.strip_prefix("accepted:") {
+        if let Some(tx_id) = label.strip_prefix("fresh:") {
+            log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
+            if let Some(ps) = &self.fanout_peers {
+                ps.fanout_fresh_tx(tx_wire, Some(&self.peer));
+            }
+        } else if let Some(tx_id) = label.strip_prefix("accepted:") {
             log_gossip_tx(self.hid, &self.peer, "accepted", tx_id);
         } else if let Some(reason) = label.strip_prefix("rejected:") {
             log_gossip_tx(self.hid, &self.peer, reason, "none");
@@ -194,13 +206,20 @@ impl BlockSyncProvider for InboundBlockSync {
     }
 }
 
-fn recv_inbound_gossip(sock: &mut TcpStream, hid: u64, peer: &str, handler: &GossipHook) {
+fn recv_inbound_gossip(
+    sock: &mut TcpStream,
+    hid: u64,
+    peer: &str,
+    handler: &GossipHook,
+    fanout_peers: Option<&FanoutPeerSetHook>,
+) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let session = InboundGossip {
         inner: handler.clone(),
         hid,
         peer: peer.to_string(),
+        fanout_peers: fanout_peers.cloned(),
     };
     match crate::gossip::recv_gossip_v1(sock, &session) {
         Ok(stats) => {
@@ -218,6 +237,7 @@ fn recv_post_handshake(
     peer: &str,
     gossip: &GossipHook,
     block_sync: Option<&BlockSyncHook>,
+    fanout_peers: Option<&FanoutPeerSetHook>,
 ) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
@@ -225,6 +245,7 @@ fn recv_post_handshake(
         inner: gossip.clone(),
         hid,
         peer: peer.to_string(),
+        fanout_peers: fanout_peers.cloned(),
     };
     let result = if let Some(sync) = block_sync {
         let logging = InboundBlockSync {
@@ -232,9 +253,14 @@ fn recv_post_handshake(
             hid,
             peer: peer.to_string(),
         };
-        serve_post_handshake_v1(sock, &logging, &session)
+        serve_post_handshake_v1(
+            sock,
+            &logging,
+            &session,
+            fanout_peers.map(|ps| ps.as_ref()),
+        )
     } else {
-        recv_inbound_gossip(sock, hid, peer, gossip);
+        recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
         return;
     };
     match result {
@@ -257,6 +283,7 @@ pub fn spawn_inbound_handshake_loop(
     gossip: Option<GossipHook>,
     block_sync: Option<BlockSyncHook>,
     block_applier: Option<BlockSyncApplierHook>,
+    fanout_peers: Option<FanoutPeerSetHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p".into())
@@ -300,7 +327,14 @@ pub fn spawn_inbound_handshake_loop(
                             );
                         }
                         if let Some(h) = &gossip {
-                            recv_post_handshake(&mut sock, hid, &peer_s, h, block_sync.as_ref());
+                            recv_post_handshake(
+                                &mut sock,
+                                hid,
+                                &peer_s,
+                                h,
+                                block_sync.as_ref(),
+                                fanout_peers.as_ref(),
+                            );
                         }
                     }
                     Err(e) => {
@@ -324,6 +358,8 @@ pub fn spawn_outbound_dial(
     hid_counter: HidCounter,
     gossip: Option<GossipHook>,
     block_applier: Option<BlockSyncApplierHook>,
+    fanout_peers: Option<FanoutPeerSetHook>,
+    local_p2p_listen: Option<SocketAddr>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p-dial".into())
@@ -348,6 +384,16 @@ pub fn spawn_outbound_dial(
                     log_peer_tip(hid, addr.as_str(), &remote);
                     log_height_cmp(hid, addr.as_str(), local.height, &remote);
                     log_handshake_ms(hid, addr.as_str(), t0.elapsed());
+                    if let Some(ps) = &fanout_peers {
+                        ps.register_peer(&addr);
+                    }
+                    if let Some(listen) = local_p2p_listen {
+                        let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+                        let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+                        if let Err(e) = send_p2p_advertise_v1(&mut sock, &listen.to_string()) {
+                            eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
+                        }
+                    }
                     if let Some(a) = &block_applier {
                         maybe_pull_blocks_if_behind(
                             &mut sock, hid, addr.as_str(), &local, &remote, a,

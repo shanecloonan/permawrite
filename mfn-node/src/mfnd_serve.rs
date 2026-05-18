@@ -10,14 +10,15 @@ use std::sync::{Arc, Mutex};
 
 use mfn_net::serve::{
     spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
-    HidCounter, TipSnapshot,
+    FanoutPeerSetHook, HidCounter, TipSnapshot,
 };
-use mfn_rpc::parse_and_dispatch_serve;
+use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
 use mfn_runtime::{Chain, ChainConfig, Mempool, MempoolConfig};
 use mfn_store::ChainPersistence;
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
+use crate::p2p_fanout::P2pPeerSet;
 use crate::p2p_gossip::P2pGossipHandler;
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
@@ -30,6 +31,7 @@ fn handle_client(
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
+    dispatch_opts: ServeDispatchOpts,
 ) -> Result<(), String> {
     let peer = stream
         .peer_addr()
@@ -39,7 +41,7 @@ fn handle_client(
     reader
         .read_line(&mut line)
         .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
-    let resp = parse_and_dispatch_serve(store, chain, pool, &line);
+    let resp = parse_and_dispatch_serve_opts(store, chain, pool, &line, dispatch_opts);
     write_line(stream, &resp)
 }
 
@@ -50,6 +52,17 @@ fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
         .copied()
         .unwrap_or_else(|| *chain.genesis_id());
     (height, tip_id)
+}
+
+fn serve_dispatch_opts(fanout_peers: Option<&FanoutPeerSetHook>) -> ServeDispatchOpts {
+    ServeDispatchOpts {
+        on_fresh_tx: fanout_peers.map(|ps| {
+            let ps = Arc::clone(ps);
+            Arc::new(move |bytes: &[u8]| {
+                ps.fanout_fresh_tx(bytes, None);
+            }) as Arc<dyn Fn(&[u8]) + Send + Sync>
+        }),
+    }
 }
 
 /// Run a blocking TCP loop: load chain + empty mempool, print bound address, then
@@ -73,12 +86,20 @@ pub(crate) fn run_serve(
     };
 
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
-    let (p2p_tip_cell, p2p_hid_counter, gossip_hook, block_sync_hook, block_applier_hook): (
+    let (
+        p2p_tip_cell,
+        p2p_hid_counter,
+        gossip_hook,
+        block_sync_hook,
+        block_applier_hook,
+        fanout_peers,
+    ): (
         Option<TipSnapshot>,
         Option<HidCounter>,
         Option<mfn_net::GossipHook>,
         Option<BlockSyncHook>,
         Option<BlockSyncApplierHook>,
+        Option<FanoutPeerSetHook>,
     ) = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -86,6 +107,7 @@ pub(crate) fn run_serve(
                 .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
             snapshot_chain_tip_for_p2p(&guard)
         }));
+        let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip_cell));
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),
             Arc::clone(&pool),
@@ -101,15 +123,21 @@ pub(crate) fn run_serve(
             Some(gossip_hook),
             Some(sync_hook),
             Some(applier_hook),
+            Some(fanout),
         )
     } else {
-        (None, None, None, None, None)
+        (None, None, None, None, None, None)
     };
 
-    let p2p_listener = if let Some(addr) = p2p_listen {
-        Some(TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?)
+    let (p2p_listener, local_p2p_listen) = if let Some(addr) = p2p_listen {
+        let listener =
+            TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?;
+        let listen_addr = listener
+            .local_addr()
+            .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
+        (Some(listener), Some(listen_addr))
     } else {
-        None
+        (None, None)
     };
 
     let listener = TcpListener::bind(rpc_listen)
@@ -123,9 +151,8 @@ pub(crate) fn run_serve(
         .map_err(|e| format!("mfnd serve: stdout flush: {e}"))?;
 
     if let Some(pl) = p2p_listener {
-        let p2p_addr = pl
-            .local_addr()
-            .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
+        let p2p_addr = local_p2p_listen
+            .expect("p2p listen addr when listener bound");
         println!("mfnd_p2p_listening={p2p_addr}");
         std::io::stdout()
             .flush()
@@ -144,6 +171,7 @@ pub(crate) fn run_serve(
             gossip_hook.clone(),
             block_sync_hook.clone(),
             block_applier_hook.clone(),
+            fanout_peers.clone(),
         )?;
     }
 
@@ -161,8 +189,12 @@ pub(crate) fn run_serve(
                 .clone(),
             gossip_hook,
             block_applier_hook,
+            fanout_peers.clone(),
+            local_p2p_listen,
         )?;
     }
+
+    let dispatch_opts = serve_dispatch_opts(fanout_peers.as_ref());
 
     #[cfg(unix)]
     {
@@ -190,6 +222,7 @@ pub(crate) fn run_serve(
             store.as_ref(),
             &mut chain_guard,
             &mut pool_guard,
+            dispatch_opts.clone(),
         ) {
             Ok(()) => {
                 if let Some(tc) = &p2p_tip_cell {
