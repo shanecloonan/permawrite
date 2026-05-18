@@ -6,19 +6,24 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-| Layer | Crate | Tests | Status |
-|---|---|---:|---|
-| ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | 154 | ✓ live |
-| BLS12-381 + committee aggregation | `mfn-bls` | 16 | ✓ live |
-| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root** + **M2.0.10 storage-commitment codec**) | `mfn-storage` | 44 | ✓ live |
-| Chain state machine (SPoRA verify + liveness slashing + **M1 validator rotation** + **M1.5 BLS-authenticated Register** + **M2.0 validator-set merkle root** + **M2.0.1 slashing merkle root** + **M2.0.2 storage-proof merkle root** + **M2.0.5 light-header verifier** + **M2.0.7 light-body verifier** + **M2.0.8 shared validator_evolution helpers** + **M2.0.9 round-trippable header codec** + **M2.0.10 full-block codec** + **M2.0.15 chain-state checkpoint codec** + **M2.0.16 shared `checkpoint_codec` between light + chain checkpoints**) | `mfn-consensus` | 206 | ✓ live |
-| Node-side glue (**M2.0.3 `Chain` driver** + **M2.0.4 producer helpers** + **M2.0.5 light-header agreement tests** + **M2.0.12 mempool** + **M2.0.13 storage-anchoring admission** + **M2.0.15 `Chain::checkpoint` / `Chain::from_checkpoint`** + **M2.1.0 `ChainStore` filesystem checkpoint store** + **M2.1.1 `mfnd` reference binary** + **M2.1.2 JSON genesis spec (`--genesis`)** + **M2.1.3 `mfnd step`** + **M2.1.4 mempool-aware step + `--blocks N`** + **M2.1.5 `mfnd --checkpoint-each`** + **M2.1.6 `mfnd serve` TCP `get_tip` / `submit_tx`** + **M2.1.6.1 serve `submit_tx` TCP integration tests** + **M2.1.7 `chain.blocks` append log + optional `synthetic_decoy_utxos` + serve `submit_tx` happy path** + **M2.1.8 JSON-RPC 2.0 response envelope on `serve`** + **M2.1.8.1 `submit_tx` array `params`** + **M2.1.9 `read_block_log_validated`** + **M2.1.10 `serve` `get_block`** + **M2.1.11 `serve` `get_block_header`** + **M2.1.12 `serve` `get_mempool`** + **M2.1.13 `serve` `get_mempool_tx`** + **M2.1.14 `serve` `remove_mempool_tx`** + **M2.1.15 `serve` `clear_mempool`** + **M2.1.16 `serve` `get_checkpoint`** + **M2.1.17 `serve` `save_checkpoint`** + **M2.1.18 `serve` `list_methods`** + **M2.2.8 `serve` authorship discovery (`get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`)** + **M2.2.10 `serve` derived discovery views (`list_recent_claims`, `list_data_roots_with_claims`)** + **M2.3.0 `network` module scaffold (`NetworkConfig`)** + **M2.3.15 `mfnd_p2p_handshake_abort` stderr on inbound P2P failures (`hid` reserved per `accept`)**) | `mfn-node` | 176 | ✓ live (skeleton + mempool + checkpoint persistence + `mfnd` + genesis + solo step + narrow TCP serve + block sidecar + JSON-RPC responses) |
-| Light-client chain follower (**M2.0.6 header-chain follower** + **M2.0.7 body-root verification** + **M2.0.8 validator-set evolution** + **M2.0.9 checkpoint serialization** + **M2.0.10 raw-block-byte sync proof** + **M2.0.16 shared `checkpoint_codec` import**) | `mfn-light` | 58 | ✓ live |
-| Confidential wallet (**M2.0.11 stealth scan + transfer building** + **M2.0.14 storage-upload construction**) | `mfn-wallet` | 42 | ✓ live (skeleton) |
-| Canonical wire codec | (in `mfn-crypto::codec`) | — | ✓ live (will extract) |
-| **Total** | | **699** | All checks green (+ 2 ignored) |
+The workspace is **11 crates** as of M2.3.17, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
 
-**Posture.** We've built the consensus core *and* the validator-rotation layer. The `mfnd` binary exercises checkpoint load/save, can boot from a shared JSON genesis spec (`--genesis`), advances a solo devnet via `step` (mempool-aware, with `--blocks N` and optional `--checkpoint-each` for per-block durability) when operator seeds are set in the environment, persists an append-only **`chain.blocks`** log after each applied block (M2.1.7) with optional **validated replay** against the checkpoint tip (M2.1.9), and can **`serve`** a minimal TCP line protocol (`get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**) whose responses follow **JSON-RPC 2.0** (M2.1.8: `jsonrpc`, `id`, `result` / structured `error`) with **`submit_tx`** accepting either object or one-element array **`params`** (M2.1.8.1) for local tools; **`get_block`** (M2.1.10) returns canonical block bytes from the validated log; **`get_block_header`** (M2.1.11) returns header bytes + `block_id` without the body; **`get_mempool`** (M2.1.12) returns `mempool_len` + sorted pending **`tx_ids`**, including after a successful **`submit_tx`** in subprocess tests; **`get_mempool_tx`** (M2.1.13) returns **`tx_hex`** for a pending id or **`MEMPOOL_TX_NOT_FOUND`** when absent; **`remove_mempool_tx`** (M2.1.14) evicts by id when present (`removed` + `pool_len`); **`clear_mempool`** (M2.1.15) drops every pending tx at once (`cleared_count` + `pool_len`); **`get_checkpoint`** (M2.1.16) returns in-memory [`Chain::encode_checkpoint`](../mfn-node/src/chain.rs) bytes as hex (`checkpoint_hex` + `byte_len`); **`save_checkpoint`** (M2.1.17) persists via [`ChainStore::save`](../mfn-node/src/store.rs) (IO errors **`-32004`**); **`list_methods`** (M2.1.18) returns a lexicographically sorted **`methods`** array of every implemented JSON-RPC method name (including **`list_methods`**); **`get_claims_for`** / **`get_claims_by_pubkey`** / **`list_recent_uploads`** (M2.2.8) plus **`list_recent_claims`** / **`list_data_roots_with_claims`** (M2.2.10) read the live [`ChainState`](../mfn-consensus/src/block.rs) **`claims`** / **`storage`** indexes for permaweb-style discovery over the same TCP line discipline; P2P, batching, HTTP/WebSocket RPC, and the wallet CLI remain on the roadmap below.
+| Layer | Crate | Status |
+|---|---|---|
+| ed25519 primitives + ZK (+ **M2.0.15 `UtxoTreeState` codec**) | `mfn-crypto` | ✓ live |
+| BLS12-381 + committee aggregation | `mfn-bls` | ✓ live |
+| Permanent-storage primitives (+ **M2.0.2 storage-proof merkle root**, **M2.0.10 storage-commitment codec**) | `mfn-storage` | ✓ live |
+| Chain state machine — full M0/M1 + every M2.0.x root commitment + light-verification primitives + canonical codecs + **M2.2.0–M2.2.11 authorship claim layer** (MFCL v2, storage binding via `commit_hash`, keyed claims index, checkpoint v3) + **M2.3.17 internal decomposition** (`block/`, `header_verify/`, `transaction/`, `chain_checkpoint/`, `validator_evolution/` submodules) | `mfn-consensus` | ✓ live |
+| In-process chain runtime — `Chain` driver, `Mempool`, producer helpers, `ChainConfig`. Extracted from `mfn-node` at **M2.3.17** | `mfn-runtime` | ✓ live |
+| Persistence — `ChainPersistence` trait, `ChainStore` filesystem backend (**M2.1.0**), `RedbChainStore` embedded-db backend, append-only `chain.blocks` log with validated replay (**M2.1.9**). Extracted from `mfn-node` at **M2.3.17** | `mfn-store` | ✓ live |
+| JSON-RPC dispatch — `parse_and_dispatch_serve` for every `mfnd serve` method (M2.1.6–M2.1.18, M2.2.8, M2.2.10) over an in-memory `ChainPersistence`. Extracted from `mfn-node` at **M2.3.17** | `mfn-rpc` | ✓ live |
+| P2P stack — length-prefixed frame codec, HelloV1/PingV1/PongV1/ChainTipV1/GoodbyeV1 handshakes (**M2.3.1–M2.3.15**), TxV1/BlockV1/GossipEndV1 post-goodbye gossip (**M2.3.16**), `serve` accept/dial threads with `hid`-correlated stdout/stderr. Extracted from `mfn-node` at **M2.3.17** | `mfn-net` | ✓ live |
+| Reference daemon — `mfnd` binary (**M2.1.1**), JSON genesis (**M2.1.2**), `step` family (**M2.1.3–M2.1.5**), `serve` TCP control plane (**M2.1.6** + every `M2.1.x` / `M2.2.8` / `M2.2.10` method on the wire), `--p2p-listen` (**M2.3.3**) / `--p2p-dial` (**M2.3.6**), `--store fs\|redb` (default `redb` at **M2.3.17**), shared-mutex `Chain` / `Mempool` for concurrent RPC + P2P | `mfn-node` | ✓ live |
+| Light-client follower — **M2.0.6** header-chain follower, **M2.0.7** body-root verification, **M2.0.8** validator-set evolution, **M2.0.9** checkpoint serialization, **M2.0.10** raw-block-byte sync, **M2.0.16** shared `checkpoint_codec`, **M2.2.5** light agreement on `claims_root` | `mfn-light` | ✓ live |
+| Confidential wallet — **M2.0.11** stealth scan + transfer building, **M2.0.14** storage-upload construction, **M2.2.6** `ClaimingIdentity` + standalone claim tx, **M2.2.7** uploads with `authorship_claims` in `extra` | `mfn-wallet` | ✓ live (library only; no CLI yet — that's M3) |
+| Canonical wire codec | (currently in `mfn-crypto::codec`) | ✓ live; extraction to `mfn-wire` still planned |
+
+**Posture.** The single-node story is end-to-end: a `mfnd` process boots from JSON genesis, persists either to a flat filesystem snapshot or an embedded `redb` database, drains its in-memory mempool into solo-produced blocks, serves a JSON-RPC 2.0 line protocol with ~20 read/write methods covering tip, blocks, headers, mempool, checkpoint, method discovery, and authorship-claim discovery, and accepts inbound P2P peers that complete a length-prefixed Hello→Ping→Tip→Goodbye handshake and then exchange tx/block gossip frames. The **multi-node** story is the next strategic block of work (durable mempool, request/response block-sync, peer-set persistence, multi-validator scheduling) — that's everything between M2.3.16 and a public testnet (M2.4). The wallet CLI (M3) and WASM bindings (M4) follow.
 
 ---
 
@@ -1462,7 +1467,43 @@ Workspace **+4 tests** vs the M2.2.9 line count: **690 → 694** passing.
 
 ---
 
-## Milestone series M2.2 — Authorship claim layer (✓ **M2.2.0–M2.2.10** shipped)
+## Milestone M2.2.11 — Authorship hardening: MFCL v2 + storage binding + checkpoint v3 (✓ shipped)
+
+**Why it was next.** M2.2.0–M2.2.10 delivered the initial authorship layer (claim digest, MFCL v1 wire, consensus validation, `claims_root` header binding, wallet APIs, `mfnd serve` discovery). Operating against the shipped surface surfaced three sharp edges that needed to close before any external integrator built on top of it:
+
+1. **No storage binding.** An MFCL v1 claim only commits to a `data_root` + `claim_pubkey` + `message`. Two distinct on-chain uploads of the *same* `data_root` (re-uploads, replication restarts) shared a single (`data_root`, `claim_pubkey`) row in the index. There was no way to say "this attestation is bound to *that specific* `StorageCommitment`."
+2. **Claims index keyed only by `data_root`.** Lookup ergonomics were fine but the index could not deduplicate or enumerate attestations against a specific `commit_hash`.
+3. **Checkpoint codec couldn't carry the new index shape.** `ChainState.claims` becomes richer with v2; the checkpoint had to evolve in a compatible way.
+
+### What shipped
+
+- **`AUTHORSHIP_V2 = "MFBN-1/AUTHORSHIP/v2"`** domain tag in `mfn_crypto::domain` (`AUTHORSHIP_CLAIM_DIGEST_V2`).
+- **MFCL v2 wire** — adds a 32-byte `commit_hash` field between `data_root` and `claim_pubkey`. All-zero `commit_hash` is the explicit "unbound bulletin board" sentinel; any non-zero value is a **storage-bound** claim that consensus checks against the chain's storage index.
+- **256-byte messages** — `MAX_CLAIM_MESSAGE_LEN` reset to **256** (was 64), aligned with the encoded `message_len: u8`. Larger payloads still belong off-chain or in the stored file.
+- **Storage-binding consensus check** — `apply_block` rejects any v2 claim whose `commit_hash` is non-zero but doesn't resolve to a known `StorageCommitment` (or doesn't match the `data_root` of that commitment).
+- **Keyed claims index** — `ChainState.claims` now indexes by `(data_root, claim_pubkey, commit_hash)` so storage-bound and unbound claims coexist without colliding.
+- **Checkpoint codec v3** — `mfn-consensus::chain_checkpoint` bumps to version 3 to carry the richer index. v1/v2 bytes are rejected by the v3 decoder with a typed `UnsupportedVersion` (forward-only; restarts re-encode under v3).
+- **RPC compatibility** — `get_claims_for`, `get_claims_by_pubkey`, `list_recent_claims`, `list_data_roots_with_claims` JSON now include `commit_hash` on each claim record (all-zero for unbound v2 claims and back-filled v1 rows).
+
+### Test matrix
+
+- `mfn-crypto`: MFCL v2 round-trip, v1 round-trip preserved, digest domain separation, golden vectors for both versions.
+- `mfn-consensus`: v2 claim accept; storage-bound v2 claim accept against known commitment; storage-bound v2 claim reject for unknown commitment; storage-bound v2 claim reject for `data_root` mismatch; v2 + v1 mixed-version block accept.
+- `mfn-consensus::chain_checkpoint`: v3 round-trip of (`data_root`, `claim_pubkey`, `commit_hash`) keyed index; v3 decoder rejects v1/v2 byte streams; integrity-tag tamper detected.
+- `mfn-wallet`: `ClaimingIdentity::sign_claim_v2`; `build_storage_upload` produces v2 `MFEX` payloads by default; v1 path still callable for compatibility.
+- `mfnd_serve` smoke: `get_claims_for` returns `commit_hash` for both bound and unbound rows; storage-bound discovery survives an `mfnd` restart through the v3 checkpoint.
+
+### What this unlocks
+
+- **Unambiguous attestation** — a curator can attest to a *specific* on-chain anchor of a `data_root`, not just to the content itself.
+- **Per-anchor moderation/curation** — explorers and indexers can dedupe attestations against a specific replication run.
+- **Future-proofs the index** — adding fields (e.g. a tagging or category byte) becomes another version bump rather than another consensus migration.
+
+See [`docs/AUTHORSHIP.md`](./AUTHORSHIP.md) for the full normative spec including MFCL v2 wire layout and the storage-binding semantics.
+
+---
+
+## Milestone series M2.2 — Authorship claim layer (✓ **M2.2.0–M2.2.11** shipped)
 
 **Why now.** Permanent storage is content-addressed and **anonymous-by-default** at the RingCT layer: `StorageCommitment` must not grow an author field. Permaweb-style discovery still needs an **optional**, **cryptographically verifiable** signal (“this stable pubkey attests this `data_root` + short message”) without a second token type and without weakening financial privacy.
 
@@ -1483,8 +1524,9 @@ Workspace **+4 tests** vs the M2.2.9 line count: **690 → 694** passing.
 | **M2.2.8** (✓ shipped) | `mfn-node` `mfnd serve`: `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads` + TCP tests. |
 | **M2.2.9** (✓ shipped) | Docs pass (AUTHORSHIP + cross-links; [`PORTING.md`](../PORTING.md) + overview; roadmap milestone text). |
 | **M2.2.10** (✓ shipped) | `mfn-node` `mfnd serve`: `list_recent_claims`, `list_data_roots_with_claims` + unit/smoke tests (no consensus change). |
+| **M2.2.11** (✓ shipped) | `mfn-consensus` + `mfn-crypto` + `mfn-wallet` + `mfnd serve`: MFCL v2 wire (`commit_hash` field), 256-byte messages, storage-binding consensus check, keyed `(data_root, claim_pubkey, commit_hash)` claims index, checkpoint codec **v3**, RPC payloads now include `commit_hash`. |
 
-**Next (node layer).** **M2.3.0** (`mfn_node::network` + [`NetworkConfig`](../mfn-node/src/network.rs) defaults) is on `main`; remaining **M2.3** work is transport + gossip + a multi-validator local harness — separate from the **M2.2.x** authorship patch series above.
+**Next (node layer).** **M2.3.0–M2.3.16** P2P stack is on `main` (handshake, tip exchange, goodbye, observability, tx/block gossip). Remaining **M2.3** work is durable mempool, request/response block-sync, persistent peer set, and a multi-validator local harness — separate from the **M2.2.x** authorship patch series above.
 
 **Renumbering note.** An earlier roadmap draft used “M2.2” for **multi-node P2P**. That work is **M2.3 — Multi-node testnet** in the phase list below; **M2.4 — Public testnet** follows. The numeric **M2.2.x** patch series is reserved for authorship claims so specs and code refer to one unambiguous label.
 
@@ -1505,6 +1547,92 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 ### Scope decisions
 
 - **No sockets, no new dependencies** — gossip framing + dial/listen loops follow in later **M2.3.x** milestones.
+
+---
+
+## Milestone M2.3.1 — P2P length-prefix framing + `HelloV1` (✓ shipped)
+
+**Why it was next.** Before any peer could open a connection, the wire needed a stable framing primitive (so a reader knows when each message ends) and a versioned greeting (so two implementations can negotiate compatibility without speaking past each other).
+
+### What shipped
+
+- **Length-prefix frame codec** — 1-byte tag + `u32` BE payload length + `payload` bytes; `decode_frame_prefix`, `read_frame`, `write_frame_io`, typed `FrameDecodeError` / `FrameReadError` / `FrameWriteError`, capped at `MAX_FRAME_PAYLOAD_LEN`.
+- **`HelloV1` (tag `0x01`)** — `protocol_version` (`u32`), `network_magic` (`u32`), `genesis_id` (`[u8; 32]`), `node_id` (`[u8; 32]`), `agent_string` (UTF-8, len-prefixed). Round-trip + decode-error coverage.
+
+### What this unlocks
+
+- Every subsequent P2P frame piggybacks the same length-prefix discipline; no per-frame ad-hoc parsing.
+
+---
+
+## Milestone M2.3.2 — `HelloV1` duplex handshake over TCP (✓ shipped)
+
+**Why it was next.** Sending a hello in one direction is half a handshake. M2.3.2 wires `send_hello` + `recv_hello` into a duplex `hello_v1_handshake(stream, local, expect)` that both sides run, rejecting peers whose `genesis_id` or `network_magic` don't match local config.
+
+### What shipped
+
+- `send_hello` / `recv_hello` / `recv_hello_expect` over any `Read + Write` impl.
+- `hello_v1_handshake` — symmetric (both ends call the same function) duplex exchange.
+- Typed `HelloHandshakeError` distinguishing IO, decode, version mismatch, genesis mismatch, network-magic mismatch.
+
+### What this unlocks
+
+- A dialer and a listener can now confirm they're talking to the same chain before they exchange anything else.
+
+---
+
+## Milestone M2.3.3 — `mfnd serve --p2p-listen` accept thread (✓ shipped)
+
+**Why it was next.** Hello over a unit-test `Cursor` is not the same as hello over a real socket. M2.3.3 adds the optional `--p2p-listen HOST:PORT` flag to `mfnd serve`, binds a second `TcpListener` next to the JSON-RPC listener, and spawns an accept thread that runs `hello_v1_handshake` against every inbound peer.
+
+### What shipped
+
+- `mfnd serve --p2p-listen HOST:PORT` (default off; rejected for non-`serve` commands).
+- Background accept thread; per-connection thread runs the duplex hello; logs `mfnd_p2p_hello_ok=<peer>` on success.
+- The JSON-RPC accept loop remains untouched on the main thread.
+
+### What this unlocks
+
+- The first time `mfnd` is reachable as a peer rather than just as an RPC endpoint.
+
+---
+
+## Milestone M2.3.4 — `tcp_connect_hello_v1_handshake` (✓ shipped)
+
+**Why it was next.** Listening was step one; the symmetric "dial a peer and complete hello over a real TCP socket" helper closes the loop so an `mfnd` can both *accept* and *initiate* P2P connections from one library function.
+
+### What shipped
+
+- `tcp_connect_hello_v1_handshake(addr, local, expect, connect_timeout)` — `TcpStream::connect_timeout` → set read/write deadlines → run `hello_v1_handshake` → return the connected stream.
+- Used by integration tests for clean dialer-side coverage of every hello-mismatch path.
+
+---
+
+## Milestone M2.3.5 — `PingV1` / `PongV1` after hello (✓ shipped)
+
+**Why it was next.** Hello proves "we're on the same chain"; ping proves "the link is alive after the handshake." A trivial 32-byte challenge/response round-trip catches half-open TCP states and gives integration tests a positive liveness signal beyond a successful hello.
+
+### What shipped
+
+- **`PingV1` (tag `0x02`)** + **`PongV1` (tag `0x03`)** — `nonce: [u8; 32]`, decode rejects unknown tags / length mismatches.
+- `send_ping_recv_pong` / `recv_ping_send_pong` helpers; symmetric `exchange_ping_pong_v1` baked into `tcp_connect_peer_v1_handshake`.
+- `mfnd serve --p2p-listen` runs ping-pong after hello on the listener side; integration test asserts the full round-trip.
+
+---
+
+## Milestone M2.3.6 — `mfnd serve --p2p-dial` outbound peer handshake (✓ shipped)
+
+**Why it was next.** With listen + dial helpers + hello + ping in place, the remaining gap was a first-class operator flag to *outbound-connect* to a known peer at startup — symmetric to `--p2p-listen` and the building block for any future seed-list / peer-list logic.
+
+### What shipped
+
+- **`mfnd serve --p2p-dial HOST:PORT`** — optional flag (rejected for non-`serve` commands; can co-exist with `--p2p-listen`).
+- Background outbound thread runs `tcp_connect_peer_v1_handshake` (hello + ping/pong) against the configured peer; logs `mfnd_p2p_dial_ok=<peer>` on success and `mfnd_p2p_dial_err=...` on failure.
+- Integration test in `mfnd_smoke` confirms a dialer `mfnd` + a listener `mfnd` complete the round-trip end-to-end against real sockets.
+
+### What this unlocks
+
+- The two-node local harness that M2.3.7 (timeouts), M2.3.8 (tip exchange), M2.3.10 (goodbye), and M2.3.16 (gossip) all build on.
 
 ---
 
@@ -1673,38 +1801,133 @@ Workspace **+3 tests** vs M2.3.15: **696 → 699** passing.
 
 ---
 
+## Milestone M2.3.17 — Workspace decomposition + redb persistence (✓ shipped)
+
+**Why it was next.** Through M2.3.16 every layer of the node — chain runtime, mempool, persistence, JSON-RPC dispatch, P2P stack, and the binary wrapper — lived inside the single `mfn-node` crate. That was the right shape while every layer was still being designed in parallel; once the M2.3 gossip work stabilised, the layers had clean enough boundaries to be promoted into their own crates. The same window was used to swap in a second persistence backend (`redb`) under a `ChainPersistence` trait so future work can pick the right tradeoff per deployment.
+
+This milestone is a **refactor + persistence-backend addition** rather than a new feature. The wire formats, JSON-RPC method set, P2P protocol, consensus rules, and test counts are all preserved byte-for-byte.
+
+### What shipped
+
+**Four new workspace crates extracted from `mfn-node`:**
+
+- **`mfn-runtime`** ([`mfn-runtime/`](../mfn-runtime/)) — `Chain` driver, `Mempool`, producer helpers, `ChainConfig`, demo genesis. Pure-Rust, no IO.
+- **`mfn-store`** ([`mfn-store/`](../mfn-store/)) — `ChainPersistence` trait + two implementations:
+  - `ChainStore` (filesystem; `chain.checkpoint` + `chain.checkpoint.bak` + atomic temp rotation + `chain.blocks` append log; M2.1.0/M2.1.7/M2.1.9 behaviour preserved).
+  - `RedbChainStore` (embedded `redb` database; `chain.redb` holds primary/backup checkpoints + height-keyed blocks; shared block-log validation extracted to a backend-agnostic helper).
+- **`mfn-rpc`** ([`mfn-rpc/`](../mfn-rpc/)) — `parse_and_dispatch_serve(store: &dyn ChainPersistence, chain, pool, line) -> serde_json::Value`. Every JSON-RPC method handler (M2.1.6–M2.1.18, M2.2.8, M2.2.10) moves here unchanged.
+- **`mfn-net`** ([`mfn-net/`](../mfn-net/)) — frame codec, handshake helpers (M2.3.1–M2.3.10), gossip codec (M2.3.16), `serve` accept/dial thread spawners with `hid` counter + tip snapshot types.
+
+**`mfn-node` becomes a thin wrapper:**
+
+- Holds the `mfnd` binary (`bin/mfnd.rs`) and `mfnd_cli.rs` / `mfnd_serve.rs`.
+- `mfnd_serve::run_serve` keeps the TCP RPC accept loop and wires `Chain` / `Mempool` behind `Arc<Mutex<_>>` so the JSON-RPC handler and the P2P gossip handler share one process view of state.
+- `node_store.rs` selects `ChainStore` or `RedbChainStore` at runtime based on the new `--store fs|redb` flag.
+- `p2p_gossip.rs` implements `GossipHandler` against the shared `Chain` / `Mempool` so inbound `TxV1` reaches `Mempool::admit` and inbound `BlockV1` reaches `Chain::apply` → `ChainPersistence::append_block` → `Mempool::remove_mined`.
+
+**Operator surface:**
+
+- **`mfnd --store fs|redb`** — default is **`redb`** as of M2.3.17; pass `--store fs` to keep the M2.1.0 filesystem layout. Status output prints `store_backend=fs|redb` for visibility.
+- All existing RPC and P2P stdout/stderr lines unchanged.
+
+**Internal consensus-crate decomposition (same milestone, single mental category):**
+
+- **`mfn-consensus/src/block/`** — the 3,776-line `block.rs` split into `apply.rs`, `builder.rs`, `error.rs`, `genesis.rs`, `header.rs`, `state.rs`, `wire.rs`, plus a crate-private `internal.rs` for shared imports. Public API unchanged.
+- **`mfn-consensus/src/header_verify/`** — split into header and body submodules. `verify_header` and `verify_block_body` retain identical signatures.
+- **`mfn-consensus/src/transaction/`** — split into `wire`, `codec`, `build`, `verify` submodules; shared imports in `transaction/internal.rs`.
+- **`mfn-consensus/src/chain_checkpoint/`** — split into `encode` + `decode` mirroring the block layout.
+- **`mfn-consensus/src/validator_evolution/`** — split into `equivocation`, `liveness`, `bond_ops`, `unbond`, `bitmap` submodules.
+- **`mfn-consensus/tests/block_apply.rs`** — 51 `apply_block` tests moved out of the lib crate into an integration test for faster incremental builds.
+
+### Properties preserved (must-haves)
+
+- **Wire-format compatibility.** Every byte the network or disk sees is byte-for-byte identical to M2.3.16.
+- **JSON-RPC compatibility.** Every method name, request shape, response shape, and error code from M2.1.6 onward responds identically.
+- **Test parity.** Every existing test passes unchanged; new tests cover the trait implementations and the redb backend.
+- **No consensus impact.** No `apply_block` semantics changed; the splits are organizational.
+
+### Scope decisions
+
+- **No version bumps** on the consensus or checkpoint wire formats.
+- **No new RPC methods** in this milestone — the JSON-RPC handler set is identical to M2.2.10 + M2.3.x deltas.
+- **`redb` default chosen for the binary**, not the trait — operators on networks already running `fs` snapshots can pass `--store fs` indefinitely; the libraries don't pick a default.
+
+### What this unlocks
+
+- **Clean dependency cone for `mfn-light` / `mfn-wallet` / future `mfn-wasm`** — they can depend on `mfn-runtime` / `mfn-store` without pulling in the binary's CLI plumbing, P2P stack, or RPC dispatcher.
+- **Pluggable persistence** — adding a third backend (sled, RocksDB, S3) is now a `ChainPersistence` impl rather than a fork of `mfn-node`.
+- **Faster incremental builds** — touching one of the consensus submodules no longer recompiles the entire 3,776-line `block.rs` translation unit.
+- **Pre-conditions for M2.3.18+** — durable mempool, block-sync handlers, peer-set persistence, and a multi-validator harness all sit cleaner on top of the new boundaries.
+
+---
+
+## Coming next — M2.3.18+ to reach a 3-validator local testnet
+
+These are the concrete remaining sub-milestones in dependency order. Each is sized to be a single committable unit in the same "one small thing per commit" rhythm as M2.1.x / M2.2.x / M2.3.x to date.
+
+| Id (planned) | Deliverable | Why it's blocking |
+|---|---|---|
+| **M2.3.18** | **Block-sync request/response over P2P.** `GetBlocksByHeightV1` / `BlocksV1` frames in `mfn-net`; inbound handler in `mfn-node` queries `ChainPersistence::read_block_log_validated` and replies with canonical `encode_block` bytes. | Two nodes that diverge today have no way to catch the lagging peer up; M2.3.16 only gossips *new* blocks. |
+| **M2.3.19** | **Outbound tip-based sync loop.** After handshake, if the remote tip is higher, request the missing range and apply each `BlockV1` through `Chain::apply` + `ChainPersistence::append_block`. | Required before two `mfnd` processes can survive desync and converge. |
+| **M2.3.20** | **Mempool fan-out.** When `Mempool::admit` returns `Fresh`, forward the tx to every connected P2P peer via `TxV1`; idempotent on the receiving side because `admit` already dedups by `tx_id`. | Today gossip is single-hop; for 3+ nodes we need transitive propagation. |
+| **M2.3.21** | **Durable mempool.** Snapshot pending txs to a `mempool.bytes` file under the data dir on shutdown; reload on boot. Optional `mempool_root` exposed for diagnostics, not consensus. | A `mfnd` restart today loses every queued submission. |
+| **M2.3.22** | **Persistent peer set.** Track successful-handshake peers in `peers.json`; reconnect to them on boot up to `max_outbound_peers`. | First step toward seed-list / discovery without hard-coding addresses on the command line. |
+| **M2.3.23** | **Multi-validator block-production loop.** Replace the `step`-only flow with a slot-driven producer that wakes on `slot_duration_ms`, checks VRF eligibility against the current `ChainState.validators`, builds a proposal via `producer::build_proposal`, broadcasts it as a new `ProposalV1` frame, collects `CommitteeVote`s via a `VoteV1` frame, and seals once quorum is reached. | The actual mechanism that makes a 3-validator testnet *produce* blocks instead of just exchanging them. |
+| **M2.3.24** | **3-validator local harness + smoke.** Integration test that spawns three `mfnd` processes on loopback with a shared JSON genesis spec containing three operator validators, runs them for N slots, and asserts they all reach the same `tip_id` and apply each other's coinbase. | The end-to-end proof of life for M2.3. |
+
+After M2.3.24, the door to **M2.4 — Public testnet** is open (documentation + bootstrapping nodes + an external operator invitation list).
+
+### Why this order
+
+The pattern is deliberate: every milestone consumes what the previous one shipped, and each one is small enough to land in a single CI cycle.
+
+- **Sync before fan-out**: a node that can't catch up from a desync state is a bad gossip neighbor.
+- **Fan-out before durable mempool**: without fan-out, persisting a mempool just hoards txs locally.
+- **Durable mempool before persistent peers**: the peer-set is small and easy to lose; the mempool is large and operationally painful to lose.
+- **Persistent peers before multi-validator**: a 3-node harness needs reliable reconnection so each operator's CI run isn't a coin flip.
+- **Multi-validator last**: it's the largest piece and consumes every earlier piece — producer eligibility, vote propagation, block propagation, mempool catch-up, peer-set durability.
+
+---
+
 ## Milestone M2.x — Node daemon (`mfn-node`)
 
 **Goal.** Bring the chain online. A daemon that:
 
 - Listens for P2P peers and gossips blocks + txs.
 - Maintains a mempool with replace-by-fee policy.
-- Persists chain state to disk (RocksDB-based, deterministic).
+- Persists chain state to disk (filesystem or embedded `redb`; future RocksDB/sled is plug-replaceable).
 - Exposes JSON-RPC for wallets.
 - Runs the producer + voter logic when configured as a validator.
 
 ### Components
 
-| Module | Purpose |
-|---|---|
-| `mempool.rs` | Pending-tx admission, fee ordering, eviction. |
-| `mfn-net` | **M2.3.0–M2.3.16** P2P framing + handshake + post-goodbye **tx/block gossip** (`TxV1` / `BlockV1` / `GossipEndV1`). |
-| `mfn-store` | **M2.1.0** filesystem + **`redb`** checkpoint + block log; trait [`ChainPersistence`](../mfn-store/src/trait.rs). |
-| `mfn-rpc` | JSON-RPC dispatch (no sockets); **`mfnd serve`** calls [`parse_and_dispatch_serve`](../mfn-rpc/src/dispatch.rs). |
-| `mfn-runtime` | In-process **`Chain`** + **`Mempool`** + producer helpers (extracted from `mfn-node`). |
-| `rpc.rs` | JSON-RPC + WebSocket. Block, tx, balance, storage-status queries. |
-| `runner.rs` | Block production loop, finality voting loop, mempool flush. |
-| `bin/mfnd.rs` | **M2.1.1** — reference daemon (`status` / `save` / `run`); **M2.1.3–M2.1.5** — `step`, mempool drain, `--blocks N`, `--checkpoint-each`; **M2.1.6** — `serve` + `--rpc-listen`; **M2.1.7** — `chain.blocks` append on `step`; **M2.1.8** — JSON-RPC 2.0 responses on `serve`; **M2.1.8.1** — `submit_tx` array `params`; **M2.1.9** — validated block log read; **M2.1.10** — `serve` `get_block`; **M2.1.11** — `serve` `get_block_header`; **M2.1.12** — `serve` `get_mempool`; **M2.1.13** — `serve` `get_mempool_tx`; **M2.1.14** — `serve` `remove_mempool_tx`; **M2.1.15** — `serve` `clear_mempool`; **M2.1.16** — `serve` `get_checkpoint`; **M2.1.17** — `serve` `save_checkpoint`; **M2.1.18** — `serve` `list_methods`; **M2.2.8** — `serve` `get_claims_for` / `get_claims_by_pubkey` / `list_recent_uploads`; **M2.2.10** — `serve` `list_recent_claims` / `list_data_roots_with_claims`; **M2.3.0** — `network` module (`NetworkConfig` defaults only). Full producer loop attaches later. |
+| Crate / Module | Purpose | Status |
+|---|---|---|
+| `mfn-runtime` | In-process `Chain` driver + `Mempool` + producer helpers. | ✓ live (M2.3.17 extraction) |
+| `mfn-store` | `ChainPersistence` trait + `ChainStore` (filesystem) + `RedbChainStore` (embedded redb) + append-only `chain.blocks` log + `read_block_log_validated`. | ✓ live (M2.1.0–M2.1.9, plus M2.3.17 trait + redb backend) |
+| `mfn-rpc` | JSON-RPC dispatch (no sockets); `parse_and_dispatch_serve` handles every M2.1.x / M2.2.8 / M2.2.10 method against any `ChainPersistence`. | ✓ live (M2.3.17 extraction) |
+| `mfn-net` | P2P framing + handshakes (M2.3.1–M2.3.10) + tip exchange + goodbye + observability + tx/block gossip (M2.3.16) + `serve` accept/dial threads. | ✓ live |
+| `mfn-node::mfnd_serve` | TCP accept loop wiring `mfn-rpc` + `mfn-net::serve` + a shared `Arc<Mutex<Chain>>` / `Arc<Mutex<Mempool>>`. | ✓ live |
+| `mfn-node::p2p_gossip` | `GossipHandler` impl that admits inbound `TxV1` to the mempool and applies inbound `BlockV1` through chain + persistence. | ✓ live |
+| `mfn-node::node_store` | Picks `ChainStore` (filesystem) or `RedbChainStore` based on `--store fs\|redb`. | ✓ live |
+| `mfn-node/src/bin/mfnd.rs` | Reference daemon binary. `status` / `save` / `run` / `step` (+ `--blocks N` / `--checkpoint-each`) / `serve` (+ `--rpc-listen` / `--p2p-listen` / `--p2p-dial` / `--store fs\|redb`). | ✓ live |
+| Block-sync handler (planned) | `GetBlocksByHeightV1` / `BlocksV1` reply + outbound tip-based sync loop. | ⏳ M2.3.18–M2.3.19 |
+| Mempool fan-out (planned) | Forward `Fresh` admissions to all connected peers. | ⏳ M2.3.20 |
+| Durable mempool (planned) | Snapshot pending txs on shutdown; reload on boot. | ⏳ M2.3.21 |
+| Persistent peer set (planned) | `peers.json` + reconnect loop. | ⏳ M2.3.22 |
+| `runner.rs` (planned) | Slot-driven block production + vote propagation + finality assembly. | ⏳ M2.3.23 |
 
 ### Phases
 
-- **M2.1 — Single-node demo.** No P2P; `apply_block` is driven by **`step`** and, for local integration, a minimal **`serve`** TCP line server (`get_tip`, `submit_tx`, **`get_block`**, **`get_block_header`**, **`get_mempool`**, **`get_mempool_tx`**, **`remove_mempool_tx`**, **`clear_mempool`**, **`get_checkpoint`**, **`save_checkpoint`**, **`list_methods`**, **`get_claims_for`**, **`get_claims_by_pubkey`**, **`list_recent_uploads`**, **`list_recent_claims`**, **`list_data_roots_with_claims`**) with **JSON-RPC 2.0 responses (M2.1.8)** and **`submit_tx`** **array `params` (M2.1.8.1)**; **`chain.blocks`** can be checked with **`read_block_log_validated` (M2.1.9)** and read over **`serve`** via **`get_block` (M2.1.10)** or **`get_block_header` (M2.1.11)**; **`get_mempool` (M2.1.12)** snapshots the pending set; **`get_mempool_tx` (M2.1.13)** fetches one pending tx by id; **`remove_mempool_tx` (M2.1.14)** evicts by id when present; **`clear_mempool` (M2.1.15)** clears the pool in one call; **`get_checkpoint` (M2.1.16)** returns canonical checkpoint bytes for the live chain state; **`save_checkpoint` (M2.1.17)** writes that state through **`ChainStore::save`**; **`list_methods` (M2.1.18)** lists every implemented JSON-RPC method name (sorted); **`get_claims_for` / `get_claims_by_pubkey` / `list_recent_uploads` (M2.2.8)** and **`list_recent_claims` / `list_data_roots_with_claims` (M2.2.10)** expose **`ChainState.claims`** / **`storage`** for discovery. A full `rpc` module (HTTP/WebSocket, richer methods) lands in a later sub-milestone.
-- **M2.3 — Multi-node testnet.** Add P2P + mempool. Run a 3-validator local testnet that produces real finalized blocks.
-- **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators.
+- **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
+- **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
+- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.17), M2.3.18+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes and exchange `TxV1` / `BlockV1` gossip frames; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: block-sync request/response, mempool fan-out, durable mempool, persistent peer set, slot-driven multi-validator producer (see "Coming next" above).
+- **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
 
 ### Not in M2.x
 
-- Light clients (M4).
+- Wallet CLI (M3).
+- WASM bindings (M4).
 - Cross-chain bridges (M5+).
 
 ---
