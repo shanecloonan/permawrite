@@ -52,9 +52,6 @@ mod internal;
 mod state;
 mod wire;
 
-#[cfg(test)]
-mod tests;
-
 pub use apply::{apply_block, ApplyOutcome};
 pub use builder::{build_unsealed_header, seal_block};
 pub use error::BlockError;

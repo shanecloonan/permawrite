@@ -1,10 +1,17 @@
-use super::*;
-use crate::bond_wire::*;
-use crate::bonding::*;
-use crate::consensus::*;
-use crate::emission::*;
-use crate::slashing::*;
-use crate::storage::StorageCommitment;
+//! Block pply_block integration tests.
+//!
+//! Kept as a crate integration test so editing src/block/*.rs does not
+//! recompile ~1.6k lines of apply-block coverage on every change.
+
+#![allow(unused_imports)]
+
+use mfn_consensus::bond_wire::*;
+use mfn_consensus::bonding::*;
+use mfn_consensus::consensus::*;
+use mfn_consensus::emission::*;
+use mfn_consensus::slashing::*;
+use mfn_consensus::storage::StorageCommitment;
+use mfn_consensus::*;
 use mfn_crypto::codec::Writer;
 use mfn_storage::{EndowmentParams, DEFAULT_ENDOWMENT_PARAMS};
 
