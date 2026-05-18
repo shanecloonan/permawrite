@@ -323,7 +323,7 @@ End-to-end: a transaction's journey from the user's wallet to a finalized block.
 sequenceDiagram
     autonumber
     participant W as Wallet
-    participant M as Mempool<br/>(future: mfn-node)
+    participant M as Mempool<br/>(mfn-node)
     participant P as Block Producer<br/>(slot-eligible validator)
     participant C as Committee<br/>(N validators)
     participant S as State Machine<br/>(apply_block)
@@ -342,7 +342,7 @@ sequenceDiagram
     P->>P: Aggregate votes · pack FinalityProof<br/>(quorum ≥ quorum_stake_bps stake share)
     P->>S: Block { header, txs, slashings, storage_proofs }
 
-    S->>S: apply_block (the 7-phase pipeline above)
+    S->>S: apply_block (the 10-phase pipeline below)
     alt all phases pass
         S-->>S: Commit new ChainState · append block_id
     else any phase fails
@@ -367,40 +367,34 @@ The block's lifecycle once it reaches a node:
 
 ## State-transition function (`apply_block`)
 
-`mfn_consensus::apply_block` is the heart of the protocol. What follows is a flattened summary of every check, in order. The full implementation is in [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs).
+`mfn_consensus::block::apply_block` is the heart of the protocol. What follows is a flattened summary of every check, in order. The full implementation is in [`mfn-consensus/src/block/apply.rs`](../mfn-consensus/src/block/apply.rs).
 
 <p align="center">
-  <img src="./img/apply-block-phases.svg" alt="The seven phases of apply_block in sequence: header sanity and finality, Merkle roots, equivocation slashing, transaction verification, SPoRA storage proofs, two-sided treasury settlement, and liveness tracking. Any phase's failure rejects the entire block." width="100%">
+  <img src="./img/apply-block-phases.svg" alt="The ten phases of apply_block in sequence: linkage, body Merkle roots, finality proof, transactions, equivocation slashing, SPoRA storage proofs, liveness evolution, bond rotation, treasury settlement and coinbase verification, and post-mutation storage and UTXO root checks. Any phase failure rejects the entire block." width="100%">
 </p>
 
+> **Header ingress vs `apply_block`.** Structural header checks (`version`, monotonic `timestamp`, etc.) run when a node decodes or verifies a header via [`verify_header`](../mfn-consensus/src/header_verify.rs) before the block is applied. Inside `apply_block`, Phase 0 only enforces **height** and **`prev_hash`** linkage against the current `ChainState`.
 
-### Phase 0 — Header & finality
+### Phase 0 — Linkage
 
 - Reject if `header.height != prev_height + 1` (or `0` if genesis).
-- Reject if `header.prev_hash != prev_tip_id`.
-- Reject if `header.timestamp <= prev_timestamp`.
-- Reject if `header.version != HEADER_VERSION`.
-- Verify `FinalityProof` against `state.validators`:
-  - Decode `producer_proof` as a `FinalityProof`.
-  - Producer ed25519 + VRF (header-signing-hash signed; VRF output below threshold).
-  - Committee BLS aggregate: signed message must equal `header_signing_hash(header)`, signers' stake must reach quorum, no validator double-counted.
-- Capture the finality bitmap for liveness tracking later.
+- Reject if `header.prev_hash != prev_tip_id` (genesis chain expects all-zero `prev_hash`).
 
-### Phase 1 — Roots
+### Phase 1 — Body Merkle roots (verify only)
 
 - Reconstruct `tx_root` from `txs` and reject if `header.tx_root` differs.
 - Reconstruct `bond_root` from `block.bond_ops` (zero sentinel for empty) and reject if it differs from `header.bond_root`.
 - **Reconstruct `slashing_root` from `block.slashings` (M2.0.1).** Each leaf is the canonicalized form of one equivocation evidence piece (pair-order normalized so a swapped `(hash_a, hash_b)` hashes to the same leaf). Empty list → all-zero sentinel.
-- **Reconstruct `validator_root` from the *pre-block* validator set (M2.0)** and reject if it differs from `header.validator_root`. Committing to the pre-block set means a light client can verify Phase 0's finality proof from the header alone, *before* it has any of this block's state. Rotation / slashing / unbond settlement applied later in `apply_block` move the **next** header's `validator_root`, not this one's.
 - **Reconstruct `storage_proof_root` from `block.storage_proofs` (M2.0.2).** Each leaf is `dhash(STORAGE_PROOF_LEAF, encode_storage_proof(p))` — the same canonical SPoRA wire bytes the per-proof verifier consumes. Order is producer-emit (the chain pays out yield to the first proof that lands; re-sorting would lose that alignment). Empty list → all-zero sentinel.
-- Build the list of new storage commitments anchored in this block (from `txs[*].storage_commit` and `Block.slashings` etc.). Reconstruct `storage_root`.
+- **Reconstruct `validator_root` from the *pre-block* validator set (M2.0)** and reject if it differs from `header.validator_root`. Committing to the pre-block set means a light client can verify the finality proof from the header alone, *before* it has any of this block's state. Rotation / slashing / unbond settlement applied later move the **next** header's `validator_root`, not this one's.
+- **Reconstruct `claims_root` (M2.2).** Parse and cryptographically verify every MFCL authorship claim in non-coinbase `tx.extra`; build the Merkle root over claim leaf hashes in block order. Empty → all-zero sentinel.
 
-### Phase 2 — Slashing (equivocation)
+### Phase 2 — Finality proof
 
-For each `SlashEvidence` in `block.slashings`:
-- Verify it's a valid pair of conflicting BLS-signed headers at the same slot by the same validator.
-- Set that validator's stake to zero in `next_state.validators` (full equivocation slashing).
-- Record their `liveness_slashes`-style stat unaffected; equivocation is a separate, harsher class.
+- When `state.validators` is non-empty, decode `header.producer_proof` as a `FinalityProof` and verify against the pre-block validator set:
+  - Producer ed25519 + VRF (header-signing-hash signed; VRF output below threshold).
+  - Committee BLS aggregate: signed message must equal `header_signing_hash(header)`, signers' stake must reach quorum, no validator double-counted.
+- Capture the finality bitmap for liveness tracking in Phase 6.
 
 ### Phase 3 — Transactions
 
@@ -424,13 +418,18 @@ For each tx position `ti`:
   - Verify `tx.fee` to-treasury share (`fee × fee_to_treasury_bps / 10000`) is ≥ `required`.
   - Verify `replication ∈ [min_replication, max_replication]`.
   - Register `StorageEntry { commit, last_proven_height = height, last_proven_slot = slot, pending_yield_ppb = 0 }` in `next.storage`.
+- **Authorship claims (M2.2):** for each verified claim in `tx.extra`, require `commit_hash` to match an anchored storage commitment, enforce one claim per `(data_root, claim_pubkey)` in `ChainState.claims`, and index the claim record.
 - **State updates**:
   - Insert each new output's `(one_time_addr, UtxoEntry { commit, height })` into `next.utxo`.
   - Append each output to the `next.utxo_tree` accumulator.
   - Insert each input's key image into `next.spent_key_images`.
-  - Add `fee × fee_to_treasury_bps / 10000` to `next.treasury`.
+  - Register new `StorageEntry` rows for newly anchored commitments; accumulate `fee_sum` for settlement in Phase 8 (per-tx treasury share is checked at upload time, not credited until Phase 8).
 
-### Phase 4 — Storage proofs (per-block SPoRA audit)
+### Phase 4 — Equivocation slashing
+
+Via [`validator_evolution::apply_equivocation_slashings`](../mfn-consensus/src/validator_evolution.rs): for each `SlashEvidence` in `block.slashings`, verify conflicting BLS-signed headers at the same slot, zero the offender's stake, and credit forfeited stake to `next.treasury`.
+
+### Phase 5 — Storage proofs (per-block SPoRA audit)
 
 For each `StorageProof` in `block.storage_proofs`:
 
@@ -446,14 +445,6 @@ For each `StorageProof` in `block.storage_proofs`:
   - Flush any whole-base-unit amount into the proof reward (paid to whoever submitted the proof).
 - Update `entry.last_proven_height = height`, `entry.last_proven_slot = slot`.
 
-### Phase 5 — Two-sided treasury settlement
-
-After all per-tx fee shares are accumulated and all SPoRA rewards are flushed:
-
-- Total storage reward = sum of base units paid out across all accepted proofs.
-- Drain `next.treasury -= storage_reward_total` (saturating at 0).
-- Emission **backstop**: if `treasury` is insufficient to cover the storage reward, mint the shortfall as fresh tokens via `emission_params.storage_proof_reward`. This is the only sustained sink for new tokens beyond the regular subsidy.
-
 ### Phase 6 — Liveness tracking + auto-slashing
 
 Walk the captured finality bitmap. For each validator `i` (skipping zero-stake validators):
@@ -466,9 +457,9 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
   - Reset `consecutive_missed = 0`.
   - **Credit the forfeited stake delta to `next.treasury`** (saturating `u128`).
 
-### Phase 7 — Bond operations (M1)
+### Phase 7 — Bond operations + unbond settlement (M1)
 
-[`simulate_bond_ops`](../mfn-consensus/src/block.rs) runs **atomically** over `block.bond_ops`, validated against the pre-bond view of the chain. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rolls back the entire bond-op set so the binding `bond_root` commitment remains intact.
+[`validator_evolution::apply_bond_ops_evolution`](../mfn-consensus/src/validator_evolution.rs) runs **atomically** over `block.bond_ops`. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rejects the whole block so the binding `bond_root` commitment stays intact.
 
 - `BondOp::Register { stake, vrf_pk, bls_pk, payout, sig }`:
   - Stake validated by `bonding::validate_stake` (≥ `min_validator_stake`).
@@ -484,22 +475,25 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
   - Insert `PendingUnbond { validator_index, unlock_height = height + unbond_delay_blocks, stake_at_request, request_height }` into `next.pending_unbonds`.
   - **The validator stays live and slashable** for the duration of the delay.
 
-### Phase 8 — Unbond settlement (M1)
+Immediately after bond ops, [`apply_unbond_settlements`](../mfn-consensus/src/validator_evolution.rs) walks `pending_unbonds` in ascending `validator_index` order. For each entry with `unlock_height ≤ height`, zero the validator's stake and remove the pending row. Bonded MFN **stays in `next.treasury`** (one-way permanence contribution). Settlement runs after equivocation slashing in this block, so a validator who unbonds and then equivocates inside the delay is still fully forfeited.
 
-Walk `next.pending_unbonds` in ascending `validator_index` order. For each entry with `unlock_height ≤ height`:
+### Phase 8 — Treasury settlement + coinbase
 
-- Zero the validator's `stake` (becomes a non-signing zombie at the same index).
-- Remove the entry from `pending_unbonds`.
-- The originally bonded MFN **stays in `next.treasury`** — M1 leaves it as a permanent contribution to permanence. Explicit operator payouts on settlement are deferred to a future milestone (see [`M1_VALIDATOR_ROTATION.md § Future work`](./M1_VALIDATOR_ROTATION.md#future-work)).
-- Settlement runs *after* slashing, so a validator who unbonds and then equivocates inside the delay is still fully forfeited (and the slash credits the treasury).
+After `fee_sum` is known and SPoRA rewards are computed:
 
-### Phase 9 — Root checks + commit
+- Credit `treasury_fee = fee_sum × fee_to_treasury_bps / 10_000` to `next.treasury`; `producer_fee = fee_sum − treasury_fee`.
+- `storage_reward_total = storage_proof_reward × N_accepted + Σ accrual bonuses`.
+- Drain treasury for storage rewards (saturating); any shortfall is minted via emission backstop and included in the coinbase amount paid to the producer.
+- When the slot producer has a payout address, verify the coinbase at `tx[0]` pays `emission(height) + producer_fee + storage_reward_total` with deterministic blinding.
 
+### Phase 9 — Post-mutation roots + commit
+
+- Recompute `storage_root` over storage commitments newly anchored during Phase 3 and reject if it differs from `header.storage_root`.
 - Recompute `utxo_root` from `next.utxo_tree` and reject if it differs from `header.utxo_root`.
 - Append `block_id(header)` to `next.block_ids`.
 - Return `Ok(next)`.
 
-(Per-input Merkle roots — `tx_root`, `bond_root`, `slashing_root`, `validator_root`, `storage_proof_root`, `storage_root` — are all verified in **Phase 1**, before any state mutation. Only `utxo_root`, which depends on the post-block accumulator, is checked here. **The header now binds every body element** — `txs`, `bond_ops`, `slashings`, the pre-block validator set, and `storage_proofs` — closing the "header binds the body" invariant.)
+(Pre-mutation Merkle roots — `tx_root`, `bond_root`, `slashing_root`, `storage_proof_root`, `validator_root`, `claims_root` — are verified in **Phase 1** before any state change. Post-mutation roots — `storage_root`, `utxo_root` — are checked in **Phase 9**. The header binds every body element: `txs`, `bond_ops`, `slashings`, `storage_proofs`, authorship claims, the pre-block validator set, and the post-block storage/UTXO trees.)
 
 ---
 
@@ -788,14 +782,12 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
 │                   failures; M2.0.16 routes shared per-field failures through
 │                   Read(CheckpointReadError). Domain-separated from
 │                   LIGHT_CHECKPOINT.
-└── block.rs        BlockHeader, Block, ChainState, apply_block (the STF),
-                    M2.0.2 storage-proof root binding. Each validator-set
-                    mutation is a single call into validator_evolution.
-                    M2.0.9 adds decode_block_header (the inverse of
-                    block_header_bytes) with typed HeaderDecodeError.
-                    M2.0.10 adds encode_block / decode_block.
+└── block/          BlockHeader, Block, ChainState; apply_block in apply.rs (the STF).
+                    M2.0.2 storage-proof root binding. M2.2 authorship claims_root.
+                    Each validator-set mutation is a single call into validator_evolution.
+                    M2.0.9 decode_block_header; M2.0.10 encode_block / decode_block.
 
-mfn-node/           Node-side glue             (109 tests: 76 unit + 33 integration)
+mfn-node/           Node-side glue             (175 tests)
 ├── chain.rs        Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
