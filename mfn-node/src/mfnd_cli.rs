@@ -78,7 +78,7 @@ fn usage() -> &'static str {
     "usage: mfnd --data-dir <DIR> [OPTIONS] <COMMAND>\n\
      \n\
      options:\n\
-       --store BACKEND  checkpoint backend: `fs` (default) or `redb` (`chain.redb`)\n\
+       --store BACKEND  checkpoint backend: `redb` (default) or `fs` (`chain.redb`)\n\
        --genesis PATH   optional JSON genesis spec (version 1; see crate testdata/)\n\
        --blocks N       only for `step`: produce and apply N blocks in sequence\n\
                         (default 1; by default one checkpoint after the last block)\n\
@@ -787,8 +787,21 @@ mod tests {
     }
 
     #[test]
-    fn parse_args_store_defaults_to_fs() {
+    fn parse_args_store_defaults_to_redb() {
         let args = vec!["--data-dir".into(), "/tmp/x".into(), "status".into()];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.store_backend, StoreBackend::Redb);
+    }
+
+    #[test]
+    fn parse_args_store_fs() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--store".into(),
+            "fs".into(),
+            "status".into(),
+        ];
         let p = parse_args(&args).unwrap();
         assert_eq!(p.store_backend, StoreBackend::Fs);
     }

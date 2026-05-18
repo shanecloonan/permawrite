@@ -13,7 +13,8 @@ use mfn_consensus::{
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
 use mfn_crypto::stealth_wallet_from_seed;
-use mfn_node::{genesis_config_from_json_path, Chain, ChainConfig, ChainStore};
+use mfn_node::{genesis_config_from_json_path, Chain, ChainConfig, NodeStore, StoreBackend};
+use mfn_store::ChainPersistence;
 use mfn_wallet::{TransferRecipient, Wallet, WalletKeys};
 use serde_json::{json, Value};
 
@@ -25,6 +26,33 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
 
 fn mfnd() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mfnd"))
+}
+
+/// Same backend `mfnd` uses when `--store` is omitted (currently `redb`).
+fn open_mfnd_store(dir: &Path) -> NodeStore {
+    NodeStore::open(StoreBackend::default(), dir).expect("open mfnd store")
+}
+
+/// Skips unrelated stdout lines (parallel tests may inherit the same console).
+fn read_mfnd_serve_listening_addr(out_reader: &mut BufReader<ChildStdout>) -> SocketAddr {
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let n = out_reader
+            .read_line(&mut line)
+            .expect("read mfnd serve stdout");
+        if n == 0 {
+            panic!("mfnd serve exited before mfnd_serve_listening= (last line={line:?})");
+        }
+        if line.starts_with("mfnd_serve_listening=") {
+            break;
+        }
+    }
+    line.strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim()
+        .parse()
+        .expect("parse socket addr")
 }
 
 fn rpc_line(resp: &str) -> Value {
@@ -150,15 +178,7 @@ fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr)
         .expect("spawn mfnd serve");
     let stdout = child.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let mut listen_line = String::new();
-    out_reader
-        .read_line(&mut listen_line)
-        .expect("read mfnd_serve_listening");
-    let addr_s = listen_line
-        .strip_prefix("mfnd_serve_listening=")
-        .expect("listening prefix")
-        .trim();
-    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
+    let sock = read_mfnd_serve_listening_addr(&mut out_reader);
     (child, sock)
 }
 
@@ -194,19 +214,20 @@ fn spawn_mfnd_serve_with_p2p(
     let stderr = child.stderr.take().expect("stderr pipe");
     let mut out_reader = BufReader::new(stdout);
     let err_reader = BufReader::new(stderr);
-    let mut rpc_line = String::new();
-    out_reader
-        .read_line(&mut rpc_line)
-        .expect("read mfnd_serve_listening");
-    let rpc_s = rpc_line
-        .strip_prefix("mfnd_serve_listening=")
-        .expect("rpc listening prefix")
-        .trim();
-    let rpc_addr: SocketAddr = rpc_s.parse().expect("parse rpc socket addr");
+    let rpc_addr = read_mfnd_serve_listening_addr(&mut out_reader);
     let mut p2p_line = String::new();
-    out_reader
-        .read_line(&mut p2p_line)
-        .expect("read mfnd_p2p_listening");
+    loop {
+        p2p_line.clear();
+        let n = out_reader
+            .read_line(&mut p2p_line)
+            .expect("read mfnd serve stdout (p2p)");
+        if n == 0 {
+            panic!("mfnd serve exited before mfnd_p2p_listening= (last line={p2p_line:?})");
+        }
+        if p2p_line.starts_with("mfnd_p2p_listening=") {
+            break;
+        }
+    }
     let p2p_s = p2p_line
         .strip_prefix("mfnd_p2p_listening=")
         .expect("p2p listening prefix")
@@ -259,7 +280,7 @@ fn synth_decoy_one_step_signed_transfer_fixture(test: &str) -> (PathBuf, PathBuf
         String::from_utf8_lossy(&step_out.stderr)
     );
 
-    let store = ChainStore::new(&dir);
+    let store = open_mfnd_store(&dir);
     let blocks = store.read_block_log().expect("read blocks");
     assert_eq!(
         blocks.len(),
@@ -569,15 +590,7 @@ fn mfnd_serve_redb_store_get_tip_over_tcp() {
         .expect("spawn mfnd serve --store redb");
     let stdout = child.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let mut listen_line = String::new();
-    out_reader
-        .read_line(&mut listen_line)
-        .expect("read mfnd_serve_listening");
-    let addr_s = listen_line
-        .strip_prefix("mfnd_serve_listening=")
-        .expect("listening prefix")
-        .trim();
-    let sock: SocketAddr = addr_s.parse().expect("parse socket addr");
+    let sock = read_mfnd_serve_listening_addr(&mut out_reader);
     let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
     let r = assert_rpc2_result(&resp);
     assert!(r.get("tip_height").is_some(), "r={r}");
@@ -1094,8 +1107,10 @@ fn mfnd_serve_get_checkpoint_round_trips_over_tcp_after_step() {
 fn mfnd_serve_save_checkpoint_creates_checkpoint_file() {
     let dir = unique_data_dir("serve_save_checkpoint");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
-    let store = ChainStore::new(&dir);
-    assert!(!store.has_any_checkpoint());
+    assert!(
+        !dir.join("chain.redb").exists() && !dir.join("chain.checkpoint").exists(),
+        "fresh data dir"
+    );
     let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
     let resp = tcp_request_json(
         sock,
@@ -1104,10 +1119,13 @@ fn mfnd_serve_save_checkpoint_creates_checkpoint_file() {
     let r = assert_rpc2_result(&resp);
     assert!(r["bytes_written"].as_u64().unwrap() > 0);
     let cp = r["checkpoint_path"].as_str().expect("checkpoint_path");
-    assert!(cp.contains("chain.checkpoint"));
+    assert!(
+        cp.contains("chain.checkpoint") || cp.contains("chain.redb"),
+        "checkpoint_path={cp}"
+    );
     let _ = child.kill();
     let _ = child.wait();
-    let store2 = ChainStore::new(&dir);
+    let store2 = open_mfnd_store(&dir);
     assert!(store2.has_any_checkpoint());
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -1207,7 +1225,7 @@ fn mfnd_step_block_log_passes_validated_read() {
         String::from_utf8_lossy(&step_out.stderr)
     );
 
-    let store = ChainStore::new(&dir);
+    let store = open_mfnd_store(&dir);
     let gc = genesis_config_from_json_path(&spec).expect("genesis");
     let chain = store
         .load_or_genesis(ChainConfig::new(gc))
@@ -1252,17 +1270,7 @@ fn mfnd_serve_get_block_over_tcp_after_step() {
     let blk = decode_block(&bytes).expect("decode_block");
     assert_eq!(blk.header.height, 1);
 
-    let store = ChainStore::new(&dir);
-    let gc = genesis_config_from_json_path(&spec).expect("genesis");
-    let chain = store
-        .load_or_genesis(ChainConfig::new(gc))
-        .expect("load chain");
-    let blocks = store
-        .read_block_log_validated(&chain)
-        .expect("read_block_log_validated");
-    assert_eq!(bytes, encode_block(&blocks[0]));
-
-    let hdr_exp = block_header_bytes(&blocks[0].header);
+    let hdr_exp = block_header_bytes(&blk.header);
     let req_h = r#"{"jsonrpc":"2.0","method":"get_block_header","params":{"height":1},"id":78}"#;
     let resp_h = tcp_request_json(sock, req_h);
     let rh = assert_rpc2_result(&resp_h);
@@ -1276,6 +1284,18 @@ fn mfnd_serve_get_block_over_tcp_after_step() {
 
     let _ = child.kill();
     let _ = child.wait();
+
+    let store = open_mfnd_store(&dir);
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let chain = store
+        .load_or_genesis(ChainConfig::new(gc))
+        .expect("load chain");
+    let blocks = store
+        .read_block_log_validated(&chain)
+        .expect("read_block_log_validated");
+    assert_eq!(bytes, encode_block(&blocks[0]));
+    assert_eq!(blocks[0].header.height, 1);
+
     std::fs::remove_dir_all(&dir).ok();
 }
 

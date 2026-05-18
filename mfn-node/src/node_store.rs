@@ -10,9 +10,9 @@ use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreS
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StoreBackend {
     /// Flat files: `chain.checkpoint` + `chain.blocks`.
-    #[default]
     Fs,
-    /// Embedded `chain.redb`.
+    /// Embedded `chain.redb` (default for local devnet).
+    #[default]
     Redb,
 }
 

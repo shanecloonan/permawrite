@@ -48,6 +48,7 @@ mod builder;
 mod error;
 mod genesis;
 mod header;
+mod internal;
 mod state;
 mod wire;
 
