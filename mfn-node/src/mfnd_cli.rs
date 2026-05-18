@@ -72,6 +72,10 @@ struct Parsed {
     p2p_dial: Option<String>,
     /// Persistence backend (`fs` default, or `redb`).
     store_backend: StoreBackend,
+    /// `serve` only: slot-driven multi-validator production (**M2.3.23**).
+    produce: bool,
+    /// `serve --produce` only: milliseconds between slot ticks (default 1000).
+    slot_duration_ms: u64,
 }
 
 fn usage() -> &'static str {
@@ -91,6 +95,10 @@ fn usage() -> &'static str {
                                   (tcp_connect_peer_v1_handshake_with_tip_exchange); on success prints\n\
                                   mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip / mfnd_p2p_height_cmp /\n\
                                   mfnd_p2p_handshake_ms (each with matching hid=; see mfnd_serve)\n\
+       --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
+       --slot-duration-ms MS    only for `serve --produce` (default 1000)\n\
+                                  set MFND_VALIDATOR_INDEX + MFND_VRF_SEED_HEX + MFND_BLS_SEED_HEX\n\
+                                  (or MFND_SOLO_* aliases) matching the JSON genesis validator row\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -374,6 +382,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 listen,
                 parsed.p2p_listen.as_deref(),
                 parsed.p2p_dial.as_deref(),
+                parsed.produce,
+                parsed.slot_duration_ms,
             )?;
         }
     }
@@ -415,6 +425,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut p2p_listen: Option<String> = None;
     let mut p2p_dial: Option<String> = None;
     let mut store_backend = StoreBackend::default();
+    let mut produce = false;
+    let mut slot_duration_ms = 1000u64;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -510,6 +522,24 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--produce" {
+            produce = true;
+            i += 1;
+            continue;
+        }
+        if a == "--slot-duration-ms" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--slot-duration-ms requires a positive integer".into());
+            };
+            slot_duration_ms = v
+                .parse()
+                .map_err(|_| format!("invalid --slot-duration-ms `{v}`"))?;
+            if slot_duration_ms == 0 {
+                return Err("--slot-duration-ms must be at least 1".into());
+            }
+            i += 2;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`\n{}", usage()));
         }
@@ -563,6 +593,18 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if produce && cmd != Cmd::Serve {
+        return Err(format!(
+            "--produce is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
+    if slot_duration_ms != 1000 && !produce {
+        return Err(format!(
+            "--slot-duration-ms is only valid with serve --produce\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
@@ -573,6 +615,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         p2p_listen,
         p2p_dial,
         store_backend,
+        produce,
+        slot_duration_ms,
     })
 }
 

@@ -25,6 +25,7 @@ mod node_store;
 mod p2p_block_sync;
 mod p2p_fanout;
 mod p2p_gossip;
+mod runner;
 
 pub use node_store::{NodeStore, StoreBackend};
 
@@ -68,6 +69,9 @@ pub mod store {
 
 pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 pub use network::NetworkConfig;
+
+pub use crate::p2p_fanout::P2pPeerSet;
+pub use crate::runner::{produce_config_from_env, ProduceConfig, ProductionEngine};
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).
 #[must_use]

@@ -143,6 +143,9 @@ fn log_gossip_end(hid: u64, peer: &str, stats: &GossipRecvStats) {
 /// Registry of peers for mempool fan-out (**M2.3.20**).
 pub type FanoutPeerSetHook = Arc<dyn crate::gossip::FanoutPeerSet>;
 
+/// Multi-validator proposal/vote handler (**M2.3.23**).
+pub type ProductionHook = Arc<dyn crate::production::ProductionHandler>;
+
 struct InboundGossip {
     inner: GossipHook,
     hid: u64,
@@ -238,6 +241,7 @@ fn recv_post_handshake(
     gossip: &GossipHook,
     block_sync: Option<&BlockSyncHook>,
     fanout_peers: Option<&FanoutPeerSetHook>,
+    production: Option<&ProductionHook>,
 ) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
@@ -258,6 +262,7 @@ fn recv_post_handshake(
             &logging,
             &session,
             fanout_peers.map(|ps| ps.as_ref()),
+            production.map(|h| h.as_ref()),
         )
     } else {
         recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
@@ -284,6 +289,7 @@ pub fn spawn_inbound_handshake_loop(
     block_sync: Option<BlockSyncHook>,
     block_applier: Option<BlockSyncApplierHook>,
     fanout_peers: Option<FanoutPeerSetHook>,
+    production: Option<ProductionHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p".into())
@@ -334,6 +340,7 @@ pub fn spawn_inbound_handshake_loop(
                                 h,
                                 block_sync.as_ref(),
                                 fanout_peers.as_ref(),
+                                production.as_ref(),
                             );
                         }
                     }

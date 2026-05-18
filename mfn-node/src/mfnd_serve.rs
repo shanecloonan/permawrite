@@ -21,6 +21,7 @@ use serde_json::Value;
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{spawn_reconnect_saved_peers, P2pPeerSet};
 use crate::p2p_gossip::P2pGossipHandler;
+use crate::runner::{produce_config_from_env, spawn_slot_producer_loop, ProductionEngine};
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
     let s = v.to_string();
@@ -99,7 +100,10 @@ pub(crate) fn run_serve(
     rpc_listen: &str,
     p2p_listen: Option<&str>,
     p2p_dial: Option<&str>,
+    produce: bool,
+    slot_duration_ms: u64,
 ) -> Result<(), String> {
+    let genesis_timestamp = cfg.genesis.timestamp;
     let chain = Arc::new(Mutex::new(
         store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
     ));
@@ -122,6 +126,12 @@ pub(crate) fn run_serve(
         *guard.genesis_id()
     };
 
+    if produce && p2p_listen.is_none() && p2p_dial.is_none() {
+        return Err(
+            "mfnd serve --produce requires --p2p-listen and/or --p2p-dial".into(),
+        );
+    }
+
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
     let (
         p2p_tip_cell,
@@ -130,6 +140,7 @@ pub(crate) fn run_serve(
         block_sync_hook,
         block_applier_hook,
         fanout_peers,
+        production_hook,
     ): (
         Option<TipSnapshot>,
         Option<HidCounter>,
@@ -137,6 +148,7 @@ pub(crate) fn run_serve(
         Option<BlockSyncHook>,
         Option<BlockSyncApplierHook>,
         Option<Arc<P2pPeerSet>>,
+        Option<mfn_net::ProductionHook>,
     ) = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -158,6 +170,37 @@ pub(crate) fn run_serve(
         let sync_hook = P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
         let gossip_hook: mfn_net::GossipHook = hook.clone();
         let applier_hook: BlockSyncApplierHook = hook;
+        let production_hook = if produce {
+            let validators = {
+                let guard = chain
+                    .lock()
+                    .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
+                guard.validators().to_vec()
+            };
+            let local =
+                produce_config_from_env(&validators, slot_duration_ms)?;
+            println!(
+                "mfnd_producer_start validator_index={} slot_duration_ms={slot_duration_ms}",
+                local.validator.index
+            );
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (producer): {e}"))?;
+            let engine = ProductionEngine::new(
+                Arc::clone(&chain),
+                Arc::clone(&pool),
+                Arc::clone(&store),
+                Arc::clone(&tip_cell),
+                genesis_id,
+                genesis_timestamp,
+                local,
+                Arc::clone(&fanout),
+            );
+            spawn_slot_producer_loop(Arc::clone(&engine));
+            Some(engine as mfn_net::ProductionHook)
+        } else {
+            None
+        };
         (
             Some(tip_cell),
             Some(Arc::new(AtomicU64::new(0))),
@@ -165,9 +208,10 @@ pub(crate) fn run_serve(
             Some(sync_hook),
             Some(applier_hook),
             Some(fanout),
+            production_hook,
         )
     } else {
-        (None, None, None, None, None, None)
+        (None, None, None, None, None, None, None)
     };
 
     let (p2p_listener, local_p2p_listen) = if let Some(addr) = p2p_listen {
@@ -215,6 +259,7 @@ pub(crate) fn run_serve(
             fanout_peers
                 .as_ref()
                 .map(|p| Arc::clone(p) as FanoutPeerSetHook),
+            production_hook.clone(),
         )?;
     }
 

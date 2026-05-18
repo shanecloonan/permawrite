@@ -189,6 +189,22 @@ pub enum PushTxGossipError {
     Write(#[from] FrameWriteError),
 }
 
+/// Dial a peer, complete the full handshake, send one [`BlockV1`], then [`GossipEndV1`].
+pub fn push_block_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    block_wire: &[u8],
+) -> Result<(), PushTxGossipError> {
+    let (mut sock, _remote) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    send_block_v1(&mut sock, block_wire)?;
+    send_gossip_end_v1(&mut sock)?;
+    Ok(())
+}
+
 /// Dial a peer, complete the full handshake, send one [`TxV1`], then [`GossipEndV1`] (**M2.3.20**).
 pub fn push_tx_gossip_to_peer(
     peer_addr: &str,

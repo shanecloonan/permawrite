@@ -1948,13 +1948,28 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.3.23+ to reach a 3-validator local testnet
+## Milestone M2.3.23 — Multi-validator block production (✓ shipped)
 
-These are the concrete remaining sub-milestones in dependency order. Each is sized to be a single committable unit in the same "one small thing per commit" rhythm as M2.1.x / M2.2.x / M2.3.x to date.
+**Why it was next.** Peers could sync blocks and gossip txs, but only `mfnd step` could produce blocks (solo-validator). A testnet needs slot-driven proposals, committee votes, and sealing over P2P.
+
+### What shipped
+
+- **[`mfn-runtime/src/proposal_wire.rs`](../mfn-runtime/src/proposal_wire.rs)** — `MPRP` / `MVOT` wire encodings for [`BlockProposal`] and [`CommitteeVote`].
+- **[`mfn-net/src/production.rs`](../mfn-net/src/production.rs)** — Post-handshake `ProposalV1` (`0x0c`) and `VoteV1` (`0x0d`); [`serve_post_handshake_v1`] multiplexes them with block-sync and gossip.
+- **[`mfn-node/src/runner.rs`](../mfn-node/src/runner.rs)** — [`ProductionEngine`]: slot timer (`--produce` / `--slot-duration-ms`), `build_proposal` → fan-out → collect votes → `seal_proposal` → apply + `BlockV1` fan-out; stdout `mfnd_producer_*`.
+- **`mfnd serve --produce`** — Requires P2P + env `MFND_VALIDATOR_INDEX` and VRF/BLS seeds matching genesis (`testdata/devnet_three_validators.json` for local harnesses).
+
+### Tests
+
+- **`mfn-runtime`**: `proposal_wire` round-trip.
+- **`tests::multi_validator_producer::three_validators_proposal_vote_seal_in_process`** — in-process proposal + two votes → seal at height 1.
+
+---
+
+## Coming next — M2.3.24 to reach a 3-validator local testnet
 
 | Id (planned) | Deliverable | Why it's blocking |
 |---|---|---|
-| **M2.3.23** | **Multi-validator block-production loop.** Replace the `step`-only flow with a slot-driven producer that wakes on `slot_duration_ms`, checks VRF eligibility against the current `ChainState.validators`, builds a proposal via `producer::build_proposal`, broadcasts it as a new `ProposalV1` frame, collects `CommitteeVote`s via a `VoteV1` frame, and seals once quorum is reached. | The actual mechanism that makes a 3-validator testnet *produce* blocks instead of just exchanging them. |
 | **M2.3.24** | **3-validator local harness + smoke.** Integration test that spawns three `mfnd` processes on loopback with a shared JSON genesis spec containing three operator validators, runs them for N slots, and asserts they all reach the same `tip_id` and apply each other's coinbase. | The end-to-end proof of life for M2.3. |
 
 After M2.3.24, the door to **M2.4 — Public testnet** is open (documentation + bootstrapping nodes + an external operator invitation list).
@@ -1997,13 +2012,13 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | Mempool fan-out | Forward `Fresh` admissions to registered P2P peers (**M2.3.20**). | ✓ live |
 | Durable mempool | `mempool.bytes` snapshot + reload (**M2.3.21**). | ✓ live |
 | Persistent peer set | `peers.json` + boot reconnect (**M2.3.22**). | ✓ live |
-| `runner.rs` (planned) | Slot-driven block production + vote propagation + finality assembly. | ⏳ M2.3.23 |
+| `runner.rs` | Slot-driven block production + vote propagation + finality assembly. | ✓ live (M2.3.23) |
 
 ### Phases
 
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
-- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.22), M2.3.23+ in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, and reconnect to saved peers on boot; mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: slot-driven multi-validator producer (see "Coming next" above).
+- **M2.3 — Multi-node testnet.** **Partly shipped (M2.3.0–M2.3.23), M2.3.24 in progress.** Today: peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, reconnect to saved peers on boot, and run a slot-driven multi-validator producer (`--produce` + `ProposalV1` / `VoteV1`); mempool and chain are shared between RPC and P2P; persistence is pluggable (`fs` / `redb`). Remaining: 3-validator process harness smoke (see "Coming next" above).
 - **M2.4 — Public testnet.** Documentation + bootstrapping nodes; invite external operators. Gated on M2.3.24.
 
 ### Not in M2.x

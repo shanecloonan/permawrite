@@ -64,4 +64,7 @@ pub use state::{
     ChainState, ConsensusParams, PendingUnbond, StorageEntry, UtxoEntry, ValidatorStats,
     DEFAULT_CONSENSUS_PARAMS,
 };
-pub use wire::{decode_block, encode_block, storage_merkle_root, tx_merkle_root, BlockDecodeError};
+pub use wire::{
+    decode_block, decode_block_body, encode_block, encode_block_body, storage_merkle_root,
+    tx_merkle_root, BlockBody, BlockDecodeError,
+};

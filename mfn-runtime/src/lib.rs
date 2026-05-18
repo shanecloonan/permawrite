@@ -43,6 +43,7 @@ pub mod genesis_spec;
 pub mod mempool;
 pub mod mempool_snapshot;
 pub mod producer;
+pub mod proposal_wire;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
 pub use genesis_spec::{
@@ -58,4 +59,8 @@ pub use mempool_snapshot::{
 pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,
+};
+pub use proposal_wire::{
+    decode_block_proposal, decode_committee_vote, encode_block_proposal, encode_committee_vote,
+    verify_committee_vote_sig, ProposalWireError,
 };

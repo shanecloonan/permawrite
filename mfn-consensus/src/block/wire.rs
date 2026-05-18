@@ -34,28 +34,62 @@ use super::header::{block_header_bytes, decode_block_header, Block, HeaderDecode
 /// `decode_block(&encode_block(b)) == Ok(b)` for every well-formed
 /// block (byte-for-byte round-trip). The decoded block re-derives the
 /// same header roots and the same [`block_id`].
+fn encode_block_body_parts(
+    w: &mut Writer,
+    txs: &[TransactionWire],
+    bond_ops: &[BondOp],
+    slashings: &[SlashEvidence],
+    storage_proofs: &[StorageProof],
+) {
+    w.varint(txs.len() as u64);
+    for tx in txs {
+        w.blob(&encode_transaction(tx));
+    }
+    w.varint(bond_ops.len() as u64);
+    for op in bond_ops {
+        w.blob(&encode_bond_op(op));
+    }
+    w.varint(slashings.len() as u64);
+    for ev in slashings {
+        w.blob(&encode_evidence(ev));
+    }
+    w.varint(storage_proofs.len() as u64);
+    for p in storage_proofs {
+        w.blob(&encode_storage_proof(p));
+    }
+}
+
+/// Canonical body bytes (txs, bond ops, slashings, storage proofs) without a header.
+#[must_use]
+pub fn encode_block_body(
+    txs: &[TransactionWire],
+    bond_ops: &[BondOp],
+    slashings: &[SlashEvidence],
+    storage_proofs: &[StorageProof],
+) -> Vec<u8> {
+    let mut w = Writer::new();
+    encode_block_body_parts(&mut w, txs, bond_ops, slashings, storage_proofs);
+    w.into_bytes()
+}
+
+/// Decoded block body sections from [`encode_block_body`].
+#[derive(Clone, Debug, Default)]
+pub struct BlockBody {
+    /// Transactions in block order.
+    pub txs: Vec<TransactionWire>,
+    /// Bond operations.
+    pub bond_ops: Vec<BondOp>,
+    /// Slashing evidence.
+    pub slashings: Vec<SlashEvidence>,
+    /// SPoRA storage proofs.
+    pub storage_proofs: Vec<StorageProof>,
+}
+
 #[must_use]
 pub fn encode_block(b: &Block) -> Vec<u8> {
     let mut out = block_header_bytes(&b.header);
-
-    let mut w = Writer::new();
-    w.varint(b.txs.len() as u64);
-    for tx in &b.txs {
-        w.blob(&encode_transaction(tx));
-    }
-    w.varint(b.bond_ops.len() as u64);
-    for op in &b.bond_ops {
-        w.blob(&encode_bond_op(op));
-    }
-    w.varint(b.slashings.len() as u64);
-    for ev in &b.slashings {
-        w.blob(&encode_evidence(ev));
-    }
-    w.varint(b.storage_proofs.len() as u64);
-    for p in &b.storage_proofs {
-        w.blob(&encode_storage_proof(p));
-    }
-    out.extend_from_slice(w.bytes());
+    let body = encode_block_body(&b.txs, &b.bond_ops, &b.slashings, &b.storage_proofs);
+    out.extend_from_slice(&body);
     out
 }
 
@@ -161,16 +195,21 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         })?;
     let header = decode_block_header(header_bytes)?;
 
-    // ---- body ----
-    //
-    // Note on capacity hints: we deliberately do **not** pass
-    // attacker-controlled counts to `Vec::with_capacity`. A peer
-    // could send a varint claiming `2^61` transactions, and the
-    // allocator would abort the process before we ever consult the
-    // backing buffer. Instead we grow the `Vec` naturally — the
-    // real buffer length bounds the maximum number of items we can
-    // legitimately decode, so memory use is proportional to input
-    // size regardless of the declared count.
+    let body = decode_block_body(r.bytes(r.remaining()).map_err(BlockDecodeError::Codec)?)?;
+
+    Ok(Block {
+        header,
+        txs: body.txs,
+        slashings: body.slashings,
+        storage_proofs: body.storage_proofs,
+        bond_ops: body.bond_ops,
+    })
+}
+
+/// Decode body bytes from [`encode_block_body`].
+pub fn decode_block_body(bytes: &[u8]) -> Result<BlockBody, BlockDecodeError> {
+    let mut r = Reader::new(bytes);
+
     let n_txs_raw = r.varint()?;
     let n_txs: usize = usize::try_from(n_txs_raw).map_err(|_| BlockDecodeError::CountTooLarge {
         field: "txs",
@@ -241,12 +280,11 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         });
     }
 
-    Ok(Block {
-        header,
+    Ok(BlockBody {
         txs,
+        bond_ops,
         slashings,
         storage_proofs,
-        bond_ops,
     })
 }
 

@@ -27,6 +27,7 @@ pub mod block_sync;
 pub mod frame;
 pub mod gossip;
 pub mod handshake;
+pub mod production;
 pub mod serve;
 
 pub use frame::{
@@ -42,9 +43,13 @@ pub use block_sync::{
     PullBlocksStats, MAX_BLOCKS_PER_GET_V1,
 };
 pub use gossip::{
-    push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1, send_gossip_end_v1, send_tx_v1,
-    FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats, PushTxGossipError,
-    P2P_GOSSIP_IO_TIMEOUT,
+    push_block_gossip_to_peer, push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1,
+    send_gossip_end_v1, send_tx_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
+    PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
+};
+pub use production::{
+    push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,
+    ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
@@ -55,7 +60,7 @@ pub use handshake::{
 };
 pub use serve::{
     height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook,
-    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, TipSnapshot,
+    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, ProductionHook, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

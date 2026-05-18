@@ -66,7 +66,8 @@ pub mod validator_evolution;
 
 pub use block::{
     apply_block, apply_genesis, block_header_bytes, block_id, build_genesis, build_unsealed_header,
-    decode_block, decode_block_header, encode_block, header_signing_bytes, header_signing_hash,
+    decode_block, decode_block_body, decode_block_header, encode_block, encode_block_body,
+    header_signing_bytes, header_signing_hash, BlockBody,
     seal_block, storage_merkle_root, tx_merkle_root, ApplyOutcome, Block, BlockDecodeError,
     BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig, GenesisOutput,
     HeaderDecodeError, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,

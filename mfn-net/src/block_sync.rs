@@ -12,6 +12,7 @@ use crate::frame::{
 use crate::gossip::{
     recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
 };
+use crate::production::{ProductionHandler, PROPOSAL_V1_TAG, VOTE_V1_TAG};
 
 /// Maximum blocks returned per [`GetBlocksByHeightV1`] (defense in depth).
 pub const MAX_BLOCKS_PER_GET_V1: u32 = 64;
@@ -273,6 +274,7 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
     sync: &dyn BlockSyncProvider,
     gossip: &dyn GossipHandler,
     fanout_peers: Option<&dyn FanoutPeerSet>,
+    production: Option<&dyn ProductionHandler>,
 ) -> Result<Option<GossipRecvStats>, PostHandshakeError> {
     loop {
         let payload = match read_frame(stream) {
@@ -304,6 +306,16 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
                     .map_err(|e| PostHandshakeError::Advertise(e.to_string()))?;
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);
+                }
+            }
+            PROPOSAL_V1_TAG => {
+                if let Some(h) = production {
+                    let _ = h.on_proposal_v1(&payload[1..]);
+                }
+            }
+            VOTE_V1_TAG => {
+                if let Some(h) = production {
+                    let _ = h.on_vote_v1(&payload[1..]);
                 }
             }
             tag @ (0x06..=0x08) => {
