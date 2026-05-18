@@ -8,11 +8,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
 
+use crate::gossip::send_p2p_advertise_v1;
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
     pull_blocks_to_tip, recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
 };
-use crate::gossip::send_p2p_advertise_v1;
 use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
     ChainTipV1, GossipHandler, GossipRecvStats, PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT,
@@ -146,6 +146,51 @@ pub type FanoutPeerSetHook = Arc<dyn crate::gossip::FanoutPeerSet>;
 /// Multi-validator proposal/vote handler (**M2.3.23**).
 pub type ProductionHook = Arc<dyn crate::production::ProductionHandler>;
 
+/// Optional hooks shared by inbound and outbound P2P sessions.
+#[derive(Clone, Default)]
+pub struct P2pSessionHooks {
+    /// Mempool gossip admission (**M2.3.16**).
+    pub gossip: Option<GossipHook>,
+    /// Block-log query for inbound [`GetBlocksByHeightV1`] (**M2.3.18**).
+    pub block_sync: Option<BlockSyncHook>,
+    /// Catch-up apply for height pulls (**M2.3.19**).
+    pub block_applier: Option<BlockSyncApplierHook>,
+    /// Peer registry for fan-out (**M2.3.20**).
+    pub fanout_peers: Option<FanoutPeerSetHook>,
+    /// Multi-validator proposal/vote (**M2.3.23**).
+    pub production: Option<ProductionHook>,
+}
+
+/// Inbound `mfnd serve --p2p-listen` accept loop configuration.
+pub struct InboundP2pLoop {
+    /// Bound TCP listener for inbound peers.
+    pub listener: TcpListener,
+    /// Expected chain genesis id for hello handshake.
+    pub genesis_id: [u8; 32],
+    /// Shared tip snapshot for height exchange.
+    pub tip_cell: TipSnapshot,
+    /// Monotonic handshake id counter.
+    pub hid_counter: HidCounter,
+    /// Gossip, sync, and production hooks.
+    pub hooks: P2pSessionHooks,
+}
+
+/// Outbound `mfnd serve --p2p-dial` thread configuration.
+pub struct OutboundP2pDial {
+    /// Peer dial address (`host:port`).
+    pub addr: String,
+    /// Expected chain genesis id for hello handshake.
+    pub genesis_id: [u8; 32],
+    /// Shared tip snapshot for height exchange.
+    pub tip_cell: TipSnapshot,
+    /// Monotonic handshake id counter.
+    pub hid_counter: HidCounter,
+    /// Gossip and fan-out hooks (sync/production unused on dial).
+    pub hooks: P2pSessionHooks,
+    /// Local listen address to advertise after handshake, if any.
+    pub local_p2p_listen: Option<SocketAddr>,
+}
+
 struct InboundGossip {
     inner: GossipHook,
     hid: u64,
@@ -181,13 +226,7 @@ impl GossipHandler for InboundGossip {
     }
 }
 
-fn log_blocks_reply(
-    hid: u64,
-    peer: &str,
-    start_height: u32,
-    requested: u32,
-    returned: usize,
-) {
+fn log_blocks_reply(hid: u64, peer: &str, start_height: u32, requested: u32, returned: usize) {
     println!(
         "mfnd_p2p_blocks_reply hid={hid} peer={peer} start_height={start_height} requested={requested} returned={returned}"
     );
@@ -280,17 +319,21 @@ fn recv_post_handshake(
 }
 
 /// Spawn the inbound P2P accept loop used by `mfnd serve --p2p-listen`.
-pub fn spawn_inbound_handshake_loop(
-    listener: TcpListener,
-    genesis_id: [u8; 32],
-    tip_cell: TipSnapshot,
-    hid_counter: HidCounter,
-    gossip: Option<GossipHook>,
-    block_sync: Option<BlockSyncHook>,
-    block_applier: Option<BlockSyncApplierHook>,
-    fanout_peers: Option<FanoutPeerSetHook>,
-    production: Option<ProductionHook>,
-) -> Result<(), String> {
+pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
+    let InboundP2pLoop {
+        listener,
+        genesis_id,
+        tip_cell,
+        hid_counter,
+        hooks:
+            P2pSessionHooks {
+                gossip,
+                block_sync,
+                block_applier,
+                fanout_peers,
+                production,
+            },
+    } = cfg;
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
@@ -358,16 +401,21 @@ pub fn spawn_inbound_handshake_loop(
 }
 
 /// Spawn the outbound P2P dial thread used by `mfnd serve --p2p-dial`.
-pub fn spawn_outbound_dial(
-    addr: String,
-    genesis_id: [u8; 32],
-    tip_cell: TipSnapshot,
-    hid_counter: HidCounter,
-    gossip: Option<GossipHook>,
-    block_applier: Option<BlockSyncApplierHook>,
-    fanout_peers: Option<FanoutPeerSetHook>,
-    local_p2p_listen: Option<SocketAddr>,
-) -> Result<(), String> {
+pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
+    let OutboundP2pDial {
+        addr,
+        genesis_id,
+        tip_cell,
+        hid_counter,
+        hooks:
+            P2pSessionHooks {
+                gossip,
+                block_applier,
+                fanout_peers,
+                ..
+            },
+        local_p2p_listen,
+    } = cfg;
     thread::Builder::new()
         .name("mfnd-p2p-dial".into())
         .spawn(move || {
@@ -403,7 +451,12 @@ pub fn spawn_outbound_dial(
                     }
                     if let Some(a) = &block_applier {
                         maybe_pull_blocks_if_behind(
-                            &mut sock, hid, addr.as_str(), &local, &remote, a,
+                            &mut sock,
+                            hid,
+                            addr.as_str(),
+                            &local,
+                            &remote,
+                            a,
                         );
                     }
                     if gossip.is_some() {

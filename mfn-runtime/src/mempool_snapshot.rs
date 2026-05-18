@@ -97,7 +97,9 @@ pub fn encode_mempool_snapshot_entries(entries: &[MempoolSnapshotEntry]) -> Vec<
 }
 
 /// Decode a snapshot blob.
-pub fn decode_mempool_snapshot(bytes: &[u8]) -> Result<Vec<MempoolSnapshotEntry>, MempoolSnapshotError> {
+pub fn decode_mempool_snapshot(
+    bytes: &[u8],
+) -> Result<Vec<MempoolSnapshotEntry>, MempoolSnapshotError> {
     let mut r = Reader::new(bytes);
     let magic = r
         .blob()
@@ -118,7 +120,8 @@ pub fn decode_mempool_snapshot(bytes: &[u8]) -> Result<Vec<MempoolSnapshotEntry>
     let count = r
         .varint()
         .map_err(|e| MempoolSnapshotError::Decode(e.to_string()))?;
-    let count = usize::try_from(count).map_err(|_| MempoolSnapshotError::Decode("count overflow".into()))?;
+    let count = usize::try_from(count)
+        .map_err(|_| MempoolSnapshotError::Decode("count overflow".into()))?;
     let mut out = Vec::with_capacity(count);
     for _ in 0..count {
         let h = r
@@ -127,7 +130,7 @@ pub fn decode_mempool_snapshot(bytes: &[u8]) -> Result<Vec<MempoolSnapshotEntry>
         let wire = r
             .blob()
             .map_err(|e| MempoolSnapshotError::Decode(e.to_string()))?;
-        let tx = decode_transaction(&wire)
+        let tx = decode_transaction(wire)
             .map_err(|e| MempoolSnapshotError::Decode(format!("tx: {e}")))?;
         let admitted_at_height = if h == MEMPOOL_HEIGHT_UNKNOWN {
             None
@@ -183,7 +186,10 @@ mod tests {
 
     #[test]
     fn snapshot_rejects_bad_magic() {
-        let err = decode_mempool_snapshot(b"not-a-pool").unwrap_err();
-        assert!(matches!(err, MempoolSnapshotError::BadMagic | MempoolSnapshotError::TooShort));
+        use mfn_crypto::codec::Writer;
+        let mut w = Writer::new();
+        w.blob(b"NOTMAGIC!");
+        let err = decode_mempool_snapshot(&w.into_bytes()).unwrap_err();
+        assert_eq!(err, MempoolSnapshotError::BadMagic);
     }
 }

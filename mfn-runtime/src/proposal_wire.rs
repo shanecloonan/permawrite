@@ -39,12 +39,7 @@ pub enum ProposalWireError {
 /// Encode a [`BlockProposal`] for P2P `ProposalV1` (`0x0c`).
 #[must_use]
 pub fn encode_block_proposal(p: &BlockProposal) -> Vec<u8> {
-    let body = encode_block_body(
-        &p.txs,
-        &p.bond_ops,
-        &p.slashings,
-        &p.storage_proofs,
-    );
+    let body = encode_block_body(&p.txs, &p.bond_ops, &p.slashings, &p.storage_proofs);
     let mut w = Writer::new();
     w.push(PROPOSAL_MAGIC);
     w.u8(PROPOSAL_VERSION);
@@ -61,19 +56,29 @@ pub fn encode_block_proposal(p: &BlockProposal) -> Vec<u8> {
 /// Decode bytes from [`encode_block_proposal`].
 pub fn decode_block_proposal(bytes: &[u8]) -> Result<BlockProposal, ProposalWireError> {
     let mut r = Reader::new(bytes);
-    let magic = r.bytes(4).map_err(|_| ProposalWireError::BadProposal("truncated magic".into()))?;
+    let magic = r
+        .bytes(4)
+        .map_err(|_| ProposalWireError::BadProposal("truncated magic".into()))?;
     if magic != PROPOSAL_MAGIC {
         return Err(ProposalWireError::BadProposal("magic mismatch".into()));
     }
-    let ver = r.u8().map_err(|_| ProposalWireError::BadProposal("truncated version".into()))?;
+    let ver = r
+        .u8()
+        .map_err(|_| ProposalWireError::BadProposal("truncated version".into()))?;
     if ver != PROPOSAL_VERSION {
         return Err(ProposalWireError::BadProposal(format!(
             "unsupported version {ver}"
         )));
     }
-    let height = r.u32().map_err(|_| ProposalWireError::BadProposal("height".into()))?;
-    let slot = r.u32().map_err(|_| ProposalWireError::BadProposal("slot".into()))?;
-    let timestamp = r.u64().map_err(|_| ProposalWireError::BadProposal("timestamp".into()))?;
+    let height = r
+        .u32()
+        .map_err(|_| ProposalWireError::BadProposal("height".into()))?;
+    let slot = r
+        .u32()
+        .map_err(|_| ProposalWireError::BadProposal("slot".into()))?;
+    let timestamp = r
+        .u64()
+        .map_err(|_| ProposalWireError::BadProposal("timestamp".into()))?;
     let header_hash_raw = r
         .bytes(32)
         .map_err(|_| ProposalWireError::BadProposal("header_hash".into()))?;
@@ -133,13 +138,19 @@ pub fn encode_committee_vote(header_hash: &[u8; 32], vote: &CommitteeVote) -> Ve
 /// Decode bytes from [`encode_committee_vote`].
 pub fn decode_committee_vote(bytes: &[u8]) -> Result<([u8; 32], CommitteeVote), ProposalWireError> {
     let mut r = Reader::new(bytes);
-    let magic = r.bytes(4).map_err(|_| ProposalWireError::BadVote("truncated magic".into()))?;
+    let magic = r
+        .bytes(4)
+        .map_err(|_| ProposalWireError::BadVote("truncated magic".into()))?;
     if magic != VOTE_MAGIC {
         return Err(ProposalWireError::BadVote("magic mismatch".into()));
     }
-    let ver = r.u8().map_err(|_| ProposalWireError::BadVote("truncated version".into()))?;
+    let ver = r
+        .u8()
+        .map_err(|_| ProposalWireError::BadVote("truncated version".into()))?;
     if ver != VOTE_VERSION {
-        return Err(ProposalWireError::BadVote(format!("unsupported version {ver}")));
+        return Err(ProposalWireError::BadVote(format!(
+            "unsupported version {ver}"
+        )));
     }
     let hash_raw = r
         .bytes(32)
@@ -154,10 +165,7 @@ pub fn decode_committee_vote(bytes: &[u8]) -> Result<([u8; 32], CommitteeVote), 
         .map_err(|_| ProposalWireError::BadVote("signature".into()))?;
     let sig = mfn_bls::decode_signature(sig_bytes)
         .map_err(|e| ProposalWireError::BadVote(format!("sig decode: {e}")))?;
-    Ok((
-        header_hash,
-        CommitteeVote { index, sig },
-    ))
+    Ok((header_hash, CommitteeVote { index, sig }))
 }
 
 /// Verify a vote's BLS signature over `header_hash` for validator `bls_pk`.
@@ -174,9 +182,7 @@ pub fn verify_committee_vote_sig(
 mod tests {
     use super::*;
     use mfn_bls::bls_sign;
-    use mfn_consensus::{
-        build_unsealed_header, try_produce_slot, Validator, ValidatorSecrets,
-    };
+    use mfn_consensus::{build_unsealed_header, try_produce_slot, Validator, ValidatorSecrets};
     use mfn_crypto::vrf::vrf_keygen_from_seed;
 
     fn sample_proposal() -> BlockProposal {
@@ -203,16 +209,9 @@ mod tests {
             slot: 1,
             prev_hash: unsealed.prev_hash,
         };
-        let producer_proof = try_produce_slot(
-            &ctx,
-            &secrets,
-            &producer,
-            100,
-            10.0,
-            &header_hash,
-        )
-        .unwrap()
-        .unwrap();
+        let producer_proof = try_produce_slot(&ctx, &secrets, &producer, 100, 10.0, &header_hash)
+            .unwrap()
+            .unwrap();
         BlockProposal {
             unsealed_header: unsealed,
             header_hash,

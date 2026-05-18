@@ -5,9 +5,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use mfn_consensus::ChainState;
-use mfn_runtime::{
-    decode_mempool_snapshot, encode_mempool_snapshot, Mempool, MempoolRestoreStats,
-};
+use mfn_runtime::{decode_mempool_snapshot, encode_mempool_snapshot, Mempool, MempoolRestoreStats};
 
 use crate::error::StoreError;
 use crate::fs::{io_error, is_not_found, remove_if_exists};
@@ -39,7 +37,10 @@ pub struct MempoolSaveMeta {
 }
 
 /// Persist `pool` atomically to `mempool.bytes`.
-pub fn save_mempool(store: &dyn ChainPersistence, pool: &Mempool) -> Result<MempoolSaveMeta, StoreError> {
+pub fn save_mempool(
+    store: &dyn ChainPersistence,
+    pool: &Mempool,
+) -> Result<MempoolSaveMeta, StoreError> {
     let root = store.root();
     std::fs::create_dir_all(root).map_err(|e| io_error("create_dir_all", root, e))?;
 

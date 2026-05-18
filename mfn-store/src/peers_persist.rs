@@ -88,7 +88,11 @@ pub fn load_peers(root: &Path) -> Result<(BTreeSet<String>, u32), StoreError> {
 }
 
 /// Atomically persist the peer set.
-pub fn save_peers(root: &Path, peers: &BTreeSet<String>, max_outbound_peers: u32) -> Result<(), StoreError> {
+pub fn save_peers(
+    root: &Path,
+    peers: &BTreeSet<String>,
+    max_outbound_peers: u32,
+) -> Result<(), StoreError> {
     std::fs::create_dir_all(root).map_err(|e| io_error("create_dir_all", root, e))?;
 
     let path = peers_path(root);

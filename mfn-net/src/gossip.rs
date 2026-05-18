@@ -11,9 +11,7 @@ use crate::frame::{
     read_frame, write_frame_io, BlockV1, ChainTipV1, FrameReadError, FrameWriteError, GossipEndV1,
     GossipPayloadDecodeError, TxV1,
 };
-use crate::handshake::{
-    tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError,
-};
+use crate::handshake::{tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError};
 
 /// Per-frame I/O budget while reading a gossip burst (post-goodbye).
 pub const P2P_GOSSIP_IO_TIMEOUT: Duration = Duration::from_secs(10);
@@ -147,7 +145,8 @@ impl P2pAdvertiseV1 {
         if payload[0] != P2P_ADVERTISE_V1_TAG {
             return Err(P2pAdvertiseDecodeError::UnknownTag(payload[0]));
         }
-        let addr = std::str::from_utf8(&payload[1..]).map_err(|_| P2pAdvertiseDecodeError::NotUtf8)?;
+        let addr =
+            std::str::from_utf8(&payload[1..]).map_err(|_| P2pAdvertiseDecodeError::NotUtf8)?;
         if addr.is_empty() || addr.len() > P2P_ADVERTISE_ADDR_MAX_LEN {
             return Err(P2pAdvertiseDecodeError::TooLong);
         }

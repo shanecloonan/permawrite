@@ -269,10 +269,7 @@ fn spawn_mfnd_serve_with_p2p(
 fn wait_mempool_contains(rpc: SocketAddr, tx_id_hex: &str, timeout: Duration) {
     let deadline = Instant::now() + timeout;
     loop {
-        let mp = tcp_request_json(
-            rpc,
-            r#"{"jsonrpc":"2.0","method":"get_mempool","id":99}"#,
-        );
+        let mp = tcp_request_json(rpc, r#"{"jsonrpc":"2.0","method":"get_mempool","id":99}"#);
         let mp_r = assert_rpc2_result(&mp);
         let ids = mp_r["tx_ids"].as_array().expect("tx_ids array");
         if ids.iter().any(|v| v.as_str() == Some(tx_id_hex)) {
@@ -285,10 +282,7 @@ fn wait_mempool_contains(rpc: SocketAddr, tx_id_hex: &str, timeout: Duration) {
     }
 }
 
-fn read_stdout_line_with_prefix(
-    out: &mut BufReader<ChildStdout>,
-    prefix: &str,
-) -> String {
+fn read_stdout_line_with_prefix(out: &mut BufReader<ChildStdout>, prefix: &str) -> String {
     let mut line = String::new();
     loop {
         line.clear();
@@ -943,10 +937,7 @@ fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
         sync_end.contains("applied=3"),
         "expected three blocks applied, got {sync_end:?}"
     );
-    assert!(
-        sync_end.contains("final_height=3"),
-        "sync_end={sync_end:?}"
-    );
+    assert!(sync_end.contains("final_height=3"), "sync_end={sync_end:?}");
 
     let tip_b = tcp_request_json(rpc_b, r#"{"jsonrpc":"2.0","method":"get_tip","id":2}"#);
     let tip_b_r = assert_rpc2_result(&tip_b);
@@ -1346,8 +1337,10 @@ fn mfnd_serve_get_tip_jsonrpc_echoes_id() {
 
 #[test]
 fn mfnd_serve_mempool_survives_restart() {
-    let (dir, spec, tx_hex, tx_id_hex) =
-        synth_decoy_one_step_signed_transfer_fixture_with_store("serve_mempool_restart", Some("fs"));
+    let (dir, spec, tx_hex, tx_id_hex) = synth_decoy_one_step_signed_transfer_fixture_with_store(
+        "serve_mempool_restart",
+        Some("fs"),
+    );
     let (mut child1, rpc1) = spawn_mfnd_serve_with_store(&dir, &spec, Some("fs"));
     let submit = format!(
         r#"{{"jsonrpc":"2.0","method":"submit_tx","params":{{"tx_hex":"{tx_hex}"}},"id":1}}"#

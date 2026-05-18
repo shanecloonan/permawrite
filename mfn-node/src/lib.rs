@@ -71,7 +71,9 @@ pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, St
 pub use network::NetworkConfig;
 
 pub use crate::p2p_fanout::P2pPeerSet;
-pub use crate::runner::{produce_config_from_env, ProduceConfig, ProductionEngine};
+pub use crate::runner::{
+    produce_config_from_env, ProduceConfig, ProductionEngine, ProductionEngineDeps,
+};
 
 /// Entry point for the `mfnd` binary (`cargo run -p mfn-node --bin mfnd`).
 #[must_use]

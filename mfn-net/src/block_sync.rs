@@ -279,9 +279,7 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
     loop {
         let payload = match read_frame(stream) {
             Ok(p) => p,
-            Err(FrameReadError::Io(e))
-                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
-            {
+            Err(FrameReadError::Io(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                 return Ok(None);
             }
             Err(e) => return Err(e.into()),
@@ -436,5 +434,4 @@ mod tests {
         let back = BlocksV1::decode_payload(&enc).unwrap();
         assert_eq!(back.block_wires, wires);
     }
-
 }

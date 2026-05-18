@@ -14,15 +14,14 @@ use mfn_net::production::ProductionHandler;
 use mfn_net::TipSnapshot;
 use mfn_runtime::{
     build_proposal, decode_block_proposal, decode_committee_vote, encode_block_proposal,
-    encode_committee_vote, seal_proposal, verify_committee_vote_sig, vote_on_proposal,
-    BlockInputs, BlockProposal, Chain, Mempool, ProducerError,
+    encode_committee_vote, seal_proposal, verify_committee_vote_sig, vote_on_proposal, BlockInputs,
+    BlockProposal, Chain, Mempool, ProducerError,
 };
 use mfn_store::ChainPersistence;
 
 use crate::p2p_fanout::P2pPeerSet;
 
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
-const DEFAULT_SLOT_DURATION_MS: u64 = 1000;
 
 /// Local validator keys + slot timer for `mfnd serve --produce`.
 #[derive(Clone)]
@@ -41,13 +40,30 @@ struct PendingProposal {
     indices: BTreeSet<usize>,
 }
 
+/// Dependencies for [`ProductionEngine::new`].
+pub struct ProductionEngineDeps {
+    /// Live chain state (mutex-protected).
+    pub chain: Arc<Mutex<Chain>>,
+    /// Mempool for block proposals.
+    pub pool: Arc<Mutex<Mempool>>,
+    /// Block log + checkpoint persistence.
+    pub store: Arc<dyn ChainPersistence + Send + Sync>,
+    /// Shared tip for P2P height exchange.
+    pub tip_cell: TipSnapshot,
+    /// Genesis wall-clock timestamp for slot timing.
+    pub genesis_timestamp: u64,
+    /// Local validator keys and slot duration.
+    pub local: ProduceConfig,
+    /// Peer registry for proposal/vote/block fan-out.
+    pub peers: Arc<P2pPeerSet>,
+}
+
 /// Shared production state for P2P + slot loop.
 pub struct ProductionEngine {
     chain: Arc<Mutex<Chain>>,
     pool: Arc<Mutex<Mempool>>,
     store: Arc<dyn ChainPersistence + Send + Sync>,
     tip_cell: TipSnapshot,
-    genesis_id: [u8; 32],
     genesis_timestamp: u64,
     local: ProduceConfig,
     peers: Arc<P2pPeerSet>,
@@ -56,25 +72,15 @@ pub struct ProductionEngine {
 
 impl ProductionEngine {
     /// Wire production to a running `mfnd serve` instance.
-    pub fn new(
-        chain: Arc<Mutex<Chain>>,
-        pool: Arc<Mutex<Mempool>>,
-        store: Arc<dyn ChainPersistence + Send + Sync>,
-        tip_cell: TipSnapshot,
-        genesis_id: [u8; 32],
-        genesis_timestamp: u64,
-        local: ProduceConfig,
-        peers: Arc<P2pPeerSet>,
-    ) -> Arc<Self> {
+    pub fn new(deps: ProductionEngineDeps) -> Arc<Self> {
         Arc::new(Self {
-            chain,
-            pool,
-            store,
-            tip_cell,
-            genesis_id,
-            genesis_timestamp,
-            local,
-            peers,
+            chain: deps.chain,
+            pool: deps.pool,
+            store: deps.store,
+            tip_cell: deps.tip_cell,
+            genesis_timestamp: deps.genesis_timestamp,
+            local: deps.local,
+            peers: deps.peers,
             pending: Mutex::new(None),
         })
     }
@@ -111,7 +117,11 @@ impl ProductionEngine {
         u64::try_from(producer).unwrap_or(u64::MAX)
     }
 
-    fn block_inputs_for_next(&self, chain: &Chain, pool: &mut Mempool) -> Result<BlockInputs, String> {
+    fn block_inputs_for_next(
+        &self,
+        chain: &Chain,
+        pool: &mut Mempool,
+    ) -> Result<BlockInputs, String> {
         let tip = chain
             .tip_height()
             .ok_or_else(|| "missing tip height".to_string())?;
@@ -126,8 +136,7 @@ impl ProductionEngine {
         for t in &drained {
             fee_sum = fee_sum.saturating_add(u128::from(t.fee));
         }
-        let producer_extra =
-            Self::producer_fee_share(fee_sum, emission_params.fee_to_treasury_bps);
+        let producer_extra = Self::producer_fee_share(fee_sum, emission_params.fee_to_treasury_bps);
         let emission = emission_at_height(u64::from(height), &emission_params);
         let coinbase_amount = emission.saturating_add(producer_extra);
         let payout = self
@@ -157,10 +166,7 @@ impl ProductionEngine {
     }
 
     fn verify_proposal(&self, proposal: &BlockProposal, chain: &Chain) -> Result<(), String> {
-        let expected_height = chain
-            .tip_height()
-            .map(|h| h.saturating_add(1))
-            .unwrap_or(0);
+        let expected_height = chain.tip_height().map(|h| h.saturating_add(1)).unwrap_or(0);
         if proposal.ctx.height != expected_height {
             return Err(format!(
                 "height mismatch want={expected_height} got={}",
@@ -264,9 +270,7 @@ impl ProductionEngine {
             .chain
             .lock()
             .map_err(|_| "chain mutex poisoned".to_string())?;
-        chain
-            .apply(&block)
-            .map_err(|e| format!("apply: {e}"))?;
+        chain.apply(&block).map_err(|e| format!("apply: {e}"))?;
         if let Ok(mut pool) = self.pool.lock() {
             let _ = pool.remove_mined(&block);
         }
@@ -305,7 +309,7 @@ impl ProductionEngine {
         let wire = encode_block_proposal(&proposal);
         self.peers.fanout_proposal(&wire, None);
         if let Some(vote) = self.try_vote_locally(&proposal) {
-            let _ = self.ingest_vote(proposal.header_hash, vote.clone());
+            let _ = self.ingest_vote(proposal.header_hash, vote);
             let vote_wire = encode_committee_vote(&proposal.header_hash, &vote);
             self.peers.fanout_vote(&vote_wire, None);
         }
@@ -314,6 +318,23 @@ impl ProductionEngine {
 
     /// One slot tick: try to propose when locally eligible.
     pub fn on_slot_tick(&self) {
+        if let Ok(guard) = self.pending.lock() {
+            if let Some(pending) = guard.as_ref() {
+                let chain = match self.chain.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let validators = chain.validators();
+                let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+                let params = self.params(&chain);
+                let signing = self.signing_stake(&pending.votes, validators);
+                if !self.quorum_reached(signing, total_stake, params.quorum_stake_bps) {
+                    let wire = encode_block_proposal(&pending.proposal);
+                    self.peers.fanout_proposal(&wire, None);
+                }
+                return;
+            }
+        }
         let inputs = {
             let chain = match self.chain.lock() {
                 Ok(g) => g,
@@ -387,11 +408,9 @@ pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
     let slot_ms = engine.local.slot_duration_ms;
     thread::Builder::new()
         .name("mfnd-producer".into())
-        .spawn(move || {
-            loop {
-                thread::sleep(Duration::from_millis(slot_ms));
-                engine.on_slot_tick();
-            }
+        .spawn(move || loop {
+            thread::sleep(Duration::from_millis(slot_ms));
+            engine.on_slot_tick();
         })
         .expect("spawn mfnd-producer thread");
 }
@@ -413,12 +432,10 @@ pub fn produce_config_from_env(
     let bls_hex = std::env::var("MFND_BLS_SEED_HEX")
         .or_else(|_| std::env::var("MFND_SOLO_BLS_SEED_HEX"))
         .map_err(|_| "set MFND_BLS_SEED_HEX (or MFND_SOLO_BLS_SEED_HEX)".to_string())?;
-    let vrf_seed =
-        hex_seed32("MFND_VRF_SEED_HEX", &vrf_hex).map_err(|e| e.to_string())?;
-    let bls_seed =
-        hex_seed32("MFND_BLS_SEED_HEX", &bls_hex).map_err(|e| e.to_string())?;
-    let vrf = mfn_crypto::vrf::vrf_keygen_from_seed(&vrf_seed)
-        .map_err(|e| format!("vrf keygen: {e}"))?;
+    let vrf_seed = hex_seed32("MFND_VRF_SEED_HEX", &vrf_hex).map_err(|e| e.to_string())?;
+    let bls_seed = hex_seed32("MFND_BLS_SEED_HEX", &bls_hex).map_err(|e| e.to_string())?;
+    let vrf =
+        mfn_crypto::vrf::vrf_keygen_from_seed(&vrf_seed).map_err(|e| format!("vrf keygen: {e}"))?;
     let bls = mfn_bls::bls_keygen_from_seed(&bls_seed);
     let validator = validators
         .iter()
@@ -430,11 +447,7 @@ pub fn produce_config_from_env(
     }
     Ok(ProduceConfig {
         validator,
-        secrets: ValidatorSecrets {
-            index,
-            vrf,
-            bls,
-        },
+        secrets: ValidatorSecrets { index, vrf, bls },
         slot_duration_ms,
     })
 }

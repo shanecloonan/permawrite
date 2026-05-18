@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use mfn_net::serve::{
     spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
-    FanoutPeerSetHook, HidCounter, TipSnapshot,
+    FanoutPeerSetHook, HidCounter, InboundP2pLoop, OutboundP2pDial, P2pSessionHooks, TipSnapshot,
 };
 use mfn_net::FanoutPeerSet;
 use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
@@ -19,9 +19,21 @@ use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
-use crate::p2p_fanout::{spawn_reconnect_saved_peers, P2pPeerSet};
+use crate::p2p_fanout::{spawn_reconnect_saved_peers, P2pPeerSet, ReconnectPeersBoot};
 use crate::p2p_gossip::P2pGossipHandler;
-use crate::runner::{produce_config_from_env, spawn_slot_producer_loop, ProductionEngine};
+use crate::runner::{
+    produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
+};
+
+type P2pServeHooks = (
+    Option<TipSnapshot>,
+    Option<HidCounter>,
+    Option<mfn_net::GossipHook>,
+    Option<BlockSyncHook>,
+    Option<BlockSyncApplierHook>,
+    Option<Arc<P2pPeerSet>>,
+    Option<mfn_net::ProductionHook>,
+);
 
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
     let s = v.to_string();
@@ -127,9 +139,7 @@ pub(crate) fn run_serve(
     };
 
     if produce && p2p_listen.is_none() && p2p_dial.is_none() {
-        return Err(
-            "mfnd serve --produce requires --p2p-listen and/or --p2p-dial".into(),
-        );
+        return Err("mfnd serve --produce requires --p2p-listen and/or --p2p-dial".into());
     }
 
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
@@ -141,15 +151,7 @@ pub(crate) fn run_serve(
         block_applier_hook,
         fanout_peers,
         production_hook,
-    ): (
-        Option<TipSnapshot>,
-        Option<HidCounter>,
-        Option<mfn_net::GossipHook>,
-        Option<BlockSyncHook>,
-        Option<BlockSyncApplierHook>,
-        Option<Arc<P2pPeerSet>>,
-        Option<mfn_net::ProductionHook>,
-    ) = if p2p_enabled {
+    ): P2pServeHooks = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
                 .lock()
@@ -177,8 +179,7 @@ pub(crate) fn run_serve(
                     .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
                 guard.validators().to_vec()
             };
-            let local =
-                produce_config_from_env(&validators, slot_duration_ms)?;
+            let local = produce_config_from_env(&validators, slot_duration_ms)?;
             println!(
                 "mfnd_producer_start validator_index={} slot_duration_ms={slot_duration_ms}",
                 local.validator.index
@@ -186,16 +187,15 @@ pub(crate) fn run_serve(
             std::io::stdout()
                 .flush()
                 .map_err(|e| format!("mfnd serve: stdout flush (producer): {e}"))?;
-            let engine = ProductionEngine::new(
-                Arc::clone(&chain),
-                Arc::clone(&pool),
-                Arc::clone(&store),
-                Arc::clone(&tip_cell),
-                genesis_id,
+            let engine = ProductionEngine::new(ProductionEngineDeps {
+                chain: Arc::clone(&chain),
+                pool: Arc::clone(&pool),
+                store: Arc::clone(&store),
+                tip_cell: Arc::clone(&tip_cell),
                 genesis_timestamp,
                 local,
-                Arc::clone(&fanout),
-            );
+                peers: Arc::clone(&fanout),
+            });
             spawn_slot_producer_loop(Arc::clone(&engine));
             Some(engine as mfn_net::ProductionHook)
         } else {
@@ -236,52 +236,56 @@ pub(crate) fn run_serve(
         .map_err(|e| format!("mfnd serve: stdout flush: {e}"))?;
 
     if let Some(pl) = p2p_listener {
-        let p2p_addr = local_p2p_listen
-            .expect("p2p listen addr when listener bound");
+        let p2p_addr = local_p2p_listen.expect("p2p listen addr when listener bound");
         println!("mfnd_p2p_listening={p2p_addr}");
         std::io::stdout()
             .flush()
             .map_err(|e| format!("mfnd serve: stdout flush (p2p): {e}"))?;
-        spawn_inbound_handshake_loop(
-            pl,
+        spawn_inbound_handshake_loop(InboundP2pLoop {
+            listener: pl,
             genesis_id,
-            p2p_tip_cell
+            tip_cell: p2p_tip_cell
                 .as_ref()
                 .expect("p2p tip cell when p2p listen")
                 .clone(),
-            p2p_hid_counter
+            hid_counter: p2p_hid_counter
                 .as_ref()
                 .expect("p2p hid counter when p2p listen")
                 .clone(),
-            gossip_hook.clone(),
-            block_sync_hook.clone(),
-            block_applier_hook.clone(),
-            fanout_peers
-                .as_ref()
-                .map(|p| Arc::clone(p) as FanoutPeerSetHook),
-            production_hook.clone(),
-        )?;
+            hooks: P2pSessionHooks {
+                gossip: gossip_hook.clone(),
+                block_sync: block_sync_hook.clone(),
+                block_applier: block_applier_hook.clone(),
+                fanout_peers: fanout_peers
+                    .as_ref()
+                    .map(|p| Arc::clone(p) as FanoutPeerSetHook),
+                production: production_hook.clone(),
+            },
+        })?;
     }
 
     if let Some(dial) = p2p_dial {
-        spawn_outbound_dial(
-            dial.to_string(),
+        spawn_outbound_dial(OutboundP2pDial {
+            addr: dial.to_string(),
             genesis_id,
-            p2p_tip_cell
+            tip_cell: p2p_tip_cell
                 .as_ref()
                 .expect("p2p tip cell when p2p dial")
                 .clone(),
-            p2p_hid_counter
+            hid_counter: p2p_hid_counter
                 .as_ref()
                 .expect("p2p hid counter when p2p dial")
                 .clone(),
-            gossip_hook.clone(),
-            block_applier_hook.clone(),
-            fanout_peers
-                .as_ref()
-                .map(|p| Arc::clone(p) as FanoutPeerSetHook),
+            hooks: P2pSessionHooks {
+                gossip: gossip_hook.clone(),
+                block_applier: block_applier_hook.clone(),
+                fanout_peers: fanout_peers
+                    .as_ref()
+                    .map(|p| Arc::clone(p) as FanoutPeerSetHook),
+                ..Default::default()
+            },
             local_p2p_listen,
-        )?;
+        })?;
     }
 
     if let (Some(ps), Some(tc), Some(hid)) = (
@@ -289,19 +293,19 @@ pub(crate) fn run_serve(
         p2p_tip_cell.as_ref(),
         p2p_hid_counter.as_ref(),
     ) {
-        spawn_reconnect_saved_peers(
-            ps,
+        spawn_reconnect_saved_peers(ReconnectPeersBoot {
+            peer_set: ps,
             genesis_id,
-            Arc::clone(tc),
-            Arc::clone(hid),
-            gossip_hook,
-            block_applier_hook,
-            fanout_peers
+            tip_cell: Arc::clone(tc),
+            hid_counter: Arc::clone(hid),
+            gossip: gossip_hook,
+            block_applier: block_applier_hook,
+            fanout_hook: fanout_peers
                 .as_ref()
                 .map(|p| Arc::clone(p) as FanoutPeerSetHook),
             local_p2p_listen,
-            p2p_dial,
-        )?;
+            skip_addr: p2p_dial,
+        })?;
     }
 
     let dispatch_opts = serve_dispatch_opts(fanout_peers.as_ref());

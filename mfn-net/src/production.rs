@@ -2,9 +2,9 @@
 
 use std::io::Write;
 
+use crate::frame::ChainTipV1;
 use crate::frame::{read_frame, write_frame_io, FrameReadError, FrameWriteError};
 use crate::gossip::{send_gossip_end_v1, P2P_GOSSIP_IO_TIMEOUT};
-use crate::frame::ChainTipV1;
 use crate::handshake::{tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError};
 
 /// Post-handshake block proposal: tag `0x0c` + proposal wire bytes.
@@ -95,8 +95,6 @@ pub fn push_vote_v1_to_peer(
 }
 
 /// Read one production frame payload (tag byte + body) from a stream.
-pub fn read_production_payload<R: std::io::Read>(
-    r: &mut R,
-) -> Result<Vec<u8>, FrameReadError> {
+pub fn read_production_payload<R: std::io::Read>(r: &mut R) -> Result<Vec<u8>, FrameReadError> {
     read_frame(r)
 }

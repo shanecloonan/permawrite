@@ -9,7 +9,7 @@ use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
     push_block_gossip_to_peer, push_proposal_v1_to_peer, push_tx_gossip_to_peer,
     push_vote_v1_to_peer, spawn_outbound_dial, BlockSyncApplierHook, ChainTipV1, FanoutPeerSet,
-    GossipHook, HidCounter, TipSnapshot,
+    GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -25,7 +25,11 @@ pub struct P2pPeerSet {
 
 impl P2pPeerSet {
     /// Build a fan-out registry; loads `peers.json` when present (**M2.3.22**).
-    pub fn new(genesis_id: [u8; 32], tip_cell: TipSnapshot, data_root: impl Into<PathBuf>) -> Arc<Self> {
+    pub fn new(
+        genesis_id: [u8; 32],
+        tip_cell: TipSnapshot,
+        data_root: impl Into<PathBuf>,
+    ) -> Arc<Self> {
         let data_root = data_root.into();
         let (initial, max_outbound_peers) = load_peers(&data_root).unwrap_or_else(|e| {
             eprintln!("mfnd_peers_load_abort {e}");
@@ -88,10 +92,7 @@ impl P2pPeerSet {
     }
 
     fn local_tip(&self) -> ChainTipV1 {
-        let g = self
-            .tip_cell
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let g = self.tip_cell.lock().unwrap_or_else(|e| e.into_inner());
         ChainTipV1 {
             height: g.0,
             tip_id: g.1,
@@ -102,7 +103,7 @@ impl P2pPeerSet {
         match self.peers.lock() {
             Ok(g) => g
                 .iter()
-                .filter(|p| except_peer.is_none_or(|ex| ex != *p))
+                .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
                 .cloned()
                 .collect(),
             Err(_) => Vec::new(),
@@ -120,7 +121,6 @@ impl P2pPeerSet {
         let local = self.local_tip();
         for peer in peers {
             let wire = Arc::clone(&wire);
-            let local = local;
             thread::Builder::new()
                 .name("mfnd-p2p-proposal-fanout".into())
                 .spawn(move || {
@@ -143,7 +143,6 @@ impl P2pPeerSet {
         let local = self.local_tip();
         for peer in peers {
             let wire = Arc::clone(&wire);
-            let local = local;
             thread::Builder::new()
                 .name("mfnd-p2p-vote-fanout".into())
                 .spawn(move || {
@@ -166,7 +165,6 @@ impl P2pPeerSet {
         let local = self.local_tip();
         for peer in peers {
             let wire = Arc::clone(&wire);
-            let local = local;
             thread::Builder::new()
                 .name("mfnd-p2p-block-fanout".into())
                 .spawn(move || {
@@ -199,11 +197,10 @@ impl P2pPeerSet {
         for peer in peers {
             let wire = Arc::clone(&wire);
             let tx_id_hex = tx_id_hex.clone();
-            let local = local;
             thread::Builder::new()
                 .name("mfnd-p2p-tx-fanout".into())
-                .spawn(move || {
-                    match push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
+                .spawn(
+                    move || match push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
                         Ok(()) => {
                             println!("mfnd_p2p_tx_fanout_ok peer={peer} tx_id={tx_id_hex}");
                             let _ = std::io::Write::flush(&mut std::io::stdout());
@@ -211,8 +208,8 @@ impl P2pPeerSet {
                         Err(e) => {
                             eprintln!("mfnd_p2p_tx_fanout_abort peer={peer} tx_id={tx_id_hex} {e}");
                         }
-                    }
-                })
+                    },
+                )
                 .ok();
         }
     }
@@ -228,18 +225,41 @@ impl FanoutPeerSet for P2pPeerSet {
     }
 }
 
+/// Boot-time reconnect of peers from `peers.json` (**M2.3.22**).
+pub struct ReconnectPeersBoot<'a> {
+    /// Peer registry (loads `peers.json`).
+    pub peer_set: &'a P2pPeerSet,
+    /// Chain genesis id for hello handshake.
+    pub genesis_id: [u8; 32],
+    /// Shared tip snapshot for dial handshakes.
+    pub tip_cell: TipSnapshot,
+    /// Monotonic handshake id counter.
+    pub hid_counter: HidCounter,
+    /// Optional gossip admission hook.
+    pub gossip: Option<GossipHook>,
+    /// Optional block catch-up applier.
+    pub block_applier: Option<BlockSyncApplierHook>,
+    /// Fan-out registry passed to outbound dials.
+    pub fanout_hook: Option<Arc<dyn FanoutPeerSet>>,
+    /// Local listen address to advertise after dial.
+    pub local_p2p_listen: Option<std::net::SocketAddr>,
+    /// Skip this peer (e.g. already dialed via `--p2p-dial`).
+    pub skip_addr: Option<&'a str>,
+}
+
 /// Dial up to [`P2pPeerSet::max_outbound_peers`] saved peers on boot (**M2.3.22**).
-pub fn spawn_reconnect_saved_peers(
-    peer_set: &P2pPeerSet,
-    genesis_id: [u8; 32],
-    tip_cell: TipSnapshot,
-    hid_counter: HidCounter,
-    gossip: Option<GossipHook>,
-    block_applier: Option<BlockSyncApplierHook>,
-    fanout_hook: Option<Arc<dyn FanoutPeerSet>>,
-    local_p2p_listen: Option<std::net::SocketAddr>,
-    skip_addr: Option<&str>,
-) -> Result<(), String> {
+pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), String> {
+    let ReconnectPeersBoot {
+        peer_set,
+        genesis_id,
+        tip_cell,
+        hid_counter,
+        gossip,
+        block_applier,
+        fanout_hook,
+        local_p2p_listen,
+        skip_addr,
+    } = cfg;
     let mut spawned = 0u32;
     for addr in peer_set.snapshot_peers() {
         if skip_addr.is_some_and(|s| s == addr) {
@@ -250,16 +270,19 @@ pub fn spawn_reconnect_saved_peers(
         }
         println!("mfnd_p2p_reconnect_start peer={addr}");
         let _ = std::io::Write::flush(&mut std::io::stdout());
-        spawn_outbound_dial(
+        spawn_outbound_dial(OutboundP2pDial {
             addr,
             genesis_id,
-            Arc::clone(&tip_cell),
-            Arc::clone(&hid_counter),
-            gossip.clone(),
-            block_applier.clone(),
-            fanout_hook.clone(),
+            tip_cell: Arc::clone(&tip_cell),
+            hid_counter: Arc::clone(&hid_counter),
+            hooks: P2pSessionHooks {
+                gossip: gossip.clone(),
+                block_applier: block_applier.clone(),
+                fanout_peers: fanout_hook.clone(),
+                ..Default::default()
+            },
             local_p2p_listen,
-        )?;
+        })?;
         spawned = spawned.saturating_add(1);
     }
     if spawned > 0 {

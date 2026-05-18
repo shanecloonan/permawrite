@@ -30,26 +30,22 @@ pub mod handshake;
 pub mod production;
 pub mod serve;
 
-pub use frame::{
-    decode_frame_prefix, encode_frame, read_frame, write_frame_io, BlockV1, ChainTipV1,
-    FrameDecodeError, FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1,
-    GoodbyeV1DecodeError, GossipEndV1, GossipPayloadDecodeError, HelloDecodeError, HelloV1,
-    PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
-};
 pub use block_sync::{
     pull_blocks_to_tip, recv_blocks_v1, send_get_blocks_by_height_v1, serve_post_handshake_v1,
     BlockSyncApplier, BlockSyncDecodeError, BlockSyncEncodeError, BlockSyncProvider,
     BlockSyncRecvError, BlocksV1, GetBlocksByHeightV1, PostHandshakeError, PullBlocksError,
     PullBlocksStats, MAX_BLOCKS_PER_GET_V1,
 };
+pub use frame::{
+    decode_frame_prefix, encode_frame, read_frame, write_frame_io, BlockV1, ChainTipV1,
+    FrameDecodeError, FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1,
+    GoodbyeV1DecodeError, GossipEndV1, GossipPayloadDecodeError, HelloDecodeError, HelloV1,
+    PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
+};
 pub use gossip::{
     push_block_gossip_to_peer, push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1,
     send_gossip_end_v1, send_tx_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
     PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
-};
-pub use production::{
-    push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,
-    ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
@@ -58,9 +54,14 @@ pub use handshake::{
     send_hello, send_ping_recv_pong, tcp_connect_hello_v1_handshake, tcp_connect_peer_v1_handshake,
     tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
+pub use production::{
+    push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,
+    ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
+};
 pub use serve::{
     height_cmp_label, spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook,
-    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, ProductionHook, TipSnapshot,
+    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, InboundP2pLoop, OutboundP2pDial,
+    P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

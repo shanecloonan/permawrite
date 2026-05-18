@@ -85,6 +85,7 @@ pub struct BlockBody {
     pub storage_proofs: Vec<StorageProof>,
 }
 
+/// Encode a full block (header bytes + canonical body section).
 #[must_use]
 pub fn encode_block(b: &Block) -> Vec<u8> {
     let mut out = block_header_bytes(&b.header);
