@@ -20,6 +20,16 @@ pub const P2P_GOSSIP_IO_TIMEOUT: Duration = Duration::from_secs(10);
 pub trait FanoutPeerSet: Send + Sync {
     /// Remember a peer after a successful handshake.
     fn register_peer(&self, peer_addr: &str);
+    /// Keep a duplex session for in-band proposal/vote fan-out (**M2.3.24**).
+    fn register_session(&self, _peer_addr: &str, _stream: std::net::TcpStream) {}
+    /// Send one proposal on a registered session; `false` if none or write failed.
+    fn send_proposal_on_session(&self, _peer_addr: &str, _proposal_wire: &[u8]) -> bool {
+        false
+    }
+    /// Send one vote on a registered session; `false` if none or write failed.
+    fn send_vote_on_session(&self, _peer_addr: &str, _vote_wire: &[u8]) -> bool {
+        false
+    }
     /// Forward `tx_wire` to every registered peer except `except_peer`.
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>);
 }

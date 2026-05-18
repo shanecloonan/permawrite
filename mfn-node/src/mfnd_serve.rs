@@ -106,6 +106,7 @@ fn serve_dispatch_opts(fanout_peers: Option<&Arc<P2pPeerSet>>) -> ServeDispatchO
 
 /// Run a blocking TCP loop: load chain + mempool snapshot, print bound address, then
 /// serve one JSON line per connection until the process exits.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_serve(
     store: Arc<dyn ChainPersistence + Send + Sync>,
     cfg: ChainConfig,
@@ -113,6 +114,7 @@ pub(crate) fn run_serve(
     p2p_listen: Option<&str>,
     p2p_dial: Option<&str>,
     produce: bool,
+    committee_vote: bool,
     slot_duration_ms: u64,
 ) -> Result<(), String> {
     let genesis_timestamp = cfg.genesis.timestamp;
@@ -138,8 +140,14 @@ pub(crate) fn run_serve(
         *guard.genesis_id()
     };
 
-    if produce && p2p_listen.is_none() && p2p_dial.is_none() {
-        return Err("mfnd serve --produce requires --p2p-listen and/or --p2p-dial".into());
+    if (produce || committee_vote) && p2p_listen.is_none() && p2p_dial.is_none() {
+        return Err(
+            "mfnd serve --produce / --committee-vote requires --p2p-listen and/or --p2p-dial"
+                .into(),
+        );
+    }
+    if produce && committee_vote {
+        return Err("mfnd serve: --produce and --committee-vote are mutually exclusive".into());
     }
 
     let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
@@ -172,7 +180,7 @@ pub(crate) fn run_serve(
         let sync_hook = P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
         let gossip_hook: mfn_net::GossipHook = hook.clone();
         let applier_hook: BlockSyncApplierHook = hook;
-        let production_hook = if produce {
+        let production_hook = if produce || committee_vote {
             let validators = {
                 let guard = chain
                     .lock()
@@ -180,10 +188,17 @@ pub(crate) fn run_serve(
                 guard.validators().to_vec()
             };
             let local = produce_config_from_env(&validators, slot_duration_ms)?;
-            println!(
-                "mfnd_producer_start validator_index={} slot_duration_ms={slot_duration_ms}",
-                local.validator.index
-            );
+            if produce {
+                println!(
+                    "mfnd_producer_start validator_index={} slot_duration_ms={slot_duration_ms}",
+                    local.validator.index
+                );
+            } else {
+                println!(
+                    "mfnd_committee_vote_start validator_index={}",
+                    local.validator.index
+                );
+            }
             std::io::stdout()
                 .flush()
                 .map_err(|e| format!("mfnd serve: stdout flush (producer): {e}"))?;
@@ -196,7 +211,10 @@ pub(crate) fn run_serve(
                 local,
                 peers: Arc::clone(&fanout),
             });
-            spawn_slot_producer_loop(Arc::clone(&engine));
+            fanout.attach_production(Arc::clone(&engine) as mfn_net::ProductionHook);
+            if produce {
+                spawn_slot_producer_loop(Arc::clone(&engine));
+            }
             Some(engine as mfn_net::ProductionHook)
         } else {
             None
@@ -278,11 +296,12 @@ pub(crate) fn run_serve(
                 .clone(),
             hooks: P2pSessionHooks {
                 gossip: gossip_hook.clone(),
+                block_sync: block_sync_hook.clone(),
                 block_applier: block_applier_hook.clone(),
                 fanout_peers: fanout_peers
                     .as_ref()
                     .map(|p| Arc::clone(p) as FanoutPeerSetHook),
-                ..Default::default()
+                production: production_hook.clone(),
             },
             local_p2p_listen,
         })?;

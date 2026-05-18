@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use mfn_bls::CommitteeVote;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, encode_block, verify_producer_proof, ConsensusCheck,
-    ConsensusParams, PayoutAddress, Validator, ValidatorSecrets,
+    build_coinbase, emission_at_height, encode_block, pick_winner, verify_producer_proof,
+    ConsensusCheck, ConsensusParams, PayoutAddress, ProducerProof, Validator, ValidatorSecrets,
 };
 use mfn_net::production::ProductionHandler;
 use mfn_net::TipSnapshot;
@@ -246,6 +246,11 @@ impl ProductionEngine {
             return Ok(());
         }
         let proposal = pending.proposal.clone();
+        // Only the block proposer seals locally; committee peers apply the fan-out block.
+        if proposal.producer_proof.validator_index != self.local.validator.index {
+            *guard = None;
+            return Ok(());
+        }
         let votes = pending.votes.clone();
         let validators_len = validators.len();
         *guard = None;
@@ -286,6 +291,31 @@ impl ProductionEngine {
         Ok(())
     }
 
+    /// When two validators propose the same height, keep the smallest-`beta` proof
+    /// (same rule as [`pick_winner`]) so all nodes converge on one pending block.
+    fn reconcile_pending(
+        existing: &PendingProposal,
+        incoming: &BlockProposal,
+    ) -> Result<(), String> {
+        if existing.proposal.header_hash == incoming.header_hash {
+            return Ok(());
+        }
+        if existing.proposal.ctx.height != incoming.ctx.height {
+            return Err(format!(
+                "busy:height={} incoming_height={}",
+                existing.proposal.ctx.height, incoming.ctx.height
+            ));
+        }
+        let a: &ProducerProof = &existing.proposal.producer_proof;
+        let b: &ProducerProof = &incoming.producer_proof;
+        let candidates = [a.clone(), b.clone()];
+        let winner = pick_winner(&candidates).expect("two candidates");
+        if winner.validator_index == a.validator_index && winner.beta == a.beta {
+            return Err(format!("competing:height={}", incoming.ctx.height));
+        }
+        Ok(())
+    }
+
     fn adopt_proposal(&self, proposal: BlockProposal) -> String {
         let chain = match self.chain.lock() {
             Ok(g) => g,
@@ -300,11 +330,26 @@ impl ProductionEngine {
                 Ok(g) => g,
                 Err(_) => return "rejected:pending_mutex".into(),
             };
-            *guard = Some(PendingProposal {
-                proposal: proposal.clone(),
-                votes: Vec::new(),
-                indices: BTreeSet::new(),
-            });
+            if let Some(existing) = guard.as_ref() {
+                match Self::reconcile_pending(existing, &proposal) {
+                    Ok(()) => {
+                        if existing.proposal.header_hash != proposal.header_hash {
+                            *guard = Some(PendingProposal {
+                                proposal: proposal.clone(),
+                                votes: Vec::new(),
+                                indices: BTreeSet::new(),
+                            });
+                        }
+                    }
+                    Err(reason) => return format!("rejected:{reason}"),
+                }
+            } else {
+                *guard = Some(PendingProposal {
+                    proposal: proposal.clone(),
+                    votes: Vec::new(),
+                    indices: BTreeSet::new(),
+                });
+            }
         }
         let wire = encode_block_proposal(&proposal);
         self.peers.fanout_proposal(&wire, None);
@@ -366,7 +411,11 @@ impl ProductionEngine {
                 inputs,
             ) {
                 Ok(p) => p,
-                Err(ProducerError::NotSlotEligible { .. }) => return,
+                Err(ProducerError::NotSlotEligible { height, slot }) => {
+                    println!("mfnd_producer_slot_skip height={height} slot={slot}");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                    return;
+                }
                 Err(e) => {
                     eprintln!("mfnd_producer_slot_abort build_proposal {e}");
                     return;
@@ -388,7 +437,29 @@ impl ProductionHandler for ProductionEngine {
             Ok(p) => p,
             Err(e) => return format!("rejected:decode:{e}"),
         };
-        self.adopt_proposal(proposal)
+        let label = self.adopt_proposal(proposal);
+        if !label.starts_with("accepted:") {
+            println!("mfnd_producer_adopt {label}");
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+        }
+        label
+    }
+
+    fn proposal_vote_reply_v1(&self, proposal_wire: &[u8]) -> Option<Vec<u8>> {
+        let proposal = decode_block_proposal(proposal_wire).ok()?;
+        if proposal.producer_proof.validator_index == self.local.validator.index {
+            return None;
+        }
+        let vote = self.try_vote_locally(&proposal)?;
+        let mut frame = Vec::with_capacity(1 + 128);
+        frame.push(mfn_net::VOTE_V1_TAG);
+        frame.extend_from_slice(&encode_committee_vote(&proposal.header_hash, &vote));
+        println!(
+            "mfnd_producer_vote_reply height={} voter={}",
+            proposal.ctx.height, vote.index
+        );
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        Some(frame)
     }
 
     fn on_vote_v1(&self, vote_wire: &[u8]) -> String {

@@ -17,7 +17,8 @@ use crate::production::{ProductionHandler, PROPOSAL_V1_TAG, VOTE_V1_TAG};
 /// Maximum blocks returned per [`GetBlocksByHeightV1`] (defense in depth).
 pub const MAX_BLOCKS_PER_GET_V1: u32 = 64;
 
-const GET_BLOCKS_BY_HEIGHT_V1_TAG: u8 = 0x09;
+/// Post-handshake height pull request tag.
+pub const GET_BLOCKS_BY_HEIGHT_V1_TAG: u8 = 0x09;
 const GET_BLOCKS_BY_HEIGHT_V1_LEN: usize = 1 + 4 + 4;
 
 const BLOCKS_V1_TAG: u8 = 0x0a;
@@ -269,8 +270,8 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
 ///
 /// Handles zero or more [`GetBlocksByHeightV1`] requests (each answered with [`BlocksV1`]),
 /// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`–`0x08`) arrives.
-pub fn serve_post_handshake_v1<S: Read + Write>(
-    stream: &mut S,
+pub fn serve_post_handshake_v1(
+    stream: &mut std::net::TcpStream,
     sync: &dyn BlockSyncProvider,
     gossip: &dyn GossipHandler,
     fanout_peers: Option<&dyn FanoutPeerSet>,
@@ -304,11 +305,21 @@ pub fn serve_post_handshake_v1<S: Read + Write>(
                     .map_err(|e| PostHandshakeError::Advertise(e.to_string()))?;
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);
+                    match stream.try_clone() {
+                        Ok(clone) => ps.register_session(addr, clone),
+                        Err(e) => eprintln!("mfnd_p2p_session_clone_abort peer={addr} {e}"),
+                    }
                 }
             }
             PROPOSAL_V1_TAG => {
                 if let Some(h) = production {
                     let _ = h.on_proposal_v1(&payload[1..]);
+                    if let Some(reply) = h.proposal_vote_reply_v1(&payload[1..]) {
+                        write_frame_io(stream, &reply).map_err(PostHandshakeError::Write)?;
+                        stream
+                            .flush()
+                            .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+                    }
                 }
             }
             VOTE_V1_TAG => {

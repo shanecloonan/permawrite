@@ -11,7 +11,7 @@ use std::time::Instant;
 use crate::gossip::send_p2p_advertise_v1;
 use crate::{
     exchange_chain_tip_v1_as_listener, exchange_goodbye_v1_as_listener, hello_v1_handshake,
-    pull_blocks_to_tip, recv_ping_send_pong, send_gossip_end_v1, serve_post_handshake_v1,
+    pull_blocks_to_tip, recv_ping_send_pong, serve_post_handshake_v1,
 };
 use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
@@ -329,7 +329,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
             P2pSessionHooks {
                 gossip,
                 block_sync,
-                block_applier,
+                block_applier: _,
                 fanout_peers,
                 production,
             },
@@ -370,11 +370,8 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                         log_peer_tip(hid, &peer_s, &remote);
                         log_height_cmp(hid, &peer_s, local.height, &remote);
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
-                        if let Some(a) = &block_applier {
-                            maybe_pull_blocks_if_behind(
-                                &mut sock, hid, &peer_s, &local, &remote, a,
-                            );
-                        }
+                        // Inbound peers may dial to send proposals/votes; do not start a height
+                        // pull on this socket before reading their frames.
                         if let Some(h) = &gossip {
                             recv_post_handshake(
                                 &mut sock,
@@ -410,9 +407,10 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
         hooks:
             P2pSessionHooks {
                 gossip,
+                block_sync,
                 block_applier,
                 fanout_peers,
-                ..
+                production,
             },
         local_p2p_listen,
     } = cfg;
@@ -449,6 +447,11 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
                         }
                     }
+                    if let Ok(clone) = sock.try_clone() {
+                        if let Some(ps) = &fanout_peers {
+                            ps.register_session(addr.as_str(), clone);
+                        }
+                    }
                     if let Some(a) = &block_applier {
                         maybe_pull_blocks_if_behind(
                             &mut sock,
@@ -459,11 +462,17 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             a,
                         );
                     }
-                    if gossip.is_some() {
-                        let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-                        let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-                        if let Err(e) = send_gossip_end_v1(&mut sock) {
-                            eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={addr} dial_send: {e}");
+                    if gossip.is_some() || production.is_some() {
+                        if let Some(h) = &gossip {
+                            recv_post_handshake(
+                                &mut sock,
+                                hid,
+                                addr.as_str(),
+                                h,
+                                block_sync.as_ref(),
+                                fanout_peers.as_ref(),
+                                production.as_ref(),
+                            );
                         }
                     }
                 }

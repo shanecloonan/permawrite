@@ -74,7 +74,9 @@ struct Parsed {
     store_backend: StoreBackend,
     /// `serve` only: slot-driven multi-validator production (**M2.3.23**).
     produce: bool,
-    /// `serve --produce` only: milliseconds between slot ticks (default 1000).
+    /// `serve` only: ProposalV1/VoteV1 handler without slot loop (needs P2P + env keys).
+    committee_vote: bool,
+    /// `serve --produce` / `--committee-vote` only: milliseconds between slot ticks (default 1000).
     slot_duration_ms: u64,
 }
 
@@ -96,7 +98,8 @@ fn usage() -> &'static str {
                                   mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip / mfnd_p2p_height_cmp /\n\
                                   mfnd_p2p_handshake_ms (each with matching hid=; see mfnd_serve)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
-       --slot-duration-ms MS    only for `serve --produce` (default 1000)\n\
+       --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
+       --slot-duration-ms MS    only for `serve --produce` / `--committee-vote` (default 1000)\n\
                                   set MFND_VALIDATOR_INDEX + MFND_VRF_SEED_HEX + MFND_BLS_SEED_HEX\n\
                                   (or MFND_SOLO_* aliases) matching the JSON genesis validator row\n\
      \n\
@@ -383,6 +386,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 parsed.p2p_listen.as_deref(),
                 parsed.p2p_dial.as_deref(),
                 parsed.produce,
+                parsed.committee_vote,
                 parsed.slot_duration_ms,
             )?;
         }
@@ -426,6 +430,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut p2p_dial: Option<String> = None;
     let mut store_backend = StoreBackend::default();
     let mut produce = false;
+    let mut committee_vote = false;
     let mut slot_duration_ms = 1000u64;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
@@ -527,6 +532,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 1;
             continue;
         }
+        if a == "--committee-vote" {
+            committee_vote = true;
+            i += 1;
+            continue;
+        }
         if a == "--slot-duration-ms" {
             let Some(v) = args.get(i + 1) else {
                 return Err("--slot-duration-ms requires a positive integer".into());
@@ -599,9 +609,21 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
-    if slot_duration_ms != 1000 && !produce {
+    if committee_vote && cmd != Cmd::Serve {
         return Err(format!(
-            "--slot-duration-ms is only valid with serve --produce\n{}",
+            "--committee-vote is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
+    if produce && committee_vote {
+        return Err(format!(
+            "--produce and --committee-vote are mutually exclusive\n{}",
+            usage()
+        ));
+    }
+    if slot_duration_ms != 1000 && !produce && !committee_vote {
+        return Err(format!(
+            "--slot-duration-ms is only valid with serve --produce or --committee-vote\n{}",
             usage()
         ));
     }
@@ -616,6 +638,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         p2p_dial,
         store_backend,
         produce,
+        committee_vote,
         slot_duration_ms,
     })
 }

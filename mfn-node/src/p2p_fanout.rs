@@ -1,6 +1,7 @@
 //! Mempool tx fan-out and persistent peer registry (**M2.3.20**, **M2.3.22**).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -8,8 +9,9 @@ use std::thread;
 use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
     push_block_gossip_to_peer, push_proposal_v1_to_peer, push_tx_gossip_to_peer,
-    push_vote_v1_to_peer, spawn_outbound_dial, BlockSyncApplierHook, ChainTipV1, FanoutPeerSet,
-    GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, TipSnapshot,
+    push_vote_v1_to_peer, send_block_v1, send_proposal_v1, send_vote_v1, spawn_outbound_dial,
+    BlockSyncApplierHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial,
+    P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -21,6 +23,9 @@ pub struct P2pPeerSet {
     data_root: PathBuf,
     max_outbound_peers: u32,
     peers: Arc<Mutex<BTreeSet<String>>>,
+    sessions: Arc<Mutex<BTreeMap<String, Arc<Mutex<TcpStream>>>>>,
+    production: Arc<Mutex<Option<ProductionHook>>>,
+    fanout_lock: Arc<Mutex<()>>,
 }
 
 impl P2pPeerSet {
@@ -46,7 +51,42 @@ impl P2pPeerSet {
             data_root,
             max_outbound_peers,
             peers: Arc::new(Mutex::new(initial)),
+            sessions: Arc::new(Mutex::new(BTreeMap::new())),
+            production: Arc::new(Mutex::new(None)),
+            fanout_lock: Arc::new(Mutex::new(())),
         })
+    }
+
+    /// Attach the production engine so proposal push can apply returned votes.
+    pub fn attach_production(&self, production: ProductionHook) {
+        if let Ok(mut g) = self.production.lock() {
+            *g = Some(production);
+        }
+    }
+
+    fn production_hook(&self) -> Option<ProductionHook> {
+        self.production.lock().ok().and_then(|g| g.clone())
+    }
+
+    fn send_on_session(
+        &self,
+        peer: &str,
+        send: impl FnOnce(&mut TcpStream) -> Result<(), mfn_net::FrameWriteError>,
+    ) -> bool {
+        let guard = match self.sessions.lock() {
+            Ok(g) => g,
+            Err(_) => return false,
+        };
+        let sock = match guard.get(peer) {
+            Some(s) => Arc::clone(s),
+            None => return false,
+        };
+        drop(guard);
+        let mut sock = match sock.lock() {
+            Ok(g) => g,
+            Err(_) => return false,
+        };
+        send(&mut sock).is_ok()
     }
 
     /// Maximum outbound reconnect dials spawned on boot.
@@ -111,25 +151,48 @@ impl P2pPeerSet {
     }
 
     /// Push `proposal_wire` to every registered peer except `except_peer` (**M2.3.23**).
-    pub fn fanout_proposal(&self, proposal_wire: &[u8], except_peer: Option<&str>) {
+    pub fn fanout_proposal(self: &Arc<Self>, proposal_wire: &[u8], except_peer: Option<&str>) {
         let peers = self.snapshot_peers_except(except_peer);
         if peers.is_empty() {
             return;
         }
-        let wire = Arc::new(proposal_wire.to_vec());
+        let wire = proposal_wire.to_vec();
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
-        for peer in peers {
-            let wire = Arc::clone(&wire);
-            thread::Builder::new()
-                .name("mfnd-p2p-proposal-fanout".into())
-                .spawn(move || {
-                    if let Err(e) = push_proposal_v1_to_peer(&peer, &genesis_id, &local, &wire) {
-                        eprintln!("mfnd_p2p_proposal_fanout_abort peer={peer} {e}");
+        let production = self.production_hook();
+        let lock = Arc::clone(&self.fanout_lock);
+        let peer_set = Arc::clone(self);
+        thread::Builder::new()
+            .name("mfnd-p2p-proposal-fanout".into())
+            .spawn(move || {
+                let _guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                for peer in peers {
+                    if peer_set.push_proposal_on_session(&peer, &wire) {
+                        continue;
                     }
-                })
-                .ok();
-        }
+                    match push_proposal_v1_to_peer(&peer, &genesis_id, &local, &wire) {
+                        Ok(Some(vote_body)) => {
+                            if let Some(h) = production.as_ref() {
+                                let label = h.on_vote_v1(&vote_body);
+                                println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
+                                let _ = std::io::Write::flush(&mut std::io::stdout());
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            eprintln!("mfnd_p2p_proposal_fanout_abort peer={peer} {e}");
+                        }
+                    }
+                }
+            })
+            .ok();
+    }
+
+    fn push_proposal_on_session(&self, peer: &str, proposal_wire: &[u8]) -> bool {
+        self.send_on_session(peer, |sock| send_proposal_v1(sock, proposal_wire))
     }
 
     /// Push `vote_wire` to every registered peer except `except_peer` (**M2.3.23**).
@@ -138,11 +201,14 @@ impl P2pPeerSet {
         if peers.is_empty() {
             return;
         }
-        let wire = Arc::new(vote_wire.to_vec());
+        let wire = vote_wire.to_vec();
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
         for peer in peers {
-            let wire = Arc::clone(&wire);
+            if self.send_vote_on_session(&peer, &wire) {
+                continue;
+            }
+            let wire = wire.clone();
             thread::Builder::new()
                 .name("mfnd-p2p-vote-fanout".into())
                 .spawn(move || {
@@ -155,25 +221,37 @@ impl P2pPeerSet {
     }
 
     /// Push `block_wire` to every registered peer except `except_peer` (**M2.3.23**).
-    pub fn fanout_block(&self, block_wire: &[u8], except_peer: Option<&str>) {
+    pub fn fanout_block(self: &Arc<Self>, block_wire: &[u8], except_peer: Option<&str>) {
         let peers = self.snapshot_peers_except(except_peer);
         if peers.is_empty() {
             return;
         }
-        let wire = Arc::new(block_wire.to_vec());
+        let wire = block_wire.to_vec();
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
-        for peer in peers {
-            let wire = Arc::clone(&wire);
-            thread::Builder::new()
-                .name("mfnd-p2p-block-fanout".into())
-                .spawn(move || {
+        let lock = Arc::clone(&self.fanout_lock);
+        let peer_set = Arc::clone(self);
+        thread::Builder::new()
+            .name("mfnd-p2p-block-fanout".into())
+            .spawn(move || {
+                let _guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                for peer in peers {
+                    if peer_set.push_block_on_session(&peer, &wire) {
+                        continue;
+                    }
                     if let Err(e) = push_block_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
                         eprintln!("mfnd_p2p_block_fanout_abort peer={peer} {e}");
                     }
-                })
-                .ok();
-        }
+                }
+            })
+            .ok();
+    }
+
+    fn push_block_on_session(&self, peer: &str, block_wire: &[u8]) -> bool {
+        self.send_on_session(peer, |sock| send_block_v1(sock, block_wire))
     }
 
     /// Push `tx_wire` to every registered peer except `except_peer` (if any).
@@ -218,6 +296,26 @@ impl P2pPeerSet {
 impl FanoutPeerSet for P2pPeerSet {
     fn register_peer(&self, peer_addr: &str) {
         self.register(peer_addr);
+    }
+
+    fn register_session(&self, peer_addr: &str, stream: TcpStream) {
+        let _ = stream.set_nodelay(true);
+        let Ok(mut guard) = self.sessions.lock() else {
+            return;
+        };
+        guard.insert(peer_addr.to_string(), Arc::new(Mutex::new(stream)));
+        println!("mfnd_p2p_session_register peer={peer_addr}");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+    }
+
+    fn send_proposal_on_session(&self, peer_addr: &str, proposal_wire: &[u8]) -> bool {
+        let wire = proposal_wire.to_vec();
+        self.send_on_session(peer_addr, |sock| send_proposal_v1(sock, &wire))
+    }
+
+    fn send_vote_on_session(&self, peer_addr: &str, vote_wire: &[u8]) -> bool {
+        let wire = vote_wire.to_vec();
+        self.send_on_session(peer_addr, |sock| send_vote_v1(sock, &wire))
     }
 
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {

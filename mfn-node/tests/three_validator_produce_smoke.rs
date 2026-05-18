@@ -1,4 +1,4 @@
-//! Three `mfnd serve --produce` processes on a shared genesis converge on one tip (**M2.3.24**).
+//! Hub `mfnd serve --produce` plus two `--committee-vote` peers converge on one tip (**M2.3.24**).
 
 use std::io::ErrorKind;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -6,7 +6,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -68,44 +68,36 @@ fn rpc_result(resp: &str) -> Value {
     v["result"].clone()
 }
 
-fn read_line_with_prefix(out: &mut BufReader<impl Read>, prefix: &str) -> String {
-    let mut line = String::new();
-    loop {
-        line.clear();
-        let n = out.read_line(&mut line).expect("read mfnd stdout");
-        if n == 0 {
-            panic!("mfnd exited before `{prefix}` (last={line:?})");
-        }
-        if line.starts_with(prefix) {
-            return line;
-        }
-    }
-}
-
-fn drain_stdout(reader: BufReader<impl Read + Send + 'static>) {
-    std::thread::spawn(move || {
-        let mut out = reader;
-        let mut line = String::new();
-        while out.read_line(&mut line).ok().is_some_and(|n| n > 0) {
-            line.clear();
-        }
-    });
-}
-
-fn watch_stdout_for_substring(
+fn watch_stdout(
     mut reader: BufReader<impl Read + Send + 'static>,
-    needle: &'static str,
-    flag: Arc<AtomicBool>,
+    log: Arc<Mutex<Vec<String>>>,
+    sealed_flag: Option<Arc<AtomicBool>>,
 ) {
     thread::spawn(move || {
         let mut line = String::new();
         while reader.read_line(&mut line).ok().is_some_and(|n| n > 0) {
-            if line.contains(needle) {
-                flag.store(true, Ordering::Relaxed);
+            if let Some(flag) = sealed_flag.as_ref() {
+                if line.contains("mfnd_producer_sealed") {
+                    flag.store(true, Ordering::Relaxed);
+                }
+            }
+            if let Ok(mut g) = log.lock() {
+                if g.len() < 500 {
+                    g.push(line.trim_end().to_string());
+                }
             }
             line.clear();
         }
     });
+}
+
+fn dump_log(label: &str, log: &Arc<Mutex<Vec<String>>>) {
+    eprintln!("--- {label} stdout (last lines) ---");
+    if let Ok(g) = log.lock() {
+        for line in g.iter().rev().take(40).rev() {
+            eprintln!("{line}");
+        }
+    }
 }
 
 struct ValidatorNode {
@@ -122,6 +114,7 @@ fn spawn_produce_validator(
     bls_hex: &str,
     p2p_dial: Option<&str>,
     slot_duration_ms: u64,
+    slot_producer: bool,
 ) -> (ValidatorNode, BufReader<impl Read + Send + 'static>) {
     let mut cmd = mfnd();
     cmd.args(["--data-dir"])
@@ -134,13 +127,17 @@ fn spawn_produce_validator(
         .arg("127.0.0.1:0")
         .arg("--p2p-listen")
         .arg("127.0.0.1:0")
-        .arg("--produce")
         .arg("--slot-duration-ms")
         .arg(slot_duration_ms.to_string())
         .env("MFND_VALIDATOR_INDEX", index.to_string())
         .env("MFND_VRF_SEED_HEX", vrf_hex)
         .env("MFND_BLS_SEED_HEX", bls_hex)
         .arg("serve");
+    if slot_producer {
+        cmd.arg("--produce");
+    } else {
+        cmd.arg("--committee-vote");
+    }
     if let Some(dial) = p2p_dial {
         cmd.arg("--p2p-dial").arg(dial);
     }
@@ -151,58 +148,71 @@ fn spawn_produce_validator(
         .expect("spawn mfnd produce serve");
     let stdout = child.stdout.take().expect("stdout");
     let mut out = BufReader::new(stdout);
-    let rpc_line = read_line_with_prefix(&mut out, "mfnd_serve_listening=");
-    let rpc: SocketAddr = rpc_line
-        .strip_prefix("mfnd_serve_listening=")
-        .unwrap()
-        .trim()
-        .parse()
-        .expect("rpc addr");
-    let p2p_line = read_line_with_prefix(&mut out, "mfnd_p2p_listening=");
-    let p2p: SocketAddr = p2p_line
-        .strip_prefix("mfnd_p2p_listening=")
-        .unwrap()
-        .trim()
-        .parse()
-        .expect("p2p addr");
-    if p2p_dial.is_some() {
-        read_line_with_prefix(&mut out, "mfnd_p2p_dial_ok=");
-    }
+    let (rpc, p2p) = read_startup_addrs(&mut out, slot_producer, p2p_dial.is_some());
     (ValidatorNode { child, rpc, p2p }, out)
 }
 
-fn wait_for_p2p_catch_up(
+/// `mfnd serve` may print role/dial lines before listen addrs; accept any order.
+fn read_startup_addrs(
     out: &mut BufReader<impl Read>,
-    hub_rpc: SocketAddr,
-    follower_rpc: SocketAddr,
-    timeout: Duration,
-) {
-    let deadline = Instant::now() + timeout;
+    slot_producer: bool,
+    need_dial: bool,
+) -> (SocketAddr, SocketAddr) {
+    let role_prefix = if slot_producer {
+        "mfnd_producer_start "
+    } else {
+        "mfnd_committee_vote_start "
+    };
+    let mut rpc = None;
+    let mut p2p = None;
+    let mut got_role = false;
+    let mut got_dial = !need_dial;
+    let deadline = Instant::now() + Duration::from_secs(45);
     let mut line = String::new();
-    loop {
+    while rpc.is_none() || p2p.is_none() || !got_role || !got_dial {
         if Instant::now() >= deadline {
-            let (_, hub_tip) = get_tip(hub_rpc);
-            let (fh, ft) = get_tip(follower_rpc);
-            assert_eq!(ft, hub_tip, "follower tip_id diverged at height {fh}");
-            return;
+            panic!(
+                "timeout during mfnd startup (rpc={rpc:?} p2p={p2p:?} role={got_role} dial={got_dial} last={line:?})"
+            );
         }
         line.clear();
         let n = out.read_line(&mut line).expect("read mfnd stdout");
         if n == 0 {
-            panic!("mfnd exited while waiting for catch-up (last={line:?})");
+            panic!("mfnd exited during startup (last={line:?})");
         }
-        if line.starts_with("mfnd_p2p_sync_end ") {
+        if let Some(rest) = line.strip_prefix("mfnd_serve_listening=") {
+            rpc = Some(rest.trim().parse().expect("rpc addr"));
+        } else if let Some(rest) = line.strip_prefix("mfnd_p2p_listening=") {
+            p2p = Some(rest.trim().parse().expect("p2p addr"));
+        } else if line.starts_with(role_prefix) {
+            got_role = true;
+        } else if line.starts_with("mfnd_p2p_dial_ok=") {
+            got_dial = true;
+        }
+    }
+    (rpc.unwrap(), p2p.unwrap())
+}
+
+fn shutdown_child(child: &mut Child) {
+    let pid = child.id();
+    let _ = child.kill();
+    for _ in 0..20 {
+        if child.try_wait().ok().flatten().is_some() {
             return;
         }
-        if line.starts_with("mfnd_p2p_sync_abort ") {
-            panic!("catch-up failed: {line}");
-        }
-        let (_, hub_tip) = get_tip(hub_rpc);
-        let (fh, ft) = get_tip(follower_rpc);
-        if fh > 0 && ft == hub_tip {
+        thread::sleep(Duration::from_millis(100));
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .status();
+    }
+    for _ in 0..20 {
+        if child.try_wait().ok().flatten().is_some() {
             return;
         }
-        std::thread::sleep(Duration::from_millis(500));
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -214,66 +224,74 @@ fn get_tip(rpc: SocketAddr) -> (u64, String) {
     (height, tip_id)
 }
 
-fn wait_matching_tip(hub: SocketAddr, follower: SocketAddr, timeout: Duration) {
-    let deadline = Instant::now() + timeout;
-    loop {
-        let (hh, hid) = get_tip(hub);
-        let (fh, fid) = get_tip(follower);
-        if fh >= hh && fid == hid {
-            return;
-        }
-        if Instant::now() >= deadline {
-            panic!("timeout waiting for follower sync: hub=({hh},{hid}) follower=({fh},{fid})");
-        }
-        std::thread::sleep(Duration::from_millis(1000));
-    }
-}
-
 fn wait_first_block(
-    rpcs: [SocketAddr; 2],
+    hub: SocketAddr,
+    followers: &[SocketAddr],
     sealed_flag: &AtomicBool,
     timeout: Duration,
+    logs: &[Arc<Mutex<Vec<String>>>],
 ) -> (u64, String) {
     let deadline = Instant::now() + timeout;
     loop {
-        for &rpc in &rpcs {
-            let (h, id) = get_tip(rpc);
-            if h >= 1 {
-                return (h, id);
-            }
+        let (hh, hid) = get_tip(hub);
+        if hh >= 1
+            && followers.iter().all(|&rpc| {
+                let (fh, fid) = get_tip(rpc);
+                fh >= 1 && fid == hid
+            })
+        {
+            return (hh, hid);
         }
         if sealed_flag.load(Ordering::Relaxed) {
-            for &rpc in &rpcs {
-                let (h, id) = get_tip(rpc);
-                if h >= 1 {
-                    return (h, id);
-                }
+            let (hh, hid) = get_tip(hub);
+            if hh >= 1
+                && followers.iter().all(|&rpc| {
+                    let (fh, fid) = get_tip(rpc);
+                    fh >= 1 && fid == hid
+                })
+            {
+                return (hh, hid);
             }
         }
         if Instant::now() >= deadline {
-            let h0 = get_tip(rpcs[0]).0;
-            let h1 = get_tip(rpcs[1]).0;
+            let mut tips = vec![("hub".to_string(), get_tip(hub))];
+            for (i, &rpc) in followers.iter().enumerate() {
+                tips.push((format!("v{}", i + 1), get_tip(rpc)));
+            }
             let sealed = sealed_flag.load(Ordering::Relaxed);
-            panic!(
-                "timeout waiting for first sealed block (heights {h0},{h1}, saw_sealed={sealed})"
-            );
+            for (i, log) in logs.iter().enumerate() {
+                dump_log(&format!("v{i}"), log);
+            }
+            panic!("timeout waiting for first sealed block (tips={tips:?}, saw_sealed={sealed})");
         }
         thread::sleep(Duration::from_millis(500));
     }
 }
 
-fn wait_common_tip(rpcs: [SocketAddr; 3], min_height: u64, timeout: Duration) -> (u64, String) {
+fn wait_common_tip(
+    hub: SocketAddr,
+    followers: &[SocketAddr],
+    min_height: u64,
+    timeout: Duration,
+) -> (u64, String) {
     let deadline = Instant::now() + timeout;
     loop {
-        let tips: Vec<_> = rpcs.iter().map(|&a| get_tip(a)).collect();
-        let heights: Vec<u64> = tips.iter().map(|(h, _)| *h).collect();
-        let ids: Vec<&str> = tips.iter().map(|(_, id)| id.as_str()).collect();
-        if heights.iter().all(|&h| h >= min_height) && ids[0] == ids[1] && ids[1] == ids[2] {
-            return tips[0].clone();
+        let (hh, hid) = get_tip(hub);
+        if hh >= min_height
+            && followers.iter().all(|&rpc| {
+                let (fh, fid) = get_tip(rpc);
+                fh == hh && fid == hid
+            })
+        {
+            return (hh, hid);
         }
         if Instant::now() >= deadline {
+            let tips: Vec<_> = std::iter::once(hub)
+                .chain(followers.iter().copied())
+                .map(get_tip)
+                .collect();
             panic!(
-                "timeout waiting for common tip >= {min_height}: heights={heights:?} ids={ids:?}"
+                "timeout waiting for followers to match hub tip (min_height={min_height}): {tips:?}"
             );
         }
         std::thread::sleep(Duration::from_millis(1000));
@@ -282,7 +300,7 @@ fn wait_common_tip(rpcs: [SocketAddr; 3], min_height: u64, timeout: Duration) ->
 
 fn block_id_at_height(rpc: SocketAddr, height: u64) -> String {
     let req = format!(
-        r#"{{"jsonrpc":"2.0","method":"get_block","params":{{"height":{height}}},"id":2}}"#
+        r#"{{"jsonrpc":"2.0","method":"get_block_header","params":{{"height":{height}}},"id":2}}"#
     );
     let resp = tcp_request_json(rpc, &req);
     let r = rpc_result(&resp);
@@ -290,41 +308,81 @@ fn block_id_at_height(rpc: SocketAddr, height: u64) -> String {
 }
 
 #[test]
-#[ignore = "M2.3.24 process harness; in-process quorum works in multi_validator_producer"]
 fn three_validators_produce_converge_on_shared_tip() {
     let spec = spec_path();
-    let slot_ms = 800u64;
-    let target_height = 2u64;
-    let timeout = Duration::from_secs(180);
+    let slot_ms = 10_000u64;
+    let target_height = 1u64;
 
     let dir0 = unique_data_dir("produce_v0");
     let dir1 = unique_data_dir("produce_v1");
     let dir2 = unique_data_dir("produce_v2");
 
     let sealed = Arc::new(AtomicBool::new(false));
-    let (mut v0, out0) = spawn_produce_validator(&dir0, &spec, 0, V0_VRF, V0_BLS, None, slot_ms);
+    let log0 = Arc::new(Mutex::new(Vec::new()));
+    let log1 = Arc::new(Mutex::new(Vec::new()));
+    let (mut v0, out0) =
+        spawn_produce_validator(&dir0, &spec, 0, V0_VRF, V0_BLS, None, slot_ms, true);
     let hub_p2p = v0.p2p.to_string();
-    watch_stdout_for_substring(out0, "mfnd_producer_sealed", Arc::clone(&sealed));
+    watch_stdout(out0, Arc::clone(&log0), Some(Arc::clone(&sealed)));
 
-    thread::sleep(Duration::from_secs(1));
+    thread::sleep(Duration::from_millis(500));
 
-    let (mut v1, out1) =
-        spawn_produce_validator(&dir1, &spec, 1, V1_VRF, V1_BLS, Some(&hub_p2p), slot_ms);
-    watch_stdout_for_substring(out1, "mfnd_producer_sealed", Arc::clone(&sealed));
+    let (mut v1, out1) = spawn_produce_validator(
+        &dir1,
+        &spec,
+        1,
+        V1_VRF,
+        V1_BLS,
+        Some(&hub_p2p),
+        slot_ms,
+        false,
+    );
+    watch_stdout(out1, Arc::clone(&log1), Some(Arc::clone(&sealed)));
 
-    let (_, hub_tip) = wait_first_block([v0.rpc, v1.rpc], &sealed, Duration::from_secs(120));
-    wait_matching_tip(v0.rpc, v1.rpc, Duration::from_secs(60));
+    thread::sleep(Duration::from_millis(1500));
 
-    let (mut v2, mut out2) =
-        spawn_produce_validator(&dir2, &spec, 2, V2_VRF, V2_BLS, Some(&hub_p2p), slot_ms);
-    wait_for_p2p_catch_up(&mut out2, v0.rpc, v2.rpc, Duration::from_secs(30));
-    drain_stdout(out2);
+    let (_, hub_tip) = wait_first_block(
+        v0.rpc,
+        &[v1.rpc],
+        &sealed,
+        Duration::from_secs(90),
+        &[log0, log1],
+    );
 
-    let (height, tip_id) = wait_common_tip([v0.rpc, v1.rpc, v2.rpc], target_height, timeout);
+    let (height, _tip_id) =
+        wait_common_tip(v0.rpc, &[v1.rpc], target_height, Duration::from_secs(15));
+    assert_eq!(height, target_height, "hub advanced before v2 joined");
+
+    let (mut v2, out2) = spawn_produce_validator(
+        &dir2,
+        &spec,
+        2,
+        V2_VRF,
+        V2_BLS,
+        Some(&hub_p2p),
+        slot_ms,
+        false,
+    );
+    watch_stdout(out2, Arc::new(Mutex::new(Vec::new())), None);
+
+    let (height, tip_id) = wait_common_tip(
+        v0.rpc,
+        &[v1.rpc, v2.rpc],
+        target_height,
+        Duration::from_secs(60),
+    );
     assert!(height >= target_height, "height={height}");
-    assert_eq!(tip_id, hub_tip, "tip drifted from hub after convergence");
+    let (_, hub_tip_now) = get_tip(v0.rpc);
+    assert_eq!(
+        tip_id, hub_tip_now,
+        "tip drifted from hub after convergence"
+    );
 
     let block1_v0 = block_id_at_height(v0.rpc, 1);
+    assert_eq!(
+        block1_v0, hub_tip,
+        "first sealed block id should match initial hub tip"
+    );
     let block1_v1 = block_id_at_height(v1.rpc, 1);
     let block1_v2 = block_id_at_height(v2.rpc, 1);
     assert_eq!(block1_v0, block1_v1, "height-1 block mismatch v0/v1");
@@ -341,12 +399,9 @@ fn three_validators_produce_converge_on_shared_tip() {
         "get_tip tip_id should match get_block at tip height"
     );
 
-    let _ = v0.child.kill();
-    let _ = v1.child.kill();
-    let _ = v2.child.kill();
-    let _ = v0.child.wait();
-    let _ = v1.child.wait();
-    let _ = v2.child.wait();
+    shutdown_child(&mut v0.child);
+    shutdown_child(&mut v1.child);
+    shutdown_child(&mut v2.child);
     std::fs::remove_dir_all(&dir0).ok();
     std::fs::remove_dir_all(&dir1).ok();
     std::fs::remove_dir_all(&dir2).ok();
