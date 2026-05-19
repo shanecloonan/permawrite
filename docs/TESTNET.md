@@ -101,7 +101,16 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
 
 ## Health checks (JSON-RPC)
 
-Each node prints `mfnd_serve_listening=127.0.0.1:PORT`. Send one line per connection:
+Each node prints `mfnd_serve_listening=127.0.0.1:PORT`.
+
+**M3.0 — `mfn-cli`** (after `cargo build -p mfn-cli --release`):
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> tip
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> methods
+```
+
+Raw one-liner (no CLI):
 
 ```bash
 echo '{"jsonrpc":"2.0","method":"get_tip","id":1}' | nc 127.0.0.1 <RPC_PORT>

@@ -1,0 +1,24 @@
+[package]
+name = "mfn-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite operator CLI: JSON-RPC client for mfnd and future wallet commands."
+
+[[bin]]
+name = "mfn-cli"
+path = "src/bin/mfn-cli.rs"
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+mfn-node = { path = "../mfn-node" }
