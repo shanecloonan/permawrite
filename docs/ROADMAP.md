@@ -2051,6 +2051,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.6** | Persist `owned_outputs` in `wallet.json` for incremental scan (skip full replay). | ✓ shipped |
 | **M3.7** | `mfn-cli wallet status`: cached balance vs tip without block fetch. | ✓ shipped |
 | **M3.8** | `mfn-cli claims`: query authorship index (`get_claims_for`, `list_recent_claims`, …). | ✓ shipped |
+| **M3.9** | `mfn-cli uploads list`: query storage index (`list_recent_uploads`, optional claims join). | ✓ shipped |
 
 ### Components
 
@@ -2067,6 +2068,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `wallet.json` `owned_outputs` | Persisted UTXO cache for incremental scan. | ✓ M3.6 |
 | `mfn-cli wallet status` | Offline balance / sync lag summary. | ✓ M3.7 |
 | `mfn-cli claims` | Query on-chain MFCL authorship index via RPC. | ✓ M3.8 |
+| `mfn-cli uploads list` | Query on-chain storage commitment index via RPC. | ✓ M3.9 |
 
 ### Scope
 

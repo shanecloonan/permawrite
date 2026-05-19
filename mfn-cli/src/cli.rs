@@ -8,6 +8,7 @@ use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
+use crate::uploads_cmd::{uploads_list, UploadsListParams};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
     wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
@@ -98,6 +99,11 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 claims_roots(&mut client, &params).map_err(CliError::Usage)?
             }
         },
+        Cmd::Uploads { sub } => match sub {
+            UploadsSub::List(params) => {
+                uploads_list(&mut client, &params).map_err(CliError::Usage)?
+            }
+        },
         Cmd::Wallet {
             sub,
             wallet_path,
@@ -150,6 +156,9 @@ enum Cmd {
     Claims {
         sub: ClaimsSub,
     },
+    Uploads {
+        sub: UploadsSub,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,6 +172,11 @@ enum ClaimsSub {
         limit: Option<u64>,
     },
     Roots(ClaimsListParams),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum UploadsSub {
+    List(UploadsListParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -217,7 +231,9 @@ fn usage() -> &'static str {
        claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
        claims roots                       data_roots that have claims\n\
                          options for recent/roots: --limit N --offset N\n\
-                         options for by-pubkey: --limit N\n"
+                         options for by-pubkey: --limit N\n\
+       uploads list                       recent storage uploads (list_recent_uploads)\n\
+                         options: --limit N --offset N --include-claims\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -255,6 +271,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
         if a == "--force" {
             force = true;
+            i += 1;
+            continue;
+        }
+        if a == "--include-claims" {
+            positional.push(a);
             i += 1;
             continue;
         }
@@ -353,6 +374,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
         "wallet" => parse_wallet_cmd(&positional[1..], wallet_path, force)?,
         "claims" => parse_claims_cmd(&positional[1..])?,
+        "uploads" => parse_uploads_cmd(&positional[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown command `{other}`\n{}",
@@ -399,6 +421,71 @@ fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
     };
     Ok(Cmd::Claims { sub })
+}
+
+fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
+    let Some(sub_name) = rest.first() else {
+        return Err(CliError::Usage(format!(
+            "uploads requires SUBCOMMAND (list)\n{}",
+            usage()
+        )));
+    };
+    let sub = match *sub_name {
+        "list" => UploadsSub::List(parse_uploads_list_args(&rest[1..])?),
+        other => {
+            return Err(CliError::Usage(format!(
+                "unknown uploads subcommand `{other}`\n{}",
+                usage()
+            )));
+        }
+    };
+    Ok(Cmd::Uploads { sub })
+}
+
+fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError> {
+    let mut limit = None;
+    let mut offset = None;
+    let mut include_claims = false;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--limit" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--limit requires a value".into()));
+            };
+            limit = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage("--limit must be a positive integer".into()))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a == "--offset" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--offset requires a value".into()));
+            };
+            offset =
+                Some(v.parse().map_err(|_| {
+                    CliError::Usage("--offset must be a non-negative integer".into())
+                })?);
+            i += 2;
+            continue;
+        }
+        if a == "--include-claims" {
+            include_claims = true;
+            i += 1;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unexpected argument `{a}` for uploads list\n{}",
+            usage()
+        )));
+    }
+    Ok(UploadsListParams {
+        limit,
+        offset,
+        include_claims,
+    })
 }
 
 fn parse_claims_list_args(rest: &[&str]) -> Result<ClaimsListParams, CliError> {
@@ -886,6 +973,19 @@ mod tests {
                 sub: ClaimsSub::Recent(params),
             } => assert_eq!(params.limit, Some(10)),
             _ => panic!("expected claims recent"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_list_include_claims() {
+        let p = parse_args(&["uploads".into(), "list".into(), "--include-claims".into()]).unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::List(params),
+            } => {
+                assert!(params.include_claims);
+            }
+            _ => panic!("expected uploads list"),
         }
     }
 }
