@@ -519,11 +519,16 @@ fn read_validated_blocks_for_height(
 /// Called with canonical tx wire bytes when [`Mempool::admit`] returns fresh.
 pub type FreshTxHook = Arc<dyn Fn(&[u8]) + Send + Sync>;
 
+/// Called with the live mempool immediately after a Fresh admit (before the RPC response is sent).
+pub type FreshAdmitHook = Arc<dyn Fn(&Mempool) + Send + Sync>;
+
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
 pub struct ServeDispatchOpts {
     /// Post-admit fan-out for accepted txs.
     pub on_fresh_tx: Option<FreshTxHook>,
+    /// Durable mempool snapshot while `pool` is still exclusively borrowed by dispatch.
+    pub on_fresh_admit: Option<FreshAdmitHook>,
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -748,6 +753,9 @@ fn dispatch_serve_methods(
             match pool.admit(tx, chain.state()) {
                 Ok(outcome) => {
                     if matches!(outcome, AdmitOutcome::Fresh { .. }) {
+                        if let Some(cb) = &opts.on_fresh_admit {
+                            cb(pool);
+                        }
                         if let Some(cb) = &opts.on_fresh_tx {
                             cb(&bytes);
                         }

@@ -108,14 +108,22 @@ fn persist_mempool(store: &dyn ChainPersistence, pool: &Mempool) {
     }
 }
 
-fn serve_dispatch_opts(fanout_peers: Option<&Arc<P2pPeerSet>>) -> ServeDispatchOpts {
+fn serve_dispatch_opts(
+    store: &Arc<dyn ChainPersistence + Send + Sync>,
+    fanout_peers: Option<&Arc<P2pPeerSet>>,
+) -> ServeDispatchOpts {
+    let store_persist = Arc::clone(store);
+    let on_fresh_admit =
+        Arc::new(move |pool: &Mempool| persist_mempool(store_persist.as_ref(), pool));
+    let on_fresh_tx = fanout_peers.map(|ps| {
+        let ps = Arc::clone(ps);
+        Arc::new(move |bytes: &[u8]| {
+            FanoutPeerSet::fanout_fresh_tx(ps.as_ref(), bytes, None);
+        }) as Arc<dyn Fn(&[u8]) + Send + Sync>
+    });
     ServeDispatchOpts {
-        on_fresh_tx: fanout_peers.map(|ps| {
-            let ps = Arc::clone(ps);
-            Arc::new(move |bytes: &[u8]| {
-                FanoutPeerSet::fanout_fresh_tx(ps.as_ref(), bytes, None);
-            }) as Arc<dyn Fn(&[u8]) + Send + Sync>
-        }),
+        on_fresh_tx,
+        on_fresh_admit: Some(on_fresh_admit),
     }
 }
 
@@ -367,7 +375,7 @@ pub(crate) fn run_serve(
         })?;
     }
 
-    let dispatch_opts = serve_dispatch_opts(fanout_peers.as_ref());
+    let dispatch_opts = serve_dispatch_opts(&store, fanout_peers.as_ref());
 
     #[cfg(unix)]
     {
@@ -402,6 +410,7 @@ pub(crate) fn run_serve(
             eprintln!("mfnd serve: pool mutex poisoned");
             continue;
         };
+        let len_before = pool_guard.len();
         let root_before = mempool_root(&pool_guard);
         match handle_client(
             &mut stream,
@@ -411,7 +420,7 @@ pub(crate) fn run_serve(
             dispatch_opts.clone(),
         ) {
             Ok(()) => {
-                if mempool_root(&pool_guard) != root_before {
+                if pool_guard.len() != len_before || mempool_root(&pool_guard) != root_before {
                     persist_mempool(store.as_ref(), &pool_guard);
                 }
                 if let Some(tc) = &p2p_tip_cell {
