@@ -2,7 +2,7 @@
  * Incremental light-wallet sync over mfnd JSON-RPC (**M4.7**–**M4.11**).
  *
  * Per block: hash linkage batch, BLS header verify against evolving checkpoint,
- * tx scan via `get_block_txs`, validator-set evolution via `get_block_evolution`.
+ * tx scan via `get_block_txs`, validator-set evolution via batched `get_light_follow`.
  */
 
 import { syncHeaderRange, verifyHeaderChain } from "./header-sync.js";
@@ -101,6 +101,13 @@ function evolutionJsonFromRpc(page) {
   return JSON.stringify({ slashings, bond_ops });
 }
 
+function evolutionJsonFromFollowRow(row) {
+  if (!row) {
+    return JSON.stringify({ slashings: [], bond_ops: [] });
+  }
+  return evolutionJsonFromRpc(row);
+}
+
 /**
  * @param {object} opts
  * @param {string} opts.rpcUrl
@@ -180,6 +187,14 @@ export async function syncBlockRange({
     (headerPage.headers || []).map((row) => [Number(row.height), row]),
   );
 
+  const followPage = await rpc(rpcUrl, "get_light_follow", {
+    from_height: fromHeight,
+    to_height: toHeight,
+  });
+  const followByHeight = new Map(
+    (followPage.rows || []).map((row) => [Number(row.height), row]),
+  );
+
   let blocksOk = 0;
   let recoveredThisRun = 0;
   let evolutionSteps = 0;
@@ -211,8 +226,7 @@ export async function syncBlockRange({
     applyBlockScan(state, scan);
     recoveredThisRun += state.inputs.length - before;
 
-    const evoPage = await rpc(rpcUrl, "get_block_evolution", { height: h });
-    const evoJson = evolutionJsonFromRpc(evoPage);
+    const evoJson = evolutionJsonFromFollowRow(followByHeight.get(h));
     const evolved = JSON.parse(
       lightChainApplyEvolution(checkpoint, row.header_hex, evoJson),
     );

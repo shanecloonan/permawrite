@@ -27,6 +27,7 @@ pub mod block_sync;
 pub mod frame;
 pub mod gossip;
 pub mod handshake;
+pub mod light_follow;
 pub mod production;
 pub mod serve;
 
@@ -54,6 +55,11 @@ pub use handshake::{
     send_hello, send_ping_recv_pong, tcp_connect_hello_v1_handshake, tcp_connect_peer_v1_handshake,
     tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
+pub use light_follow::{
+    recv_light_follow_v1, send_get_light_follow_v1, GetLightFollowV1, LightFollowDecodeError,
+    LightFollowEncodeError, LightFollowProvider, LightFollowRecvError, LightFollowRow,
+    LightFollowV1, GET_LIGHT_FOLLOW_V1_TAG, LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
+};
 pub use production::{
     push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,
     ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
@@ -61,7 +67,7 @@ pub use production::{
 pub use serve::{
     height_cmp_label, spawn_catch_up_dial, spawn_inbound_handshake_loop, spawn_outbound_dial,
     BlockSyncApplierHook, BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, InboundP2pLoop,
-    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
+    LightFollowHook, OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

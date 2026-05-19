@@ -809,6 +809,65 @@ fn mfnd_serve_p2p_blocks_reply_after_handshake() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[test]
+fn mfnd_serve_p2p_light_follow_reply_after_handshake() {
+    let dir = unique_data_dir("serve_p2p_light_follow");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_synth_decoys.json");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (_child, _child_out, _child_err, rpc_addr, p2p_addr) =
+        spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(rpc_addr, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip = assert_rpc2_result(&resp);
+    let gid_hex = tip["genesis_id"].as_str().expect("genesis_id hex");
+    let bytes = hex::decode(gid_hex).expect("decode genesis_id hex");
+    let mut genesis_id = [0u8; 32];
+    genesis_id.copy_from_slice(&bytes);
+    let tip_h = tip["tip_height"]
+        .as_u64()
+        .expect("tip_height must be a JSON number") as u32;
+    assert_eq!(tip_h, 1);
+    let tip_id_hex = tip["tip_id"].as_str().expect("tip_id hex");
+    let mut tip_id = [0u8; 32];
+    hex::decode_to_slice(tip_id_hex, &mut tip_id).expect("decode tip_id hex");
+    let local_tip = mfn_node::network::ChainTipV1 {
+        height: tip_h,
+        tip_id,
+    };
+    let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
+        p2p_addr,
+        &genesis_id,
+        &local_tip,
+    )
+    .expect("p2p handshake");
+    let req = mfn_node::network::GetLightFollowV1 {
+        start_height: 1,
+        count: 8,
+    };
+    mfn_node::network::send_get_light_follow_v1(&mut sock, req).expect("send GetLightFollowV1");
+    let follow = mfn_node::network::recv_light_follow_v1(&mut sock).expect("recv LightFollowV1");
+    assert_eq!(follow.genesis_id, genesis_id);
+    assert_eq!(follow.rows.len(), 1);
+    assert_eq!(follow.rows[0].height, 1);
+    assert_eq!(follow.rows[0].block_id, tip_id);
+    assert!(!follow.rows[0].header_wire.is_empty());
+}
+
 /// Full block-sync over `--p2p-dial` can hang on overloaded CI runners; run locally with:
 /// `cargo test -p mfn-node mfnd_p2p_dial_syncs_blocks_from_ahead_peer --release -- --ignored`
 #[test]

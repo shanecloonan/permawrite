@@ -436,6 +436,7 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
                 gossip: gossip.clone(),
                 block_sync: block_sync.clone(),
                 block_applier: block_applier.clone(),
+                light_follow: None,
                 fanout_peers: fanout_hook.clone(),
                 production: None,
             },

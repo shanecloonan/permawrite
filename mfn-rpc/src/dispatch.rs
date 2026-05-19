@@ -563,6 +563,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_block_txs",
         "get_chain_params",
         "get_light_snapshot",
+        "get_light_follow",
         "get_claims_by_pubkey",
         "get_claims_for",
         "get_checkpoint",
@@ -743,6 +744,25 @@ fn header_row_json(block: &Block, height: u32) -> Value {
         "prev_block_id": hex32(&block.header.prev_hash),
         "header_hex": hex::encode(block_header_bytes(&block.header)),
     })
+}
+
+fn light_follow_row_json(block: &Block, height: u32) -> Value {
+    let slashings: Vec<Value> = block
+        .slashings
+        .iter()
+        .map(|ev| json!({ "evidence_hex": hex::encode(encode_evidence(ev)) }))
+        .collect();
+    let bond_ops: Vec<Value> = block
+        .bond_ops
+        .iter()
+        .map(|op| json!({ "op_hex": hex::encode(encode_bond_op(op)) }))
+        .collect();
+    let mut row = header_row_json(block, height);
+    if let Some(obj) = row.as_object_mut() {
+        obj.insert("slashings".into(), Value::Array(slashings));
+        obj.insert("bond_ops".into(), Value::Array(bond_ops));
+    }
+    row
 }
 
 /// Called with canonical tx wire bytes when [`Mempool::admit`] returns fresh.
@@ -1132,6 +1152,30 @@ fn dispatch_serve_methods(
                 json!({
                     "tip_height": snapshot_height,
                     "checkpoint_hex": checkpoint_hex,
+                }),
+            )
+        }
+        "get_light_follow" => {
+            let (from_h, to_h) = match extract_height_range_param(req.get("params")) {
+                Ok(r) => r,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let blocks = match read_validated_blocks_for_height(store, chain, to_h, id) {
+                Ok(b) => b,
+                Err(resp) => return resp,
+            };
+            let mut rows = Vec::with_capacity((to_h - from_h + 1) as usize);
+            for h in from_h..=to_h {
+                let block = &blocks[(h - 1) as usize];
+                rows.push(light_follow_row_json(block, h));
+            }
+            rpc_success(
+                id,
+                json!({
+                    "from_height": from_h,
+                    "to_height": to_h,
+                    "genesis_id": hex32(chain.genesis_id()),
+                    "rows": rows,
                 }),
             )
         }
@@ -2068,6 +2112,42 @@ mod tests {
     }
 
     #[test]
+    fn rpc_get_light_follow_batch_matches_per_block_evolution() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_lfol-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append");
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_light_follow","params":{"from_height":1,"to_height":1},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["rows"].as_array().unwrap().len(), 1);
+        assert_eq!(v["result"]["rows"][0]["slashings"], json!([]));
+        assert_eq!(v["result"]["rows"][0]["bond_ops"], json!([]));
+        assert!(v["result"]["rows"][0]["header_hex"].as_str().unwrap().len() > 2);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn rpc_get_block_evolution_solo_block_empty_events() {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -2556,6 +2636,7 @@ mod tests {
             "get_block_txs",
             "get_chain_params",
             "get_light_snapshot",
+            "get_light_follow",
             "get_claims_by_pubkey",
             "get_claims_for",
             "get_checkpoint",
@@ -2573,7 +2654,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 22);
+        assert_eq!(names.len(), 23);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2587,7 +2668,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 22);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 23);
         fs::remove_dir_all(&root).ok();
     }
 

@@ -206,6 +206,9 @@ pub type FanoutPeerSetHook = Arc<dyn crate::gossip::FanoutPeerSet>;
 /// Multi-validator proposal/vote handler (**M2.3.23**).
 pub type ProductionHook = Arc<dyn crate::production::ProductionHandler>;
 
+/// Light-wallet follow batch provider (**M4.13**).
+pub type LightFollowHook = Arc<dyn crate::light_follow::LightFollowProvider>;
+
 /// Optional hooks shared by inbound and outbound P2P sessions.
 #[derive(Clone, Default)]
 pub struct P2pSessionHooks {
@@ -215,6 +218,8 @@ pub struct P2pSessionHooks {
     pub block_sync: Option<BlockSyncHook>,
     /// Catch-up apply for height pulls (**M2.3.19**).
     pub block_applier: Option<BlockSyncApplierHook>,
+    /// Header + evolution rows for light clients (**M4.13**).
+    pub light_follow: Option<LightFollowHook>,
     /// Peer registry for fan-out (**M2.3.20**).
     pub fanout_peers: Option<FanoutPeerSetHook>,
     /// Multi-validator proposal/vote (**M2.3.23**).
@@ -375,6 +380,7 @@ fn recv_post_handshake(
     gossip: &GossipHook,
     block_sync: Option<&BlockSyncHook>,
     block_applier: Option<&BlockSyncApplierHook>,
+    light_follow: Option<&LightFollowHook>,
     fanout_peers: Option<&FanoutPeerSetHook>,
     production: Option<&ProductionHook>,
 ) {
@@ -411,6 +417,7 @@ fn recv_post_handshake(
             fanout_peers.map(|ps| ps.as_ref()),
             production.map(|h| h.as_ref()),
             block_applier.map(|a| a.as_ref()),
+            light_follow.map(|lf| lf.as_ref()),
         )
     } else {
         recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
@@ -455,6 +462,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 gossip,
                 block_sync,
                 block_applier,
+                light_follow,
                 fanout_peers,
                 production,
             },
@@ -504,6 +512,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                                     h,
                                     block_sync.as_ref(),
                                     block_applier.as_ref(),
+                                    light_follow.as_ref(),
                                     fanout_peers.as_ref(),
                                     production.as_ref(),
                                 );
@@ -575,6 +584,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                 gossip,
                 block_sync,
                 block_applier,
+                light_follow,
                 fanout_peers,
                 production,
             },
@@ -625,6 +635,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                                 h,
                                 block_sync.as_ref(),
                                 block_applier.as_ref(),
+                                light_follow.as_ref(),
                                 fanout_peers.as_ref(),
                                 production.as_ref(),
                             );

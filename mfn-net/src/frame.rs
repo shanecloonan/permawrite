@@ -22,6 +22,9 @@
 //!
 //! **M2.3.18** adds [`crate::block_sync::GetBlocksByHeightV1`] (`0x09`) and
 //! [`crate::block_sync::BlocksV1`] (`0x0a`) for block-sync request/response after the handshake.
+//!
+//! **M4.13** adds [`crate::light_follow::GetLightFollowV1`] (`0x0e`) and
+//! [`crate::light_follow::LightFollowV1`] (`0x0f`) for batched header + evolution rows.
 
 use std::io::{Read, Write};
 

@@ -11,7 +11,8 @@ use std::sync::{Arc, Mutex};
 use mfn_consensus::GenesisConfig;
 use mfn_net::serve::{
     spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
-    FanoutPeerSetHook, HidCounter, InboundP2pLoop, OutboundP2pDial, P2pSessionHooks, TipSnapshot,
+    FanoutPeerSetHook, HidCounter, InboundP2pLoop, LightFollowHook, OutboundP2pDial,
+    P2pSessionHooks, TipSnapshot,
 };
 use mfn_net::FanoutPeerSet;
 use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
@@ -33,6 +34,7 @@ type P2pServeHooks = (
     Option<HidCounter>,
     Option<mfn_net::GossipHook>,
     Option<BlockSyncHook>,
+    Option<LightFollowHook>,
     Option<BlockSyncApplierHook>,
     Option<Arc<P2pPeerSet>>,
     Option<mfn_net::ProductionHook>,
@@ -184,6 +186,7 @@ pub(crate) fn run_serve(
         p2p_hid_counter,
         gossip_hook,
         block_sync_hook,
+        light_follow_hook,
         block_applier_hook,
         fanout_peers,
         production_hook,
@@ -205,8 +208,8 @@ pub(crate) fn run_serve(
             Arc::clone(&store),
             Arc::clone(&tip_cell),
         );
-        let sync_hook: BlockSyncHook =
-            P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
+        let (sync_hook, light_follow_hook) =
+            P2pBlockSyncHandler::new_hooks(Arc::clone(&chain), Arc::clone(&store));
         let gossip_hook: mfn_net::GossipHook = hook.clone();
         let applier_hook: BlockSyncApplierHook = hook;
         let hid_counter = Arc::new(AtomicU64::new(0));
@@ -273,12 +276,13 @@ pub(crate) fn run_serve(
             Some(hid_counter),
             Some(gossip_hook),
             Some(sync_hook),
+            Some(light_follow_hook),
             Some(applier_hook),
             Some(fanout),
             production_hook,
         )
     } else {
-        (None, None, None, None, None, None, None)
+        (None, None, None, None, None, None, None, None)
     };
 
     let (p2p_listener, local_p2p_listen) = if let Some(addr) = p2p_listen {
@@ -325,6 +329,7 @@ pub(crate) fn run_serve(
                 gossip: gossip_hook.clone(),
                 block_sync: block_sync_hook.clone(),
                 block_applier: block_applier_hook.clone(),
+                light_follow: light_follow_hook.clone(),
                 fanout_peers: fanout_peers
                     .as_ref()
                     .map(|p| Arc::clone(p) as FanoutPeerSetHook),
@@ -349,6 +354,7 @@ pub(crate) fn run_serve(
                 gossip: gossip_hook.clone(),
                 block_sync: block_sync_hook.clone(),
                 block_applier: block_applier_hook.clone(),
+                light_follow: light_follow_hook.clone(),
                 fanout_peers: fanout_peers
                     .as_ref()
                     .map(|p| Arc::clone(p) as FanoutPeerSetHook),

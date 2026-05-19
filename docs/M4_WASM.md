@@ -176,6 +176,15 @@ Demo sync stores `permawrite-light-checkpoint:<seed>` in `localStorage` and adva
 
 Integration test `light_chain_trusted_evolution_matches_apply_block_on_rotation_chain` proves the browser path (`apply_header` + `apply_trusted_evolution`) matches full `apply_block` across register/unbond rotation.
 
+## Light-follow batch (M4.13)
+
+| RPC / P2P | Role |
+|-----------|------|
+| `get_light_follow` | One call per height range: header + `slashings` + `bond_ops` per row |
+| P2P `GetLightFollowV1` (`0x0e`) / `LightFollowV1` (`0x0f`) | Same payload from peers after handshake |
+
+Demo sync uses `get_light_follow` instead of per-block `get_block_evolution`. Peers with `--p2p-listen` answer the same batch over TCP (see `mfnd_serve_p2p_light_follow_reply_after_handshake`).
+
 ## Roadmap
 
-- **M4.13** — P2P header+bodies sync with weak-subjectivity checkpoints (less RPC trust).
+- **M4.14** — Multi-peer light-follow quorum + weak-subjectivity checkpoint compare in browser.

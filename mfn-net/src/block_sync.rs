@@ -12,6 +12,9 @@ use crate::frame::{
 use crate::gossip::{
     recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
 };
+use crate::light_follow::{
+    GetLightFollowV1, LightFollowProvider, GET_LIGHT_FOLLOW_V1_TAG, LIGHT_FOLLOW_V1_TAG,
+};
 use crate::production::{ProductionHandler, PROPOSAL_V1_TAG, VOTE_V1_TAG};
 
 /// Maximum blocks returned per [`GetBlocksByHeightV1`] (defense in depth).
@@ -280,6 +283,7 @@ pub fn serve_post_handshake_v1(
     fanout_peers: Option<&dyn FanoutPeerSet>,
     production: Option<&dyn ProductionHandler>,
     block_applier: Option<&dyn BlockSyncApplier>,
+    light_follow: Option<&dyn LightFollowProvider>,
 ) -> Result<Option<GossipRecvStats>, PostHandshakeError> {
     loop {
         let payload = match read_frame(stream) {
@@ -303,6 +307,25 @@ pub fn serve_post_handshake_v1(
                 stream
                     .flush()
                     .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+            }
+            GET_LIGHT_FOLLOW_V1_TAG => {
+                let req = GetLightFollowV1::decode_payload(&payload)
+                    .map_err(PostHandshakeError::LightFollowDecode)?;
+                let provider = light_follow.ok_or(PostHandshakeError::LightFollowUnavailable)?;
+                let capped = req
+                    .count
+                    .min(crate::light_follow::MAX_LIGHT_FOLLOW_PER_GET_V1);
+                let reply = provider.light_follow_from_height(req.start_height, capped);
+                let wire = reply
+                    .encode_payload()
+                    .map_err(PostHandshakeError::LightFollowEncode)?;
+                write_frame_io(stream, &wire).map_err(PostHandshakeError::Write)?;
+                stream
+                    .flush()
+                    .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+            }
+            LIGHT_FOLLOW_V1_TAG => {
+                // Dialer-side response; full nodes do not apply light-follow batches inbound.
             }
             BLOCKS_V1_TAG => {
                 if let Some(applier) = block_applier {
@@ -411,6 +434,15 @@ pub enum PostHandshakeError {
     /// Block apply failed while handling an unprompted [`BlocksV1`].
     #[error("apply: {0}")]
     Apply(String),
+    /// Light-follow decode failure.
+    #[error("light-follow decode: {0}")]
+    LightFollowDecode(#[from] crate::light_follow::LightFollowDecodeError),
+    /// Light-follow encode failure.
+    #[error("light-follow encode: {0}")]
+    LightFollowEncode(#[from] crate::light_follow::LightFollowEncodeError),
+    /// Peer requested light-follow but this node does not serve it.
+    #[error("light-follow not available on this peer")]
+    LightFollowUnavailable,
 }
 
 /// Failure while pulling blocks from a peer.
