@@ -72,11 +72,11 @@ fn apply_empty_at(st: &ChainState, height: u32, timestamp: u64) -> ChainState {
 
 #[derive(Debug, Clone)]
 enum HeaderTamper {
-    BadHeight(u32),
-    BadPrevHash,
-    BadTxRoot,
-    BadBondRoot,
-    BadStorageProofRoot,
+    HeightOffset(u32),
+    PrevHash,
+    TxRoot,
+    BondRoot,
+    StorageProofRoot,
 }
 
 fn tamper(
@@ -84,24 +84,24 @@ fn tamper(
     kind: HeaderTamper,
 ) -> mfn_consensus::BlockHeader {
     match kind {
-        HeaderTamper::BadHeight(bump) => {
+        HeaderTamper::HeightOffset(bump) => {
             header.height = header.height.saturating_add(bump.max(1));
         }
-        HeaderTamper::BadPrevHash => header.prev_hash = [0xab; 32],
-        HeaderTamper::BadTxRoot => header.tx_root[0] ^= 0xff,
-        HeaderTamper::BadBondRoot => header.bond_root[0] ^= 0xff,
-        HeaderTamper::BadStorageProofRoot => header.storage_proof_root[0] ^= 0xff,
+        HeaderTamper::PrevHash => header.prev_hash = [0xab; 32],
+        HeaderTamper::TxRoot => header.tx_root[0] ^= 0xff,
+        HeaderTamper::BondRoot => header.bond_root[0] ^= 0xff,
+        HeaderTamper::StorageProofRoot => header.storage_proof_root[0] ^= 0xff,
     }
     header
 }
 
 fn expected_error(kind: &HeaderTamper) -> fn(&BlockError) -> bool {
     match kind {
-        HeaderTamper::BadHeight(_) => |e| matches!(e, BlockError::BadHeight { .. }),
-        HeaderTamper::BadPrevHash => |e| matches!(e, BlockError::PrevHashMismatch),
-        HeaderTamper::BadTxRoot => |e| matches!(e, BlockError::TxRootMismatch),
-        HeaderTamper::BadBondRoot => |e| matches!(e, BlockError::BondRootMismatch),
-        HeaderTamper::BadStorageProofRoot => |e| matches!(e, BlockError::StorageProofRootMismatch),
+        HeaderTamper::HeightOffset(_) => |e| matches!(e, BlockError::BadHeight { .. }),
+        HeaderTamper::PrevHash => |e| matches!(e, BlockError::PrevHashMismatch),
+        HeaderTamper::TxRoot => |e| matches!(e, BlockError::TxRootMismatch),
+        HeaderTamper::BondRoot => |e| matches!(e, BlockError::BondRootMismatch),
+        HeaderTamper::StorageProofRoot => |e| matches!(e, BlockError::StorageProofRootMismatch),
     }
 }
 
@@ -136,11 +136,11 @@ proptest! {
     #[test]
     fn prop_reject_tampered_header_without_state_change(
         tamper_kind in prop_oneof![
-            (2u32..=64u32).prop_map(HeaderTamper::BadHeight),
-            Just(HeaderTamper::BadPrevHash),
-            Just(HeaderTamper::BadTxRoot),
-            Just(HeaderTamper::BadBondRoot),
-            Just(HeaderTamper::BadStorageProofRoot),
+            (2u32..=64u32).prop_map(HeaderTamper::HeightOffset),
+            Just(HeaderTamper::PrevHash),
+            Just(HeaderTamper::TxRoot),
+            Just(HeaderTamper::BondRoot),
+            Just(HeaderTamper::StorageProofRoot),
         ],
     ) {
         let st = genesis_state();
