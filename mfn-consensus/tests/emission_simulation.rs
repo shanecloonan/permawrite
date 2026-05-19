@@ -110,8 +110,8 @@ struct ValidatorFixture {
 impl ValidatorFixture {
     fn three_validators() -> Self {
         let mk = |i: u32, stake: u64| -> (Validator, ValidatorSecrets) {
-            let vrf = vrf_keygen_from_seed(&[i.wrapping_add(1); 32]).expect("vrf");
-            let bls = bls_keygen_from_seed(&[i.wrapping_add(101); 32]);
+            let vrf = vrf_keygen_from_seed(&[(i.wrapping_add(1)) as u8; 32]).expect("vrf");
+            let bls = bls_keygen_from_seed(&[(i.wrapping_add(101)) as u8; 32]);
             let wallet = stealth_gen();
             let val = Validator {
                 index: i,
