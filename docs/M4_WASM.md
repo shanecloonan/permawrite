@@ -83,6 +83,14 @@ Native `mfn-cli` / nodes use `mfn-wallet/full` → `mfn-consensus` with **`bls`*
 - Static UI: [`demo/web/`](../demo/web/)
 - Dev RPC proxy: [`demo/proxy/rpc-proxy.mjs`](../demo/proxy/rpc-proxy.mjs) (POST `/rpc` → TCP `mfnd serve`)
 
+## Node RPC for decoys (M4.4)
+
+`mfnd serve` exposes **`list_utxos`**: paginated public UTXO rows (`height`, `one_time_addr_hex`, `commit_hex`) for gamma decoy pools. The demo **Load decoys from node** button calls `list_utxos` + `get_tip` and fills `decoy_utxos` / `current_height` in the transfer plan.
+
+```json
+{"jsonrpc":"2.0","method":"list_utxos","params":{"limit":500,"offset":0},"id":1}
+```
+
 ## Roadmap
 
-- **M4.4** — RPC `list_utxos` + demo auto-fill decoys from `get_checkpoint` / tip state.
+- **M4.5** — Checkpoint→decoy helper in WASM (optional) + `submit_tx` from demo.

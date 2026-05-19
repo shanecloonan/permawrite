@@ -99,6 +99,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  $("btn-load-decoys").addEventListener("click", async () => {
+    try {
+      const url = $("rpc-url").value.trim();
+      const [tip, utxoPage] = await Promise.all([
+        mfndRpc(url, "get_tip", {}),
+        mfndRpc(url, "list_utxos", { limit: 10000, offset: 0 }),
+      ]);
+      const plan = JSON.parse($("transfer-plan").value || "{}");
+      if (tip.tip_height != null) {
+        plan.current_height = Number(tip.tip_height);
+      }
+      plan.decoy_utxos = (utxoPage.utxos || []).map((u) => ({
+        height: u.height,
+        one_time_addr_hex: u.one_time_addr_hex,
+        commit_hex: u.commit_hex,
+      }));
+      const owned = new Set(
+        (plan.inputs || []).map((i) => i.one_time_addr_hex?.toLowerCase()).filter(Boolean),
+      );
+      plan.exclude_one_time_addrs_hex = [...owned];
+      $("transfer-plan").value = JSON.stringify(plan, null, 2);
+      show(
+        "transfer-out",
+        `loaded ${plan.decoy_utxos.length} decoys (total on chain: ${utxoPage.total ?? "?"})`,
+      );
+    } catch (e) {
+      show("transfer-out", String(e));
+    }
+  });
+
   $("btn-transfer").addEventListener("click", async () => {
     try {
       await ensureWasm();

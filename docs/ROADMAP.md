@@ -2094,6 +2094,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.1** | `wasm-pack` demo page + HTTP→TCP RPC proxy for `mfnd serve`. | ✓ shipped |
 | **M4.2** | In-browser CLSAG chain scan in WASM (`wasm-full`: `mfn-consensus` without BLS). | done |
 | **M4.3** | In-browser `buildTransferJson` + decoy pool preview + demo plan UI. | done |
+| **M4.4** | RPC `list_utxos` + demo auto-fill decoys from live node tip. | done |
 
 ### Use cases
 

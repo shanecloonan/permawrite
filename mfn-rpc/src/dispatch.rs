@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use mfn_consensus::block::StorageEntry;
+use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_transaction, encode_block, encode_transaction, tx_id,
     AuthorshipClaimRecord, Block,
@@ -195,6 +195,9 @@ const DEFAULT_CLAIMS_BY_PUBKEY_LIMIT: u64 = 50;
 const MAX_CLAIMS_BY_PUBKEY_LIMIT: u64 = 500;
 const DEFAULT_RECENT_UPLOADS_LIMIT: u64 = 20;
 const MAX_RECENT_UPLOADS_LIMIT: u64 = 200;
+/// Default page size for [`list_utxos`] (browser decoy pools).
+const DEFAULT_LIST_UTXOS_LIMIT: u64 = 500;
+const MAX_LIST_UTXOS_LIMIT: u64 = 10_000;
 
 fn extract_data_root_param(params: Option<&Value>) -> Result<&str, String> {
     let p = match params {
@@ -269,12 +272,14 @@ fn extract_claim_pubkey_and_limit(params: Option<&Value>) -> Result<([u8; 32], u
     Ok((root, lim_usize))
 }
 
-/// Shared **`limit`** / **`offset`** parsing for paged discovery RPCs (`list_recent_uploads`, M2.2.10).
-fn extract_list_limit_offset_from_object(
+/// Shared **`limit`** / **`offset`** parsing for paged discovery RPCs.
+fn extract_list_limit_offset_from_object_with_caps(
     obj: &Map<String, Value>,
+    default_limit: u64,
+    max_limit: u64,
 ) -> Result<(usize, usize), String> {
     let limit_u = match obj.get("limit") {
-        None => DEFAULT_RECENT_UPLOADS_LIMIT,
+        None => default_limit,
         Some(Value::Number(n)) => n
             .as_u64()
             .ok_or_else(|| "params.limit must be a non-negative JSON number".to_string())?,
@@ -287,10 +292,49 @@ fn extract_list_limit_offset_from_object(
             .ok_or_else(|| "params.offset must be a non-negative JSON number".to_string())?,
         Some(_) => return Err("params.offset must be a JSON number".to_string()),
     };
-    let limit_u = limit_u.clamp(1, MAX_RECENT_UPLOADS_LIMIT);
+    let limit_u = limit_u.clamp(1, max_limit);
     let limit = usize::try_from(limit_u).map_err(|_| "limit out of usize range".to_string())?;
     let offset = usize::try_from(offset_u).map_err(|_| "offset out of usize range".to_string())?;
     Ok((limit, offset))
+}
+
+/// Shared **`limit`** / **`offset`** parsing for paged discovery RPCs (`list_recent_uploads`, M2.2.10).
+fn extract_list_limit_offset_from_object(
+    obj: &Map<String, Value>,
+) -> Result<(usize, usize), String> {
+    extract_list_limit_offset_from_object_with_caps(
+        obj,
+        DEFAULT_RECENT_UPLOADS_LIMIT,
+        MAX_RECENT_UPLOADS_LIMIT,
+    )
+}
+
+fn extract_list_utxos_params(params: Option<&Value>) -> Result<(usize, usize), String> {
+    match params {
+        None | Some(Value::Null) => Ok((
+            usize::try_from(DEFAULT_LIST_UTXOS_LIMIT).expect("DEFAULT_LIST_UTXOS_LIMIT fits usize"),
+            0,
+        )),
+        Some(Value::Object(obj)) if obj.is_empty() => Ok((
+            usize::try_from(DEFAULT_LIST_UTXOS_LIMIT).expect("DEFAULT_LIST_UTXOS_LIMIT fits usize"),
+            0,
+        )),
+        Some(Value::Object(obj)) => extract_list_limit_offset_from_object_with_caps(
+            obj,
+            DEFAULT_LIST_UTXOS_LIMIT,
+            MAX_LIST_UTXOS_LIMIT,
+        ),
+        Some(Value::Array(_)) => Err("params must be a JSON object (not an array)".to_string()),
+        Some(_) => Err("params must be a JSON object".to_string()),
+    }
+}
+
+fn json_utxo_row(one_time_addr_key: &[u8; 32], entry: &UtxoEntry) -> Value {
+    json!({
+        "height": entry.height,
+        "one_time_addr_hex": hex32(one_time_addr_key),
+        "commit_hex": hex32(&entry.commit.compress().to_bytes()),
+    })
 }
 
 fn extract_list_limit_offset_params(params: Option<&Value>) -> Result<(usize, usize), String> {
@@ -466,6 +510,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "list_methods",
         "list_recent_claims",
         "list_recent_uploads",
+        "list_utxos",
         "remove_mempool_tx",
         "save_checkpoint",
         "submit_tx",
@@ -902,6 +947,31 @@ fn dispatch_serve_methods(
                 id,
                 json!({
                     "claims": claims,
+                    "total": total,
+                    "offset": offset,
+                    "limit": limit,
+                }),
+            )
+        }
+        "list_utxos" => {
+            let (limit, offset) = match extract_list_utxos_params(req.get("params")) {
+                Ok(x) => x,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let st = chain.state();
+            let total = st.utxo.len();
+            let mut rows: Vec<(&[u8; 32], &UtxoEntry)> = st.utxo.iter().collect();
+            rows.sort_by(|(ka, ea), (kb, eb)| ea.height.cmp(&eb.height).then_with(|| ka.cmp(kb)));
+            let utxos: Vec<Value> = rows
+                .into_iter()
+                .skip(offset)
+                .take(limit)
+                .map(|(k, e)| json_utxo_row(k, e))
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "utxos": utxos,
                     "total": total,
                     "offset": offset,
                     "limit": limit,
@@ -1894,13 +1964,14 @@ mod tests {
             "list_methods",
             "list_recent_claims",
             "list_recent_uploads",
+            "list_utxos",
             "remove_mempool_tx",
             "save_checkpoint",
             "submit_tx",
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 16);
+        assert_eq!(names.len(), 17);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1914,7 +1985,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 16);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 17);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2043,6 +2114,60 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"get_claims_by_pubkey","params":{"claim_pubkey":"gg"},"id":1}"#,
         );
         assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_utxos_empty_genesis() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_lutxo_empty");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_utxos","id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["utxos"], json!([]));
+        assert_eq!(v["result"]["total"], json!(0));
+        assert_eq!(v["result"]["offset"], json!(0));
+        assert_eq!(v["result"]["limit"], json!(500));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_utxos_after_solo_coinbase() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_lutxo_cb-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+        let (mut chain, producer, secrets, params, _cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"list_utxos","params":{},"id":2}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        let utxos = v["result"]["utxos"].as_array().expect("utxos");
+        assert!(
+            !utxos.is_empty(),
+            "coinbase should create at least one UTXO"
+        );
+        assert_eq!(v["result"]["total"].as_u64().unwrap(), utxos.len() as u64);
+        let row = &utxos[0];
+        assert_eq!(row["height"], json!(1));
+        assert_eq!(row["one_time_addr_hex"].as_str().unwrap().len(), 64);
+        assert_eq!(row["commit_hex"].as_str().unwrap().len(), 64);
         fs::remove_dir_all(&root).ok();
     }
 
