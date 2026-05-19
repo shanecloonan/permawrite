@@ -91,7 +91,10 @@ fn decode_hex48(s: &str, label: &str) -> Result<[u8; 48], WasmCoreError> {
     Ok(out)
 }
 
-fn parse_point32(bytes: [u8; 32], label: &str) -> Result<curve25519_dalek::EdwardsPoint, WasmCoreError> {
+fn parse_point32(
+    bytes: [u8; 32],
+    label: &str,
+) -> Result<curve25519_dalek::EdwardsPoint, WasmCoreError> {
     CompressedEdwardsY(bytes)
         .decompress()
         .ok_or_else(|| WasmCoreError::InvalidHex(format!("invalid {label} Edwards point")))
@@ -110,9 +113,12 @@ fn validators_from_json(json: &str) -> Result<Vec<Validator>, WasmCoreError> {
         let payout = match row.payout {
             None => None,
             Some(p) => {
-                let view = parse_point32(decode_hex32(&p.view_pub_hex, "view_pub_hex")?, "view_pub")?;
-                let spend =
-                    parse_point32(decode_hex32(&p.spend_pub_hex, "spend_pub_hex")?, "spend_pub")?;
+                let view =
+                    parse_point32(decode_hex32(&p.view_pub_hex, "view_pub_hex")?, "view_pub")?;
+                let spend = parse_point32(
+                    decode_hex32(&p.spend_pub_hex, "spend_pub_hex")?,
+                    "spend_pub",
+                )?;
                 Some(ValidatorPayout {
                     view_pub: view,
                     spend_pub: spend,
