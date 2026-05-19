@@ -48,8 +48,10 @@ node demo/proxy/rpc-proxy.mjs
 In the demo page:
 
 1. Set wallet seed (must match a validator payout wallet if scanning coinbase).
-2. **get_block** at tip height (via RPC tools) → paste **block hex** → **scanBlockHex** → plan `inputs`.
+2. **Catch up to tip** (wallet sync) — or manually paste **block hex** → **scanBlockHex**.
 3. **Load decoys from node** → fills `decoy_utxos`.
 4. **Build transfer** → **Submit to mempool** → **get_mempool** to confirm `tx_id`.
+
+**Storage upload path:** choose a file → **Min fee** → **Build upload tx** (anchors data with optional authorship message) → **Submit upload**.
 
 Proxy default: `http://127.0.0.1:8787/rpc`.

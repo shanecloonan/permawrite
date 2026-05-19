@@ -128,6 +128,10 @@ Upload plan shape (same decoy / input conventions as transfer):
 
 Optional `message_hex` (UTF-8 as hex) attaches an MFCL authorship claim in `tx.extra`.
 
+## Wallet sync (M4.7)
+
+[`demo/web/wallet-sync.js`](../demo/web/wallet-sync.js) incrementally calls `get_block` for each height, runs `scanBlockHex`, tracks owned UTXOs and key images (with `localStorage` per seed). Use **Catch up to tip** in the demo after `mfnd step`.
+
 ## Roadmap
 
-- **M4.7** — Light-client block sync helper for demo (auto `get_block` scan loop).
+- **M4.8** — RPC `get_chain_params` + demo one-click “sync, decoys, ready”.

@@ -54,7 +54,26 @@
       </section>
 
       <section>
-        <h2>Chain scan</h2>
+        <h2>Wallet sync (M4.7)</h2>
+        <p class="lede">
+          Fetches each block via <code>get_block</code> and scans with your seed (light-client style).
+          State is saved in <code>localStorage</code> per seed.
+        </p>
+        <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
+        <div class="row">
+          <button type="button" id="btn-sync-catch-up">Catch up to tip</button>
+          <button type="button" id="btn-sync-reset">Reset wallet state</button>
+        </div>
+        <label for="sync-from">Rescan from height</label>
+        <input id="sync-from" type="number" min="1" value="1" />
+        <label for="sync-to">through height (blank = tip)</label>
+        <input id="sync-to" type="number" min="1" placeholder="tip" />
+        <button type="button" id="btn-sync-range">Sync range</button>
+        <pre id="sync-out" class="out"></pre>
+      </section>
+
+      <section>
+        <h2>Chain scan (manual)</h2>
         <label for="block-hex">Block wire hex</label>
         <textarea
           id="block-hex"

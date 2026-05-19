@@ -2097,6 +2097,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.4** | RPC `list_utxos` + demo auto-fill decoys from live node tip. | done |
 | **M4.5** | Demo scan → build → `submit_tx` + `get_mempool` (full browser transfer path). | done |
 | **M4.6** | WASM `buildStorageUpload` + `uploadMinFee` + demo permanence upload path. | done |
+| **M4.7** | Demo light-wallet sync (`get_block` loop + `wallet-sync.js`). | done |
 
 ### Use cases
 
