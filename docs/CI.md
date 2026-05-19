@@ -12,7 +12,9 @@ bash scripts/ci-check.sh
 powershell -File scripts/ci-check.ps1
 ```
 
-This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features`, and `cargo test --workspace --release` with `RUSTFLAGS=-D warnings`, matching CI.
+This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features`, `cargo build -p mfn-node --bin mfnd --release`, and `cargo test --workspace --release` with `RUSTFLAGS=-D warnings`, matching CI.
+
+Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explicitly before `cargo test --release`.
 
 ## Inspect GitHub failures (no copy-paste)
 

@@ -13,6 +13,10 @@ Write-Host "==> clippy"
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "==> build mfnd (mfn-cli integration tests)"
+cargo build -p mfn-node --bin mfnd --release
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "==> test (release)"
 cargo test --workspace --release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

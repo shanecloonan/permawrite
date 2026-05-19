@@ -20,6 +20,9 @@ const CLAIM_DATA_ROOT_HEX: &str =
 const CLAIM_FEE: u64 = 10_000;
 
 fn mfnd_bin() -> PathBuf {
+    if let Some(p) = std::env::var_os("CARGO_BIN_EXE_mfnd") {
+        return PathBuf::from(p);
+    }
     let profile = if cfg!(debug_assertions) {
         "debug"
     } else {
@@ -32,9 +35,6 @@ fn mfnd_bin() -> PathBuf {
     path.push(format!("mfnd{}", std::env::consts::EXE_SUFFIX));
     if path.is_file() {
         return path;
-    }
-    if let Some(p) = std::env::var_os("CARGO_BIN_EXE_mfnd") {
-        return PathBuf::from(p);
     }
     panic!(
         "mfnd binary not found at {}; run `cargo build -p mfn-node --bin mfnd --{profile}`",
@@ -183,6 +183,11 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
         step2.status.success(),
         "step2 stderr={}",
         String::from_utf8_lossy(&step2.stderr)
+    );
+    let step2_out = String::from_utf8_lossy(&step2.stdout);
+    assert!(
+        step2_out.contains("mfnd_step_mempool_load"),
+        "step2 should reload mempool; stdout={step2_out}"
     );
 
     let gc = genesis_config_from_json_path(&spec).expect("genesis");

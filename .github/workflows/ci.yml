@@ -67,6 +67,8 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
+      # mfn-cli integration tests spawn `target/{profile}/mfnd` (see CARGO_BIN_EXE_mfnd).
+      - run: cargo build -p mfn-node --bin mfnd --release
       - run: cargo test --workspace --release
 
   audit:
