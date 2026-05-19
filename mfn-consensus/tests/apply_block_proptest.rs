@@ -79,7 +79,10 @@ enum HeaderTamper {
     BadStorageProofRoot,
 }
 
-fn tamper(mut header: mfn_consensus::BlockHeader, kind: HeaderTamper) -> mfn_consensus::BlockHeader {
+fn tamper(
+    mut header: mfn_consensus::BlockHeader,
+    kind: HeaderTamper,
+) -> mfn_consensus::BlockHeader {
     match kind {
         HeaderTamper::BadHeight(bump) => {
             header.height = header.height.saturating_add(bump.max(1));
@@ -98,9 +101,7 @@ fn expected_error(kind: &HeaderTamper) -> fn(&BlockError) -> bool {
         HeaderTamper::BadPrevHash => |e| matches!(e, BlockError::PrevHashMismatch),
         HeaderTamper::BadTxRoot => |e| matches!(e, BlockError::TxRootMismatch),
         HeaderTamper::BadBondRoot => |e| matches!(e, BlockError::BondRootMismatch),
-        HeaderTamper::BadStorageProofRoot => |e| {
-            matches!(e, BlockError::StorageProofRootMismatch)
-        }
+        HeaderTamper::BadStorageProofRoot => |e| matches!(e, BlockError::StorageProofRootMismatch),
     }
 }
 
@@ -134,9 +135,8 @@ proptest! {
 
     #[test]
     fn prop_reject_tampered_header_without_state_change(
-        bump in 2u32..=64u32,
         tamper_kind in prop_oneof![
-            Just(HeaderTamper::BadHeight(bump)),
+            (2u32..=64u32).prop_map(HeaderTamper::BadHeight),
             Just(HeaderTamper::BadPrevHash),
             Just(HeaderTamper::BadTxRoot),
             Just(HeaderTamper::BadBondRoot),
