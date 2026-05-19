@@ -3,16 +3,19 @@
 //! - [`rpc::RpcClient`] — newline-delimited JSON-RPC 2.0 over TCP to `mfnd serve`.
 //! - [`cli`] — command-line driver for `mfn-cli` binary.
 //! - [`wallet_store`] / [`wallet_cmd`] — on-disk wallet file, scan, send, upload, claim (**M3.1**–**M3.4**).
+//! - [`claims_cmd`] — query authorship claims index via RPC (**M3.8**).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod claims_cmd;
 pub mod cli;
 pub mod rpc;
 pub mod wallet_cmd;
 pub mod wallet_store;
 
+pub use claims_cmd::ClaimsListParams;
 pub use cli::{cli_main, run_cli, CliError};
 pub use rpc::{BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult};
 pub use wallet_cmd::{

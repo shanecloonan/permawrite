@@ -4,6 +4,9 @@ use std::process::ExitCode;
 
 use serde_json::json;
 
+use crate::claims_cmd::{
+    claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
+};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
@@ -78,6 +81,17 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 serde_json::to_string_pretty(&result).unwrap_or_else(|_| { result.to_string() })
             );
         }
+        Cmd::Claims { sub } => match sub {
+            ClaimsSub::For { data_root_hex } => {
+                claims_for(&mut client, &data_root_hex).map_err(CliError::Usage)?
+            }
+            ClaimsSub::Recent(params) => claims_recent(&mut client, &params).map_err(CliError::Usage)?,
+            ClaimsSub::ByPubkey {
+                claim_pubkey_hex,
+                limit,
+            } => claims_by_pubkey(&mut client, &claim_pubkey_hex, limit).map_err(CliError::Usage)?,
+            ClaimsSub::Roots(params) => claims_roots(&mut client, &params).map_err(CliError::Usage)?,
+        },
         Cmd::Wallet {
             sub,
             wallet_path,
@@ -127,6 +141,22 @@ enum Cmd {
         wallet_path: Option<String>,
         force: bool,
     },
+    Claims {
+        sub: ClaimsSub,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ClaimsSub {
+    For {
+        data_root_hex: String,
+    },
+    Recent(ClaimsListParams),
+    ByPubkey {
+        claim_pubkey_hex: String,
+        limit: Option<u64>,
+    },
+    Roots(ClaimsListParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -175,7 +205,13 @@ fn usage() -> &'static str {
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
-                         --fee N --ring-size N\n"
+                         --fee N --ring-size N\n\
+       claims for DATA_ROOT_HEX           authorship claims for a content data_root\n\
+       claims recent                      recent claims chain-wide (list_recent_claims)\n\
+       claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
+       claims roots                       data_roots that have claims\n\
+                         options for recent/roots: --limit N --offset N\n\
+                         options for by-pubkey: --limit N\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -228,6 +264,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--message"
                 | "--message-hex"
                 | "--commit-hash"
+                | "--limit"
+                | "--offset"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -308,6 +346,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             }
         }
         "wallet" => parse_wallet_cmd(&positional[1..], wallet_path, force)?,
+        "claims" => parse_claims_cmd(&positional[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown command `{other}`\n{}",
@@ -316,6 +355,121 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
     };
     Ok(Parsed { rpc_addr, cmd })
+}
+
+fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
+    let Some(sub_name) = rest.first() else {
+        return Err(CliError::Usage(format!(
+            "claims requires SUBCOMMAND (for|recent|by-pubkey|roots)\n{}",
+            usage()
+        )));
+    };
+    let sub = match *sub_name {
+        "for" => {
+            if rest.len() != 2 {
+                return Err(CliError::Usage(format!(
+                    "claims for requires DATA_ROOT_HEX\n{}",
+                    usage()
+                )));
+            }
+            ClaimsSub::For {
+                data_root_hex: rest[1].to_string(),
+            }
+        }
+        "recent" => ClaimsSub::Recent(parse_claims_list_args(&rest[1..])?),
+        "roots" => ClaimsSub::Roots(parse_claims_list_args(&rest[1..])?),
+        "by-pubkey" => {
+            let (claim_pubkey_hex, limit) = parse_claims_by_pubkey_args(&rest[1..])?;
+            ClaimsSub::ByPubkey {
+                claim_pubkey_hex,
+                limit,
+            }
+        }
+        other => {
+            return Err(CliError::Usage(format!(
+                "unknown claims subcommand `{other}`\n{}",
+                usage()
+            )));
+        }
+    };
+    Ok(Cmd::Claims { sub })
+}
+
+fn parse_claims_list_args(rest: &[&str]) -> Result<ClaimsListParams, CliError> {
+    let mut limit = None;
+    let mut offset = None;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--limit" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--limit requires a value".into()));
+            };
+            limit = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage("--limit must be a positive integer".into()))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a == "--offset" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--offset requires a value".into()));
+            };
+            offset =
+                Some(v.parse().map_err(|_| {
+                    CliError::Usage("--offset must be a non-negative integer".into())
+                })?);
+            i += 2;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unexpected argument `{a}`\n{}",
+            usage()
+        )));
+    }
+    Ok(ClaimsListParams { limit, offset })
+}
+
+fn parse_claims_by_pubkey_args(rest: &[&str]) -> Result<(String, Option<u64>), CliError> {
+    let mut limit = None;
+    let mut claim_pubkey_hex: Option<String> = None;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--limit" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--limit requires a value".into()));
+            };
+            limit = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage("--limit must be a positive integer".into()))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown claims by-pubkey option `{a}`\n{}",
+                usage()
+            )));
+        }
+        if claim_pubkey_hex.is_some() {
+            return Err(CliError::Usage(format!(
+                "claims by-pubkey accepts one CLAIM_PUBKEY_HEX\n{}",
+                usage()
+            )));
+        }
+        claim_pubkey_hex = Some(a.to_string());
+        i += 1;
+    }
+    let Some(hex) = claim_pubkey_hex else {
+        return Err(CliError::Usage(format!(
+            "claims by-pubkey requires CLAIM_PUBKEY_HEX\n{}",
+            usage()
+        )));
+    };
+    Ok((hex, limit))
 }
 
 fn parse_wallet_cmd(
@@ -698,6 +852,34 @@ mod tests {
                 assert!(!force);
             }
             _ => panic!("expected wallet balance"),
+        }
+    }
+
+    #[test]
+    fn parse_claims_for_subcommand() {
+        let p = parse_args(&["claims".into(), "for".into(), "aa".repeat(32)]).unwrap();
+        match p.cmd {
+            Cmd::Claims {
+                sub: ClaimsSub::For { data_root_hex },
+            } => assert_eq!(data_root_hex.len(), 64),
+            _ => panic!("expected claims for"),
+        }
+    }
+
+    #[test]
+    fn parse_claims_recent_limit() {
+        let p = parse_args(&[
+            "claims".into(),
+            "recent".into(),
+            "--limit".into(),
+            "10".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Claims {
+                sub: ClaimsSub::Recent(params),
+            } => assert_eq!(params.limit, Some(10)),
+            _ => panic!("expected claims recent"),
         }
     }
 }
