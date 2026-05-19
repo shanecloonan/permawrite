@@ -85,12 +85,18 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             ClaimsSub::For { data_root_hex } => {
                 claims_for(&mut client, &data_root_hex).map_err(CliError::Usage)?
             }
-            ClaimsSub::Recent(params) => claims_recent(&mut client, &params).map_err(CliError::Usage)?,
+            ClaimsSub::Recent(params) => {
+                claims_recent(&mut client, &params).map_err(CliError::Usage)?
+            }
             ClaimsSub::ByPubkey {
                 claim_pubkey_hex,
                 limit,
-            } => claims_by_pubkey(&mut client, &claim_pubkey_hex, limit).map_err(CliError::Usage)?,
-            ClaimsSub::Roots(params) => claims_roots(&mut client, &params).map_err(CliError::Usage)?,
+            } => {
+                claims_by_pubkey(&mut client, &claim_pubkey_hex, limit).map_err(CliError::Usage)?
+            }
+            ClaimsSub::Roots(params) => {
+                claims_roots(&mut client, &params).map_err(CliError::Usage)?
+            }
         },
         Cmd::Wallet {
             sub,
