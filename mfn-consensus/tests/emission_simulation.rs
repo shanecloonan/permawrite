@@ -138,7 +138,8 @@ fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
         let prev = *st.tip_id().expect("tip after genesis");
         let proof =
             build_storage_proof(&built.commit, &prev, slot, &payload, &built.tree).expect("proof");
-        let unsealed = build_unsealed_header(&st, &[], &[], &[], &[proof.clone()], slot, ts);
+        let unsealed =
+            build_unsealed_header(&st, &[], &[], &[], std::slice::from_ref(&proof), slot, ts);
         let blk = seal_block(
             unsealed,
             Vec::new(),
