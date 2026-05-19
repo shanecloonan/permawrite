@@ -395,10 +395,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .filter(|s| !s.is_empty())
             });
             let mut p2p_dials = parsed.p2p_dials.clone();
-            crate::p2p_boot::merge_boot_peer_dials(
-                &mut p2p_dials,
-                parsed.genesis_toml.as_deref(),
-            )?;
+            crate::p2p_boot::merge_boot_peer_dials(&mut p2p_dials, parsed.genesis_toml.as_deref())?;
             if !p2p_dials.is_empty() {
                 println!("mfnd_p2p_boot_dials={}", p2p_dials.join(","));
                 std::io::stdout().flush().ok();
@@ -761,10 +758,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(
             p.p2p_dials,
-            vec![
-                "127.0.0.1:19998".to_string(),
-                "127.0.0.1:19999".to_string(),
-            ]
+            vec!["127.0.0.1:19998".to_string(), "127.0.0.1:19999".to_string(),]
         );
     }
 

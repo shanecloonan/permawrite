@@ -247,16 +247,15 @@ fn wallet_send_mined_by_step_reaches_recipient() {
     );
     let step2_err = String::from_utf8_lossy(&step2.stderr);
     assert!(
-        (step2_out.contains("mfnd_step_mempool_load") || step2_err.contains("mfnd_step_mempool_load"))
+        (step2_out.contains("mfnd_step_mempool_load")
+            || step2_err.contains("mfnd_step_mempool_load"))
             && (step2_out.contains("admitted=1") || step2_err.contains("admitted=1")),
         "step2 should mine persisted mempool tx (mfnd={}), stdout={step2_out} stderr={step2_err}",
         mfnd_exe.display()
     );
 
     let store2 = NodeStore::open(StoreBackend::Fs, &dir).expect("store2");
-    let chain = store2
-        .load_or_genesis(ChainConfig::new(gc))
-        .expect("chain");
+    let chain = store2.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let blocks = store2.read_block_log().expect("blocks");
     assert_eq!(blocks.len(), 2, "expected two blocks in log");
     assert!(

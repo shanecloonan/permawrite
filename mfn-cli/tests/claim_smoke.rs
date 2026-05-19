@@ -15,7 +15,8 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
     "0101010101010101010101010101010101010101010101010101010101010101";
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
-const CLAIM_DATA_ROOT_HEX: &str = "7777777777777777777777777777777777777777777777777777777777777777";
+const CLAIM_DATA_ROOT_HEX: &str =
+    "7777777777777777777777777777777777777777777777777777777777777777";
 const CLAIM_FEE: u64 = 10_000;
 
 fn mfnd_bin() -> PathBuf {
@@ -186,9 +187,7 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
 
     let gc = genesis_config_from_json_path(&spec).expect("genesis");
     let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
-    let chain = store
-        .load_or_genesis(ChainConfig::new(gc))
-        .expect("chain");
+    let chain = store.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let mut data_root = [0u8; 32];
     hex::decode_to_slice(CLAIM_DATA_ROOT_HEX, &mut data_root).expect("data_root hex");
     let pk_bytes = ClaimingIdentity::from_seed(&bls_seed)

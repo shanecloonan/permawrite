@@ -390,7 +390,11 @@ fn three_validators_produce_converge_on_shared_tip() {
         Duration::from_secs(150),
     );
     assert_eq!(height2, target_height, "expected height {target_height}");
-    assert_eq!(get_tip(v0.rpc).1, tip2, "hub tip drifted before height-2 checks");
+    assert_eq!(
+        get_tip(v0.rpc).1,
+        tip2,
+        "hub tip drifted before height-2 checks"
+    );
 
     let block1_v0 = block_id_at_height(v0.rpc, 1);
     assert_eq!(

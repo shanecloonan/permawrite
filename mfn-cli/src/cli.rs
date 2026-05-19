@@ -7,8 +7,8 @@ use serde_json::json;
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
-    wallet_send, wallet_upload, ClaimParams, SendParams, UploadParams, WalletCmdError,
-    DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+    wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
+    WalletCmdError, DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
 };
 
 /// CLI parse or RPC failure.
@@ -62,7 +62,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 println!("tx_id={id}");
             }
         }
-        Cmd::Raw { method, params_json } => {
+        Cmd::Raw {
+            method,
+            params_json,
+        } => {
             let params: serde_json::Value = if let Some(s) = params_json {
                 serde_json::from_str(&s)
                     .map_err(|e| CliError::Usage(format!("invalid --params JSON: {e}")))?
@@ -70,17 +73,23 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 json!(null)
             };
             let result = client.call(&method, params)?;
-            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_else(|_| {
-                result.to_string()
-            }));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_else(|_| { result.to_string() })
+            );
         }
-        Cmd::Wallet { sub, wallet_path, force } => {
+        Cmd::Wallet {
+            sub,
+            wallet_path,
+            force,
+        } => {
             let path = resolve_wallet_path(wallet_path.as_deref());
             match sub {
                 WalletSub::New => wallet_new(&path, force)?,
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
+                WalletSub::Status => wallet_status(&path, &mut client)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
                 WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
                 WalletSub::Claim(params) => wallet_claim(&path, &mut client, &params)?,
@@ -126,6 +135,7 @@ enum WalletSub {
     Address,
     Scan,
     Balance,
+    Status,
     Send(SendParams),
     Upload(UploadParams),
     Claim(ClaimParams),
@@ -156,6 +166,7 @@ fn usage() -> &'static str {
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan blocks from node tip through wallet file\n\
        wallet balance    scan chain and print balance\n\
+       wallet status     print cached balance vs node tip (no block fetch)\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
                          options: --fee N --ring-size N --extra HEX\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -220,14 +231,20 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
-                return Err(CliError::Usage(format!("{a} requires a value\n{}", usage())));
+                return Err(CliError::Usage(format!(
+                    "{a} requires a value\n{}",
+                    usage()
+                )));
             };
             positional.push(v.as_str());
             i += 2;
             continue;
         }
         if a.starts_with('-') {
-            return Err(CliError::Usage(format!("unknown option `{a}`\n{}", usage())));
+            return Err(CliError::Usage(format!(
+                "unknown option `{a}`\n{}",
+                usage()
+            )));
         }
         positional.push(a);
         i += 1;
@@ -308,12 +325,12 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|balance|send|upload|claim)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|balance|status|send|upload|claim)\n{}",
             usage()
         )));
     };
     let sub = match *sub_name {
-        "new" | "address" | "scan" | "balance" => {
+        "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -325,6 +342,7 @@ fn parse_wallet_cmd(
                 "address" => WalletSub::Address,
                 "scan" => WalletSub::Scan,
                 "balance" => WalletSub::Balance,
+                "status" => WalletSub::Status,
                 _ => unreachable!(),
             }
         }
@@ -381,8 +399,8 @@ fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
                 .strip_prefix("0x")
                 .or_else(|| v.strip_prefix("0X"))
                 .unwrap_or(v);
-            extra = hex::decode(t)
-                .map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
+            extra =
+                hex::decode(t).map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
             i += 2;
             continue;
         }
@@ -479,9 +497,9 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--anchor-value requires a value".into()));
             };
-            anchor_value = v
-                .parse()
-                .map_err(|_| CliError::Usage("--anchor-value must be a non-negative integer".into()))?;
+            anchor_value = v.parse().map_err(|_| {
+                CliError::Usage("--anchor-value must be a non-negative integer".into())
+            })?;
             i += 2;
             continue;
         }
@@ -519,8 +537,8 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
                 .strip_prefix("0x")
                 .or_else(|| v.strip_prefix("0X"))
                 .unwrap_or(v);
-            extra = hex::decode(t)
-                .map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
+            extra =
+                hex::decode(t).map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
             i += 2;
             continue;
         }

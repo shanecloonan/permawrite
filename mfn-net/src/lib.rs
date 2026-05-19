@@ -60,9 +60,8 @@ pub use production::{
 };
 pub use serve::{
     height_cmp_label, spawn_catch_up_dial, spawn_inbound_handshake_loop, spawn_outbound_dial,
-    BlockSyncApplierHook,
-    BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, InboundP2pLoop, OutboundP2pDial,
-    P2pSessionHooks, ProductionHook, TipSnapshot,
+    BlockSyncApplierHook, BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, InboundP2pLoop,
+    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

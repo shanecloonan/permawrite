@@ -28,6 +28,10 @@ pub enum WalletError {
     #[error("no recipients supplied")]
     NoRecipients,
 
+    /// Persisted owned-output snapshot failed to decode.
+    #[error("{0}")]
+    StoredOwnedDecode(String),
+
     /// Authorship claim message exceeds the consensus wire limit.
     #[error("claim message length {got} exceeds max {max}")]
     ClaimMessageTooLong {

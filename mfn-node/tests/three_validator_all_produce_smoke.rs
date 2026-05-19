@@ -239,10 +239,7 @@ fn wait_common_tip(
         }
         if Instant::now() >= deadline {
             let tips: Vec<_> = nodes.iter().map(|&rpc| get_tip(rpc)).collect();
-            let saw: Vec<_> = sealed
-                .iter()
-                .map(|f| f.load(Ordering::Relaxed))
-                .collect();
+            let saw: Vec<_> = sealed.iter().map(|f| f.load(Ordering::Relaxed)).collect();
             for (i, log) in logs.iter().enumerate() {
                 dump_log(&format!("v{i}"), log);
             }
@@ -305,14 +302,7 @@ fn three_validators_all_produce_converge_on_shared_tip() {
     thread::sleep(Duration::from_millis(500));
 
     let v1_p2p = v1.p2p.to_string();
-    let (mut v2, out2) = spawn_producer(
-        &dir2,
-        &spec,
-        2,
-        V2_VRF,
-        V2_BLS,
-        &[&hub_p2p, &v1_p2p],
-    );
+    let (mut v2, out2) = spawn_producer(&dir2, &spec, 2, V2_VRF, V2_BLS, &[&hub_p2p, &v1_p2p]);
     watch_stdout(out2, Arc::clone(&log2), Arc::clone(&sealed2));
 
     thread::sleep(Duration::from_millis(1500));
@@ -321,24 +311,25 @@ fn three_validators_all_produce_converge_on_shared_tip() {
     let sealed = [sealed0, sealed1, sealed2];
     let logs = [log0, log1, log2];
 
-    let (height, tip_id) = wait_common_tip(
-        &nodes,
-        1,
-        &sealed,
-        Duration::from_secs(180),
-        &logs,
+    let (height, tip_id) = wait_common_tip(&nodes, 1, &sealed, Duration::from_secs(180), &logs);
+    assert!(
+        height >= 1,
+        "expected at least one sealed block, got {height}"
     );
-    assert!(height >= 1, "expected at least one sealed block, got {height}");
 
     let b0 = block_id_at_height(v0.rpc, height);
     let b1 = block_id_at_height(v1.rpc, height);
     let b2 = block_id_at_height(v2.rpc, height);
-    assert_eq!(b0, tip_id, "get_tip tip_id should match get_block_header at tip height");
+    assert_eq!(
+        b0, tip_id,
+        "get_tip tip_id should match get_block_header at tip height"
+    );
     assert_eq!(b0, b1, "canonical block mismatch v0/v1 at height {height}");
     assert_eq!(b1, b2, "canonical block mismatch v1/v2 at height {height}");
 
     assert!(
-        logs.iter().any(|l| log_contains_any(l, "mfnd_producer_slot_skip")),
+        logs.iter()
+            .any(|l| log_contains_any(l, "mfnd_producer_slot_skip")),
         "expected at least one slot skip under expected_proposers_per_slot=1.5"
     );
 

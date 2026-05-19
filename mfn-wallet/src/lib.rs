@@ -54,6 +54,7 @@ pub mod keys;
 pub mod owned;
 pub mod scan;
 pub mod spend;
+pub mod stored;
 pub mod upload;
 pub mod wallet;
 
@@ -64,6 +65,7 @@ pub use keys::{wallet_from_seed, WalletKeys};
 pub use owned::{key_image_for_owned, owned_balance, verify_pedersen_open, OwnedOutput, OwnedRef};
 pub use scan::{scan_block, scan_transaction, BlockScan, ScannedOutput, TxScan};
 pub use spend::{build_transfer, TransferPlan, TransferRecipient};
+pub use stored::StoredOwnedOutput;
 pub use upload::{
     build_storage_upload, estimate_minimum_fee_for_upload, StorageUploadPlan, UploadArtifacts,
 };

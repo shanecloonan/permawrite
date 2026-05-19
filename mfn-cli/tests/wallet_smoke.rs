@@ -88,7 +88,7 @@ fn wallet_balance_after_solo_step_coinbase() {
         .join("..")
         .join("mfn-node/testdata/devnet_one_validator_wallet_payout.json");
 
-    let file = WalletFile::new(&PAYOUT_SEED, KeyDerivation::PayoutStealthV1);
+    let mut file = WalletFile::new(&PAYOUT_SEED, KeyDerivation::PayoutStealthV1);
     file.save(&wallet_path).expect("write wallet");
 
     let step = mfnd()
@@ -101,7 +101,10 @@ fn wallet_balance_after_solo_step_coinbase() {
         .arg("step")
         .arg("--blocks")
         .arg("1")
-        .env("MFND_SOLO_VRF_SEED_HEX", "0101010101010101010101010101010101010101010101010101010101010101")
+        .env(
+            "MFND_SOLO_VRF_SEED_HEX",
+            "0101010101010101010101010101010101010101010101010101010101010101",
+        )
         .env(
             "MFND_SOLO_BLS_SEED_HEX",
             "6565656565656565656565656565656565656565656565656565656565656565",
@@ -154,6 +157,49 @@ fn wallet_balance_after_solo_step_coinbase() {
     );
     assert!(stdout.contains("owned_count=1"));
     assert!(stdout.contains("scan_height=1"));
+
+    // Second balance: UTXO cache should avoid re-fetching block 1.
+    let out2 = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc.to_string(),
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "balance",
+        ])
+        .output()
+        .expect("wallet balance 2");
+    assert!(
+        out2.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&out2.stderr)
+    );
+    let stdout2 = String::from_utf8_lossy(&out2.stdout);
+    assert!(
+        stdout2.contains("utxo_cache=true"),
+        "expected cache on second scan: {stdout2}"
+    );
+    assert!(
+        stdout2.contains("blocks_scanned=0"),
+        "expected no blocks when tip unchanged: {stdout2}"
+    );
+
+    let status = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc.to_string(),
+            "--wallet",
+            wallet_path.to_str().expect("utf8"),
+            "wallet",
+            "status",
+        ])
+        .output()
+        .expect("wallet status");
+    assert!(status.status.success());
+    let status_out = String::from_utf8_lossy(&status.stdout);
+    assert!(status_out.contains("sync_needed=false"), "{status_out}");
+    assert!(status_out.contains("utxo_cache=true"), "{status_out}");
 
     shutdown_child(&mut child);
     std::fs::remove_dir_all(&dir).ok();

@@ -14,9 +14,7 @@ pub mod wallet_cmd;
 pub mod wallet_store;
 
 pub use cli::{cli_main, run_cli, CliError};
-pub use rpc::{
-    BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult,
-};
+pub use rpc::{BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult};
 pub use wallet_cmd::{
     ClaimParams, SendParams, UploadParams, DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE,
     DEFAULT_TRANSFER_FEE, DEFAULT_UPLOAD_REPLICATION,

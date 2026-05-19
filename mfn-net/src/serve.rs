@@ -269,7 +269,6 @@ struct GapCatchUpOnGap {
     fanout_peers: FanoutPeerSetHook,
 }
 
-
 impl GossipHandler for InboundGossip {
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
         let label = self.inner.on_tx_v1(tx_wire);

@@ -4,13 +4,13 @@ use std::path::{Path, PathBuf};
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_consensus::{
-    decode_block, decode_chain_checkpoint, encode_transaction, Recipient, ChainState,
+    decode_block, decode_chain_checkpoint, encode_transaction, ChainState, Recipient,
 };
+use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::{crypto_random, point_from_bytes};
 use mfn_storage::storage_commitment_hash;
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
-use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use rand_core::{OsRng, RngCore};
 
 use crate::rpc::RpcClient;
@@ -121,7 +121,7 @@ pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     }
     let mut seed = [0u8; 32];
     OsRng.fill_bytes(&mut seed);
-    let file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
+    let mut file = WalletFile::new(&seed, KeyDerivation::MfnWalletV1);
     file.save(path)?;
     print_address_lines(&file)?;
     println!("wallet_path={}", path.display());
@@ -148,9 +148,13 @@ pub fn wallet_scan(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdE
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
-    file.scan_height = wallet.scan_height();
-    file.save(path)?;
-    print_scan_summary(&stats, wallet.scan_height(), wallet.balance(), wallet.owned_count());
+    persist_wallet(path, &mut file, &wallet)?;
+    print_scan_summary(
+        &stats,
+        wallet.scan_height(),
+        wallet.balance(),
+        wallet.owned_count(),
+    );
     println!("wallet_path={}", path.display());
     Ok(())
 }
@@ -160,12 +164,42 @@ pub fn wallet_balance(path: &Path, client: &mut RpcClient) -> Result<(), WalletC
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
-    file.scan_height = wallet.scan_height();
-    file.save(path)?;
-    print_scan_summary(&stats, wallet.scan_height(), wallet.balance(), wallet.owned_count());
-    println!("balance={}", wallet.balance());
-    println!("owned_count={}", wallet.owned_count());
+    persist_wallet(path, &mut file, &wallet)?;
+    print_scan_summary(
+        &stats,
+        wallet.scan_height(),
+        wallet.balance(),
+        wallet.owned_count(),
+    );
     println!("wallet_path={}", path.display());
+    Ok(())
+}
+
+/// `wallet status` — print cached UTXO snapshot vs node tip without fetching blocks.
+pub fn wallet_status(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdError> {
+    let file = WalletFile::load(path)?;
+    let mut wallet = file.to_wallet()?;
+    file.hydrate_wallet(&mut wallet)?;
+    let tip = client.get_tip()?;
+    let tip_height = tip.tip_height.unwrap_or(0);
+    let scan_height = file.scan_height.unwrap_or(0);
+    let cached = file.has_owned_cache();
+
+    println!("tip_height={tip_height}");
+    println!("scan_height={scan_height}");
+    println!("utxo_cache={cached}");
+    println!("balance_cached={}", wallet.balance());
+    println!("owned_count_cached={}", wallet.owned_count());
+    println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
+    if tip_height > u64::from(scan_height) {
+        println!("sync_needed=true");
+        println!("blocks_behind={}", tip_height - u64::from(scan_height));
+    } else {
+        println!("sync_needed=false");
+        println!("blocks_behind=0");
+    }
+    println!("wallet_path={}", path.display());
+    println!("wallet_version={}", file.version);
     Ok(())
 }
 
@@ -176,12 +210,12 @@ pub fn wallet_send(
     params: &SendParams,
 ) -> Result<(), WalletCmdError> {
     if params.amount == 0 {
-        return Err(WalletCmdError::Usage("amount must be greater than 0".into()));
+        return Err(WalletCmdError::Usage(
+            "amount must be greater than 0".into(),
+        ));
     }
     if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 2".into(),
-        ));
+        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
     let mut file = WalletFile::load(path)?;
@@ -209,14 +243,14 @@ pub fn wallet_send(
         .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
         .collect();
     file.record_pending_spends(&consumed);
-    file.scan_height = wallet.scan_height();
-    file.save(path)?;
+    persist_wallet(path, &mut file, &wallet)?;
 
     let tx_bytes = encode_transaction(&signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
+    println!("utxo_cache={}", stats.used_utxo_cache);
     println!("amount={}", params.amount);
     println!("fee={}", params.fee);
     println!("ring_size={}", params.ring_size);
@@ -242,21 +276,15 @@ pub fn wallet_upload(
     params: &UploadParams,
 ) -> Result<(), WalletCmdError> {
     if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 2".into(),
-        ));
+        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
     }
     if params.replication == 0 {
         return Err(WalletCmdError::Usage(
             "replication must be at least 1".into(),
         ));
     }
-    let data = std::fs::read(&params.file_path).map_err(|e| {
-        WalletCmdError::Usage(format!(
-            "read {}: {e}",
-            params.file_path.display()
-        ))
-    })?;
+    let data = std::fs::read(&params.file_path)
+        .map_err(|e| WalletCmdError::Usage(format!("read {}: {e}", params.file_path.display())))?;
     if data.is_empty() {
         return Err(WalletCmdError::Usage("upload file is empty".into()));
     }
@@ -347,8 +375,7 @@ pub fn wallet_upload(
         .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
         .collect();
     file.record_pending_spends(&consumed);
-    file.scan_height = wallet.scan_height();
-    file.save(path)?;
+    persist_wallet(path, &mut file, &wallet)?;
 
     let upload_hash = storage_commitment_hash(&art.built.commit);
     let data_root = art.built.commit.data_root;
@@ -357,6 +384,7 @@ pub fn wallet_upload(
 
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
+    println!("utxo_cache={}", stats.used_utxo_cache);
     println!("file={}", params.file_path.display());
     println!("bytes={}", data.len());
     println!("replication={}", params.replication);
@@ -368,7 +396,10 @@ pub fn wallet_upload(
     println!("storage_commitment_hash={}", hex::encode(upload_hash));
     if params.message.is_some() {
         println!("authorship_claim=bound");
-        println!("claim_message_len={}", params.message.as_ref().map_or(0, Vec::len));
+        println!(
+            "claim_message_len={}",
+            params.message.as_ref().map_or(0, Vec::len)
+        );
     }
     println!("ring_size={}", params.ring_size);
     println!("tx_id={}", submit.tx_id);
@@ -396,9 +427,7 @@ pub fn wallet_claim(
     params: &ClaimParams,
 ) -> Result<(), WalletCmdError> {
     if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 2".into(),
-        ));
+        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
     }
     let data_root = parse_hash32(&params.data_root_hex, "data_root")?;
     let commit_hash = match params.commit_hash_hex.as_deref() {
@@ -432,14 +461,14 @@ pub fn wallet_claim(
         .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
         .collect();
     file.record_pending_spends(&consumed);
-    file.scan_height = wallet.scan_height();
-    file.save(path)?;
+    persist_wallet(path, &mut file, &wallet)?;
 
     let tx_bytes = encode_transaction(&signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
+    println!("utxo_cache={}", stats.used_utxo_cache);
     println!(
         "claim_pubkey_hex={}",
         hex::encode(claiming.claim_pubkey().compress().to_bytes())
@@ -473,6 +502,17 @@ pub fn resolve_wallet_path(opt: Option<&str>) -> PathBuf {
 struct SyncStats {
     tip_height: u64,
     blocks_fetched: u32,
+    used_utxo_cache: bool,
+}
+
+fn persist_wallet(
+    path: &Path,
+    file: &mut WalletFile,
+    wallet: &Wallet,
+) -> Result<(), WalletCmdError> {
+    file.capture_wallet_state(wallet);
+    file.save(path)?;
+    Ok(())
 }
 
 fn sync_wallet_from_node(
@@ -480,19 +520,25 @@ fn sync_wallet_from_node(
     file: &WalletFile,
     client: &mut RpcClient,
 ) -> Result<SyncStats, WalletCmdError> {
+    let used_utxo_cache = file.has_owned_cache();
+    if used_utxo_cache {
+        file.hydrate_wallet(wallet)?;
+    }
     file.apply_pending_spends(wallet)?;
     let tip = client.get_tip()?;
     let tip_height = tip.tip_height.unwrap_or(0);
-    let start_height = file
-        .scan_height
-        .map(|h| h.saturating_add(1))
-        .unwrap_or(1);
+    let start_height = if used_utxo_cache {
+        file.scan_height
+            .expect("has_owned_cache implies scan_height")
+            .saturating_add(1)
+    } else {
+        1
+    };
     let mut blocks_fetched = 0u32;
     if tip_height >= u64::from(start_height) {
         for h in u64::from(start_height)..=tip_height {
-            let height = u32::try_from(h).map_err(|_| {
-                WalletCmdError::Usage(format!("tip height {h} exceeds u32::MAX"))
-            })?;
+            let height = u32::try_from(h)
+                .map_err(|_| WalletCmdError::Usage(format!("tip height {h} exceeds u32::MAX")))?;
             let raw = client.get_block(height)?;
             let block = decode_block(&raw).map_err(|e| {
                 WalletCmdError::Usage(format!("decode block at height {height}: {e}"))
@@ -505,14 +551,14 @@ fn sync_wallet_from_node(
     Ok(SyncStats {
         tip_height,
         blocks_fetched,
+        used_utxo_cache,
     })
 }
 
 fn fetch_chain_state(client: &mut RpcClient) -> Result<ChainState, WalletCmdError> {
     let bytes = client.get_checkpoint()?;
-    let cp = decode_chain_checkpoint(&bytes).map_err(|e| {
-        WalletCmdError::Usage(format!("decode chain checkpoint: {e}"))
-    })?;
+    let cp = decode_chain_checkpoint(&bytes)
+        .map_err(|e| WalletCmdError::Usage(format!("decode chain checkpoint: {e}")))?;
     Ok(cp.state)
 }
 
@@ -535,8 +581,8 @@ fn parse_hash32(hex_str: &str, field: &str) -> Result<[u8; 32], WalletCmdError> 
             t.len()
         )));
     }
-    let bytes = hex::decode(t)
-        .map_err(|e| WalletCmdError::Usage(format!("{field} hex decode: {e}")))?;
+    let bytes =
+        hex::decode(t).map_err(|e| WalletCmdError::Usage(format!("{field} hex decode: {e}")))?;
     bytes
         .try_into()
         .map_err(|_| WalletCmdError::Usage(format!("{field} must be 32 bytes")))
@@ -554,8 +600,8 @@ fn parse_compressed_point(hex_str: &str, field: &str) -> Result<EdwardsPoint, Wa
             t.len()
         )));
     }
-    let bytes = hex::decode(t)
-        .map_err(|e| WalletCmdError::Usage(format!("{field} hex decode: {e}")))?;
+    let bytes =
+        hex::decode(t).map_err(|e| WalletCmdError::Usage(format!("{field} hex decode: {e}")))?;
     point_from_bytes(&bytes)
         .map_err(|e| WalletCmdError::Usage(format!("{field} is not a valid Edwards point: {e}")))
 }
@@ -563,6 +609,7 @@ fn parse_compressed_point(hex_str: &str, field: &str) -> Result<EdwardsPoint, Wa
 fn print_scan_summary(stats: &SyncStats, scan_height: Option<u32>, balance: u64, owned: usize) {
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
+    println!("utxo_cache={}", stats.used_utxo_cache);
     if let Some(h) = scan_height {
         println!("scan_height={h}");
     }
@@ -588,6 +635,9 @@ fn print_address_lines(file: &WalletFile) -> Result<(), WalletCmdError> {
         "spend_pub_hex={}",
         hex::encode(keys.spend_pub().compress().to_bytes())
     );
-    println!("key_derivation={}", key_derivation_label(file.key_derivation));
+    println!(
+        "key_derivation={}",
+        key_derivation_label(file.key_derivation)
+    );
     Ok(())
 }

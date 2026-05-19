@@ -92,13 +92,7 @@ mod tests {
         .expect("write manifest");
         let mut explicit = vec!["203.0.113.10:4001".into()];
         merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
-        assert_eq!(
-            explicit,
-            vec![
-                "203.0.113.10:4001",
-                "203.0.113.11:4001",
-            ]
-        );
+        assert_eq!(explicit, vec!["203.0.113.10:4001", "203.0.113.11:4001",]);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

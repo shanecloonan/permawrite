@@ -45,7 +45,10 @@ fn unique_data_dir(test: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("clock")
         .as_nanos();
-    std::env::temp_dir().join(format!("permawrite-cli-{test}-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "permawrite-cli-{test}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 fn read_serve_listening(child: &mut Child) -> SocketAddr {

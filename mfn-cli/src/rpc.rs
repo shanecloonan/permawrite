@@ -132,10 +132,7 @@ impl RpcClient {
         let v: Value = serde_json::from_str(resp_line.trim())?;
         if let Some(err) = v.get("error") {
             if !err.is_null() {
-                let code = err
-                    .get("code")
-                    .and_then(|c| c.as_i64())
-                    .unwrap_or(-1);
+                let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
                 let message = err
                     .get("message")
                     .and_then(|m| m.as_str())
@@ -180,7 +177,8 @@ impl RpcClient {
     /// `get_mempool` — tx id list.
     pub fn get_mempool(&mut self) -> Result<MempoolSummary, RpcError> {
         let v = self.call("get_mempool", Value::Null)?;
-        serde_json::from_value(v).map_err(|e| RpcError::Protocol(format!("get_mempool decode: {e}")))
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_mempool decode: {e}")))
     }
 
     /// `get_checkpoint` — returns `Chain::encode_checkpoint` bytes.
@@ -195,10 +193,7 @@ impl RpcClient {
 
     /// `submit_tx` — broadcast hex-encoded `encode_transaction` bytes.
     pub fn submit_tx(&mut self, tx_bytes: &[u8]) -> Result<SubmitTxResult, RpcError> {
-        let v = self.call(
-            "submit_tx",
-            json!({ "tx_hex": hex::encode(tx_bytes) }),
-        )?;
+        let v = self.call("submit_tx", json!({ "tx_hex": hex::encode(tx_bytes) }))?;
         let tx_id = v
             .get("tx_id")
             .and_then(|x| x.as_str())

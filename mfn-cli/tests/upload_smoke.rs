@@ -124,7 +124,11 @@ fn wallet_upload_mined_by_step_anchors_storage() {
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
         .expect("step 1");
-    assert!(step1.status.success(), "step1 stderr={}", String::from_utf8_lossy(&step1.stderr));
+    assert!(
+        step1.status.success(),
+        "step1 stderr={}",
+        String::from_utf8_lossy(&step1.stderr)
+    );
 
     let mut child = mfnd()
         .args(["--data-dir"])
@@ -205,9 +209,7 @@ fn wallet_upload_mined_by_step_anchors_storage() {
 
     let gc = genesis_config_from_json_path(&spec).expect("genesis");
     let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
-    let chain = store
-        .load_or_genesis(ChainConfig::new(gc))
-        .expect("chain");
+    let chain = store.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let mut hash_bytes = [0u8; 32];
     hex::decode_to_slice(&commitment_hash, &mut hash_bytes).expect("commitment hex");
     assert!(
@@ -290,7 +292,11 @@ fn wallet_upload_with_message_mines_bound_authorship_claim() {
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
         .expect("step 1");
-    assert!(step1.status.success(), "step1 stderr={}", String::from_utf8_lossy(&step1.stderr));
+    assert!(
+        step1.status.success(),
+        "step1 stderr={}",
+        String::from_utf8_lossy(&step1.stderr)
+    );
 
     let mut child = mfnd()
         .args(["--data-dir"])
@@ -330,7 +336,10 @@ fn wallet_upload_with_message_mines_bound_authorship_claim() {
         String::from_utf8_lossy(&upload.stderr)
     );
     let upload_out = String::from_utf8_lossy(&upload.stdout);
-    assert!(upload_out.contains("authorship_claim=bound"), "stdout={upload_out}");
+    assert!(
+        upload_out.contains("authorship_claim=bound"),
+        "stdout={upload_out}"
+    );
     let commitment_hash = parse_stdout_field(&upload_out, "storage_commitment_hash");
     let data_root_hex = parse_stdout_field(&upload_out, "data_root");
 
@@ -350,13 +359,15 @@ fn wallet_upload_with_message_mines_bound_authorship_claim() {
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
         .expect("step 2");
-    assert!(step2.status.success(), "step2 stderr={}", String::from_utf8_lossy(&step2.stderr));
+    assert!(
+        step2.status.success(),
+        "step2 stderr={}",
+        String::from_utf8_lossy(&step2.stderr)
+    );
 
     let gc = genesis_config_from_json_path(&spec).expect("genesis");
     let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
-    let chain = store
-        .load_or_genesis(ChainConfig::new(gc))
-        .expect("chain");
+    let chain = store.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let mut commit_bytes = [0u8; 32];
     hex::decode_to_slice(&commitment_hash, &mut commit_bytes).expect("commit hex");
     assert!(chain.state().storage.contains_key(&commit_bytes));

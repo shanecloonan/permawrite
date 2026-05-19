@@ -440,6 +440,7 @@ dependencies = [
  "mfn-light",
  "mfn-node",
  "mfn-storage",
+ "serde",
  "thiserror",
 ]
 

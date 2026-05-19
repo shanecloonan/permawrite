@@ -1,0 +1,35 @@
+---
+description: Run local CI and verify GitHub Actions before pushing Rust changes
+alwaysApply: true
+---
+
+# CI before push (permawrite)
+
+GitHub CI (`.github/workflows/ci.yml`) runs: **rustfmt**, **clippy** (`-D warnings`), **test --release** on Linux/macOS/Windows, and **cargo-audit**.
+
+## Before every `git push` to `main`
+
+1. Run the local mirror (do not skip):
+   - Windows: `powershell -File scripts/ci-check.ps1`
+   - Linux/macOS: `bash scripts/ci-check.sh`
+2. If anything fails, fix it and re-run until green.
+
+`cargo fmt --all` is required; CI uses `cargo fmt --all --check` and **will fail** on unformatted diffs.
+
+## After pushing (agent must do this — user should not paste logs)
+
+1. `gh run list --workflow CI --limit 3`
+2. If the latest run failed: `gh run view <run-id> --log-failed`  
+   Or: `powershell -File scripts/gh-ci-failed.ps1`
+3. Fix failures on `main` in a follow-up commit; do not leave red CI.
+
+## Common failures
+
+| Job | Typical cause |
+|-----|----------------|
+| rustfmt | Run `cargo fmt --all` and commit |
+| clippy | Fix warnings (workspace uses `-D warnings`) |
+| test (windows-latest) | Integration tests; build `mfnd` release first |
+| cargo-audit | Advisory in dependency tree |
+
+Do not push large Rust changes without running `scripts/ci-check` first.

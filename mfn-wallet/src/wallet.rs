@@ -22,9 +22,7 @@ use std::collections::{HashMap, HashSet};
 use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::{build_mfex_extra, Block, ChainState, Recipient, SignedTransaction};
 use mfn_crypto::authorship::{build_signed_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN};
-use mfn_storage::{
-    build_storage_commitment, required_endowment, storage_commitment_hash,
-};
+use mfn_storage::{build_storage_commitment, required_endowment, storage_commitment_hash};
 
 use crate::claiming::ClaimingIdentity;
 use crate::decoy::build_decoy_pool;
@@ -33,6 +31,7 @@ use crate::keys::{wallet_from_seed, WalletKeys};
 use crate::owned::{owned_balance, OwnedOutput};
 use crate::scan::{scan_block, BlockScan};
 use crate::spend::{build_transfer, TransferPlan, TransferRecipient};
+use crate::stored::StoredOwnedOutput;
 use crate::upload::{build_storage_upload, StorageUploadPlan, UploadArtifacts};
 
 /// A confidential wallet — keys plus owned-output bookkeeping.
@@ -125,6 +124,36 @@ impl Wallet {
     #[inline]
     pub fn scan_height(&self) -> Option<u32> {
         self.scan_height
+    }
+
+    /// Replace the in-memory UTXO set from a persisted snapshot (**M3.6**).
+    ///
+    /// `scan_height` must match the height through which these outputs were
+    /// accumulated. Callers resume chain sync at `scan_height + 1`.
+    pub fn load_owned_snapshot(
+        &mut self,
+        stored: &[StoredOwnedOutput],
+        scan_height: u32,
+    ) -> Result<(), WalletError> {
+        self.owned.clear();
+        self.by_key_image.clear();
+        for entry in stored {
+            let o = entry.to_owned()?;
+            let utxo_key = o.utxo_key();
+            let ki_bytes = o.key_image.compress().to_bytes();
+            self.by_key_image.insert(ki_bytes, utxo_key);
+            self.owned.insert(utxo_key, o);
+        }
+        self.scan_height = Some(scan_height);
+        Ok(())
+    }
+
+    /// Export every unspent owned output for persistence.
+    pub fn export_owned_snapshot(&self) -> Vec<StoredOwnedOutput> {
+        self.owned
+            .values()
+            .map(StoredOwnedOutput::from_owned)
+            .collect()
     }
 
     /// Set of precomputed key-image bytes for currently owned outputs.
@@ -454,13 +483,8 @@ impl Wallet {
             return Err(WalletError::UploadEndowmentExceedsU64 { burden });
         }
         let endowment_amount = burden as u64;
-        let preview = build_storage_commitment(
-            data,
-            endowment_amount,
-            chunk_size,
-            replication,
-            None,
-        )?;
+        let preview =
+            build_storage_commitment(data, endowment_amount, chunk_size, replication, None)?;
         let commit_hash = storage_commitment_hash(&preview.commit);
         let claim = build_signed_claim(
             preview.commit.data_root,
