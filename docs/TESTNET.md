@@ -112,6 +112,9 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> methods
 # Wallet (local wallet.json; scans blocks via get_block)
 mfn-cli wallet new
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance
+
+# Send (then stop serve and `mfnd step` to mine the mempool tx)
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> --fee 10000
 ```
 
 Raw one-liner (no CLI):

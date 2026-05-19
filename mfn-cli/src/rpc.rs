@@ -38,6 +38,17 @@ pub struct BlockHeaderInfo {
     pub header_hex: String,
 }
 
+/// `submit_tx` admission summary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubmitTxResult {
+    /// Canonical tx id (64-char hex).
+    pub tx_id: String,
+    /// Mempool length after admission.
+    pub pool_len: u64,
+    /// `outcome.kind` from JSON-RPC (`Fresh`, `Duplicate`, …).
+    pub outcome_kind: String,
+}
+
 /// Mempool listing from `get_mempool`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct MempoolSummary {
@@ -170,6 +181,44 @@ impl RpcClient {
     pub fn get_mempool(&mut self) -> Result<MempoolSummary, RpcError> {
         let v = self.call("get_mempool", Value::Null)?;
         serde_json::from_value(v).map_err(|e| RpcError::Protocol(format!("get_mempool decode: {e}")))
+    }
+
+    /// `get_checkpoint` — returns `Chain::encode_checkpoint` bytes.
+    pub fn get_checkpoint(&mut self) -> Result<Vec<u8>, RpcError> {
+        let v = self.call("get_checkpoint", Value::Null)?;
+        let hex_str = v
+            .get("checkpoint_hex")
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| RpcError::Protocol("get_checkpoint: missing checkpoint_hex".into()))?;
+        hex::decode(hex_str).map_err(|e| RpcError::Protocol(format!("get_checkpoint hex: {e}")))
+    }
+
+    /// `submit_tx` — broadcast hex-encoded `encode_transaction` bytes.
+    pub fn submit_tx(&mut self, tx_bytes: &[u8]) -> Result<SubmitTxResult, RpcError> {
+        let v = self.call(
+            "submit_tx",
+            json!({ "tx_hex": hex::encode(tx_bytes) }),
+        )?;
+        let tx_id = v
+            .get("tx_id")
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| RpcError::Protocol("submit_tx: missing tx_id".into()))?
+            .to_string();
+        let pool_len = v
+            .get("pool_len")
+            .and_then(|x| x.as_u64())
+            .ok_or_else(|| RpcError::Protocol("submit_tx: missing pool_len".into()))?;
+        let outcome_kind = v
+            .get("outcome")
+            .and_then(|o| o.get("kind"))
+            .and_then(|k| k.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        Ok(SubmitTxResult {
+            tx_id,
+            pool_len,
+            outcome_kind,
+        })
     }
 
     /// `get_block` for `height` (≥ 1) — returns canonical encoded block bytes.

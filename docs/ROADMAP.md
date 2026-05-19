@@ -2044,6 +2044,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 |---|---|---|
 | **M3.0** | `mfn-cli` crate: JSON-RPC client + `tip` / `methods` / `block-header` / `mempool` / `call` commands. | ✓ shipped |
 | **M3.1** | `mfn-cli wallet`: `new` / `address` / `scan` / `balance` + on-disk wallet file + `get_block` sync. | ✓ shipped |
+| **M3.2** | `mfn-cli wallet send`: CLSAG transfer + `submit_tx`; `mfnd step` reloads durable mempool. | ✓ shipped |
 
 ### Components
 
@@ -2053,7 +2054,8 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-cli::wallet_store` | JSON wallet file (seed + scan checkpoint). | ✓ M3.1 |
 | `mfn-cli` binary | Operator commands (`tip`, `wallet balance`, …). | ✓ M3.0 / M3.1 |
 | `mfn-wallet` | Keypair generation, scanning, transfer/upload construction (library). | ✓ live |
-| `mfn-cli wallet send` / `upload` | Build + `submit_tx` via RPC. | planned (M3.2 / M3.3) |
+| `mfn-cli wallet send` | Build CLSAG transfer + `submit_tx` via RPC. | ✓ M3.2 |
+| `mfn-cli wallet upload` | Storage upload + `submit_tx`. | planned (M3.3) |
 
 ### Scope
 

@@ -35,6 +35,10 @@ pub struct WalletFile {
     /// Last block height fully applied by `wallet scan` (informational).
     #[serde(default)]
     pub scan_height: Option<u32>,
+    /// UTXO keys (32-byte hex) spent locally by `wallet send` but not yet
+    /// visible on-chain — prevents a full rescan from resurrecting them.
+    #[serde(default)]
+    pub pending_spent_utxo_keys: Vec<String>,
 }
 
 /// Wallet file parse / IO errors.
@@ -59,6 +63,26 @@ impl WalletFile {
             seed_hex: hex::encode(seed),
             key_derivation,
             scan_height: None,
+            pending_spent_utxo_keys: Vec::new(),
+        }
+    }
+
+    /// Apply [`Wallet::mark_spent_by_utxo_key`] for every pending entry.
+    pub fn apply_pending_spends(&self, wallet: &mut Wallet) -> Result<(), WalletStoreError> {
+        for hex_key in &self.pending_spent_utxo_keys {
+            let key = parse_utxo_key_hex(hex_key)?;
+            wallet.mark_spent_by_utxo_key(&key);
+        }
+        Ok(())
+    }
+
+    /// Record UTXO keys consumed by a broadcast that is not yet mined.
+    pub fn record_pending_spends(&mut self, keys: &[[u8; 32]]) {
+        for key in keys {
+            let hex_key = hex::encode(key);
+            if !self.pending_spent_utxo_keys.iter().any(|h| h == &hex_key) {
+                self.pending_spent_utxo_keys.push(hex_key);
+            }
         }
     }
 
@@ -125,6 +149,20 @@ fn parse_seed_hex(s: &str) -> Result<[u8; 32], WalletStoreError> {
     let mut seed = [0u8; 32];
     seed.copy_from_slice(&bytes);
     Ok(seed)
+}
+
+fn parse_utxo_key_hex(s: &str) -> Result<[u8; 32], WalletStoreError> {
+    let t = s.trim();
+    if t.len() != 64 {
+        return Err(WalletStoreError::Invalid(format!(
+            "utxo key must be 64 hex characters (got {})",
+            t.len()
+        )));
+    }
+    let bytes = hex::decode(t).map_err(|e| WalletStoreError::Invalid(format!("utxo key: {e}")))?;
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&bytes);
+    Ok(key)
 }
 
 fn keys_from_seed(seed: &[u8; 32], derivation: KeyDerivation) -> WalletKeys {

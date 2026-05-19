@@ -34,7 +34,7 @@ use crate::{
     demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
     Chain, ChainConfig, Mempool, MempoolConfig, NodeStore, StoreBackend,
 };
-use mfn_store::ChainPersistence;
+use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -191,6 +191,14 @@ fn run_solo_step(
     };
 
     let mut pool = Mempool::new(MempoolConfig::default());
+    {
+        let stats = load_mempool(store, &mut pool, chain.state())
+            .map_err(|e| format!("mfnd step: load mempool: {e}"))?;
+        println!(
+            "mfnd_step_mempool_load loaded={} admitted={} skipped={}",
+            stats.loaded, stats.admitted, stats.skipped
+        );
+    }
 
     for bi in 0..step_count {
         let tip = chain
@@ -273,6 +281,7 @@ fn run_solo_step(
         chain.tip_height().expect("tip after apply")
     );
     println!("new_tip_id={}", hex32(last_tip_id));
+    save_mempool(store, &pool).map_err(|e| format!("mfnd step: save mempool: {e}"))?;
     Ok(())
 }
 

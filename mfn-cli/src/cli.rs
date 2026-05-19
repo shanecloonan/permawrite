@@ -6,7 +6,8 @@ use serde_json::json;
 
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::wallet_cmd::{
-    resolve_wallet_path, wallet_address, wallet_balance, wallet_new, wallet_scan, WalletCmdError,
+    resolve_wallet_path, wallet_address, wallet_balance, wallet_new, wallet_scan, wallet_send,
+    SendParams, WalletCmdError, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
 };
 
 /// CLI parse or RPC failure.
@@ -79,6 +80,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
+                WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
             }
         }
     }
@@ -121,6 +123,7 @@ enum WalletSub {
     Address,
     Scan,
     Balance,
+    Send(SendParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,7 +150,9 @@ fn usage() -> &'static str {
        wallet new        create wallet.json with a fresh 32-byte seed\n\
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan blocks from node tip through wallet file\n\
-       wallet balance    scan chain and print balance\n"
+       wallet balance    scan chain and print balance\n\
+       wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
+                         options: --fee N --ring-size N --extra HEX\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -186,6 +191,15 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         if a == "--force" {
             force = true;
             i += 1;
+            continue;
+        }
+        if a == "--fee" || a == "--ring-size" || a == "--extra" {
+            positional.push(a);
+            let Some(v) = args.get(i + 1) else {
+                return Err(CliError::Usage(format!("{a} requires a value\n{}", usage())));
+            };
+            positional.push(v.as_str());
+            i += 2;
             continue;
         }
         if a.starts_with('-') {
@@ -270,21 +284,27 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|balance)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|balance|send)\n{}",
             usage()
         )));
     };
-    if rest.len() != 1 {
-        return Err(CliError::Usage(format!(
-            "wallet {sub_name} takes no extra arguments\n{}",
-            usage()
-        )));
-    }
     let sub = match *sub_name {
-        "new" => WalletSub::New,
-        "address" => WalletSub::Address,
-        "scan" => WalletSub::Scan,
-        "balance" => WalletSub::Balance,
+        "new" | "address" | "scan" | "balance" => {
+            if rest.len() != 1 {
+                return Err(CliError::Usage(format!(
+                    "wallet {sub_name} takes no extra arguments\n{}",
+                    usage()
+                )));
+            }
+            match *sub_name {
+                "new" => WalletSub::New,
+                "address" => WalletSub::Address,
+                "scan" => WalletSub::Scan,
+                "balance" => WalletSub::Balance,
+                _ => unreachable!(),
+            }
+        }
+        "send" => WalletSub::Send(parse_wallet_send_args(&rest[1..])?),
         other => {
             return Err(CliError::Usage(format!(
                 "unknown wallet subcommand `{other}`\n{}",
@@ -296,6 +316,75 @@ fn parse_wallet_cmd(
         sub,
         wallet_path,
         force,
+    })
+}
+
+fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
+    let mut fee = DEFAULT_TRANSFER_FEE;
+    let mut ring_size = DEFAULT_RING_SIZE;
+    let mut extra: Vec<u8> = Vec::new();
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--fee" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--fee requires a value".into()));
+            };
+            fee = v
+                .parse()
+                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--ring-size" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--ring-size requires a value".into()));
+            };
+            ring_size = v
+                .parse()
+                .map_err(|_| CliError::Usage("--ring-size must be an integer ≥ 2".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--extra" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--extra requires hex bytes".into()));
+            };
+            let t = v
+                .strip_prefix("0x")
+                .or_else(|| v.strip_prefix("0X"))
+                .unwrap_or(v);
+            extra = hex::decode(t)
+                .map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
+            i += 2;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown wallet send option `{a}`\n{}",
+                usage()
+            )));
+        }
+        positional.push(a);
+        i += 1;
+    }
+    if positional.len() != 3 {
+        return Err(CliError::Usage(format!(
+            "wallet send requires VIEW_HEX SPEND_HEX AMOUNT\n{}",
+            usage()
+        )));
+    }
+    let amount: u64 = positional[2]
+        .parse()
+        .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
+    Ok(SendParams {
+        to_view_hex: positional[0].to_string(),
+        to_spend_hex: positional[1].to_string(),
+        amount,
+        fee,
+        ring_size,
+        extra,
     })
 }
 

@@ -16,6 +16,7 @@ path = "src/bin/mfn-cli.rs"
 all = "warn"
 
 [dependencies]
+curve25519-dalek = { workspace = true }
 hex = { workspace = true }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-crypto = { path = "../mfn-crypto" }
@@ -28,3 +29,4 @@ thiserror = { workspace = true }
 [dev-dependencies]
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-node = { path = "../mfn-node" }
+mfn-store = { path = "../mfn-store" }

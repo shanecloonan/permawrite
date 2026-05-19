@@ -13,22 +13,26 @@ use mfn_consensus::DEFAULT_EMISSION_PARAMS;
 const PAYOUT_SEED: [u8; 32] = [0xab; 32];
 
 fn mfnd_bin() -> PathBuf {
-    if let Some(p) = std::env::var_os("CARGO_BIN_EXE_mfnd") {
-        return PathBuf::from(p);
-    }
-    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".into());
+    let profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("..");
     path.push("target");
     path.push(profile);
     path.push(format!("mfnd{}", std::env::consts::EXE_SUFFIX));
-    if !path.is_file() {
-        panic!(
-            "mfnd binary not found at {}; run `cargo build -p mfn-node --bin mfnd`",
-            path.display()
-        );
+    if path.is_file() {
+        return path;
     }
-    path
+    if let Some(p) = std::env::var_os("CARGO_BIN_EXE_mfnd") {
+        return PathBuf::from(p);
+    }
+    panic!(
+        "mfnd binary not found at {}; run `cargo build -p mfn-node --bin mfnd --{profile}`",
+        path.display()
+    );
 }
 
 fn mfnd() -> Command {
