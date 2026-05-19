@@ -894,8 +894,7 @@ fn dispatch_serve_methods(
             rpc_success(id, body)
         }
         "get_chain_params" => {
-            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_chain_params")
-            {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_chain_params") {
                 return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
             }
             rpc_success(id, chain_params_json(chain))
