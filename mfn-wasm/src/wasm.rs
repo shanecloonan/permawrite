@@ -39,6 +39,8 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 use crate::scan_core::{scan_block_hex_json, scan_transaction_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
+#[cfg(feature = "wasm-full")]
+use crate::upload_core::{build_storage_upload_json, upload_min_fee_json};
 
 /// Scan a wire-encoded transaction (hex) for outputs owned by the wallet seed.
 ///
@@ -85,4 +87,28 @@ pub fn wasm_decoy_pool_preview_json(
 #[wasm_bindgen(js_name = buildTransferJson)]
 pub fn wasm_build_transfer_json(plan_json: &str) -> Result<String, JsValue> {
     build_transfer_json(plan_json).map_err(|e| js_err(e.to_string()))
+}
+
+/// Minimum mempool fee for a storage upload (returns JSON number).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = uploadMinFee)]
+pub fn wasm_upload_min_fee(
+    data_len: u32,
+    replication: u8,
+    fee_to_treasury_bps: u16,
+) -> Result<String, JsValue> {
+    upload_min_fee_json(u64::from(data_len), replication, fee_to_treasury_bps)
+        .map_err(|e| js_err(e.to_string()))
+}
+
+/// Build and sign a storage upload tx; `plan_json` describes inputs, anchor, decoys, fee.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = buildStorageUpload)]
+pub fn wasm_build_storage_upload(
+    seed_hex: &str,
+    data: &[u8],
+    plan_json: &str,
+) -> Result<String, JsValue> {
+    let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
+    build_storage_upload_json(&seed, data, plan_json).map_err(|e| js_err(e.to_string()))
 }

@@ -50,6 +50,18 @@ impl ClaimingIdentity {
     pub(crate) fn keypair(&self) -> &SchnorrKeypair {
         &self.0
     }
+
+    /// Sign an MFCL authorship claim for a storage upload.
+    #[cfg(any(feature = "full", feature = "wasm-full"))]
+    pub fn sign_storage_claim(
+        &self,
+        data_root: [u8; 32],
+        commit_hash: [u8; 32],
+        message: &[u8],
+    ) -> Result<mfn_crypto::authorship::AuthorshipClaim, crate::error::WalletError> {
+        mfn_crypto::authorship::build_signed_claim(data_root, commit_hash, message, &self.0)
+            .map_err(crate::error::WalletError::Crypto)
+    }
 }
 
 fn derive_claim_scalar(seed: &[u8; 32]) -> Scalar {

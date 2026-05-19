@@ -2,6 +2,8 @@ import init, {
   walletAddressFromSeedHex,
   claimPubkeyFromSeedHex,
   storageUploadPreview,
+  uploadMinFee,
+  buildStorageUpload,
   buildTransferJson,
   scanBlockHex,
 } from "./pkg/mfn_wasm.js";
@@ -75,6 +77,21 @@ function mergeRecoveredIntoPlan(scanJson) {
   return { scan, recovered };
 }
 
+const SAMPLE_UPLOAD_PLAN = {
+  inputs: [],
+  anchor: { view_pub_hex: "", spend_pub_hex: "", value: 1000 },
+  replication: 3,
+  fee: 0,
+  ring_size: 4,
+  current_height: 0,
+  decoy_utxos: [],
+  exclude_one_time_addrs_hex: [],
+  fee_to_treasury_bps: 9000,
+  change_recipients: [],
+  extra_hex: "",
+  message_hex: "",
+};
+
 const SAMPLE_PLAN = {
   inputs: [],
   recipients: [
@@ -95,6 +112,7 @@ const SAMPLE_PLAN = {
 document.addEventListener("DOMContentLoaded", () => {
   $("seed").value = DEMO_SEED;
   $("transfer-plan").value = JSON.stringify(SAMPLE_PLAN, null, 2);
+  $("upload-plan").value = JSON.stringify(SAMPLE_UPLOAD_PLAN, null, 2);
 
   $("btn-address").addEventListener("click", async () => {
     try {
@@ -106,6 +124,11 @@ document.addEventListener("DOMContentLoaded", () => {
       plan.recipients[0].view_pub_hex = addr.view_pub;
       plan.recipients[0].spend_pub_hex = addr.spend_pub;
       $("transfer-plan").value = JSON.stringify(plan, null, 2);
+      const upload = JSON.parse($("upload-plan").value || "{}");
+      upload.anchor = upload.anchor || {};
+      upload.anchor.view_pub_hex = addr.view_pub;
+      upload.anchor.spend_pub_hex = addr.spend_pub;
+      $("upload-plan").value = JSON.stringify(upload, null, 2);
     } catch (e) {
       show("wallet-out", String(e));
     }
@@ -146,6 +169,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const owned = ownedKeyImagesFromTextarea();
       const json = scanBlockHex(seedOrDemo(), blockHex, owned);
       const { scan, recovered } = mergeRecoveredIntoPlan(json);
+      const upload = JSON.parse($("upload-plan").value || "{}");
+      if (recovered.length > 0) {
+        upload.inputs = recovered;
+      }
+      $("upload-plan").value = JSON.stringify(upload, null, 2);
       show(
         "scan-out",
         JSON.stringify(
@@ -160,6 +188,64 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     } catch (e) {
       show("scan-out", String(e));
+    }
+  });
+
+  function syncDecoysToUpload(plan) {
+    const upload = JSON.parse($("upload-plan").value || "{}");
+    upload.decoy_utxos = plan.decoy_utxos || [];
+    upload.current_height = plan.current_height ?? upload.current_height;
+    upload.exclude_one_time_addrs_hex = plan.exclude_one_time_addrs_hex || [];
+    $("upload-plan").value = JSON.stringify(upload, null, 2);
+  }
+
+  $("btn-upload-min-fee").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const file = $("file").files?.[0];
+      if (!file) throw new Error("choose a file first");
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const rep = Number($("replication").value);
+      const upload = JSON.parse($("upload-plan").value || "{}");
+      const bps = upload.fee_to_treasury_bps ?? 9000;
+      const feeJson = uploadMinFee(bytes.length, rep, bps);
+      const minFee = JSON.parse(feeJson);
+      upload.fee = minFee;
+      $("upload-plan").value = JSON.stringify(upload, null, 2);
+      show("upload-out", `min_fee=${minFee}`);
+    } catch (e) {
+      show("upload-out", String(e));
+    }
+  });
+
+  $("btn-build-upload").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const file = $("file").files?.[0];
+      if (!file) throw new Error("choose a file first");
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const plan = JSON.parse($("upload-plan").value || "{}");
+      const msg = $("upload-message").value;
+      plan.message_hex = msg ? [...new TextEncoder().encode(msg)].map((b) => b.toString(16).padStart(2, "0")).join("") : "";
+      plan.replication = Number($("replication").value);
+      const json = buildStorageUpload(seedOrDemo(), bytes, JSON.stringify(plan));
+      lastBuiltTx = JSON.parse(json);
+      $("tx-hex-override").value = lastBuiltTx.tx_hex;
+      show("upload-out", JSON.stringify(lastBuiltTx, null, 2));
+    } catch (e) {
+      show("upload-out", String(e));
+    }
+  });
+
+  $("btn-submit-upload").addEventListener("click", async () => {
+    try {
+      const override = $("tx-hex-override").value.trim().replace(/^0x/i, "");
+      const txHex = override || lastBuiltTx?.tx_hex;
+      if (!txHex) throw new Error("build an upload tx first");
+      const result = await mfndRpc(rpcUrl(), "submit_tx", { tx_hex: txHex });
+      show("upload-out", JSON.stringify(result, null, 2));
+    } catch (e) {
+      show("upload-out", String(e));
     }
   });
 
@@ -183,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       plan.exclude_one_time_addrs_hex = [...owned];
       $("transfer-plan").value = JSON.stringify(plan, null, 2);
+      syncDecoysToUpload(plan);
       show(
         "transfer-out",
         `loaded ${plan.decoy_utxos.length} decoys (total on chain: ${utxoPage.total ?? "?"})`,

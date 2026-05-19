@@ -37,6 +37,23 @@
       </section>
 
       <section>
+        <h2>Storage upload tx (M4.6)</h2>
+        <p class="lede">
+          Uses the selected file bytes, scan <code>inputs</code>, and decoys from the node.
+        </p>
+        <label for="upload-plan">Upload plan JSON</label>
+        <textarea id="upload-plan" rows="10" spellcheck="false"></textarea>
+        <div class="row">
+          <button type="button" id="btn-upload-min-fee">Min fee</button>
+          <button type="button" id="btn-build-upload">Build upload tx</button>
+          <button type="button" id="btn-submit-upload">Submit upload</button>
+        </div>
+        <label for="upload-message">Authorship message (optional UTF-8)</label>
+        <input id="upload-message" type="text" spellcheck="false" value="permawrite demo upload" />
+        <pre id="upload-out" class="out"></pre>
+      </section>
+
+      <section>
         <h2>Chain scan</h2>
         <label for="block-hex">Block wire hex</label>
         <textarea

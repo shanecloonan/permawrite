@@ -2,7 +2,7 @@
 
 ## Web WASM demo (M4)
 
-Browser UI for `mfn-wasm`: wallet keys, storage preview, block scan, CLSAG transfer build, and mempool submit via `mfnd serve` RPC.
+Browser UI for `mfn-wasm`: wallet keys, storage preview + **permanence upload** tx build, block scan, CLSAG transfer build, and mempool submit via `mfnd serve` RPC.
 
 ### Build WASM bindings
 

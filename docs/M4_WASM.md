@@ -103,6 +103,31 @@ With `wasm-full`, proxy, and `mfnd serve` running:
 
 `submit_tx` params: `{"tx_hex":"<encode_transaction hex>"}`.
 
+### M4.6 — storage upload (`wasm-full`)
+
+| Export | Input | Output |
+|--------|--------|--------|
+| `uploadMinFee` | `data_len`, `replication`, `fee_to_treasury_bps` | JSON minimum fee (number) |
+| `buildStorageUpload` | seed hex, payload bytes, upload plan JSON | `{tx_hex, tx_id, data_root, commitment_hash, burden, min_fee}` |
+
+Upload plan shape (same decoy / input conventions as transfer):
+
+```json
+{
+  "inputs": [ /* StoredOwnedOutput */ ],
+  "anchor": { "view_pub_hex": "…", "spend_pub_hex": "…", "value": 1000 },
+  "replication": 3,
+  "fee": 50000,
+  "ring_size": 4,
+  "current_height": 12,
+  "decoy_utxos": [ /* … */ ],
+  "fee_to_treasury_bps": 9000,
+  "message_hex": ""
+}
+```
+
+Optional `message_hex` (UTF-8 as hex) attaches an MFCL authorship claim in `tx.extra`.
+
 ## Roadmap
 
-- **M4.6** — Demo storage upload tx build + `submit_tx`; light-client block sync helper.
+- **M4.7** — Light-client block sync helper for demo (auto `get_block` scan loop).
