@@ -1,4 +1,4 @@
-//! Long-horizon emission / treasury simulations (**M5.0**, **M5.1**, **M5.1+**).
+//! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.1**, **M5.1+**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -6,15 +6,21 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
+use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, build_unsealed_header, cumulative_emission,
-    emission_at_height, seal_block, sign_transaction, validate_emission_params, ApplyOutcome,
-    ChainState, EmissionParams, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
-    SignedTransaction, TransactionWire, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
+    cumulative_emission, emission_at_height, encode_finality_proof, finalize, header_signing_hash,
+    seal_block, sign_transaction, try_produce_slot, validate_emission_params, ApplyOutcome,
+    ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput,
+    InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlotContext, TransactionWire,
+    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
+use mfn_crypto::stealth::stealth_gen;
+use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_ENDOWMENT_PARAMS,
 };
@@ -73,6 +79,193 @@ fn treasury_after_block(
     let from_treasury = pending.min(storage_reward_total);
     pending -= from_treasury;
     pending
+}
+
+/// Coinbase amount `apply_block` expects (subsidy + producer fee share + storage rewards).
+fn expected_coinbase_amount(
+    height: u32,
+    fee_sum: u128,
+    storage_proofs: u128,
+    params: &EmissionParams,
+) -> u64 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let producer_fee = fee_sum - treasury_fee;
+    let storage_reward_total = params.storage_proof_reward as u128 * storage_proofs;
+    let subsidy = u128::from(emission_at_height(u64::from(height), params));
+    let total = subsidy
+        .saturating_add(producer_fee)
+        .saturating_add(storage_reward_total);
+    u64::try_from(total).unwrap_or(u64::MAX)
+}
+
+/// Three-validator quorum harness (BLS finality + coinbase payout).
+struct ValidatorFixture {
+    validators: Vec<Validator>,
+    secrets: Vec<ValidatorSecrets>,
+    payout: PayoutAddress,
+    params: ConsensusParams,
+    total_stake: u64,
+}
+
+impl ValidatorFixture {
+    fn three_validators() -> Self {
+        let mk = |i: u32, stake: u64| -> (Validator, ValidatorSecrets) {
+            let vrf = vrf_keygen_from_seed(&[i.wrapping_add(1); 32]).expect("vrf");
+            let bls = bls_keygen_from_seed(&[i.wrapping_add(101); 32]);
+            let wallet = stealth_gen();
+            let val = Validator {
+                index: i,
+                vrf_pk: vrf.pk,
+                bls_pk: bls.pk,
+                stake,
+                payout: Some(ValidatorPayout {
+                    view_pub: wallet.view_pub,
+                    spend_pub: wallet.spend_pub,
+                }),
+            };
+            let secrets = ValidatorSecrets { index: i, vrf, bls };
+            (val, secrets)
+        };
+        let (v0, s0) = mk(0, 100);
+        let (v1, s1) = mk(1, 100);
+        let (v2, s2) = mk(2, 100);
+        let validators = vec![v0.clone(), v1, v2];
+        let secrets = vec![s0, s1, s2];
+        let payout = PayoutAddress {
+            view_pub: v0.payout.as_ref().unwrap().view_pub,
+            spend_pub: v0.payout.as_ref().unwrap().spend_pub,
+        };
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6667,
+            ..ConsensusParams::default()
+        };
+        let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+        Self {
+            validators,
+            secrets,
+            payout,
+            params,
+            total_stake,
+        }
+    }
+}
+
+fn genesis_validator_with_funded_utxo(
+    emission: EmissionParams,
+    spend_value: u64,
+    fixture: &ValidatorFixture,
+) -> (ChainState, SpendState) {
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: Vec::new(),
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: emission,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let st = apply_genesis(&g, &cfg).expect("genesis");
+    (st, spend)
+}
+
+fn apply_validator_block(
+    fixture: &ValidatorFixture,
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    storage_proofs: Vec<mfn_storage::StorageProof>,
+) -> ChainState {
+    let slot = height;
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, &txs, &[], &[], &storage_proofs, slot, ts);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height,
+        slot,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer = &fixture.validators[0];
+    let producer_secrets = &fixture.secrets[0];
+    let producer_proof = try_produce_slot(
+        &ctx,
+        producer_secrets,
+        producer,
+        fixture.total_stake,
+        fixture.params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("producer eligible");
+
+    let votes: Vec<_> = fixture
+        .secrets
+        .iter()
+        .map(|secrets| {
+            cast_vote(
+                &header_hash,
+                secrets,
+                &ctx,
+                &producer_proof,
+                producer,
+                fixture.total_stake,
+                fixture.params.expected_proposers_per_slot,
+            )
+            .expect("vote")
+        })
+        .collect();
+    let agg = finalize(&header_hash, &votes, fixture.validators.len()).expect("finalize");
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: agg,
+        signing_stake: fixture.total_stake,
+    };
+    let blk = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        encode_finality_proof(&fin),
+        Vec::new(),
+        storage_proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
+/// Validator-mode blocks: BLS finality, coinbase pays subsidy + producer fee share; treasury
+/// credits the permanence pool from the fee split (**M5.0+**).
+fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
+    let fixture = ValidatorFixture::three_validators();
+    let initial = 50_000_000_000u64;
+    let (mut st, mut spend) = genesis_validator_with_funded_utxo(emission, initial, &fixture);
+    let mut model_treasury = 0u128;
+
+    for h in 1..=blocks {
+        let fee = 2_500u64 + u64::from(h % 4_501);
+        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        spend = next_spend;
+        let fee_sum = u128::from(fee);
+        let cb_amount = expected_coinbase_amount(h, fee_sum, 0, &emission);
+        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        let txs = vec![coinbase, signed.tx];
+        st = apply_validator_block(&fixture, &st, h, txs, Vec::new());
+        model_treasury = treasury_after_block(model_treasury, fee_sum, 0, &emission);
+        assert_eq!(
+            st.treasury, model_treasury,
+            "treasury mismatch at height {h} (fee {fee})"
+        );
+        assert!(st.treasury < u128::MAX);
+    }
 }
 
 /// Spendable UTXO the simulator chains block-to-block via `OutputSpec::Raw` change.
@@ -336,6 +529,18 @@ fn apply_block_advances_ten_thousand_empty_legacy_blocks() {
         assert_eq!(st.height, Some(h));
         assert!(st.treasury < u128::MAX);
     }
+}
+
+/// Validator quorum + coinbase: CLSAG fees split between treasury and producer (**M5.0+**).
+#[test]
+fn treasury_ledger_matches_apply_block_over_validator_clsag_fee_blocks() {
+    run_validator_fee_treasury_sim(16, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long validator CLSAG fee treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_apply_block_over_ninety_six_validator_clsag_fee_blocks() {
+    run_validator_fee_treasury_sim(96, SIM_EMISSION);
 }
 
 /// CLSAG self-transfers in legacy mode credit `fee · fee_to_treasury_bps / 10_000`
