@@ -54,4 +54,4 @@ In the demo page:
 
 **Storage upload path:** choose a file → **Min fee** → **Build upload tx** (anchors data with optional authorship message) → **Submit upload**.
 
-Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow (M4.15): `POST …/p2p/light-follow` with `{"peer":"HOST:PORT",…}`. P2P quorum relay (M4.16): `RELAY_RPC=127.0.0.1:18731 node demo/proxy/light-relay.mjs` then `POST http://127.0.0.1:8790/light-follow` with `{"peers":["…","…"],"from_height":1,"to_height":N}`.
+Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow (M4.15): `POST …/p2p/light-follow` with `{"peer":"HOST:PORT",…}`. Light relay (M4.16–M4.17): run one or more `RELAY_RPC=… node demo/proxy/light-relay.mjs` instances (ports `8790`, `8791`, …). Demo sync with **≥2 relay URLs** + **≥2 P2P peers** fetches each relay independently and WASM-quorums the batches against local `get_light_follow`.

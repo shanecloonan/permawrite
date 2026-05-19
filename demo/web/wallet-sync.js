@@ -6,6 +6,7 @@
  */
 
 import { syncHeaderRange, verifyHeaderChain } from "./header-sync.js";
+import { fetchLightRelayFollowPage } from "./light-relay-client.js";
 
 const STORAGE_PREFIX = "permawrite-wallet-sync:";
 const CHECKPOINT_PREFIX = "permawrite-light-checkpoint:";
@@ -111,7 +112,7 @@ export function saveTrustedSummary(seedHex, summaryJson) {
  * @param {(url: string, method: string, params: object) => Promise<object>} rpc
  * @param {string[]} [quorumRpcUrls] optional extra RPC bases (same path as primary)
  * @param {string[]} [quorumP2pPeers] optional HOST:PORT peers via `get_light_follow_p2p`
- * @param {string} [lightRelayUrl] optional dedicated relay (M4.16) for P2P quorum
+ * @param {string[]} [lightRelayUrls] dedicated relays (M4.16–M4.17); ≥2 = multi-relay quorum
  */
 async function fetchLightFollowWithQuorum(
   rpcUrl,
@@ -120,41 +121,49 @@ async function fetchLightFollowWithQuorum(
   rpc,
   quorumRpcUrls,
   quorumP2pPeers,
-  lightRelayUrl,
+  lightRelayUrls,
 ) {
   const params = { from_height: fromHeight, to_height: toHeight };
-  const p2pPeers = (quorumP2pPeers || []).filter(Boolean);
-  if (lightRelayUrl && p2pPeers.length >= 2) {
-    const url = lightRelayUrl.replace(/\/$/, "");
-    const res = await fetch(`${url}/light-follow`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ peers: p2pPeers, ...params }),
-    });
-    if (!res.ok) {
-      throw new Error(`light relay HTTP ${res.status}: ${await res.text()}`);
-    }
-    const page = await res.json();
-    if (!page?.rows) {
-      throw new Error("light relay returned no rows");
-    }
-    const localPage = await rpc(rpcUrl, "get_light_follow", params);
-    return { primary: localPage, batches: [localPage, page] };
-  }
   const localPage = await rpc(rpcUrl, "get_light_follow", params);
   const batches = [localPage];
+
   const extraUrls = (quorumRpcUrls || []).filter((u) => u && u !== rpcUrl);
   const extraPages = await Promise.all(
     extraUrls.map((url) => rpc(url, "get_light_follow", params)),
   );
   batches.push(...extraPages);
-  const peers = (quorumP2pPeers || []).filter(Boolean);
-  const p2pPages = await Promise.all(
-    peers.map((peer) =>
-      rpc(rpcUrl, "get_light_follow_p2p", { peer, ...params }),
-    ),
-  );
-  batches.push(...p2pPages);
+
+  const p2pPeers = (quorumP2pPeers || []).filter(Boolean);
+  const relays = [...new Set((lightRelayUrls || []).filter(Boolean))];
+
+  if (relays.length >= 2 && p2pPeers.length >= 2) {
+    const relayPages = await Promise.all(
+      relays.map((base) =>
+        fetchLightRelayFollowPage(base, p2pPeers, fromHeight, toHeight),
+      ),
+    );
+    batches.push(...relayPages);
+  } else if (relays.length === 1 && p2pPeers.length >= 2) {
+    const relayPage = await fetchLightRelayFollowPage(
+      relays[0],
+      p2pPeers,
+      fromHeight,
+      toHeight,
+    );
+    batches.push(relayPage);
+  } else if (relays.length > 0 && p2pPeers.length < 2) {
+    throw new Error(
+      "light relay URLs require at least 2 quorum P2P peers (HOST:PORT)",
+    );
+  } else if (p2pPeers.length > 0) {
+    const p2pPages = await Promise.all(
+      p2pPeers.map((peer) =>
+        rpc(rpcUrl, "get_light_follow_p2p", { peer, ...params }),
+      ),
+    );
+    batches.push(...p2pPages);
+  }
+
   return { primary: localPage, batches };
 }
 
@@ -189,7 +198,7 @@ function evolutionJsonFromFollowRow(row) {
  * @param {(checkpointHex: string) => string} [opts.lightChainCheckpointSummary]
  * @param {string[]} [opts.quorumRpcUrls]
  * @param {string[]} [opts.quorumP2pPeers]
- * @param {string} [opts.lightRelayUrl]
+ * @param {string[]} [opts.lightRelayUrls]
  * @param {string} [opts.initialCheckpointHex]
  */
 export async function syncBlockRange({
@@ -209,7 +218,7 @@ export async function syncBlockRange({
   lightChainCheckpointSummary,
   quorumRpcUrls,
   quorumP2pPeers,
-  lightRelayUrl,
+  lightRelayUrls,
   initialCheckpointHex,
 }) {
   if (fromHeight < 1) {
@@ -288,7 +297,7 @@ export async function syncBlockRange({
       rpc,
       quorumRpcUrls,
       quorumP2pPeers,
-      lightRelayUrl,
+      lightRelayUrls,
     );
   if (lightFollowQuorum && followBatches.length > 1) {
     const quorum = JSON.parse(

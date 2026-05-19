@@ -217,8 +217,14 @@ Requires the RPC node to reach the peer (same machine loopback or routable P2P p
 | `get_light_follow_quorum_p2p` | Parallel dial of `params.peers` (≥2); [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) on wire rows |
 | `demo/proxy/light-relay.mjs` | HTTP `POST /light-follow` → quorum RPC on `RELAY_RPC` (can differ from wallet scan node) |
 
-Demo: with **Light relay URL** + ≥2 P2P peers, sync fetches evolution via the relay and still quorum-checks against local `get_light_follow`.
+Demo: with one relay URL + ≥2 P2P peers (M4.16), sync quorum-checks relay vs local `get_light_follow`. With **≥2 relay URLs** (M4.17), each relay is queried independently in the browser (wallet RPC does not dial P2P).
+
+## Multi-relay quorum (M4.17)
+
+Demo sync accepts **≥2 light relay URLs** (comma-separated). Each relay independently runs `get_light_follow_quorum_p2p` against the configured P2P peers; the browser runs `lightFollowQuorum` across **local `get_light_follow` + every relay response** — no single relay operator can forge evolution bytes without disagreeing with the others.
+
+Wallet scan RPC (`8787/rpc`) and relay backends (`8790`, `8791`, …) may be operated by different parties.
 
 ## Roadmap
 
-- **M4.17** — Browser-direct multi-relay quorum (no single backend dials all peers).
+- **M4.18** — Persist relay operator pins / TOFU in `localStorage` (weak-subjectivity for relay HTTPS endpoints).

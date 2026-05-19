@@ -77,12 +77,15 @@ function quorumP2pPeers() {
   return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
 }
 
-function lightRelayUrl() {
-  const el = document.getElementById("sync-light-relay");
-  return el?.value?.trim() ?? "";
+function lightRelayUrls() {
+  const el = document.getElementById("sync-light-relays");
+  const raw = el?.value?.trim() ?? "";
+  if (!raw) return [];
+  return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
 }
 
 function syncWasmOpts() {
+  const relays = lightRelayUrls();
   return {
     lightChainVerifyHeader,
     lightChainApplyEvolution,
@@ -92,7 +95,7 @@ function syncWasmOpts() {
     lightFollowQuorum,
     quorumRpcUrls: quorumRpcUrls(),
     quorumP2pPeers: quorumP2pPeers(),
-    lightRelayUrl: lightRelayUrl() || undefined,
+    lightRelayUrls: relays.length > 0 ? relays : undefined,
   };
 }
 

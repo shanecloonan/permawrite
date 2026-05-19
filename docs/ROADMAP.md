@@ -2107,6 +2107,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.14** | Light-follow quorum (`lightFollowQuorum`, `light_follow_rows_quorum`); weak-subjectivity checkpoint summary + `get_light_checkpoint_summary`; demo multi-RPC quorum URLs. | done |
 | **M4.15** | `get_light_follow_p2p` RPC + proxy `/p2p/light-follow`; demo quorum P2P peer field. | done |
 | **M4.16** | `get_light_follow_quorum_p2p` + `light-relay.mjs`; server-side P2P row quorum. | done |
+| **M4.17** | Browser multi-relay quorum (`light-relay-client.js`, ≥2 relay URLs in demo sync). | done |
 
 ### Use cases
 
