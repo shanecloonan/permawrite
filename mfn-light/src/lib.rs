@@ -79,7 +79,8 @@ pub mod chain;
 pub mod checkpoint;
 
 pub use chain::{
-    AppliedBlock, AppliedHeader, LightChain, LightChainConfig, LightChainError, LightChainStats,
+    light_checkpoint_after_blocks, AppliedBlock, AppliedHeader, LightChain, LightChainConfig,
+    LightChainError, LightChainStats,
 };
 pub use checkpoint::{
     decode_checkpoint_bytes, encode_checkpoint_bytes, CheckpointParts, LightCheckpointError,

@@ -54,11 +54,12 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.11)</h2>
+        <h2>Wallet sync (M4.7–M4.12)</h2>
         <p class="lede">
           Verifies headers with an evolving light-follower checkpoint (<code>lightChainVerifyHeader</code>),
           scans txs via <code>get_block_txs</code>, and applies validator-set evolution per block
           (<code>lightChainApplyEvolution</code> + <code>get_block_evolution</code>).
+          Cleared checkpoints resume via <code>get_light_snapshot</code> at the last scanned height (M4.12).
         </p>
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">

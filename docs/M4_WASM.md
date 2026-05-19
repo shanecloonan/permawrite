@@ -163,10 +163,19 @@ RPC **`get_block_headers`** (`from_height`, `to_height`, max span 4096) returns 
 | `lightChainVerifyHeader(checkpoint_hex, header_hex)` | BLS verify against evolving trusted set |
 | `lightChainApplyEvolution(checkpoint_hex, header_hex, evolution_json)` | Apply slashings + bond ops; returns new checkpoint |
 
-RPC **`get_block_evolution`** returns `slashings` / `bond_ops` wire hex. **`get_light_snapshot`** returns a follower checkpoint at the node tip (for fast-forward resume).
+RPC **`get_block_evolution`** returns `slashings` / `bond_ops` wire hex. **`get_light_snapshot`** returns a follower checkpoint at the node tip (omit `params`) or at any `height ≤ tip` via block-log replay (`params`: `{"height": N}`).
 
-Demo sync stores `permawrite-light-checkpoint:<seed>` in `localStorage` and advances it every block.
+Demo sync stores `permawrite-light-checkpoint:<seed>` in `localStorage` and advances it every block. If the wallet was scanned before but the checkpoint was cleared, sync resumes with `get_light_snapshot` at `lastScannedHeight` instead of genesis-trust bootstrap.
+
+## Checkpoint resume (M4.12)
+
+| RPC / export | Role |
+|--------------|------|
+| `get_light_snapshot` + `height` | Deterministic light checkpoint after block *N* (replays `chain.blocks` on the node) |
+| `mfn_light::light_checkpoint_after_blocks` | Same replay primitive for tests / tooling |
+
+Integration test `light_chain_trusted_evolution_matches_apply_block_on_rotation_chain` proves the browser path (`apply_header` + `apply_trusted_evolution`) matches full `apply_block` across register/unbond rotation.
 
 ## Roadmap
 
-- **M4.12** — Light checkpoint sync from arbitrary height via P2P header+bodies (no full-node trust).
+- **M4.13** — P2P header+bodies sync with weak-subjectivity checkpoints (less RPC trust).

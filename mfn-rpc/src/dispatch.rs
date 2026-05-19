@@ -8,10 +8,11 @@ use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_transaction, encode_block, encode_bond_op,
     encode_evidence, encode_transaction, tx_id, AuthorshipClaimRecord, Block, BondEpochCounters,
-    ConsensusParams, Validator,
+    ConsensusParams, GenesisConfig, Validator,
 };
 use mfn_crypto::schnorr::encode_schnorr_signature;
 use mfn_light::checkpoint::{encode_checkpoint_bytes, CheckpointParts};
+use mfn_light::light_checkpoint_after_blocks;
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
@@ -527,6 +528,16 @@ fn collect_data_roots_with_claims_sorted(chain: &Chain) -> Vec<([u8; 32], u32, u
     rows
 }
 
+/// `get_light_snapshot` accepts absent / `null` / `{}` / `[]` (tip) or `{"height": N}` / `[N]`.
+fn extract_optional_height_param(params: Option<&Value>) -> Result<Option<u32>, String> {
+    match params {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Object(o)) if o.is_empty() => Ok(None),
+        Some(Value::Array(a)) if a.is_empty() => Ok(None),
+        Some(v) => extract_height_param(Some(v)).map(Some),
+    }
+}
+
 /// `get_mempool`, `clear_mempool`, `get_checkpoint`, `get_chain_params`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
@@ -609,6 +620,26 @@ fn light_snapshot_hex(chain: &Chain) -> String {
         },
     };
     hex::encode(encode_checkpoint_bytes(&parts))
+}
+
+fn light_snapshot_replay_at_height(
+    store: &dyn ChainPersistence,
+    chain: &Chain,
+    genesis: &GenesisConfig,
+    height: u32,
+) -> Result<String, String> {
+    let tip_h = chain
+        .tip_height()
+        .ok_or("chain tip_height is None (unexpected)")?;
+    if height > tip_h {
+        return Err(format!("height {height} exceeds chain tip_height {tip_h}"));
+    }
+    let blocks = store
+        .read_block_log_validated(chain)
+        .map_err(|e| format!("read_block_log_validated: {e}"))?;
+    let bytes = light_checkpoint_after_blocks(genesis.clone(), &blocks, height)
+        .map_err(|e| format!("light_checkpoint_after_blocks: {e}"))?;
+    Ok(hex::encode(bytes))
 }
 
 fn consensus_params_json(p: &ConsensusParams) -> Value {
@@ -723,6 +754,8 @@ pub type FreshAdmitHook = Arc<dyn Fn(&Mempool) + Send + Sync>;
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
 pub struct ServeDispatchOpts {
+    /// Genesis spec for replaying light checkpoints at historical heights (M4.12).
+    pub genesis: Option<Arc<GenesisConfig>>,
     /// Post-admit fan-out for accepted txs.
     pub on_fresh_tx: Option<FreshTxHook>,
     /// Durable mempool snapshot while `pool` is still exclusively borrowed by dispatch.
@@ -1063,15 +1096,42 @@ fn dispatch_serve_methods(
             rpc_success(id, chain_params_json(chain))
         }
         "get_light_snapshot" => {
-            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_light_snapshot")
-            {
-                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
-            }
+            let height = match extract_optional_height_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let tip_h = chain.tip_height().unwrap_or(0);
+            let snapshot_height = height.unwrap_or(tip_h);
+            let checkpoint_hex = match height {
+                None => light_snapshot_hex(chain),
+                Some(h) if h == tip_h => light_snapshot_hex(chain),
+                Some(h) => {
+                    let genesis = match opts.genesis.as_deref() {
+                        Some(g) => g,
+                        None => {
+                            return rpc_error(
+                                id,
+                                rpc_codes::INVALID_PARAMS,
+                                "get_light_snapshot at height requires node genesis (internal)",
+                            );
+                        }
+                    };
+                    match light_snapshot_replay_at_height(store, chain, genesis, h) {
+                        Ok(hex) => hex,
+                        Err(msg) => {
+                            if msg.contains("exceeds chain tip_height") {
+                                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+                            }
+                            return rpc_error(id, rpc_codes::BLOCK_LOG_STORE, msg);
+                        }
+                    }
+                }
+            };
             rpc_success(
                 id,
                 json!({
-                    "tip_height": chain.tip_height().map(|h| json!(h)).unwrap_or(Value::Null),
-                    "checkpoint_hex": light_snapshot_hex(chain),
+                    "tip_height": snapshot_height,
+                    "checkpoint_hex": checkpoint_hex,
                 }),
             )
         }
@@ -1925,7 +1985,7 @@ mod tests {
     }
 
     #[test]
-    fn rpc_get_light_snapshot_rejects_nonempty_params() {
+    fn rpc_get_light_snapshot_rejects_unknown_param_key() {
         let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_snap_rej");
         let v = parse_and_dispatch_serve(
             &store,
@@ -1936,7 +1996,74 @@ mod tests {
         assert!(v["error"]["message"]
             .as_str()
             .unwrap()
-            .contains("get_light_snapshot"));
+            .contains("params.height"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    fn dispatch_with_genesis(
+        store: &ChainStore,
+        chain: &mut Chain,
+        pool: &mut Mempool,
+        line: &str,
+        genesis: Arc<GenesisConfig>,
+    ) -> Value {
+        parse_and_dispatch_serve_opts(
+            store,
+            chain,
+            pool,
+            line,
+            ServeDispatchOpts {
+                genesis: Some(genesis),
+                ..ServeDispatchOpts::default()
+            },
+        )
+    }
+
+    #[test]
+    fn rpc_get_light_snapshot_at_height_replay_matches_tip_snapshot() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_lsnap_h-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let genesis = Arc::new(cfg.genesis.clone());
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append");
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = dispatch_with_genesis(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","params":{"height":1},"id":1}"#,
+            Arc::clone(&genesis),
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["tip_height"], json!(1));
+        assert_eq!(
+            v["result"]["checkpoint_hex"].as_str().unwrap(),
+            light_snapshot_hex(&chain_loaded)
+        );
+        let v0 = dispatch_with_genesis(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","params":{"height":0},"id":2}"#,
+            genesis,
+        );
+        assert_eq!(v0["error"], Value::Null);
+        assert_eq!(v0["result"]["tip_height"], json!(0));
         fs::remove_dir_all(&root).ok();
     }
 

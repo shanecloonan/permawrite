@@ -8,6 +8,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
+use mfn_consensus::GenesisConfig;
 use mfn_net::serve::{
     spawn_inbound_handshake_loop, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook,
     FanoutPeerSetHook, HidCounter, InboundP2pLoop, OutboundP2pDial, P2pSessionHooks, TipSnapshot,
@@ -111,6 +112,7 @@ fn persist_mempool(store: &dyn ChainPersistence, pool: &Mempool) {
 fn serve_dispatch_opts(
     store: &Arc<dyn ChainPersistence + Send + Sync>,
     fanout_peers: Option<&Arc<P2pPeerSet>>,
+    genesis: Arc<GenesisConfig>,
 ) -> ServeDispatchOpts {
     let store_persist = Arc::clone(store);
     let on_fresh_admit =
@@ -122,6 +124,7 @@ fn serve_dispatch_opts(
         }) as Arc<dyn Fn(&[u8]) + Send + Sync>
     });
     ServeDispatchOpts {
+        genesis: Some(genesis),
         on_fresh_tx,
         on_fresh_admit: Some(on_fresh_admit),
     }
@@ -142,6 +145,7 @@ pub(crate) fn run_serve(
     network_label: Option<&str>,
 ) -> Result<(), String> {
     let genesis_timestamp = cfg.genesis.timestamp;
+    let genesis_for_rpc = Arc::new(cfg.genesis.clone());
     let chain = Arc::new(Mutex::new(
         store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
     ));
@@ -375,7 +379,7 @@ pub(crate) fn run_serve(
         })?;
     }
 
-    let dispatch_opts = serve_dispatch_opts(&store, fanout_peers.as_ref());
+    let dispatch_opts = serve_dispatch_opts(&store, fanout_peers.as_ref(), genesis_for_rpc);
 
     #[cfg(unix)]
     {

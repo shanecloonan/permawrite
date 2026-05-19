@@ -155,12 +155,25 @@ export async function syncBlockRange({
     loadLightCheckpoint(seedHex) ||
     null;
   if (!checkpoint) {
-    if (!lightChainBootstrapCheckpoint) {
+    const resumeHeight = Number(state.lastScannedHeight) || 0;
+    if (resumeHeight > 0) {
+      const snap = await rpc(rpcUrl, "get_light_snapshot", {
+        height: resumeHeight,
+      });
+      checkpoint = snap.checkpoint_hex;
+      if (!checkpoint) {
+        throw new Error(
+          `get_light_snapshot at height ${resumeHeight} returned no checkpoint_hex`,
+        );
+      }
+      saveLightCheckpoint(seedHex, checkpoint);
+    } else if (lightChainBootstrapCheckpoint) {
+      const params = await rpc(rpcUrl, "get_chain_params", {});
+      checkpoint = lightChainBootstrapCheckpoint(JSON.stringify(params));
+      saveLightCheckpoint(seedHex, checkpoint);
+    } else {
       throw new Error("missing light checkpoint; pass lightChainBootstrapCheckpoint");
     }
-    const params = await rpc(rpcUrl, "get_chain_params", {});
-    checkpoint = lightChainBootstrapCheckpoint(JSON.stringify(params));
-    saveLightCheckpoint(seedHex, checkpoint);
   }
 
   const headerByHeight = new Map(

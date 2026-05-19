@@ -1019,3 +1019,70 @@ fn light_chain_checkpoint_carries_genesis_id() {
     let restored_a = LightChain::decode_checkpoint(&light_a.encode_checkpoint()).expect("decode");
     assert_eq!(restored_a.genesis_id(), light_a.genesis_id());
 }
+
+/// Browser wallet path (M4.11): `apply_trusted_evolution` must match full `apply_block`
+/// on the 5-block rotation chain.
+#[test]
+fn light_chain_trusted_evolution_matches_apply_block_on_rotation_chain() {
+    let (cfg, s0, params) = rotation_genesis();
+    let genesis = cfg.clone();
+    let mut full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut via_block = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
+    let mut via_trusted = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let (v1, s1) = mk_validator(1, 100);
+    let v1_payout = v1.payout;
+    let register_sig = sign_register(
+        v1.stake,
+        &v1.vrf_pk,
+        &v1.bls_pk,
+        v1_payout.as_ref(),
+        &s1.bls.sk,
+    );
+    let register_op = BondOp::Register {
+        stake: v1.stake,
+        vrf_pk: v1.vrf_pk,
+        bls_pk: v1.bls_pk,
+        payout: v1_payout,
+        sig: register_sig,
+    };
+    let unbond_sig = sign_unbond(v1.index, &s1.bls.sk);
+    let unbond_op = BondOp::Unbond {
+        validator_index: v1.index,
+        sig: unbond_sig,
+    };
+
+    let mut blocks = Vec::with_capacity(5);
+    for (height, ops) in [
+        (1u32, vec![register_op]),
+        (2, Vec::new()),
+        (3, vec![unbond_op]),
+        (4, Vec::new()),
+        (5, Vec::new()),
+    ] {
+        let block = produce_block_with_ops(&full, &s0, params, height, ops);
+        full.apply(&block).expect("full apply");
+        blocks.push(block);
+
+        let block = blocks.last().expect("block");
+        via_block.apply_block(block).expect("apply_block");
+
+        // Browser path (M4.11): BLS verify is stateless; only evolution advances tip.
+        via_trusted
+            .apply_trusted_evolution(&block.header, &block.slashings, &block.bond_ops)
+            .expect("apply_trusted_evolution");
+
+        assert_eq!(via_block.tip_id(), via_trusted.tip_id());
+        assert_eq!(
+            validator_set_root(via_block.trusted_validators()),
+            validator_set_root(via_trusted.trusted_validators()),
+        );
+        assert_eq!(
+            via_block.encode_checkpoint(),
+            via_trusted.encode_checkpoint()
+        );
+    }
+
+    let replayed = mfn_light::light_checkpoint_after_blocks(genesis, &blocks, 5).expect("replay");
+    assert_eq!(replayed, via_block.encode_checkpoint());
+}

@@ -837,6 +837,45 @@ impl LightChain {
     }
 }
 
+/// Replay `blocks` on a fresh [`LightChain`] bootstrapped from `genesis` and return
+/// the encoded follower checkpoint after `through_height`.
+///
+/// `through_height == 0` yields the genesis-trust checkpoint (tip height 0). For
+/// `through_height >= 1`, `blocks` must contain at least that many entries in order
+/// (`blocks[0]` is height 1, etc.).
+///
+/// # Errors
+///
+/// Linkage, header, body, or evolution failures from [`LightChain::apply_block`],
+/// or a height / block-index mismatch.
+pub fn light_checkpoint_after_blocks(
+    genesis: mfn_consensus::GenesisConfig,
+    blocks: &[mfn_consensus::Block],
+    through_height: u32,
+) -> Result<Vec<u8>, LightChainError> {
+    let mut chain = LightChain::from_genesis(LightChainConfig::new(genesis));
+    if through_height == 0 {
+        return Ok(chain.encode_checkpoint());
+    }
+    if blocks.len() < through_height as usize {
+        return Err(LightChainError::HeightMismatch {
+            expected: through_height,
+            got: blocks.len() as u32,
+        });
+    }
+    for h in 1..=through_height {
+        let block = &blocks[(h - 1) as usize];
+        if block.header.height != h {
+            return Err(LightChainError::HeightMismatch {
+                expected: h,
+                got: block.header.height,
+            });
+        }
+        chain.apply_block(block)?;
+    }
+    Ok(chain.encode_checkpoint())
+}
+
 /* ----------------------------------------------------------------------- *
  *  Unit tests                                                              *
  * ----------------------------------------------------------------------- */
