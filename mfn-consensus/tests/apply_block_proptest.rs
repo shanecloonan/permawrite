@@ -397,7 +397,8 @@ fn reject_duplicate_storage_proof_without_state_change() {
     let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
         .expect("proof");
     let proof_dup = proof.clone();
-    let unsealed = build_unsealed_header(&st, &[], &[], &[], &[proof.clone()], h, 1_000);
+    let unsealed =
+        build_unsealed_header(&st, &[], &[], &[], std::slice::from_ref(&proof), h, 1_000);
     let blk = seal_block(
         unsealed,
         Vec::new(),
