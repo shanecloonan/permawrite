@@ -1,4 +1,4 @@
-# Public devnet v1 — operator invite list (M2.4.3)
+# Public devnet v1 — operator invite list (M2.4.3 / M2.4.4)
 
 Join the **public-devnet-v1** network only if your node's `genesis_id` matches the manifest:
 
@@ -14,8 +14,8 @@ New peers should:
 
 1. Build `mfnd` from this repository (or a release artifact with matching consensus).
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
-3. `--p2p-dial` at least one `seed_nodes` entry (or a known hub).
-4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest.
+3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable).
+4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
 
 ## Roles
 

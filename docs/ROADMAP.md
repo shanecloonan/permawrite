@@ -1974,7 +1974,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.2** | Reconnect dials include `block_sync` for catch-up pulls. | ✓ shipped |
 | **M2.3.25** | Three-validator smoke through **height 2**; committee periodic catch-up + non-blocking session fan-out. | ✓ shipped |
 | **M2.4.3** | Bootstrap scripts, chain identity banner, manifest + operator invite template. | ✓ shipped |
-| **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | planned |
+| **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | ✓ shipped |
 
 ### Why this order
 
@@ -2024,7 +2024,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 - **M2.1 — Single-node demo.** ✓ Shipped (M2.1.0–M2.1.18). `mfnd` boots from JSON genesis, produces solo blocks via `step` (mempool-aware, with `--blocks N` / `--checkpoint-each`), persists checkpoints + an append-only `chain.blocks` log, and exposes a JSON-RPC 2.0 TCP line protocol covering tip, blocks, headers, mempool inspection/eviction, checkpoint inspection/persistence, method discovery, and authorship-claim discovery.
 - **M2.2 — Authorship claim layer.** ✓ Shipped (M2.2.0–M2.2.11). Optional Schnorr-signed claims over `data_root` with optional storage binding via `commit_hash`; consensus-validated, header-rooted via `claims_root`, indexed in `ChainState`, exposed via `serve` discovery RPCs, and surfaced through both standalone-claim and storage-upload wallet APIs.
 - **M2.3 — Multi-node testnet.** ✓ Shipped (M2.3.0–M2.3.24). Peers complete length-prefixed Hello → Ping → Tip → Goodbye handshakes, exchange gossip, answer `GetBlocksByHeightV1`, automatically pull missing blocks when the remote tip is ahead, fan out freshly admitted txs to known peers, persist the mempool and peer set across `mfnd serve` restarts, reconnect to saved peers on boot, run a slot-driven multi-validator producer (`--produce` + `ProposalV1` / `VoteV1`), and pass a three-process loopback harness (hub `--produce`, two `--committee-vote` followers, shared tip at height 1 via `tests/three_validator_produce_smoke.rs`).
-- **M2.4 — Public testnet.** **M2.4.1–M2.4.3** shipped (runbook, genesis/manifest, reconnect sync, bootstrap scripts, operator template). Remaining: live seed endpoints on the internet (**M2.4.4**).
+- **M2.4 — Public testnet.** ✓ Shipped (**M2.4.1–M2.4.4**): runbook, genesis/manifest, reconnect sync with block pull, bootstrap scripts, chain identity banner, repeatable `--p2p-dial` + manifest `seed_nodes` merge. Operators still publish live seed IPs in `public_devnet_v1.manifest.json` when deploying validators to the internet.
 
 ### Not in M2.x
 

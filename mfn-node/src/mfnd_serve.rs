@@ -127,7 +127,7 @@ pub(crate) fn run_serve(
     cfg: ChainConfig,
     rpc_listen: &str,
     p2p_listen: Option<&str>,
-    p2p_dial: Option<&str>,
+    p2p_dials: &[String],
     produce: bool,
     committee_vote: bool,
     slot_duration_ms: u64,
@@ -156,7 +156,7 @@ pub(crate) fn run_serve(
         *guard.genesis_id()
     };
 
-    if (produce || committee_vote) && p2p_listen.is_none() && p2p_dial.is_none() {
+    if (produce || committee_vote) && p2p_listen.is_none() && p2p_dials.is_empty() {
         return Err(
             "mfnd serve --produce / --committee-vote requires --p2p-listen and/or --p2p-dial"
                 .into(),
@@ -166,7 +166,7 @@ pub(crate) fn run_serve(
         return Err("mfnd serve: --produce and --committee-vote are mutually exclusive".into());
     }
 
-    let p2p_enabled = p2p_listen.is_some() || p2p_dial.is_some();
+    let p2p_enabled = p2p_listen.is_some() || !p2p_dials.is_empty();
     let (
         p2p_tip_cell,
         p2p_hid_counter,
@@ -312,9 +312,9 @@ pub(crate) fn run_serve(
         })?;
     }
 
-    if let Some(dial) = p2p_dial {
+    for dial in p2p_dials {
         spawn_outbound_dial(OutboundP2pDial {
-            addr: dial.to_string(),
+            addr: dial.clone(),
             genesis_id,
             tip_cell: p2p_tip_cell
                 .as_ref()
@@ -354,7 +354,7 @@ pub(crate) fn run_serve(
                 .as_ref()
                 .map(|p| Arc::clone(p) as FanoutPeerSetHook),
             local_p2p_listen,
-            skip_addr: p2p_dial,
+            skip_addrs: p2p_dials,
         })?;
     }
 

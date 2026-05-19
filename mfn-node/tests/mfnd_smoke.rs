@@ -910,17 +910,7 @@ fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
         .expect("spawn dialer mfnd serve");
     let stdout = child_b.stdout.take().expect("stdout pipe");
     let mut out_b = BufReader::new(stdout);
-    let mut line = String::new();
-    out_b
-        .read_line(&mut line)
-        .expect("read mfnd_serve_listening");
-    assert!(line.starts_with("mfnd_serve_listening="));
-    let rpc_b: SocketAddr = line
-        .strip_prefix("mfnd_serve_listening=")
-        .unwrap()
-        .trim()
-        .parse()
-        .expect("parse rpc addr");
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b);
 
     let mut sync_end = String::new();
     loop {

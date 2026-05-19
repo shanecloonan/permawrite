@@ -23,6 +23,7 @@ mod mfnd_cli;
 mod mfnd_serve;
 mod node_store;
 mod p2p_block_sync;
+mod p2p_boot;
 mod p2p_fanout;
 mod p2p_gossip;
 mod runner;

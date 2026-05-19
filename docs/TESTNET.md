@@ -113,8 +113,9 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 
 ## P2P mesh tips
 
-- **Boot dial:** At least one `--p2p-dial` to a peer already on the chain (usually the hub).
-- **Persistent peers:** Successful handshakes append to `peers.json` under `--data-dir`; restart reconnects automatically (**M2.3.22**, **M2.4.2** block-sync on reconnect).
+- **Boot dial:** At least one `--p2p-dial` to a peer already on the chain (usually the hub). Repeat `--p2p-dial` for multiple seeds (**M2.4.4**).
+- **Manifest seeds:** With `--genesis path/to/public_devnet_v1.json`, `mfnd` also dials every `seed_nodes` entry from the sibling `public_devnet_v1.manifest.json` (deduped with CLI flags). Operators append public `host:port` values to that list; stdout prints `mfnd_p2p_boot_dials=…` when any boot peer is configured.
+- **Persistent peers:** Successful handshakes append to `peers.json` under `--data-dir`; restart reconnects automatically (**M2.3.22**, **M2.4.2** block-sync on reconnect). Saved-peer reconnect skips addresses already dialed at boot.
 - **Catch-up:** Outbound dials pull missing blocks when the remote tip is ahead; handshake height uses the live chain tip (**M2.3.24+**).
 
 ---

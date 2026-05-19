@@ -366,8 +366,8 @@ pub struct ReconnectPeersBoot<'a> {
     pub fanout_hook: Option<Arc<dyn FanoutPeerSet>>,
     /// Local listen address to advertise after dial.
     pub local_p2p_listen: Option<std::net::SocketAddr>,
-    /// Skip this peer (e.g. already dialed via `--p2p-dial`).
-    pub skip_addr: Option<&'a str>,
+    /// Skip these peers (already dialed via `--p2p-dial` / manifest seeds — **M2.4.4**).
+    pub skip_addrs: &'a [String],
 }
 
 /// Periodic height pull for `--committee-vote` followers (**M2.3.25**).
@@ -411,11 +411,11 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
         block_applier,
         fanout_hook,
         local_p2p_listen,
-        skip_addr,
+        skip_addrs,
     } = cfg;
     let mut spawned = 0u32;
     for addr in peer_set.snapshot_peers() {
-        if skip_addr.is_some_and(|s| s == addr) {
+        if skip_addrs.iter().any(|s| s == &addr) {
             continue;
         }
         if spawned >= peer_set.max_outbound_peers() {

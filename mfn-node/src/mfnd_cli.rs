@@ -19,6 +19,7 @@
 //! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land
 //! in later M2.x milestones.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
@@ -68,8 +69,8 @@ struct Parsed {
     rpc_listen: Option<String>,
     /// Solo `serve` only: optional second `HOST:PORT` for binary P2P [`hello_v1_handshake`](crate::network::hello_v1_handshake).
     p2p_listen: Option<String>,
-    /// Solo `serve` only: optional peer `HOST:PORT`; background dial runs [`crate::network::tcp_connect_peer_v1_handshake_with_tip_exchange`] (hello + ping/pong + [`crate::network::ChainTipV1`] + [`crate::network::GoodbyeV1`]).
-    p2p_dial: Option<String>,
+    /// Solo `serve` only: boot peer `HOST:PORT` list (repeat `--p2p-dial`; merged with genesis manifest `seed_nodes` when present — **M2.4.4**).
+    p2p_dials: Vec<String>,
     /// Persistence backend (`fs` default, or `redb`).
     store_backend: StoreBackend,
     /// `serve` only: slot-driven multi-validator production (**M2.3.23**).
@@ -92,11 +93,11 @@ fn usage() -> &'static str {
        --rpc-listen ADDR:PORT   only for `serve` (default 127.0.0.1:18731)\n\
        --p2p-listen ADDR:PORT   only for `serve` (optional): length-prefixed HelloV1 handshake\n\
                                   on a separate TCP port (see `network::handshake`)\n\
-       --p2p-dial ADDR:PORT     only for `serve` (optional): outbound dial to a peer P2P listener;\n\
-                                  runs hello + dialer ping / listener pong + ChainTipV1 + GoodbyeV1\n\
-                                  (tcp_connect_peer_v1_handshake_with_tip_exchange); on success prints\n\
-                                  mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip / mfnd_p2p_height_cmp /\n\
-                                  mfnd_p2p_handshake_ms (each with matching hid=; see mfnd_serve)\n\
+       --p2p-dial ADDR:PORT     only for `serve` (optional, repeatable): outbound dials to peer P2P\n\
+                                  listeners; also merges `<genesis_stem>.manifest.json` seed_nodes when\n\
+                                  `--genesis` is set (M2.4.4). Each dial runs hello + ping/pong + ChainTipV1\n\
+                                  + GoodbyeV1; on success prints mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip /\n\
+                                  mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
        --slot-duration-ms MS    only for `serve --produce` / `--committee-vote` (default 1000)\n\
@@ -384,12 +385,21 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .and_then(|s| s.to_str())
                     .filter(|s| !s.is_empty())
             });
+            let mut p2p_dials = parsed.p2p_dials.clone();
+            crate::p2p_boot::merge_boot_peer_dials(
+                &mut p2p_dials,
+                parsed.genesis_toml.as_deref(),
+            )?;
+            if !p2p_dials.is_empty() {
+                println!("mfnd_p2p_boot_dials={}", p2p_dials.join(","));
+                std::io::stdout().flush().ok();
+            }
             crate::mfnd_serve::run_serve(
                 store,
                 cfg,
                 listen,
                 parsed.p2p_listen.as_deref(),
-                parsed.p2p_dial.as_deref(),
+                &p2p_dials,
                 parsed.produce,
                 parsed.committee_vote,
                 parsed.slot_duration_ms,
@@ -433,7 +443,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut checkpoint_each_block = false;
     let mut rpc_listen: Option<String> = None;
     let mut p2p_listen: Option<String> = None;
-    let mut p2p_dial: Option<String> = None;
+    let mut p2p_dials: Vec<String> = Vec::new();
     let mut store_backend = StoreBackend::default();
     let mut produce = false;
     let mut committee_vote = false;
@@ -529,7 +539,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             if v.starts_with('-') {
                 return Err("expected HOST:PORT after --p2p-dial".into());
             }
-            p2p_dial = Some(v.clone());
+            p2p_dials.push(v.clone());
             i += 2;
             continue;
         }
@@ -603,7 +613,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
-    if p2p_dial.is_some() && cmd != Cmd::Serve {
+    if !p2p_dials.is_empty() && cmd != Cmd::Serve {
         return Err(format!(
             "--p2p-dial is only valid with the serve command\n{}",
             usage()
@@ -641,7 +651,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         checkpoint_each_block,
         rpc_listen,
         p2p_listen,
-        p2p_dial,
+        p2p_dials,
         store_backend,
         produce,
         committee_vote,
@@ -662,7 +672,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -672,7 +682,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -688,7 +698,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:19999"));
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -706,7 +716,7 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
         assert_eq!(p.p2p_listen.as_deref(), Some("127.0.0.1:0"));
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -724,7 +734,29 @@ mod tests {
         assert_eq!(p.cmd, Cmd::Serve);
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial.as_deref(), Some("127.0.0.1:19998"));
+        assert_eq!(p.p2p_dials, vec!["127.0.0.1:19998".to_string()]);
+    }
+
+    #[test]
+    fn parse_args_serve_multiple_p2p_dials() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--p2p-dial".into(),
+            "127.0.0.1:19998".into(),
+            "--p2p-dial".into(),
+            "127.0.0.1:19999".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(
+            p.p2p_dials,
+            vec![
+                "127.0.0.1:19998".to_string(),
+                "127.0.0.1:19999".to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -779,7 +811,7 @@ mod tests {
         assert!(p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -808,7 +840,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -840,7 +872,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
@@ -853,7 +885,7 @@ mod tests {
         assert!(!p.checkpoint_each_block);
         assert_eq!(p.rpc_listen, None);
         assert_eq!(p.p2p_listen, None);
-        assert_eq!(p.p2p_dial, None);
+        assert!(p.p2p_dials.is_empty());
     }
 
     #[test]
