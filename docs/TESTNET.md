@@ -119,6 +119,9 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> -
 # Upload bytes (permanence anchor; default replication 3)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3
 
+# Upload + bind authorship to commitment (same tx)
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution"
+
 # Authorship claim over a data root (discover via get_claims_for after mining)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet claim <DATA_ROOT_HEX> --message "attribution"
 ```

@@ -21,7 +21,10 @@ use std::collections::{HashMap, HashSet};
 
 use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::{build_mfex_extra, Block, ChainState, Recipient, SignedTransaction};
-use mfn_crypto::authorship::{build_signed_claim, MAX_CLAIM_MESSAGE_LEN};
+use mfn_crypto::authorship::{build_signed_claim, AuthorshipClaim, MAX_CLAIM_MESSAGE_LEN};
+use mfn_storage::{
+    build_storage_commitment, required_endowment, storage_commitment_hash,
+};
 
 use crate::claiming::ClaimingIdentity;
 use crate::decoy::build_decoy_pool;
@@ -395,10 +398,154 @@ impl Wallet {
     where
         R: FnMut() -> f64,
     {
-        // The chain requires Σ inputs = anchor_value + change + fee.
-        // Greedy coin-selection sums to ≥ target, then the wallet pays
-        // any surplus back to itself as change. This mirrors
-        // `build_transfer` exactly.
+        self.build_storage_upload_with_claims_and_extra(
+            data,
+            replication,
+            fee,
+            anchor_recipient,
+            anchor_value,
+            chunk_size,
+            ring_size,
+            chain_state,
+            &[],
+            extra,
+            None,
+            rng,
+        )
+    }
+
+    /// Same as [`Self::build_storage_upload`] but attaches a Schnorr-signed
+    /// MFCL authorship claim bound to this upload's `data_root` and
+    /// `storage_commitment_hash` in `tx.extra` (MFEX envelope).
+    ///
+    /// Cannot be combined with a custom `extra` memo — the wire `extra`
+    /// field is exactly the claim envelope.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_storage_upload_with_authorship<R>(
+        &mut self,
+        data: &[u8],
+        replication: u8,
+        fee: u64,
+        anchor_recipient: Recipient,
+        anchor_value: u64,
+        chunk_size: Option<usize>,
+        ring_size: usize,
+        chain_state: &ChainState,
+        message: &[u8],
+        identity: &ClaimingIdentity,
+        rng: &mut R,
+    ) -> Result<UploadArtifacts, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        if message.len() > MAX_CLAIM_MESSAGE_LEN {
+            return Err(WalletError::ClaimMessageTooLong {
+                max: MAX_CLAIM_MESSAGE_LEN,
+                got: message.len(),
+            });
+        }
+
+        let burden = required_endowment(
+            data.len() as u64,
+            replication,
+            &chain_state.endowment_params,
+        )?;
+        if burden > u128::from(u64::MAX) {
+            return Err(WalletError::UploadEndowmentExceedsU64 { burden });
+        }
+        let endowment_amount = burden as u64;
+        let preview = build_storage_commitment(
+            data,
+            endowment_amount,
+            chunk_size,
+            replication,
+            None,
+        )?;
+        let commit_hash = storage_commitment_hash(&preview.commit);
+        let claim = build_signed_claim(
+            preview.commit.data_root,
+            commit_hash,
+            message,
+            identity.keypair(),
+        )?;
+        let claims = [claim];
+        self.build_storage_upload_with_claims_and_extra(
+            data,
+            replication,
+            fee,
+            anchor_recipient,
+            anchor_value,
+            chunk_size,
+            ring_size,
+            chain_state,
+            &claims,
+            &[],
+            Some(preview.blinding),
+            rng,
+        )
+    }
+
+    /// [`Self::build_storage_upload`] with explicit pre-signed MFCL claims.
+    ///
+    /// `extra` must be empty when `authorship_claims` is non-empty.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_storage_upload_with_claims<R>(
+        &mut self,
+        data: &[u8],
+        replication: u8,
+        fee: u64,
+        anchor_recipient: Recipient,
+        anchor_value: u64,
+        chunk_size: Option<usize>,
+        ring_size: usize,
+        chain_state: &ChainState,
+        authorship_claims: &[AuthorshipClaim],
+        rng: &mut R,
+    ) -> Result<UploadArtifacts, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        self.build_storage_upload_with_claims_and_extra(
+            data,
+            replication,
+            fee,
+            anchor_recipient,
+            anchor_value,
+            chunk_size,
+            ring_size,
+            chain_state,
+            authorship_claims,
+            &[],
+            None,
+            rng,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_storage_upload_with_claims_and_extra<R>(
+        &mut self,
+        data: &[u8],
+        replication: u8,
+        fee: u64,
+        anchor_recipient: Recipient,
+        anchor_value: u64,
+        chunk_size: Option<usize>,
+        ring_size: usize,
+        chain_state: &ChainState,
+        authorship_claims: &[AuthorshipClaim],
+        extra: &[u8],
+        endowment_blinding: Option<Scalar>,
+        rng: &mut R,
+    ) -> Result<UploadArtifacts, WalletError>
+    where
+        R: FnMut() -> f64,
+    {
+        if !authorship_claims.is_empty() && !extra.is_empty() {
+            return Err(WalletError::UploadExtraConflictsWithAuthorshipClaims);
+        }
+        if !authorship_claims.is_empty() {
+            let _ = build_mfex_extra(authorship_claims)?;
+        }
         let target = anchor_value.saturating_add(fee);
         let (chosen_refs, input_sum) = self.select_inputs(target)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
@@ -426,13 +573,13 @@ impl Wallet {
             data,
             replication,
             chunk_size,
-            endowment_blinding: None,
+            endowment_blinding,
             endowment_params: &chain_state.endowment_params,
             fee_to_treasury_bps: chain_state.emission_params.fee_to_treasury_bps,
             change_recipients: &change_recipients,
             fee,
             extra,
-            authorship_claims: &[],
+            authorship_claims,
             ring_size,
             decoy_pool: &pool,
             current_height,
@@ -440,9 +587,6 @@ impl Wallet {
         };
         let art = build_storage_upload(plan)?;
 
-        // Local spent-marking: tx hasn't mined yet but we must not
-        // double-spend in a follow-up build call. `ingest_block` will
-        // re-do this idempotently when the block lands.
         for k in chosen_keys {
             self.mark_spent_by_utxo_key(&k);
         }

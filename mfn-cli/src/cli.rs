@@ -161,6 +161,7 @@ fn usage() -> &'static str {
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
+                         --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
                          --fee N --ring-size N\n"
@@ -425,10 +426,34 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
     let mut extra: Vec<u8> = Vec::new();
     let mut anchor_view: Option<String> = None;
     let mut anchor_spend: Option<String> = None;
+    let mut message: Option<Vec<u8>> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--message" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--message requires text".into()));
+            };
+            message = Some(v.as_bytes().to_vec());
+            i += 2;
+            continue;
+        }
+        if a == "--message-hex" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--message-hex requires hex bytes".into()));
+            };
+            let t = v
+                .strip_prefix("0x")
+                .or_else(|| v.strip_prefix("0X"))
+                .unwrap_or(v);
+            message = Some(
+                hex::decode(t)
+                    .map_err(|e| CliError::Usage(format!("--message-hex decode: {e}")))?,
+            );
+            i += 2;
+            continue;
+        }
         if a == "--fee" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
@@ -523,6 +548,7 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
         extra,
         anchor_view_hex: anchor_view,
         anchor_spend_hex: anchor_spend,
+        message,
     })
 }
 

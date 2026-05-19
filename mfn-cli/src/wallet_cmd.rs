@@ -10,6 +10,7 @@ use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::{crypto_random, point_from_bytes};
 use mfn_storage::storage_commitment_hash;
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
+use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use rand_core::{OsRng, RngCore};
 
 use crate::rpc::RpcClient;
@@ -91,6 +92,8 @@ pub struct UploadParams {
     pub anchor_view_hex: Option<String>,
     /// Anchor recipient spend key hex; required with `anchor_view_hex` when not self.
     pub anchor_spend_hex: Option<String>,
+    /// MFCL claim message; bound to upload `data_root` + `commit_hash` in `tx.extra`.
+    pub message: Option<Vec<u8>>,
 }
 
 /// Parameters for `wallet claim`.
@@ -263,6 +266,19 @@ pub fn wallet_upload(
             data.len()
         )));
     }
+    if params.message.is_some() && !params.extra.is_empty() {
+        return Err(WalletCmdError::Usage(
+            "cannot set both --message (authorship claim) and --extra on upload".into(),
+        ));
+    }
+    if let Some(msg) = &params.message {
+        if msg.len() > MAX_CLAIM_MESSAGE_LEN {
+            return Err(WalletCmdError::Usage(format!(
+                "message length {} exceeds max {MAX_CLAIM_MESSAGE_LEN}",
+                msg.len()
+            )));
+        }
+    }
 
     let anchor_recipient = match (
         params.anchor_view_hex.as_deref(),
@@ -295,18 +311,36 @@ pub fn wallet_upload(
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
     let mut rng = crypto_random;
-    let art = wallet.build_storage_upload(
-        &data,
-        params.replication,
-        fee,
-        anchor,
-        params.anchor_value,
-        None,
-        params.ring_size,
-        &chain_state,
-        &params.extra,
-        &mut rng,
-    )?;
+    let art = if let Some(message) = &params.message {
+        let seed = file.seed_bytes()?;
+        let identity = ClaimingIdentity::from_seed(&seed);
+        wallet.build_storage_upload_with_authorship(
+            &data,
+            params.replication,
+            fee,
+            anchor,
+            params.anchor_value,
+            None,
+            params.ring_size,
+            &chain_state,
+            message,
+            &identity,
+            &mut rng,
+        )?
+    } else {
+        wallet.build_storage_upload(
+            &data,
+            params.replication,
+            fee,
+            anchor,
+            params.anchor_value,
+            None,
+            params.ring_size,
+            &chain_state,
+            &params.extra,
+            &mut rng,
+        )?
+    };
 
     let consumed: Vec<[u8; 32]> = pre_owned
         .into_iter()
@@ -332,6 +366,10 @@ pub fn wallet_upload(
     println!("burden={}", art.burden);
     println!("data_root={}", hex::encode(data_root));
     println!("storage_commitment_hash={}", hex::encode(upload_hash));
+    if params.message.is_some() {
+        println!("authorship_claim=bound");
+        println!("claim_message_len={}", params.message.as_ref().map_or(0, Vec::len));
+    }
     println!("ring_size={}", params.ring_size);
     println!("tx_id={}", submit.tx_id);
     println!("mempool_len={}", submit.pool_len);

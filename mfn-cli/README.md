@@ -41,6 +41,9 @@ mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUN
 # Permanent storage upload (anchor to self; fee defaults to upload_min_fee + tip)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --replication 3
 
+# Upload with MFCL authorship claim bound to data_root + commitment hash
+mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --message "signed by me"
+
 # Authorship claim (MFCL in tx.extra; unbound unless --commit-hash set)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet claim <DATA_ROOT_HEX> --message "hello permanence"
 ```
@@ -53,7 +56,7 @@ Default wallet file: `wallet.json` (override with `--wallet PATH`). The file sto
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 
-`wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. Keep the file bytes locally for SPoRA chunk proofs.
+`wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). Keep the file bytes locally for SPoRA chunk proofs.
 
 `wallet claim` derives a deterministic [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs) from the wallet seed, signs an MFCL claim over `DATA_ROOT_HEX` via [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), and submits it. Use `--commit-hash` to bind the claim to a storage commitment hash from a prior upload.
 

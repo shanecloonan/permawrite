@@ -257,3 +257,124 @@ fn wallet_upload_mined_by_step_anchors_storage() {
     shutdown_child(&mut child2);
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn wallet_upload_with_message_mines_bound_authorship_claim() {
+    let dir = unique_data_dir("upload_claim");
+    std::fs::create_dir_all(&dir).expect("tmpdir");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("mfn-node/testdata/devnet_one_validator_synth_decoys.json");
+
+    let mut bls_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
+    let wallet_path = dir.join("alice.json");
+    WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
+        .save(&wallet_path)
+        .expect("wallet");
+
+    let payload_path = dir.join("payload.bin");
+    std::fs::write(&payload_path, b"permawrite upload attribution").expect("write payload");
+
+    let step1 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step 1");
+    assert!(step1.status.success(), "step1 stderr={}", String::from_utf8_lossy(&step1.stderr));
+
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn mfnd");
+    let rpc = read_serve_listening(&mut child);
+
+    let upload = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc.to_string(),
+            "--wallet",
+            wallet_path.to_str().expect("utf8"),
+            "wallet",
+            "upload",
+            payload_path.to_str().expect("utf8"),
+            "--replication",
+            "3",
+            "--message",
+            "authored on upload",
+        ])
+        .output()
+        .expect("wallet upload");
+    assert!(
+        upload.status.success(),
+        "upload stderr={}",
+        String::from_utf8_lossy(&upload.stderr)
+    );
+    let upload_out = String::from_utf8_lossy(&upload.stdout);
+    assert!(upload_out.contains("authorship_claim=bound"), "stdout={upload_out}");
+    let commitment_hash = parse_stdout_field(&upload_out, "storage_commitment_hash");
+    let data_root_hex = parse_stdout_field(&upload_out, "data_root");
+
+    shutdown_child(&mut child);
+
+    let step2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step 2");
+    assert!(step2.status.success(), "step2 stderr={}", String::from_utf8_lossy(&step2.stderr));
+
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
+    let chain = store
+        .load_or_genesis(ChainConfig::new(gc))
+        .expect("chain");
+    let mut commit_bytes = [0u8; 32];
+    hex::decode_to_slice(&commitment_hash, &mut commit_bytes).expect("commit hex");
+    assert!(chain.state().storage.contains_key(&commit_bytes));
+
+    let mut data_root = [0u8; 32];
+    hex::decode_to_slice(&data_root_hex, &mut data_root).expect("data_root hex");
+    let pk_bytes = mfn_wallet::ClaimingIdentity::from_seed(&bls_seed)
+        .claim_pubkey()
+        .compress()
+        .to_bytes();
+    let rec = chain
+        .state()
+        .claims
+        .get(&(data_root, pk_bytes))
+        .expect("bound claim indexed");
+    assert_eq!(rec.claim.message, b"authored on upload".as_slice());
+    assert_eq!(rec.claim.commit_hash, commit_bytes);
+    assert_eq!(rec.claim.data_root, data_root);
+
+    std::fs::remove_dir_all(&dir).ok();
+}
