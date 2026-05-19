@@ -2113,7 +2113,7 @@ See [`M4_WASM.md`](./M4_WASM.md) for build commands and JS API.
 These are work items that are individually small but cross-cutting:
 
 - **Long-running emission/treasury simulation.** Drive `apply_block` for 10⁶ blocks with realistic tx mix; verify treasury never goes negative, emission rates match the curve. **M5.0 (partial ✓):** `tests/emission_simulation.rs` — 100k-height curve check + 10k empty `apply_block` in CI; 1M curve + 100k `apply_block` `#[ignore]`; 512-block treasury ledger vs storage-proof drain.
-- **Proptest fuzzing of `apply_block`.** Randomized inputs; reject any panic / inconsistency. Target: 24-hour fuzz campaign with no findings.
+- **Proptest fuzzing of `apply_block`.** Randomized inputs; reject any panic / inconsistency. Target: 24-hour fuzz campaign with no findings. **M5.2 (partial ✓):** `tests/apply_block_proptest.rs` — 32-case CI props for valid empty chains + header tamper rejects with state unchanged; 128-block deep chain `#[ignore]` (nightly).
 - **Independent cryptographic review.** External third-party audit of `mfn-crypto`, `mfn-bls`, `mfn-storage`, and `apply_block`.
 - **Performance benchmarking.** Block throughput, tx verification rate, storage-proof verification rate. Compare against Monero / Arweave baselines.
 - **Spec finalization.** Write a formal MFBN-1 RFC document for cross-implementation conformance testing.

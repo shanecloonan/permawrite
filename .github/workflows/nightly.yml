@@ -33,3 +33,5 @@ jobs:
         run: cargo test -p mfn-node --release -- --ignored --test-threads=1
       - name: Run ignored emission simulations
         run: cargo test -p mfn-consensus --release --test emission_simulation -- --ignored --test-threads=1
+      - name: Run ignored apply_block proptest harness
+        run: cargo test -p mfn-consensus --release --test apply_block_proptest -- --ignored --test-threads=1
