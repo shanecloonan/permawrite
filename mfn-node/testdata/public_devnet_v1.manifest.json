@@ -1,0 +1,14 @@
+{
+  "network_id": "public-devnet-v1",
+  "genesis_spec": "public_devnet_v1.json",
+  "genesis_id": "7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df",
+  "slot_duration_ms": 30000,
+  "quorum_stake_bps": 6666,
+  "validator_count": 3,
+  "p2p_handshake": {
+    "protocol_version": 1,
+    "network_magic": 0
+  },
+  "seed_nodes": [],
+  "operator_notes": "Append public P2P listen addresses (host:port) to seed_nodes after deploying validators. Peers must use the same genesis_spec bytes (hence genesis_id)."
+}

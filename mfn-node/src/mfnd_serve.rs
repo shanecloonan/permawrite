@@ -70,6 +70,19 @@ fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
     (height, tip_id)
 }
 
+fn log_chain_identity(genesis_id: &[u8; 32], network_label: Option<&str>) {
+    if let Some(name) = network_label {
+        println!("mfnd_chain_network={name}");
+    }
+    let mut hex = String::with_capacity(64);
+    for b in genesis_id {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+    }
+    println!("mfnd_chain_genesis_id={hex}");
+    let _ = std::io::stdout().flush();
+}
+
 fn log_mempool_save(meta: &mfn_store::MempoolSaveMeta) {
     println!(
         "mfnd_mempool_save_ok bytes={} tx_count={}",
@@ -118,6 +131,7 @@ pub(crate) fn run_serve(
     produce: bool,
     committee_vote: bool,
     slot_duration_ms: u64,
+    network_label: Option<&str>,
 ) -> Result<(), String> {
     let genesis_timestamp = cfg.genesis.timestamp;
     let chain = Arc::new(Mutex::new(
@@ -256,6 +270,8 @@ pub(crate) fn run_serve(
     } else {
         (None, None)
     };
+
+    log_chain_identity(&genesis_id, network_label);
 
     let listener = TcpListener::bind(rpc_listen)
         .map_err(|e| format!("mfnd serve: bind `{rpc_listen}`: {e}"))?;

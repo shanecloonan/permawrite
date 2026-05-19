@@ -379,6 +379,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
             let store: std::sync::Arc<dyn mfn_store::ChainPersistence + Send + Sync> =
                 std::sync::Arc::new(store);
+            let network_label = parsed.genesis_toml.as_ref().and_then(|p| {
+                p.file_stem()
+                    .and_then(|s| s.to_str())
+                    .filter(|s| !s.is_empty())
+            });
             crate::mfnd_serve::run_serve(
                 store,
                 cfg,
@@ -388,6 +393,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 parsed.produce,
                 parsed.committee_vote,
                 parsed.slot_duration_ms,
+                network_label,
             )?;
         }
     }

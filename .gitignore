@@ -19,6 +19,11 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Local devnet bootstrap (M2.4.3)
+.permawrite-devnet-v1/
+scripts/public-devnet-v1/logs/
+scripts/public-devnet-v1/devnet-ports.env
+
 # Transient commit-message scratch files (used when crafting multi-line
 # commit messages on Powershell, which lacks HEREDOC support for git commit -m)
 .commit-msg.tmp

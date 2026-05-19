@@ -13,7 +13,23 @@ This document describes how to run a **three-validator devnet** on loopback or L
 | Rust stable | Same toolchain as CI (`rust-toolchain.toml` in repo root). |
 | `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` |
 | Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3). |
+| Chain identity | `genesis_id` **`7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
 | Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` — OS assigns). |
+
+On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=…` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
+
+---
+
+## One-command local mesh (M2.4.3)
+
+After `cargo build -p mfn-node --release --bin mfnd`:
+
+| Platform | Start three validators | Health check |
+|----------|------------------------|--------------|
+| Linux / macOS | `bash scripts/public-devnet-v1/start-all.sh` | `bash scripts/public-devnet-v1/health-check.sh` |
+| Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` | `powershell -File scripts/public-devnet-v1/health-check.ps1` |
+
+Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md).
 
 ---
 
