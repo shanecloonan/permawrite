@@ -7,6 +7,7 @@ use mfn_consensus::{
     decode_block, decode_chain_checkpoint, encode_transaction, Recipient, ChainState,
 };
 use mfn_crypto::{crypto_random, point_from_bytes};
+use mfn_storage::storage_commitment_hash;
 use mfn_wallet::{TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 
@@ -20,6 +21,18 @@ pub const DEFAULT_RING_SIZE: usize = 8;
 
 /// Default transfer fee (atomic units) when `--fee` is omitted.
 pub const DEFAULT_TRANSFER_FEE: u64 = 10_000;
+
+/// Default storage replication factor (must be within chain endowment params).
+pub const DEFAULT_UPLOAD_REPLICATION: u8 = 3;
+
+/// Default anchor output value for storage uploads (atomic units).
+pub const DEFAULT_UPLOAD_ANCHOR_VALUE: u64 = 1_000;
+
+/// Producer tip added on top of `upload_min_fee` when `--fee` is omitted.
+pub const DEFAULT_UPLOAD_FEE_TIP: u64 = 1_000;
+
+/// Maximum payload size for `wallet upload` (32 MiB).
+pub const MAX_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
 
 /// Wallet command errors.
 #[derive(Debug, thiserror::Error)]
@@ -53,6 +66,27 @@ pub struct SendParams {
     pub ring_size: usize,
     /// Optional `tx.extra` memo bytes (hex).
     pub extra: Vec<u8>,
+}
+
+/// Parameters for `wallet upload`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UploadParams {
+    /// Path to file bytes to anchor on-chain.
+    pub file_path: PathBuf,
+    /// Replication factor (chain endowment params).
+    pub replication: u8,
+    /// Transaction fee; `None` → `upload_min_fee` + [`DEFAULT_UPLOAD_FEE_TIP`].
+    pub fee: Option<u64>,
+    /// Value paid to the anchor output (excluding fee).
+    pub anchor_value: u64,
+    /// Ring size (≥ 2).
+    pub ring_size: usize,
+    /// Optional `tx.extra` memo bytes.
+    pub extra: Vec<u8>,
+    /// Anchor recipient view key hex; `None` → pay anchor to this wallet.
+    pub anchor_view_hex: Option<String>,
+    /// Anchor recipient spend key hex; required with `anchor_view_hex` when not self.
+    pub anchor_spend_hex: Option<String>,
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -170,6 +204,125 @@ pub fn wallet_send(
     println!("balance_after_send={}", wallet.balance());
     println!("owned_count_after_send={}", wallet.owned_count());
     println!("wallet_path={}", path.display());
+    if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
+        eprintln!(
+            "warning: submit_tx outcome is {}; tx may not be in the mempool",
+            submit.outcome_kind
+        );
+    }
+    Ok(())
+}
+
+/// `wallet upload` — read file, build storage upload tx, `submit_tx`.
+pub fn wallet_upload(
+    path: &Path,
+    client: &mut RpcClient,
+    params: &UploadParams,
+) -> Result<(), WalletCmdError> {
+    if params.ring_size < 2 {
+        return Err(WalletCmdError::Usage(
+            "ring-size must be at least 2".into(),
+        ));
+    }
+    if params.replication == 0 {
+        return Err(WalletCmdError::Usage(
+            "replication must be at least 1".into(),
+        ));
+    }
+    let data = std::fs::read(&params.file_path).map_err(|e| {
+        WalletCmdError::Usage(format!(
+            "read {}: {e}",
+            params.file_path.display()
+        ))
+    })?;
+    if data.is_empty() {
+        return Err(WalletCmdError::Usage("upload file is empty".into()));
+    }
+    if data.len() > MAX_UPLOAD_BYTES {
+        return Err(WalletCmdError::Usage(format!(
+            "upload file exceeds maximum size ({} bytes > {MAX_UPLOAD_BYTES})",
+            data.len()
+        )));
+    }
+
+    let anchor_recipient = match (
+        params.anchor_view_hex.as_deref(),
+        params.anchor_spend_hex.as_deref(),
+    ) {
+        (None, None) => None,
+        (Some(view), Some(spend)) => Some(parse_recipient(view, spend)?),
+        _ => {
+            return Err(WalletCmdError::Usage(
+                "anchor requires both --anchor-view and --anchor-spend (or neither for self-anchor)"
+                    .into(),
+            ));
+        }
+    };
+
+    let mut file = WalletFile::load(path)?;
+    let mut wallet = file.to_wallet()?;
+    file.apply_pending_spends(&mut wallet)?;
+    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let chain_state = fetch_chain_state(client)?;
+
+    let fee = match params.fee {
+        Some(f) => f,
+        None => wallet
+            .upload_min_fee(data.len() as u64, params.replication, &chain_state)?
+            .saturating_add(DEFAULT_UPLOAD_FEE_TIP),
+    };
+
+    let anchor = anchor_recipient.unwrap_or_else(|| wallet.recipient());
+
+    let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
+    let mut rng = crypto_random;
+    let art = wallet.build_storage_upload(
+        &data,
+        params.replication,
+        fee,
+        anchor,
+        params.anchor_value,
+        None,
+        params.ring_size,
+        &chain_state,
+        &params.extra,
+        &mut rng,
+    )?;
+
+    let consumed: Vec<[u8; 32]> = pre_owned
+        .into_iter()
+        .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
+        .collect();
+    file.record_pending_spends(&consumed);
+    file.scan_height = wallet.scan_height();
+    file.save(path)?;
+
+    let upload_hash = storage_commitment_hash(&art.built.commit);
+    let data_root = art.built.commit.data_root;
+    let tx_bytes = encode_transaction(&art.signed.tx);
+    let submit = client.submit_tx(&tx_bytes)?;
+
+    println!("tip_height={}", stats.tip_height);
+    println!("blocks_scanned={}", stats.blocks_fetched);
+    println!("file={}", params.file_path.display());
+    println!("bytes={}", data.len());
+    println!("replication={}", params.replication);
+    println!("anchor_value={}", params.anchor_value);
+    println!("fee={fee}");
+    println!("min_fee={}", art.min_fee);
+    println!("burden={}", art.burden);
+    println!("data_root={}", hex::encode(data_root));
+    println!("storage_commitment_hash={}", hex::encode(upload_hash));
+    println!("ring_size={}", params.ring_size);
+    println!("tx_id={}", submit.tx_id);
+    println!("mempool_len={}", submit.pool_len);
+    println!("outcome={}", submit.outcome_kind);
+    println!("balance_after_upload={}", wallet.balance());
+    println!("owned_count_after_upload={}", wallet.owned_count());
+    println!("wallet_path={}", path.display());
+    eprintln!(
+        "note: retain file bytes locally to answer SPoRA chunk audits; commitment hash is on-chain only"
+    );
     if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
         eprintln!(
             "warning: submit_tx outcome is {}; tx may not be in the mempool",

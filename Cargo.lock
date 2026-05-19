@@ -294,6 +294,7 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-node",
+ "mfn-storage",
  "mfn-store",
  "mfn-wallet",
  "rand_core",

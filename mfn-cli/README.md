@@ -2,7 +2,6 @@
 
 Operator CLI for Permawrite (**M3.0** / **M3.1**): talks to a running [`mfnd`](../mfn-node) node over newline-delimited JSON-RPC 2.0 and drives [`mfn-wallet`](../mfn-wallet) for local key material + chain scanning.
 
-`upload` is planned in **M3.3**.
 
 ## Build
 
@@ -38,6 +37,9 @@ mfn-cli wallet balance
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
   --fee 10000 --ring-size 8
+
+# Permanent storage upload (anchor to self; fee defaults to upload_min_fee + tip)
+mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --replication 3
 ```
 
 Default RPC address: `127.0.0.1:18731` (mfnd default `--rpc-listen`).
@@ -46,7 +48,11 @@ Default wallet file: `wallet.json` (override with `--wallet PATH`). The file sto
 
 `wallet scan` / `wallet balance` fetch every block from height `1` through the node tip via `get_block`, decode with `mfn-consensus`, and feed [`Wallet::ingest_block`](../mfn-wallet/src/wallet.rs). This is correct but O(chain height) per invocation; persistent UTXO snapshots are a later optimization.
 
-`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines. To include the tx in a block: stop `mfnd serve` (so `mempool.bytes` is flushed), then run `mfnd step --blocks 1` (which reloads the durable mempool per **M2.3.21**).
+`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
+
+`wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. Keep the file bytes locally for SPoRA chunk proofs.
+
+To mine either tx: stop `mfnd serve` (flushes `mempool.bytes`), then `mfnd step --blocks 1` (reloads durable mempool per **M2.3.21**).
 
 ## Library
 

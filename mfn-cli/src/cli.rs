@@ -7,7 +7,8 @@ use serde_json::json;
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_new, wallet_scan, wallet_send,
-    SendParams, WalletCmdError, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+    wallet_upload, SendParams, UploadParams, WalletCmdError, DEFAULT_RING_SIZE,
+    DEFAULT_TRANSFER_FEE,
 };
 
 /// CLI parse or RPC failure.
@@ -81,6 +82,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
+                WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
             }
         }
     }
@@ -124,6 +126,7 @@ enum WalletSub {
     Scan,
     Balance,
     Send(SendParams),
+    Upload(UploadParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,7 +155,10 @@ fn usage() -> &'static str {
        wallet scan       scan blocks from node tip through wallet file\n\
        wallet balance    scan chain and print balance\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
-                         options: --fee N --ring-size N --extra HEX\n"
+                         options: --fee N --ring-size N --extra HEX\n\
+       wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
+                         options: --replication N --fee N --anchor-value N --ring-size N\n\
+                         --anchor-view HEX --anchor-spend HEX --extra HEX\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -193,7 +199,16 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 1;
             continue;
         }
-        if a == "--fee" || a == "--ring-size" || a == "--extra" {
+        if matches!(
+            a,
+            "--fee"
+                | "--ring-size"
+                | "--extra"
+                | "--replication"
+                | "--anchor-value"
+                | "--anchor-view"
+                | "--anchor-spend"
+        ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
                 return Err(CliError::Usage(format!("{a} requires a value\n{}", usage())));
@@ -284,7 +299,7 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|balance|send)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|balance|send|upload)\n{}",
             usage()
         )));
     };
@@ -305,6 +320,7 @@ fn parse_wallet_cmd(
             }
         }
         "send" => WalletSub::Send(parse_wallet_send_args(&rest[1..])?),
+        "upload" => WalletSub::Upload(parse_wallet_upload_args(&rest[1..])?),
         other => {
             return Err(CliError::Usage(format!(
                 "unknown wallet subcommand `{other}`\n{}",
@@ -385,6 +401,119 @@ fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
         fee,
         ring_size,
         extra,
+    })
+}
+
+fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
+    use crate::wallet_cmd::{
+        DEFAULT_RING_SIZE, DEFAULT_UPLOAD_ANCHOR_VALUE, DEFAULT_UPLOAD_REPLICATION,
+    };
+
+    let mut fee: Option<u64> = None;
+    let mut replication = DEFAULT_UPLOAD_REPLICATION;
+    let mut anchor_value = DEFAULT_UPLOAD_ANCHOR_VALUE;
+    let mut ring_size = DEFAULT_RING_SIZE;
+    let mut extra: Vec<u8> = Vec::new();
+    let mut anchor_view: Option<String> = None;
+    let mut anchor_spend: Option<String> = None;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--fee" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--fee requires a value".into()));
+            };
+            fee = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a == "--replication" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--replication requires a value".into()));
+            };
+            replication = v
+                .parse()
+                .map_err(|_| CliError::Usage("--replication must be 1..=255".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--anchor-value" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--anchor-value requires a value".into()));
+            };
+            anchor_value = v
+                .parse()
+                .map_err(|_| CliError::Usage("--anchor-value must be a non-negative integer".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--ring-size" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--ring-size requires a value".into()));
+            };
+            ring_size = v
+                .parse()
+                .map_err(|_| CliError::Usage("--ring-size must be an integer ≥ 2".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--anchor-view" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--anchor-view requires hex".into()));
+            };
+            anchor_view = Some(v.to_string());
+            i += 2;
+            continue;
+        }
+        if a == "--anchor-spend" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--anchor-spend requires hex".into()));
+            };
+            anchor_spend = Some(v.to_string());
+            i += 2;
+            continue;
+        }
+        if a == "--extra" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--extra requires hex bytes".into()));
+            };
+            let t = v
+                .strip_prefix("0x")
+                .or_else(|| v.strip_prefix("0X"))
+                .unwrap_or(v);
+            extra = hex::decode(t)
+                .map_err(|e| CliError::Usage(format!("--extra hex decode: {e}")))?;
+            i += 2;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown wallet upload option `{a}`\n{}",
+                usage()
+            )));
+        }
+        positional.push(a);
+        i += 1;
+    }
+    if positional.len() != 1 {
+        return Err(CliError::Usage(format!(
+            "wallet upload requires exactly one FILE path\n{}",
+            usage()
+        )));
+    }
+    Ok(UploadParams {
+        file_path: std::path::PathBuf::from(positional[0]),
+        replication,
+        fee,
+        anchor_value,
+        ring_size,
+        extra,
+        anchor_view_hex: anchor_view,
+        anchor_spend_hex: anchor_spend,
     })
 }
 

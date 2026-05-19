@@ -18,6 +18,6 @@ pub use rpc::{
     BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult,
 };
 pub use wallet_cmd::{
-    SendParams, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+    SendParams, UploadParams, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE, DEFAULT_UPLOAD_REPLICATION,
 };
 pub use wallet_store::{KeyDerivation, WalletFile, WalletStoreError, DEFAULT_WALLET_PATH};
