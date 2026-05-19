@@ -6,9 +6,9 @@ use serde_json::json;
 
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::wallet_cmd::{
-    resolve_wallet_path, wallet_address, wallet_balance, wallet_new, wallet_scan, wallet_send,
-    wallet_upload, SendParams, UploadParams, WalletCmdError, DEFAULT_RING_SIZE,
-    DEFAULT_TRANSFER_FEE,
+    resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
+    wallet_send, wallet_upload, ClaimParams, SendParams, UploadParams, WalletCmdError,
+    DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
 };
 
 /// CLI parse or RPC failure.
@@ -83,6 +83,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
                 WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
+                WalletSub::Claim(params) => wallet_claim(&path, &mut client, &params)?,
             }
         }
     }
@@ -127,6 +128,7 @@ enum WalletSub {
     Balance,
     Send(SendParams),
     Upload(UploadParams),
+    Claim(ClaimParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,7 +160,10 @@ fn usage() -> &'static str {
                          options: --fee N --ring-size N --extra HEX\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N\n\
-                         --anchor-view HEX --anchor-spend HEX --extra HEX\n"
+                         --anchor-view HEX --anchor-spend HEX --extra HEX\n\
+       wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
+                         options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
+                         --fee N --ring-size N\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -208,6 +213,9 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--anchor-value"
                 | "--anchor-view"
                 | "--anchor-spend"
+                | "--message"
+                | "--message-hex"
+                | "--commit-hash"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -299,7 +307,7 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|balance|send|upload)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|balance|send|upload|claim)\n{}",
             usage()
         )));
     };
@@ -321,6 +329,7 @@ fn parse_wallet_cmd(
         }
         "send" => WalletSub::Send(parse_wallet_send_args(&rest[1..])?),
         "upload" => WalletSub::Upload(parse_wallet_upload_args(&rest[1..])?),
+        "claim" => WalletSub::Claim(parse_wallet_claim_args(&rest[1..])?),
         other => {
             return Err(CliError::Usage(format!(
                 "unknown wallet subcommand `{other}`\n{}",
@@ -514,6 +523,91 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
         extra,
         anchor_view_hex: anchor_view,
         anchor_spend_hex: anchor_spend,
+    })
+}
+
+fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliError> {
+    let mut fee = DEFAULT_CLAIM_FEE;
+    let mut ring_size = DEFAULT_RING_SIZE;
+    let mut commit_hash_hex: Option<String> = None;
+    let mut message: Option<Vec<u8>> = None;
+    let mut positional: Vec<&str> = Vec::new();
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--fee" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--fee requires a value".into()));
+            };
+            fee = v
+                .parse()
+                .map_err(|_| CliError::Usage("--fee must be a non-negative integer".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--ring-size" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--ring-size requires a value".into()));
+            };
+            ring_size = v
+                .parse()
+                .map_err(|_| CliError::Usage("--ring-size must be an integer ≥ 2".into()))?;
+            i += 2;
+            continue;
+        }
+        if a == "--commit-hash" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--commit-hash requires hex".into()));
+            };
+            commit_hash_hex = Some(v.to_string());
+            i += 2;
+            continue;
+        }
+        if a == "--message" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--message requires text".into()));
+            };
+            message = Some(v.as_bytes().to_vec());
+            i += 2;
+            continue;
+        }
+        if a == "--message-hex" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage("--message-hex requires hex bytes".into()));
+            };
+            let t = v
+                .strip_prefix("0x")
+                .or_else(|| v.strip_prefix("0X"))
+                .unwrap_or(v);
+            message = Some(
+                hex::decode(t)
+                    .map_err(|e| CliError::Usage(format!("--message-hex decode: {e}")))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown wallet claim option `{a}`\n{}",
+                usage()
+            )));
+        }
+        positional.push(a);
+        i += 1;
+    }
+    if positional.len() != 1 {
+        return Err(CliError::Usage(format!(
+            "wallet claim requires DATA_ROOT_HEX (64 hex chars)\n{}",
+            usage()
+        )));
+    }
+    let message = message.unwrap_or_else(|| b"permawrite claim".to_vec());
+    Ok(ClaimParams {
+        data_root_hex: positional[0].to_string(),
+        commit_hash_hex,
+        message,
+        fee,
+        ring_size,
     })
 }
 

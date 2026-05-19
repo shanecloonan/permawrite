@@ -1,4 +1,4 @@
-//! `mfn-cli wallet` subcommands (**M3.1** / **M3.2**).
+//! `mfn-cli wallet` subcommands (**M3.1**–**M3.4**).
 
 use std::path::{Path, PathBuf};
 
@@ -6,9 +6,10 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_consensus::{
     decode_block, decode_chain_checkpoint, encode_transaction, Recipient, ChainState,
 };
+use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::{crypto_random, point_from_bytes};
 use mfn_storage::storage_commitment_hash;
-use mfn_wallet::{TransferRecipient, Wallet, WalletError};
+use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 
 use crate::rpc::RpcClient;
@@ -33,6 +34,9 @@ pub const DEFAULT_UPLOAD_FEE_TIP: u64 = 1_000;
 
 /// Maximum payload size for `wallet upload` (32 MiB).
 pub const MAX_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
+
+/// Default fee for standalone authorship claim txs when `--fee` is omitted.
+pub const DEFAULT_CLAIM_FEE: u64 = DEFAULT_TRANSFER_FEE;
 
 /// Wallet command errors.
 #[derive(Debug, thiserror::Error)]
@@ -87,6 +91,21 @@ pub struct UploadParams {
     pub anchor_view_hex: Option<String>,
     /// Anchor recipient spend key hex; required with `anchor_view_hex` when not self.
     pub anchor_spend_hex: Option<String>,
+}
+
+/// Parameters for `wallet claim`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimParams {
+    /// 32-byte `data_root` (64 hex chars).
+    pub data_root_hex: String,
+    /// Optional storage `commit_hash` (64 hex); `None` → unbound claim.
+    pub commit_hash_hex: Option<String>,
+    /// Claim message bytes (UTF-8 from `--message` or raw from `--message-hex`).
+    pub message: Vec<u8>,
+    /// Transaction fee (atomic units).
+    pub fee: u64,
+    /// Ring size (≥ 2).
+    pub ring_size: usize,
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -332,6 +351,81 @@ pub fn wallet_upload(
     Ok(())
 }
 
+/// `wallet claim` — publish a standalone MFCL authorship claim via `submit_tx`.
+pub fn wallet_claim(
+    path: &Path,
+    client: &mut RpcClient,
+    params: &ClaimParams,
+) -> Result<(), WalletCmdError> {
+    if params.ring_size < 2 {
+        return Err(WalletCmdError::Usage(
+            "ring-size must be at least 2".into(),
+        ));
+    }
+    let data_root = parse_hash32(&params.data_root_hex, "data_root")?;
+    let commit_hash = match params.commit_hash_hex.as_deref() {
+        None => UNBOUND_COMMIT_HASH,
+        Some(hex) => parse_hash32(hex, "commit_hash")?,
+    };
+
+    let mut file = WalletFile::load(path)?;
+    let seed = file.seed_bytes()?;
+    let claiming = ClaimingIdentity::from_seed(&seed);
+    let mut wallet = file.to_wallet()?;
+    file.apply_pending_spends(&mut wallet)?;
+    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let chain_state = fetch_chain_state(client)?;
+
+    let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
+    let mut rng = crypto_random;
+    let signed = wallet.publish_claim_tx(
+        &claiming,
+        data_root,
+        commit_hash,
+        &params.message,
+        params.fee,
+        params.ring_size,
+        &chain_state,
+        &mut rng,
+    )?;
+
+    let consumed: Vec<[u8; 32]> = pre_owned
+        .into_iter()
+        .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
+        .collect();
+    file.record_pending_spends(&consumed);
+    file.scan_height = wallet.scan_height();
+    file.save(path)?;
+
+    let tx_bytes = encode_transaction(&signed.tx);
+    let submit = client.submit_tx(&tx_bytes)?;
+
+    println!("tip_height={}", stats.tip_height);
+    println!("blocks_scanned={}", stats.blocks_fetched);
+    println!(
+        "claim_pubkey_hex={}",
+        hex::encode(claiming.claim_pubkey().compress().to_bytes())
+    );
+    println!("data_root={}", hex::encode(data_root));
+    println!("commit_hash={}", hex::encode(commit_hash));
+    println!("message_len={}", params.message.len());
+    println!("fee={}", params.fee);
+    println!("ring_size={}", params.ring_size);
+    println!("tx_id={}", submit.tx_id);
+    println!("mempool_len={}", submit.pool_len);
+    println!("outcome={}", submit.outcome_kind);
+    println!("balance_after_claim={}", wallet.balance());
+    println!("owned_count_after_claim={}", wallet.owned_count());
+    println!("wallet_path={}", path.display());
+    if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
+        eprintln!(
+            "warning: submit_tx outcome is {}; tx may not be in the mempool",
+            submit.outcome_kind
+        );
+    }
+    Ok(())
+}
+
 /// Resolve `--wallet` or default [`DEFAULT_WALLET_PATH`].
 pub fn resolve_wallet_path(opt: Option<&str>) -> PathBuf {
     opt.map(PathBuf::from)
@@ -351,9 +445,13 @@ fn sync_wallet_from_node(
     file.apply_pending_spends(wallet)?;
     let tip = client.get_tip()?;
     let tip_height = tip.tip_height.unwrap_or(0);
+    let start_height = file
+        .scan_height
+        .map(|h| h.saturating_add(1))
+        .unwrap_or(1);
     let mut blocks_fetched = 0u32;
-    if tip_height >= 1 {
-        for h in 1..=tip_height {
+    if tip_height >= u64::from(start_height) {
+        for h in u64::from(start_height)..=tip_height {
             let height = u32::try_from(h).map_err(|_| {
                 WalletCmdError::Usage(format!("tip height {h} exceeds u32::MAX"))
             })?;
@@ -385,6 +483,25 @@ fn parse_recipient(view_hex: &str, spend_hex: &str) -> Result<Recipient, WalletC
         view_pub: parse_compressed_point(view_hex, "view_pub")?,
         spend_pub: parse_compressed_point(spend_hex, "spend_pub")?,
     })
+}
+
+fn parse_hash32(hex_str: &str, field: &str) -> Result<[u8; 32], WalletCmdError> {
+    let t = hex_str.trim();
+    let t = t
+        .strip_prefix("0x")
+        .or_else(|| t.strip_prefix("0X"))
+        .unwrap_or(t);
+    if t.len() != 64 {
+        return Err(WalletCmdError::Usage(format!(
+            "{field} must be 64 hex characters (got {})",
+            t.len()
+        )));
+    }
+    let bytes = hex::decode(t)
+        .map_err(|e| WalletCmdError::Usage(format!("{field} hex decode: {e}")))?;
+    bytes
+        .try_into()
+        .map_err(|_| WalletCmdError::Usage(format!("{field} must be 32 bytes")))
 }
 
 fn parse_compressed_point(hex_str: &str, field: &str) -> Result<EdwardsPoint, WalletCmdError> {

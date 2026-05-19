@@ -2046,6 +2046,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.1** | `mfn-cli wallet`: `new` / `address` / `scan` / `balance` + on-disk wallet file + `get_block` sync. | ✓ shipped |
 | **M3.2** | `mfn-cli wallet send`: CLSAG transfer + `submit_tx`; `mfnd step` reloads durable mempool. | ✓ shipped |
 | **M3.3** | `mfn-cli wallet upload`: storage commitment + endowment fee gate + `submit_tx`. | ✓ shipped |
+| **M3.4** | `mfn-cli wallet claim`: MFCL authorship claim + incremental scan from `scan_height`. | ✓ shipped |
 
 ### Components
 
@@ -2057,6 +2058,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-wallet` | Keypair generation, scanning, transfer/upload construction (library). | ✓ live |
 | `mfn-cli wallet send` | Build CLSAG transfer + `submit_tx` via RPC. | ✓ M3.2 |
 | `mfn-cli wallet upload` | Storage upload + `submit_tx`. | ✓ M3.3 |
+| `mfn-cli wallet claim` | Standalone authorship claim + `submit_tx`. | ✓ M3.4 |
 
 ### Scope
 
