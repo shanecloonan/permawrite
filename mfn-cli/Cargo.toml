@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Permawrite operator CLI: JSON-RPC client for mfnd and future wallet commands."
+description = "Permawrite operator CLI: JSON-RPC client for mfnd and wallet commands."
 
 [[bin]]
 name = "mfn-cli"
@@ -16,9 +16,15 @@ path = "src/bin/mfn-cli.rs"
 all = "warn"
 
 [dependencies]
+hex = { workspace = true }
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-crypto = { path = "../mfn-crypto" }
+mfn-wallet = { path = "../mfn-wallet" }
+rand_core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+mfn-consensus = { path = "../mfn-consensus" }
 mfn-node = { path = "../mfn-node" }

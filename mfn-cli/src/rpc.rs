@@ -172,6 +172,25 @@ impl RpcClient {
         serde_json::from_value(v).map_err(|e| RpcError::Protocol(format!("get_mempool decode: {e}")))
     }
 
+    /// `get_block` for `height` (≥ 1) — returns canonical encoded block bytes.
+    pub fn get_block(&mut self, height: u32) -> Result<Vec<u8>, RpcError> {
+        let v = self.call("get_block", json!({ "height": height }))?;
+        let h = v
+            .get("height")
+            .and_then(|x| x.as_u64())
+            .ok_or_else(|| RpcError::Protocol("get_block: missing height".into()))?;
+        if h != u64::from(height) {
+            return Err(RpcError::Protocol(format!(
+                "get_block: height mismatch (asked {height}, got {h})"
+            )));
+        }
+        let hex_str = v
+            .get("block_hex")
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| RpcError::Protocol("get_block: missing block_hex".into()))?;
+        hex::decode(hex_str).map_err(|e| RpcError::Protocol(format!("get_block hex: {e}")))
+    }
+
     fn request_line(&self, request_line: &str) -> Result<String, RpcError> {
         let mut stream = TcpStream::connect_timeout(
             &self

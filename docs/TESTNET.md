@@ -103,11 +103,15 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
 
 Each node prints `mfnd_serve_listening=127.0.0.1:PORT`.
 
-**M3.0 — `mfn-cli`** (after `cargo build -p mfn-cli --release`):
+**M3.0 / M3.1 — `mfn-cli`** (after `cargo build -p mfn-cli --release`):
 
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> tip
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> methods
+
+# Wallet (local wallet.json; scans blocks via get_block)
+mfn-cli wallet new
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance
 ```
 
 Raw one-liner (no CLI):

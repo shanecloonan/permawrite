@@ -289,7 +289,12 @@ dependencies = [
 name = "mfn-cli"
 version = "0.1.0"
 dependencies = [
+ "hex",
+ "mfn-consensus",
+ "mfn-crypto",
  "mfn-node",
+ "mfn-wallet",
+ "rand_core",
  "serde",
  "serde_json",
  "thiserror",

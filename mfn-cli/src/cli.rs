@@ -1,10 +1,13 @@
-//! `mfn-cli` command-line driver (**M3.0**).
+//! `mfn-cli` command-line driver (**M3.0** / **M3.1**).
 
 use std::process::ExitCode;
 
 use serde_json::json;
 
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
+use crate::wallet_cmd::{
+    resolve_wallet_path, wallet_address, wallet_balance, wallet_new, wallet_scan, WalletCmdError,
+};
 
 /// CLI parse or RPC failure.
 #[derive(Debug, thiserror::Error)]
@@ -15,6 +18,9 @@ pub enum CliError {
     /// Node JSON-RPC error.
     #[error("{0}")]
     Rpc(#[from] crate::rpc::RpcError),
+    /// Wallet file / scan error.
+    #[error("{0}")]
+    Wallet(#[from] WalletCmdError),
 }
 
 /// Entry for the `mfn-cli` binary.
@@ -66,6 +72,15 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 result.to_string()
             }));
         }
+        Cmd::Wallet { sub, wallet_path, force } => {
+            let path = resolve_wallet_path(wallet_path.as_deref());
+            match sub {
+                WalletSub::New => wallet_new(&path, force)?,
+                WalletSub::Address => wallet_address(&path)?,
+                WalletSub::Scan => wallet_scan(&path, &mut client)?,
+                WalletSub::Balance => wallet_balance(&path, &mut client)?,
+            }
+        }
     }
     Ok(())
 }
@@ -93,6 +108,19 @@ enum Cmd {
         method: String,
         params_json: Option<String>,
     },
+    Wallet {
+        sub: WalletSub,
+        wallet_path: Option<String>,
+        force: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum WalletSub {
+    New,
+    Address,
+    Scan,
+    Balance,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,23 +130,31 @@ struct Parsed {
 }
 
 fn usage() -> &'static str {
-    "usage: mfn-cli [--rpc HOST:PORT] <COMMAND> [ARGS]\n\
+    "usage: mfn-cli [--rpc HOST:PORT] [--wallet PATH] <COMMAND> [ARGS]\n\
      \n\
      options:\n\
        --rpc ADDR:PORT   mfnd JSON-RPC listen address (default 127.0.0.1:18731)\n\
+       --wallet PATH     wallet JSON file (default wallet.json)\n\
        --params JSON     only for `call`: JSON-RPC params object/array (default null)\n\
+       --force           only for `wallet new`: overwrite existing wallet file\n\
      \n\
      commands:\n\
        tip               print chain tip (get_tip)\n\
        methods           list JSON-RPC methods (list_methods)\n\
        block-header H    block header at height H (get_block_header)\n\
        mempool           list mempool tx ids (get_mempool)\n\
-       call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n"
+       call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
+       wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet address    print view/spend public keys from wallet file\n\
+       wallet scan       scan blocks from node tip through wallet file\n\
+       wallet balance    scan chain and print balance\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     let mut rpc_addr = DEFAULT_RPC_ADDR.to_string();
+    let mut wallet_path: Option<String> = None;
     let mut params_json: Option<String> = None;
+    let mut force = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -131,12 +167,25 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 2;
             continue;
         }
+        if a == "--wallet" {
+            let Some(v) = args.get(i + 1) else {
+                return Err(CliError::Usage("--wallet requires PATH".into()));
+            };
+            wallet_path = Some(v.clone());
+            i += 2;
+            continue;
+        }
         if a == "--params" {
             let Some(v) = args.get(i + 1) else {
                 return Err(CliError::Usage("--params requires JSON".into()));
             };
             params_json = Some(v.clone());
             i += 2;
+            continue;
+        }
+        if a == "--force" {
+            force = true;
+            i += 1;
             continue;
         }
         if a.starts_with('-') {
@@ -203,6 +252,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 params_json,
             }
         }
+        "wallet" => parse_wallet_cmd(&positional[1..], wallet_path, force)?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown command `{other}`\n{}",
@@ -211,6 +261,42 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         }
     };
     Ok(Parsed { rpc_addr, cmd })
+}
+
+fn parse_wallet_cmd(
+    rest: &[&str],
+    wallet_path: Option<String>,
+    force: bool,
+) -> Result<Cmd, CliError> {
+    let Some(sub_name) = rest.first() else {
+        return Err(CliError::Usage(format!(
+            "wallet requires SUBCOMMAND (new|address|scan|balance)\n{}",
+            usage()
+        )));
+    };
+    if rest.len() != 1 {
+        return Err(CliError::Usage(format!(
+            "wallet {sub_name} takes no extra arguments\n{}",
+            usage()
+        )));
+    }
+    let sub = match *sub_name {
+        "new" => WalletSub::New,
+        "address" => WalletSub::Address,
+        "scan" => WalletSub::Scan,
+        "balance" => WalletSub::Balance,
+        other => {
+            return Err(CliError::Usage(format!(
+                "unknown wallet subcommand `{other}`\n{}",
+                usage()
+            )));
+        }
+    };
+    Ok(Cmd::Wallet {
+        sub,
+        wallet_path,
+        force,
+    })
 }
 
 #[cfg(test)]
@@ -235,5 +321,27 @@ mod tests {
         .unwrap();
         assert_eq!(p.rpc_addr, "127.0.0.1:19999");
         assert_eq!(p.cmd, Cmd::BlockHeader { height: 3 });
+    }
+
+    #[test]
+    fn parse_wallet_balance_with_wallet_path() {
+        let p = parse_args(&[
+            "--wallet".into(),
+            "/tmp/alice.json".into(),
+            "wallet".into(),
+            "balance".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Balance,
+                wallet_path,
+                force,
+            } => {
+                assert_eq!(wallet_path.as_deref(), Some("/tmp/alice.json"));
+                assert!(!force);
+            }
+            _ => panic!("expected wallet balance"),
+        }
     }
 }

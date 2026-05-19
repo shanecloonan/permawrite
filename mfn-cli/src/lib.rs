@@ -1,7 +1,8 @@
-//! Permawrite operator CLI library (**M3.0**).
+//! Permawrite operator CLI library (**M3.0** / **M3.1**).
 //!
 //! - [`rpc::RpcClient`] — newline-delimited JSON-RPC 2.0 over TCP to `mfnd serve`.
-//! - [`cli`] — minimal command-line driver for `mfn-cli` binary.
+//! - [`cli`] — command-line driver for `mfn-cli` binary.
+//! - [`wallet_store`] / [`wallet_cmd`] — on-disk wallet file + chain scan (**M3.1**).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -9,8 +10,11 @@
 
 pub mod cli;
 pub mod rpc;
+pub mod wallet_cmd;
+pub mod wallet_store;
 
 pub use cli::{cli_main, run_cli, CliError};
 pub use rpc::{
     BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError,
 };
+pub use wallet_store::{KeyDerivation, WalletFile, WalletStoreError, DEFAULT_WALLET_PATH};
