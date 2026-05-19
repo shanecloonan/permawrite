@@ -210,6 +210,15 @@ Demo **Quorum P2P peers** field passes peer addresses; sync fetches via `get_lig
 
 Requires the RPC node to reach the peer (same machine loopback or routable P2P port). The peer must run `mfnd serve --p2p-listen`.
 
+## Light relay + P2P quorum (M4.16)
+
+| RPC / relay | Role |
+|-------------|------|
+| `get_light_follow_quorum_p2p` | Parallel dial of `params.peers` (≥2); [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) on wire rows |
+| `demo/proxy/light-relay.mjs` | HTTP `POST /light-follow` → quorum RPC on `RELAY_RPC` (can differ from wallet scan node) |
+
+Demo: with **Light relay URL** + ≥2 P2P peers, sync fetches evolution via the relay and still quorum-checks against local `get_light_follow`.
+
 ## Roadmap
 
-- **M4.16** — Multi-peer P2P quorum without routing all fetches through the wallet’s RPC node (browser mesh / dedicated light-client relay).
+- **M4.17** — Browser-direct multi-relay quorum (no single backend dials all peers).

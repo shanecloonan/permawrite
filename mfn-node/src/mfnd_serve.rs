@@ -128,6 +128,7 @@ fn serve_dispatch_opts(
         }) as Arc<dyn Fn(&[u8]) + Send + Sync>
     });
     let tip_for_fetch = serve_tip.clone();
+    let tip_for_quorum = serve_tip.clone();
     let p2p_light_follow: mfn_rpc::P2pLightFollowHook = Arc::new(move |peer, from, to| {
         let tip_guard = tip_for_fetch
             .lock()
@@ -142,11 +143,27 @@ fn serve_dispatch_opts(
             to,
         )
     });
+    let p2p_light_follow_quorum: mfn_rpc::P2pLightFollowQuorumHook =
+        Arc::new(move |peers, from, to| {
+            let tip_guard = tip_for_quorum
+                .lock()
+                .map_err(|_| "serve tip mutex poisoned".to_string())?;
+            let (height, tip_id) = *tip_guard;
+            let local_tip = mfn_net::ChainTipV1 { height, tip_id };
+            crate::p2p_light_follow_fetch::fetch_light_follow_quorum_json(
+                peers,
+                &genesis_id,
+                local_tip,
+                from,
+                to,
+            )
+        });
     ServeDispatchOpts {
         genesis: Some(genesis),
         on_fresh_tx,
         on_fresh_admit: Some(on_fresh_admit),
         p2p_light_follow: Some(p2p_light_follow),
+        p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
     }
 }
 

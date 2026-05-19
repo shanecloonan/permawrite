@@ -54,7 +54,7 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.15)</h2>
+        <h2>Wallet sync (M4.7–M4.16)</h2>
         <p class="lede">
           Verifies headers with an evolving light-follower checkpoint (<code>lightChainVerifyHeader</code>),
           scans txs via <code>get_block_txs</code>, and applies validator-set evolution per block
@@ -75,7 +75,14 @@
           id="sync-quorum-p2p"
           type="text"
           spellcheck="false"
-          placeholder="127.0.0.1:18732"
+          placeholder="127.0.0.1:18732, 127.0.0.1:18733"
+        />
+        <label for="sync-light-relay">Light relay URL (optional — <code>demo/proxy/light-relay.mjs</code>)</label>
+        <input
+          id="sync-light-relay"
+          type="text"
+          spellcheck="false"
+          placeholder="http://127.0.0.1:8790"
         />
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">

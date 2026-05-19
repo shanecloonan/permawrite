@@ -221,6 +221,52 @@ fn extract_peer_light_follow_params(params: Option<&Value>) -> Result<(String, u
     Ok((peer, from_h, to_h))
 }
 
+/// `get_light_follow_quorum_p2p` — `peers` array plus height range (**M4.16**).
+fn extract_peers_light_follow_params(
+    params: Option<&Value>,
+) -> Result<(Vec<String>, u32, u32), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let obj = match p {
+        Value::Object(o) => o,
+        _ => {
+            return Err(
+                "params must be a JSON object with peers, from_height, and to_height".to_string(),
+            );
+        }
+    };
+    let peers_val = obj
+        .get("peers")
+        .ok_or_else(|| "missing params.peers (array of HOST:PORT)".to_string())?;
+    let peers: Vec<String> = match peers_val {
+        Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for (i, item) in arr.iter().enumerate() {
+                let s = item
+                    .as_str()
+                    .ok_or_else(|| format!("params.peers[{i}] must be a string"))?;
+                let t = s.trim();
+                if t.is_empty() {
+                    return Err(format!("params.peers[{i}] must be non-empty"));
+                }
+                out.push(t.to_string());
+            }
+            out
+        }
+        _ => return Err("params.peers must be a JSON array of HOST:PORT strings".to_string()),
+    };
+    if peers.len() < 2 {
+        return Err("quorum requires at least 2 peers in params.peers".to_string());
+    }
+    if peers.len() > 8 {
+        return Err("at most 8 peers per quorum fetch".to_string());
+    }
+    let (from_h, to_h) = extract_height_range_param(Some(p))?;
+    Ok((peers, from_h, to_h))
+}
+
 /// `get_mempool_tx` reads a 32-byte transaction id from hex (same shapes as height params).
 fn extract_tx_id_param(params: Option<&Value>) -> Result<&str, String> {
     let p = match params {
@@ -593,6 +639,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_light_checkpoint_summary",
         "get_light_follow",
         "get_light_follow_p2p",
+        "get_light_follow_quorum_p2p",
         "get_claims_by_pubkey",
         "get_claims_for",
         "get_checkpoint",
@@ -883,6 +930,10 @@ pub type FreshAdmitHook = Arc<dyn Fn(&Mempool) + Send + Sync>;
 /// Fetch a light-follow batch from a remote P2P peer (`HOST:PORT`) (**M4.15**).
 pub type P2pLightFollowHook = Arc<dyn Fn(&str, u32, u32) -> Result<Value, String> + Send + Sync>;
 
+/// Fetch from multiple P2P peers and require agreeing rows (**M4.16**).
+pub type P2pLightFollowQuorumHook =
+    Arc<dyn Fn(&[String], u32, u32) -> Result<Value, String> + Send + Sync>;
+
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
 pub struct ServeDispatchOpts {
@@ -894,6 +945,8 @@ pub struct ServeDispatchOpts {
     pub on_fresh_admit: Option<FreshAdmitHook>,
     /// Outbound P2P light-follow fetch for [`get_light_follow_p2p`].
     pub p2p_light_follow: Option<P2pLightFollowHook>,
+    /// Multi-peer P2P quorum for [`get_light_follow_quorum_p2p`].
+    pub p2p_light_follow_quorum: Option<P2pLightFollowQuorumHook>,
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -1325,6 +1378,26 @@ fn dispatch_serve_methods(
                 }
             };
             match fetch(peer.as_str(), from_h, to_h) {
+                Ok(page) => rpc_success(id, page),
+                Err(msg) => rpc_error(id, rpc_codes::BLOCK_LOG_STORE, msg),
+            }
+        }
+        "get_light_follow_quorum_p2p" => {
+            let (peers, from_h, to_h) = match extract_peers_light_follow_params(req.get("params")) {
+                Ok(r) => r,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let fetch = match opts.p2p_light_follow_quorum.as_ref() {
+                Some(f) => f,
+                None => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::INVALID_PARAMS,
+                        "get_light_follow_quorum_p2p requires mfnd serve P2P quorum (internal)",
+                    );
+                }
+            };
+            match fetch(peers.as_slice(), from_h, to_h) {
                 Ok(page) => rpc_success(id, page),
                 Err(msg) => rpc_error(id, rpc_codes::BLOCK_LOG_STORE, msg),
             }
@@ -2831,7 +2904,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 25);
+        assert_eq!(names.len(), 26);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2845,7 +2918,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 25);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 26);
         fs::remove_dir_all(&root).ok();
     }
 

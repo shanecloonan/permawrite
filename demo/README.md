@@ -54,4 +54,4 @@ In the demo page:
 
 **Storage upload path:** choose a file → **Min fee** → **Build upload tx** (anchors data with optional authorship message) → **Submit upload**.
 
-Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow quorum (M4.15): `POST http://127.0.0.1:8787/p2p/light-follow` with `{"peer":"127.0.0.1:18732","from_height":1,"to_height":1}` (peer must expose `--p2p-listen`).
+Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow (M4.15): `POST …/p2p/light-follow` with `{"peer":"HOST:PORT",…}`. P2P quorum relay (M4.16): `RELAY_RPC=127.0.0.1:18731 node demo/proxy/light-relay.mjs` then `POST http://127.0.0.1:8790/light-follow` with `{"peers":["…","…"],"from_height":1,"to_height":N}`.

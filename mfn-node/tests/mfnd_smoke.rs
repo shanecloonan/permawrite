@@ -917,6 +917,42 @@ fn mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener() {
     let _ = client_child.wait();
 }
 
+#[test]
+fn mfnd_rpc_get_light_follow_quorum_p2p_same_peer_twice() {
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_synth_decoys.json");
+    let dir_peer = unique_data_dir("rpc_light_quorum_peer");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_peer)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step");
+    assert!(step_out.status.success());
+
+    let (_peer_child, _peer_out, _peer_err, _peer_rpc, peer_p2p) =
+        spawn_mfnd_serve_with_p2p(&dir_peer, &spec);
+    let peer = peer_p2p.to_string();
+    let dir_client = unique_data_dir("rpc_light_quorum_client");
+    let (client_child, client_rpc) = spawn_mfnd_serve(&dir_client, &spec);
+    let peers_json = format!(r#"["{peer}","{peer}"]"#);
+    let resp = tcp_request_json(
+        client_rpc,
+        &format!(
+            r#"{{"jsonrpc":"2.0","method":"get_light_follow_quorum_p2p","params":{{"peers":{peers_json},"from_height":1,"to_height":1}},"id":2}}"#
+        ),
+    );
+    let page = assert_rpc2_result(&resp);
+    assert_eq!(page["quorum"], json!(true));
+    assert_eq!(page["source"], json!("p2p_quorum"));
+    assert_eq!(page["rows"].as_array().map(|a| a.len()), Some(1));
+    drop(client_child);
+}
+
 /// Full block-sync over `--p2p-dial` can hang on overloaded CI runners; run locally with:
 /// `cargo test -p mfn-node mfnd_p2p_dial_syncs_blocks_from_ahead_peer --release -- --ignored`
 #[test]

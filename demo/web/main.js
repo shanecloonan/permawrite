@@ -77,6 +77,11 @@ function quorumP2pPeers() {
   return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
 }
 
+function lightRelayUrl() {
+  const el = document.getElementById("sync-light-relay");
+  return el?.value?.trim() ?? "";
+}
+
 function syncWasmOpts() {
   return {
     lightChainVerifyHeader,
@@ -87,6 +92,7 @@ function syncWasmOpts() {
     lightFollowQuorum,
     quorumRpcUrls: quorumRpcUrls(),
     quorumP2pPeers: quorumP2pPeers(),
+    lightRelayUrl: lightRelayUrl() || undefined,
   };
 }
 
