@@ -45,6 +45,7 @@ jobs:
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +70,8 @@ jobs:
           cargo --version
       # mfn-cli integration tests spawn `target/{profile}/mfnd` (see CARGO_BIN_EXE_mfnd).
       - run: cargo build -p mfn-node --bin mfnd --release
-      - run: cargo test --workspace --release
+      # Default `cargo test` skips `#[ignore]` slow P2P / multi-validator harness tests.
+      - run: cargo test --workspace --release -- --test-threads=4
 
   audit:
     name: cargo-audit

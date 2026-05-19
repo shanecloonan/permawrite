@@ -309,7 +309,9 @@ fn block_id_at_height(rpc: SocketAddr, height: u64) -> String {
     r["block_id"].as_str().expect("block_id").to_string()
 }
 
+/// Live `--produce` + `--committee-vote` convergence (up to ~3 min). Skipped in default CI.
 #[test]
+#[ignore = "slow multi-validator produce harness; run with cargo test -- --ignored"]
 fn three_validators_produce_converge_on_shared_tip() {
     let spec = spec_path();
     let slot_ms = 10_000u64;

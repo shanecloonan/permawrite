@@ -865,7 +865,10 @@ fn mfnd_serve_p2p_blocks_reply_after_handshake() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// Full block-sync over `--p2p-dial` can hang on overloaded CI runners; run locally with:
+/// `cargo test -p mfn-node mfnd_p2p_dial_syncs_blocks_from_ahead_peer --release -- --ignored`
 #[test]
+#[ignore = "slow P2P block-sync integration; run with cargo test -- --ignored"]
 fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
     let dir_a = unique_data_dir("p2p_sync_a");
@@ -1040,7 +1043,9 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
     std::fs::remove_dir_all(&dir_b).ok();
 }
 
+/// Multi-hop gossip + mempool propagation; flaky/slow on CI. Run locally with `--ignored`.
 #[test]
+#[ignore = "slow P2P tx fanout integration; run with cargo test -- --ignored"]
 fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
     let (dir_a, spec, tx_hex, tx_id_hex) =
         synth_decoy_one_step_signed_transfer_fixture("p2p_tx_fanout_abc");

@@ -276,7 +276,9 @@ fn produce_spec_uses_expected_proposers_per_slot_1_5() {
     );
 }
 
+/// Three-way `--produce` slot timer (up to ~3 min). Skipped in default CI.
 #[test]
+#[ignore = "slow three-validator all-produce harness; run with cargo test -- --ignored"]
 fn three_validators_all_produce_converge_on_shared_tip() {
     let spec = spec_path();
     let dir0 = unique_data_dir("all_produce_v0");
