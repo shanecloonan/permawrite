@@ -45,6 +45,7 @@ impl ClaimingIdentity {
     }
 
     /// Borrow the internal Schnorr keypair for signing.
+    #[cfg(feature = "full")]
     #[inline]
     pub(crate) fn keypair(&self) -> &SchnorrKeypair {
         &self.0

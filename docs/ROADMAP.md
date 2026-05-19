@@ -2085,6 +2085,12 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 
 The TypeScript reference implementation (`cloonan-group/lib/network`) exists for in-browser experimentation. WASM bindings let the *same Rust crate* power the browser, eliminating the cross-implementation drift risk.
 
+| Id | Deliverable | Status |
+|---|---|---|
+| **M4.0** | `mfn-wasm` crate: `walletAddressFromSeedHex`, `claimPubkeyFromSeedHex`, `storageUploadPreview` + wasm32 CI. | ✓ shipped |
+| **M4.1** | `wasm-pack` demo page + JSON-RPC bridge to `mfnd serve`. | planned |
+| **M4.2** | In-browser CLSAG sign / scan (full wallet STF path). | planned |
+
 ### Use cases
 
 - In-browser wallets (web extensions).
@@ -2094,6 +2100,8 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 ### Not before M2
 
 WASM bindings to a daemon-less Rust core are only useful when there's a daemon to talk to.
+
+See [`M4_WASM.md`](./M4_WASM.md) for build commands and JS API.
 
 ---
 

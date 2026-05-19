@@ -48,25 +48,43 @@
 #![warn(missing_docs)]
 
 pub mod claiming;
-pub mod decoy;
-pub mod error;
 pub mod keys;
-pub mod owned;
-pub mod scan;
-pub mod spend;
-pub mod stored;
-pub mod upload;
-pub mod wallet;
 
 pub use claiming::ClaimingIdentity;
-pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
-pub use error::WalletError;
 pub use keys::{wallet_from_seed, WalletKeys};
+
+#[cfg(feature = "full")]
+pub mod decoy;
+#[cfg(feature = "full")]
+pub mod error;
+#[cfg(feature = "full")]
+pub mod owned;
+#[cfg(feature = "full")]
+pub mod scan;
+#[cfg(feature = "full")]
+pub mod spend;
+#[cfg(feature = "full")]
+pub mod stored;
+#[cfg(feature = "full")]
+pub mod upload;
+#[cfg(feature = "full")]
+pub mod wallet;
+
+#[cfg(feature = "full")]
+pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
+#[cfg(feature = "full")]
+pub use error::WalletError;
+#[cfg(feature = "full")]
 pub use owned::{key_image_for_owned, owned_balance, verify_pedersen_open, OwnedOutput, OwnedRef};
+#[cfg(feature = "full")]
 pub use scan::{scan_block, scan_transaction, BlockScan, ScannedOutput, TxScan};
+#[cfg(feature = "full")]
 pub use spend::{build_transfer, TransferPlan, TransferRecipient};
+#[cfg(feature = "full")]
 pub use stored::StoredOwnedOutput;
+#[cfg(feature = "full")]
 pub use upload::{
     build_storage_upload, estimate_minimum_fee_for_upload, StorageUploadPlan, UploadArtifacts,
 };
+#[cfg(feature = "full")]
 pub use wallet::Wallet;

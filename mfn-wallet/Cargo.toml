@@ -11,9 +11,15 @@ description = "Permawrite — confidential wallet primitives. Stealth scanning, 
 [lints.clippy]
 all = "warn"
 
+[features]
+default = ["full"]
+# Keys + claiming only — no `mfn-consensus` / BLS (wasm32-friendly).
+wasm-keys = []
+full = ["dep:mfn-consensus"]
+
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
-mfn-consensus = { path = "../mfn-consensus" }
+mfn-consensus = { path = "../mfn-consensus", optional = true }
 mfn-storage = { path = "../mfn-storage" }
 
 curve25519-dalek = { workspace = true }
