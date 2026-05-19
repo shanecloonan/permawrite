@@ -9,11 +9,14 @@ rustup target add wasm32-unknown-unknown
 cargo build -p mfn-wasm --target wasm32-unknown-unknown --release
 ```
 
-For a bundler-ready package (follow-up **M4.1**):
+For the browser demo (**M4.1**):
 
 ```bash
-wasm-pack build mfn-wasm --target web --release
+./scripts/build-wasm-demo.sh
+# output: demo/web/pkg/
 ```
+
+See [`demo/README.md`](../demo/README.md).
 
 ## JavaScript API (M4.0)
 
@@ -33,7 +36,11 @@ The `wasm32 build` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.y
 
 `mfn-wasm` depends on `mfn-wallet` with the **`wasm-keys`** feature (stealth keys + claiming identity only). That avoids pulling `mfn-consensus` / BLS12-381 into the browser build. Full wallet signing remains on the native `full` feature (default for `mfn-cli`).
 
+## Browser demo (M4.1)
+
+- Static UI: [`demo/web/`](../demo/web/)
+- Dev RPC proxy: [`demo/proxy/rpc-proxy.mjs`](../demo/proxy/rpc-proxy.mjs) (POST `/rpc` → TCP `mfnd serve`)
+
 ## Roadmap
 
-- **M4.1** — `wasm-pack` demo + RPC client example.
 - **M4.2** — CLSAG transfer / chain scan in WASM (enable `mfn-wallet/full` once BLS builds cleanly on `wasm32`).

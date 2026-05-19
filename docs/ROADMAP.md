@@ -2052,6 +2052,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.7** | `mfn-cli wallet status`: cached balance vs tip without block fetch. | ✓ shipped |
 | **M3.8** | `mfn-cli claims`: query authorship index (`get_claims_for`, `list_recent_claims`, …). | ✓ shipped |
 | **M3.9** | `mfn-cli uploads list`: query storage index (`list_recent_uploads`, optional claims join). | ✓ shipped |
+| **M3.10** | Smoke: `wallet upload --message` + `uploads list --include-claims` + `claims for`. | ✓ shipped |
 
 ### Components
 
@@ -2088,7 +2089,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | Id | Deliverable | Status |
 |---|---|---|
 | **M4.0** | `mfn-wasm` crate: `walletAddressFromSeedHex`, `claimPubkeyFromSeedHex`, `storageUploadPreview` + wasm32 CI. | ✓ shipped |
-| **M4.1** | `wasm-pack` demo page + JSON-RPC bridge to `mfnd serve`. | planned |
+| **M4.1** | `wasm-pack` demo page + HTTP→TCP RPC proxy for `mfnd serve`. | ✓ shipped |
 | **M4.2** | In-browser CLSAG sign / scan (full wallet STF path). | planned |
 
 ### Use cases

@@ -1,4 +1,4 @@
-//! `mfn-cli uploads` smoke: list mined storage via `list_recent_uploads` (**M3.9**).
+//! `mfn-cli uploads` smoke: list mined storage via `list_recent_uploads` (**M3.9** / **M3.10**).
 
 use std::io::{BufRead, BufReader};
 use std::net::SocketAddr;
@@ -7,6 +7,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use mfn_cli::{KeyDerivation, WalletFile};
+use mfn_wallet::ClaimingIdentity;
 
 const DEVNET_SOLO_VRF_SEED_HEX: &str =
     "0101010101010101010101010101010101010101010101010101010101010101";
@@ -242,6 +243,180 @@ fn uploads_list_shows_mined_storage_commitment() {
     );
     assert!(
         claims_stdout.contains("claims_count=0"),
+        "stdout={claims_stdout}"
+    );
+
+    shutdown_child(&mut serve2);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// Upload with bound MFCL claim, then discover it via `uploads list --include-claims` and `claims for`.
+#[test]
+fn uploads_list_include_claims_after_bound_upload() {
+    let dir = unique_data_dir("uploads_claims");
+    std::fs::create_dir_all(&dir).expect("tmpdir");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("mfn-node/testdata/devnet_one_validator_synth_decoys.json");
+
+    let mut bls_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
+    let wallet_path = dir.join("alice.json");
+    WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
+        .save(&wallet_path)
+        .expect("wallet");
+
+    let payload_path = dir.join("payload.bin");
+    std::fs::write(&payload_path, b"permawrite m3.10 uploads+claims").expect("write payload");
+
+    let step1 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step1");
+    assert!(step1.status.success(), "step1");
+
+    let mut serve = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("serve");
+    let rpc = read_serve_listening(&mut serve).to_string();
+
+    let upload_out = mfn_cli()
+        .args(["--rpc", &rpc, "--wallet"])
+        .arg(&wallet_path)
+        .args([
+            "wallet",
+            "upload",
+            payload_path.to_str().expect("utf8 path"),
+            "--message",
+            "m3.10 discovery smoke",
+            "--fee",
+            "10000",
+            "--ring-size",
+            "8",
+        ])
+        .output()
+        .expect("wallet upload");
+    assert!(
+        upload_out.status.success(),
+        "upload stderr={}",
+        String::from_utf8_lossy(&upload_out.stderr)
+    );
+    let upload_stdout = String::from_utf8_lossy(&upload_out.stdout);
+    assert!(
+        upload_stdout.contains("authorship_claim=bound"),
+        "stdout={upload_stdout}"
+    );
+    let data_root_hex = parse_stdout_field(&upload_stdout, "data_root");
+
+    shutdown_child(&mut serve);
+
+    let step2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step2");
+    assert!(step2.status.success(), "step2");
+
+    let mut serve2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("serve2");
+    let rpc2 = read_serve_listening(&mut serve2).to_string();
+
+    let list_out = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc2,
+            "uploads",
+            "list",
+            "--limit",
+            "5",
+            "--include-claims",
+        ])
+        .output()
+        .expect("uploads list include-claims");
+    assert!(
+        list_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&list_out.stderr)
+    );
+    let list_stdout = String::from_utf8_lossy(&list_out.stdout);
+    assert!(
+        list_stdout.contains("include_claims=true"),
+        "stdout={list_stdout}"
+    );
+    assert!(
+        list_stdout.contains("claims_count=1"),
+        "stdout={list_stdout}"
+    );
+    assert!(
+        list_stdout.contains(&format!("data_root={data_root_hex}")),
+        "stdout={list_stdout}"
+    );
+
+    let pk_hex = hex::encode(
+        ClaimingIdentity::from_seed(&bls_seed)
+            .claim_pubkey()
+            .compress()
+            .to_bytes(),
+    );
+
+    let claims_out = mfn_cli()
+        .args(["--rpc", &rpc2, "claims", "for", &data_root_hex])
+        .output()
+        .expect("claims for");
+    assert!(claims_out.status.success());
+    let claims_stdout = String::from_utf8_lossy(&claims_out.stdout);
+    assert!(
+        claims_stdout.contains("claim_count=1"),
+        "stdout={claims_stdout}"
+    );
+    assert!(
+        claims_stdout.contains(&format!("claim_pubkey={pk_hex}")),
+        "stdout={claims_stdout}"
+    );
+    assert!(
+        claims_stdout.contains("message_hex=6d332e313020646973636f7665727920736d6f6b65"),
         "stdout={claims_stdout}"
     );
 

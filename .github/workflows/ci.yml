@@ -92,6 +92,8 @@ jobs:
           cargo --version
       - run: cargo build -p mfn-wasm --target wasm32-unknown-unknown --release
       - run: cargo test -p mfn-wasm --release
+      - run: cargo install wasm-pack --locked
+      - run: wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release
 
   audit:
     name: cargo-audit

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Permawrite WASM demo (M4.1)</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Permawrite browser primitives</h1>
+      <p class="lede">
+        Same Rust wallet and storage code as <code>mfn-cli</code>, compiled with
+        <code>wasm-pack</code>. Chain queries use a local HTTP→TCP proxy to
+        <code>mfnd serve</code>.
+      </p>
+
+      <section>
+        <h2>Wallet seed</h2>
+        <label for="seed">32-byte seed (64 hex digits)</label>
+        <input id="seed" type="text" spellcheck="false" autocomplete="off" />
+        <div class="row">
+          <button type="button" id="btn-address">Derive address</button>
+          <button type="button" id="btn-claim-pk">Claim pubkey</button>
+        </div>
+        <pre id="wallet-out" class="out"></pre>
+      </section>
+
+      <section>
+        <h2>Storage preview</h2>
+        <label for="file">Payload file</label>
+        <input id="file" type="file" />
+        <label for="replication">Replication</label>
+        <input id="replication" type="number" min="1" max="32" value="3" />
+        <button type="button" id="btn-preview">Preview commitment</button>
+        <pre id="storage-out" class="out"></pre>
+      </section>
+
+      <section>
+        <h2>Node RPC (optional)</h2>
+        <label for="rpc-url">Proxy URL (POST JSON body → mfnd line RPC)</label>
+        <input
+          id="rpc-url"
+          type="text"
+          value="http://127.0.0.1:8787/rpc"
+          spellcheck="false"
+        />
+        <button type="button" id="btn-tip">get_tip</button>
+        <pre id="rpc-out" class="out"></pre>
+      </section>
+
+      <p class="hint">
+        Build WASM: <code>./scripts/build-wasm-demo.sh</code> (or
+        <code>scripts/build-wasm-demo.ps1</code>). Start proxy:
+        <code>node demo/proxy/rpc-proxy.mjs</code> with
+        <code>mfnd serve --rpc-listen 127.0.0.1:18731</code>.
+      </p>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
