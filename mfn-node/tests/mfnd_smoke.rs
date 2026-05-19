@@ -868,6 +868,55 @@ fn mfnd_serve_p2p_light_follow_reply_after_handshake() {
     assert!(!follow.rows[0].header_wire.is_empty());
 }
 
+#[test]
+fn mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener() {
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_synth_decoys.json");
+    let dir_peer = unique_data_dir("rpc_light_follow_p2p_peer");
+    let step_out = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_peer)
+        .arg("--genesis")
+        .arg(&spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .arg("step")
+        .output()
+        .expect("spawn mfnd step on peer");
+    assert!(
+        step_out.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&step_out.stderr)
+    );
+
+    let (_peer_child, _peer_out, _peer_err, _peer_rpc, peer_p2p) =
+        spawn_mfnd_serve_with_p2p(&dir_peer, &spec);
+    let peer = peer_p2p.to_string();
+
+    let dir_client = unique_data_dir("rpc_light_follow_p2p_client");
+    let (mut client_child, client_rpc) = spawn_mfnd_serve(&dir_client, &spec);
+    let p2p_resp = tcp_request_json(
+        client_rpc,
+        &format!(
+            r#"{{"jsonrpc":"2.0","method":"get_light_follow_p2p","params":{{"peer":"{peer}","from_height":1,"to_height":1}},"id":2}}"#
+        ),
+    );
+    let p2p_page = assert_rpc2_result(&p2p_resp);
+    assert_eq!(p2p_page["source"], json!("p2p"));
+    assert_eq!(p2p_page["peer"], json!(peer));
+    assert_eq!(p2p_page["rows"].as_array().map(|a| a.len()), Some(1));
+
+    let local_resp = tcp_request_json(
+        _peer_rpc,
+        r#"{"jsonrpc":"2.0","method":"get_light_follow","params":{"from_height":1,"to_height":1},"id":3}"#,
+    );
+    let local_page = assert_rpc2_result(&local_resp);
+    assert_eq!(p2p_page["rows"], local_page["rows"]);
+
+    let _ = client_child.kill();
+    let _ = client_child.wait();
+}
+
 /// Full block-sync over `--p2p-dial` can hang on overloaded CI runners; run locally with:
 /// `cargo test -p mfn-node mfnd_p2p_dial_syncs_blocks_from_ahead_peer --release -- --ignored`
 #[test]

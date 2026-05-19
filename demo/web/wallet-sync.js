@@ -110,6 +110,7 @@ export function saveTrustedSummary(seedHex, summaryJson) {
  * @param {number} toHeight
  * @param {(url: string, method: string, params: object) => Promise<object>} rpc
  * @param {string[]} [quorumRpcUrls] optional extra RPC bases (same path as primary)
+ * @param {string[]} [quorumP2pPeers] optional HOST:PORT peers via `get_light_follow_p2p`
  */
 async function fetchLightFollowWithQuorum(
   rpcUrl,
@@ -117,13 +118,24 @@ async function fetchLightFollowWithQuorum(
   toHeight,
   rpc,
   quorumRpcUrls,
+  quorumP2pPeers,
 ) {
   const params = { from_height: fromHeight, to_height: toHeight };
-  const urls = [rpcUrl, ...(quorumRpcUrls || []).filter((u) => u && u !== rpcUrl)];
-  const pages = await Promise.all(
-    urls.map((url) => rpc(url, "get_light_follow", params)),
+  const localPage = await rpc(rpcUrl, "get_light_follow", params);
+  const batches = [localPage];
+  const extraUrls = (quorumRpcUrls || []).filter((u) => u && u !== rpcUrl);
+  const extraPages = await Promise.all(
+    extraUrls.map((url) => rpc(url, "get_light_follow", params)),
   );
-  return { primary: pages[0], batches: pages };
+  batches.push(...extraPages);
+  const peers = (quorumP2pPeers || []).filter(Boolean);
+  const p2pPages = await Promise.all(
+    peers.map((peer) =>
+      rpc(rpcUrl, "get_light_follow_p2p", { peer, ...params }),
+    ),
+  );
+  batches.push(...p2pPages);
+  return { primary: localPage, batches };
 }
 
 function evolutionJsonFromRpc(page) {
@@ -156,6 +168,7 @@ function evolutionJsonFromFollowRow(row) {
  * @param {(trustedSummaryJson: string, checkpointHex: string) => string} [opts.lightChainWeakSubjectivity]
  * @param {(checkpointHex: string) => string} [opts.lightChainCheckpointSummary]
  * @param {string[]} [opts.quorumRpcUrls]
+ * @param {string[]} [opts.quorumP2pPeers]
  * @param {string} [opts.initialCheckpointHex]
  */
 export async function syncBlockRange({
@@ -174,6 +187,7 @@ export async function syncBlockRange({
   lightChainWeakSubjectivity,
   lightChainCheckpointSummary,
   quorumRpcUrls,
+  quorumP2pPeers,
   initialCheckpointHex,
 }) {
   if (fromHeight < 1) {
@@ -251,6 +265,7 @@ export async function syncBlockRange({
       toHeight,
       rpc,
       quorumRpcUrls,
+      quorumP2pPeers,
     );
   if (lightFollowQuorum && followBatches.length > 1) {
     const quorum = JSON.parse(

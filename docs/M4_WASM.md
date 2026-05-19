@@ -199,6 +199,17 @@ Demo: optional **Quorum RPC URLs** field fetches the same height range from mult
 
 P2P wire: [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) for byte-identical [`LightFollowRow`] batches between peers.
 
+## P2P light-follow (M4.15)
+
+| RPC / proxy | Role |
+|-------------|------|
+| `get_light_follow_p2p` | `mfnd serve` dials `peer` (HOST:PORT), handshakes, pulls the same batch as inbound P2P |
+| `POST /p2p/light-follow` | Dev proxy forwards `{peer,from_height,to_height}` to the RPC above |
+
+Demo **Quorum P2P peers** field passes peer addresses; sync fetches via `get_light_follow_p2p` and runs `lightFollowQuorum` against the local RPC batch.
+
+Requires the RPC node to reach the peer (same machine loopback or routable P2P port). The peer must run `mfnd serve --p2p-listen`.
+
 ## Roadmap
 
-- **M4.15** — Browser P2P light-follow fetch (WebTransport/WebSocket proxy) so quorum does not depend on multiple HTTP RPC bases.
+- **M4.16** — Multi-peer P2P quorum without routing all fetches through the wallet’s RPC node (browser mesh / dedicated light-client relay).

@@ -70,6 +70,13 @@ function quorumRpcUrls() {
   return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
 }
 
+function quorumP2pPeers() {
+  const el = document.getElementById("sync-quorum-p2p");
+  const raw = el?.value?.trim() ?? "";
+  if (!raw) return [];
+  return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+}
+
 function syncWasmOpts() {
   return {
     lightChainVerifyHeader,
@@ -79,6 +86,7 @@ function syncWasmOpts() {
     lightChainWeakSubjectivity,
     lightFollowQuorum,
     quorumRpcUrls: quorumRpcUrls(),
+    quorumP2pPeers: quorumP2pPeers(),
   };
 }
 

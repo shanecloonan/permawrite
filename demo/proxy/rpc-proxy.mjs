@@ -57,9 +57,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === "/p2p/light-follow" && req.method === "POST") {
+    try {
+      const body = await readBody(req);
+      const params = JSON.parse(body);
+      const rpcLine = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "get_light_follow_p2p",
+        params,
+        id: 1,
+      });
+      const line = await tcpLineRpc(rpcLine);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(`${line}\n`);
+    } catch (e) {
+      res.writeHead(502, { "Content-Type": "text/plain" });
+      res.end(String(e));
+    }
+    return;
+  }
+
   if (req.url !== "/rpc" || req.method !== "POST") {
     res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("POST /rpc with JSON-RPC body\n");
+    res.end(
+      "POST /rpc with JSON-RPC body\nPOST /p2p/light-follow with {peer,from_height,to_height}\n",
+    );
     return;
   }
 
@@ -75,5 +97,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
-  console.log(`mfnd rpc proxy http://${LISTEN_HOST}:${LISTEN_PORT}/rpc -> tcp://${MFND_RPC}`);
+  console.log(
+    `mfnd rpc proxy http://${LISTEN_HOST}:${LISTEN_PORT}/rpc (+ /p2p/light-follow) -> tcp://${MFND_RPC}`,
+  );
 });

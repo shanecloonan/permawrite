@@ -2105,6 +2105,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.12** | `get_light_snapshot` at height + wallet checkpoint resume; trusted-evolution ≡ `apply_block` on rotation chain. | done |
 | **M4.13** | `get_light_follow` batch RPC + P2P `GetLightFollowV1`/`LightFollowV1`; demo uses batched evolution. | done |
 | **M4.14** | Light-follow quorum (`lightFollowQuorum`, `light_follow_rows_quorum`); weak-subjectivity checkpoint summary + `get_light_checkpoint_summary`; demo multi-RPC quorum URLs. | done |
+| **M4.15** | `get_light_follow_p2p` RPC + proxy `/p2p/light-follow`; demo quorum P2P peer field. | done |
 
 ### Use cases
 

@@ -6,9 +6,9 @@ use std::sync::Arc;
 use mfn_bls::encode_public_key;
 use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
-    block_header_bytes, block_id, decode_transaction, encode_block, encode_bond_op,
-    encode_evidence, encode_transaction, tx_id, validator_set_root, AuthorshipClaimRecord, Block,
-    BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
+    block_header_bytes, block_id, decode_block_header, decode_transaction, encode_block,
+    encode_bond_op, encode_evidence, encode_transaction, tx_id, validator_set_root,
+    AuthorshipClaimRecord, Block, BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
 };
 use mfn_crypto::dhash;
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
@@ -16,6 +16,7 @@ use mfn_crypto::schnorr::encode_schnorr_signature;
 use mfn_light::checkpoint::{encode_checkpoint_bytes, CheckpointParts};
 use mfn_light::light_checkpoint_after_blocks;
 use mfn_light::LightChain;
+use mfn_net::LightFollowV1;
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
@@ -195,6 +196,29 @@ fn extract_height_range_param(params: Option<&Value>) -> Result<(u32, u32), Stri
         ));
     }
     Ok((from_h, to_h))
+}
+
+/// `get_light_follow_p2p` — `peer` plus the same height range as [`get_light_follow`].
+fn extract_peer_light_follow_params(params: Option<&Value>) -> Result<(String, u32, u32), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let obj = match p {
+        Value::Object(o) => o,
+        _ => {
+            return Err(
+                "params must be a JSON object with peer, from_height, and to_height".to_string(),
+            );
+        }
+    };
+    let peer = match obj.get("peer") {
+        Some(Value::String(s)) if !s.trim().is_empty() => s.trim().to_string(),
+        Some(_) => return Err("params.peer must be a non-empty string (HOST:PORT)".to_string()),
+        None => return Err("missing params.peer (HOST:PORT)".to_string()),
+    };
+    let (from_h, to_h) = extract_height_range_param(Some(p))?;
+    Ok((peer, from_h, to_h))
 }
 
 /// `get_mempool_tx` reads a 32-byte transaction id from hex (same shapes as height params).
@@ -568,6 +592,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_light_snapshot",
         "get_light_checkpoint_summary",
         "get_light_follow",
+        "get_light_follow_p2p",
         "get_claims_by_pubkey",
         "get_claims_for",
         "get_checkpoint",
@@ -791,6 +816,45 @@ fn header_row_json(block: &Block, height: u32) -> Value {
     })
 }
 
+/// JSON-RPC page for a P2P or local [`LightFollowV1`] payload (**M4.15**).
+pub fn light_follow_v1_to_json(follow: &LightFollowV1, from_height: u32, to_height: u32) -> Value {
+    let rows: Vec<Value> = follow
+        .rows
+        .iter()
+        .map(|row| {
+            let slashings: Vec<Value> = row
+                .slashings
+                .iter()
+                .map(|s| json!({ "evidence_hex": hex::encode(s) }))
+                .collect();
+            let bond_ops: Vec<Value> = row
+                .bond_ops
+                .iter()
+                .map(|b| json!({ "op_hex": hex::encode(b) }))
+                .collect();
+            let mut obj = json!({
+                "height": row.height,
+                "block_id": hex32(&row.block_id),
+                "header_hex": hex::encode(&row.header_wire),
+                "slashings": slashings,
+                "bond_ops": bond_ops,
+            });
+            if let Ok(header) = decode_block_header(&row.header_wire) {
+                if let Some(o) = obj.as_object_mut() {
+                    o.insert("prev_block_id".into(), json!(hex32(&header.prev_hash)));
+                }
+            }
+            obj
+        })
+        .collect();
+    json!({
+        "from_height": from_height,
+        "to_height": to_height,
+        "genesis_id": hex32(&follow.genesis_id),
+        "rows": rows,
+    })
+}
+
 fn light_follow_row_json(block: &Block, height: u32) -> Value {
     let slashings: Vec<Value> = block
         .slashings
@@ -816,6 +880,9 @@ pub type FreshTxHook = Arc<dyn Fn(&[u8]) + Send + Sync>;
 /// Called with the live mempool immediately after a Fresh admit (before the RPC response is sent).
 pub type FreshAdmitHook = Arc<dyn Fn(&Mempool) + Send + Sync>;
 
+/// Fetch a light-follow batch from a remote P2P peer (`HOST:PORT`) (**M4.15**).
+pub type P2pLightFollowHook = Arc<dyn Fn(&str, u32, u32) -> Result<Value, String> + Send + Sync>;
+
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
 pub struct ServeDispatchOpts {
@@ -825,6 +892,8 @@ pub struct ServeDispatchOpts {
     pub on_fresh_tx: Option<FreshTxHook>,
     /// Durable mempool snapshot while `pool` is still exclusively borrowed by dispatch.
     pub on_fresh_admit: Option<FreshAdmitHook>,
+    /// Outbound P2P light-follow fetch for [`get_light_follow_p2p`].
+    pub p2p_light_follow: Option<P2pLightFollowHook>,
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -1236,8 +1305,29 @@ fn dispatch_serve_methods(
                     "to_height": to_h,
                     "genesis_id": hex32(chain.genesis_id()),
                     "rows": rows,
+                    "source": "local",
                 }),
             )
+        }
+        "get_light_follow_p2p" => {
+            let (peer, from_h, to_h) = match extract_peer_light_follow_params(req.get("params")) {
+                Ok(r) => r,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let fetch = match opts.p2p_light_follow.as_ref() {
+                Some(f) => f,
+                None => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::INVALID_PARAMS,
+                        "get_light_follow_p2p requires mfnd serve P2P fetch (internal)",
+                    );
+                }
+            };
+            match fetch(peer.as_str(), from_h, to_h) {
+                Ok(page) => rpc_success(id, page),
+                Err(msg) => rpc_error(id, rpc_codes::BLOCK_LOG_STORE, msg),
+            }
         }
         "get_block_evolution" => {
             let height = match extract_height_param(req.get("params")) {
@@ -2723,6 +2813,7 @@ mod tests {
             "get_light_snapshot",
             "get_light_checkpoint_summary",
             "get_light_follow",
+            "get_light_follow_p2p",
             "get_claims_by_pubkey",
             "get_claims_for",
             "get_checkpoint",
@@ -2740,7 +2831,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 24);
+        assert_eq!(names.len(), 25);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2754,7 +2845,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 24);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 25);
         fs::remove_dir_all(&root).ok();
     }
 

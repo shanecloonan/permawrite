@@ -115,6 +115,8 @@ fn serve_dispatch_opts(
     store: &Arc<dyn ChainPersistence + Send + Sync>,
     fanout_peers: Option<&Arc<P2pPeerSet>>,
     genesis: Arc<GenesisConfig>,
+    genesis_id: [u8; 32],
+    serve_tip: TipSnapshot,
 ) -> ServeDispatchOpts {
     let store_persist = Arc::clone(store);
     let on_fresh_admit =
@@ -125,10 +127,26 @@ fn serve_dispatch_opts(
             FanoutPeerSet::fanout_fresh_tx(ps.as_ref(), bytes, None);
         }) as Arc<dyn Fn(&[u8]) + Send + Sync>
     });
+    let tip_for_fetch = serve_tip.clone();
+    let p2p_light_follow: mfn_rpc::P2pLightFollowHook = Arc::new(move |peer, from, to| {
+        let tip_guard = tip_for_fetch
+            .lock()
+            .map_err(|_| "serve tip mutex poisoned".to_string())?;
+        let (height, tip_id) = *tip_guard;
+        let local_tip = mfn_net::ChainTipV1 { height, tip_id };
+        crate::p2p_light_follow_fetch::fetch_light_follow_json(
+            peer,
+            &genesis_id,
+            local_tip,
+            from,
+            to,
+        )
+    });
     ServeDispatchOpts {
         genesis: Some(genesis),
         on_fresh_tx,
         on_fresh_admit: Some(on_fresh_admit),
+        p2p_light_follow: Some(p2p_light_follow),
     }
 }
 
@@ -385,7 +403,21 @@ pub(crate) fn run_serve(
         })?;
     }
 
-    let dispatch_opts = serve_dispatch_opts(&store, fanout_peers.as_ref(), genesis_for_rpc);
+    let serve_tip: TipSnapshot = p2p_tip_cell.clone().unwrap_or_else(|| {
+        Arc::new(Mutex::new(
+            chain
+                .lock()
+                .map(|g| snapshot_chain_tip_for_p2p(&g))
+                .unwrap_or((0, genesis_id)),
+        ))
+    });
+    let dispatch_opts = serve_dispatch_opts(
+        &store,
+        fanout_peers.as_ref(),
+        genesis_for_rpc,
+        genesis_id,
+        serve_tip.clone(),
+    );
 
     #[cfg(unix)]
     {
@@ -433,10 +465,8 @@ pub(crate) fn run_serve(
                 if pool_guard.len() != len_before || mempool_root(&pool_guard) != root_before {
                     persist_mempool(store.as_ref(), &pool_guard);
                 }
-                if let Some(tc) = &p2p_tip_cell {
-                    if let Ok(mut g) = tc.lock() {
-                        *g = snapshot_chain_tip_for_p2p(&chain_guard);
-                    }
+                if let Ok(mut g) = serve_tip.lock() {
+                    *g = snapshot_chain_tip_for_p2p(&chain_guard);
                 }
             }
             Err(e) => {

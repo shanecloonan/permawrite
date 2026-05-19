@@ -27,6 +27,6 @@ mod dispatch;
 
 pub use dispatch::rpc_codes;
 pub use dispatch::{
-    parse_and_dispatch_serve, parse_and_dispatch_serve_opts, rpc_error, rpc_success,
-    ServeDispatchOpts,
+    light_follow_v1_to_json, parse_and_dispatch_serve, parse_and_dispatch_serve_opts, rpc_error,
+    rpc_success, P2pLightFollowHook, ServeDispatchOpts,
 };

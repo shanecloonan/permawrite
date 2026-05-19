@@ -54,13 +54,13 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.14)</h2>
+        <h2>Wallet sync (M4.7–M4.15)</h2>
         <p class="lede">
           Verifies headers with an evolving light-follower checkpoint (<code>lightChainVerifyHeader</code>),
           scans txs via <code>get_block_txs</code>, and applies validator-set evolution per block
           (<code>lightChainApplyEvolution</code> + batched <code>get_light_follow</code>).
           Cleared checkpoints resume via <code>get_light_snapshot</code> at the last scanned height (M4.12).
-          Optional quorum RPC URLs compare batched follow rows across peers (M4.14);
+          Optional quorum RPC URLs or P2P peer addresses compare batched follow rows (M4.14–M4.15);
           trusted checkpoint summaries are pinned in <code>localStorage</code> for weak-subjectivity checks.
         </p>
         <label for="sync-quorum-urls">Quorum RPC URLs (comma-separated, optional)</label>
@@ -69,6 +69,13 @@
           type="text"
           spellcheck="false"
           placeholder="http://127.0.0.1:8546, http://127.0.0.1:8547"
+        />
+        <label for="sync-quorum-p2p">Quorum P2P peers (HOST:PORT, optional — needs <code>--p2p-listen</code> on peer)</label>
+        <input
+          id="sync-quorum-p2p"
+          type="text"
+          spellcheck="false"
+          placeholder="127.0.0.1:18732"
         />
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">
