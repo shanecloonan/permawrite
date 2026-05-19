@@ -2,7 +2,7 @@
 //!
 //! - [`rpc::RpcClient`] — newline-delimited JSON-RPC 2.0 over TCP to `mfnd serve`.
 //! - [`cli`] — command-line driver for `mfn-cli` binary.
-//! - [`wallet_store`] / [`wallet_cmd`] — on-disk wallet file + chain scan (**M3.1**).
+//! - [`wallet_store`] / [`wallet_cmd`] — on-disk wallet file, scan, and send (**M3.1** / **M3.2**).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
