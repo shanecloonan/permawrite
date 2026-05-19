@@ -54,11 +54,11 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.10)</h2>
+        <h2>Wallet sync (M4.7–M4.11)</h2>
         <p class="lede">
-          Verifies header linkage + BLS finality in WASM (<code>verifyHeaderHex</code>), then scans txs
-          from <code>get_block_txs</code> (no full <code>block_hex</code> per height). State is saved in
-          <code>localStorage</code> per seed.
+          Verifies headers with an evolving light-follower checkpoint (<code>lightChainVerifyHeader</code>),
+          scans txs via <code>get_block_txs</code>, and applies validator-set evolution per block
+          (<code>lightChainApplyEvolution</code> + <code>get_block_evolution</code>).
         </p>
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">

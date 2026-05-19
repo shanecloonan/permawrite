@@ -6,10 +6,12 @@ use std::sync::Arc;
 use mfn_bls::encode_public_key;
 use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
-    block_header_bytes, block_id, decode_transaction, encode_block, encode_transaction, tx_id,
-    AuthorshipClaimRecord, Block, ConsensusParams, Validator,
+    block_header_bytes, block_id, decode_transaction, encode_block, encode_bond_op,
+    encode_evidence, encode_transaction, tx_id, AuthorshipClaimRecord, Block, BondEpochCounters,
+    ConsensusParams, Validator,
 };
 use mfn_crypto::schnorr::encode_schnorr_signature;
+use mfn_light::checkpoint::{encode_checkpoint_bytes, CheckpointParts};
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
@@ -545,9 +547,11 @@ fn serve_rpc_methods_json_result() -> Value {
         "clear_mempool",
         "get_block",
         "get_block_header",
+        "get_block_evolution",
         "get_block_headers",
         "get_block_txs",
         "get_chain_params",
+        "get_light_snapshot",
         "get_claims_by_pubkey",
         "get_claims_for",
         "get_checkpoint",
@@ -582,6 +586,29 @@ fn validator_row_json(v: &Validator) -> Value {
         "bls_pk_hex": hex::encode(encode_public_key(&v.bls_pk)),
         "payout": payout,
     })
+}
+
+fn light_snapshot_hex(chain: &Chain) -> String {
+    let s = chain.state();
+    let tip_height = chain.tip_height().unwrap_or(0);
+    let tip_id = chain.tip_id().copied().unwrap_or(*chain.genesis_id());
+    let parts = CheckpointParts {
+        tip_height,
+        tip_id,
+        genesis_id: *chain.genesis_id(),
+        params: s.params,
+        bonding_params: s.bonding_params,
+        validators: s.validators.clone(),
+        validator_stats: s.validator_stats.clone(),
+        pending_unbonds: s.pending_unbonds.clone(),
+        bond_counters: BondEpochCounters {
+            bond_epoch_id: s.bond_epoch_id,
+            bond_epoch_entry_count: s.bond_epoch_entry_count,
+            bond_epoch_exit_count: s.bond_epoch_exit_count,
+            next_validator_index: s.next_validator_index,
+        },
+    };
+    hex::encode(encode_checkpoint_bytes(&parts))
 }
 
 fn consensus_params_json(p: &ConsensusParams) -> Value {
@@ -1034,6 +1061,48 @@ fn dispatch_serve_methods(
                 return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
             }
             rpc_success(id, chain_params_json(chain))
+        }
+        "get_light_snapshot" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_light_snapshot")
+            {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            rpc_success(
+                id,
+                json!({
+                    "tip_height": chain.tip_height().map(|h| json!(h)).unwrap_or(Value::Null),
+                    "checkpoint_hex": light_snapshot_hex(chain),
+                }),
+            )
+        }
+        "get_block_evolution" => {
+            let height = match extract_height_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let blocks = match read_validated_blocks_for_height(store, chain, height, id) {
+                Ok(b) => b,
+                Err(resp) => return resp,
+            };
+            let block = &blocks[(height - 1) as usize];
+            let slashings: Vec<Value> = block
+                .slashings
+                .iter()
+                .map(|ev| json!({ "evidence_hex": hex::encode(encode_evidence(ev)) }))
+                .collect();
+            let bond_ops: Vec<Value> = block
+                .bond_ops
+                .iter()
+                .map(|op| json!({ "op_hex": hex::encode(encode_bond_op(op)) }))
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "height": height,
+                    "slashings": slashings,
+                    "bond_ops": bond_ops,
+                }),
+            )
         }
         "get_claims_for" => {
             let hex_s = match extract_data_root_param(req.get("params")) {
@@ -1838,6 +1907,75 @@ mod tests {
     }
 
     #[test]
+    fn rpc_get_light_snapshot_matches_checkpoint_encoder() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_snap");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","id":0}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["tip_height"], json!(0));
+        assert_eq!(
+            v["result"]["checkpoint_hex"].as_str().unwrap(),
+            light_snapshot_hex(&c)
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_light_snapshot_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_snap_rej");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","params":{"x":1},"id":1}"#,
+        );
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("get_light_snapshot"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_evolution_solo_block_empty_events() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_evo-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append");
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block_evolution","params":{"height":1},"id":2}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["height"], json!(1));
+        assert_eq!(v["result"]["slashings"], json!([]));
+        assert_eq!(v["result"]["bond_ops"], json!([]));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn rpc_get_mempool_empty_pool_no_params() {
         let (store, mut c, mut p, root) = test_store_chain_pool("rpc_gp_empty");
         let v = parse_and_dispatch_serve(
@@ -2286,9 +2424,11 @@ mod tests {
             "clear_mempool",
             "get_block",
             "get_block_header",
+            "get_block_evolution",
             "get_block_headers",
             "get_block_txs",
             "get_chain_params",
+            "get_light_snapshot",
             "get_claims_by_pubkey",
             "get_claims_for",
             "get_checkpoint",
@@ -2306,7 +2446,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 20);
+        assert_eq!(names.len(), 22);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2320,7 +2460,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 20);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 22);
         fs::remove_dir_all(&root).ok();
     }
 

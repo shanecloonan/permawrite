@@ -16,6 +16,7 @@ mfn-runtime = { path = "../mfn-runtime" }
 mfn-store = { path = "../mfn-store" }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-bls = { path = "../mfn-bls" }
+mfn-light = { path = "../mfn-light" }
 mfn-crypto = { path = "../mfn-crypto" }
 
 serde_json = { workspace = true }

@@ -155,8 +155,18 @@ RPC **`get_block_headers`** (`from_height`, `to_height`, max span 4096) returns 
 
 `get_chain_params` returns `validators` and `consensus` for the trusted set. Demo sync runs cryptographic verify on every header batch before tx scan.
 
-**Limitation (v0.1):** verification uses the **current** validator set from RPC. Post-rotation windows need validator-set evolution (M2.0.8 light follower) in a future milestone.
+## Validator-set evolution (M4.11)
+
+| Export | Role |
+|--------|------|
+| `lightChainBootstrapCheckpoint(trust_json)` | Genesis checkpoint from `get_chain_params` |
+| `lightChainVerifyHeader(checkpoint_hex, header_hex)` | BLS verify against evolving trusted set |
+| `lightChainApplyEvolution(checkpoint_hex, header_hex, evolution_json)` | Apply slashings + bond ops; returns new checkpoint |
+
+RPC **`get_block_evolution`** returns `slashings` / `bond_ops` wire hex. **`get_light_snapshot`** returns a follower checkpoint at the node tip (for fast-forward resume).
+
+Demo sync stores `permawrite-light-checkpoint:<seed>` in `localStorage` and advances it every block.
 
 ## Roadmap
 
-- **M4.11** — Validator-set evolution in browser sync (post-rotation headers).
+- **M4.12** — Light checkpoint sync from arbitrary height via P2P header+bodies (no full-node trust).

@@ -100,7 +100,7 @@ fn parse_point32(
         .ok_or_else(|| WasmCoreError::InvalidHex(format!("invalid {label} Edwards point")))
 }
 
-fn validators_from_json(json: &str) -> Result<Vec<Validator>, WasmCoreError> {
+pub(crate) fn validators_from_json(json: &str) -> Result<Vec<Validator>, WasmCoreError> {
     let rows: Vec<ValidatorJson> =
         serde_json::from_str(json).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))?;
     let mut out = Vec::with_capacity(rows.len());
@@ -136,7 +136,7 @@ fn validators_from_json(json: &str) -> Result<Vec<Validator>, WasmCoreError> {
     Ok(out)
 }
 
-fn consensus_from_json(json: &str) -> Result<ConsensusParams, WasmCoreError> {
+pub(crate) fn consensus_from_json(json: &str) -> Result<ConsensusParams, WasmCoreError> {
     let p: ConsensusParamsJson =
         serde_json::from_str(json).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))?;
     Ok(ConsensusParams {

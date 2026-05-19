@@ -28,12 +28,14 @@ wasm-full = [
     "mfn-wallet/wasm-full",
     "dep:mfn-consensus",
     "dep:mfn-bls",
+    "dep:mfn-light",
     "mfn-consensus/bls",
 ]
 
 [dependencies]
 mfn-consensus = { path = "../mfn-consensus", optional = true, default-features = false }
 mfn-bls = { path = "../mfn-bls", optional = true }
+mfn-light = { path = "../mfn-light", optional = true }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet", default-features = false }
 mfn-crypto = { path = "../mfn-crypto" }

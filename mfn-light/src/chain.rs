@@ -61,8 +61,9 @@ use mfn_consensus::{
     apply_bond_ops_evolution, apply_equivocation_slashings, apply_liveness_evolution,
     apply_unbond_settlements, block_id, build_genesis, finality_bitmap_from_header,
     verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError, BondEpochCounters,
-    BondOpError, BondingParams, ConsensusParams, GenesisConfig, HeaderCheck, HeaderVerifyError,
-    PendingUnbond, Validator, ValidatorStats, DEFAULT_BONDING_PARAMS,
+    BondOp, BondOpError, BondingParams, ConsensusParams, GenesisConfig, HeaderCheck,
+    HeaderVerifyError, PendingUnbond, SlashEvidence, Validator, ValidatorStats,
+    DEFAULT_BONDING_PARAMS,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -650,6 +651,101 @@ impl LightChain {
             validators_slashed_liveness,
             validators_unbond_settled,
         })
+    }
+
+    /// Apply validator-set evolution for a header whose BLS finality was
+    /// already verified by the caller (browser light-wallet path, M4.11).
+    ///
+    /// Checks height / `prev_hash` linkage, runs the same four evolution
+    /// phases as [`LightChain::apply_block`], and advances the tip. Does
+    /// **not** re-run [`verify_block_body`] — the caller must have scanned
+    /// transactions separately (e.g. via `get_block_txs` + WASM scan).
+    ///
+    /// # Errors
+    ///
+    /// Same linkage / evolution errors as [`LightChain::apply_block`].
+    pub fn apply_trusted_evolution(
+        &mut self,
+        header: &BlockHeader,
+        slashings: &[SlashEvidence],
+        bond_ops: &[BondOp],
+    ) -> Result<[u8; 32], LightChainError> {
+        let expected_height = self.tip_height.saturating_add(1);
+        if header.height != expected_height {
+            return Err(LightChainError::HeightMismatch {
+                expected: expected_height,
+                got: header.height,
+            });
+        }
+        if header.prev_hash != self.tip_id {
+            return Err(LightChainError::PrevHashMismatch {
+                height: header.height,
+                expected: self.tip_id,
+                got: header.prev_hash,
+            });
+        }
+
+        let mut staged_validators = self.trusted_validators.clone();
+        let mut staged_stats = self.validator_stats.clone();
+        let mut staged_pending = self.pending_unbonds.clone();
+        let mut staged_counters = self.bond_counters;
+
+        let eq = apply_equivocation_slashings(&mut staged_validators, slashings);
+        let validators_slashed_equivocation = (slashings.len() - eq.errors.len()) as u32;
+
+        let bitmap = finality_bitmap_from_header(header);
+        let pre_liveness_slashes: u32 = staged_stats.iter().map(|s| s.liveness_slashes).sum();
+        if let Some(b) = &bitmap {
+            apply_liveness_evolution(&mut staged_validators, &mut staged_stats, b, &self.params);
+        }
+        let post_liveness_slashes: u32 = staged_stats.iter().map(|s| s.liveness_slashes).sum();
+        let validators_slashed_liveness =
+            post_liveness_slashes.saturating_sub(pre_liveness_slashes);
+
+        let pre_bond_validators = staged_validators.len();
+        apply_bond_ops_evolution(
+            header.height,
+            &mut staged_counters,
+            &mut staged_validators,
+            &mut staged_stats,
+            &mut staged_pending,
+            &self.bonding_params,
+            bond_ops,
+        )
+        .map_err(
+            |BondOpError { index, message }| LightChainError::EvolutionFailed {
+                height: header.height,
+                index,
+                message,
+            },
+        )?;
+        let validators_added = (staged_validators.len() - pre_bond_validators) as u32;
+
+        let pre_pending = staged_pending.len();
+        apply_unbond_settlements(
+            header.height,
+            &mut staged_counters,
+            &self.bonding_params,
+            &mut staged_validators,
+            &mut staged_pending,
+        );
+        let validators_unbond_settled = pre_pending.saturating_sub(staged_pending.len()) as u32;
+
+        let new_tip = block_id(header);
+        self.trusted_validators = staged_validators;
+        self.validator_stats = staged_stats;
+        self.pending_unbonds = staged_pending;
+        self.bond_counters = staged_counters;
+        self.tip_height = header.height;
+        self.tip_id = new_tip;
+
+        let _ = (
+            validators_added,
+            validators_slashed_equivocation,
+            validators_slashed_liveness,
+            validators_unbond_settled,
+        );
+        Ok(new_tip)
     }
 
     /// Current tip height. `0` immediately after construction.

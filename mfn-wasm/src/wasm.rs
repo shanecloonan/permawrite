@@ -38,6 +38,11 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 #[cfg(feature = "wasm-full")]
 use crate::header_verify_core::{block_id_from_header_hex_json, verify_header_hex_json};
 #[cfg(feature = "wasm-full")]
+use crate::light_chain_core::{
+    light_chain_apply_evolution_json, light_chain_bootstrap_checkpoint_hex,
+    light_chain_verify_header_json,
+};
+#[cfg(feature = "wasm-full")]
 use crate::scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transaction_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
@@ -78,6 +83,35 @@ pub fn wasm_scan_block_hex(
 #[wasm_bindgen(js_name = blockIdFromHeaderHex)]
 pub fn wasm_block_id_from_header_hex(header_hex: &str) -> Result<String, JsValue> {
     block_id_from_header_hex_json(header_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Build a genesis light-follower checkpoint from `get_chain_params` JSON.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightChainBootstrapCheckpoint)]
+pub fn wasm_light_chain_bootstrap_checkpoint(trust_json: &str) -> Result<String, JsValue> {
+    light_chain_bootstrap_checkpoint_hex(trust_json).map_err(|e| js_err(e.to_string()))
+}
+
+/// Verify a header against a light-follower checkpoint (evolving trusted set).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightChainVerifyHeader)]
+pub fn wasm_light_chain_verify_header(
+    checkpoint_hex: &str,
+    header_hex: &str,
+) -> Result<String, JsValue> {
+    light_chain_verify_header_json(checkpoint_hex, header_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Apply validator-set evolution after header verify; returns updated checkpoint hex.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightChainApplyEvolution)]
+pub fn wasm_light_chain_apply_evolution(
+    checkpoint_hex: &str,
+    header_hex: &str,
+    evolution_json: &str,
+) -> Result<String, JsValue> {
+    light_chain_apply_evolution_json(checkpoint_hex, header_hex, evolution_json)
+        .map_err(|e| js_err(e.to_string()))
 }
 
 /// Verify BLS finality + validator-root binding on a header wire hex.
