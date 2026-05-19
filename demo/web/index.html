@@ -11,8 +11,8 @@
       <h1>Permawrite browser primitives</h1>
       <p class="lede">
         Same Rust wallet and storage code as <code>mfn-cli</code>, compiled with
-        <code>wasm-pack</code>. Chain queries use a local HTTP→TCP proxy to
-        <code>mfnd serve</code>.
+        <code>wasm-pack --features wasm-full</code>. Chain queries use a local
+        HTTP→TCP proxy to <code>mfnd serve</code>.
       </p>
 
       <section>
@@ -37,23 +37,40 @@
       </section>
 
       <section>
-        <h2>Transfer build (M4.3, wasm-full)</h2>
+        <h2>Chain scan</h2>
+        <label for="block-hex">Block wire hex</label>
+        <textarea
+          id="block-hex"
+          rows="4"
+          spellcheck="false"
+          placeholder="from get_block result.block_hex"
+        ></textarea>
+        <label for="owned-ki">Owned key images (one 64-hex line each, optional)</label>
+        <textarea id="owned-ki" rows="2" spellcheck="false"></textarea>
+        <button type="button" id="btn-scan-block">scanBlockHex</button>
+        <pre id="scan-out" class="out"></pre>
+      </section>
+
+      <section>
+        <h2>Transfer build &amp; mempool</h2>
         <p class="lede">
-          Paste a transfer plan JSON (inputs from scan <code>recovered</code>,
-          <code>decoy_utxos</code> from chain UTXOs). Requires
-          <code>wasm-pack --features wasm-full</code>.
+          <code>inputs</code> from scan <code>recovered</code>;
+          <code>decoy_utxos</code> from <strong>Load decoys</strong>.
         </p>
         <label for="transfer-plan">Transfer plan JSON</label>
         <textarea id="transfer-plan" rows="12" spellcheck="false"></textarea>
         <div class="row">
           <button type="button" id="btn-load-decoys">Load decoys from node</button>
-          <button type="button" id="btn-transfer">buildTransferJson</button>
+          <button type="button" id="btn-transfer">Build transfer</button>
+          <button type="button" id="btn-submit-tx">Submit to mempool</button>
         </div>
+        <label for="tx-hex-override">tx_hex override (optional; uses last build if empty)</label>
+        <input id="tx-hex-override" type="text" spellcheck="false" autocomplete="off" />
         <pre id="transfer-out" class="out"></pre>
       </section>
 
       <section>
-        <h2>Node RPC (optional)</h2>
+        <h2>Node RPC</h2>
         <label for="rpc-url">Proxy URL (POST JSON body → mfnd line RPC)</label>
         <input
           id="rpc-url"
@@ -61,15 +78,18 @@
           value="http://127.0.0.1:8787/rpc"
           spellcheck="false"
         />
-        <button type="button" id="btn-tip">get_tip</button>
+        <div class="row">
+          <button type="button" id="btn-tip">get_tip</button>
+          <button type="button" id="btn-mempool">get_mempool</button>
+        </div>
         <pre id="rpc-out" class="out"></pre>
       </section>
 
       <p class="hint">
-        Build WASM: <code>./scripts/build-wasm-demo.sh</code> (or
-        <code>scripts/build-wasm-demo.ps1</code>). Start proxy:
+        Build WASM: <code>./scripts/build-wasm-demo.sh</code>. Start proxy:
         <code>node demo/proxy/rpc-proxy.mjs</code> with
-        <code>mfnd serve --rpc-listen 127.0.0.1:18731</code>.
+        <code>mfnd serve --rpc-listen 127.0.0.1:18731</code>, then
+        <code>mfnd step</code> so the chain has UTXOs to spend.
       </p>
     </main>
     <script type="module" src="main.js"></script>

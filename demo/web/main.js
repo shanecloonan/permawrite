@@ -3,12 +3,15 @@ import init, {
   claimPubkeyFromSeedHex,
   storageUploadPreview,
   buildTransferJson,
+  scanBlockHex,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 
 const DEMO_SEED = "42".repeat(32);
 
 let wasmReady = false;
+/** @type {{ tx_hex: string, tx_id: string } | null} */
+let lastBuiltTx = null;
 
 async function ensureWasm() {
   if (!wasmReady) {
@@ -34,6 +37,42 @@ function seedOrDemo() {
 
 function show(outId, text) {
   $(outId).textContent = text;
+}
+
+function rpcUrl() {
+  return $("rpc-url").value.trim();
+}
+
+function ownedKeyImagesFromTextarea() {
+  const raw = $("owned-ki").value.trim();
+  if (!raw) return [];
+  return raw
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/^0x/i, ""))
+    .filter((l) => l.length > 0);
+}
+
+function mergeRecoveredIntoPlan(scanJson) {
+  const scan = JSON.parse(scanJson);
+  const plan = JSON.parse($("transfer-plan").value || "{}");
+  const recovered = [];
+  for (const tx of scan.txs || []) {
+    for (const o of tx.recovered || []) {
+      recovered.push(o);
+    }
+  }
+  if (recovered.length > 0) {
+    plan.inputs = recovered;
+  }
+  if (scan.height != null) {
+    plan.current_height = Number(scan.height);
+  }
+  const owned = new Set(
+    recovered.map((o) => o.one_time_addr_hex?.toLowerCase()).filter(Boolean),
+  );
+  plan.exclude_one_time_addrs_hex = [...owned];
+  $("transfer-plan").value = JSON.stringify(plan, null, 2);
+  return { scan, recovered };
 }
 
 const SAMPLE_PLAN = {
@@ -99,12 +138,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  $("btn-scan-block").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const blockHex = $("block-hex").value.trim();
+      if (!blockHex) throw new Error("paste block wire hex");
+      const owned = ownedKeyImagesFromTextarea();
+      const json = scanBlockHex(seedOrDemo(), blockHex, owned);
+      const { scan, recovered } = mergeRecoveredIntoPlan(json);
+      show(
+        "scan-out",
+        JSON.stringify(
+          {
+            height: scan.height,
+            recovered: recovered.length,
+            gross_received: scan.gross_received,
+          },
+          null,
+          2,
+        ),
+      );
+    } catch (e) {
+      show("scan-out", String(e));
+    }
+  });
+
   $("btn-load-decoys").addEventListener("click", async () => {
     try {
-      const url = $("rpc-url").value.trim();
       const [tip, utxoPage] = await Promise.all([
-        mfndRpc(url, "get_tip", {}),
-        mfndRpc(url, "list_utxos", { limit: 10000, offset: 0 }),
+        mfndRpc(rpcUrl(), "get_tip", {}),
+        mfndRpc(rpcUrl(), "list_utxos", { limit: 10000, offset: 0 }),
       ]);
       const plan = JSON.parse($("transfer-plan").value || "{}");
       if (tip.tip_height != null) {
@@ -135,7 +198,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const plan = $("transfer-plan").value.trim();
       if (!plan) throw new Error("paste a transfer plan JSON");
       const json = buildTransferJson(plan);
-      show("transfer-out", JSON.stringify(JSON.parse(json), null, 2));
+      lastBuiltTx = JSON.parse(json);
+      $("tx-hex-override").value = lastBuiltTx.tx_hex;
+      show("transfer-out", JSON.stringify(lastBuiltTx, null, 2));
+    } catch (e) {
+      show("transfer-out", String(e));
+    }
+  });
+
+  $("btn-submit-tx").addEventListener("click", async () => {
+    try {
+      const override = $("tx-hex-override").value.trim().replace(/^0x/i, "");
+      const txHex = override || lastBuiltTx?.tx_hex;
+      if (!txHex) throw new Error("build a transfer first or paste tx_hex");
+      const result = await mfndRpc(rpcUrl(), "submit_tx", { tx_hex: txHex });
+      show("transfer-out", JSON.stringify(result, null, 2));
     } catch (e) {
       show("transfer-out", String(e));
     }
@@ -143,8 +220,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("btn-tip").addEventListener("click", async () => {
     try {
-      const url = $("rpc-url").value.trim();
-      const result = await mfndRpc(url, "get_tip", {});
+      const result = await mfndRpc(rpcUrl(), "get_tip", {});
+      show("rpc-out", JSON.stringify(result, null, 2));
+    } catch (e) {
+      show("rpc-out", String(e));
+    }
+  });
+
+  $("btn-mempool").addEventListener("click", async () => {
+    try {
+      const result = await mfndRpc(rpcUrl(), "get_mempool", {});
       show("rpc-out", JSON.stringify(result, null, 2));
     } catch (e) {
       show("rpc-out", String(e));

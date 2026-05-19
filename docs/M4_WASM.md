@@ -91,6 +91,18 @@ Native `mfn-cli` / nodes use `mfn-wallet/full` → `mfn-consensus` with **`bls`*
 {"jsonrpc":"2.0","method":"list_utxos","params":{"limit":500,"offset":0},"id":1}
 ```
 
+## End-to-end browser transfer (M4.5)
+
+With `wasm-full`, proxy, and `mfnd serve` running:
+
+1. **`mfnd step`** (or sync blocks) so the chain has spendable UTXOs.
+2. **`get_block`** at tip → paste `block_hex` → **scanBlockHex** → fills plan `inputs`.
+3. **Load decoys from node** → `list_utxos` + `get_tip`.
+4. **Build transfer** → WASM `buildTransferJson` → `tx_hex`.
+5. **Submit to mempool** → RPC `submit_tx` → verify with **get_mempool**.
+
+`submit_tx` params: `{"tx_hex":"<encode_transaction hex>"}`.
+
 ## Roadmap
 
-- **M4.5** — Checkpoint→decoy helper in WASM (optional) + `submit_tx` from demo.
+- **M4.6** — Demo storage upload tx build + `submit_tx`; light-client block sync helper.
