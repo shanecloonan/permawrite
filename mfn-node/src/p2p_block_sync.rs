@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::encode_block;
-use mfn_net::{BlockSyncProvider, MAX_BLOCKS_PER_GET_V1};
+use mfn_net::{BlockSyncProvider, ChainTipV1, MAX_BLOCKS_PER_GET_V1};
 use mfn_runtime::Chain;
 use mfn_store::ChainPersistence;
 
@@ -24,6 +24,24 @@ impl P2pBlockSyncHandler {
 }
 
 impl BlockSyncProvider for P2pBlockSyncHandler {
+    fn chain_tip_v1(&self) -> ChainTipV1 {
+        let chain = match self.chain.lock() {
+            Ok(g) => g,
+            Err(_) => {
+                return ChainTipV1 {
+                    height: 0,
+                    tip_id: [0u8; 32],
+                };
+            }
+        };
+        let height = chain.tip_height().unwrap_or(0);
+        let tip_id = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        ChainTipV1 { height, tip_id }
+    }
+
     fn blocks_from_height(&self, start_height: u32, count: u32) -> Vec<Vec<u8>> {
         let count = count.min(MAX_BLOCKS_PER_GET_V1);
         let chain = match self.chain.lock() {

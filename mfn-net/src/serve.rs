@@ -112,6 +112,27 @@ fn log_sync_abort(hid: u64, peer: &str, err: &impl std::fmt::Display) {
     eprintln!("mfnd_p2p_sync_abort hid={hid} peer={peer} {err}");
 }
 
+fn sync_tip_cell(tip_cell: &TipSnapshot, tip: &ChainTipV1) {
+    if let Ok(mut g) = tip_cell.lock() {
+        *g = (tip.height, tip.tip_id);
+    }
+}
+
+/// Prefer the live chain tip from [`BlockSyncProvider`] so handshakes match RPC `get_tip`.
+fn local_chain_tip(tip_cell: &TipSnapshot, block_sync: Option<&BlockSyncHook>) -> ChainTipV1 {
+    if let Some(sync) = block_sync {
+        let tip = sync.chain_tip_v1();
+        sync_tip_cell(tip_cell, &tip);
+        tip
+    } else {
+        let g = tip_cell.lock().unwrap_or_else(|e| e.into_inner());
+        ChainTipV1 {
+            height: g.0,
+            tip_id: g.1,
+        }
+    }
+}
+
 fn maybe_pull_blocks_if_behind(
     sock: &mut TcpStream,
     hid: u64,
@@ -240,6 +261,10 @@ struct InboundBlockSync {
 }
 
 impl BlockSyncProvider for InboundBlockSync {
+    fn chain_tip_v1(&self) -> ChainTipV1 {
+        self.inner.chain_tip_v1()
+    }
+
     fn blocks_from_height(&self, start_height: u32, count: u32) -> Vec<Vec<u8>> {
         let requested = count.min(crate::block_sync::MAX_BLOCKS_PER_GET_V1);
         let wires = self.inner.blocks_from_height(start_height, requested);
@@ -273,12 +298,14 @@ fn recv_inbound_gossip(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn recv_post_handshake(
     sock: &mut TcpStream,
     hid: u64,
     peer: &str,
     gossip: &GossipHook,
     block_sync: Option<&BlockSyncHook>,
+    block_applier: Option<&BlockSyncApplierHook>,
     fanout_peers: Option<&FanoutPeerSetHook>,
     production: Option<&ProductionHook>,
 ) {
@@ -302,6 +329,7 @@ fn recv_post_handshake(
             &session,
             fanout_peers.map(|ps| ps.as_ref()),
             production.map(|h| h.as_ref()),
+            block_applier.map(|a| a.as_ref()),
         )
     } else {
         recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
@@ -329,7 +357,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
             P2pSessionHooks {
                 gossip,
                 block_sync,
-                block_applier: _,
+                block_applier,
                 fanout_peers,
                 production,
             },
@@ -356,13 +384,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=ping_pong {e}");
                 continue;
             }
-            let local = {
-                let g = tip_cell.lock().unwrap_or_else(|e| e.into_inner());
-                ChainTipV1 {
-                    height: g.0,
-                    tip_id: g.1,
-                }
-            };
+            let local = local_chain_tip(&tip_cell, block_sync.as_ref());
             match exchange_chain_tip_v1_as_listener(&mut sock, &local) {
                 Ok(remote) => match exchange_goodbye_v1_as_listener(&mut sock) {
                     Ok(()) => {
@@ -379,6 +401,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                                 &peer_s,
                                 h,
                                 block_sync.as_ref(),
+                                block_applier.as_ref(),
                                 fanout_peers.as_ref(),
                                 production.as_ref(),
                             );
@@ -417,13 +440,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p-dial".into())
         .spawn(move || {
-            let local = {
-                let g = tip_cell.lock().unwrap_or_else(|e| e.into_inner());
-                ChainTipV1 {
-                    height: g.0,
-                    tip_id: g.1,
-                }
-            };
+            let local = local_chain_tip(&tip_cell, block_sync.as_ref());
             let t0 = Instant::now();
             match tcp_connect_peer_v1_handshake_with_tip_exchange(
                 addr.as_str(),
@@ -470,6 +487,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                                 addr.as_str(),
                                 h,
                                 block_sync.as_ref(),
+                                block_applier.as_ref(),
                                 fanout_peers.as_ref(),
                                 production.as_ref(),
                             );

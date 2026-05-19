@@ -347,13 +347,14 @@ fn three_validators_produce_converge_on_shared_tip() {
         &[v1.rpc],
         &sealed,
         Duration::from_secs(90),
-        &[log0, log1],
+        &[Arc::clone(&log0), Arc::clone(&log1)],
     );
 
     let (height, _tip_id) =
         wait_common_tip(v0.rpc, &[v1.rpc], target_height, Duration::from_secs(15));
     assert_eq!(height, target_height, "hub advanced before v2 joined");
 
+    let log2 = Arc::new(Mutex::new(Vec::new()));
     let (mut v2, out2) = spawn_produce_validator(
         &dir2,
         &spec,
@@ -364,13 +365,16 @@ fn three_validators_produce_converge_on_shared_tip() {
         slot_ms,
         false,
     );
-    watch_stdout(out2, Arc::new(Mutex::new(Vec::new())), None);
+    watch_stdout(out2, Arc::clone(&log2), None);
 
-    let (height, tip_id) = wait_common_tip(
+    thread::sleep(Duration::from_millis(2000));
+
+    let (height, tip_id) = wait_first_block(
         v0.rpc,
         &[v1.rpc, v2.rpc],
-        target_height,
-        Duration::from_secs(60),
+        &sealed,
+        Duration::from_secs(120),
+        &[Arc::clone(&log0), Arc::clone(&log1), log2],
     );
     assert!(height >= target_height, "height={height}");
     let (_, hub_tip_now) = get_tip(v0.rpc);

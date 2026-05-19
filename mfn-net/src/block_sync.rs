@@ -7,7 +7,7 @@
 use std::io::{Read, Write};
 
 use crate::frame::{
-    read_frame, write_frame_io, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
+    read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
 };
 use crate::gossip::{
     recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
@@ -133,6 +133,9 @@ impl BlocksV1 {
 pub trait BlockSyncProvider: Send + Sync {
     /// Return up to `count` canonical block wire blobs with `header.height >= start_height`.
     fn blocks_from_height(&self, start_height: u32, count: u32) -> Vec<Vec<u8>>;
+
+    /// Canonical tip for P2P handshake height exchange (reads live chain, not a cached cell).
+    fn chain_tip_v1(&self) -> ChainTipV1;
 }
 
 /// Apply blocks pulled from a peer (implemented in `mfn-node`).
@@ -276,6 +279,7 @@ pub fn serve_post_handshake_v1(
     gossip: &dyn GossipHandler,
     fanout_peers: Option<&dyn FanoutPeerSet>,
     production: Option<&dyn ProductionHandler>,
+    block_applier: Option<&dyn BlockSyncApplier>,
 ) -> Result<Option<GossipRecvStats>, PostHandshakeError> {
     loop {
         let payload = match read_frame(stream) {
@@ -299,6 +303,16 @@ pub fn serve_post_handshake_v1(
                 stream
                     .flush()
                     .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+            }
+            BLOCKS_V1_TAG => {
+                if let Some(applier) = block_applier {
+                    let blocks = BlocksV1::decode_payload(&payload)?;
+                    for wire in &blocks.block_wires {
+                        applier
+                            .apply_synced_block(wire)
+                            .map_err(PostHandshakeError::Apply)?;
+                    }
+                }
             }
             0x0b => {
                 let addr = crate::gossip::P2pAdvertiseV1::decode_payload(&payload)
@@ -394,6 +408,9 @@ pub enum PostHandshakeError {
     /// Invalid [`P2pAdvertiseV1`] payload.
     #[error("p2p advertise: {0}")]
     Advertise(String),
+    /// Block apply failed while handling an unprompted [`BlocksV1`].
+    #[error("apply: {0}")]
+    Apply(String),
 }
 
 /// Failure while pulling blocks from a peer.
