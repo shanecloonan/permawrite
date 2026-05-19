@@ -2098,6 +2098,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.5** | Demo scan → build → `submit_tx` + `get_mempool` (full browser transfer path). | done |
 | **M4.6** | WASM `buildStorageUpload` + `uploadMinFee` + demo permanence upload path. | done |
 | **M4.7** | Demo light-wallet sync (`get_block` loop + `wallet-sync.js`). | done |
+| **M4.8** | RPC `get_chain_params` + demo **Sync & ready** (params → scan → decoys). | done |
 
 ### Use cases
 

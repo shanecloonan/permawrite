@@ -54,13 +54,14 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7)</h2>
+        <h2>Wallet sync (M4.7–M4.8)</h2>
         <p class="lede">
           Fetches each block via <code>get_block</code> and scans with your seed (light-client style).
           State is saved in <code>localStorage</code> per seed.
         </p>
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">
+          <button type="button" id="btn-sync-ready">Sync &amp; ready (M4.8)</button>
           <button type="button" id="btn-sync-catch-up">Catch up to tip</button>
           <button type="button" id="btn-sync-reset">Reset wallet state</button>
         </div>

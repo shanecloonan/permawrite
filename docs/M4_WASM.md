@@ -132,6 +132,12 @@ Optional `message_hex` (UTF-8 as hex) attaches an MFCL authorship claim in `tx.e
 
 [`demo/web/wallet-sync.js`](../demo/web/wallet-sync.js) incrementally calls `get_block` for each height, runs `scanBlockHex`, tracks owned UTXOs and key images (with `localStorage` per seed). Use **Catch up to tip** in the demo after `mfnd step`.
 
+## Chain params & one-click ready (M4.8)
+
+RPC **`get_chain_params`** (no params) returns live `emission`, `endowment`, and `bonding` structs plus `treasury_base_units`, `tip_height`, and `mfn_base` / `mfn_decimals`. Wallets use `emission.fee_to_treasury_bps` when computing upload min fees.
+
+Demo **Sync & ready (M4.8)** runs: `get_chain_params` → apply fee/replication bounds → catch-up scan → `list_utxos` decoy fill → refresh transfer/upload plans.
+
 ## Roadmap
 
-- **M4.8** — RPC `get_chain_params` + demo one-click “sync, decoys, ready”.
+- **M4.9** — Header-chain light sync (avoid full `block_hex` per height).

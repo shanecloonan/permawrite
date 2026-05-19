@@ -220,6 +220,69 @@ document.addEventListener("DOMContentLoaded", () => {
     show("sync-out", JSON.stringify(summary, null, 2));
   }
 
+  $("btn-sync-ready").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      show("sync-out", "fetching chain params…");
+      const [params, tip] = await Promise.all([
+        mfndRpc(rpcUrl(), "get_chain_params", {}),
+        mfndRpc(rpcUrl(), "get_tip", {}),
+      ]);
+      const applied = applyChainParamsToPlans(params);
+      const tipH = tip.tip_height != null ? Number(tip.tip_height) : 0;
+      let syncSummary = { skipped: true, reason: "no blocks" };
+      if (tipH >= 1) {
+        const from = walletSync.lastScannedHeight + 1;
+        if (from <= tipH) {
+          show("sync-out", `syncing blocks ${from}…${tipH}…`);
+          syncSummary = await syncBlockRange({
+            rpcUrl: rpcUrl(),
+            seedHex: seedOrDemo(),
+            fromHeight: from,
+            toHeight: tipH,
+            state: walletSync,
+            rpc: mfndRpc,
+            scanBlockHex,
+            onProgress: (h) => {
+              show("sync-out", `scanning height ${h}…`);
+            },
+          });
+          persistWalletSync();
+        } else {
+          syncSummary = { skipped: true, reason: "already at tip", tip_height: tipH };
+          refreshSyncStatus();
+        }
+      }
+      show("sync-out", "loading decoy pool…");
+      const decoys = await loadDecoysFromNode(tipH >= 1 ? tipH : null);
+      applyWalletSyncToPlans();
+      show(
+        "sync-out",
+        JSON.stringify(
+          {
+            chain_params: {
+              fee_to_treasury_bps: applied.fee_to_treasury_bps,
+              min_replication: applied.min_replication,
+              max_replication: applied.max_replication,
+              treasury_base_units: params.treasury_base_units,
+            },
+            sync: syncSummary,
+            decoys,
+            wallet: {
+              last_scanned_height: walletSync.lastScannedHeight,
+              utxo_count: walletSync.inputs.length,
+              balance: totalBalance(walletSync),
+            },
+          },
+          null,
+          2,
+        ),
+      );
+    } catch (e) {
+      show("sync-out", String(e));
+    }
+  });
+
   $("btn-sync-catch-up").addEventListener("click", async () => {
     try {
       const tip = await mfndRpc(rpcUrl(), "get_tip", {});
@@ -305,6 +368,45 @@ document.addEventListener("DOMContentLoaded", () => {
     $("upload-plan").value = JSON.stringify(upload, null, 2);
   }
 
+  function applyChainParamsToPlans(params) {
+    const bps = params.emission?.fee_to_treasury_bps ?? 9000;
+    const transfer = JSON.parse($("transfer-plan").value || "{}");
+    const upload = JSON.parse($("upload-plan").value || "{}");
+    upload.fee_to_treasury_bps = bps;
+    const minRep = params.endowment?.min_replication;
+    const maxRep = params.endowment?.max_replication;
+    if (minRep != null && maxRep != null) {
+      let rep = Number($("replication").value);
+      if (!Number.isInteger(rep)) rep = minRep;
+      rep = Math.max(minRep, Math.min(maxRep, rep));
+      $("replication").value = String(rep);
+      upload.replication = rep;
+    }
+    $("transfer-plan").value = JSON.stringify(transfer, null, 2);
+    $("upload-plan").value = JSON.stringify(upload, null, 2);
+    return { fee_to_treasury_bps: bps, min_replication: minRep, max_replication: maxRep };
+  }
+
+  async function loadDecoysFromNode(tipHeight) {
+    const utxoPage = await mfndRpc(rpcUrl(), "list_utxos", { limit: 10000, offset: 0 });
+    const plan = JSON.parse($("transfer-plan").value || "{}");
+    if (tipHeight != null) {
+      plan.current_height = tipHeight;
+    }
+    plan.decoy_utxos = (utxoPage.utxos || []).map((u) => ({
+      height: u.height,
+      one_time_addr_hex: u.one_time_addr_hex,
+      commit_hex: u.commit_hex,
+    }));
+    const owned = new Set(
+      (plan.inputs || []).map((i) => i.one_time_addr_hex?.toLowerCase()).filter(Boolean),
+    );
+    plan.exclude_one_time_addrs_hex = [...owned];
+    $("transfer-plan").value = JSON.stringify(plan, null, 2);
+    syncDecoysToUpload(plan);
+    return { decoy_count: plan.decoy_utxos.length, total: utxoPage.total };
+  }
+
   $("btn-upload-min-fee").addEventListener("click", async () => {
     try {
       await ensureWasm();
@@ -357,28 +459,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("btn-load-decoys").addEventListener("click", async () => {
     try {
-      const [tip, utxoPage] = await Promise.all([
-        mfndRpc(rpcUrl(), "get_tip", {}),
-        mfndRpc(rpcUrl(), "list_utxos", { limit: 10000, offset: 0 }),
-      ]);
-      const plan = JSON.parse($("transfer-plan").value || "{}");
-      if (tip.tip_height != null) {
-        plan.current_height = Number(tip.tip_height);
-      }
-      plan.decoy_utxos = (utxoPage.utxos || []).map((u) => ({
-        height: u.height,
-        one_time_addr_hex: u.one_time_addr_hex,
-        commit_hex: u.commit_hex,
-      }));
-      const owned = new Set(
-        (plan.inputs || []).map((i) => i.one_time_addr_hex?.toLowerCase()).filter(Boolean),
-      );
-      plan.exclude_one_time_addrs_hex = [...owned];
-      $("transfer-plan").value = JSON.stringify(plan, null, 2);
-      syncDecoysToUpload(plan);
+      const tip = await mfndRpc(rpcUrl(), "get_tip", {});
+      const tipH = tip.tip_height != null ? Number(tip.tip_height) : null;
+      const decoys = await loadDecoysFromNode(tipH);
+      applyWalletSyncToPlans();
       show(
         "transfer-out",
-        `loaded ${plan.decoy_utxos.length} decoys (total on chain: ${utxoPage.total ?? "?"})`,
+        `loaded ${decoys.decoy_count} decoys (total on chain: ${decoys.total ?? "?"})`,
       );
     } catch (e) {
       show("transfer-out", String(e));

@@ -480,7 +480,7 @@ fn collect_data_roots_with_claims_sorted(chain: &Chain) -> Vec<([u8; 32], u32, u
     rows
 }
 
-/// `get_mempool`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
+/// `get_mempool`, `clear_mempool`, `get_checkpoint`, `get_chain_params`, `save_checkpoint`, `list_methods`, etc. accept only absent / `null` / `{}` / `[]` `params`.
 fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<(), String> {
     match params {
         None | Some(Value::Null) => Ok(()),
@@ -500,6 +500,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "clear_mempool",
         "get_block",
         "get_block_header",
+        "get_chain_params",
         "get_claims_by_pubkey",
         "get_claims_for",
         "get_checkpoint",
@@ -517,6 +518,45 @@ fn serve_rpc_methods_json_result() -> Value {
     ];
     methods.sort_unstable();
     json!({ "methods": methods })
+}
+
+/// Monetary / permanence parameters from the live chain state (genesis-frozen in v0.1).
+fn chain_params_json(chain: &Chain) -> Value {
+    let s = chain.state();
+    let e = &s.emission_params;
+    let end = &s.endowment_params;
+    let bond = &s.bonding_params;
+    json!({
+        "tip_height": s.height.map(|h| json!(h)).unwrap_or(Value::Null),
+        "genesis_id": hex32(chain.genesis_id()),
+        "treasury_base_units": s.treasury.to_string(),
+        "mfn_decimals": mfn_consensus::emission::MFN_DECIMALS,
+        "mfn_base": mfn_consensus::emission::MFN_BASE,
+        "emission": {
+            "initial_reward": e.initial_reward,
+            "halving_period": e.halving_period,
+            "halving_count": e.halving_count,
+            "tail_emission": e.tail_emission,
+            "storage_proof_reward": e.storage_proof_reward,
+            "fee_to_treasury_bps": e.fee_to_treasury_bps,
+        },
+        "endowment": {
+            "cost_per_byte_year_ppb": end.cost_per_byte_year_ppb,
+            "inflation_ppb": end.inflation_ppb,
+            "real_yield_ppb": end.real_yield_ppb,
+            "min_replication": end.min_replication,
+            "max_replication": end.max_replication,
+            "slots_per_year": end.slots_per_year,
+            "proof_reward_window_slots": end.proof_reward_window_slots,
+        },
+        "bonding": {
+            "min_validator_stake": bond.min_validator_stake,
+            "unbond_delay_heights": bond.unbond_delay_heights,
+            "max_entry_churn_per_epoch": bond.max_entry_churn_per_epoch,
+            "max_exit_churn_per_epoch": bond.max_exit_churn_per_epoch,
+            "slots_per_epoch": bond.slots_per_epoch,
+        },
+    })
 }
 
 /// Load `chain.blocks` validated against `chain` after height / tip checks.
@@ -852,6 +892,13 @@ fn dispatch_serve_methods(
                 "header_hex": hex::encode(hbytes),
             });
             rpc_success(id, body)
+        }
+        "get_chain_params" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_chain_params")
+            {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            rpc_success(id, chain_params_json(chain))
         }
         "get_claims_for" => {
             let hex_s = match extract_data_root_param(req.get("params")) {
@@ -1199,6 +1246,57 @@ mod tests {
         );
         assert_eq!(v["id"], json!(42));
         assert!(v["result"]["mempool_len"].as_u64() == Some(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_chain_params_genesis_defaults() {
+        use mfn_consensus::{
+            emission::{DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS},
+            DEFAULT_BONDING_PARAMS,
+        };
+        use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_chain_params");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_chain_params","id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["tip_height"], json!(0));
+        assert_eq!(
+            v["result"]["emission"]["fee_to_treasury_bps"],
+            json!(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps)
+        );
+        assert_eq!(
+            v["result"]["endowment"]["min_replication"],
+            json!(DEFAULT_ENDOWMENT_PARAMS.min_replication)
+        );
+        assert_eq!(v["result"]["mfn_decimals"], json!(MFN_DECIMALS));
+        assert_eq!(v["result"]["mfn_base"], json!(MFN_BASE));
+        assert_eq!(
+            v["result"]["bonding"]["unbond_delay_heights"],
+            json!(DEFAULT_BONDING_PARAMS.unbond_delay_heights)
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_chain_params_rejects_nonempty_params() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_chain_params_bad");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_chain_params","params":{"x":1},"id":2}"#,
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_PARAMS);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("get_chain_params"));
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1954,6 +2052,7 @@ mod tests {
             "clear_mempool",
             "get_block",
             "get_block_header",
+            "get_chain_params",
             "get_claims_by_pubkey",
             "get_claims_for",
             "get_checkpoint",
@@ -1971,7 +2070,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 17);
+        assert_eq!(names.len(), 18);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -1985,7 +2084,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 17);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 18);
         fs::remove_dir_all(&root).ok();
     }
 
