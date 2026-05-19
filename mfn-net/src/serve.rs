@@ -420,6 +420,46 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
     Ok(())
 }
 
+/// One-shot dial: handshake, pull missing blocks if behind, then close (**M2.3.25**).
+pub fn spawn_catch_up_dial(
+    addr: String,
+    genesis_id: [u8; 32],
+    tip_cell: TipSnapshot,
+    hid_counter: HidCounter,
+    block_sync: Option<BlockSyncHook>,
+    block_applier: BlockSyncApplierHook,
+) -> Result<(), String> {
+    thread::Builder::new()
+        .name("mfnd-p2p-catchup".into())
+        .spawn(move || {
+            let local = local_chain_tip(&tip_cell, block_sync.as_ref());
+            let t0 = Instant::now();
+            match tcp_connect_peer_v1_handshake_with_tip_exchange(
+                addr.as_str(),
+                &genesis_id,
+                &local,
+            ) {
+                Ok((mut sock, remote)) => {
+                    let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
+                    log_peer_tip(hid, addr.as_str(), &remote);
+                    log_height_cmp(hid, addr.as_str(), local.height, &remote);
+                    log_handshake_ms(hid, addr.as_str(), t0.elapsed());
+                    maybe_pull_blocks_if_behind(
+                        &mut sock,
+                        hid,
+                        addr.as_str(),
+                        &local,
+                        &remote,
+                        &block_applier,
+                    );
+                }
+                Err(e) => eprintln!("mfnd p2p catch-up dial `{addr}`: {e}"),
+            }
+        })
+        .map_err(|e| format!("mfnd serve: spawn p2p catch-up dial: {e}"))?;
+    Ok(())
+}
+
 /// Spawn the outbound P2P dial thread used by `mfnd serve --p2p-dial`.
 pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
     let OutboundP2pDial {

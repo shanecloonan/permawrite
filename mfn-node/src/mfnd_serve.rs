@@ -19,7 +19,9 @@ use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
-use crate::p2p_fanout::{spawn_reconnect_saved_peers, P2pPeerSet, ReconnectPeersBoot};
+use crate::p2p_fanout::{
+    spawn_committee_catch_up_loop, spawn_reconnect_saved_peers, P2pPeerSet, ReconnectPeersBoot,
+};
 use crate::p2p_gossip::P2pGossipHandler;
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
@@ -177,9 +179,11 @@ pub(crate) fn run_serve(
             Arc::clone(&store),
             Arc::clone(&tip_cell),
         );
-        let sync_hook = P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
+        let sync_hook: BlockSyncHook =
+            P2pBlockSyncHandler::new(Arc::clone(&chain), Arc::clone(&store));
         let gossip_hook: mfn_net::GossipHook = hook.clone();
         let applier_hook: BlockSyncApplierHook = hook;
+        let hid_counter = Arc::new(AtomicU64::new(0));
         let production_hook = if produce || committee_vote {
             let validators = {
                 let guard = chain
@@ -214,6 +218,16 @@ pub(crate) fn run_serve(
             fanout.attach_production(Arc::clone(&engine) as mfn_net::ProductionHook);
             if produce {
                 spawn_slot_producer_loop(Arc::clone(&engine));
+            } else if committee_vote {
+                spawn_committee_catch_up_loop(
+                    Arc::clone(&fanout),
+                    genesis_id,
+                    Arc::clone(&tip_cell),
+                    Arc::clone(&hid_counter),
+                    Arc::clone(&sync_hook),
+                    Arc::clone(&applier_hook),
+                    slot_duration_ms.max(2_000) / 2,
+                )?;
             }
             Some(engine as mfn_net::ProductionHook)
         } else {
@@ -221,7 +235,7 @@ pub(crate) fn run_serve(
         };
         (
             Some(tip_cell),
-            Some(Arc::new(AtomicU64::new(0))),
+            Some(hid_counter),
             Some(gossip_hook),
             Some(sync_hook),
             Some(applier_hook),
@@ -318,6 +332,7 @@ pub(crate) fn run_serve(
             tip_cell: Arc::clone(tc),
             hid_counter: Arc::clone(hid),
             gossip: gossip_hook,
+            block_sync: block_sync_hook.clone(),
             block_applier: block_applier_hook,
             fanout_hook: fanout_peers
                 .as_ref()

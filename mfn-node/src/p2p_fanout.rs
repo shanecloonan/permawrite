@@ -5,13 +5,14 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
     push_block_gossip_to_peer, push_proposal_v1_to_peer, push_tx_gossip_to_peer,
-    push_vote_v1_to_peer, send_block_v1, send_proposal_v1, send_vote_v1, spawn_outbound_dial,
-    BlockSyncApplierHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial,
-    P2pSessionHooks, ProductionHook, TipSnapshot,
+    push_vote_v1_to_peer, send_block_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial,
+    spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet,
+    GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -82,7 +83,7 @@ impl P2pPeerSet {
             None => return false,
         };
         drop(guard);
-        let mut sock = match sock.lock() {
+        let mut sock = match sock.try_lock() {
             Ok(g) => g,
             Err(_) => return false,
         };
@@ -146,6 +147,13 @@ impl P2pPeerSet {
                 .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
                 .cloned()
                 .collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    fn snapshot_session_peers(&self) -> Vec<String> {
+        match self.sessions.lock() {
+            Ok(g) => g.keys().cloned().collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -222,13 +230,15 @@ impl P2pPeerSet {
 
     /// Push `block_wire` to every registered peer except `except_peer` (**M2.3.23**).
     pub fn fanout_block(self: &Arc<Self>, block_wire: &[u8], except_peer: Option<&str>) {
-        let peers = self.snapshot_peers_except(except_peer);
-        if peers.is_empty() {
+        let session_peers = self.snapshot_session_peers();
+        let dial_peers = self.snapshot_peers_except(except_peer);
+        if session_peers.is_empty() && dial_peers.is_empty() {
             return;
         }
         let wire = block_wire.to_vec();
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
+        let except = except_peer.map(str::to_string);
         let lock = Arc::clone(&self.fanout_lock);
         let peer_set = Arc::clone(self);
         thread::Builder::new()
@@ -238,8 +248,21 @@ impl P2pPeerSet {
                     Ok(g) => g,
                     Err(_) => return,
                 };
-                for peer in peers {
+                let mut sent = BTreeSet::new();
+                for peer in session_peers {
+                    if except.as_deref().is_some_and(|ex| ex == peer) {
+                        continue;
+                    }
                     if peer_set.push_block_on_session(&peer, &wire) {
+                        sent.insert(peer);
+                    }
+                }
+                for peer in dial_peers {
+                    if except.as_deref().is_some_and(|ex| ex == peer) || sent.contains(&peer) {
+                        continue;
+                    }
+                    if peer_set.push_block_on_session(&peer, &wire) {
+                        sent.insert(peer);
                         continue;
                     }
                     if let Err(e) = push_block_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
@@ -335,6 +358,8 @@ pub struct ReconnectPeersBoot<'a> {
     pub hid_counter: HidCounter,
     /// Optional gossip admission hook.
     pub gossip: Option<GossipHook>,
+    /// Block-log query for catch-up pulls (**M2.4.2**).
+    pub block_sync: Option<BlockSyncHook>,
     /// Optional block catch-up applier.
     pub block_applier: Option<BlockSyncApplierHook>,
     /// Fan-out registry passed to outbound dials.
@@ -345,6 +370,35 @@ pub struct ReconnectPeersBoot<'a> {
     pub skip_addr: Option<&'a str>,
 }
 
+/// Periodic height pull for `--committee-vote` followers (**M2.3.25**).
+pub fn spawn_committee_catch_up_loop(
+    peer_set: Arc<P2pPeerSet>,
+    genesis_id: [u8; 32],
+    tip_cell: TipSnapshot,
+    hid_counter: HidCounter,
+    block_sync: BlockSyncHook,
+    block_applier: BlockSyncApplierHook,
+    interval_ms: u64,
+) -> Result<(), String> {
+    thread::Builder::new()
+        .name("mfnd-committee-catchup".into())
+        .spawn(move || loop {
+            for addr in peer_set.snapshot_peers() {
+                let _ = spawn_catch_up_dial(
+                    addr,
+                    genesis_id,
+                    Arc::clone(&tip_cell),
+                    Arc::clone(&hid_counter),
+                    Some(Arc::clone(&block_sync)),
+                    Arc::clone(&block_applier),
+                );
+            }
+            thread::sleep(Duration::from_millis(interval_ms));
+        })
+        .map_err(|e| format!("mfnd serve: spawn committee catch-up loop: {e}"))?;
+    Ok(())
+}
+
 /// Dial up to [`P2pPeerSet::max_outbound_peers`] saved peers on boot (**M2.3.22**).
 pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), String> {
     let ReconnectPeersBoot {
@@ -353,6 +407,7 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
         tip_cell,
         hid_counter,
         gossip,
+        block_sync,
         block_applier,
         fanout_hook,
         local_p2p_listen,
@@ -375,9 +430,10 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
             hid_counter: Arc::clone(&hid_counter),
             hooks: P2pSessionHooks {
                 gossip: gossip.clone(),
+                block_sync: block_sync.clone(),
                 block_applier: block_applier.clone(),
                 fanout_peers: fanout_hook.clone(),
-                ..Default::default()
+                production: None,
             },
             local_p2p_listen,
         })?;

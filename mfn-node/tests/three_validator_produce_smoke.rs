@@ -1,4 +1,5 @@
-//! Hub `mfnd serve --produce` plus two `--committee-vote` peers converge on one tip (**M2.3.24**).
+//! Hub `mfnd serve --produce` plus two `--committee-vote` peers converge on one tip (**M2.3.24**),
+//! then advance through height 2 on the next slot (**M2.3.25**).
 
 use std::io::ErrorKind;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -312,7 +313,7 @@ fn block_id_at_height(rpc: SocketAddr, height: u64) -> String {
 fn three_validators_produce_converge_on_shared_tip() {
     let spec = spec_path();
     let slot_ms = 10_000u64;
-    let target_height = 1u64;
+    let target_height = 2u64;
 
     let dir0 = unique_data_dir("produce_v0");
     let dir1 = unique_data_dir("produce_v1");
@@ -350,9 +351,8 @@ fn three_validators_produce_converge_on_shared_tip() {
         &[Arc::clone(&log0), Arc::clone(&log1)],
     );
 
-    let (height, _tip_id) =
-        wait_common_tip(v0.rpc, &[v1.rpc], target_height, Duration::from_secs(15));
-    assert_eq!(height, target_height, "hub advanced before v2 joined");
+    let (height, _tip_id) = wait_common_tip(v0.rpc, &[v1.rpc], 1, Duration::from_secs(15));
+    assert_eq!(height, 1, "hub advanced before v2 joined");
 
     let log2 = Arc::new(Mutex::new(Vec::new()));
     let (mut v2, out2) = spawn_produce_validator(
@@ -376,12 +376,21 @@ fn three_validators_produce_converge_on_shared_tip() {
         Duration::from_secs(120),
         &[Arc::clone(&log0), Arc::clone(&log1), log2],
     );
-    assert!(height >= target_height, "height={height}");
+    assert!(height >= 1, "height={height}");
     let (_, hub_tip_now) = get_tip(v0.rpc);
     assert_eq!(
         tip_id, hub_tip_now,
-        "tip drifted from hub after convergence"
+        "tip drifted from hub after convergence at height 1"
     );
+
+    let (height2, tip2) = wait_common_tip(
+        v0.rpc,
+        &[v1.rpc, v2.rpc],
+        target_height,
+        Duration::from_secs(150),
+    );
+    assert_eq!(height2, target_height, "expected height {target_height}");
+    assert_eq!(get_tip(v0.rpc).1, tip2, "hub tip drifted before height-2 checks");
 
     let block1_v0 = block_id_at_height(v0.rpc, 1);
     assert_eq!(
@@ -393,15 +402,19 @@ fn three_validators_produce_converge_on_shared_tip() {
     assert_eq!(block1_v0, block1_v1, "height-1 block mismatch v0/v1");
     assert_eq!(block1_v1, block1_v2, "height-1 block mismatch v1/v2");
 
-    let block_at_tip_v0 = block_id_at_height(v0.rpc, height);
-    let block_at_tip_v2 = block_id_at_height(v2.rpc, height);
+    let block_at_tip_v0 = block_id_at_height(v0.rpc, height2);
+    let block_at_tip_v2 = block_id_at_height(v2.rpc, height2);
     assert_eq!(
         block_at_tip_v0, block_at_tip_v2,
-        "tip block id should match across validators"
+        "tip block id should match across validators at height {height2}"
     );
     assert_eq!(
-        block_at_tip_v0, tip_id,
+        block_at_tip_v0, tip2,
         "get_tip tip_id should match get_block at tip height"
+    );
+    assert_ne!(
+        block_at_tip_v0, hub_tip,
+        "height-2 tip should differ from height-1 block id"
     );
 
     shutdown_child(&mut v0.child);
