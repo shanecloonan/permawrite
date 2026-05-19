@@ -159,9 +159,7 @@ fn extract_height_range_param(params: Option<&Value>) -> Result<(u32, u32), Stri
     let obj = match p {
         Value::Object(o) => o,
         _ => {
-            return Err(
-                "params must be a JSON object with from_height and to_height".to_string(),
-            );
+            return Err("params must be a JSON object with from_height and to_height".to_string());
         }
     };
     let from = match obj.get("from_height") {
@@ -181,9 +179,7 @@ fn extract_height_range_param(params: Option<&Value>) -> Result<(u32, u32), Stri
     let from_h = parse_height_u32(from)?;
     let to_h = parse_height_u32(to)?;
     if to_h < from_h {
-        return Err(format!(
-            "to_height {to_h} must be ≥ from_height {from_h}"
-        ));
+        return Err(format!("to_height {to_h} must be ≥ from_height {from_h}"));
     }
     let span = to_h - from_h + 1;
     if span > MAX_BLOCK_HEADERS_SPAN {
@@ -1696,7 +1692,9 @@ mod tests {
             hex32(&bid_exp)
         );
         assert_eq!(
-            vh["result"]["prev_block_id"].as_str().expect("prev_block_id"),
+            vh["result"]["prev_block_id"]
+                .as_str()
+                .expect("prev_block_id"),
             hex32(&dec_hdr.prev_hash)
         );
 
@@ -1732,7 +1730,8 @@ mod tests {
         let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
         for h in 1..=3u32 {
             let inputs = coinbase_inputs(&producer, h);
-            let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+            let block =
+                produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
             chain.apply(&block).expect("apply");
             store.append_block(&block).expect("append");
         }
