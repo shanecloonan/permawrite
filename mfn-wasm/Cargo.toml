@@ -22,11 +22,18 @@ all = "warn"
 default = ["wasm-keys"]
 # Stealth keys + claiming only (smallest WASM).
 wasm-keys = ["mfn-wallet/wasm-keys"]
-# CLSAG transfer build + block scan (**M4.2**); `mfn-consensus` without BLS12-381.
-wasm-full = ["wasm-keys", "mfn-wallet/wasm-full", "dep:mfn-consensus"]
+# CLSAG transfer build + block scan (**M4.2**) + BLS header verify (**M4.10**).
+wasm-full = [
+    "wasm-keys",
+    "mfn-wallet/wasm-full",
+    "dep:mfn-consensus",
+    "dep:mfn-bls",
+    "mfn-consensus/bls",
+]
 
 [dependencies]
 mfn-consensus = { path = "../mfn-consensus", optional = true, default-features = false }
+mfn-bls = { path = "../mfn-bls", optional = true }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet", default-features = false }
 mfn-crypto = { path = "../mfn-crypto" }

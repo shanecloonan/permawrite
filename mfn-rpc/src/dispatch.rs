@@ -3,10 +3,11 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use mfn_bls::encode_public_key;
 use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_transaction, encode_block, encode_transaction, tx_id,
-    AuthorshipClaimRecord, Block,
+    AuthorshipClaimRecord, Block, ConsensusParams, Validator,
 };
 use mfn_crypto::schnorr::encode_schnorr_signature;
 use serde_json::{json, Map, Value};
@@ -566,12 +567,39 @@ fn serve_rpc_methods_json_result() -> Value {
     json!({ "methods": methods })
 }
 
+fn validator_row_json(v: &Validator) -> Value {
+    let payout = match &v.payout {
+        None => Value::Null,
+        Some(p) => json!({
+            "view_pub_hex": hex::encode(p.view_pub.compress().to_bytes()),
+            "spend_pub_hex": hex::encode(p.spend_pub.compress().to_bytes()),
+        }),
+    };
+    json!({
+        "index": v.index,
+        "stake": v.stake,
+        "vrf_pk_hex": hex::encode(v.vrf_pk.compress().to_bytes()),
+        "bls_pk_hex": hex::encode(encode_public_key(&v.bls_pk)),
+        "payout": payout,
+    })
+}
+
+fn consensus_params_json(p: &ConsensusParams) -> Value {
+    json!({
+        "expected_proposers_per_slot": p.expected_proposers_per_slot,
+        "quorum_stake_bps": p.quorum_stake_bps,
+        "liveness_max_consecutive_missed": p.liveness_max_consecutive_missed,
+        "liveness_slash_bps": p.liveness_slash_bps,
+    })
+}
+
 /// Monetary / permanence parameters from the live chain state (genesis-frozen in v0.1).
 fn chain_params_json(chain: &Chain) -> Value {
     let s = chain.state();
     let e = &s.emission_params;
     let end = &s.endowment_params;
     let bond = &s.bonding_params;
+    let validators: Vec<Value> = s.validators.iter().map(validator_row_json).collect();
     json!({
         "tip_height": s.height.map(|h| json!(h)).unwrap_or(Value::Null),
         "genesis_id": hex32(chain.genesis_id()),
@@ -602,6 +630,8 @@ fn chain_params_json(chain: &Chain) -> Value {
             "max_exit_churn_per_epoch": bond.max_exit_churn_per_epoch,
             "slots_per_epoch": bond.slots_per_epoch,
         },
+        "consensus": consensus_params_json(&s.params),
+        "validators": validators,
     })
 }
 
@@ -1358,7 +1388,7 @@ mod tests {
     fn rpc_get_chain_params_genesis_defaults() {
         use mfn_consensus::{
             emission::{DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS},
-            DEFAULT_BONDING_PARAMS,
+            DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
         };
         use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
@@ -1384,6 +1414,11 @@ mod tests {
         assert_eq!(
             v["result"]["bonding"]["unbond_delay_heights"],
             json!(DEFAULT_BONDING_PARAMS.unbond_delay_heights)
+        );
+        assert!(v["result"]["validators"].is_array());
+        assert_eq!(
+            v["result"]["consensus"]["quorum_stake_bps"],
+            json!(DEFAULT_CONSENSUS_PARAMS.quorum_stake_bps)
         );
         fs::remove_dir_all(&root).ok();
     }

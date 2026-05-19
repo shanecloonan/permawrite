@@ -99,6 +99,10 @@ export function saveWalletSync(seedHex, state) {
  * @param {(url: string, method: string, params: object) => Promise<object>} opts.rpc
  * @param {(seed: string, height: number, txHexes: string[], keyImages: string[]) => string} opts.scanBlockTxsHex
  * @param {boolean} [opts.verifyHeaders=true]
+ * @param {string} [opts.validatorsJson]
+ * @param {string} [opts.consensusJson]
+ * @param {(headerHex: string, validatorsJson: string, consensusJson: string) => string} [opts.verifyHeaderHex]
+ * @param {(headerHex: string) => string} [opts.blockIdFromHeaderHex]
  */
 export async function syncBlockRange({
   rpcUrl,
@@ -110,6 +114,10 @@ export async function syncBlockRange({
   rpc,
   scanBlockTxsHex,
   verifyHeaders = true,
+  validatorsJson,
+  consensusJson,
+  verifyHeaderHex,
+  blockIdFromHeaderHex,
 }) {
   if (fromHeight < 1) {
     throw new Error("fromHeight must be ≥ 1 (genesis is not in block log)");
@@ -125,8 +133,11 @@ export async function syncBlockRange({
       fromHeight,
       toHeight,
       rpc,
-      anchorBlockId:
-        fromHeight > 1 ? state.lastTipBlockId : undefined,
+      anchorBlockId: fromHeight > 1 ? state.lastTipBlockId : undefined,
+      validatorsJson,
+      consensusJson,
+      verifyHeaderHex,
+      blockIdFromHeaderHex,
       onProgress: (from, to) => {
         if (onProgress) onProgress(from);
         void to;

@@ -36,6 +36,8 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 }
 
 #[cfg(feature = "wasm-full")]
+use crate::header_verify_core::{block_id_from_header_hex_json, verify_header_hex_json};
+#[cfg(feature = "wasm-full")]
 use crate::scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transaction_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
@@ -69,6 +71,27 @@ pub fn wasm_scan_block_hex(
 ) -> Result<String, JsValue> {
     let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
     scan_block_hex_json(&seed, block_hex, &owned_key_images_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Recompute `block_id` from header wire hex (does not trust RPC-supplied ids).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = blockIdFromHeaderHex)]
+pub fn wasm_block_id_from_header_hex(header_hex: &str) -> Result<String, JsValue> {
+    block_id_from_header_hex_json(header_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Verify BLS finality + validator-root binding on a header wire hex.
+///
+/// `validators_json` / `consensus_json` match [`get_chain_params`] RPC fields.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = verifyHeaderHex)]
+pub fn wasm_verify_header_hex(
+    header_hex: &str,
+    validators_json: &str,
+    consensus_json: &str,
+) -> Result<String, JsValue> {
+    verify_header_hex_json(header_hex, validators_json, consensus_json)
+        .map_err(|e| js_err(e.to_string()))
 }
 
 /// Scan wire-encoded transactions at `height` without downloading the full block body.

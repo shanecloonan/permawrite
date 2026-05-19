@@ -144,6 +144,19 @@ RPC **`get_block_headers`** (`from_height`, `to_height`, max span 4096) returns 
 
 [`demo/web/header-sync.js`](../demo/web/header-sync.js) verifies the chain back to `genesis_id` before scanning. [`wallet-sync.js`](../demo/web/wallet-sync.js) uses `scanBlockTxsHex` instead of downloading full blocks.
 
+## BLS header verification (M4.10)
+
+`wasm-full` now enables `mfn-consensus/bls` in the browser (BLS12-381 via `bls12_381_plus` 0.8.18).
+
+| Export | Role |
+|--------|------|
+| `verifyHeaderHex(header_hex, validators_json, consensus_json)` | Full `verify_header` (validator root + BLS finality) |
+| `blockIdFromHeaderHex(header_hex)` | Recompute `block_id` locally; compare to RPC |
+
+`get_chain_params` returns `validators` and `consensus` for the trusted set. Demo sync runs cryptographic verify on every header batch before tx scan.
+
+**Limitation (v0.1):** verification uses the **current** validator set from RPC. Post-rotation windows need validator-set evolution (M2.0.8 light follower) in a future milestone.
+
 ## Roadmap
 
-- **M4.10** — WASM header verification (BLS finality) without trusting RPC `block_id`.
+- **M4.11** — Validator-set evolution in browser sync (post-rotation headers).

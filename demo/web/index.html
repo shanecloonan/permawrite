@@ -54,10 +54,10 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.9)</h2>
+        <h2>Wallet sync (M4.7–M4.10)</h2>
         <p class="lede">
-          Verifies header linkage via <code>get_block_headers</code>, then scans txs from
-          <code>get_block_txs</code> (no full <code>block_hex</code> per height). State is saved in
+          Verifies header linkage + BLS finality in WASM (<code>verifyHeaderHex</code>), then scans txs
+          from <code>get_block_txs</code> (no full <code>block_hex</code> per height). State is saved in
           <code>localStorage</code> per seed.
         </p>
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>

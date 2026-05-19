@@ -7,6 +7,8 @@ import init, {
   buildTransferJson,
   scanBlockHex,
   scanBlockTxsHex,
+  verifyHeaderHex,
+  blockIdFromHeaderHex,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 import {
@@ -25,6 +27,16 @@ let wasmReady = false;
 let lastBuiltTx = null;
 /** @type {import("./wallet-sync.js").WalletSyncState} */
 let walletSync = emptyWalletSync();
+
+/** Cached from `get_chain_params` for BLS header verify (**M4.10**). */
+let chainTrustJson = null;
+
+function chainTrustFromParams(params) {
+  return {
+    validatorsJson: JSON.stringify(params.validators || []),
+    consensusJson: JSON.stringify(params.consensus || {}),
+  };
+}
 
 async function ensureWasm() {
   if (!wasmReady) {
@@ -205,6 +217,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function runSync(fromHeight, toHeight) {
     await ensureWasm();
     const seed = seedOrDemo();
+    if (!chainTrustJson) {
+      const params = await mfndRpc(rpcUrl(), "get_chain_params", {});
+      chainTrustJson = chainTrustFromParams(params);
+    }
     const summary = await syncBlockRange({
       rpcUrl: rpcUrl(),
       seedHex: seed,
@@ -213,6 +229,10 @@ document.addEventListener("DOMContentLoaded", () => {
       state: walletSync,
       rpc: mfndRpc,
       scanBlockTxsHex,
+      validatorsJson: chainTrustJson.validatorsJson,
+      consensusJson: chainTrustJson.consensusJson,
+      verifyHeaderHex,
+      blockIdFromHeaderHex,
       onProgress: (h) => {
         show("sync-out", `scanning height ${h}…`);
       },
@@ -229,6 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mfndRpc(rpcUrl(), "get_chain_params", {}),
         mfndRpc(rpcUrl(), "get_tip", {}),
       ]);
+      chainTrustJson = chainTrustFromParams(params);
       const applied = applyChainParamsToPlans(params);
       const tipH = tip.tip_height != null ? Number(tip.tip_height) : 0;
       let syncSummary = { skipped: true, reason: "no blocks" };
@@ -244,6 +265,10 @@ document.addEventListener("DOMContentLoaded", () => {
             state: walletSync,
             rpc: mfndRpc,
             scanBlockTxsHex,
+            validatorsJson: chainTrustJson.validatorsJson,
+            consensusJson: chainTrustJson.consensusJson,
+            verifyHeaderHex,
+            blockIdFromHeaderHex,
             onProgress: (h) => {
               show("sync-out", `scanning height ${h}…`);
             },
