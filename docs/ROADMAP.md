@@ -1975,6 +1975,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.3.25** | Three-validator smoke through **height 2**; committee periodic catch-up + non-blocking session fan-out. | ✓ shipped |
 | **M2.4.3** | Bootstrap scripts, chain identity banner, manifest + operator invite template. | ✓ shipped |
 | **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | ✓ shipped |
+| **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 
 ### Why this order
 
@@ -2017,6 +2018,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `runner.rs` | Slot-driven block production + vote propagation + finality assembly. | ✓ live (M2.3.23) |
 | `mfnd --committee-vote` | Committee vote handler without slot loop; hub `--produce` + two `--committee-vote` peers. | ✓ live (M2.3.24) |
 | 3-validator process smoke | `tests/three_validator_produce_smoke.rs` — hub produces, followers vote, shared tip through height 2. | ✓ live (M2.3.24–M2.3.25) |
+| 3-validator all-produce smoke | `tests/three_validator_all_produce_smoke.rs` — three `--produce` nodes, `devnet_three_validators_produce.json` (`F=1.5`), shared tip + `pick_winner` convergence. | ✓ live (M2.3.26) |
 | Committee catch-up loop | `--committee-vote` periodic `spawn_catch_up_dial` to saved peers. | ✓ live (M2.3.25) |
 
 ### Phases

@@ -153,6 +153,45 @@ fn maybe_pull_blocks_if_behind(
     }
 }
 
+/// After gossip/production on a live session, pull any missing heights in order (**M2.3.26**).
+///
+/// Handshake tip can be stale when blocks arrive out-of-order over gossip; if we saw block
+/// frames, also try pulling up to [`crate::block_sync::MAX_BLOCKS_PER_GET_V1`] heights ahead.
+#[allow(clippy::too_many_arguments)]
+fn post_session_catch_up(
+    sock: &mut TcpStream,
+    hid: u64,
+    peer: &str,
+    tip_cell: &TipSnapshot,
+    block_sync: Option<&BlockSyncHook>,
+    applier: &BlockSyncApplierHook,
+    handshake_remote: &ChainTipV1,
+    gossip_stats: Option<&GossipRecvStats>,
+) {
+    let local = local_chain_tip(tip_cell, block_sync);
+    let max_extra = crate::block_sync::MAX_BLOCKS_PER_GET_V1;
+    let mut target_height = handshake_remote.height;
+    if gossip_stats.is_some_and(|s| s.block_frames > 0) {
+        target_height = target_height.max(
+            local
+                .height
+                .saturating_add(1)
+                .min(local.height.saturating_add(max_extra)),
+        );
+    }
+    if target_height > local.height {
+        let probe = ChainTipV1 {
+            height: target_height,
+            tip_id: handshake_remote.tip_id,
+        };
+        maybe_pull_blocks_if_behind(sock, hid, peer, &local, &probe, applier);
+    }
+    let local_after = local_chain_tip(tip_cell, block_sync);
+    if handshake_remote.height > local_after.height {
+        maybe_pull_blocks_if_behind(sock, hid, peer, &local_after, handshake_remote, applier);
+    }
+}
+
 fn log_gossip_end(hid: u64, peer: &str, stats: &GossipRecvStats) {
     println!(
         "mfnd_p2p_gossip_end hid={hid} peer={peer} tx_frames={} block_frames={}",
@@ -217,7 +256,19 @@ struct InboundGossip {
     hid: u64,
     peer: String,
     fanout_peers: Option<FanoutPeerSetHook>,
+    gap_catch_up: Option<GapCatchUpOnGap>,
 }
+
+/// Dial saved peer listen addrs when gossip sees a block height gap (**M2.3.26**).
+struct GapCatchUpOnGap {
+    genesis_id: [u8; 32],
+    tip_cell: TipSnapshot,
+    hid_counter: HidCounter,
+    block_sync: Option<BlockSyncHook>,
+    block_applier: BlockSyncApplierHook,
+    fanout_peers: FanoutPeerSetHook,
+}
+
 
 impl GossipHandler for InboundGossip {
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
@@ -240,6 +291,20 @@ impl GossipHandler for InboundGossip {
         if let Some(rest) = label.strip_prefix("applied:") {
             let height = rest.split(':').next().and_then(|s| s.parse::<u32>().ok());
             log_gossip_block(self.hid, &self.peer, "applied", height);
+        } else if label.starts_with("rejected:gap:") {
+            log_gossip_block(self.hid, &self.peer, "gap", None);
+            if let Some(cfg) = &self.gap_catch_up {
+                for addr in cfg.fanout_peers.boot_peer_addrs() {
+                    let _ = spawn_catch_up_dial(
+                        addr,
+                        cfg.genesis_id,
+                        Arc::clone(&cfg.tip_cell),
+                        Arc::clone(&cfg.hid_counter),
+                        cfg.block_sync.clone(),
+                        Arc::clone(&cfg.block_applier),
+                    );
+                }
+            }
         } else if let Some(reason) = label.strip_prefix("rejected:") {
             log_gossip_block(self.hid, &self.peer, reason, None);
         }
@@ -287,6 +352,7 @@ fn recv_inbound_gossip(
         hid,
         peer: peer.to_string(),
         fanout_peers: fanout_peers.cloned(),
+        gap_catch_up: None,
     };
     match crate::gossip::recv_gossip_v1(sock, &session) {
         Ok(stats) => {
@@ -303,6 +369,10 @@ fn recv_post_handshake(
     sock: &mut TcpStream,
     hid: u64,
     peer: &str,
+    tip_cell: &TipSnapshot,
+    hid_counter: &HidCounter,
+    genesis_id: [u8; 32],
+    handshake_remote: &ChainTipV1,
     gossip: &GossipHook,
     block_sync: Option<&BlockSyncHook>,
     block_applier: Option<&BlockSyncApplierHook>,
@@ -311,11 +381,23 @@ fn recv_post_handshake(
 ) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let gap_catch_up = match (block_applier.as_ref(), fanout_peers) {
+        (Some(a), Some(ps)) => Some(GapCatchUpOnGap {
+            genesis_id,
+            tip_cell: Arc::clone(tip_cell),
+            hid_counter: Arc::clone(hid_counter),
+            block_sync: block_sync.cloned(),
+            block_applier: Arc::clone(a),
+            fanout_peers: Arc::clone(ps),
+        }),
+        _ => None,
+    };
     let session = InboundGossip {
         inner: gossip.clone(),
         hid,
         peer: peer.to_string(),
         fanout_peers: fanout_peers.cloned(),
+        gap_catch_up,
     };
     let result = if let Some(sync) = block_sync {
         let logging = InboundBlockSync {
@@ -335,14 +417,30 @@ fn recv_post_handshake(
         recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
         return;
     };
-    match result {
+    let gossip_stats = match result {
         Ok(Some(stats)) => {
             if stats.tx_frames > 0 || stats.block_frames > 0 {
                 log_gossip_end(hid, peer, &stats);
             }
+            Some(stats)
         }
-        Ok(None) => {}
-        Err(e) => eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}"),
+        Ok(None) => None,
+        Err(e) => {
+            eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}");
+            None
+        }
+    };
+    if let Some(a) = block_applier {
+        post_session_catch_up(
+            sock,
+            hid,
+            peer,
+            tip_cell,
+            block_sync,
+            a,
+            handshake_remote,
+            gossip_stats.as_ref(),
+        );
     }
 }
 
@@ -394,17 +492,23 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
                         // Inbound peers may dial to send proposals/votes; do not start a height
                         // pull on this socket before reading their frames.
-                        if let Some(h) = &gossip {
-                            recv_post_handshake(
-                                &mut sock,
-                                hid,
-                                &peer_s,
-                                h,
-                                block_sync.as_ref(),
-                                block_applier.as_ref(),
-                                fanout_peers.as_ref(),
-                                production.as_ref(),
-                            );
+                        if gossip.is_some() || production.is_some() {
+                            if let Some(h) = &gossip {
+                                recv_post_handshake(
+                                    &mut sock,
+                                    hid,
+                                    &peer_s,
+                                    &tip_cell,
+                                    &hid_counter,
+                                    genesis_id,
+                                    &remote,
+                                    h,
+                                    block_sync.as_ref(),
+                                    block_applier.as_ref(),
+                                    fanout_peers.as_ref(),
+                                    production.as_ref(),
+                                );
+                            }
                         }
                     }
                     Err(e) => {
@@ -509,7 +613,24 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             ps.register_session(addr.as_str(), clone);
                         }
                     }
-                    if let Some(a) = &block_applier {
+                    if gossip.is_some() || production.is_some() {
+                        if let Some(h) = &gossip {
+                            recv_post_handshake(
+                                &mut sock,
+                                hid,
+                                addr.as_str(),
+                                &tip_cell,
+                                &hid_counter,
+                                genesis_id,
+                                &remote,
+                                h,
+                                block_sync.as_ref(),
+                                block_applier.as_ref(),
+                                fanout_peers.as_ref(),
+                                production.as_ref(),
+                            );
+                        }
+                    } else if let Some(a) = &block_applier {
                         maybe_pull_blocks_if_behind(
                             &mut sock,
                             hid,
@@ -518,20 +639,6 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             &remote,
                             a,
                         );
-                    }
-                    if gossip.is_some() || production.is_some() {
-                        if let Some(h) = &gossip {
-                            recv_post_handshake(
-                                &mut sock,
-                                hid,
-                                addr.as_str(),
-                                h,
-                                block_sync.as_ref(),
-                                block_applier.as_ref(),
-                                fanout_peers.as_ref(),
-                                production.as_ref(),
-                            );
-                        }
                     }
                 }
                 Err(e) => eprintln!("mfnd p2p dial `{addr}`: {e}"),

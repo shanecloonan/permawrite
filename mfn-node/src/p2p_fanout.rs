@@ -344,6 +344,10 @@ impl FanoutPeerSet for P2pPeerSet {
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
         self.broadcast_fresh_tx(tx_wire, except_peer);
     }
+
+    fn boot_peer_addrs(&self) -> Vec<String> {
+        self.snapshot_peers()
+    }
 }
 
 /// Boot-time reconnect of peers from `peers.json` (**M2.3.22**).

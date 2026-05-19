@@ -32,6 +32,10 @@ pub trait FanoutPeerSet: Send + Sync {
     }
     /// Forward `tx_wire` to every registered peer except `except_peer`.
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>);
+    /// Saved P2P listen addresses for catch-up dials (**M2.3.26**).
+    fn boot_peer_addrs(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Apply gossip payloads to chain/mempool (implemented in `mfn-node`).

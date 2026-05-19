@@ -125,12 +125,14 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 Integration coverage lives in:
 
 - `mfn-node/tests/three_validator_produce_smoke.rs` — three-process harness, hub + two voters, shared tip through **height 2** (**M2.3.25**).
+- `mfn-node/tests/three_validator_all_produce_smoke.rs` — three `--produce` validators on `devnet_three_validators_produce.json` (`expected_proposers_per_slot: 1.5`), shared canonical tip (**M2.3.26**).
 - `mfn-node/tests/multi_validator_producer.rs` — in-process proposal/vote/quorum.
 
 Run locally:
 
 ```bash
 cargo test -p mfn-node --test three_validator_produce_smoke --release
+cargo test -p mfn-node --test three_validator_all_produce_smoke --release
 ```
 
 ---

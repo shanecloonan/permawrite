@@ -100,6 +100,10 @@ impl GossipHandler for P2pGossipHandler {
             Ok(g) => g,
             Err(_) => return "rejected:chain_mutex".to_string(),
         };
+        let local_height = chain.tip_height().unwrap_or(0);
+        if height > local_height.saturating_add(1) {
+            return format!("rejected:gap:local={local_height}:got={height}");
+        }
         match chain.apply(&block) {
             Ok(bid) => {
                 if let Err(e) = self.store.append_block(&block) {

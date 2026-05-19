@@ -232,6 +232,15 @@ pub(crate) fn run_serve(
             fanout.attach_production(Arc::clone(&engine) as mfn_net::ProductionHook);
             if produce {
                 spawn_slot_producer_loop(Arc::clone(&engine));
+                spawn_committee_catch_up_loop(
+                    Arc::clone(&fanout),
+                    genesis_id,
+                    Arc::clone(&tip_cell),
+                    Arc::clone(&hid_counter),
+                    Arc::clone(&sync_hook),
+                    Arc::clone(&applier_hook),
+                    slot_duration_ms.max(2_000) / 2,
+                )?;
             } else if committee_vote {
                 spawn_committee_catch_up_loop(
                     Arc::clone(&fanout),
