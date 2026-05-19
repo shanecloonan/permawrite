@@ -20,7 +20,10 @@
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
-use crate::bls::{bls_sign, bls_verify, decode_public_key, decode_signature, encode_public_key, encode_signature, BlsPublicKey, BlsSecretKey, BlsSignature};
+use crate::bls::{
+    bls_sign, bls_verify, decode_public_key, decode_signature, encode_public_key, encode_signature,
+    BlsPublicKey, BlsSecretKey, BlsSignature,
+};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{BOND_OP_LEAF, REGISTER_OP_SIG, UNBOND_OP_SIG};
 use mfn_crypto::hash::dhash;

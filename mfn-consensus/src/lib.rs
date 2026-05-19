@@ -75,6 +75,8 @@ pub mod transaction;
 #[cfg(feature = "bls")]
 pub mod validator_evolution;
 
+#[cfg(feature = "bls")]
+pub use block::{apply_block, build_unsealed_header, seal_block, ApplyOutcome};
 pub use block::{
     apply_genesis, block_header_bytes, block_id, build_genesis, decode_block, decode_block_body,
     decode_block_header, encode_block, encode_block_body, header_signing_bytes,
@@ -82,10 +84,6 @@ pub use block::{
     BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig, GenesisOutput,
     HeaderDecodeError, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
     HEADER_VERSION,
-};
-#[cfg(feature = "bls")]
-pub use block::{
-    apply_block, build_unsealed_header, seal_block, ApplyOutcome,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,
@@ -122,9 +120,6 @@ pub use coinbase::{
     build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,
     CoinbaseError, CoinbaseVerifyResult, PayoutAddress,
 };
-pub use consensus::{
-    validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
-};
 #[cfg(feature = "bls")]
 pub use consensus::{
     cast_vote, decode_committee_aggregate, decode_finality_proof, decode_producer_proof,
@@ -132,6 +127,9 @@ pub use consensus::{
     encode_producer_proof, finalize, is_eligible, pick_winner, slot_seed, try_produce_slot,
     verify_finality_proof, verify_producer_proof, ConsensusCheck, ConsensusDecodeError,
     ConsensusError, FinalityProof, ProducerProof, SlotContext, ValidatorSecrets,
+};
+pub use consensus::{
+    validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
 };
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, cumulative_emission, emission_at_height,
@@ -142,12 +140,12 @@ pub use emission::{
 pub use header_verify::{
     verify_block_body, verify_header, BodyVerifyError, HeaderCheck, HeaderVerifyError,
 };
+#[cfg(feature = "bls")]
+pub use slashing::{canonicalize, verify_evidence, EvidenceCheck};
 pub use slashing::{
     decode_evidence, encode_evidence, slashing_leaf_hash, slashing_merkle_root, SlashDecodeError,
     SlashEvidence,
 };
-#[cfg(feature = "bls")]
-pub use slashing::{canonicalize, verify_evidence, EvidenceCheck};
 pub use storage::{
     decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
     StorageCommitment,

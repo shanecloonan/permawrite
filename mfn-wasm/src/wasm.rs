@@ -64,6 +64,5 @@ pub fn wasm_scan_block_hex(
     owned_key_images_hex: Vec<String>,
 ) -> Result<String, JsValue> {
     let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
-    scan_block_hex_json(&seed, block_hex, &owned_key_images_hex)
-        .map_err(|e| js_err(e.to_string()))
+    scan_block_hex_json(&seed, block_hex, &owned_key_images_hex).map_err(|e| js_err(e.to_string()))
 }

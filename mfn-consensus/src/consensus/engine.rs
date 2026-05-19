@@ -33,12 +33,12 @@
 //! minimum cryptographic core. Network layer, view-change, long-range fork
 //! choice, validator-set reconfiguration: out of scope here.
 
+use super::types::Validator;
 use crate::bls::{
     aggregate_committee_votes, bls_sign, bls_verify, decode_signature, encode_signature,
     verify_committee_aggregate, BlsKeypair, BlsPublicKey, BlsResult, BlsSignature,
     CommitteeAggregate, CommitteeVote,
 };
-use super::types::Validator;
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::CONSENSUS_SLOT;
 use mfn_crypto::hash::dhash;
@@ -488,8 +488,10 @@ pub enum ConsensusDecodeError {
 
 #[cfg(test)]
 mod tests {
+    use super::super::types::{
+        validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
+    };
     use super::*;
-    use super::super::types::ValidatorPayout;
     use mfn_bls::bls_keygen_from_seed;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
 

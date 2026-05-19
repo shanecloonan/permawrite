@@ -75,11 +75,7 @@ fn tx_scan_to_json(tx_id: [u8; 32], scan: &TxScan) -> TxScanJson {
                 commit: hex::encode(o.commit.compress().to_bytes()),
             })
             .collect(),
-        spent_key_images: scan
-            .spent_key_images
-            .iter()
-            .map(hex::encode)
-            .collect(),
+        spent_key_images: scan.spent_key_images.iter().map(hex::encode).collect(),
     }
 }
 
