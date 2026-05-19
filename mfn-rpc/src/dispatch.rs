@@ -146,6 +146,54 @@ fn extract_height_param(params: Option<&Value>) -> Result<u32, String> {
     parse_height_u32(n)
 }
 
+/// Max inclusive span for [`get_block_headers`] (`to_height - from_height + 1`).
+const MAX_BLOCK_HEADERS_SPAN: u32 = 4096;
+
+/// `get_block_headers` accepts `{"from_height": N, "to_height": M}` with `1 ≤ N ≤ M` and
+/// `M - N + 1 ≤ MAX_BLOCK_HEADERS_SPAN`.
+fn extract_height_range_param(params: Option<&Value>) -> Result<(u32, u32), String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let obj = match p {
+        Value::Object(o) => o,
+        _ => {
+            return Err(
+                "params must be a JSON object with from_height and to_height".to_string(),
+            );
+        }
+    };
+    let from = match obj.get("from_height") {
+        Some(Value::Number(num)) => num
+            .as_u64()
+            .ok_or_else(|| "params.from_height must be a non-negative JSON number".to_string())?,
+        Some(_) => return Err("params.from_height must be a JSON number".to_string()),
+        None => return Err("missing params.from_height".to_string()),
+    };
+    let to = match obj.get("to_height") {
+        Some(Value::Number(num)) => num
+            .as_u64()
+            .ok_or_else(|| "params.to_height must be a non-negative JSON number".to_string())?,
+        Some(_) => return Err("params.to_height must be a JSON number".to_string()),
+        None => return Err("missing params.to_height".to_string()),
+    };
+    let from_h = parse_height_u32(from)?;
+    let to_h = parse_height_u32(to)?;
+    if to_h < from_h {
+        return Err(format!(
+            "to_height {to_h} must be ≥ from_height {from_h}"
+        ));
+    }
+    let span = to_h - from_h + 1;
+    if span > MAX_BLOCK_HEADERS_SPAN {
+        return Err(format!(
+            "header range span {span} exceeds max {MAX_BLOCK_HEADERS_SPAN} (narrow from_height..to_height)"
+        ));
+    }
+    Ok((from_h, to_h))
+}
+
 /// `get_mempool_tx` reads a 32-byte transaction id from hex (same shapes as height params).
 fn extract_tx_id_param(params: Option<&Value>) -> Result<&str, String> {
     let p = match params {
@@ -500,6 +548,8 @@ fn serve_rpc_methods_json_result() -> Value {
         "clear_mempool",
         "get_block",
         "get_block_header",
+        "get_block_headers",
+        "get_block_txs",
         "get_chain_params",
         "get_claims_by_pubkey",
         "get_claims_for",
@@ -599,6 +649,16 @@ fn read_validated_blocks_for_height(
             format!("read_block_log_validated: {e}"),
         )),
     }
+}
+
+fn header_row_json(block: &Block, height: u32) -> Value {
+    let bid = block_id(&block.header);
+    json!({
+        "height": height,
+        "block_id": hex32(&bid),
+        "prev_block_id": hex32(&block.header.prev_hash),
+        "header_hex": hex::encode(block_header_bytes(&block.header)),
+    })
 }
 
 /// Called with canonical tx wire bytes when [`Mempool::admit`] returns fresh.
@@ -884,14 +944,64 @@ fn dispatch_serve_methods(
             };
             let idx = (height - 1) as usize;
             let block = &blocks[idx];
-            let hbytes = block_header_bytes(&block.header);
-            let bid = block_id(&block.header);
-            let body = json!({
-                "height": height,
-                "block_id": hex32(&bid),
-                "header_hex": hex::encode(hbytes),
-            });
-            rpc_success(id, body)
+            rpc_success(id, header_row_json(block, height))
+        }
+        "get_block_headers" => {
+            let (from_h, to_h) = match extract_height_range_param(req.get("params")) {
+                Ok(r) => r,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let blocks = match read_validated_blocks_for_height(store, chain, to_h, id) {
+                Ok(b) => b,
+                Err(resp) => return resp,
+            };
+            let mut headers = Vec::with_capacity((to_h - from_h + 1) as usize);
+            for h in from_h..=to_h {
+                let block = &blocks[(h - 1) as usize];
+                headers.push(header_row_json(block, h));
+            }
+            rpc_success(
+                id,
+                json!({
+                    "from_height": from_h,
+                    "to_height": to_h,
+                    "genesis_id": hex32(chain.genesis_id()),
+                    "headers": headers,
+                }),
+            )
+        }
+        "get_block_txs" => {
+            let height = match extract_height_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let blocks = match read_validated_blocks_for_height(store, chain, height, id) {
+                Ok(b) => b,
+                Err(resp) => return resp,
+            };
+            let block = &blocks[(height - 1) as usize];
+            let txs: Vec<Value> = block
+                .txs
+                .iter()
+                .enumerate()
+                .map(|(i, tx)| {
+                    let wire = encode_transaction(tx);
+                    let tid = tx_id(tx);
+                    json!({
+                        "tx_index": i,
+                        "tx_hex": hex::encode(&wire),
+                        "tx_id": hex32(&tid),
+                    })
+                })
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "height": height,
+                    "block_id": hex32(&block_id(&block.header)),
+                    "txs": txs,
+                }),
+            )
         }
         "get_chain_params" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_chain_params") {
@@ -1585,6 +1695,10 @@ mod tests {
             vh["result"]["block_id"].as_str().expect("block_id"),
             hex32(&bid_exp)
         );
+        assert_eq!(
+            vh["result"]["prev_block_id"].as_str().expect("prev_block_id"),
+            hex32(&dec_hdr.prev_hash)
+        );
 
         let full_hex = vb["result"]["block_hex"].as_str().expect("block_hex");
         let full = hex::decode(full_hex).expect("block hex");
@@ -1599,6 +1713,93 @@ mod tests {
             bid_exp,
             "header-only id must match full block"
         );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_headers_linkage_and_batch() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_gbh_batch-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        for h in 1..=3u32 {
+            let inputs = coinbase_inputs(&producer, h);
+            let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+            chain.apply(&block).expect("apply");
+            store.append_block(&block).expect("append");
+        }
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block_headers","params":{"from_height":1,"to_height":3},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        let headers = v["result"]["headers"].as_array().expect("headers");
+        assert_eq!(headers.len(), 3);
+        assert_eq!(
+            v["result"]["genesis_id"].as_str().expect("genesis_id"),
+            hex32(chain_loaded.genesis_id())
+        );
+        assert_eq!(
+            headers[1]["prev_block_id"].as_str().unwrap(),
+            headers[0]["block_id"].as_str().unwrap()
+        );
+        assert_eq!(
+            headers[2]["prev_block_id"].as_str().unwrap(),
+            headers[1]["block_id"].as_str().unwrap()
+        );
+        assert_eq!(
+            headers[0]["prev_block_id"].as_str().unwrap(),
+            hex32(chain_loaded.genesis_id())
+        );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_block_txs_matches_block_tx_count() {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "mfn-rpc-test-rpc_gbtx-{}-{nanos}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let store = ChainStore::new(&root);
+
+        let (mut chain, producer, secrets, params, cfg) = solo_chain_fixture();
+        let inputs = coinbase_inputs(&producer, 1);
+        let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("solo");
+        let tx_count = block.txs.len();
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append");
+        store.save(&chain).expect("save");
+
+        let mut chain_loaded = store.load_or_genesis(cfg).expect("reload");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut chain_loaded,
+            &mut pool,
+            r#"{"jsonrpc":"2.0","method":"get_block_txs","params":{"height":1},"id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["txs"].as_array().unwrap().len(), tx_count);
+        assert!(v["result"]["txs"][0]["tx_hex"].as_str().unwrap().len() > 2);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2051,6 +2252,8 @@ mod tests {
             "clear_mempool",
             "get_block",
             "get_block_header",
+            "get_block_headers",
+            "get_block_txs",
             "get_chain_params",
             "get_claims_by_pubkey",
             "get_claims_for",
@@ -2069,7 +2272,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 18);
+        assert_eq!(names.len(), 20);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2083,7 +2286,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 18);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 20);
         fs::remove_dir_all(&root).ok();
     }
 

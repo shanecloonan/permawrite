@@ -138,6 +138,12 @@ RPC **`get_chain_params`** (no params) returns live `emission`, `endowment`, and
 
 Demo **Sync & ready (M4.8)** runs: `get_chain_params` → apply fee/replication bounds → catch-up scan → `list_utxos` decoy fill → refresh transfer/upload plans.
 
+## Header-chain sync (M4.9)
+
+RPC **`get_block_headers`** (`from_height`, `to_height`, max span 4096) returns compact header rows with `prev_block_id` for linkage checks. **`get_block_txs`** returns only transaction wire bytes for a height.
+
+[`demo/web/header-sync.js`](../demo/web/header-sync.js) verifies the chain back to `genesis_id` before scanning. [`wallet-sync.js`](../demo/web/wallet-sync.js) uses `scanBlockTxsHex` instead of downloading full blocks.
+
 ## Roadmap
 
-- **M4.9** — Header-chain light sync (avoid full `block_hex` per height).
+- **M4.10** — WASM header verification (BLS finality) without trusting RPC `block_id`.

@@ -13,7 +13,7 @@
 //! N sequential blocks in one process (by default one checkpoint write at
 //! the end; `--checkpoint-each` writes after every applied block).
 //! **`serve`** (M2.1.6 + **M2.1.8** + **M2.1.10** + **M2.1.11** + **M2.1.12** + **M2.1.13** + **M2.1.14** + **M2.1.15** + **M2.1.16** + **M2.1.17** + **M2.1.18** + **M2.2.8** + **M2.2.10** + **M2.3.3** optional `--p2p-listen` + **M2.3.6** optional `--p2p-dial` + **M2.3.8** P2P ChainTipV1 + **M2.3.9** `mfnd_p2p_peer_tip` + **M2.3.10** GoodbyeV1 + **M2.3.11** `mfnd_p2p_height_cmp` + **M2.3.12** `mfnd_p2p_handshake_ms` + **M2.3.13** `hid=` + **M2.3.14** sequential-`hid` smoke + **M2.3.15** `mfnd_p2p_handshake_abort` on inbound P2P failures) binds a loopback TCP port and answers one
-//! newline-delimited JSON request per connection (`get_tip`, `get_chain_params`, `submit_tx`, `get_block`, `get_block_header`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `list_utxos`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
+//! newline-delimited JSON request per connection (`get_tip`, `get_chain_params`, `submit_tx`, `get_block`, `get_block_header`, `get_block_headers`, `get_block_txs`, `get_mempool`, `get_mempool_tx`, `remove_mempool_tx`, `clear_mempool`, `get_checkpoint`, `save_checkpoint`, `list_methods`, `list_utxos`, `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads`, `list_recent_claims`, `list_data_roots_with_claims`)
 //! against a live chain + mempool until the process exits; each response is a
 //! single JSON-RPC 2.0 object (`jsonrpc`, `id`, `result` or `error`).
 //! Batching, HTTP/WebSocket, P2P, and durable mempool persistence still land

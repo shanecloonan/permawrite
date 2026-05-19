@@ -36,7 +36,7 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 }
 
 #[cfg(feature = "wasm-full")]
-use crate::scan_core::{scan_block_hex_json, scan_transaction_hex_json};
+use crate::scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transaction_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
 #[cfg(feature = "wasm-full")]
@@ -69,6 +69,20 @@ pub fn wasm_scan_block_hex(
 ) -> Result<String, JsValue> {
     let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
     scan_block_hex_json(&seed, block_hex, &owned_key_images_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Scan wire-encoded transactions at `height` without downloading the full block body.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = scanBlockTxsHex)]
+pub fn wasm_scan_block_txs_hex(
+    seed_hex: &str,
+    height: u32,
+    tx_hexes: Vec<String>,
+    owned_key_images_hex: Vec<String>,
+) -> Result<String, JsValue> {
+    let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
+    scan_block_txs_json(&seed, height, &tx_hexes, &owned_key_images_hex)
+        .map_err(|e| js_err(e.to_string()))
 }
 
 /// Preview a decoy pool from a JSON array of `{height, one_time_addr_hex, commit_hex}`.

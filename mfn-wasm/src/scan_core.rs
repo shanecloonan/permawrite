@@ -84,6 +84,32 @@ pub fn scan_transaction_hex_json(
     serde_json::to_string(&json).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))
 }
 
+/// Scan wire-encoded transactions at a fixed block height (no full block body).
+pub fn scan_block_txs_json(
+    seed: &[u8; 32],
+    height: u32,
+    tx_hexes: &[String],
+    owned_key_images_hex: &[String],
+) -> Result<String, WasmCoreError> {
+    let keys = keys_from_seed(seed);
+    let owned = parse_key_images_hex(owned_key_images_hex)?;
+    let mut scan = BlockScan::default();
+    for tx_hex in tx_hexes {
+        let tx_bytes = decode_hex_payload(tx_hex)?;
+        let tx = decode_transaction(&tx_bytes)
+            .map_err(|e: TxDecodeError| WasmCoreError::InvalidHex(e.to_string()))?;
+        let ts = scan_transaction(&tx, height, &keys, &owned);
+        let tx_id = mfn_consensus::tx_id(&tx);
+        scan.gross_received = scan
+            .gross_received
+            .saturating_add(ts.recovered.iter().map(|o| o.value).sum::<u64>());
+        scan.matched_spent += ts.spent_key_images.len();
+        scan.txs.push((tx_id, ts));
+    }
+    let json = block_scan_to_json(height, &scan);
+    serde_json::to_string(&json).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))
+}
+
 /// Scan a wire-encoded block; height is taken from the block header.
 pub fn scan_block_hex_json(
     seed: &[u8; 32],

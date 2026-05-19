@@ -6,6 +6,7 @@ import init, {
   buildStorageUpload,
   buildTransferJson,
   scanBlockHex,
+  scanBlockTxsHex,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 import {
@@ -211,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
       toHeight,
       state: walletSync,
       rpc: mfndRpc,
-      scanBlockHex,
+      scanBlockTxsHex,
       onProgress: (h) => {
         show("sync-out", `scanning height ${h}…`);
       },
@@ -242,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
             toHeight: tipH,
             state: walletSync,
             rpc: mfndRpc,
-            scanBlockHex,
+            scanBlockTxsHex,
             onProgress: (h) => {
               show("sync-out", `scanning height ${h}…`);
             },

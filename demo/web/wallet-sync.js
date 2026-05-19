@@ -1,13 +1,15 @@
 /**
- * Incremental light-wallet sync over mfnd JSON-RPC (**M4.7**).
+ * Incremental light-wallet sync over mfnd JSON-RPC (**M4.7**, **M4.9**).
  *
- * Fetches `get_block` for each height, runs WASM `scanBlockHex`, tracks
- * owned outputs and key images for spend detection across blocks.
+ * Verifies header linkage via `get_block_headers`, scans txs via `get_block_txs`
+ * + WASM `scanBlockTxsHex` (avoids full `block_hex` per height).
  */
+
+import { syncHeaderRange } from "./header-sync.js";
 
 const STORAGE_PREFIX = "permawrite-wallet-sync:";
 
-/** @typedef {{ lastScannedHeight: number, ownedKeyImages: string[], inputs: object[] }} WalletSyncState */
+/** @typedef {{ lastScannedHeight: number, ownedKeyImages: string[], inputs: object[], lastTipBlockId?: string }} WalletSyncState */
 
 /** @returns {WalletSyncState} */
 export function emptyWalletSync() {
@@ -68,6 +70,8 @@ export function loadWalletSync(seedHex) {
       lastScannedHeight: Number(parsed.lastScannedHeight) || 0,
       ownedKeyImages: Array.isArray(parsed.ownedKeyImages) ? parsed.ownedKeyImages : [],
       inputs: Array.isArray(parsed.inputs) ? parsed.inputs : [],
+      lastTipBlockId:
+        typeof parsed.lastTipBlockId === "string" ? parsed.lastTipBlockId : undefined,
     };
   } catch {
     return emptyWalletSync();
@@ -83,7 +87,7 @@ export function saveWalletSync(seedHex, state) {
 }
 
 /**
- * Scan blocks `fromHeight`…`toHeight` inclusive via RPC + WASM.
+ * Scan blocks `fromHeight`…`toHeight` inclusive via header verify + tx-only RPC + WASM.
  *
  * @param {object} opts
  * @param {string} opts.rpcUrl
@@ -93,7 +97,8 @@ export function saveWalletSync(seedHex, state) {
  * @param {WalletSyncState} opts.state
  * @param {(height: number) => void} [opts.onProgress]
  * @param {(url: string, method: string, params: object) => Promise<object>} opts.rpc
- * @param {(seed: string, blockHex: string, keyImages: string[]) => string} opts.scanBlockHex
+ * @param {(seed: string, height: number, txHexes: string[], keyImages: string[]) => string} opts.scanBlockTxsHex
+ * @param {boolean} [opts.verifyHeaders=true]
  */
 export async function syncBlockRange({
   rpcUrl,
@@ -103,7 +108,8 @@ export async function syncBlockRange({
   state,
   onProgress,
   rpc,
-  scanBlockHex,
+  scanBlockTxsHex,
+  verifyHeaders = true,
 }) {
   if (fromHeight < 1) {
     throw new Error("fromHeight must be ≥ 1 (genesis is not in block log)");
@@ -111,18 +117,45 @@ export async function syncBlockRange({
   if (toHeight < fromHeight) {
     throw new Error("toHeight must be ≥ fromHeight");
   }
+
+  let headerSummary = null;
+  if (verifyHeaders) {
+    headerSummary = await syncHeaderRange({
+      rpcUrl,
+      fromHeight,
+      toHeight,
+      rpc,
+      anchorBlockId:
+        fromHeight > 1 ? state.lastTipBlockId : undefined,
+      onProgress: (from, to) => {
+        if (onProgress) onProgress(from);
+        void to;
+      },
+    });
+    if (headerSummary.tip_block_id) {
+      state.lastTipBlockId = headerSummary.tip_block_id;
+    }
+  }
+
   let blocksOk = 0;
   let recoveredThisRun = 0;
   for (let h = fromHeight; h <= toHeight; h++) {
     if (onProgress) onProgress(h);
-    const block = await rpc(rpcUrl, "get_block", { height: h });
-    const hex = block.block_hex;
-    if (!hex) throw new Error(`get_block height ${h}: missing block_hex`);
-    const scanJson = scanBlockHex(seedHex, hex, state.ownedKeyImages);
+    const body = await rpc(rpcUrl, "get_block_txs", { height: h });
+    const txHexes = (body.txs || []).map((t) => t.tx_hex).filter(Boolean);
+    const scanJson = scanBlockTxsHex(
+      seedHex,
+      h,
+      txHexes,
+      state.ownedKeyImages,
+    );
     const scan = JSON.parse(scanJson);
     const before = state.inputs.length;
     applyBlockScan(state, scan);
     recoveredThisRun += state.inputs.length - before;
+    if (body.block_id) {
+      state.lastTipBlockId = body.block_id;
+    }
     blocksOk += 1;
   }
   return {
@@ -132,5 +165,6 @@ export async function syncBlockRange({
     recoveredThisRun,
     balance: totalBalance(state),
     utxoCount: state.inputs.length,
+    headers: headerSummary,
   };
 }
