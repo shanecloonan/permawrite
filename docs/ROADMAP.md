@@ -2104,6 +2104,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.11** | Light follower in WASM + `get_block_evolution` / `get_light_snapshot`; per-block evolution in demo sync. | done |
 | **M4.12** | `get_light_snapshot` at height + wallet checkpoint resume; trusted-evolution ≡ `apply_block` on rotation chain. | done |
 | **M4.13** | `get_light_follow` batch RPC + P2P `GetLightFollowV1`/`LightFollowV1`; demo uses batched evolution. | done |
+| **M4.14** | Light-follow quorum (`lightFollowQuorum`, `light_follow_rows_quorum`); weak-subjectivity checkpoint summary + `get_light_checkpoint_summary`; demo multi-RPC quorum URLs. | done |
 
 ### Use cases
 

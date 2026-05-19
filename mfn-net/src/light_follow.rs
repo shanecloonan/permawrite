@@ -293,6 +293,90 @@ pub enum LightFollowDecodeError {
     },
 }
 
+/// Two light-follow batches disagree (multi-peer quorum, **M4.14**).
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum LightFollowQuorumError {
+    /// No reference batch was supplied.
+    #[error("light-follow quorum requires at least one batch")]
+    Empty,
+    /// Batches contain different row counts.
+    #[error("peer {peer_index} row count {got} != reference {expected}")]
+    RowCountMismatch {
+        /// Index in `batches` (0 is reference).
+        peer_index: usize,
+        /// Row count in the disagreeing batch.
+        got: usize,
+        /// Row count in the reference batch.
+        expected: usize,
+    },
+    /// A row field differs between peers at the same height.
+    #[error("peer {peer_index} height {height} field {field} disagrees with reference")]
+    RowMismatch {
+        /// Index in `batches`.
+        peer_index: usize,
+        /// Block height of the disagreeing row.
+        height: u32,
+        /// Which column diverged (`block_id`, `header_wire`, `slashings`, `bond_ops`).
+        field: &'static str,
+    },
+}
+
+/// Require every batch to match the first byte-for-byte (P2P / RPC quorum).
+pub fn light_follow_rows_quorum(
+    batches: &[&[LightFollowRow]],
+) -> Result<(), LightFollowQuorumError> {
+    let Some(reference) = batches.first() else {
+        return Err(LightFollowQuorumError::Empty);
+    };
+    for (peer_index, batch) in batches.iter().enumerate().skip(1) {
+        if batch.len() != reference.len() {
+            return Err(LightFollowQuorumError::RowCountMismatch {
+                peer_index,
+                got: batch.len(),
+                expected: reference.len(),
+            });
+        }
+        for (row_a, row_b) in reference.iter().zip(batch.iter()) {
+            if row_a.height != row_b.height {
+                return Err(LightFollowQuorumError::RowMismatch {
+                    peer_index,
+                    height: row_a.height,
+                    field: "height",
+                });
+            }
+            if row_a.block_id != row_b.block_id {
+                return Err(LightFollowQuorumError::RowMismatch {
+                    peer_index,
+                    height: row_a.height,
+                    field: "block_id",
+                });
+            }
+            if row_a.header_wire != row_b.header_wire {
+                return Err(LightFollowQuorumError::RowMismatch {
+                    peer_index,
+                    height: row_a.height,
+                    field: "header_wire",
+                });
+            }
+            if row_a.slashings != row_b.slashings {
+                return Err(LightFollowQuorumError::RowMismatch {
+                    peer_index,
+                    height: row_a.height,
+                    field: "slashings",
+                });
+            }
+            if row_a.bond_ops != row_b.bond_ops {
+                return Err(LightFollowQuorumError::RowMismatch {
+                    peer_index,
+                    height: row_a.height,
+                    field: "bond_ops",
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Failed to receive a [`LightFollowV1`] frame.
 #[derive(Debug, thiserror::Error)]
 pub enum LightFollowRecvError {
@@ -338,5 +422,30 @@ mod tests {
         };
         let wire = msg.encode_payload().unwrap();
         assert_eq!(LightFollowV1::decode_payload(&wire).unwrap(), msg);
+    }
+
+    #[test]
+    fn light_follow_rows_quorum_accepts_matching_batches() {
+        let rows = vec![sample_row(1), sample_row(2)];
+        let a = rows.as_slice();
+        let b = rows.clone();
+        light_follow_rows_quorum(&[a, b.as_slice()]).expect("quorum");
+    }
+
+    #[test]
+    fn light_follow_rows_quorum_rejects_header_divergence() {
+        let rows = vec![sample_row(1)];
+        let mut tampered = sample_row(1);
+        tampered.header_wire.push(0xff);
+        let err = light_follow_rows_quorum(&[rows.as_slice(), std::slice::from_ref(&tampered)])
+            .expect_err("must disagree");
+        assert!(matches!(
+            err,
+            LightFollowQuorumError::RowMismatch {
+                peer_index: 1,
+                height: 1,
+                field: "header_wire",
+            }
+        ));
     }
 }

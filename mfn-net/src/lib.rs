@@ -56,9 +56,10 @@ pub use handshake::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 pub use light_follow::{
-    recv_light_follow_v1, send_get_light_follow_v1, GetLightFollowV1, LightFollowDecodeError,
-    LightFollowEncodeError, LightFollowProvider, LightFollowRecvError, LightFollowRow,
-    LightFollowV1, GET_LIGHT_FOLLOW_V1_TAG, LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
+    light_follow_rows_quorum, recv_light_follow_v1, send_get_light_follow_v1, GetLightFollowV1,
+    LightFollowDecodeError, LightFollowEncodeError, LightFollowProvider, LightFollowQuorumError,
+    LightFollowRecvError, LightFollowRow, LightFollowV1, GET_LIGHT_FOLLOW_V1_TAG,
+    LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
 };
 pub use production::{
     push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,

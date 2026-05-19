@@ -17,6 +17,8 @@ mod header_verify_core;
 #[cfg(feature = "wasm-full")]
 mod light_chain_core;
 #[cfg(feature = "wasm-full")]
+mod light_quorum_core;
+#[cfg(feature = "wasm-full")]
 mod scan_core;
 #[cfg(feature = "wasm-full")]
 mod transfer_core;
@@ -38,6 +40,11 @@ pub use header_verify_core::{block_id_from_header_hex_json, verify_header_hex_js
 pub use light_chain_core::{
     light_chain_apply_evolution_json, light_chain_bootstrap_checkpoint_hex,
     light_chain_from_checkpoint_hex, light_chain_from_trust_json, light_chain_verify_header_json,
+};
+#[cfg(feature = "wasm-full")]
+pub use light_quorum_core::{
+    light_chain_checkpoint_summary_json, light_chain_weak_subjectivity_json,
+    light_follow_quorum_json,
 };
 #[cfg(feature = "wasm-full")]
 pub use scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transaction_hex_json};

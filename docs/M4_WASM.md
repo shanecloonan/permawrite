@@ -185,6 +185,20 @@ Integration test `light_chain_trusted_evolution_matches_apply_block_on_rotation_
 
 Demo sync uses `get_light_follow` instead of per-block `get_block_evolution`. Peers with `--p2p-listen` answer the same batch over TCP (see `mfnd_serve_p2p_light_follow_reply_after_handshake`).
 
+## Quorum + weak subjectivity (M4.14)
+
+| WASM / RPC | Role |
+|------------|------|
+| `lightFollowQuorum` | Require multiple `get_light_follow` batches to agree (header + evolution bytes per height) |
+| `lightChainCheckpointSummary` | Digest + tip identity + `validator_set_root` for a checkpoint |
+| `lightChainWeakSubjectivity` | Compare a pinned trusted summary JSON against a checkpoint |
+| `get_light_checkpoint_summary` | Same summary fields server-side from `checkpoint_hex` |
+| `get_light_snapshot` | Now includes embedded `summary` alongside `checkpoint_hex` |
+
+Demo: optional **Quorum RPC URLs** field fetches the same height range from multiple `mfnd serve` bases before sync; `permawrite-light-trusted-summary:<seed>` stores the summary after each successful evolution step.
+
+P2P wire: [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) for byte-identical [`LightFollowRow`] batches between peers.
+
 ## Roadmap
 
-- **M4.14** — Multi-peer light-follow quorum + weak-subjectivity checkpoint compare in browser.
+- **M4.15** — Browser P2P light-follow fetch (WebTransport/WebSocket proxy) so quorum does not depend on multiple HTTP RPC bases.

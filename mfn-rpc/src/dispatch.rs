@@ -7,12 +7,15 @@ use mfn_bls::encode_public_key;
 use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_transaction, encode_block, encode_bond_op,
-    encode_evidence, encode_transaction, tx_id, AuthorshipClaimRecord, Block, BondEpochCounters,
-    ConsensusParams, GenesisConfig, Validator,
+    encode_evidence, encode_transaction, tx_id, validator_set_root, AuthorshipClaimRecord, Block,
+    BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
 };
 use mfn_crypto::schnorr::encode_schnorr_signature;
+use mfn_crypto::dhash;
+use mfn_crypto::domain::LIGHT_CHECKPOINT;
 use mfn_light::checkpoint::{encode_checkpoint_bytes, CheckpointParts};
 use mfn_light::light_checkpoint_after_blocks;
+use mfn_light::LightChain;
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
@@ -563,6 +566,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_block_txs",
         "get_chain_params",
         "get_light_snapshot",
+        "get_light_checkpoint_summary",
         "get_light_follow",
         "get_claims_by_pubkey",
         "get_claims_for",
@@ -621,6 +625,47 @@ fn light_snapshot_hex(chain: &Chain) -> String {
         },
     };
     hex::encode(encode_checkpoint_bytes(&parts))
+}
+
+/// Weak-subjectivity fields for a light-follower checkpoint (**M4.14**).
+fn light_checkpoint_summary_json(checkpoint_hex: &str) -> Result<Value, String> {
+    let t = checkpoint_hex
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| checkpoint_hex.trim().strip_prefix("0X"))
+        .unwrap_or(checkpoint_hex.trim());
+    let bytes = hex::decode(t).map_err(|e| format!("checkpoint_hex: {e}"))?;
+    let chain =
+        LightChain::decode_checkpoint(&bytes).map_err(|e| format!("decode_checkpoint: {e}"))?;
+    let checkpoint_bytes = chain.encode_checkpoint();
+    let digest = dhash(LIGHT_CHECKPOINT, &[&checkpoint_bytes]);
+    Ok(json!({
+        "genesis_id": hex32(chain.genesis_id()),
+        "tip_height": chain.tip_height(),
+        "tip_block_id": hex32(chain.tip_id()),
+        "validator_count": chain.trusted_validators().len(),
+        "validator_set_root": hex32(&validator_set_root(chain.trusted_validators())),
+        "checkpoint_digest": hex32(&digest),
+    }))
+}
+
+fn extract_checkpoint_hex_param(params: Option<&Value>) -> Result<String, String> {
+    let v = params.ok_or_else(|| "missing params".to_string())?;
+    match v {
+        Value::Object(o) => o
+            .get("checkpoint_hex")
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "checkpoint_hex required".to_string()),
+        Value::Array(a) if a.len() == 1 => a[0]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| "checkpoint_hex must be a string".to_string()),
+        _ => Err(
+            "get_light_checkpoint_summary expects {\"checkpoint_hex\":\"…\"} or [\"…\"]"
+                .to_string(),
+        ),
+    }
 }
 
 fn light_snapshot_replay_at_height(
@@ -1147,13 +1192,28 @@ fn dispatch_serve_methods(
                     }
                 }
             };
+            let summary = match light_checkpoint_summary_json(&checkpoint_hex) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
             rpc_success(
                 id,
                 json!({
                     "tip_height": snapshot_height,
                     "checkpoint_hex": checkpoint_hex,
+                    "summary": summary,
                 }),
             )
+        }
+        "get_light_checkpoint_summary" => {
+            let checkpoint_hex = match extract_checkpoint_hex_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            match light_checkpoint_summary_json(&checkpoint_hex) {
+                Ok(summary) => rpc_success(id, summary),
+                Err(msg) => rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            }
         }
         "get_light_follow" => {
             let (from_h, to_h) = match extract_height_range_param(req.get("params")) {
@@ -2029,6 +2089,31 @@ mod tests {
     }
 
     #[test]
+    fn rpc_get_light_checkpoint_summary_matches_snapshot_embedded_summary() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_sum");
+        let snap = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","id":0}"#,
+        );
+        assert_eq!(snap["error"], Value::Null);
+        let checkpoint_hex = snap["result"]["checkpoint_hex"].as_str().unwrap();
+        let embedded = &snap["result"]["summary"];
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            &format!(
+                r#"{{"jsonrpc":"2.0","method":"get_light_checkpoint_summary","params":{{"checkpoint_hex":"{checkpoint_hex}"}},"id":1}}"#
+            ),
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(&v["result"], embedded);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn rpc_get_light_snapshot_rejects_unknown_param_key() {
         let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_snap_rej");
         let v = parse_and_dispatch_serve(
@@ -2636,6 +2721,7 @@ mod tests {
             "get_block_txs",
             "get_chain_params",
             "get_light_snapshot",
+            "get_light_checkpoint_summary",
             "get_light_follow",
             "get_claims_by_pubkey",
             "get_claims_for",
@@ -2654,7 +2740,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 23);
+        assert_eq!(names.len(), 24);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2668,7 +2754,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 23);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 24);
         fs::remove_dir_all(&root).ok();
     }
 

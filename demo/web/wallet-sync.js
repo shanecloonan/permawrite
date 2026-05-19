@@ -9,6 +9,7 @@ import { syncHeaderRange, verifyHeaderChain } from "./header-sync.js";
 
 const STORAGE_PREFIX = "permawrite-wallet-sync:";
 const CHECKPOINT_PREFIX = "permawrite-light-checkpoint:";
+const TRUSTED_SUMMARY_PREFIX = "permawrite-light-trusted-summary:";
 
 /** @typedef {{ lastScannedHeight: number, ownedKeyImages: string[], inputs: object[], lastTipBlockId?: string }} WalletSyncState */
 
@@ -95,6 +96,36 @@ export function saveLightCheckpoint(seedHex, checkpointHex) {
   localStorage.setItem(CHECKPOINT_PREFIX + seedHex, checkpointHex);
 }
 
+export function loadTrustedSummary(seedHex) {
+  return localStorage.getItem(TRUSTED_SUMMARY_PREFIX + seedHex);
+}
+
+export function saveTrustedSummary(seedHex, summaryJson) {
+  localStorage.setItem(TRUSTED_SUMMARY_PREFIX + seedHex, summaryJson);
+}
+
+/**
+ * @param {string} rpcUrl
+ * @param {number} fromHeight
+ * @param {number} toHeight
+ * @param {(url: string, method: string, params: object) => Promise<object>} rpc
+ * @param {string[]} [quorumRpcUrls] optional extra RPC bases (same path as primary)
+ */
+async function fetchLightFollowWithQuorum(
+  rpcUrl,
+  fromHeight,
+  toHeight,
+  rpc,
+  quorumRpcUrls,
+) {
+  const params = { from_height: fromHeight, to_height: toHeight };
+  const urls = [rpcUrl, ...(quorumRpcUrls || []).filter((u) => u && u !== rpcUrl)];
+  const pages = await Promise.all(
+    urls.map((url) => rpc(url, "get_light_follow", params)),
+  );
+  return { primary: pages[0], batches: pages };
+}
+
 function evolutionJsonFromRpc(page) {
   const slashings = (page.slashings || []).map((s) => s.evidence_hex).filter(Boolean);
   const bond_ops = (page.bond_ops || []).map((b) => b.op_hex).filter(Boolean);
@@ -121,6 +152,10 @@ function evolutionJsonFromFollowRow(row) {
  * @param {(checkpointHex: string, headerHex: string) => string} opts.lightChainVerifyHeader
  * @param {(checkpointHex: string, headerHex: string, evolutionJson: string) => string} opts.lightChainApplyEvolution
  * @param {(trustJson: string) => string} [opts.lightChainBootstrapCheckpoint]
+ * @param {(batchesJson: string) => string} [opts.lightFollowQuorum]
+ * @param {(trustedSummaryJson: string, checkpointHex: string) => string} [opts.lightChainWeakSubjectivity]
+ * @param {(checkpointHex: string) => string} [opts.lightChainCheckpointSummary]
+ * @param {string[]} [opts.quorumRpcUrls]
  * @param {string} [opts.initialCheckpointHex]
  */
 export async function syncBlockRange({
@@ -135,6 +170,10 @@ export async function syncBlockRange({
   lightChainVerifyHeader,
   lightChainApplyEvolution,
   lightChainBootstrapCheckpoint,
+  lightFollowQuorum,
+  lightChainWeakSubjectivity,
+  lightChainCheckpointSummary,
+  quorumRpcUrls,
   initialCheckpointHex,
 }) {
   if (fromHeight < 1) {
@@ -174,6 +213,9 @@ export async function syncBlockRange({
         );
       }
       saveLightCheckpoint(seedHex, checkpoint);
+      if (lightChainCheckpointSummary && snap.summary) {
+        saveTrustedSummary(seedHex, JSON.stringify(snap.summary));
+      }
     } else if (lightChainBootstrapCheckpoint) {
       const params = await rpc(rpcUrl, "get_chain_params", {});
       checkpoint = lightChainBootstrapCheckpoint(JSON.stringify(params));
@@ -183,14 +225,41 @@ export async function syncBlockRange({
     }
   }
 
+  if (lightChainWeakSubjectivity && checkpoint) {
+    const trustedRaw = loadTrustedSummary(seedHex);
+    if (trustedRaw) {
+      const ws = JSON.parse(
+        lightChainWeakSubjectivity(trustedRaw, checkpoint),
+      );
+      if (!ws.ok || !ws.agrees) {
+        throw new Error(
+          ws.error ||
+            "weak-subjectivity checkpoint mismatch (trusted summary vs local/RPC checkpoint)",
+        );
+      }
+    }
+  }
+
   const headerByHeight = new Map(
     (headerPage.headers || []).map((row) => [Number(row.height), row]),
   );
 
-  const followPage = await rpc(rpcUrl, "get_light_follow", {
-    from_height: fromHeight,
-    to_height: toHeight,
-  });
+  const { primary: followPage, batches: followBatches } =
+    await fetchLightFollowWithQuorum(
+      rpcUrl,
+      fromHeight,
+      toHeight,
+      rpc,
+      quorumRpcUrls,
+    );
+  if (lightFollowQuorum && followBatches.length > 1) {
+    const quorum = JSON.parse(
+      lightFollowQuorum(JSON.stringify({ batches: followBatches })),
+    );
+    if (!quorum.ok) {
+      throw new Error(quorum.error || "light-follow quorum failed");
+    }
+  }
   const followByHeight = new Map(
     (followPage.rows || []).map((row) => [Number(row.height), row]),
   );
@@ -235,6 +304,10 @@ export async function syncBlockRange({
     }
     checkpoint = evolved.checkpoint_hex;
     saveLightCheckpoint(seedHex, checkpoint);
+    if (lightChainCheckpointSummary) {
+      const summaryJson = lightChainCheckpointSummary(checkpoint);
+      saveTrustedSummary(seedHex, summaryJson);
+    }
     state.lastTipBlockId = evolved.tip_block_id;
     evolutionSteps += 1;
     blocksOk += 1;

@@ -10,6 +10,9 @@ import init, {
   lightChainVerifyHeader,
   lightChainApplyEvolution,
   lightChainBootstrapCheckpoint,
+  lightChainCheckpointSummary,
+  lightChainWeakSubjectivity,
+  lightFollowQuorum,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 import {
@@ -58,6 +61,25 @@ function show(outId, text) {
 
 function rpcUrl() {
   return $("rpc-url").value.trim();
+}
+
+function quorumRpcUrls() {
+  const el = document.getElementById("sync-quorum-urls");
+  const raw = el?.value?.trim() ?? "";
+  if (!raw) return [];
+  return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+function syncWasmOpts() {
+  return {
+    lightChainVerifyHeader,
+    lightChainApplyEvolution,
+    lightChainBootstrapCheckpoint,
+    lightChainCheckpointSummary,
+    lightChainWeakSubjectivity,
+    lightFollowQuorum,
+    quorumRpcUrls: quorumRpcUrls(),
+  };
 }
 
 function ownedKeyImagesFromTextarea() {
@@ -217,9 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
       state: walletSync,
       rpc: mfndRpc,
       scanBlockTxsHex,
-      lightChainVerifyHeader,
-      lightChainApplyEvolution,
-      lightChainBootstrapCheckpoint,
+      ...syncWasmOpts(),
       onProgress: (h) => {
         show("sync-out", `scanning height ${h}…`);
       },
@@ -251,9 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
             state: walletSync,
             rpc: mfndRpc,
             scanBlockTxsHex,
-            lightChainVerifyHeader,
-            lightChainApplyEvolution,
-            lightChainBootstrapCheckpoint,
+            ...syncWasmOpts(),
             onProgress: (h) => {
               show("sync-out", `scanning height ${h}…`);
             },

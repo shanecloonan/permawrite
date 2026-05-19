@@ -43,6 +43,11 @@ use crate::light_chain_core::{
     light_chain_verify_header_json,
 };
 #[cfg(feature = "wasm-full")]
+use crate::light_quorum_core::{
+    light_chain_checkpoint_summary_json, light_chain_weak_subjectivity_json,
+    light_follow_quorum_json,
+};
+#[cfg(feature = "wasm-full")]
 use crate::scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transaction_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
@@ -112,6 +117,31 @@ pub fn wasm_light_chain_apply_evolution(
 ) -> Result<String, JsValue> {
     light_chain_apply_evolution_json(checkpoint_hex, header_hex, evolution_json)
         .map_err(|e| js_err(e.to_string()))
+}
+
+/// Weak-subjectivity digest of a light-follower checkpoint (**M4.14**).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightChainCheckpointSummary)]
+pub fn wasm_light_chain_checkpoint_summary(checkpoint_hex: &str) -> Result<String, JsValue> {
+    light_chain_checkpoint_summary_json(checkpoint_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Compare a trusted summary JSON against a checkpoint (**M4.14**).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightChainWeakSubjectivity)]
+pub fn wasm_light_chain_weak_subjectivity(
+    trusted_summary_json: &str,
+    checkpoint_hex: &str,
+) -> Result<String, JsValue> {
+    light_chain_weak_subjectivity_json(trusted_summary_json, checkpoint_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
+
+/// Require multiple `get_light_follow` batches to agree row-for-row (**M4.14**).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = lightFollowQuorum)]
+pub fn wasm_light_follow_quorum(batches_json: &str) -> Result<String, JsValue> {
+    light_follow_quorum_json(batches_json).map_err(|e| js_err(e.to_string()))
 }
 
 /// Verify BLS finality + validator-root binding on a header wire hex.
