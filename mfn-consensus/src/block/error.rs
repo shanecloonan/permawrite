@@ -64,6 +64,7 @@ pub enum BlockError {
     #[error("producer proof decode failed: {0}")]
     FinalityDecode(String),
     /// The producer proof decoded but failed verification.
+    #[cfg(feature = "bls")]
     #[error("finality invalid: {0:?}")]
     FinalityInvalid(crate::consensus::ConsensusCheck),
     /// A tx past index 0 was coinbase-shaped (no inputs).

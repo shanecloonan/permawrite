@@ -43,7 +43,9 @@
 //! two-sided treasury/emission settlement. The wire format is forward-
 //! compatible: blocks produced today will still validate then.
 
+#[cfg(feature = "bls")]
 mod apply;
+#[cfg(feature = "bls")]
 mod builder;
 mod error;
 mod genesis;
@@ -52,7 +54,9 @@ mod internal;
 mod state;
 mod wire;
 
+#[cfg(feature = "bls")]
 pub use apply::{apply_block, ApplyOutcome};
+#[cfg(feature = "bls")]
 pub use builder::{build_unsealed_header, seal_block};
 pub use error::BlockError;
 pub use genesis::{apply_genesis, build_genesis, GenesisConfig, GenesisOutput};

@@ -53,38 +53,38 @@ pub mod keys;
 pub use claiming::ClaimingIdentity;
 pub use keys::{wallet_from_seed, WalletKeys};
 
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod decoy;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod error;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod owned;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod scan;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod spend;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod stored;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod upload;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod wallet;
 
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use error::WalletError;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use owned::{key_image_for_owned, owned_balance, verify_pedersen_open, OwnedOutput, OwnedRef};
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use scan::{scan_block, scan_transaction, BlockScan, ScannedOutput, TxScan};
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use spend::{build_transfer, TransferPlan, TransferRecipient};
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use stored::StoredOwnedOutput;
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use upload::{
     build_storage_upload, estimate_minimum_fee_for_upload, StorageUploadPlan, UploadArtifacts,
 };
-#[cfg(feature = "full")]
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use wallet::Wallet;

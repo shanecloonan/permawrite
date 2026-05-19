@@ -13,13 +13,16 @@ all = "warn"
 
 [features]
 default = ["full"]
-# Keys + claiming only — no `mfn-consensus` / BLS (wasm32-friendly).
+# Keys + claiming only — no `mfn-consensus` (wasm32-friendly).
 wasm-keys = []
-full = ["dep:mfn-consensus"]
+# Native node / CLI: full consensus including BLS finality.
+full = ["dep:mfn-consensus", "mfn-consensus/bls"]
+# Browser wallet: CLSAG + scan without `bls12_381_plus` (**M4.2**).
+wasm-full = ["dep:mfn-consensus"]
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
-mfn-consensus = { path = "../mfn-consensus", optional = true }
+mfn-consensus = { path = "../mfn-consensus", optional = true, default-features = false }
 mfn-storage = { path = "../mfn-storage" }
 
 curve25519-dalek = { workspace = true }

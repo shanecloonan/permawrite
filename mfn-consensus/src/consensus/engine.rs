@@ -1,4 +1,4 @@
-//! Slot-based PoS consensus.
+//! Slot-based PoS consensus (requires `bls` feature).
 //!
 //! Port of `cloonan-group/lib/network/consensus.ts`. Combines the
 //! privacy-friendly primitives we already have:
@@ -33,112 +33,19 @@
 //! minimum cryptographic core. Network layer, view-change, long-range fork
 //! choice, validator-set reconfiguration: out of scope here.
 
-use curve25519_dalek::edwards::EdwardsPoint;
-
-use mfn_bls::encode_public_key;
-use mfn_bls::{
+use crate::bls::{
     aggregate_committee_votes, bls_sign, bls_verify, decode_signature, encode_signature,
     verify_committee_aggregate, BlsKeypair, BlsPublicKey, BlsResult, BlsSignature,
     CommitteeAggregate, CommitteeVote,
 };
+use super::types::Validator;
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::{CONSENSUS_SLOT, VALIDATOR_LEAF};
+use mfn_crypto::domain::CONSENSUS_SLOT;
 use mfn_crypto::hash::dhash;
-use mfn_crypto::merkle::merkle_root_or_zero;
 use mfn_crypto::vrf::{
     decode_vrf_proof, encode_vrf_proof, vrf_output_as_u64, vrf_prove, vrf_verify, VrfKeypair,
     VrfProof,
 };
-
-/// Public payout destination of a validator (used by the chain's coinbase
-/// routing).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatorPayout {
-    /// Public view key.
-    pub view_pub: EdwardsPoint,
-    /// Public spend key.
-    pub spend_pub: EdwardsPoint,
-}
-
-/// A validator's on-chain record.
-#[derive(Clone, Debug)]
-pub struct Validator {
-    /// Index into the canonical validator list (frozen at genesis in v0.1).
-    pub index: u32,
-    /// ed25519 VRF public key (for the leader lottery).
-    pub vrf_pk: EdwardsPoint,
-    /// BLS12-381 voting public key (for finality aggregation).
-    pub bls_pk: BlsPublicKey,
-    /// Effective stake weight.
-    pub stake: u64,
-    /// Optional stealth payout destination. When `Some`, the producer's
-    /// block-reward coinbase pays to this address; when `None`, the block
-    /// burns the coinbase (no UTXO created) — used for backward compat
-    /// with pre-tokenomics validator records.
-    pub payout: Option<ValidatorPayout>,
-}
-
-/* ----------------------------------------------------------------------- *
- *  Validator-set commitment (M2.0)                                         *
- * ----------------------------------------------------------------------- */
-
-/// Canonical bytes for a single [`Validator`] when committed under the
-/// block header's `validator_root`.
-///
-/// Layout (no domain prefix): `index(u32, BE) ‖ stake(u64, BE) ‖
-/// vrf_pk(32) ‖ bls_pk(48) ‖ payout_flag(u8) ‖ [view_pub(32) ‖ spend_pub(32)]?`.
-///
-/// Deterministic; mirrors the on-wire encoding of these fields elsewhere.
-/// Does **not** include [`crate::block::ValidatorStats`] — stats churn
-/// every block via liveness tracking and would otherwise re-hash every
-/// leaf needlessly. Light clients verifying a finality bitmap need
-/// `(index, stake, bls_pk)` and nothing else.
-#[must_use]
-pub fn validator_leaf_bytes(v: &Validator) -> Vec<u8> {
-    let mut w = Writer::new();
-    w.u32(v.index);
-    w.u64(v.stake);
-    w.push(&v.vrf_pk.compress().to_bytes());
-    w.push(&encode_public_key(&v.bls_pk));
-    match &v.payout {
-        None => {
-            w.u8(0);
-        }
-        Some(p) => {
-            w.u8(1);
-            w.push(&p.view_pub.compress().to_bytes());
-            w.push(&p.spend_pub.compress().to_bytes());
-        }
-    }
-    w.into_bytes()
-}
-
-/// 32-byte Merkle leaf hash for one validator (domain-separated under
-/// [`VALIDATOR_LEAF`]).
-#[must_use]
-pub fn validator_leaf_hash(v: &Validator) -> [u8; 32] {
-    dhash(VALIDATOR_LEAF, &[&validator_leaf_bytes(v)])
-}
-
-/// Merkle root over the active validator set in canonical index order.
-///
-/// Empty validator set → all-zero sentinel (matches the other consensus
-/// root commitments). This root is what every block header commits to,
-/// reflecting the validator set the block is being validated against —
-/// i.e., the *pre-block* validator set so the producer-proof + finality
-/// bitmap are immediately verifiable from the header alone.
-///
-/// Bond ops, equivocation slashing, and liveness slashing all change
-/// the next block's `validator_root`; the current block's root reflects
-/// what *was*, not what *will be*.
-#[must_use]
-pub fn validator_set_root(validators: &[Validator]) -> [u8; 32] {
-    if validators.is_empty() {
-        return [0u8; 32];
-    }
-    let leaves: Vec<[u8; 32]> = validators.iter().map(validator_leaf_hash).collect();
-    merkle_root_or_zero(&leaves)
-}
 
 /// Per-validator secret material (held only by the validator's process,
 /// never persisted on-chain).
@@ -491,7 +398,7 @@ pub fn decode_producer_proof(bytes: &[u8]) -> Result<ProducerProof, ConsensusDec
     let mut beta = [0u8; 32];
     beta.copy_from_slice(beta_raw);
     let vrf_proof = decode_vrf_proof(r.bytes(mfn_crypto::vrf::VRF_PROOF_BYTES)?)?;
-    let producer_sig = decode_signature(r.bytes(mfn_bls::BLS_SIGNATURE_BYTES)?)?;
+    let producer_sig = decode_signature(r.bytes(crate::bls::BLS_SIGNATURE_BYTES)?)?;
     Ok(ProducerProof {
         validator_index,
         beta,
@@ -516,7 +423,7 @@ pub fn decode_committee_aggregate(
     let mut r = Reader::new(bytes);
     let msg = r.blob()?.to_vec();
     let bitmap = r.blob()?.to_vec();
-    let agg_sig = decode_signature(r.bytes(mfn_bls::BLS_SIGNATURE_BYTES)?)?;
+    let agg_sig = decode_signature(r.bytes(crate::bls::BLS_SIGNATURE_BYTES)?)?;
     Ok(CommitteeAggregate {
         msg,
         bitmap,
@@ -576,12 +483,13 @@ pub enum ConsensusDecodeError {
     Codec(#[from] mfn_crypto::CryptoError),
     /// BLS signature decode failure.
     #[error(transparent)]
-    Bls(#[from] mfn_bls::BlsError),
+    Bls(#[from] crate::bls::BlsError),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::types::ValidatorPayout;
     use mfn_bls::bls_keygen_from_seed;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
 

@@ -47,7 +47,7 @@
 
 use std::collections::HashSet;
 
-use mfn_bls::{decode_public_key, encode_public_key, BlsError, BlsPublicKey};
+use crate::bls::{decode_public_key, encode_public_key, BlsError, BlsPublicKey};
 use mfn_crypto::codec::{Reader, Writer};
 
 use crate::block::{ConsensusParams, PendingUnbond, ValidatorStats};

@@ -90,10 +90,10 @@ jobs:
           rustup target add wasm32-unknown-unknown
           rustc --version
           cargo --version
-      - run: cargo build -p mfn-wasm --target wasm32-unknown-unknown --release
-      - run: cargo test -p mfn-wasm --release
+      - run: cargo build -p mfn-wasm --target wasm32-unknown-unknown --release --features wasm-full
+      - run: cargo test -p mfn-wasm --release --features wasm-full
       - run: cargo install wasm-pack --locked
-      - run: wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release
+      - run: wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
 
   audit:
     name: cargo-audit

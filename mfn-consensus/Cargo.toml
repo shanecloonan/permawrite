@@ -11,19 +11,27 @@ description = "Permawrite — state-transition function: transactions, coinbase,
 [lints.clippy]
 all = "warn"
 
+[features]
+default = ["bls"]
+# Full BLS12-381 consensus (nodes). Off for `wasm32` wallet scan/sign builds.
+bls = ["dep:mfn-bls"]
+
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
-mfn-bls = { path = "../mfn-bls" }
+mfn-bls = { path = "../mfn-bls", optional = true }
 mfn-storage = { path = "../mfn-storage" }
+zeroize = { workspace = true }
 
 curve25519-dalek = { workspace = true }
 sha2 = { workspace = true }
 subtle = { workspace = true }
-zeroize = { workspace = true }
 rand_core = { workspace = true }
 
 thiserror = { workspace = true }
 hex = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 proptest = "1.6"

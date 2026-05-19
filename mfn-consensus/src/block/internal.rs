@@ -29,9 +29,9 @@ pub(crate) use crate::claims::{
     AuthorshipClaimVerifyError, VerifiedClaimsForTxResult,
 };
 pub(crate) use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
-pub(crate) use crate::consensus::{
-    decode_finality_proof, verify_finality_proof, SlotContext, Validator,
-};
+pub(crate) use crate::consensus::Validator;
+#[cfg(feature = "bls")]
+pub(crate) use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext};
 pub(crate) use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
 pub(crate) use crate::slashing::{
     decode_evidence, encode_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,

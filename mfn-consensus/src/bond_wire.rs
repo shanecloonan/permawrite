@@ -20,8 +20,7 @@
 
 use curve25519_dalek::edwards::EdwardsPoint;
 
-use mfn_bls::{bls_sign, bls_verify, BlsPublicKey, BlsSecretKey, BlsSignature};
-use mfn_bls::{decode_public_key, decode_signature, encode_public_key, encode_signature};
+use crate::bls::{bls_sign, bls_verify, decode_public_key, decode_signature, encode_public_key, encode_signature, BlsPublicKey, BlsSecretKey, BlsSignature};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{BOND_OP_LEAF, REGISTER_OP_SIG, UNBOND_OP_SIG};
 use mfn_crypto::hash::dhash;
@@ -336,7 +335,7 @@ pub fn bond_merkle_root(ops: &[BondOp]) -> [u8; 32] {
     merkle_root_or_zero(&leaves)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bls"))]
 mod tests {
     use super::*;
     use mfn_bls::bls_keygen_from_seed;

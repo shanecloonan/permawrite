@@ -12,6 +12,7 @@ rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 wasm-pack build mfn-wasm \
   --target web \
   --out-dir demo/web/pkg \
-  --release
+  --release \
+  --features wasm-full
 
 echo "WASM demo built -> demo/web/pkg/"

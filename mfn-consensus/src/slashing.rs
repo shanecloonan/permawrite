@@ -23,7 +23,7 @@
 //! proposals to honest nodes) can construct evidence and include it in the
 //! next block. `apply_block` then zeroes the offender's stake.
 
-use mfn_bls::{bls_verify, decode_signature, encode_signature, BlsSignature};
+use crate::bls::{bls_verify, decode_signature, encode_signature, BlsSignature};
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::SLASHING_LEAF;
 use mfn_crypto::hash::dhash;
@@ -75,7 +75,7 @@ pub enum SlashDecodeError {
     Codec(#[from] mfn_crypto::CryptoError),
     /// One of the BLS signatures failed to decode.
     #[error(transparent)]
-    Bls(#[from] mfn_bls::BlsError),
+    Bls(#[from] crate::bls::BlsError),
 }
 
 /// Decode bytes produced by [`encode_evidence`].
@@ -228,7 +228,7 @@ pub fn verify_evidence(evidence: &SlashEvidence, validators: &[Validator]) -> Ev
     EvidenceCheck::Valid
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "bls"))]
 mod tests {
     use super::*;
     use crate::consensus::Validator;

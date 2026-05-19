@@ -18,9 +18,18 @@ missing_docs = "warn"
 [lints.clippy]
 all = "warn"
 
+[features]
+default = ["wasm-keys"]
+# Stealth keys + claiming only (smallest WASM).
+wasm-keys = ["mfn-wallet/wasm-keys"]
+# CLSAG transfer build + block scan (**M4.2**); `mfn-consensus` without BLS12-381.
+wasm-full = ["wasm-keys", "mfn-wallet/wasm-full", "dep:mfn-consensus"]
+
 [dependencies]
+mfn-consensus = { path = "../mfn-consensus", optional = true, default-features = false }
 mfn-storage = { path = "../mfn-storage" }
-mfn-wallet = { path = "../mfn-wallet", default-features = false, features = ["wasm-keys"] }
+mfn-wallet = { path = "../mfn-wallet", default-features = false }
+mfn-crypto = { path = "../mfn-crypto" }
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -29,3 +38,8 @@ wasm-bindgen = "0.2"
 
 # Union feature into the workspace `getrandom` graph for wasm32-unknown-unknown.
 getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+mfn-consensus = { path = "../mfn-consensus", default-features = false }
+mfn-crypto = { path = "../mfn-crypto" }
+curve25519-dalek = { workspace = true }

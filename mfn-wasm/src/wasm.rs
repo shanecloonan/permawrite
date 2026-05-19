@@ -34,3 +34,36 @@ pub fn wasm_claim_pubkey_from_seed_hex(seed_hex: &str) -> Result<String, JsValue
 pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<String, JsValue> {
     storage_upload_preview_json(data, replication).map_err(|e| js_err(e.to_string()))
 }
+
+#[cfg(feature = "wasm-full")]
+use crate::scan_core::{scan_block_hex_json, scan_transaction_hex_json};
+
+/// Scan a wire-encoded transaction (hex) for outputs owned by the wallet seed.
+///
+/// `owned_key_images_hex` is a JS array of 64-hex-char key images for outputs
+/// already known to be unspent (empty array if none).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = scanTransactionHex)]
+pub fn wasm_scan_transaction_hex(
+    seed_hex: &str,
+    tx_hex: &str,
+    height: u32,
+    owned_key_images_hex: Vec<String>,
+) -> Result<String, JsValue> {
+    let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
+    scan_transaction_hex_json(&seed, tx_hex, height, &owned_key_images_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
+
+/// Scan a wire-encoded block (hex) for outputs owned by the wallet seed.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = scanBlockHex)]
+pub fn wasm_scan_block_hex(
+    seed_hex: &str,
+    block_hex: &str,
+    owned_key_images_hex: Vec<String>,
+) -> Result<String, JsValue> {
+    let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
+    scan_block_hex_json(&seed, block_hex, &owned_key_images_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
