@@ -39,11 +39,23 @@ Several `main` commits failed **rustfmt** only: code was pushed without `cargo f
 
 Some `mfn-node` tests spawn multi-process `mfnd serve` + P2P block-sync or three-validator `--produce` harnesses. They are marked `#[ignore]` so default CI finishes in minutes instead of hanging on runner networking.
 
-Run them locally before changing P2P or production:
+Run them locally before changing P2P or production (stdout readers use bounded timeouts — **M2.3.27**):
 
 ```bash
-cargo test -p mfn-node --release -- --ignored
+bash scripts/ci-ignored.sh
 ```
+
+```powershell
+powershell -File scripts/ci-ignored.ps1
+```
+
+Or directly:
+
+```bash
+cargo test -p mfn-node --release -- --ignored --test-threads=1
+```
+
+**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap).
 
 ## Why recent pushes failed (tests)
 

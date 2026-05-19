@@ -1976,6 +1976,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.3** | Bootstrap scripts, chain identity banner, manifest + operator invite template. | ✓ shipped |
 | **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
+| **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 
 ### Why this order
 
@@ -2017,8 +2018,9 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | Persistent peer set | `peers.json` + boot reconnect (**M2.3.22**). | ✓ live |
 | `runner.rs` | Slot-driven block production + vote propagation + finality assembly. | ✓ live (M2.3.23) |
 | `mfnd --committee-vote` | Committee vote handler without slot loop; hub `--produce` + two `--committee-vote` peers. | ✓ live (M2.3.24) |
-| 3-validator process smoke | `tests/three_validator_produce_smoke.rs` — hub produces, followers vote, shared tip through height 2. | ✓ live (M2.3.24–M2.3.25) |
-| 3-validator all-produce smoke | `tests/three_validator_all_produce_smoke.rs` — three `--produce` nodes, `devnet_three_validators_produce.json` (`F=1.5`), shared tip + `pick_winner` convergence. | ✓ live (M2.3.26) |
+| 3-validator process smoke | `tests/three_validator_produce_smoke.rs` — hub produces, followers vote, shared tip through height 2. | ✓ `#[ignore]` in default CI; nightly + `scripts/ci-ignored.*` |
+| 3-validator all-produce smoke | `tests/three_validator_all_produce_smoke.rs` — three `--produce` nodes, `devnet_three_validators_produce.json` (`F=1.5`), shared tip + `pick_winner` convergence. | ✓ `#[ignore]` in default CI; nightly |
+| P2P sync / fanout smokes | `mfnd_p2p_dial_syncs_blocks_from_ahead_peer`, `mfnd_p2p_tx_fanout_reaches_third_hop_peer` in `mfnd_smoke.rs`. | ✓ `#[ignore]`; stdout timeouts (**M2.3.27**) |
 | Committee catch-up loop | `--committee-vote` periodic `spawn_catch_up_dial` to saved peers. | ✓ live (M2.3.25) |
 
 ### Phases
