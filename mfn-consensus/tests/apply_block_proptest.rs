@@ -339,7 +339,9 @@ proptest! {
     }
 
     #[test]
-    fn prop_valid_register_bond_op_chains(n_ops in 1u32..=8u32) {
+    fn prop_valid_register_bond_op_chains(
+        n_ops in 1u32..=DEFAULT_BONDING_PARAMS.max_entry_churn_per_epoch,
+    ) {
         let st = genesis_with_bonding();
         let before = snap(&st);
         let ops: Vec<_> = (0..n_ops).map(|i| register_op((i + 1) as u8)).collect();
