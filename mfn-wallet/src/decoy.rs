@@ -25,6 +25,17 @@ use crate::owned::OwnedOutput;
 /// exactly what each CLSAG ring slot consumes.
 pub type RingMember = (EdwardsPoint, EdwardsPoint);
 
+/// One public UTXO row for decoy sampling (browser / light-client supplied).
+#[derive(Clone, Copy, Debug)]
+pub struct UtxoDecoySource {
+    /// Height that credited this output.
+    pub height: u32,
+    /// On-chain one-time address `P`.
+    pub one_time_addr: EdwardsPoint,
+    /// Pedersen commitment `C`.
+    pub commit: EdwardsPoint,
+}
+
 /// Builder for decoy candidate pools.
 ///
 /// Caller drives the build by calling [`exclude_one_time_addr`] for
@@ -104,6 +115,28 @@ impl DecoyPoolBuilder {
         pool.sort_by_key(|c| c.height);
         pool
     }
+
+    /// Build a decoy pool from an explicit UTXO list (e.g. RPC / checkpoint
+    /// export) instead of a live [`ChainState`].
+    pub fn build_from_sources(
+        &self,
+        sources: &[UtxoDecoySource],
+    ) -> Vec<DecoyCandidate<RingMember>> {
+        let mut pool: Vec<DecoyCandidate<RingMember>> = sources
+            .iter()
+            .filter(|s| {
+                !self
+                    .excludes
+                    .contains(&s.one_time_addr.compress().to_bytes())
+            })
+            .map(|s| DecoyCandidate {
+                height: u64::from(s.height),
+                data: (s.one_time_addr, s.commit),
+            })
+            .collect();
+        pool.sort_by_key(|c| c.height);
+        pool
+    }
 }
 
 /// Free-function shorthand for the common case: build a pool from a
@@ -123,4 +156,39 @@ where
         b.exclude_one_time_addr(k);
     }
     b.build(state)
+}
+
+/// Build a decoy pool from public UTXO rows, excluding `exclude_keys`.
+pub fn build_decoy_pool_from_sources(
+    sources: &[UtxoDecoySource],
+    exclude_keys: impl IntoIterator<Item = [u8; 32]>,
+) -> Vec<DecoyCandidate<RingMember>> {
+    let mut b = DecoyPoolBuilder::new();
+    b.exclude_keys(exclude_keys);
+    b.build_from_sources(sources)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+
+    #[test]
+    fn build_from_sources_respects_excludes_and_sorts() {
+        let s0 = UtxoDecoySource {
+            height: 5,
+            one_time_addr: generator_g() * random_scalar(),
+            commit: generator_h() * random_scalar(),
+        };
+        let s1 = UtxoDecoySource {
+            height: 2,
+            one_time_addr: generator_g() * random_scalar(),
+            commit: generator_h() * random_scalar(),
+        };
+        let key0 = s0.one_time_addr.compress().to_bytes();
+        let pool = build_decoy_pool_from_sources(&[s0, s1], [key0]);
+        assert_eq!(pool.len(), 1);
+        assert_eq!(pool[0].height, 2);
+    }
 }

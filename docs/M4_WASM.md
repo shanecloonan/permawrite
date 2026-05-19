@@ -37,6 +37,32 @@ Build with `--features wasm-full`. Consensus wire decode + CLSAG scan run in WAS
 | `scanTransactionHex` | seed hex, tx wire hex, block height, `string[]` owned key images | JSON: `tx_id`, `recovered[]`, `spent_key_images[]` |
 | `scanBlockHex` | seed hex, block wire hex, owned key images | JSON: `height`, `txs[]`, `gross_received`, `matched_spent` |
 
+Recovered outputs use [`StoredOwnedOutput`](../mfn-wallet/src/stored.rs) JSON (includes signing scalars for transfer build).
+
+### M4.3 — CLSAG transfer build (`wasm-full`)
+
+| Export | Input | Output |
+|--------|--------|--------|
+| `decoyPoolPreviewJson` | JSON array of `{height, one_time_addr_hex, commit_hex}`, exclude addrs | Sorted decoy pool JSON |
+| `buildTransferJson` | Transfer plan JSON (see below) | `{tx_hex, tx_id}` |
+
+Transfer plan shape:
+
+```json
+{
+  "inputs": [ /* StoredOwnedOutput from scan */ ],
+  "recipients": [{ "view_pub_hex": "…", "spend_pub_hex": "…", "value": 1000 }],
+  "fee": 100,
+  "ring_size": 4,
+  "current_height": 12,
+  "decoy_utxos": [{ "height": 1, "one_time_addr_hex": "…", "commit_hex": "…" }],
+  "exclude_one_time_addrs_hex": [],
+  "extra_hex": ""
+}
+```
+
+`Σ inputs.value` must equal `Σ recipients.value + fee`. Supply decoys from chain UTXOs (checkpoint export, future RPC); exclude your own one-time addresses.
+
 Seed format matches `wallet.json` (32 bytes, hex-encoded).
 
 ## CI
@@ -59,4 +85,4 @@ Native `mfn-cli` / nodes use `mfn-wallet/full` → `mfn-consensus` with **`bls`*
 
 ## Roadmap
 
-- **M4.3** — In-browser CLSAG `build_transfer` + demo wiring (decoy pool from light-client / RPC).
+- **M4.4** — RPC `list_utxos` + demo auto-fill decoys from `get_checkpoint` / tip state.

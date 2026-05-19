@@ -37,6 +37,8 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 
 #[cfg(feature = "wasm-full")]
 use crate::scan_core::{scan_block_hex_json, scan_transaction_hex_json};
+#[cfg(feature = "wasm-full")]
+use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
 
 /// Scan a wire-encoded transaction (hex) for outputs owned by the wallet seed.
 ///
@@ -65,4 +67,22 @@ pub fn wasm_scan_block_hex(
 ) -> Result<String, JsValue> {
     let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
     scan_block_hex_json(&seed, block_hex, &owned_key_images_hex).map_err(|e| js_err(e.to_string()))
+}
+
+/// Preview a decoy pool from a JSON array of `{height, one_time_addr_hex, commit_hex}`.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = decoyPoolPreviewJson)]
+pub fn wasm_decoy_pool_preview_json(
+    decoy_utxos_json: &str,
+    exclude_one_time_addrs_hex: Vec<String>,
+) -> Result<String, JsValue> {
+    decoy_pool_preview_json(decoy_utxos_json, &exclude_one_time_addrs_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
+
+/// Build and sign a CLSAG transfer; `plan_json` matches the Rust [`TransferPlanJson`] shape.
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = buildTransferJson)]
+pub fn wasm_build_transfer_json(plan_json: &str) -> Result<String, JsValue> {
+    build_transfer_json(plan_json).map_err(|e| js_err(e.to_string()))
 }

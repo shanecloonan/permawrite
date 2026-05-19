@@ -14,6 +14,8 @@ mod wasm;
 
 #[cfg(feature = "wasm-full")]
 mod scan_core;
+#[cfg(feature = "wasm-full")]
+mod transfer_core;
 
 pub use core::{
     claim_pubkey_hex_from_seed, storage_upload_preview_json, wallet_address_json_from_seed,
@@ -26,6 +28,11 @@ pub use wasm::{
 
 #[cfg(feature = "wasm-full")]
 pub use scan_core::{scan_block_hex_json, scan_transaction_hex_json};
+#[cfg(feature = "wasm-full")]
+pub use transfer_core::{build_transfer_json, decoy_pool_preview_json};
 
 #[cfg(feature = "wasm-full")]
-pub use wasm::{wasm_scan_block_hex, wasm_scan_transaction_hex};
+pub use wasm::{
+    wasm_build_transfer_json, wasm_decoy_pool_preview_json, wasm_scan_block_hex,
+    wasm_scan_transaction_hex,
+};

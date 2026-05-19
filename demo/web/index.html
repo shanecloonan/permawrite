@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Permawrite WASM demo (M4.1)</title>
+    <title>Permawrite WASM demo (M4)</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -34,6 +34,19 @@
         <input id="replication" type="number" min="1" max="32" value="3" />
         <button type="button" id="btn-preview">Preview commitment</button>
         <pre id="storage-out" class="out"></pre>
+      </section>
+
+      <section>
+        <h2>Transfer build (M4.3, wasm-full)</h2>
+        <p class="lede">
+          Paste a transfer plan JSON (inputs from scan <code>recovered</code>,
+          <code>decoy_utxos</code> from chain UTXOs). Requires
+          <code>wasm-pack --features wasm-full</code>.
+        </p>
+        <label for="transfer-plan">Transfer plan JSON</label>
+        <textarea id="transfer-plan" rows="12" spellcheck="false"></textarea>
+        <button type="button" id="btn-transfer">buildTransferJson</button>
+        <pre id="transfer-out" class="out"></pre>
       </section>
 
       <section>

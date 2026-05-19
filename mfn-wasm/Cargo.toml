@@ -30,6 +30,7 @@ mfn-consensus = { path = "../mfn-consensus", optional = true, default-features =
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet", default-features = false }
 mfn-crypto = { path = "../mfn-crypto" }
+curve25519-dalek = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

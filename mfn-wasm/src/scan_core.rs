@@ -3,27 +3,18 @@
 use std::collections::HashSet;
 
 use mfn_consensus::{decode_block, decode_transaction, BlockDecodeError, TxDecodeError};
-use mfn_wallet::{scan_block, scan_transaction, wallet_from_seed, BlockScan, TxScan, WalletKeys};
+use mfn_wallet::{
+    scan_block, scan_transaction, wallet_from_seed, BlockScan, StoredOwnedOutput, TxScan,
+    WalletKeys,
+};
 use serde::Serialize;
 
 use crate::core::WasmCoreError;
 
-/// JSON view of a recovered output (no secret spend scalars).
-#[derive(Serialize)]
-struct RecoveredOutputJson {
-    tx_id: String,
-    output_idx: u32,
-    height: u32,
-    value: u64,
-    key_image: String,
-    one_time_addr: String,
-    commit: String,
-}
-
 #[derive(Serialize)]
 struct TxScanJson {
     tx_id: String,
-    recovered: Vec<RecoveredOutputJson>,
+    recovered: Vec<StoredOwnedOutput>,
     spent_key_images: Vec<String>,
 }
 
@@ -65,16 +56,8 @@ fn tx_scan_to_json(tx_id: [u8; 32], scan: &TxScan) -> TxScanJson {
         recovered: scan
             .recovered
             .iter()
-            .map(|o| RecoveredOutputJson {
-                tx_id: hex::encode(o.tx_id),
-                output_idx: o.output_idx,
-                height: o.height,
-                value: o.value,
-                key_image: hex::encode(o.key_image.compress().to_bytes()),
-                one_time_addr: hex::encode(o.one_time_addr.compress().to_bytes()),
-                commit: hex::encode(o.commit.compress().to_bytes()),
-            })
-            .collect(),
+            .map(StoredOwnedOutput::from_owned)
+            .collect::<Vec<_>>(),
         spent_key_images: scan.spent_key_images.iter().map(hex::encode).collect(),
     }
 }

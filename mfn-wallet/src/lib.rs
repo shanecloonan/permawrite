@@ -71,7 +71,9 @@ pub mod upload;
 pub mod wallet;
 
 #[cfg(any(feature = "full", feature = "wasm-full"))]
-pub use decoy::{build_decoy_pool, DecoyPoolBuilder};
+pub use decoy::{
+    build_decoy_pool, build_decoy_pool_from_sources, DecoyPoolBuilder, RingMember, UtxoDecoySource,
+};
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use error::WalletError;
 #[cfg(any(feature = "full", feature = "wasm-full"))]

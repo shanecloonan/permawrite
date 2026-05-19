@@ -2,6 +2,7 @@ import init, {
   walletAddressFromSeedHex,
   claimPubkeyFromSeedHex,
   storageUploadPreview,
+  buildTransferJson,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 
@@ -35,14 +36,37 @@ function show(outId, text) {
   $(outId).textContent = text;
 }
 
+const SAMPLE_PLAN = {
+  inputs: [],
+  recipients: [
+    {
+      view_pub_hex: "",
+      spend_pub_hex: "",
+      value: 1000,
+    },
+  ],
+  fee: 100,
+  ring_size: 4,
+  current_height: 0,
+  decoy_utxos: [],
+  exclude_one_time_addrs_hex: [],
+  extra_hex: "",
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   $("seed").value = DEMO_SEED;
+  $("transfer-plan").value = JSON.stringify(SAMPLE_PLAN, null, 2);
 
   $("btn-address").addEventListener("click", async () => {
     try {
       await ensureWasm();
       const json = walletAddressFromSeedHex(seedOrDemo());
-      show("wallet-out", JSON.stringify(JSON.parse(json), null, 2));
+      const addr = JSON.parse(json);
+      show("wallet-out", JSON.stringify(addr, null, 2));
+      const plan = JSON.parse($("transfer-plan").value || "{}");
+      plan.recipients[0].view_pub_hex = addr.view_pub;
+      plan.recipients[0].spend_pub_hex = addr.spend_pub;
+      $("transfer-plan").value = JSON.stringify(plan, null, 2);
     } catch (e) {
       show("wallet-out", String(e));
     }
@@ -72,6 +96,18 @@ document.addEventListener("DOMContentLoaded", () => {
       show("storage-out", JSON.stringify(JSON.parse(json), null, 2));
     } catch (e) {
       show("storage-out", String(e));
+    }
+  });
+
+  $("btn-transfer").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const plan = $("transfer-plan").value.trim();
+      if (!plan) throw new Error("paste a transfer plan JSON");
+      const json = buildTransferJson(plan);
+      show("transfer-out", JSON.stringify(JSON.parse(json), null, 2));
+    } catch (e) {
+      show("transfer-out", String(e));
     }
   });
 
