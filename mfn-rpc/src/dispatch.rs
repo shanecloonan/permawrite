@@ -10,9 +10,9 @@ use mfn_consensus::{
     encode_evidence, encode_transaction, tx_id, validator_set_root, AuthorshipClaimRecord, Block,
     BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
 };
-use mfn_crypto::schnorr::encode_schnorr_signature;
 use mfn_crypto::dhash;
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
+use mfn_crypto::schnorr::encode_schnorr_signature;
 use mfn_light::checkpoint::{encode_checkpoint_bytes, CheckpointParts};
 use mfn_light::light_checkpoint_after_blocks;
 use mfn_light::LightChain;
