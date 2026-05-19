@@ -286,6 +286,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mfn-cli"
+version = "0.1.0"
+dependencies = [
+ "mfn-node",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mfn-consensus"
 version = "0.1.0"
 dependencies = [
