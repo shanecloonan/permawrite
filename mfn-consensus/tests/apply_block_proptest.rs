@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**).
+﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -170,16 +170,15 @@ fn apply_with_storage_proofs(
     }
 }
 
-fn apply_valid_proof_at(gen: &StorageGenesis, st: &ChainState, height: u32) -> ChainState {
+fn apply_valid_proof_at(
+    built: &BuiltCommitment,
+    payload: &[u8],
+    st: &ChainState,
+    height: u32,
+) -> ChainState {
     let prev = *st.tip_id().expect("tip");
-    let proof = build_storage_proof(
-        &gen.built.commit,
-        &prev,
-        height,
-        &gen.payload,
-        &gen.built.tree,
-    )
-    .expect("proof");
+    let proof =
+        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
     apply_with_storage_proofs(st, height, vec![proof])
 }
 
@@ -328,10 +327,10 @@ proptest! {
     fn prop_valid_storage_proof_chains(n_blocks in 1u32..=16u32) {
         let gen = genesis_with_storage();
         let mut st = gen.state;
-        for i in 0..n_blocks {
+        for _ in 0..n_blocks {
             let h = next_height(&st);
             let prev = snap(&st);
-            st = apply_valid_proof_at(&gen, &st, h);
+            st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h);
             let after = snap(&st);
             assert_eq!(after.height, Some(h));
             assert_eq!(after.block_ids_len, prev.block_ids_len + 1);
@@ -355,60 +354,65 @@ proptest! {
         }
     }
 
-    #[test]
-    fn prop_reject_forged_register_bond_op_without_state_change() {
-        let st = genesis_with_bonding();
-        let before = snap(&st);
-        let h = next_height(&st);
-        let blk = {
-            let op = forged_register_op();
-            let unsealed = build_unsealed_header(&st, &[], std::slice::from_ref(&op), &[], &[], h, 100);
-            seal_block(unsealed, Vec::new(), vec![op], Vec::new(), Vec::new(), Vec::new())
-        };
-        match apply_block(&st, &blk) {
-            ApplyOutcome::Err { errors, .. } => {
-                prop_assert!(errors.iter().any(|e| {
-                    matches!(e, BlockError::BondOpRejected { index: 0, .. })
-                }));
-                prop_assert_eq!(snap(&st), before);
-            }
-            ApplyOutcome::Ok { .. } => prop_assert!(false, "forged register must reject"),
-        }
-    }
+}
 
-    #[test]
-    fn prop_reject_duplicate_storage_proof_without_state_change() {
-        let gen = genesis_with_storage();
-        let st = gen.state;
-        let before = snap(&st);
-        let h = next_height(&st);
-        let prev = *st.tip_id().expect("tip");
-        let proof = build_storage_proof(
-            &gen.built.commit,
-            &prev,
-            h,
-            &gen.payload,
-            &gen.built.tree,
-        )
-        .expect("proof");
-        let unsealed = build_unsealed_header(&st, &[], &[], &[], &[proof.clone()], h, 1_000);
-        let blk = seal_block(
-            unsealed,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            vec![proof, proof],
-        );
-        match apply_block(&st, &blk) {
-            ApplyOutcome::Err { errors, .. } => {
-                prop_assert!(errors.iter().any(|e| {
-                    matches!(e, BlockError::DuplicateStorageProof { .. })
-                }));
-                prop_assert_eq!(snap(&st), before);
-            }
-            ApplyOutcome::Ok { .. } => prop_assert!(false, "duplicate proof must reject"),
+/// Forged bond register must reject without mutating state (plain `#[test]`; sixth
+/// case in one `proptest!` block hits `macro_rules!` `$body:block` limits on CI).
+#[test]
+fn reject_forged_register_bond_op_without_state_change() {
+    let st = genesis_with_bonding();
+    let before = snap(&st);
+    let h = next_height(&st);
+    let op = forged_register_op();
+    let unsealed = build_unsealed_header(&st, &[], std::slice::from_ref(&op), &[], &[], h, 100);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        vec![op],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| matches!(e, BlockError::BondOpRejected { index: 0, .. })));
+            assert_eq!(snap(&st), before);
         }
+        ApplyOutcome::Ok { .. } => panic!("forged register must reject"),
+    }
+}
+
+/// Reject duplicate SPoRA proofs in one block (plain `#[test]` — avoids `proptest!`
+/// `$body:block` brace matching issues with `DuplicateStorageProof { .. }` patterns).
+#[test]
+fn reject_duplicate_storage_proof_without_state_change() {
+    let gen = genesis_with_storage();
+    let st = gen.state;
+    let before = snap(&st);
+    let h = next_height(&st);
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+        .expect("proof");
+    let proof_dup = proof.clone();
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &[proof.clone()], h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![proof, proof_dup],
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| { matches!(e, BlockError::DuplicateStorageProof { .. }) }));
+            assert_eq!(snap(&st), before);
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate proof must reject"),
     }
 }
 
@@ -431,7 +435,7 @@ fn deep_storage_proof_chain_32() {
     let gen = genesis_with_storage();
     let mut st = gen.state;
     for h in 1..=32u32 {
-        st = apply_valid_proof_at(&gen, &st, h);
+        st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h);
     }
     assert_eq!(st.height, Some(32));
 }
