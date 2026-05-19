@@ -1,4 +1,5 @@
-//! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**, **M5.1+**).
+//! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
+//! **M5.1+**, **M5.3**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -17,9 +18,10 @@ use mfn_consensus::{
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
+use mfn_crypto::encrypted_amount::decrypt_output_amount;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
-use mfn_crypto::stealth::stealth_gen;
+use mfn_crypto::stealth::{stealth_gen, StealthWallet};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_ENDOWMENT_PARAMS,
@@ -103,13 +105,15 @@ struct ValidatorFixture {
     validators: Vec<Validator>,
     secrets: Vec<ValidatorSecrets>,
     payout: PayoutAddress,
+    /// Producer (validator 0) wallet — coinbase decrypt checks (**M5.3**).
+    producer_wallet: StealthWallet,
     params: ConsensusParams,
     total_stake: u64,
 }
 
 impl ValidatorFixture {
     fn three_validators() -> Self {
-        let mk = |i: u32, stake: u64| -> (Validator, ValidatorSecrets) {
+        let mk = |i: u32, stake: u64| -> (Validator, ValidatorSecrets, StealthWallet) {
             let vrf = vrf_keygen_from_seed(&[(i.wrapping_add(1)) as u8; 32]).expect("vrf");
             let bls = bls_keygen_from_seed(&[(i.wrapping_add(101)) as u8; 32]);
             let wallet = stealth_gen();
@@ -124,16 +128,16 @@ impl ValidatorFixture {
                 }),
             };
             let secrets = ValidatorSecrets { index: i, vrf, bls };
-            (val, secrets)
+            (val, secrets, wallet)
         };
-        let (v0, s0) = mk(0, 100);
-        let (v1, s1) = mk(1, 100);
-        let (v2, s2) = mk(2, 100);
+        let (v0, s0, producer_wallet) = mk(0, 100);
+        let (v1, s1, _) = mk(1, 100);
+        let (v2, s2, _) = mk(2, 100);
         let validators = vec![v0.clone(), v1, v2];
         let secrets = vec![s0, s1, s2];
         let payout = PayoutAddress {
-            view_pub: v0.payout.as_ref().unwrap().view_pub,
-            spend_pub: v0.payout.as_ref().unwrap().spend_pub,
+            view_pub: producer_wallet.view_pub,
+            spend_pub: producer_wallet.spend_pub,
         };
         let params = ConsensusParams {
             expected_proposers_per_slot: 10.0,
@@ -145,10 +149,30 @@ impl ValidatorFixture {
             validators,
             secrets,
             payout,
+            producer_wallet,
             params,
             total_stake,
         }
     }
+}
+
+/// Producer decrypts the coinbase output and the amount matches `expected` (**M5.3**).
+fn assert_producer_coinbase_decryptable(
+    coinbase: &TransactionWire,
+    fixture: &ValidatorFixture,
+    expected: u64,
+) {
+    let dec = decrypt_output_amount(
+        &coinbase.r_pub,
+        0,
+        fixture.producer_wallet.view_priv,
+        &coinbase.outputs[0].enc_amount,
+    )
+    .expect("coinbase decrypt");
+    assert_eq!(
+        dec.value, expected,
+        "producer coinbase amount must match subsidy + fee share + storage rewards"
+    );
 }
 
 fn genesis_validator_with_funded_utxo(
@@ -257,6 +281,7 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
         let fee_sum = u128::from(fee);
         let cb_amount = expected_coinbase_amount(h, fee_sum, 0, &emission);
         let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
         let txs = vec![coinbase, signed.tx];
         st = apply_validator_block(&fixture, &st, h, txs, Vec::new());
         model_treasury = treasury_after_block(model_treasury, fee_sum, 0, &emission);
@@ -511,6 +536,7 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
         let fee_sum = u128::from(fee);
         let cb_amount = expected_coinbase_amount(h, fee_sum, 1, &emission);
         let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
         let txs = vec![coinbase, signed.tx];
         let prev = *st.tip_id().expect("tip");
         let proof = build_storage_proof(
