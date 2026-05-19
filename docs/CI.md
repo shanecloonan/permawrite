@@ -59,7 +59,7 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Emission / treasury (M5.0–M5.1+):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + 16-block validator CLSAG fee chain + 12-block validator mixed fee+proof + 128-block legacy CLSAG fee chain + 48-block legacy mixed blocks). Longer sims are `#[ignore]` (nightly).
 
-**apply_block proptest (M5.2):** default CI runs `mfn-consensus/tests/apply_block_proptest.rs` (32-case props: valid empty chains, header tamper rejects with unchanged state). 128-block deep chain is `#[ignore]`.
+**apply_block proptest (M5.2 / M5.2+):** default CI runs `mfn-consensus/tests/apply_block_proptest.rs` (empty chains, header tamper rejects, storage-proof chains, bond register chains, forged-register/duplicate-proof rejects). Deep chains are `#[ignore]`.
 
 ## Why recent pushes failed (tests)
 

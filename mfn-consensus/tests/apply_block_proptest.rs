@@ -1,12 +1,18 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
+use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, ApplyOutcome,
-    BlockError, ChainState, GenesisConfig, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, sign_register,
+    ApplyOutcome, BlockError, BondOp, ChainState, GenesisConfig, DEFAULT_BONDING_PARAMS,
+    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
-use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+use mfn_crypto::point::generator_g;
+use mfn_crypto::vrf::vrf_keygen_from_seed;
+use mfn_storage::{
+    build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_ENDOWMENT_PARAMS,
+};
 use proptest::prelude::*;
 
 fn genesis_state() -> ChainState {
@@ -33,6 +39,7 @@ struct StateSnap {
     tip: Option<[u8; 32]>,
     utxo_len: usize,
     spent_key_images_len: usize,
+    validators_len: usize,
 }
 
 fn snap(st: &ChainState) -> StateSnap {
@@ -43,7 +50,137 @@ fn snap(st: &ChainState) -> StateSnap {
         tip: st.tip_id().copied(),
         utxo_len: st.utxo.len(),
         spent_key_images_len: st.spent_key_images.len(),
+        validators_len: st.validators.len(),
     }
+}
+
+fn genesis_with_bonding() -> ChainState {
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    apply_genesis(&g, &cfg).expect("genesis")
+}
+
+struct StorageGenesis {
+    state: ChainState,
+    built: BuiltCommitment,
+    payload: Vec<u8>,
+}
+
+fn genesis_with_storage() -> StorageGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    StorageGenesis {
+        state,
+        built,
+        payload,
+    }
+}
+
+fn register_op(seed: u8) -> BondOp {
+    let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
+    let vrf = vrf_keygen_from_seed(&[seed.wrapping_add(101); 32]).expect("vrf");
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    BondOp::Register {
+        stake,
+        vrf_pk: vrf.pk,
+        bls_pk: bls.pk,
+        payout: None,
+        sig: sign_register(stake, &vrf.pk, &bls.pk, None, &bls.sk),
+    }
+}
+
+fn forged_register_op() -> BondOp {
+    let attacker = bls_keygen_from_seed(&[200u8; 32]);
+    let victim = bls_keygen_from_seed(&[201u8; 32]);
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let vrf_pk = generator_g();
+    let sig = sign_register(stake, &vrf_pk, &victim.pk, None, &attacker.sk);
+    BondOp::Register {
+        stake,
+        vrf_pk,
+        bls_pk: victim.pk,
+        payout: None,
+        sig,
+    }
+}
+
+fn apply_with_bond_ops(st: &ChainState, height: u32, bond_ops: Vec<BondOp>) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, &[], &bond_ops, &[], &[], height, ts);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        bond_ops,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
+fn apply_with_storage_proofs(
+    st: &ChainState,
+    height: u32,
+    proofs: Vec<mfn_storage::StorageProof>,
+) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, height, ts);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
+fn apply_valid_proof_at(gen: &StorageGenesis, st: &ChainState, height: u32) -> ChainState {
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &gen.built.commit,
+        &prev,
+        height,
+        &gen.payload,
+        &gen.built.tree,
+    )
+    .expect("proof");
+    apply_with_storage_proofs(st, height, vec![proof])
 }
 
 fn seal_empty(header: mfn_consensus::BlockHeader) -> mfn_consensus::Block {
@@ -186,6 +323,93 @@ proptest! {
             ApplyOutcome::Ok { .. } => prop_assert!(false, "expected BadHeight"),
         }
     }
+
+    #[test]
+    fn prop_valid_storage_proof_chains(n_blocks in 1u32..=16u32) {
+        let gen = genesis_with_storage();
+        let mut st = gen.state;
+        for i in 0..n_blocks {
+            let h = next_height(&st);
+            let prev = snap(&st);
+            st = apply_valid_proof_at(&gen, &st, h);
+            let after = snap(&st);
+            assert_eq!(after.height, Some(h));
+            assert_eq!(after.block_ids_len, prev.block_ids_len + 1);
+            assert_ne!(after.tip, prev.tip);
+        }
+    }
+
+    #[test]
+    fn prop_valid_register_bond_op_chains(n_blocks in 1u32..=8u32) {
+        let mut st = genesis_with_bonding();
+        let mut model_treasury = 0u128;
+        let min_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        for i in 0..n_blocks {
+            let h = next_height(&st);
+            let prev = snap(&st);
+            let op = register_op((i + 1) as u8);
+            st = apply_with_bond_ops(&st, h, vec![op]);
+            model_treasury = model_treasury.saturating_add(min_stake);
+            prop_assert_eq!(st.treasury, model_treasury);
+            prop_assert_eq!(st.validators.len(), prev.validators_len + 1);
+        }
+    }
+
+    #[test]
+    fn prop_reject_forged_register_bond_op_without_state_change() {
+        let st = genesis_with_bonding();
+        let before = snap(&st);
+        let h = next_height(&st);
+        let blk = {
+            let op = forged_register_op();
+            let unsealed = build_unsealed_header(&st, &[], std::slice::from_ref(&op), &[], &[], h, 100);
+            seal_block(unsealed, Vec::new(), vec![op], Vec::new(), Vec::new(), Vec::new())
+        };
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                prop_assert!(errors.iter().any(|e| {
+                    matches!(e, BlockError::BondOpRejected { index: 0, .. })
+                }));
+                prop_assert_eq!(snap(&st), before);
+            }
+            ApplyOutcome::Ok { .. } => prop_assert!(false, "forged register must reject"),
+        }
+    }
+
+    #[test]
+    fn prop_reject_duplicate_storage_proof_without_state_change() {
+        let gen = genesis_with_storage();
+        let st = gen.state;
+        let before = snap(&st);
+        let h = next_height(&st);
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_storage_proof(
+            &gen.built.commit,
+            &prev,
+            h,
+            &gen.payload,
+            &gen.built.tree,
+        )
+        .expect("proof");
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &[proof.clone()], h, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![proof, proof],
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                prop_assert!(errors.iter().any(|e| {
+                    matches!(e, BlockError::DuplicateStorageProof { .. })
+                }));
+                prop_assert_eq!(snap(&st), before);
+            }
+            ApplyOutcome::Ok { .. } => prop_assert!(false, "duplicate proof must reject"),
+        }
+    }
 }
 
 /// Longer empty-block chain (nightly / local deep fuzz).
@@ -198,4 +422,16 @@ fn deep_empty_block_chain_128() {
     }
     assert_eq!(st.height, Some(128));
     assert_eq!(st.block_ids.len(), 129);
+}
+
+/// Longer storage-proof chain (nightly).
+#[test]
+#[ignore = "deep storage-proof apply_block chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
+fn deep_storage_proof_chain_32() {
+    let gen = genesis_with_storage();
+    let mut st = gen.state;
+    for h in 1..=32u32 {
+        st = apply_valid_proof_at(&gen, &st, h);
+    }
+    assert_eq!(st.height, Some(32));
 }
