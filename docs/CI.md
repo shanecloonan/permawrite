@@ -57,7 +57,7 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`).
 
-**Emission / treasury (M5.0 / M5.0+ / M5.1 / M5.1+):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + 16-block validator CLSAG fee chain + 128-block legacy CLSAG fee chain + 48-block mixed fee+proof blocks). Longer sims are `#[ignore]` (nightly).
+**Emission / treasury (M5.0–M5.1+):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + 16-block validator CLSAG fee chain + 12-block validator mixed fee+proof + 128-block legacy CLSAG fee chain + 48-block legacy mixed blocks). Longer sims are `#[ignore]` (nightly).
 
 **apply_block proptest (M5.2):** default CI runs `mfn-consensus/tests/apply_block_proptest.rs` (32-case props: valid empty chains, header tamper rejects with unchanged state). 128-block deep chain is `#[ignore]`.
 

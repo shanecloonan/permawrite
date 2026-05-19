@@ -1,4 +1,4 @@
-//! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.1**, **M5.1+**).
+//! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**, **M5.1+**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -468,6 +468,69 @@ fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
     }
 }
 
+fn genesis_validator_with_funded_utxo_and_storage(
+    emission: EmissionParams,
+    spend_value: u64,
+    storage: &StorageFixture,
+    fixture: &ValidatorFixture,
+) -> (ChainState, SpendState) {
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![storage.built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: emission,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let st = apply_genesis(&g, &cfg).expect("genesis");
+    (st, spend)
+}
+
+/// Validator quorum + coinbase + CLSAG fee + SPoRA proof per block (**M5.0++**).
+fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
+    let fixture = ValidatorFixture::three_validators();
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (mut st, mut spend) =
+        genesis_validator_with_funded_utxo_and_storage(emission, initial, &storage, &fixture);
+    let mut model_treasury = 0u128;
+
+    for h in 1..=blocks {
+        let fee = 2_000u64 + u64::from(h % 5_001);
+        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        spend = next_spend;
+        let fee_sum = u128::from(fee);
+        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, &emission);
+        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        let txs = vec![coinbase, signed.tx];
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_storage_proof(
+            &storage.built.commit,
+            &prev,
+            h,
+            &storage.payload,
+            &storage.built.tree,
+        )
+        .expect("proof");
+        st = apply_validator_block(&fixture, &st, h, txs, vec![proof]);
+        model_treasury = treasury_after_block(model_treasury, fee_sum, 1, &emission);
+        assert_eq!(
+            st.treasury, model_treasury,
+            "treasury mismatch at height {h} (fee {fee}, 1 proof)"
+        );
+        assert!(st.treasury < u128::MAX);
+    }
+}
+
 fn run_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     let initial = 50_000_000_000u64;
     let (mut st, mut spend) = genesis_with_funded_utxo(emission, initial);
@@ -541,6 +604,18 @@ fn treasury_ledger_matches_apply_block_over_validator_clsag_fee_blocks() {
 #[ignore = "long validator CLSAG fee treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_apply_block_over_ninety_six_validator_clsag_fee_blocks() {
     run_validator_fee_treasury_sim(96, SIM_EMISSION);
+}
+
+/// Production path: BLS finality, coinbase with storage-reward term, fee credit + proof drain.
+#[test]
+fn treasury_ledger_matches_apply_block_over_validator_mixed_fee_and_proof_blocks() {
+    run_validator_mixed_fee_and_proof_sim(12, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long validator mixed fee+proof treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_apply_block_over_sixty_four_validator_mixed_blocks() {
+    run_validator_mixed_fee_and_proof_sim(64, SIM_EMISSION);
 }
 
 /// CLSAG self-transfers in legacy mode credit `fee · fee_to_treasury_bps / 10_000`
