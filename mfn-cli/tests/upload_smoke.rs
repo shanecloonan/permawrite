@@ -31,7 +31,10 @@ fn mfnd_bin() -> PathBuf {
         return path;
     }
     if let Some(p) = std::env::var_os("CARGO_BIN_EXE_mfnd") {
-        return PathBuf::from(p);
+        let path = PathBuf::from(p);
+        if path.is_file() {
+            return path;
+        }
     }
     panic!(
         "mfnd binary not found at {}; run `cargo build -p mfn-node --bin mfnd --{profile}`",
