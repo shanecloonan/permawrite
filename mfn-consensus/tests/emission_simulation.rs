@@ -1,4 +1,4 @@
-//! Long-horizon emission / treasury simulations (**M5.0**, **M5.1**).
+//! Long-horizon emission / treasury simulations (**M5.0**, **M5.1**, **M5.1+**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -15,8 +15,9 @@ use mfn_consensus::{
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
-use mfn_storage::build_storage_proof;
-use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+use mfn_storage::{
+    build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_ENDOWMENT_PARAMS,
+};
 
 /// Compact schedule so `apply_block` loops finish in CI while still crossing halvings.
 const SIM_EMISSION: EmissionParams = EmissionParams {
@@ -174,6 +175,106 @@ fn apply_legacy_block(st: &ChainState, height: u32, txs: &[TransactionWire]) -> 
     }
 }
 
+/// Anchored SPoRA payload reused across mixed fee + proof blocks.
+struct StorageFixture {
+    payload: Vec<u8>,
+    built: BuiltCommitment,
+}
+
+impl StorageFixture {
+    fn sample_4k() -> Self {
+        let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+        let built = build_storage_commitment(
+            &payload,
+            1_000,
+            Some(4096),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commitment");
+        Self { payload, built }
+    }
+}
+
+fn genesis_with_funded_utxo_and_storage(
+    emission: EmissionParams,
+    spend_value: u64,
+    storage: &StorageFixture,
+) -> (ChainState, SpendState) {
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![storage.built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: emission,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let st = apply_genesis(&g, &cfg).expect("genesis");
+    (st, spend)
+}
+
+fn apply_legacy_block_mixed(
+    st: &ChainState,
+    height: u32,
+    txs: &[TransactionWire],
+    proof: &mfn_storage::StorageProof,
+) -> ChainState {
+    let slot = height;
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, txs, &[], &[], std::slice::from_ref(proof), slot, ts);
+    let blk = seal_block(
+        unsealed,
+        txs.to_vec(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![proof.clone()],
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
+/// Privacy fees credit the treasury; SPoRA proofs drain it in the same chain (**M5.1+**).
+fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (mut st, mut spend) = genesis_with_funded_utxo_and_storage(emission, initial, &storage);
+    let mut model_treasury = 0u128;
+
+    for h in 1..=blocks {
+        let fee = 2_000u64 + u64::from(h % 7_001);
+        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        spend = next_spend;
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_storage_proof(
+            &storage.built.commit,
+            &prev,
+            h,
+            &storage.payload,
+            &storage.built.tree,
+        )
+        .expect("proof");
+        st = apply_legacy_block_mixed(&st, h, std::slice::from_ref(&signed.tx), &proof);
+        model_treasury = treasury_after_block(model_treasury, u128::from(fee), 1, &emission);
+        assert_eq!(
+            st.treasury, model_treasury,
+            "treasury mismatch at height {h} (fee {fee}, 1 proof)"
+        );
+        assert!(st.treasury < u128::MAX);
+    }
+}
+
 fn run_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     let initial = 50_000_000_000u64;
     let (mut st, mut spend) = genesis_with_funded_utxo(emission, initial);
@@ -250,22 +351,28 @@ fn treasury_ledger_matches_apply_block_over_two_thousand_clsag_fee_blocks() {
     run_fee_treasury_sim(2_048, SIM_EMISSION);
 }
 
+/// Each block: one CLSAG self-transfer (treasury credit) + one SPoRA proof (treasury drain).
+#[test]
+fn treasury_ledger_matches_apply_block_over_mixed_fee_and_proof_blocks() {
+    run_mixed_fee_and_proof_sim(48, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long mixed fee+proof treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_apply_block_over_three_hundred_eighty_four_mixed_blocks() {
+    run_mixed_fee_and_proof_sim(384, SIM_EMISSION);
+}
+
 /// Storage-proof rewards drain an empty treasury via coinbase backstop; treasury never underflows.
 #[test]
 fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
-    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
-    let built = mfn_storage::build_storage_commitment(
-        &payload,
-        1_000,
-        Some(4096),
-        DEFAULT_ENDOWMENT_PARAMS.min_replication,
-        None,
-    )
-    .expect("commitment");
+    let storage = StorageFixture::sample_4k();
+    let built = &storage.built;
+    let payload = &storage.payload;
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs: Vec::new(),
-        initial_storage: vec![built.commit.clone()],
+        initial_storage: vec![storage.built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: SIM_EMISSION,
