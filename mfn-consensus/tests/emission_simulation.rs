@@ -367,8 +367,6 @@ fn treasury_ledger_matches_apply_block_over_three_hundred_eighty_four_mixed_bloc
 #[test]
 fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
     let storage = StorageFixture::sample_4k();
-    let built = &storage.built;
-    let payload = &storage.payload;
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs: Vec::new(),
@@ -387,8 +385,14 @@ fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
         let slot = h;
         let ts = u64::from(h) * 1_000;
         let prev = *st.tip_id().expect("tip after genesis");
-        let proof =
-            build_storage_proof(&built.commit, &prev, slot, &payload, &built.tree).expect("proof");
+        let proof = build_storage_proof(
+            &storage.built.commit,
+            &prev,
+            slot,
+            &storage.payload,
+            &storage.built.tree,
+        )
+        .expect("proof");
         let unsealed =
             build_unsealed_header(&st, &[], &[], &[], std::slice::from_ref(&proof), slot, ts);
         let blk = seal_block(
