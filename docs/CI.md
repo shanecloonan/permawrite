@@ -55,7 +55,9 @@ Or directly:
 cargo test -p mfn-node --release -- --ignored --test-threads=1
 ```
 
-**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap).
+**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` test target, `--ignored`).
+
+**Emission / treasury (M5.0):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block treasury ledger). Million-height checks are `#[ignore]`.
 
 ## Why recent pushes failed (tests)
 

@@ -31,3 +31,5 @@ jobs:
       - run: cargo build -p mfn-node --bin mfnd --release
       - name: Run ignored integration tests (sequential)
         run: cargo test -p mfn-node --release -- --ignored --test-threads=1
+      - name: Run ignored emission simulations
+        run: cargo test -p mfn-consensus --release --test emission_simulation -- --ignored --test-threads=1
