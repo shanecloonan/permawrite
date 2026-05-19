@@ -100,8 +100,8 @@ impl LightFollowProvider for P2pBlockSyncHandler {
                     height: h,
                     block_id: block_id(&b.header),
                     header_wire: block_header_bytes(&b.header),
-                    slashings: b.slashings.iter().map(|ev| encode_evidence(ev)).collect(),
-                    bond_ops: b.bond_ops.iter().map(|op| encode_bond_op(op)).collect(),
+                    slashings: b.slashings.iter().map(encode_evidence).collect(),
+                    bond_ops: b.bond_ops.iter().map(encode_bond_op).collect(),
                 }
             })
             .collect();
