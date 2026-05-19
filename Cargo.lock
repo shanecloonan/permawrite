@@ -575,6 +575,7 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-light",
+ "mfn-net",
  "mfn-runtime",
  "mfn-storage",
  "mfn-store",
