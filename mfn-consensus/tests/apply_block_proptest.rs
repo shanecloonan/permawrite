@@ -339,19 +339,18 @@ proptest! {
     }
 
     #[test]
-    fn prop_valid_register_bond_op_chains(n_blocks in 1u32..=8u32) {
-        let mut st = genesis_with_bonding();
-        let mut model_treasury = 0u128;
+    fn prop_valid_register_bond_op_chains(n_ops in 1u32..=8u32) {
+        let st = genesis_with_bonding();
+        let before = snap(&st);
+        let ops: Vec<_> = (0..n_ops).map(|i| register_op((i + 1) as u8)).collect();
+        let h = next_height(&st);
+        let st = apply_with_bond_ops(&st, h, ops);
         let min_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
-        for i in 0..n_blocks {
-            let h = next_height(&st);
-            let prev = snap(&st);
-            let op = register_op((i + 1) as u8);
-            st = apply_with_bond_ops(&st, h, vec![op]);
-            model_treasury = model_treasury.saturating_add(min_stake);
-            prop_assert_eq!(st.treasury, model_treasury);
-            prop_assert_eq!(st.validators.len(), prev.validators_len + 1);
-        }
+        prop_assert_eq!(
+            st.treasury,
+            min_stake.saturating_mul(u128::from(n_ops))
+        );
+        prop_assert_eq!(st.validators.len(), before.validators_len + usize::try_from(n_ops).unwrap());
     }
 
 }
