@@ -499,13 +499,13 @@ pub fn resolve_wallet_path(opt: Option<&str>) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(DEFAULT_WALLET_PATH))
 }
 
-struct SyncStats {
-    tip_height: u64,
-    blocks_fetched: u32,
-    used_utxo_cache: bool,
+pub(crate) struct SyncStats {
+    pub(crate) tip_height: u64,
+    pub(crate) blocks_fetched: u32,
+    pub(crate) used_utxo_cache: bool,
 }
 
-fn persist_wallet(
+pub(crate) fn persist_wallet(
     path: &Path,
     file: &mut WalletFile,
     wallet: &Wallet,
@@ -606,7 +606,12 @@ fn parse_compressed_point(hex_str: &str, field: &str) -> Result<EdwardsPoint, Wa
         .map_err(|e| WalletCmdError::Usage(format!("{field} is not a valid Edwards point: {e}")))
 }
 
-fn print_scan_summary(stats: &SyncStats, scan_height: Option<u32>, balance: u64, owned: usize) {
+pub(crate) fn print_scan_summary(
+    stats: &SyncStats,
+    scan_height: Option<u32>,
+    balance: u64,
+    owned: usize,
+) {
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
     println!("utxo_cache={}", stats.used_utxo_cache);

@@ -42,6 +42,9 @@ pub struct WalletFile {
     /// Cached unspent owned outputs through [`Self::scan_height`] (**M3.6**).
     #[serde(default)]
     pub owned_outputs: Vec<StoredOwnedOutput>,
+    /// Last `LightChain::encode_checkpoint` hex after `wallet light-scan` (**M3.11**).
+    #[serde(default)]
+    pub light_checkpoint_hex: Option<String>,
 }
 
 /// Wallet file parse / IO errors.
@@ -68,6 +71,7 @@ impl WalletFile {
             scan_height: None,
             pending_spent_utxo_keys: Vec::new(),
             owned_outputs: Vec::new(),
+            light_checkpoint_hex: None,
         }
     }
 

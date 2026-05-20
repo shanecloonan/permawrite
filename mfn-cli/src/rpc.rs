@@ -49,6 +49,118 @@ pub struct SubmitTxResult {
     pub outcome_kind: String,
 }
 
+/// Compact header row from `get_block_headers`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct BlockHeaderRow {
+    /// Block height (≥ 1).
+    pub height: u32,
+    /// Canonical block id (64-char hex).
+    pub block_id: String,
+    /// Previous block id (64-char hex).
+    pub prev_block_id: String,
+    /// `block_header_bytes` hex.
+    pub header_hex: String,
+}
+
+/// `get_block_headers` page.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct BlockHeadersPage {
+    /// Genesis block id (64-char hex).
+    pub genesis_id: String,
+    /// Header rows in ascending height order.
+    pub headers: Vec<BlockHeaderRow>,
+}
+
+/// Evolution row from `get_light_follow`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct LightFollowRow {
+    /// Block height.
+    pub height: u32,
+    /// Canonical block id (64-char hex).
+    pub block_id: String,
+    /// `block_header_bytes` hex.
+    pub header_hex: String,
+    /// Equivocation evidence wire hex entries.
+    pub slashings: Vec<LightFollowSlashing>,
+    /// Bond op wire hex entries.
+    pub bond_ops: Vec<LightFollowBondOp>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// Slashing wire hex wrapper.
+pub struct LightFollowSlashing {
+    /// `encode_evidence` hex.
+    pub evidence_hex: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// Bond op wire hex wrapper.
+pub struct LightFollowBondOp {
+    /// `encode_bond_op` hex.
+    pub op_hex: String,
+}
+
+/// `get_light_follow` page.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct LightFollowPage {
+    /// Inclusive range start.
+    pub from_height: u32,
+    /// Inclusive range end.
+    pub to_height: u32,
+    /// Evolution rows.
+    pub rows: Vec<LightFollowRow>,
+}
+
+/// Weak-subjectivity summary embedded in `get_light_snapshot`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct LightCheckpointSummary {
+    /// Genesis block id (64-char hex).
+    pub genesis_id: String,
+    /// Checkpoint tip height.
+    pub tip_height: u32,
+    /// Checkpoint tip block id (64-char hex).
+    pub tip_block_id: String,
+    /// Trusted validator count.
+    pub validator_count: u64,
+    /// Validator set Merkle root (64-char hex).
+    pub validator_set_root: String,
+    /// Checkpoint integrity digest (64-char hex).
+    pub checkpoint_digest: String,
+}
+
+/// `get_light_snapshot` result.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct LightSnapshot {
+    /// Snapshot height (same as checkpoint tip).
+    pub tip_height: u32,
+    /// `LightChain::encode_checkpoint` hex.
+    pub checkpoint_hex: String,
+    /// Weak-subjectivity fields for the checkpoint.
+    pub summary: LightCheckpointSummary,
+}
+
+/// One transaction from `get_block_txs`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct BlockTxRow {
+    /// Index in block body.
+    pub tx_index: u64,
+    /// `encode_transaction` hex.
+    pub tx_hex: String,
+    /// Canonical tx id (64-char hex).
+    pub tx_id: String,
+}
+
+/// `get_block_txs` result.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct BlockTxsPage {
+    /// Block height.
+    pub height: u32,
+    /// Block id at height.
+    pub block_id: String,
+    /// Transactions in block order.
+    pub txs: Vec<BlockTxRow>,
+}
+
 /// Mempool listing from `get_mempool`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct MempoolSummary {
@@ -214,6 +326,58 @@ impl RpcClient {
             pool_len,
             outcome_kind,
         })
+    }
+
+    /// `get_chain_params` — genesis id, validators, consensus, bonding, emission.
+    pub fn get_chain_params(&mut self) -> Result<Value, RpcError> {
+        self.call("get_chain_params", json!({}))
+    }
+
+    /// `get_block_headers` for an inclusive height range.
+    pub fn get_block_headers(
+        &mut self,
+        from_height: u32,
+        to_height: u32,
+    ) -> Result<BlockHeadersPage, RpcError> {
+        let v = self.call(
+            "get_block_headers",
+            json!({ "from_height": from_height, "to_height": to_height }),
+        )?;
+        serde_json::from_value(v).map_err(|e| {
+            RpcError::Protocol(format!("get_block_headers decode: {e}"))
+        })
+    }
+
+    /// `get_light_follow` evolution rows for an inclusive height range.
+    pub fn get_light_follow(
+        &mut self,
+        from_height: u32,
+        to_height: u32,
+    ) -> Result<LightFollowPage, RpcError> {
+        let v = self.call(
+            "get_light_follow",
+            json!({ "from_height": from_height, "to_height": to_height }),
+        )?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_light_follow decode: {e}")))
+    }
+
+    /// `get_light_snapshot` at `height` (or chain tip when `None`).
+    pub fn get_light_snapshot(&mut self, height: Option<u32>) -> Result<LightSnapshot, RpcError> {
+        let params = match height {
+            Some(h) => json!({ "height": h }),
+            None => json!(null),
+        };
+        let v = self.call("get_light_snapshot", params)?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_light_snapshot decode: {e}")))
+    }
+
+    /// `get_block_txs` — wire-encoded transactions at `height`.
+    pub fn get_block_txs(&mut self, height: u32) -> Result<BlockTxsPage, RpcError> {
+        let v = self.call("get_block_txs", json!({ "height": height }))?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_block_txs decode: {e}")))
     }
 
     /// `get_block` for `height` (≥ 1) — returns canonical encoded block bytes.

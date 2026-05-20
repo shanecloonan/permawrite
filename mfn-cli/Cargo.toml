@@ -20,6 +20,7 @@ curve25519-dalek = { workspace = true }
 hex = { workspace = true }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-crypto = { path = "../mfn-crypto" }
+mfn-light = { path = "../mfn-light" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet" }
 rand_core = { workspace = true }

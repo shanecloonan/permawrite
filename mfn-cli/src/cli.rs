@@ -9,6 +9,7 @@ use crate::claims_cmd::{
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
+use crate::light_wallet::wallet_light_scan;
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
     wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
@@ -114,6 +115,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::New => wallet_new(&path, force)?,
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
+                WalletSub::LightScan => wallet_light_scan(&path, &mut client)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
                 WalletSub::Status => wallet_status(&path, &mut client)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
@@ -184,6 +186,7 @@ enum WalletSub {
     New,
     Address,
     Scan,
+    LightScan,
     Balance,
     Status,
     Send(SendParams),
@@ -214,7 +217,8 @@ fn usage() -> &'static str {
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
        wallet new        create wallet.json with a fresh 32-byte seed\n\
        wallet address    print view/spend public keys from wallet file\n\
-       wallet scan       scan blocks from node tip through wallet file\n\
+       wallet scan       scan full blocks from node tip (get_block)\n\
+       wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
@@ -572,12 +576,12 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|balance|status|send|upload|claim)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim)\n{}",
             usage()
         )));
     };
     let sub = match *sub_name {
-        "new" | "address" | "scan" | "balance" | "status" => {
+        "new" | "address" | "scan" | "light-scan" | "balance" | "status" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -588,6 +592,7 @@ fn parse_wallet_cmd(
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
                 "scan" => WalletSub::Scan,
+                "light-scan" => WalletSub::LightScan,
                 "balance" => WalletSub::Balance,
                 "status" => WalletSub::Status,
                 _ => unreachable!(),

@@ -12,6 +12,7 @@
 
 pub mod claims_cmd;
 pub mod cli;
+pub mod light_wallet;
 pub mod rpc;
 pub mod uploads_cmd;
 pub mod wallet_cmd;

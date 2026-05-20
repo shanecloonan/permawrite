@@ -32,6 +32,7 @@ mfn-cli call get_block_header --params '{"height":1}'
 mfn-cli wallet new
 mfn-cli wallet address
 mfn-cli --wallet ./alice.json wallet scan
+mfn-cli wallet light-scan
 mfn-cli wallet balance
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
