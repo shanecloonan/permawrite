@@ -32,6 +32,8 @@ mfn-storage-operator serve-chunks --wallet ./alice.json --listen 127.0.0.1:18780
 # GET /chunk/{commitment_hash_hex}/{chunk_index}  -> application/octet-stream
 ```
 
+Integration test `tests/chunk_http_smoke.rs` (**M6.3**) verifies `GET /chunk/.../0` returns the same bytes as the saved artifact.
+
 Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
 
 ## Library

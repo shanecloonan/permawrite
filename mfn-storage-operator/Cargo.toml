@@ -12,6 +12,10 @@ description = "Permawrite storage operator daemon: SPoRA proof loop over wallet 
 name = "mfn-storage-operator"
 path = "src/bin/mfn-storage-operator.rs"
 
+[[test]]
+name = "chunk_http_smoke"
+path = "tests/chunk_http_smoke.rs"
+
 [lints.clippy]
 all = "warn"
 
