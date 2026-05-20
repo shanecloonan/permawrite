@@ -2062,6 +2062,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.15** | `wallet import-trusted-summary` (offline pin + optional checkpoint verify). | ✓ shipped |
 | **M3.16** | `wallet show-trusted-summary` / `compare-trusted-summary` (inspect + diff pins). | ✓ shipped |
 | **M3.17** | Three-validator weak-subjectivity unit test + ignored `light_scan_three_validator` mesh smoke. | ✓ shipped |
+| **M3.18** | `wallet light-scan --import-trusted-summary FILE` (pin + sync in one step). | ✓ shipped |
 
 ### Components
 
@@ -2086,6 +2087,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `wallet import-trusted-summary` | Pin exported summary into `wallet.json` without RPC sync. | ✓ M3.15 |
 | `wallet show-trusted-summary` / `compare-trusted-summary` | Print or diff weak-subjectivity summary JSON. | ✓ M3.16 |
 | `light_scan_three_validator_smoke` | CLI light wallet sync on live `--produce` + `--committee-vote` mesh. | ✓ M3.17 |
+| `light-scan --import-trusted-summary` | Pin exported summary then sync without a separate import command. | ✓ M3.18 |
 
 ### Scope
 

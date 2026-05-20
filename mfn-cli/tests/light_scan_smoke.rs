@@ -208,23 +208,25 @@ fn wallet_light_scan_after_solo_step_coinbase() {
         .save(&wallet_path)
         .expect("clear pin for import test");
 
-    let import = mfn_cli()
+    let scan_import = mfn_cli()
         .args([
+            "--rpc",
+            &rpc.to_string(),
             "--wallet",
             wallet_path.to_str().expect("utf8 path"),
             "wallet",
-            "import-trusted-summary",
-            "--verify-checkpoint",
+            "light-scan",
+            "--import-trusted-summary",
             summary_path.to_str().expect("utf8 path"),
         ])
         .output()
-        .expect("import-trusted-summary");
+        .expect("light-scan --import-trusted-summary");
     assert!(
-        import.status.success(),
+        scan_import.status.success(),
         "stderr={}",
-        String::from_utf8_lossy(&import.stderr)
+        String::from_utf8_lossy(&scan_import.stderr)
     );
-    let after_import = WalletFile::load(&wallet_path).expect("reload after import");
+    let after_import = WalletFile::load(&wallet_path).expect("reload after import scan");
     assert!(after_import.trusted_light_summary.is_some());
 
     let show = mfn_cli()

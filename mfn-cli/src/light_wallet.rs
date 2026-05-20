@@ -1,4 +1,4 @@
-//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.13**).
+//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.18**).
 //!
 //! Verifies BLS headers + validator-set evolution via [`mfn_light::LightChain`],
 //! scans txs via `get_block_txs` (no full blocks), matching the browser demo path.
@@ -24,15 +24,17 @@ use crate::wallet_store::WalletFile;
 /// Max inclusive span per `get_block_headers` / `get_light_follow` batch.
 const LIGHT_SCAN_CHUNK: u32 = 512;
 
-/// Options for `wallet light-scan` (**M3.12**–**M3.13**).
+/// Options for `wallet light-scan` (**M3.12**–**M3.18**).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LightScanParams {
     /// Extra `HOST:PORT` RPC bases for `get_light_follow` quorum (M4.14).
     pub quorum_rpc_addrs: Vec<String>,
     /// P2P peers for `get_light_follow_p2p` on the primary `--rpc` node (M4.15).
     pub quorum_p2p_peers: Vec<String>,
-    /// Optional JSON file with a pinned `get_light_snapshot.summary` (**M3.13**).
+    /// Verify against this summary file without persisting it (**M3.13**).
     pub trusted_summary_path: Option<PathBuf>,
+    /// Pin summary from file into `wallet.json` before sync (**M3.18**).
+    pub import_trusted_summary_path: Option<PathBuf>,
     /// Clear `trusted_light_summary` in the wallet file before sync.
     pub reset_trusted_summary: bool,
     /// TOFU-pin summary from RPC/bootstrap when none is stored yet.
@@ -47,6 +49,7 @@ impl Default for LightScanParams {
             quorum_rpc_addrs: Vec::new(),
             quorum_p2p_peers: Vec::new(),
             trusted_summary_path: None,
+            import_trusted_summary_path: None,
             reset_trusted_summary: false,
             pin_trusted_summary: false,
             update_trusted_summary: true,
@@ -111,39 +114,42 @@ fn sync_wallet_light_from_node(
         1
     };
 
+    if params.reset_trusted_summary {
+        file.trusted_light_summary = None;
+    }
+
+    if let Some(import_path) = &params.import_trusted_summary_path {
+        let summary = load_trusted_summary_file(import_path)?;
+        if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
+            weak_subjectivity_agrees(&summary, cp_hex).map_err(|e| {
+                WalletCmdError::Usage(format!(
+                    "import trusted summary disagrees with wallet checkpoint: {e}"
+                ))
+            })?;
+        }
+        file.trusted_light_summary = Some(summary);
+    }
+
     if tip_height < u64::from(start_height) {
+        let (weak_subjectivity_checked, mut weak_subjectivity_pinned) =
+            gate_weak_subjectivity(file, params)?;
+        if refresh_trusted_summary_from_checkpoint(file, params)? {
+            weak_subjectivity_pinned = true;
+        }
+        file.apply_pending_spends(wallet)?;
         return Ok(SyncStats {
             tip_height,
             blocks_fetched: 0,
             used_utxo_cache,
             quorum_batches: 1,
-            weak_subjectivity_checked: false,
-            weak_subjectivity_pinned: false,
+            weak_subjectivity_checked,
+            weak_subjectivity_pinned,
         });
     }
 
-    if params.reset_trusted_summary {
-        file.trusted_light_summary = None;
-    }
-
     let mut light = bootstrap_light_chain(client, file, start_height, params)?;
-    let mut weak_subjectivity_checked = false;
-    let mut weak_subjectivity_pinned = false;
-
-    if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
-        let trusted = resolve_trusted_summary(file, params)?;
-        if let Some(ref summary) = trusted {
-            weak_subjectivity_agrees(summary, cp_hex)
-                .map_err(|e| WalletCmdError::Usage(format!("weak-subjectivity: {e}")))?;
-            weak_subjectivity_checked = true;
-        } else if params.pin_trusted_summary {
-            file.trusted_light_summary = Some(
-                summary_from_checkpoint_hex(cp_hex)
-                    .map_err(|e| WalletCmdError::Usage(format!("pin summary: {e}")))?,
-            );
-            weak_subjectivity_pinned = true;
-        }
-    }
+    let (weak_subjectivity_checked, mut weak_subjectivity_pinned) =
+        gate_weak_subjectivity(file, params)?;
 
     let mut blocks_fetched = 0u32;
     let mut quorum_batches = 1usize;
@@ -234,14 +240,8 @@ fn sync_wallet_light_from_node(
         file.light_checkpoint_hex = Some(hex::encode(light.encode_checkpoint()));
     }
 
-    if params.update_trusted_summary {
-        if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
-            file.trusted_light_summary = Some(
-                summary_from_checkpoint_hex(cp_hex)
-                    .map_err(|e| WalletCmdError::Usage(format!("update trusted summary: {e}")))?,
-            );
-            weak_subjectivity_pinned = true;
-        }
+    if refresh_trusted_summary_from_checkpoint(file, params)? {
+        weak_subjectivity_pinned = true;
     }
 
     file.apply_pending_spends(wallet)?;
@@ -253,6 +253,46 @@ fn sync_wallet_light_from_node(
         weak_subjectivity_checked,
         weak_subjectivity_pinned,
     })
+}
+
+fn gate_weak_subjectivity(
+    file: &mut WalletFile,
+    params: &LightScanParams,
+) -> Result<(bool, bool), WalletCmdError> {
+    let mut checked = false;
+    let mut pinned = false;
+    if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
+        let trusted = resolve_trusted_summary(file, params)?;
+        if let Some(ref summary) = trusted {
+            weak_subjectivity_agrees(summary, cp_hex)
+                .map_err(|e| WalletCmdError::Usage(format!("weak-subjectivity: {e}")))?;
+            checked = true;
+        } else if params.pin_trusted_summary {
+            file.trusted_light_summary = Some(
+                summary_from_checkpoint_hex(cp_hex)
+                    .map_err(|e| WalletCmdError::Usage(format!("pin summary: {e}")))?,
+            );
+            pinned = true;
+        }
+    }
+    Ok((checked, pinned))
+}
+
+fn refresh_trusted_summary_from_checkpoint(
+    file: &mut WalletFile,
+    params: &LightScanParams,
+) -> Result<bool, WalletCmdError> {
+    if !params.update_trusted_summary {
+        return Ok(false);
+    }
+    let Some(cp_hex) = file.light_checkpoint_hex.as_ref() else {
+        return Ok(false);
+    };
+    file.trusted_light_summary = Some(
+        summary_from_checkpoint_hex(cp_hex)
+            .map_err(|e| WalletCmdError::Usage(format!("update trusted summary: {e}")))?,
+    );
+    Ok(true)
 }
 
 fn resolve_trusted_summary(
