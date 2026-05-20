@@ -1,5 +1,5 @@
 /**
- * Weak-subjectivity summary pins in localStorage (**M4.22** / **M4.23**).
+ * Weak-subjectivity summary pins in localStorage (**M4.22**–**M4.24**).
  * Same JSON shape as `get_light_snapshot.summary` / `mfn-cli` export.
  */
 
@@ -158,4 +158,40 @@ export function assertRpcSummaryMatchesCheckpoint(rpcSummary, derived) {
       "get_light_snapshot.summary disagrees with checkpoint-derived summary",
     );
   }
+}
+
+/**
+ * Pin textarea JSON before sync when non-empty (**M4.24** — CLI `light-scan --import-trusted-summary`).
+ *
+ * @param {string} seedHex
+ * @param {string} textareaRaw
+ * @param {object} [opts]
+ * @param {string} [opts.checkpointHex]
+ * @param {(trustedSummaryJson: string, checkpointHex: string) => string} [opts.lightChainWeakSubjectivity]
+ * @returns {{ imported: false } | { imported: true, summary: object }}
+ */
+export function importTrustedSummaryFromTextareaIfPresent(
+  seedHex,
+  textareaRaw,
+  opts = {},
+) {
+  const trimmed = String(textareaRaw ?? "").trim();
+  if (!trimmed) {
+    return { imported: false };
+  }
+  const summary = parseTrustedSummaryJson(trimmed);
+  const checkpointHex = opts.checkpointHex?.trim();
+  if (checkpointHex && opts.lightChainWeakSubjectivity) {
+    const ws = JSON.parse(
+      opts.lightChainWeakSubjectivity(JSON.stringify(summary), checkpointHex),
+    );
+    if (!ws.ok || !ws.agrees) {
+      throw new Error(
+        ws.error ||
+          "trusted summary disagrees with wallet light checkpoint (sync import aborted)",
+      );
+    }
+  }
+  saveTrustedSummaryObject(seedHex, summary);
+  return { imported: true, summary };
 }

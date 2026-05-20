@@ -2063,6 +2063,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.16** | `wallet show-trusted-summary` / `compare-trusted-summary` (inspect + diff pins). | ✓ shipped |
 | **M3.17** | Three-validator weak-subjectivity unit test + ignored `light_scan_three_validator` mesh smoke. | ✓ shipped |
 | **M3.18** | `wallet light-scan --import-trusted-summary FILE` (pin + sync in one step). | ✓ shipped |
+| **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components
 
@@ -2088,6 +2089,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `wallet show-trusted-summary` / `compare-trusted-summary` | Print or diff weak-subjectivity summary JSON. | ✓ M3.16 |
 | `light_scan_three_validator_smoke` | CLI light wallet sync on live `--produce` + `--committee-vote` mesh. | ✓ M3.17 |
 | `light-scan --import-trusted-summary` | Pin exported summary then sync without a separate import command. | ✓ M3.18 |
+| Demo sync textarea import | Pin pasted summary on catch-up / sync-ready / range (at-tip too). | ✓ M4.24 |
 
 ### Scope
 
@@ -2130,6 +2132,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.21** | Relay TLS SPKI pins (`relay-tls-spki.mjs`, `GET /relay-spki`, demo HTTPS pin field). | ✓ shipped |
 | **M4.22** | Demo import/show/clear trusted summary JSON (`trusted-summary-pins.js`, paste field). | ✓ shipped |
 | **M4.23** | Demo export trusted summary (checkpoint WASM or RPC; optional pin). | ✓ shipped |
+| **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Use cases
 

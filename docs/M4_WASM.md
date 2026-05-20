@@ -284,7 +284,7 @@ Same summary fields as browser `permawrite-light-trusted-summary:<seed>` and rel
 | **Show / Clear** | Inspect or remove `permawrite-light-trusted-summary:<seed>` |
 | **Reset wallet state** | Also clears trusted summary |
 
-Paste output from `mfn-cli wallet export-trusted-summary` before sync on a fresh browser profile.
+Paste output from `mfn-cli wallet export-trusted-summary` before sync on a fresh browser profile, or leave JSON in the textarea — sync auto-imports it (**M4.24**).
 
 ## Demo trusted-summary export (M4.23)
 
@@ -294,5 +294,14 @@ Paste output from `mfn-cli wallet export-trusted-summary` before sync on a fresh
 | **Pin on export** | Optional checkbox writes the same JSON to `permawrite-light-trusted-summary:<seed>` |
 
 RPC export verifies embedded `summary` against WASM-derived checkpoint bytes when both are available (same as **M3.14**).
+
+## Demo sync textarea import (M4.24)
+
+| Piece | Role |
+|-------|------|
+| `importTrustedSummaryFromTextareaIfPresent` | Non-empty **Trusted summary JSON** field → `localStorage` pin before sync |
+| **Catch up** / **Sync ready** / **Sync range** | Call import helper first; at-tip catch-up still pins + verifies against checkpoint |
+
+Parity with CLI `wallet light-scan --import-trusted-summary FILE` (**M3.18**).
 
 ## Roadmap

@@ -32,6 +32,7 @@ import {
   formatTrustedSummaryLines,
   loadTrustedSummaryObject,
   normalizeTrustedSummary,
+  importTrustedSummaryFromTextareaIfPresent,
   parseTrustedSummaryJson,
   saveTrustedSummaryObject,
 } from "./trusted-summary-pins.js";
@@ -134,6 +135,18 @@ function syncWasmOpts() {
     quorumP2pPeers: quorumP2pPeers(),
     lightRelayUrls: relays.length > 0 ? relays : undefined,
   };
+}
+
+/** @returns {{ imported: false } | { imported: true, summary: object }} */
+function importTrustedSummaryOnSyncIfPresent(seed) {
+  return importTrustedSummaryFromTextareaIfPresent(
+    seed,
+    $("sync-trusted-summary-json").value,
+    {
+      checkpointHex: loadLightCheckpoint(seed) || undefined,
+      lightChainWeakSubjectivity,
+    },
+  );
 }
 
 function ownedKeyImagesFromTextarea() {
@@ -285,6 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function runSync(fromHeight, toHeight) {
     await ensureWasm();
     const seed = seedOrDemo();
+    const trustedImport = importTrustedSummaryOnSyncIfPresent(seed);
     const summary = await syncBlockRange({
       rpcUrl: rpcUrl(),
       seedHex: seed,
@@ -299,12 +313,17 @@ document.addEventListener("DOMContentLoaded", () => {
       },
     });
     persistWalletSync();
-    show("sync-out", JSON.stringify(summary, null, 2));
+    const out = trustedImport.imported
+      ? { trusted_summary_import: trustedImport.summary, ...summary }
+      : summary;
+    show("sync-out", JSON.stringify(out, null, 2));
   }
 
   $("btn-sync-ready").addEventListener("click", async () => {
     try {
       await ensureWasm();
+      const seed = seedOrDemo();
+      const trustedImport = importTrustedSummaryOnSyncIfPresent(seed);
       show("sync-out", "fetching chain params…");
       const [params, tip] = await Promise.all([
         mfndRpc(rpcUrl(), "get_chain_params", {}),
@@ -332,7 +351,14 @@ document.addEventListener("DOMContentLoaded", () => {
           });
           persistWalletSync();
         } else {
-          syncSummary = { skipped: true, reason: "already at tip", tip_height: tipH };
+          syncSummary = {
+            skipped: true,
+            reason: "already at tip",
+            tip_height: tipH,
+            ...(trustedImport.imported
+              ? { trusted_summary_import: trustedImport.summary }
+              : {}),
+          };
           refreshSyncStatus();
         }
       }
@@ -350,6 +376,9 @@ document.addEventListener("DOMContentLoaded", () => {
               treasury_base_units: params.treasury_base_units,
             },
             sync: syncSummary,
+            ...(trustedImport.imported && !syncSummary.trusted_summary_import
+              ? { trusted_summary_import: trustedImport.summary }
+              : {}),
             decoys,
             wallet: {
               last_scanned_height: walletSync.lastScannedHeight,
@@ -368,6 +397,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("btn-sync-catch-up").addEventListener("click", async () => {
     try {
+      await ensureWasm();
+      const seed = seedOrDemo();
       const tip = await mfndRpc(rpcUrl(), "get_tip", {});
       const tipH = tip.tip_height != null ? Number(tip.tip_height) : 0;
       if (tipH < 1) {
@@ -376,7 +407,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const from = walletSync.lastScannedHeight + 1;
       if (from > tipH) {
-        show("sync-out", `already synced through tip (${tipH})`);
+        const trustedImport = importTrustedSummaryOnSyncIfPresent(seed);
+        if (trustedImport.imported) {
+          show(
+            "sync-out",
+            JSON.stringify(
+              {
+                skipped: true,
+                reason: "already at tip",
+                tip_height: tipH,
+                trusted_summary_import: trustedImport.summary,
+              },
+              null,
+              2,
+            ),
+          );
+        } else {
+          show("sync-out", `already synced through tip (${tipH})`);
+        }
         refreshSyncStatus();
         return;
       }
