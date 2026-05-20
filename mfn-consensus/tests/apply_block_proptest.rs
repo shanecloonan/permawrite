@@ -1,12 +1,14 @@
-﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, sign_register,
-    ApplyOutcome, BlockError, BondOp, ChainState, EmissionParams, GenesisConfig,
-    DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
+    encode_finality_proof, finalize, header_signing_hash, seal_block, sign_register,
+    try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainState, EmissionParams, FinalityProof,
+    GenesisConfig, SlotContext, Validator, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
+    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -156,6 +158,89 @@ fn register_op(seed: u8) -> BondOp {
     }
 }
 
+/// Secrets matching [`register_op`] / on-chain [`Validator::index`].
+fn validator_secrets_for_index(index: u32) -> ValidatorSecrets {
+    let seed = index.wrapping_add(1) as u8;
+    let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
+    let vrf = vrf_keygen_from_seed(&[seed.wrapping_add(101); 32]).expect("vrf");
+    ValidatorSecrets { index, vrf, bls }
+}
+
+/// Attach a valid MFBN finality blob when the pre-state has validators (**M5.4**).
+fn attach_test_finality(st: &ChainState, mut unsealed: mfn_consensus::BlockHeader) -> Vec<u8> {
+    if st.validators.is_empty() {
+        return Vec::new();
+    }
+    let total_stake: u64 = st.validators.iter().map(|v| v.stake).sum();
+    let f = st.params.expected_proposers_per_slot;
+    let base_slot = unsealed.slot;
+
+    for bump in 0u32..=512u32 {
+        unsealed.slot = base_slot.saturating_add(bump);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height: unsealed.height,
+            slot: unsealed.slot,
+            prev_hash: unsealed.prev_hash,
+        };
+
+        let mut producer_proof = None;
+        let mut producer_validator: Option<&Validator> = None;
+        for v in &st.validators {
+            let secrets = validator_secrets_for_index(v.index);
+            if let Ok(Some(p)) = try_produce_slot(&ctx, &secrets, v, total_stake, f, &header_hash) {
+                producer_proof = Some(p);
+                producer_validator = Some(v);
+                break;
+            }
+        }
+        let (producer_proof, producer_validator) = match (producer_proof, producer_validator) {
+            (Some(p), Some(v)) => (p, v),
+            _ => continue,
+        };
+
+        let mut votes = Vec::with_capacity(st.validators.len());
+        for v in &st.validators {
+            let secrets = validator_secrets_for_index(v.index);
+            votes.push(
+                cast_vote(
+                    &header_hash,
+                    &secrets,
+                    &ctx,
+                    &producer_proof,
+                    producer_validator,
+                    total_stake,
+                    f,
+                )
+                .expect("committee vote"),
+            );
+        }
+        let agg = finalize(&header_hash, &votes, st.validators.len()).expect("finalize");
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: agg,
+            signing_stake: total_stake,
+        };
+        return encode_finality_proof(&fin);
+    }
+    panic!(
+        "attach_test_finality: no VRF-eligible producer in 512 slot attempts (validators={})",
+        st.validators.len()
+    );
+}
+
+fn seal_with_test_finality(
+    st: &ChainState,
+    unsealed: mfn_consensus::BlockHeader,
+    txs: Vec<mfn_consensus::TransactionWire>,
+    bond_ops: Vec<BondOp>,
+    slashings: Vec<mfn_consensus::SlashEvidence>,
+    storage_proofs: Vec<mfn_storage::StorageProof>,
+) -> mfn_consensus::Block {
+    let fin = attach_test_finality(st, unsealed.clone());
+    seal_block(unsealed, txs, bond_ops, fin, slashings, storage_proofs)
+}
+
 fn forged_register_op() -> BondOp {
     let attacker = bls_keygen_from_seed(&[200u8; 32]);
     let victim = bls_keygen_from_seed(&[201u8; 32]);
@@ -174,14 +259,7 @@ fn forged_register_op() -> BondOp {
 fn apply_with_bond_ops(st: &ChainState, height: u32, bond_ops: Vec<BondOp>) -> ChainState {
     let ts = u64::from(height) * 1_000;
     let unsealed = build_unsealed_header(st, &[], &bond_ops, &[], &[], height, ts);
-    let blk = seal_block(
-        unsealed,
-        Vec::new(),
-        bond_ops,
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-    );
+    let blk = seal_with_test_finality(st, unsealed, Vec::new(), bond_ops, Vec::new(), Vec::new());
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
@@ -195,14 +273,7 @@ fn apply_with_storage_proofs(
 ) -> ChainState {
     let ts = u64::from(height) * 1_000;
     let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, height, ts);
-    let blk = seal_block(
-        unsealed,
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        proofs,
-    );
+    let blk = seal_with_test_finality(st, unsealed, Vec::new(), Vec::new(), Vec::new(), proofs);
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
@@ -221,15 +292,8 @@ fn apply_valid_proof_at(
     apply_with_storage_proofs(st, height, vec![proof])
 }
 
-fn seal_empty(header: mfn_consensus::BlockHeader) -> mfn_consensus::Block {
-    seal_block(
-        header,
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-    )
+fn seal_empty(st: &ChainState, header: mfn_consensus::BlockHeader) -> mfn_consensus::Block {
+    seal_with_test_finality(st, header, Vec::new(), Vec::new(), Vec::new(), Vec::new())
 }
 
 fn next_height(st: &ChainState) -> u32 {
@@ -238,7 +302,7 @@ fn next_height(st: &ChainState) -> u32 {
 
 fn apply_empty_at(st: &ChainState, height: u32, timestamp: u64) -> ChainState {
     let header = build_unsealed_header(st, &[], &[], &[], &[], height, timestamp);
-    let blk = seal_empty(header);
+    let blk = seal_empty(st, header);
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
@@ -323,7 +387,7 @@ proptest! {
         let h = next_height(&st);
         let header = build_unsealed_header(&st, &[], &[], &[], &[], h, 100);
         let header = tamper(header, tamper_kind.clone());
-        let blk = seal_empty(header);
+        let blk = seal_empty(&st, header);
         let expect = expected_error(&tamper_kind);
 
         match apply_block(&st, &blk) {
@@ -349,7 +413,7 @@ proptest! {
         let h = next_height(&st);
         let mut header = build_unsealed_header(&st, &[], &[], &[], &[], h, 9_999);
         header.height = header.height.saturating_add(bump);
-        let blk = seal_empty(header);
+        let blk = seal_empty(&st, header);
 
         match apply_block(&st, &blk) {
             ApplyOutcome::Err { errors, .. } => {
