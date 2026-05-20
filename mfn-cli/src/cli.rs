@@ -8,8 +8,9 @@ use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
 use crate::light_subjectivity::{
-    wallet_export_trusted_summary, wallet_import_trusted_summary, ExportTrustedSummaryParams,
-    ImportTrustedSummaryParams,
+    wallet_compare_trusted_summary, wallet_export_trusted_summary, wallet_import_trusted_summary,
+    wallet_show_trusted_summary, CompareTrustedSummaryParams, ExportTrustedSummaryParams,
+    ImportTrustedSummaryParams, ShowTrustedSummaryParams,
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
@@ -131,6 +132,12 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::ImportTrustedSummary(ref params) => {
                     wallet_import_trusted_summary(&path, params)?
                 }
+                WalletSub::ShowTrustedSummary(ref params) => {
+                    wallet_show_trusted_summary(&path, params)?
+                }
+                WalletSub::CompareTrustedSummary(ref params) => {
+                    wallet_compare_trusted_summary(&path, params)?
+                }
             }
         }
     }
@@ -204,6 +211,8 @@ enum WalletSub {
     Claim(ClaimParams),
     ExportTrustedSummary(ExportTrustedSummaryParams),
     ImportTrustedSummary(ImportTrustedSummaryParams),
+    ShowTrustedSummary(ShowTrustedSummaryParams),
+    CompareTrustedSummary(CompareTrustedSummaryParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,6 +257,10 @@ fn usage() -> &'static str {
                          options: --out FILE --height N --pin --from-wallet-checkpoint\n\
        wallet import-trusted-summary FILE pin weak-subjectivity summary into wallet (**M3.15**)\n\
                          options: --verify-checkpoint (match wallet light_checkpoint_hex)\n\
+       wallet show-trusted-summary        print pinned or checkpoint-derived summary (**M3.16**)\n\
+                         options: --from-checkpoint --json\n\
+       wallet compare-trusted-summary     compare summary JSON files or vs wallet (**M3.16**)\n\
+                         FILE [FILE2]  or  FILE --against-checkpoint\n\
        claims for DATA_ROOT_HEX           authorship claims for a content data_root\n\
        claims recent                      recent claims chain-wide (list_recent_claims)\n\
        claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
@@ -305,7 +318,10 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--reset-trusted-summary"
             || a == "--pin"
             || a == "--from-wallet-checkpoint"
+            || a == "--from-checkpoint"
             || a == "--verify-checkpoint"
+            || a == "--against-checkpoint"
+            || a == "--json"
         {
             positional.push(a);
             i += 1;
@@ -611,7 +627,7 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary|import-trusted-summary)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
             usage()
         )));
     };
@@ -622,6 +638,12 @@ fn parse_wallet_cmd(
         }
         "import-trusted-summary" => {
             WalletSub::ImportTrustedSummary(parse_wallet_import_trusted_summary_args(&rest[1..])?)
+        }
+        "show-trusted-summary" => {
+            WalletSub::ShowTrustedSummary(parse_wallet_show_trusted_summary_args(&rest[1..])?)
+        }
+        "compare-trusted-summary" => {
+            WalletSub::CompareTrustedSummary(parse_wallet_compare_trusted_summary_args(&rest[1..])?)
         }
         "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
@@ -812,6 +834,77 @@ fn parse_wallet_import_trusted_summary_args(
     Ok(ImportTrustedSummaryParams {
         summary_path,
         verify_wallet_checkpoint,
+    })
+}
+
+fn parse_wallet_show_trusted_summary_args(
+    rest: &[&str],
+) -> Result<ShowTrustedSummaryParams, CliError> {
+    let mut from_wallet_checkpoint = false;
+    let mut json_only = false;
+    for a in rest {
+        if *a == "--from-checkpoint" || *a == "--from-wallet-checkpoint" {
+            from_wallet_checkpoint = true;
+            continue;
+        }
+        if *a == "--json" {
+            json_only = true;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unknown wallet show-trusted-summary argument `{a}`\n{}",
+            usage()
+        )));
+    }
+    Ok(ShowTrustedSummaryParams {
+        from_wallet_checkpoint,
+        json_only,
+    })
+}
+
+fn parse_wallet_compare_trusted_summary_args(
+    rest: &[&str],
+) -> Result<CompareTrustedSummaryParams, CliError> {
+    let mut against_wallet_checkpoint = false;
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--against-checkpoint" {
+            against_wallet_checkpoint = true;
+            i += 1;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown wallet compare-trusted-summary argument `{a}`\n{}",
+                usage()
+            )));
+        }
+        paths.push(std::path::PathBuf::from(a));
+        i += 1;
+    }
+    let Some(left_path) = paths.first().cloned() else {
+        return Err(CliError::Usage(format!(
+            "wallet compare-trusted-summary requires FILE [FILE2]\n{}",
+            usage()
+        )));
+    };
+    if paths.len() > 2 {
+        return Err(CliError::Usage(format!(
+            "wallet compare-trusted-summary accepts at most two FILE arguments\n{}",
+            usage()
+        )));
+    }
+    if paths.len() == 2 && against_wallet_checkpoint {
+        return Err(CliError::Usage(
+            "--against-checkpoint applies only when comparing a single FILE to the wallet\n".into(),
+        ));
+    }
+    Ok(CompareTrustedSummaryParams {
+        left_path,
+        right_path: paths.get(1).cloned(),
+        against_wallet_checkpoint,
     })
 }
 

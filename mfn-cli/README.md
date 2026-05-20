@@ -78,6 +78,15 @@ mfn-cli wallet import-trusted-summary trusted-summary.json --verify-checkpoint
 
 Import (**M3.15**) pins an out-of-band JSON file into `wallet.json` without syncing; `--verify-checkpoint` checks the file against persisted `light_checkpoint_hex` when present.
 
+Inspect and diff (**M3.16**):
+
+```bash
+mfn-cli wallet show-trusted-summary
+mfn-cli wallet show-trusted-summary --from-checkpoint --json
+mfn-cli wallet compare-trusted-summary trusted-summary.json
+mfn-cli wallet compare-trusted-summary a.json b.json
+```
+
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.

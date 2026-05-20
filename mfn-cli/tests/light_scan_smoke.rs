@@ -227,6 +227,56 @@ fn wallet_light_scan_after_solo_step_coinbase() {
     let after_import = WalletFile::load(&wallet_path).expect("reload after import");
     assert!(after_import.trusted_light_summary.is_some());
 
+    let show = mfn_cli()
+        .args([
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "show-trusted-summary",
+        ])
+        .output()
+        .expect("show-trusted-summary");
+    assert!(
+        show.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&show.stderr)
+    );
+    let show_stdout = String::from_utf8_lossy(&show.stdout);
+    assert!(show_stdout.contains("checkpoint_digest="));
+
+    let compare = mfn_cli()
+        .args([
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "compare-trusted-summary",
+            summary_path.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("compare-trusted-summary");
+    assert!(
+        compare.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&compare.stderr)
+    );
+    assert!(String::from_utf8_lossy(&compare.stdout).contains("trusted summaries match"));
+
+    let bad_path = dir.join("bad-summary.json");
+    std::fs::write(&bad_path, r#"{"genesis_id":"00","tip_height":0,"tip_block_id":"00","validator_count":0,"validator_set_root":"00","checkpoint_digest":"00"}"#)
+        .expect("write bad summary");
+
+    let compare_bad = mfn_cli()
+        .args([
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "compare-trusted-summary",
+            bad_path.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("compare-trusted-summary bad");
+    assert!(!compare_bad.status.success());
+
     shutdown_child(&mut child);
     std::fs::remove_dir_all(&dir).ok();
 }

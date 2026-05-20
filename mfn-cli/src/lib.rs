@@ -23,8 +23,10 @@ pub mod wallet_store;
 pub use claims_cmd::ClaimsListParams;
 pub use cli::{cli_main, run_cli, CliError};
 pub use light_subjectivity::{
-    load_trusted_summary_file, save_trusted_summary_file, wallet_export_trusted_summary,
-    wallet_import_trusted_summary, ExportTrustedSummaryParams, ImportTrustedSummaryParams,
+    format_summary_diff, load_trusted_summary_file, save_trusted_summary_file, summaries_equal,
+    wallet_compare_trusted_summary, wallet_export_trusted_summary, wallet_import_trusted_summary,
+    wallet_show_trusted_summary, CompareTrustedSummaryParams, ExportTrustedSummaryParams,
+    ImportTrustedSummaryParams, ShowTrustedSummaryParams,
 };
 pub use light_wallet::LightScanParams;
 pub use rpc::{BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult};

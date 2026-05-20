@@ -269,6 +269,8 @@ Browsers cannot read the TLS certificate from `fetch`; operators publish SPKI wi
 | `wallet light-scan --trusted-summary FILE` | Verify checkpoint against an imported pin during sync |
 | `wallet export-trusted-summary` | Write `get_light_snapshot.summary` JSON for distribution |
 | `wallet import-trusted-summary FILE` | Offline pin into `wallet.json` (`--verify-checkpoint` optional) |
+| `wallet show-trusted-summary` | Print wallet pin or `--from-checkpoint` derived summary |
+| `wallet compare-trusted-summary` | Diff two JSON files or one file vs wallet pin / checkpoint |
 
 Same summary fields as browser `permawrite-light-trusted-summary:<seed>` and relay `checkpoint-summary` pins.
 

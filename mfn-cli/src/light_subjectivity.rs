@@ -1,4 +1,4 @@
-//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**–**M3.15**).
+//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**–**M3.16**).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -27,6 +27,65 @@ pub fn summary_from_checkpoint_hex(checkpoint_hex: &str) -> Result<LightCheckpoi
         validator_set_root: hex::encode(validator_set_root(chain.trusted_validators())),
         checkpoint_digest: hex::encode(digest),
     })
+}
+
+/// Field-by-field equality of two summary objects (all weak-subjectivity fields).
+pub fn summaries_equal(a: &LightCheckpointSummary, b: &LightCheckpointSummary) -> bool {
+    norm_hex32(&a.genesis_id) == norm_hex32(&b.genesis_id)
+        && a.tip_height == b.tip_height
+        && norm_hex32(&a.tip_block_id) == norm_hex32(&b.tip_block_id)
+        && a.validator_count == b.validator_count
+        && norm_hex32(&a.validator_set_root) == norm_hex32(&b.validator_set_root)
+        && norm_hex32(&a.checkpoint_digest) == norm_hex32(&b.checkpoint_digest)
+}
+
+/// Human-readable diff when [`summaries_equal`] is false.
+pub fn format_summary_diff(
+    left_label: &str,
+    left: &LightCheckpointSummary,
+    right_label: &str,
+    right: &LightCheckpointSummary,
+) -> String {
+    let mut lines = vec![format!(
+        "trusted summary mismatch: {left_label} vs {right_label}"
+    )];
+    if norm_hex32(&left.genesis_id) != norm_hex32(&right.genesis_id) {
+        lines.push(format!(
+            "  genesis_id: {} vs {}",
+            left.genesis_id, right.genesis_id
+        ));
+    }
+    if left.tip_height != right.tip_height {
+        lines.push(format!(
+            "  tip_height: {} vs {}",
+            left.tip_height, right.tip_height
+        ));
+    }
+    if norm_hex32(&left.tip_block_id) != norm_hex32(&right.tip_block_id) {
+        lines.push(format!(
+            "  tip_block_id: {} vs {}",
+            left.tip_block_id, right.tip_block_id
+        ));
+    }
+    if left.validator_count != right.validator_count {
+        lines.push(format!(
+            "  validator_count: {} vs {}",
+            left.validator_count, right.validator_count
+        ));
+    }
+    if norm_hex32(&left.validator_set_root) != norm_hex32(&right.validator_set_root) {
+        lines.push(format!(
+            "  validator_set_root: {} vs {}",
+            left.validator_set_root, right.validator_set_root
+        ));
+    }
+    if norm_hex32(&left.checkpoint_digest) != norm_hex32(&right.checkpoint_digest) {
+        lines.push(format!(
+            "  checkpoint_digest: {} vs {}",
+            left.checkpoint_digest, right.checkpoint_digest
+        ));
+    }
+    lines.join("\n")
 }
 
 /// Compare pinned weak-subjectivity fields against a checkpoint (M4.14 parity).
@@ -190,6 +249,130 @@ pub fn wallet_import_trusted_summary(
     Ok(())
 }
 
+/// Options for `wallet show-trusted-summary` (**M3.16**).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ShowTrustedSummaryParams {
+    /// Derive from `light_checkpoint_hex` instead of `trusted_light_summary`.
+    pub from_wallet_checkpoint: bool,
+    /// Emit pretty JSON only (no key=value lines).
+    pub json_only: bool,
+}
+
+/// Print the wallet pin or checkpoint-derived summary (offline).
+pub fn wallet_show_trusted_summary(
+    wallet_path: &Path,
+    params: &ShowTrustedSummaryParams,
+) -> Result<(), WalletCmdError> {
+    let summary = resolve_summary_for_show(wallet_path, params)?;
+    validate_trusted_summary(&summary)?;
+    if params.json_only {
+        let raw = serde_json::to_string_pretty(&summary)
+            .map_err(|e| WalletCmdError::Usage(format!("encode summary: {e}")))?;
+        println!("{raw}");
+    } else {
+        print_summary_lines(
+            &summary,
+            if params.from_wallet_checkpoint {
+                "wallet light_checkpoint_hex"
+            } else {
+                "wallet trusted_light_summary"
+            },
+        );
+    }
+    Ok(())
+}
+
+/// Options for `wallet compare-trusted-summary` (**M3.16**).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompareTrustedSummaryParams {
+    /// Left-hand summary file.
+    pub left_path: PathBuf,
+    /// Optional second file; when `None`, compare against the wallet.
+    pub right_path: Option<PathBuf>,
+    /// Compare left file against checkpoint-derived summary (not wallet pin).
+    pub against_wallet_checkpoint: bool,
+}
+
+/// Compare summary JSON files or a file against the wallet pin / checkpoint.
+pub fn wallet_compare_trusted_summary(
+    wallet_path: &Path,
+    params: &CompareTrustedSummaryParams,
+) -> Result<(), WalletCmdError> {
+    let left = load_trusted_summary_file(&params.left_path)?;
+    validate_trusted_summary(&left)?;
+
+    let (right_label, right) = if let Some(path) = &params.right_path {
+        let s = load_trusted_summary_file(path)?;
+        validate_trusted_summary(&s)?;
+        (path.display().to_string(), s)
+    } else if params.against_wallet_checkpoint {
+        let file = WalletFile::load(wallet_path)?;
+        let cp_hex = file.light_checkpoint_hex.as_ref().ok_or_else(|| {
+            WalletCmdError::Usage(
+                "wallet has no light_checkpoint_hex; run wallet light-scan first".into(),
+            )
+        })?;
+        let s = summary_from_checkpoint_hex(cp_hex)
+            .map_err(|e| WalletCmdError::Usage(format!("summary from checkpoint: {e}")))?;
+        ("wallet light_checkpoint_hex".into(), s)
+    } else {
+        let file = WalletFile::load(wallet_path)?;
+        let pinned = file.trusted_light_summary.as_ref().ok_or_else(|| {
+            WalletCmdError::Usage(
+                "wallet has no trusted_light_summary; import or light-scan --pin-trusted-summary"
+                    .into(),
+            )
+        })?;
+        ("wallet trusted_light_summary".into(), pinned.clone())
+    };
+
+    let left_label = params.left_path.display().to_string();
+    if summaries_equal(&left, &right) {
+        println!("trusted summaries match ({left_label} vs {right_label})");
+        println!("tip_height={}", left.tip_height);
+        println!("checkpoint_digest={}", left.checkpoint_digest);
+        return Ok(());
+    }
+    Err(WalletCmdError::Usage(format_summary_diff(
+        &left_label,
+        &left,
+        &right_label,
+        &right,
+    )))
+}
+
+fn resolve_summary_for_show(
+    wallet_path: &Path,
+    params: &ShowTrustedSummaryParams,
+) -> Result<LightCheckpointSummary, WalletCmdError> {
+    let file = WalletFile::load(wallet_path)?;
+    if params.from_wallet_checkpoint {
+        let cp_hex = file.light_checkpoint_hex.as_ref().ok_or_else(|| {
+            WalletCmdError::Usage(
+                "wallet has no light_checkpoint_hex; run wallet light-scan first".into(),
+            )
+        })?;
+        return summary_from_checkpoint_hex(cp_hex)
+            .map_err(|e| WalletCmdError::Usage(format!("summary from checkpoint: {e}")));
+    }
+    file.trusted_light_summary.ok_or_else(|| {
+        WalletCmdError::Usage(
+            "wallet has no trusted_light_summary; use --from-checkpoint or import-trusted-summary"
+                .into(),
+        )
+    })
+}
+
+fn print_summary_lines(summary: &LightCheckpointSummary, source: &str) {
+    println!("source={source}");
+    println!("genesis_id={}", summary.genesis_id);
+    println!("tip_height={}", summary.tip_height);
+    println!("tip_block_id={}", summary.tip_block_id);
+    println!("validator_count={}", summary.validator_count);
+    println!("validator_set_root={}", summary.validator_set_root);
+    println!("checkpoint_digest={}", summary.checkpoint_digest);
+}
+
 fn validate_trusted_summary(summary: &LightCheckpointSummary) -> Result<(), WalletCmdError> {
     for (label, hex) in [
         ("genesis_id", summary.genesis_id.as_str()),
@@ -295,5 +478,16 @@ mod tests {
         let mut summary = summary_from_checkpoint_hex(&hex).expect("summary");
         summary.checkpoint_digest = "not-hex".into();
         assert!(validate_trusted_summary(&summary).is_err());
+    }
+
+    #[test]
+    fn summaries_equal_detects_digest_mismatch() {
+        let chain = sample_chain();
+        let hex = hex::encode(chain.encode_checkpoint());
+        let a = summary_from_checkpoint_hex(&hex).expect("summary");
+        let mut b = a.clone();
+        b.checkpoint_digest = "00".repeat(32);
+        assert!(!summaries_equal(&a, &b));
+        assert!(format_summary_diff("a", &a, "b", &b).contains("checkpoint_digest"));
     }
 }
