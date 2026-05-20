@@ -414,19 +414,19 @@ fn start_three_validator_mesh(spec: &Path) -> (ValidatorNode, ValidatorNode, Val
     thread::sleep(Duration::from_millis(500));
 
     // All validators must share the same height + tip_id (committee catch-up can lag).
-    let (height, tip_id) = wait_common_tip(
-        v0.rpc,
-        &[v1.rpc, v2.rpc],
-        1,
-        Duration::from_secs(180),
+    let (height, tip_id) = wait_common_tip(v0.rpc, &[v1.rpc, v2.rpc], 1, Duration::from_secs(180));
+    assert!(
+        height >= 1,
+        "mesh should converge before light-scan (height={height})"
     );
-    assert!(height >= 1, "mesh should converge before light-scan (height={height})");
     assert_eq!(
-        get_tip(v1.rpc).1, tip_id,
+        get_tip(v1.rpc).1,
+        tip_id,
         "v1 tip_id should match hub after convergence"
     );
     assert_eq!(
-        get_tip(v2.rpc).1, tip_id,
+        get_tip(v2.rpc).1,
+        tip_id,
         "v2 tip_id should match hub after convergence"
     );
 
