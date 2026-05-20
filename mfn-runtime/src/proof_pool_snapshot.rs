@@ -199,9 +199,13 @@ mod tests {
         let st = apply_genesis(&g, &cfg).expect("genesis");
         let prev = *st.tip_id().expect("tip");
         let c_hash = storage_commitment_hash(&built.commit);
-        let proof_h1 =
-            build_storage_proof(&built.commit, &prev, 1, &payload, &built.tree).expect("proof");
-        let bytes = encode_proof_pool_snapshot_entries(std::slice::from_ref(&proof_h1));
+        let num_chunks = built.commit.num_chunks;
+        let slot_old = 1u32;
+        let idx_old =
+            chunk_index_for_challenge(&prev, slot_old, &c_hash, num_chunks);
+        let proof_old = build_storage_proof(&built.commit, &prev, slot_old, &payload, &built.tree)
+            .expect("proof");
+        let bytes = encode_proof_pool_snapshot_entries(std::slice::from_ref(&proof_old));
 
         let header = build_unsealed_header(&st, &[], &[], &[], &[], 1, 1_000);
         let blk = seal_block(
@@ -218,15 +222,17 @@ mod tests {
         };
         let prev2 = *st2.tip_id().expect("tip");
         assert_ne!(prev, prev2);
-        let idx_old = chunk_index_for_challenge(&prev, 1, &c_hash, built.commit.num_chunks);
-        let idx_new = chunk_index_for_challenge(&prev2, 2, &c_hash, built.commit.num_chunks);
-        assert_ne!(
-            idx_old, idx_new,
-            "fixture must use distinct challenge indices"
-        );
+        let mut next_height = 2u32;
+        while chunk_index_for_challenge(&prev2, next_height, &c_hash, num_chunks) == idx_old {
+            next_height += 1;
+            assert!(
+                next_height < 258,
+                "could not find non-colliding next_height"
+            );
+        }
         let decoded = decode_proof_pool_snapshot(&bytes).expect("decode");
         let mut pool = ProofPool::new(ProofPoolConfig::default());
-        let stats = pool.restore_snapshot(decoded, &st2, &prev2, 2);
+        let stats = pool.restore_snapshot(decoded, &st2, &prev2, next_height);
         assert_eq!(stats.loaded, 1);
         assert_eq!(stats.admitted, 0);
         assert_eq!(stats.skipped, 1);
