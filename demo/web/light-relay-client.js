@@ -1,5 +1,5 @@
 /**
- * HTTP client for dedicated light-follow relays (**M4.16**–**M4.19**).
+ * HTTP client for dedicated light-follow relays (**M4.16**–**M4.21**).
  */
 
 /**
@@ -19,6 +19,26 @@ export async function fetchRelayCheckpointSummary(relayBase) {
     throw new Error(`light relay ${url} returned invalid checkpoint summary`);
   }
   return summary;
+}
+
+/**
+ * @param {string} relayBase HTTPS relay only
+ * @returns {Promise<string>} lowercase hex SHA-256 of TLS SPKI
+ */
+export async function fetchRelayTlsSpki(relayBase) {
+  const url = relayBase.replace(/\/$/, "");
+  const res = await fetch(`${url}/relay-spki`);
+  if (!res.ok) {
+    throw new Error(
+      `light relay ${url} relay-spki HTTP ${res.status}: ${await res.text()}`,
+    );
+  }
+  const body = await res.json();
+  const hex = String(body?.spki_sha256 ?? "").trim();
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error(`light relay ${url} returned invalid relay-spki`);
+  }
+  return hex.toLowerCase();
 }
 
 /**

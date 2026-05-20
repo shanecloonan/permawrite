@@ -2119,6 +2119,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.18** | Trusted relay URL pins / TOFU in browser (`trusted-relay-pins.js`, demo pin/reset buttons). | done |
 | **M4.19** | Relay checkpoint-summary pins (`GET /checkpoint-summary`, verify on sync). | done |
 | **M4.20** | Chunked demo wallet sync (512-block batches, RPC span safe). | done |
+| **M4.21** | Relay TLS SPKI pins (`relay-tls-spki.mjs`, `GET /relay-spki`, demo HTTPS pin field). | ✓ shipped |
 
 ### Use cases
 

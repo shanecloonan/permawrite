@@ -24,9 +24,14 @@ import {
   syncBlockRange,
   totalBalance,
 } from "./wallet-sync.js";
-import { fetchRelayCheckpointSummary } from "./light-relay-client.js";
 import {
+  fetchRelayCheckpointSummary,
+  fetchRelayTlsSpki,
+} from "./light-relay-client.js";
+import {
+  assertExpectedRelayTlsSpki,
   clearTrustedRelayPins,
+  isHttpsRelayUrl,
   saveTrustedRelayPins,
 } from "./trusted-relay-pins.js";
 
@@ -87,6 +92,22 @@ function lightRelayUrls() {
   const raw = el?.value?.trim() ?? "";
   if (!raw) return [];
   return raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+/** @returns {Record<string, string>} normalized relay URL → expected SPKI hex */
+function expectedRelayTlsSpki() {
+  const el = document.getElementById("sync-relay-tls-spki");
+  const raw = el?.value?.trim() ?? "";
+  if (!raw) return {};
+  const out = {};
+  for (const part of raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)) {
+    const eq = part.indexOf("=");
+    if (eq < 0) continue;
+    const url = part.slice(0, eq).trim();
+    const hex = part.slice(eq + 1).trim().replace(/^0x/i, "").toLowerCase();
+    if (url && hex) out[url.replace(/\/$/, "").toLowerCase()] = hex;
+  }
+  return out;
 }
 
 function syncWasmOpts() {
@@ -389,16 +410,32 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const summaries = {};
+      const tlsSpki = {};
+      const expectedSpki = expectedRelayTlsSpki();
       for (const base of relays) {
         summaries[base] = await fetchRelayCheckpointSummary(base);
+        if (isHttpsRelayUrl(base)) {
+          const live = await fetchRelayTlsSpki(base);
+          const norm = base.replace(/\/$/, "").toLowerCase();
+          assertExpectedRelayTlsSpki(
+            base,
+            expectedSpki[norm] || expectedSpki[base.toLowerCase()],
+            live,
+          );
+          tlsSpki[base] = live;
+        }
       }
-      saveTrustedRelayPins(seed, relays, summaries);
+      saveTrustedRelayPins(seed, relays, summaries, tlsSpki);
       const digests = relays.map(
         (r) => `${r} → ${summaries[r].checkpoint_digest}`,
       );
+      const spkiLines = Object.entries(tlsSpki).map(
+        ([r, h]) => `${r} → tls spki ${h.slice(0, 16)}…`,
+      );
       show(
         "sync-out",
-        `pinned ${relays.length} relay URL(s) + checkpoint summaries:\n${digests.join("\n")}`,
+        `pinned ${relays.length} relay URL(s) + checkpoint summaries:\n${digests.join("\n")}` +
+          (spkiLines.length ? `\n${spkiLines.join("\n")}` : ""),
       );
     } catch (e) {
       show("sync-out", String(e));

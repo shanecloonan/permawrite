@@ -250,6 +250,16 @@ On sync, when summaries were pinned, each configured relay must still report the
 
 `syncBlockRange` splits ranges longer than **512** blocks into sequential chunks (same limit as `get_block_headers` / `header-sync.js`), carrying the evolving checkpoint and `lastTipBlockId` across chunks. Relay TOFU/summary gates run once on the first chunk only.
 
-## Roadmap
+## Relay TLS SPKI pins (M4.21)
 
-- **M4.21** — Optional relay TLS SPKI pins for Node relay operators (out-of-band cert verification).
+| Piece | Role |
+|-------|------|
+| `RELAY_TLS_CERT` / `RELAY_TLS_KEY` | Serve `light-relay.mjs` over HTTPS |
+| `GET /relay-spki` | JSON `{ spki_sha256 }` for browser pin records |
+| `demo/proxy/relay-tls-spki.mjs` | Operator CLI: `--cert PATH` or `--host HOST` |
+| `trusted-relay-pins.js` `tls_spki` | Pin map per HTTPS relay; verified on sync via `/relay-spki` |
+| Demo field **Expected TLS SPKI** | Optional `url=hex` checked when **Pin relay URLs** (out-of-band) |
+
+Browsers cannot read the TLS certificate from `fetch`; operators publish SPKI with `relay-tls-spki.mjs`, users compare before pinning.
+
+## Roadmap

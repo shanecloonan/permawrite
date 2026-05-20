@@ -9,11 +9,14 @@ import { syncHeaderRange, verifyHeaderChain } from "./header-sync.js";
 import {
   fetchLightRelayFollowPage,
   fetchRelayCheckpointSummary,
+  fetchRelayTlsSpki,
 } from "./light-relay-client.js";
 import {
   assertRelayUrlsTrusted,
+  isHttpsRelayUrl,
   saveTrustedRelayPins,
   verifyRelayCheckpointSummaries,
+  verifyRelayTlsSpki,
 } from "./trusted-relay-pins.js";
 
 /** Matches `MAX_BLOCK_HEADERS_SPAN` in `mfn-rpc` and `header-sync.js` batch size. */
@@ -273,20 +276,34 @@ async function syncBlockRangeChunk({
 }) {
   let relayTrust = null;
   let relaySummaryCheck;
+  let relayTlsSpkiCheck;
   if (gateRelays && lightRelayUrls && lightRelayUrls.length > 0) {
     relayTrust = assertRelayUrlsTrusted(seedHex, lightRelayUrls);
     if (relayTrust.tofu) {
       const summaries = {};
+      const tlsSpki = {};
       for (const base of lightRelayUrls) {
         summaries[base] = await fetchRelayCheckpointSummary(base);
+        if (isHttpsRelayUrl(base)) {
+          tlsSpki[base] = await fetchRelayTlsSpki(base);
+        }
       }
-      saveTrustedRelayPins(seedHex, lightRelayUrls, summaries);
+      saveTrustedRelayPins(seedHex, lightRelayUrls, summaries, tlsSpki);
       relaySummaryCheck = { checked: lightRelayUrls.length, pinned: true };
+      relayTlsSpkiCheck = {
+        checked: Object.keys(tlsSpki).length,
+        pinned: Object.keys(tlsSpki).length > 0,
+      };
     } else {
       relaySummaryCheck = await verifyRelayCheckpointSummaries(
         seedHex,
         lightRelayUrls,
         fetchRelayCheckpointSummary,
+      );
+      relayTlsSpkiCheck = await verifyRelayTlsSpki(
+        seedHex,
+        lightRelayUrls,
+        fetchRelayTlsSpki,
       );
     }
   }
@@ -441,6 +458,7 @@ async function syncBlockRangeChunk({
           tofu: relayTrust.tofu,
           pinned_relays: relayTrust.pinned,
           summary_checks: relaySummaryCheck?.checked ?? 0,
+          tls_spki_checks: relayTlsSpkiCheck?.checked ?? 0,
         }
       : undefined,
   };

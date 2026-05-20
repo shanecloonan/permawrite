@@ -84,6 +84,13 @@
           spellcheck="false"
           placeholder="http://127.0.0.1:8790, http://127.0.0.1:8791"
         />
+        <label for="sync-relay-tls-spki">Expected TLS SPKI sha256 for HTTPS relays (optional — <code>url=hex</code>, from <code>relay-tls-spki.mjs</code>)</label>
+        <input
+          id="sync-relay-tls-spki"
+          type="text"
+          spellcheck="false"
+          placeholder="https://relay.example=abc123…"
+        />
         <p id="sync-status" class="lede">last scanned height: 0 · 0 UTXOs</p>
         <div class="row">
           <button type="button" id="btn-sync-ready">Sync &amp; ready (M4.8)</button>
