@@ -246,6 +246,10 @@ Sync summary includes `relay_trust: { tofu, pinned_relays, summary_checks }` whe
 
 On sync, when summaries were pinned, each configured relay must still report the same `checkpoint_digest` (and related weak-subjectivity fields) or sync aborts.
 
+## Chunked wallet sync (M4.20)
+
+`syncBlockRange` splits ranges longer than **512** blocks into sequential chunks (same limit as `get_block_headers` / `header-sync.js`), carrying the evolving checkpoint and `lastTipBlockId` across chunks. Relay TOFU/summary gates run once on the first chunk only.
+
 ## Roadmap
 
-- **M4.20** — Optional relay TLS SPKI pins for Node relay operators (out-of-band cert verification).
+- **M4.21** — Optional relay TLS SPKI pins for Node relay operators (out-of-band cert verification).

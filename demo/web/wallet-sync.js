@@ -12,8 +12,12 @@ import {
 } from "./light-relay-client.js";
 import {
   assertRelayUrlsTrusted,
+  saveTrustedRelayPins,
   verifyRelayCheckpointSummaries,
 } from "./trusted-relay-pins.js";
+
+/** Matches `MAX_BLOCK_HEADERS_SPAN` in `mfn-rpc` and `header-sync.js` batch size. */
+const WALLET_SYNC_CHUNK = 512;
 
 const STORAGE_PREFIX = "permawrite-wallet-sync:";
 const CHECKPOINT_PREFIX = "permawrite-light-checkpoint:";
@@ -208,7 +212,44 @@ function evolutionJsonFromFollowRow(row) {
  * @param {string[]} [opts.lightRelayUrls]
  * @param {string} [opts.initialCheckpointHex]
  */
-export async function syncBlockRange({
+export async function syncBlockRange(opts) {
+  const { fromHeight, toHeight } = opts;
+  if (fromHeight < 1) {
+    throw new Error("fromHeight must be ≥ 1 (genesis is not in block log)");
+  }
+  if (toHeight < fromHeight) {
+    throw new Error("toHeight must be ≥ fromHeight");
+  }
+  const span = toHeight - fromHeight + 1;
+  if (span > WALLET_SYNC_CHUNK) {
+    let last;
+    let chunks = 0;
+    for (let start = fromHeight; start <= toHeight; start += WALLET_SYNC_CHUNK) {
+      const end = Math.min(toHeight, start + WALLET_SYNC_CHUNK - 1);
+      last = await syncBlockRangeChunk({
+        ...opts,
+        fromHeight: start,
+        toHeight: end,
+        initialCheckpointHex:
+          start === fromHeight ? opts.initialCheckpointHex : undefined,
+        gateRelays: start === fromHeight,
+        gateWeakSubjectivity: start === fromHeight,
+      });
+      chunks += 1;
+    }
+    return { ...last, sync_chunks: chunks };
+  }
+  return syncBlockRangeChunk({
+    ...opts,
+    gateRelays: true,
+    gateWeakSubjectivity: true,
+  });
+}
+
+/**
+ * @param {object} opts same as {@link syncBlockRange} plus `gateRelays` / `gateWeakSubjectivity`
+ */
+async function syncBlockRangeChunk({
   rpcUrl,
   seedHex,
   fromHeight,
@@ -227,25 +268,27 @@ export async function syncBlockRange({
   quorumP2pPeers,
   lightRelayUrls,
   initialCheckpointHex,
+  gateRelays = true,
+  gateWeakSubjectivity = true,
 }) {
-  if (fromHeight < 1) {
-    throw new Error("fromHeight must be ≥ 1 (genesis is not in block log)");
-  }
-  if (toHeight < fromHeight) {
-    throw new Error("toHeight must be ≥ fromHeight");
-  }
-
-  const relayTrust =
-    lightRelayUrls && lightRelayUrls.length > 0
-      ? assertRelayUrlsTrusted(seedHex, lightRelayUrls)
-      : null;
+  let relayTrust = null;
   let relaySummaryCheck;
-  if (lightRelayUrls && lightRelayUrls.length > 0) {
-    relaySummaryCheck = await verifyRelayCheckpointSummaries(
-      seedHex,
-      lightRelayUrls,
-      fetchRelayCheckpointSummary,
-    );
+  if (gateRelays && lightRelayUrls && lightRelayUrls.length > 0) {
+    relayTrust = assertRelayUrlsTrusted(seedHex, lightRelayUrls);
+    if (relayTrust.tofu) {
+      const summaries = {};
+      for (const base of lightRelayUrls) {
+        summaries[base] = await fetchRelayCheckpointSummary(base);
+      }
+      saveTrustedRelayPins(seedHex, lightRelayUrls, summaries);
+      relaySummaryCheck = { checked: lightRelayUrls.length, pinned: true };
+    } else {
+      relaySummaryCheck = await verifyRelayCheckpointSummaries(
+        seedHex,
+        lightRelayUrls,
+        fetchRelayCheckpointSummary,
+      );
+    }
   }
 
   const headerPage = await rpc(rpcUrl, "get_block_headers", {
