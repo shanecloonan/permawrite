@@ -2110,6 +2110,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.17** | Browser multi-relay quorum (`light-relay-client.js`, ≥2 relay URLs in demo sync). | done |
 | **M4.18** | Trusted relay URL pins / TOFU in browser (`trusted-relay-pins.js`, demo pin/reset buttons). | done |
 | **M4.19** | Relay checkpoint-summary pins (`GET /checkpoint-summary`, verify on sync). | done |
+| **M4.20** | Chunked demo wallet sync (512-block batches, RPC span safe). | done |
 
 ### Use cases
 

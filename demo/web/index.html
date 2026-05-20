@@ -61,7 +61,7 @@
           (<code>lightChainApplyEvolution</code> + batched <code>get_light_follow</code>).
           Cleared checkpoints resume via <code>get_light_snapshot</code> at the last scanned height (M4.12).
           Optional quorum RPC URLs, P2P peers, or ≥2 independent light relays (M4.14–M4.17);
-          trusted checkpoint summaries and relay URL pins (M4.18 TOFU) live in <code>localStorage</code>.
+          trusted checkpoint summaries, relay URL TOFU (M4.18), and per-relay summary pins (M4.19) live in <code>localStorage</code>.
         </p>
         <label for="sync-quorum-urls">Quorum RPC URLs (comma-separated, optional)</label>
         <input

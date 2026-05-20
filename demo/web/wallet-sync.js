@@ -333,7 +333,7 @@ async function syncBlockRangeChunk({
     }
   }
 
-  if (lightChainWeakSubjectivity && checkpoint) {
+  if (gateWeakSubjectivity && lightChainWeakSubjectivity && checkpoint) {
     const trustedRaw = loadTrustedSummary(seedHex);
     if (trustedRaw) {
       const ws = JSON.parse(
