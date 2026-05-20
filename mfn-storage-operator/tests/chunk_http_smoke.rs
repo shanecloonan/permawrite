@@ -11,7 +11,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use mfn_storage::{
     build_storage_commitment, chunk_data, storage_commitment_hash, DEFAULT_ENDOWMENT_PARAMS,
 };
-use mfn_storage_operator::save_upload_artifact;
+use mfn_storage_operator::{run_daemon, save_upload_artifact, OperatorDaemonConfig};
 
 fn storage_operator_bin() -> std::path::PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -157,5 +157,74 @@ fn serve_chunks_returns_upload_artifact_chunk_zero() {
 
     stop.store(true, Ordering::SeqCst);
     server.join().expect("server thread");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn run_once_with_chunk_listen_serves_chunk_zero() {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!(
+        "mfn-run-chunk-listen-{}-{nanos}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let wallet_path = dir.join("operator.json");
+    std::fs::write(
+        &wallet_path,
+        br#"{"seed_hex":"0101010101010101010101010101010101010101010101010101010101010101"}"#,
+    )
+    .expect("wallet");
+
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hex = hex::encode(storage_commitment_hash(&built.commit));
+    save_upload_artifact(
+        &wallet_path,
+        &built,
+        &payload,
+        Path::new("payload.bin"),
+        None,
+    )
+    .expect("save artifact");
+
+    let listen = ephemeral_listen_addr();
+    let stop = Arc::new(AtomicBool::new(false));
+    let wallet_bg = wallet_path.clone();
+    let listen_bg = listen.clone();
+    let stop_bg = Arc::clone(&stop);
+    let daemon = std::thread::spawn(move || {
+        run_daemon(
+            OperatorDaemonConfig {
+                rpc_addr: "127.0.0.1:1".to_string(),
+                wallet_path: wallet_bg,
+                interval: Duration::from_secs(3600),
+                once: true,
+                chunk_listen: Some(listen_bg),
+            },
+            stop_bg,
+        )
+        .expect("run_daemon");
+    });
+
+    std::thread::sleep(Duration::from_millis(200));
+
+    let path = format!("/chunk/{commit_hex}/0");
+    let (code, body) = http_get(&listen, &path);
+    assert_eq!(code, 200, "run --chunk-listen should serve chunk 0");
+    let chunks = chunk_data(&payload, built.commit.chunk_size as usize).expect("chunks");
+    assert_eq!(body.as_slice(), chunks[0]);
+
+    stop.store(true, Ordering::SeqCst);
+    daemon.join().expect("daemon thread");
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -4,7 +4,7 @@
 //!
 //! - Persisted upload artifacts ([`upload_artifact_store`], **M3.24**)
 //! - SPoRA proof construction + `submit_storage_proof` ([`prove`])
-//! - Long-running prove loop ([`daemon`])
+//! - Long-running prove loop ([`daemon`], optional `--chunk-listen` **M6.4**)
 //! - HTTP chunk replication from wallet artifacts ([`chunk_http`], **M6.2**)
 //!
 //! The `mfn-storage-operator` binary polls `mfnd` and every local upload

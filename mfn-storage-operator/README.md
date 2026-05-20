@@ -21,6 +21,9 @@ mfn-storage-operator run --wallet ./alice.json --once
 
 # Custom interval
 mfn-storage-operator run --wallet ./alice.json --interval 60
+
+# Prove loop + chunk HTTP in one process (**M6.4**)
+mfn-storage-operator run --wallet ./alice.json --chunk-listen 127.0.0.1:18780
 ```
 
 ## Serve chunks (replication, **M6.2**)
@@ -32,7 +35,7 @@ mfn-storage-operator serve-chunks --wallet ./alice.json --listen 127.0.0.1:18780
 # GET /chunk/{commitment_hash_hex}/{chunk_index}  -> application/octet-stream
 ```
 
-Integration test `tests/chunk_http_smoke.rs` (**M6.3**) verifies `GET /chunk/.../0` returns the same bytes as the saved artifact.
+Integration tests in `tests/chunk_http_smoke.rs`: **M6.3** `serve-chunks` and **M6.4** `run --once --chunk-listen` both return the same bytes as the saved artifact for `GET /chunk/.../0`.
 
 Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
 

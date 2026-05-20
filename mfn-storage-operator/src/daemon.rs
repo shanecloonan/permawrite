@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use crate::chunk_http::{serve_chunks, ChunkServeConfig};
 use crate::prove::{prove_from_wallet_artifact, ProveError};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::upload_artifact_store::list_upload_artifacts;
@@ -21,6 +22,8 @@ pub struct OperatorDaemonConfig {
     pub interval: Duration,
     /// Run a single cycle then exit.
     pub once: bool,
+    /// When set, serve wallet upload chunks at this `host:port` (**M6.4**).
+    pub chunk_listen: Option<String>,
 }
 
 impl Default for OperatorDaemonConfig {
@@ -30,6 +33,7 @@ impl Default for OperatorDaemonConfig {
             wallet_path: PathBuf::from("wallet.json"),
             interval: Duration::from_secs(30),
             once: false,
+            chunk_listen: None,
         }
     }
 }
@@ -150,10 +154,43 @@ pub fn run_daemon(config: OperatorDaemonConfig, stop: Arc<AtomicBool>) -> Result
         config.wallet_path.display()
     );
     println!("mfno_interval_secs={}", config.interval.as_secs());
+    if let Some(addr) = &config.chunk_listen {
+        println!("mfno_chunk_listen addr={addr}");
+    }
 
+    let chunk_thread = config.chunk_listen.as_ref().map(|listen_addr| {
+        let chunk_cfg = ChunkServeConfig {
+            wallet_path: config.wallet_path.clone(),
+            listen_addr: listen_addr.clone(),
+        };
+        let stop_chunk = Arc::clone(&stop);
+        thread::spawn(move || {
+            if let Err(e) = serve_chunks(chunk_cfg, stop_chunk) {
+                eprintln!("mfno_chunk_exit error={e}");
+            }
+        })
+    });
+
+    let result = run_daemon_prove_loop(&mut client, &config, stop.as_ref());
+
+    stop.store(true, Ordering::SeqCst);
+    if let Some(handle) = chunk_thread {
+        if let Err(e) = handle.join() {
+            eprintln!("mfno_chunk_join error={e:?}");
+        }
+    }
+
+    result
+}
+
+fn run_daemon_prove_loop(
+    client: &mut RpcClient,
+    config: &OperatorDaemonConfig,
+    stop: &AtomicBool,
+) -> Result<(), ProveError> {
     loop {
         if stop.load(Ordering::SeqCst) {
-            println!("mfno_stopping signal=ctrl_c");
+            println!("mfno_stopping signal=stop");
             break;
         }
 
@@ -165,7 +202,7 @@ pub fn run_daemon(config: OperatorDaemonConfig, stop: Arc<AtomicBool>) -> Result
             .unwrap_or_else(|| "none".to_string());
         println!("mfno_cycle_start tip_height={tip_height}");
 
-        let (summary, attempts) = run_prove_cycle(&mut client, &config.wallet_path)?;
+        let (summary, attempts) = run_prove_cycle(client, &config.wallet_path)?;
         println!(
             "mfno_cycle_summary artifacts={} submitted={} skipped={} failed={}",
             summary.artifacts, summary.submitted, summary.skipped, summary.failed

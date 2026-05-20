@@ -29,6 +29,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
     let mut interval_secs = 30u64;
     let mut once = false;
     let mut listen_addr = "127.0.0.1:18780".to_string();
+    let mut chunk_listen: Option<String> = None;
     let mut positional: Vec<String> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -56,6 +57,15 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 .get(i + 1)
                 .ok_or("--listen requires HOST:PORT")?
                 .clone();
+            i += 2;
+            continue;
+        }
+        if a == "--chunk-listen" {
+            chunk_listen = Some(
+                args.get(i + 1)
+                    .ok_or("--chunk-listen requires HOST:PORT")?
+                    .clone(),
+            );
             i += 2;
             continue;
         }
@@ -91,6 +101,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                     wallet_path,
                     interval: Duration::from_secs(interval_secs),
                     once,
+                    chunk_listen,
                 },
                 stop,
             )
