@@ -1,22 +1,41 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**).
+﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
+
+use curve25519_dalek::edwards::EdwardsPoint;
+use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
     encode_finality_proof, finalize, header_signing_hash, seal_block, sign_register,
-    try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainState, EmissionParams, FinalityProof,
-    GenesisConfig, SlotContext, Validator, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
+    sign_transaction, try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainState,
+    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
+    SlotContext, TransactionWire, Validator, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
     DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
-use mfn_crypto::point::generator_g;
+use mfn_crypto::clsag::ClsagRing;
+use mfn_crypto::hash::hash_to_scalar;
+use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_CHUNK_SIZE,
     DEFAULT_ENDOWMENT_PARAMS,
 };
 use proptest::prelude::*;
+
+/// Compact emission schedule (matches `emission_simulation::SIM_EMISSION`).
+const PROP_MIXED_EMISSION: EmissionParams = EmissionParams {
+    initial_reward: 1_000,
+    halving_period: 64,
+    halving_count: 4,
+    tail_emission: 50,
+    storage_proof_reward: 25,
+    fee_to_treasury_bps: 9000,
+};
+
+/// Genesis UTXO value large enough for many fee-bearing self-transfers.
+const PROP_MIXED_SPEND_VALUE: u64 = 10_000_000_000;
 
 fn genesis_state() -> ChainState {
     let cfg = GenesisConfig {
@@ -143,6 +162,135 @@ fn treasury_after_block(
 
 fn treasury_after_register(treasury: u128, stake: u128) -> u128 {
     treasury.saturating_add(stake)
+}
+
+/// Deterministic spend material for proptest (**M5.5**).
+#[derive(Clone)]
+struct PropSpendState {
+    spend_priv: Scalar,
+    blinding: Scalar,
+    value: u64,
+    one_time_addr: EdwardsPoint,
+}
+
+impl PropSpendState {
+    fn from_seed(seed: u32, value: u64) -> Self {
+        let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
+        let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+        Self {
+            spend_priv,
+            blinding,
+            value,
+            one_time_addr: generator_g() * spend_priv,
+        }
+    }
+
+    fn commitment(&self) -> EdwardsPoint {
+        (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
+    }
+
+    fn input_spec(&self) -> InputSpec {
+        InputSpec {
+            ring: ClsagRing {
+                p: vec![self.one_time_addr],
+                c: vec![self.commitment()],
+            },
+            signer_idx: 0,
+            spend_priv: self.spend_priv,
+            value: self.value,
+            blinding: self.blinding,
+        }
+    }
+
+    /// Self-transfer with public fee; next state uses deterministic change keys.
+    fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
+        assert!(fee < self.value, "fee must leave positive change");
+        let change_value = self.value - fee;
+        let next_spend = hash_to_scalar(&[b"M5.5/change-spend", &next_seed.to_le_bytes()]);
+        let change_addr = generator_g() * next_spend;
+        let signed = sign_transaction(
+            vec![self.input_spec()],
+            vec![OutputSpec::Raw {
+                one_time_addr: change_addr,
+                value: change_value,
+                storage: None,
+            }],
+            fee,
+            Vec::new(),
+        )
+        .expect("sign self-transfer");
+        let next = Self {
+            spend_priv: next_spend,
+            blinding: signed.output_blindings[0],
+            value: change_value,
+            one_time_addr: change_addr,
+        };
+        (signed.tx, next)
+    }
+}
+
+struct PropPrivacyStorageGenesis {
+    state: ChainState,
+    spend: PropSpendState,
+    built: BuiltCommitment,
+    payload: Vec<u8>,
+}
+
+fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropPrivacyStorageGenesis {
+        state,
+        spend,
+        built,
+        payload,
+    }
+}
+
+fn apply_mixed_clsag_fee_and_storage_proof(
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    proof: &mfn_storage::StorageProof,
+) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let unsealed =
+        build_unsealed_header(st, &txs, &[], &[], std::slice::from_ref(proof), height, ts);
+    let blk = seal_with_test_finality(
+        st,
+        unsealed,
+        txs,
+        Vec::new(),
+        Vec::new(),
+        vec![proof.clone()],
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
 }
 
 fn register_op(seed: u8) -> BondOp {
@@ -516,6 +664,39 @@ proptest! {
         }
     }
 
+    /// CLSAG fee credit + SPoRA proof drain in the **same block** (**M5.5**).
+    #[test]
+    fn prop_mixed_clsag_fee_and_storage_proof_treasury(
+        n_blocks in 1u32..=12u32,
+        fee_base in 1_000u64..=200_000u64,
+    ) {
+        let gen = genesis_privacy_storage_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 7_001));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let prev = *st.tip_id().expect("tip");
+            let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+                .expect("proof");
+            st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
+            model = treasury_after_block(model, u128::from(fee), 1, emission);
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {})",
+                h,
+                fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
 }
 
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
@@ -601,6 +782,30 @@ fn deep_storage_proof_chain_32() {
         st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h);
     }
     assert_eq!(st.height, Some(32));
+}
+
+/// Deep CLSAG fee + SPoRA proof same-block treasury chain (**M5.5**).
+#[test]
+#[ignore = "deep mixed CLSAG+SPoRA treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
+fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
+    let gen = genesis_privacy_storage_for_proptest();
+    let mut st = gen.state;
+    let mut spend = gen.spend;
+    let mut model = 0u128;
+    let emission = &PROP_MIXED_EMISSION;
+
+    for h in 1..=64u32 {
+        let fee = 2_000u64 + u64::from(h % 5_001);
+        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        spend = next_spend;
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+            .expect("proof");
+        st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
+        model = treasury_after_block(model, u128::from(fee), 1, emission);
+        assert_eq!(st.treasury, model, "treasury mismatch at height {h}");
+    }
+    assert_eq!(st.height, Some(64));
 }
 
 /// Alternating register + SPoRA proof through one epoch churn cap (**M5.4**).
