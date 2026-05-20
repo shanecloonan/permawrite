@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-18T05:08:43.831Z
+**Generated (UTC):** 2026-05-20T08:33:54.647Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 182 |
-| Total lines (all scanned source-like files) | 56,121 |
-| Non-empty lines | 49,191 |
-| UTF-8 bytes (source-like) | 2,405,750 |
-| Paths visited (before binary/huge skip) | 187 |
+| Source-like files scanned | 268 |
+| Total lines (all scanned source-like files) | 77,140 |
+| Non-empty lines | 68,335 |
+| UTF-8 bytes (source-like) | 3,147,649 |
+| Paths visited (before binary/huge skip) | 285 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -23,58 +23,63 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
-| `mfn-consensus` | 51 | 14,736 | 13,601 |
-| `docs` | 32 | 9,714 | 6,915 |
-| `mfn-crypto` | 23 | 7,289 | 6,563 |
-| `mfn-node` | 15 | 4,425 | 4,068 |
-| `mfn-wallet` | 13 | 4,255 | 3,895 |
-| `mfn-light` | 6 | 3,692 | 3,369 |
-| `mfn-runtime` | 9 | 3,242 | 3,003 |
-| `mfn-rpc` | 3 | 2,234 | 2,110 |
+| `mfn-consensus` | 56 | 16,160 | 14,905 |
+| `docs` | 35 | 10,639 | 7,539 |
+| `mfn-node` | 30 | 8,133 | 7,527 |
+| `mfn-crypto` | 23 | 7,292 | 6,565 |
+| `mfn-cli` | 21 | 6,233 | 5,718 |
+| `mfn-wallet` | 14 | 4,693 | 4,301 |
+| `mfn-light` | 6 | 3,895 | 3,556 |
+| `mfn-runtime` | 12 | 3,709 | 3,435 |
+| `mfn-rpc` | 4 | 3,343 | 3,167 |
+| `mfn-net` | 10 | 3,203 | 2,929 |
+| `demo` | 11 | 2,107 | 1,942 |
+| `mfn-wasm` | 10 | 2,029 | 1,845 |
 | `mfn-storage` | 6 | 1,960 | 1,782 |
-| `mfn-net` | 6 | 1,527 | 1,361 |
-| `mfn-store` | 7 | 1,135 | 974 |
-| `mfn-bls` | 4 | 862 | 755 |
-| `(root)` | 5 | 699 | 498 |
-| `scripts` | 1 | 261 | 214 |
-| `.github` | 1 | 90 | 83 |
+| `mfn-store` | 10 | 1,491 | 1,284 |
+| `mfn-bls` | 4 | 865 | 757 |
+| `(root)` | 5 | 738 | 529 |
+| `scripts` | 9 | 496 | 412 |
+| `.github` | 2 | 154 | 142 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 121 | 43,614 | 40,122 | 1,607,003 |
-| `.md` | 40 | 11,201 | 7,938 | 742,534 |
+| `.rs` | 172 | 60,865 | 56,090 | 2,198,069 |
+| `.md` | 50 | 12,422 | 8,758 | 814,692 |
+| `.js` | 6 | 1,611 | 1,507 | 50,607 |
+| `.mjs` | 5 | 697 | 609 | 19,201 |
 | `.svg` | 3 | 520 | 462 | 35,170 |
-| `.toml` | 12 | 357 | 298 | 9,658 |
-| `.mjs` | 1 | 261 | 214 | 7,024 |
-| `.yml` | 1 | 90 | 83 | 2,361 |
-| `.json` | 4 | 78 | 74 | 2,000 |
+| `.toml` | 14 | 481 | 404 | 13,281 |
+| `.json` | 9 | 206 | 197 | 5,877 |
+| `.sh` | 7 | 184 | 166 | 6,155 |
+| `.yml` | 2 | 154 | 142 | 4,597 |
 
 ## Largest source files (by line count)
 
 | Lines | File |
 | ---: | --- |
-| 2,178 | `mfn-rpc/src/dispatch.rs` |
-| 1,804 | `docs/ROADMAP.md` |
+| 3,273 | `mfn-rpc/src/dispatch.rs` |
+| 2,217 | `docs/ROADMAP.md` |
+| 1,952 | `mfn-node/tests/mfnd_smoke.rs` |
 | 1,684 | `mfn-consensus/tests/block_apply.rs` |
 | 1,661 | `mfn-consensus/tests/integration.rs` |
-| 1,553 | `mfn-runtime/src/mempool.rs` |
-| 1,499 | `mfn-light/src/chain.rs` |
-| 1,381 | `mfn-node/tests/mfnd_smoke.rs` |
-| 1,022 | `mfn-light/tests/follow_chain.rs` |
-| 1,011 | `mfn-consensus/src/consensus.rs` |
+| 1,634 | `mfn-light/src/chain.rs` |
+| 1,551 | `mfn-runtime/src/mempool.rs` |
+| 1,228 | `mfn-cli/src/cli.rs` |
+| 1,089 | `mfn-light/tests/follow_chain.rs` |
 | 986 | `mfn-wallet/src/upload.rs` |
+| 982 | `mfn-wallet/src/wallet.rs` |
 | 959 | `docs/ARCHITECTURE.md` |
+| 944 | `mfn-node/src/mfnd_cli.rs` |
+| 921 | `mfn-consensus/src/consensus/engine.rs` |
 | 870 | `mfn-crypto/src/utxo_tree.rs` |
-| 836 | `mfn-node/src/mfnd_cli.rs` |
 | 816 | `mfn-light/src/checkpoint.rs` |
-| 814 | `mfn-wallet/src/wallet.rs` |
 | 804 | `mfn-storage/src/spora.rs` |
 | 783 | `mfn-consensus/src/block/apply.rs` |
+| 733 | `mfn-consensus/tests/emission_simulation.rs` |
 | 715 | `mfn-node/tests/mempool_integration.rs` |
-| 708 | `mfn-wallet/tests/end_to_end.rs` |
-| 705 | `mfn-consensus/src/checkpoint_codec.rs` |
 
 ## Notes
 

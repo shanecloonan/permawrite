@@ -2059,6 +2059,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.12** | `wallet light-scan --quorum-rpc` / `--quorum-p2p` (byte-identical evolution quorum via `mfn-net`). | ✓ shipped |
 | **M3.13** | Weak-subjectivity summary pins in `wallet.json` + `--trusted-summary` / `--pin-trusted-summary`. | ✓ shipped |
 | **M3.14** | `wallet export-trusted-summary` (RPC or wallet checkpoint → JSON file / stdout). | ✓ shipped |
+| **M3.15** | `wallet import-trusted-summary` (offline pin + optional checkpoint verify). | ✓ shipped |
 
 ### Components
 
@@ -2080,6 +2081,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `wallet light-scan` quorum flags | Multi-RPC / P2P `get_light_follow` agreement before evolution apply. | ✓ M3.12 |
 | `trusted_light_summary` | Pinned checkpoint digest fields; CLI weak-subjectivity gate (**M3.13**). | ✓ M3.13 |
 | `wallet export-trusted-summary` | Export `get_light_snapshot.summary` for out-of-band verification. | ✓ M3.14 |
+| `wallet import-trusted-summary` | Pin exported summary into `wallet.json` without RPC sync. | ✓ M3.15 |
 
 ### Scope
 

@@ -24,7 +24,7 @@ pub use claims_cmd::ClaimsListParams;
 pub use cli::{cli_main, run_cli, CliError};
 pub use light_subjectivity::{
     load_trusted_summary_file, save_trusted_summary_file, wallet_export_trusted_summary,
-    ExportTrustedSummaryParams,
+    wallet_import_trusted_summary, ExportTrustedSummaryParams, ImportTrustedSummaryParams,
 };
 pub use light_wallet::LightScanParams;
 pub use rpc::{BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult};

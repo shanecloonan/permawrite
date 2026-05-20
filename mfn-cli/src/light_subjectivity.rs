@@ -1,4 +1,4 @@
-//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**–**M3.14**).
+//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**–**M3.15**).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -144,6 +144,73 @@ pub fn wallet_export_trusted_summary(
     Ok(())
 }
 
+/// Options for `wallet import-trusted-summary` (**M3.15**).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportTrustedSummaryParams {
+    /// JSON file produced by export or `get_light_snapshot.summary`.
+    pub summary_path: PathBuf,
+    /// When the wallet has `light_checkpoint_hex`, require agreement before pin.
+    pub verify_wallet_checkpoint: bool,
+}
+
+/// Load a trusted summary file and pin it into `wallet.json` (offline).
+pub fn wallet_import_trusted_summary(
+    wallet_path: &Path,
+    params: &ImportTrustedSummaryParams,
+) -> Result<(), WalletCmdError> {
+    let summary = load_trusted_summary_file(&params.summary_path)?;
+    validate_trusted_summary(&summary)?;
+
+    if params.verify_wallet_checkpoint {
+        let file = WalletFile::load(wallet_path)?;
+        if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
+            weak_subjectivity_agrees(&summary, cp_hex).map_err(|e| {
+                WalletCmdError::Usage(format!(
+                    "trusted summary disagrees with wallet light_checkpoint_hex: {e}"
+                ))
+            })?;
+            println!("verified trusted summary against wallet light checkpoint");
+        } else {
+            println!("wallet has no light_checkpoint_hex; skipped checkpoint verify");
+        }
+    }
+
+    let mut file = WalletFile::load(wallet_path)?;
+    file.trusted_light_summary = Some(summary.clone());
+    file.save(wallet_path)?;
+
+    println!(
+        "imported trusted_light_summary from {}",
+        params.summary_path.display()
+    );
+    println!("tip_height={}", summary.tip_height);
+    println!("checkpoint_digest={}", summary.checkpoint_digest);
+    println!("validator_set_root={}", summary.validator_set_root);
+    println!("pinned in {}", wallet_path.display());
+    Ok(())
+}
+
+fn validate_trusted_summary(summary: &LightCheckpointSummary) -> Result<(), WalletCmdError> {
+    for (label, hex) in [
+        ("genesis_id", summary.genesis_id.as_str()),
+        ("tip_block_id", summary.tip_block_id.as_str()),
+        ("validator_set_root", summary.validator_set_root.as_str()),
+        ("checkpoint_digest", summary.checkpoint_digest.as_str()),
+    ] {
+        let t = hex
+            .trim()
+            .strip_prefix("0x")
+            .or_else(|| hex.trim().strip_prefix("0X"))
+            .unwrap_or(hex.trim());
+        if t.is_empty() || !t.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(WalletCmdError::Usage(format!(
+                "trusted summary field {label} is not hex"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Write a trusted summary for out-of-band distribution.
 pub fn save_trusted_summary_file(
     path: &Path,
@@ -219,5 +286,14 @@ mod tests {
         let mut summary = summary_from_checkpoint_hex(&hex).expect("summary");
         summary.tip_height = 99;
         assert!(weak_subjectivity_agrees(&summary, &hex).is_err());
+    }
+
+    #[test]
+    fn validate_trusted_summary_rejects_bad_digest() {
+        let chain = sample_chain();
+        let hex = hex::encode(chain.encode_checkpoint());
+        let mut summary = summary_from_checkpoint_hex(&hex).expect("summary");
+        summary.checkpoint_digest = "not-hex".into();
+        assert!(validate_trusted_summary(&summary).is_err());
     }
 }

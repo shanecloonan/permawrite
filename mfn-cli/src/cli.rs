@@ -7,7 +7,10 @@ use serde_json::json;
 use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
-use crate::light_subjectivity::{wallet_export_trusted_summary, ExportTrustedSummaryParams};
+use crate::light_subjectivity::{
+    wallet_export_trusted_summary, wallet_import_trusted_summary, ExportTrustedSummaryParams,
+    ImportTrustedSummaryParams,
+};
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
@@ -125,6 +128,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::ExportTrustedSummary(ref params) => {
                     wallet_export_trusted_summary(&path, &mut client, params)?
                 }
+                WalletSub::ImportTrustedSummary(ref params) => {
+                    wallet_import_trusted_summary(&path, params)?
+                }
             }
         }
     }
@@ -197,6 +203,7 @@ enum WalletSub {
     Upload(UploadParams),
     Claim(ClaimParams),
     ExportTrustedSummary(ExportTrustedSummaryParams),
+    ImportTrustedSummary(ImportTrustedSummaryParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,6 +246,8 @@ fn usage() -> &'static str {
                          --fee N --ring-size N\n\
        wallet export-trusted-summary      write weak-subjectivity summary JSON (**M3.14**)\n\
                          options: --out FILE --height N --pin --from-wallet-checkpoint\n\
+       wallet import-trusted-summary FILE pin weak-subjectivity summary into wallet (**M3.15**)\n\
+                         options: --verify-checkpoint (match wallet light_checkpoint_hex)\n\
        claims for DATA_ROOT_HEX           authorship claims for a content data_root\n\
        claims recent                      recent claims chain-wide (list_recent_claims)\n\
        claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
@@ -296,6 +305,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             || a == "--reset-trusted-summary"
             || a == "--pin"
             || a == "--from-wallet-checkpoint"
+            || a == "--verify-checkpoint"
         {
             positional.push(a);
             i += 1;
@@ -601,7 +611,7 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary|import-trusted-summary)\n{}",
             usage()
         )));
     };
@@ -609,6 +619,9 @@ fn parse_wallet_cmd(
         "light-scan" => WalletSub::LightScan(parse_wallet_light_scan_args(&rest[1..])?),
         "export-trusted-summary" => {
             WalletSub::ExportTrustedSummary(parse_wallet_export_trusted_summary_args(&rest[1..])?)
+        }
+        "import-trusted-summary" => {
+            WalletSub::ImportTrustedSummary(parse_wallet_import_trusted_summary_args(&rest[1..])?)
         }
         "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
@@ -765,6 +778,40 @@ fn parse_wallet_export_trusted_summary_args(
         height,
         pin_wallet,
         from_wallet_checkpoint,
+    })
+}
+
+fn parse_wallet_import_trusted_summary_args(
+    rest: &[&str],
+) -> Result<ImportTrustedSummaryParams, CliError> {
+    let mut verify_wallet_checkpoint = false;
+    let mut summary_path: Option<std::path::PathBuf> = None;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--verify-checkpoint" {
+            verify_wallet_checkpoint = true;
+            i += 1;
+            continue;
+        }
+        if summary_path.is_some() {
+            return Err(CliError::Usage(format!(
+                "unexpected wallet import-trusted-summary argument `{a}`\n{}",
+                usage()
+            )));
+        }
+        summary_path = Some(std::path::PathBuf::from(a));
+        i += 1;
+    }
+    let Some(summary_path) = summary_path else {
+        return Err(CliError::Usage(format!(
+            "wallet import-trusted-summary requires FILE\n{}",
+            usage()
+        )));
+    };
+    Ok(ImportTrustedSummaryParams {
+        summary_path,
+        verify_wallet_checkpoint,
     })
 }
 

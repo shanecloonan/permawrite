@@ -202,6 +202,31 @@ fn wallet_light_scan_after_solo_step_coinbase() {
     let reloaded = WalletFile::load(&wallet_path).expect("reload after pin");
     assert!(reloaded.trusted_light_summary.is_some());
 
+    let mut cleared = reloaded;
+    cleared.trusted_light_summary = None;
+    cleared
+        .save(&wallet_path)
+        .expect("clear pin for import test");
+
+    let import = mfn_cli()
+        .args([
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "import-trusted-summary",
+            "--verify-checkpoint",
+            summary_path.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("import-trusted-summary");
+    assert!(
+        import.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&import.stderr)
+    );
+    let after_import = WalletFile::load(&wallet_path).expect("reload after import");
+    assert!(after_import.trusted_light_summary.is_some());
+
     shutdown_child(&mut child);
     std::fs::remove_dir_all(&dir).ok();
 }

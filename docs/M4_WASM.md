@@ -262,4 +262,14 @@ On sync, when summaries were pinned, each configured relay must still report the
 
 Browsers cannot read the TLS certificate from `fetch`; operators publish SPKI with `relay-tls-spki.mjs`, users compare before pinning.
 
+## CLI weak-subjectivity loop (M3.13–M3.15)
+
+| Command | Role |
+|---------|------|
+| `wallet light-scan --trusted-summary FILE` | Verify checkpoint against an imported pin during sync |
+| `wallet export-trusted-summary` | Write `get_light_snapshot.summary` JSON for distribution |
+| `wallet import-trusted-summary FILE` | Offline pin into `wallet.json` (`--verify-checkpoint` optional) |
+
+Same summary fields as browser `permawrite-light-trusted-summary:<seed>` and relay `checkpoint-summary` pins.
+
 ## Roadmap

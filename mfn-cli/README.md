@@ -73,7 +73,10 @@ Export a summary for distribution (**M3.14**):
 ```bash
 mfn-cli wallet export-trusted-summary --out trusted-summary.json
 mfn-cli wallet export-trusted-summary --from-wallet-checkpoint --pin
+mfn-cli wallet import-trusted-summary trusted-summary.json --verify-checkpoint
 ```
+
+Import (**M3.15**) pins an out-of-band JSON file into `wallet.json` without syncing; `--verify-checkpoint` checks the file against persisted `light_checkpoint_hex` when present.
 
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
 
