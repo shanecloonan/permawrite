@@ -479,9 +479,12 @@ pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
     let slot_ms = engine.local.slot_duration_ms;
     thread::Builder::new()
         .name("mfnd-producer".into())
-        .spawn(move || loop {
-            thread::sleep(Duration::from_millis(slot_ms));
+        .spawn(move || {
             engine.on_slot_tick();
+            loop {
+                thread::sleep(Duration::from_millis(slot_ms));
+                engine.on_slot_tick();
+            }
         })
         .expect("spawn mfnd-producer thread");
 }

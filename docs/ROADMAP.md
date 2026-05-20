@@ -1977,6 +1977,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
+| **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
 
 ### Why this order
 

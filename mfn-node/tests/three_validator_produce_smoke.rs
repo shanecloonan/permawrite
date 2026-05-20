@@ -145,7 +145,7 @@ fn spawn_produce_validator(
     }
     let mut child = cmd
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("spawn mfnd produce serve");
     let stdout = child.stdout.take().expect("stdout");
