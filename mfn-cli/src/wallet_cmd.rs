@@ -382,6 +382,22 @@ pub fn wallet_upload(
     let tx_bytes = encode_transaction(&art.signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
+    match crate::upload_artifact_store::save_upload_artifact(
+        path,
+        &art.built,
+        &data,
+        &params.file_path,
+        Some(&submit.tx_id),
+    ) {
+        Ok(meta) => {
+            println!("upload_artifact_dir={}", meta.dir.display());
+            println!("upload_artifact_payload_bytes={}", meta.payload_bytes);
+        }
+        Err(e) => {
+            eprintln!("warning: could not persist upload artifact: {e}");
+        }
+    }
+
     println!("tip_height={}", stats.tip_height);
     println!("blocks_scanned={}", stats.blocks_fetched);
     println!("utxo_cache={}", stats.used_utxo_cache);
@@ -409,7 +425,7 @@ pub fn wallet_upload(
     println!("owned_count_after_upload={}", wallet.owned_count());
     println!("wallet_path={}", path.display());
     eprintln!(
-        "note: retain file bytes locally to answer SPoRA chunk audits; commitment hash is on-chain only"
+        "note: payload + Merkle metadata saved under upload_artifact_dir for operator prove without --file"
     );
     if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
         eprintln!(

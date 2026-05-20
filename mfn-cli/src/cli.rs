@@ -44,6 +44,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
     let mut client = RpcClient::new(&parsed.rpc_addr);
+    let global_wallet_path = parsed.wallet_path.clone();
     match parsed.cmd {
         Cmd::Tip => {
             let tip = client.get_tip()?;
@@ -121,7 +122,19 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::Prove {
                 commitment_hash_hex,
                 data_path,
-            } => operator_prove(&mut client, &commitment_hash_hex, &data_path)?,
+            } => {
+                let wallet = if data_path.is_none() {
+                    Some(resolve_wallet_path(global_wallet_path.as_deref()))
+                } else {
+                    None
+                };
+                operator_prove(
+                    &mut client,
+                    &commitment_hash_hex,
+                    data_path.as_deref(),
+                    wallet.as_deref(),
+                )?
+            }
             OperatorSub::Pool => operator_pool(&mut client)?,
         },
         Cmd::Wallet {
@@ -222,7 +235,7 @@ enum OperatorSub {
     },
     Prove {
         commitment_hash_hex: String,
-        data_path: std::path::PathBuf,
+        data_path: Option<std::path::PathBuf>,
     },
     Pool,
 }
@@ -247,6 +260,7 @@ enum WalletSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Parsed {
     rpc_addr: String,
+    wallet_path: Option<String>,
     cmd: Cmd,
 }
 
@@ -300,7 +314,7 @@ fn usage() -> &'static str {
        uploads list                       recent storage uploads (list_recent_uploads)\n\
                          options: --limit N --offset N --include-claims\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
-       operator prove COMMIT_HASH_HEX FILE build proof from FILE bytes + submit_storage_proof\n\
+       operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n"
 }
 
@@ -462,7 +476,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 params_json,
             }
         }
-        "wallet" => parse_wallet_cmd(&positional[1..], wallet_path, force)?,
+        "wallet" => parse_wallet_cmd(&positional[1..], wallet_path.clone(), force)?,
         "claims" => parse_claims_cmd(&positional[1..])?,
         "uploads" => parse_uploads_cmd(&positional[1..])?,
         "operator" => parse_operator_cmd(&positional[1..])?,
@@ -473,7 +487,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             )));
         }
     };
-    Ok(Parsed { rpc_addr, cmd })
+    Ok(Parsed {
+        rpc_addr,
+        wallet_path,
+        cmd,
+    })
 }
 
 fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
@@ -553,15 +571,16 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
             }
         }
         "prove" => {
-            if rest.len() != 3 {
+            if rest.len() < 2 || rest.len() > 3 {
                 return Err(CliError::Usage(format!(
-                    "operator prove requires COMMITMENT_HASH_HEX FILE\n{}",
+                    "operator prove requires COMMITMENT_HASH_HEX [FILE]\n\
+                     (omit FILE to load payload from --wallet upload artifact)\n{}",
                     usage()
                 )));
             }
             OperatorSub::Prove {
                 commitment_hash_hex: rest[1].to_string(),
-                data_path: std::path::PathBuf::from(rest[2]),
+                data_path: rest.get(2).map(|p| std::path::PathBuf::from(*p)),
             }
         }
         "pool" => {

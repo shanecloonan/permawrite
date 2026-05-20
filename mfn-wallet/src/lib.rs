@@ -68,6 +68,8 @@ pub mod stored;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod upload;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
+pub mod upload_artifact;
+#[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod wallet;
 
 #[cfg(any(feature = "full", feature = "wasm-full"))]
@@ -87,6 +89,12 @@ pub use stored::StoredOwnedOutput;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use upload::{
     build_storage_upload, estimate_minimum_fee_for_upload, StorageUploadPlan, UploadArtifacts,
+};
+#[cfg(any(feature = "full", feature = "wasm-full"))]
+pub use upload_artifact::{
+    decode_upload_artifact_meta, encode_upload_artifact_meta, rebuild_built_commitment,
+    upload_artifact_meta_from_upload, UploadArtifactMeta, UploadArtifactMetaError,
+    UploadArtifactRebuildError,
 };
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use wallet::Wallet;

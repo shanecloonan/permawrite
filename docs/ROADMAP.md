@@ -2072,6 +2072,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.21** | `wallet light-scan --max-height N` caps scan below node tip (mesh smoke uses height 1). | ✓ shipped |
 | **M3.22** | Storage-operator path: `ProofPool` + `submit_storage_proof` / `get_storage_challenge` / `get_proof_pool` RPC; producer drains proofs into blocks; `mfn-cli operator challenge|prove|pool`. | ✓ shipped |
 | **M3.23** | Durable `proof_pool.bytes` snapshot + reload on `mfnd serve` boot (re-admit for next-block context; skip stale). | ✓ shipped |
+| **M3.24** | Wallet upload artifacts (`{wallet}.upload-artifacts/`) persist payload + Merkle metadata; `operator prove` loads without FILE. | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components

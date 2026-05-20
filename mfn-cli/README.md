@@ -95,7 +95,7 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 
-`wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). Keep the file bytes locally for SPoRA chunk proofs.
+`wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). **M3.24** persists `payload.bin` + `meta.bytes` under `{wallet_stem}.upload-artifacts/<commit_hash>/` so operators can prove without keeping the original path.
 
 `wallet claim` derives a deterministic [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs) from the wallet seed, signs an MFCL claim over `DATA_ROOT_HEX` via [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), and submits it. Use `--commit-hash` to bind the claim to a storage commitment hash from a prior upload.
 
@@ -105,10 +105,11 @@ Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
 mfn-cli uploads list
 mfn-cli operator challenge <COMMITMENT_HASH_HEX>
 mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
+mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX>
 mfn-cli operator pool
 ```
 
-`operator prove` rebuilds the Merkle tree from local file bytes, verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
+`operator prove` rebuilds the Merkle tree from local file bytes (or from the wallet upload artifact when FILE is omitted and `--wallet` is set), verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
 
 Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.23**), the same way mempool txs use `mempool.bytes` — survive `mfnd serve` restarts until mined or cleared.
 
