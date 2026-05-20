@@ -1,17 +1,18 @@
-﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**).
+﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, sign_register,
-    ApplyOutcome, BlockError, BondOp, ChainState, GenesisConfig, DEFAULT_BONDING_PARAMS,
-    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    ApplyOutcome, BlockError, BondOp, ChainState, EmissionParams, GenesisConfig,
+    DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_ENDOWMENT_PARAMS,
+    build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_CHUNK_SIZE,
+    DEFAULT_ENDOWMENT_PARAMS,
 };
 use proptest::prelude::*;
 
@@ -75,12 +76,13 @@ struct StorageGenesis {
     payload: Vec<u8>,
 }
 
+/// Multi-chunk payload so SPoRA challenge indices change as the tip advances.
 fn genesis_with_storage() -> StorageGenesis {
-    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let payload: Vec<u8> = (0u32..(1024 * 1024)).map(|i| (i % 256) as u8).collect();
     let built = build_storage_commitment(
         &payload,
         1_000,
-        Some(4096),
+        Some(DEFAULT_CHUNK_SIZE),
         DEFAULT_ENDOWMENT_PARAMS.min_replication,
         None,
     )
@@ -102,6 +104,43 @@ fn genesis_with_storage() -> StorageGenesis {
         built,
         payload,
     }
+}
+
+/// Storage genesis plus validator bonding enabled (**M5.4** treasury props).
+fn genesis_with_storage_and_bonding() -> StorageGenesis {
+    let mut gen = genesis_with_storage();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![gen.built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    gen.state = apply_genesis(&g, &cfg).expect("genesis");
+    gen
+}
+
+/// Mirrors `apply_block` treasury settlement for fee + storage-proof tranche.
+fn treasury_after_block(
+    treasury: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
+    let mut pending = treasury.saturating_add(treasury_fee);
+    let from_treasury = pending.min(storage_reward_total);
+    pending -= from_treasury;
+    pending
+}
+
+fn treasury_after_register(treasury: u128, stake: u128) -> u128 {
+    treasury.saturating_add(stake)
 }
 
 fn register_op(seed: u8) -> BondOp {
@@ -367,6 +406,52 @@ proptest! {
         prop_assert_eq!(st.validators.len(), before.validators_len + usize::try_from(n_ops).unwrap());
     }
 
+    #[test]
+    fn prop_alternating_register_then_storage_treasury(
+        n_pairs in 1u32..=DEFAULT_BONDING_PARAMS.max_entry_churn_per_epoch,
+    ) {
+        let gen = genesis_with_storage_and_bonding();
+        let mut st = gen.state;
+        let mut model = 0u128;
+        let stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let emission = &DEFAULT_EMISSION_PARAMS;
+
+        for i in 0..n_pairs {
+            let h_reg = next_height(&st);
+            st = apply_with_bond_ops(&st, h_reg, vec![register_op((i + 1) as u8)]);
+            model = treasury_after_register(model, stake);
+            prop_assert_eq!(st.treasury, model);
+
+            let h_proof = next_height(&st);
+            st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
+            model = treasury_after_block(model, 0, 1, emission);
+            prop_assert_eq!(st.treasury, model);
+        }
+    }
+
+    #[test]
+    fn prop_alternating_storage_then_register_treasury(
+        n_pairs in 1u32..=DEFAULT_BONDING_PARAMS.max_entry_churn_per_epoch,
+    ) {
+        let gen = genesis_with_storage_and_bonding();
+        let mut st = gen.state;
+        let mut model = 0u128;
+        let stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let emission = &DEFAULT_EMISSION_PARAMS;
+
+        for i in 0..n_pairs {
+            let h_proof = next_height(&st);
+            st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
+            model = treasury_after_block(model, 0, 1, emission);
+            prop_assert_eq!(st.treasury, model);
+
+            let h_reg = next_height(&st);
+            st = apply_with_bond_ops(&st, h_reg, vec![register_op((i + 1) as u8)]);
+            model = treasury_after_register(model, stake);
+            prop_assert_eq!(st.treasury, model);
+        }
+    }
+
 }
 
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
@@ -452,4 +537,29 @@ fn deep_storage_proof_chain_32() {
         st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h);
     }
     assert_eq!(st.height, Some(32));
+}
+
+/// Alternating register + SPoRA proof through one epoch churn cap (**M5.4**).
+#[test]
+#[ignore = "deep alternating treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
+fn deep_alternating_register_storage_treasury_8() {
+    let gen = genesis_with_storage_and_bonding();
+    let mut st = gen.state;
+    let mut model = 0u128;
+    let stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let n_pairs = DEFAULT_BONDING_PARAMS.max_entry_churn_per_epoch;
+
+    for i in 0..n_pairs {
+        let h_reg = next_height(&st);
+        st = apply_with_bond_ops(&st, h_reg, vec![register_op((i + 1) as u8)]);
+        model = treasury_after_register(model, stake);
+        assert_eq!(st.treasury, model);
+
+        let h_proof = next_height(&st);
+        st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
+        model = treasury_after_block(model, 0, 1, emission);
+        assert_eq!(st.treasury, model);
+    }
+    assert_eq!(st.height, Some(n_pairs * 2));
 }
