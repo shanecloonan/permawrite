@@ -13,9 +13,11 @@ use crate::light_subjectivity::{
     ImportTrustedSummaryParams, ShowTrustedSummaryParams,
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
-use crate::operator_cmd::{operator_challenge, operator_pool, operator_prove, OperatorCmdError};
+use crate::operator_cmd::{
+    operator_artifacts, operator_challenge, operator_pool, operator_prove, OperatorCmdError,
+};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
-use crate::uploads_cmd::{uploads_list, UploadsListParams};
+use crate::uploads_cmd::{uploads_list, uploads_local, UploadsListParams};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
     wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
@@ -114,6 +116,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             UploadsSub::List(params) => {
                 uploads_list(&mut client, &params).map_err(CliError::Usage)?
             }
+            UploadsSub::Local => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                uploads_local(&path).map_err(CliError::Usage)?;
+            }
         },
         Cmd::Operator { sub } => match sub {
             OperatorSub::Challenge {
@@ -136,6 +142,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 )?
             }
             OperatorSub::Pool => operator_pool(&mut client)?,
+            OperatorSub::Artifacts => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                operator_artifacts(&path)?;
+            }
         },
         Cmd::Wallet {
             sub,
@@ -226,6 +236,7 @@ enum ClaimsSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum UploadsSub {
     List(UploadsListParams),
+    Local,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -238,6 +249,7 @@ enum OperatorSub {
         data_path: Option<std::path::PathBuf>,
     },
     Pool,
+    Artifacts,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -313,9 +325,11 @@ fn usage() -> &'static str {
                          options for by-pubkey: --limit N\n\
        uploads list                       recent storage uploads (list_recent_uploads)\n\
                          options: --limit N --offset N --include-claims\n\
+       uploads local                      list persisted upload artifacts for --wallet (**M3.25**)\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
-       operator pool                      list pending proofs (get_proof_pool)\n"
+       operator pool                      list pending proofs (get_proof_pool)\n\
+       operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -535,12 +549,21 @@ fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "uploads requires SUBCOMMAND (list)\n{}",
+            "uploads requires SUBCOMMAND (list|local)\n{}",
             usage()
         )));
     };
     let sub = match *sub_name {
         "list" => UploadsSub::List(parse_uploads_list_args(&rest[1..])?),
+        "local" => {
+            if !rest[1..].is_empty() {
+                return Err(CliError::Usage(format!(
+                    "uploads local takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            UploadsSub::Local
+        }
         other => {
             return Err(CliError::Usage(format!(
                 "unknown uploads subcommand `{other}`\n{}",
@@ -554,7 +577,7 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "operator requires SUBCOMMAND (challenge|prove|pool)\n{}",
+            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts)\n{}",
             usage()
         )));
     };
@@ -591,6 +614,15 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
                 )));
             }
             OperatorSub::Pool
+        }
+        "artifacts" => {
+            if rest.len() != 1 {
+                return Err(CliError::Usage(format!(
+                    "operator artifacts takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            OperatorSub::Artifacts
         }
         other => {
             return Err(CliError::Usage(format!(
@@ -1499,6 +1531,28 @@ mod tests {
                 assert!(params.include_claims);
             }
             _ => panic!("expected uploads list"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_local_subcommand() {
+        let p = parse_args(&["uploads".into(), "local".into()]).unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::Local,
+            } => {}
+            _ => panic!("expected uploads local"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_artifacts_subcommand() {
+        let p = parse_args(&["operator".into(), "artifacts".into()]).unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub: OperatorSub::Artifacts,
+            } => {}
+            _ => panic!("expected operator artifacts"),
         }
     }
 }

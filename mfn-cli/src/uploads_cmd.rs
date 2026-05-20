@@ -1,8 +1,12 @@
-//! `mfn-cli uploads` — query on-chain storage index via `mfnd serve` (**M3.9**).
+//! `mfn-cli uploads` — query on-chain storage index via `mfnd serve` (**M3.9**)
+//! and list wallet-local SPoRA artifacts (**M3.25**).
+
+use std::path::Path;
 
 use serde_json::Value;
 
 use crate::rpc::RpcClient;
+use crate::upload_artifact_store::{list_upload_artifacts, upload_artifacts_root};
 
 /// Pagination and optional claims join for `uploads list`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,6 +17,30 @@ pub struct UploadsListParams {
     pub offset: Option<u64>,
     /// When true, each row may include a `claims` array for its `data_root`.
     pub include_claims: bool,
+}
+
+/// `uploads local` — list persisted upload artifacts for `--wallet` (**M3.25**).
+pub fn uploads_local(wallet_path: &Path) -> Result<(), String> {
+    let entries = list_upload_artifacts(wallet_path).map_err(|e| e.to_string())?;
+    let root = upload_artifacts_root(wallet_path);
+    println!("artifacts_root={}", root.display());
+    println!("artifacts_count={}", entries.len());
+    for (i, e) in entries.iter().enumerate() {
+        println!("artifact[{i}] commitment_hash={}", e.commitment_hash_hex);
+        println!("artifact[{i}] data_root={}", e.data_root_hex);
+        println!("artifact[{i}] size_bytes={}", e.size_bytes);
+        println!("artifact[{i}] payload_bytes={}", e.payload_bytes);
+        println!("artifact[{i}] num_chunks={}", e.num_chunks);
+        println!("artifact[{i}] replication={}", e.replication);
+        if !e.source_path.is_empty() {
+            println!("artifact[{i}] source_path={}", e.source_path);
+        }
+        if let Some(tx_id) = &e.tx_id {
+            println!("artifact[{i}] tx_id={tx_id}");
+        }
+        println!("artifact[{i}] dir={}", e.artifact_dir.display());
+    }
+    Ok(())
 }
 
 /// `uploads list` — storage commitments by `last_proven_height` descending.

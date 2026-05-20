@@ -156,6 +156,83 @@ pub fn load_upload_artifact(
     })
 }
 
+/// Summary of one persisted upload (**M3.25**).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UploadArtifactSummary {
+    /// Storage commitment hash (64-char hex, directory name).
+    pub commitment_hash_hex: String,
+    /// Merkle root over chunk hashes.
+    pub data_root_hex: String,
+    /// On-chain `size_bytes`.
+    pub size_bytes: u64,
+    /// Chunk count in the commitment.
+    pub num_chunks: u32,
+    /// Replication factor.
+    pub replication: u8,
+    /// Bytes on disk in `payload.bin`.
+    pub payload_bytes: u64,
+    /// Original upload path when recorded.
+    pub source_path: String,
+    /// `submit_tx` id when recorded.
+    pub tx_id: Option<String>,
+    /// Directory holding `payload.bin` and `meta.bytes`.
+    pub artifact_dir: PathBuf,
+}
+
+/// List every complete artifact under [`upload_artifacts_root`].
+///
+/// Incomplete directories (missing payload or meta) are skipped.
+pub fn list_upload_artifacts(
+    wallet_path: &Path,
+) -> Result<Vec<UploadArtifactSummary>, UploadArtifactStoreError> {
+    let root = upload_artifacts_root(wallet_path);
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(&root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let dir = entry.path();
+        let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let commit_hash = match parse_commit_hash_hex(name) {
+            Ok(h) => h,
+            Err(_) => continue,
+        };
+        let payload_path = dir.join(PAYLOAD_FILE);
+        let meta_path = dir.join(META_FILE);
+        if !payload_path.is_file() || !meta_path.is_file() {
+            continue;
+        }
+        let meta_bytes = std::fs::read(&meta_path)?;
+        let meta = decode_upload_artifact_meta(&meta_bytes)?;
+        let commit =
+            mfn_storage::decode_storage_commitment(&meta.commitment_wire).map_err(|e| {
+                UploadArtifactStoreError::Invalid(format!("commitment wire in {name}: {e}"))
+            })?;
+        let wire_hash = storage_commitment_hash(&commit);
+        if wire_hash != commit_hash {
+            continue;
+        }
+        let payload_bytes = std::fs::metadata(&payload_path)?.len();
+        out.push(UploadArtifactSummary {
+            commitment_hash_hex: hex::encode(commit_hash),
+            data_root_hex: hex::encode(commit.data_root),
+            size_bytes: commit.size_bytes,
+            num_chunks: commit.num_chunks,
+            replication: commit.replication,
+            payload_bytes,
+            source_path: meta.source_path,
+            tx_id: meta.tx_id,
+            artifact_dir: dir,
+        });
+    }
+    out.sort_by(|a, b| a.commitment_hash_hex.cmp(&b.commitment_hash_hex));
+    Ok(out)
+}
+
 /// Whether an artifact exists for `commitment_hash_hex`.
 #[must_use]
 pub fn has_upload_artifact(wallet_path: &Path, commitment_hash_hex: &str) -> bool {
@@ -237,6 +314,44 @@ mod tests {
         assert_eq!(loaded.built.commit, built.commit);
         assert_eq!(loaded.built.tree.root(), built.tree.root());
         assert_eq!(loaded.tx_id.as_deref(), Some("tx1"));
+        std::fs::remove_dir_all(upload_artifacts_root(&wallet)).ok();
+        std::fs::remove_file(&wallet).ok();
+    }
+
+    #[test]
+    fn list_upload_artifacts_returns_saved_entries() {
+        let wallet = temp_wallet("list");
+        let payload_a: Vec<u8> = (0u32..512).map(|i| (i % 256) as u8).collect();
+        let payload_b: Vec<u8> = (0u32..1024).map(|i| ((i + 1) % 256) as u8).collect();
+        let built_a = build_storage_commitment(
+            &payload_a,
+            1_000,
+            Some(512),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commit a");
+        let built_b = build_storage_commitment(
+            &payload_b,
+            2_000,
+            Some(512),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commit b");
+        save_upload_artifact(&wallet, &built_a, &payload_a, Path::new("a.bin"), None).expect("a");
+        save_upload_artifact(
+            &wallet,
+            &built_b,
+            &payload_b,
+            Path::new("b.bin"),
+            Some("txb"),
+        )
+        .expect("b");
+        let listed = list_upload_artifacts(&wallet).expect("list");
+        assert_eq!(listed.len(), 2);
+        assert!(listed.iter().any(|e| e.source_path.ends_with("a.bin")));
+        assert!(listed.iter().any(|e| e.tx_id.as_deref() == Some("txb")));
         std::fs::remove_dir_all(upload_artifacts_root(&wallet)).ok();
         std::fs::remove_file(&wallet).ok();
     }

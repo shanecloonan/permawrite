@@ -158,6 +158,11 @@ fn commit_data_root_from_challenge(
     Ok(out)
 }
 
+/// List wallet-local upload artifacts (same as `uploads local`) (**M3.25**).
+pub fn operator_artifacts(wallet_path: &std::path::Path) -> Result<(), OperatorCmdError> {
+    crate::uploads_cmd::uploads_local(wallet_path).map_err(OperatorCmdError::Usage)
+}
+
 /// List pending proofs in the node proof pool.
 pub fn operator_pool(client: &mut RpcClient) -> Result<(), OperatorCmdError> {
     let pool = client.get_proof_pool()?;

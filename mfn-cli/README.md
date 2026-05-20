@@ -103,15 +103,19 @@ Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
 
 ```bash
 mfn-cli uploads list
+mfn-cli --wallet ./alice.json uploads local
 mfn-cli operator challenge <COMMITMENT_HASH_HEX>
 mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
 mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX>
+mfn-cli --wallet ./alice.json operator artifacts
 mfn-cli operator pool
 ```
 
 `operator prove` rebuilds the Merkle tree from local file bytes (or from the wallet upload artifact when FILE is omitted and `--wallet` is set), verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
 
 Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.23**), the same way mempool txs use `mempool.bytes` — survive `mfnd serve` restarts until mined or cleared.
+
+`uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand.
 
 To mine any wallet tx: stop `mfnd serve` (flushes `mempool.bytes`), then `mfnd step --blocks 1` (reloads durable mempool per **M2.3.21**).
 
