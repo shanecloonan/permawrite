@@ -24,6 +24,10 @@ import {
   syncBlockRange,
   totalBalance,
 } from "./wallet-sync.js";
+import {
+  clearTrustedRelayPins,
+  saveTrustedRelayPins,
+} from "./trusted-relay-pins.js";
 
 const DEMO_SEED = "42".repeat(32);
 
@@ -375,11 +379,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  $("btn-pin-relays").addEventListener("click", () => {
+    const seed = seedOrDemo();
+    const relays = lightRelayUrls();
+    if (relays.length === 0) {
+      show("sync-out", "enter light relay URLs first");
+      return;
+    }
+    saveTrustedRelayPins(seed, relays);
+    show("sync-out", `pinned ${relays.length} relay URL(s):\n${relays.join("\n")}`);
+  });
+
+  $("btn-reset-relay-pins").addEventListener("click", () => {
+    clearTrustedRelayPins(seedOrDemo());
+    show("sync-out", "cleared trusted relay pins (next sync will TOFU)");
+  });
+
   $("btn-sync-reset").addEventListener("click", () => {
     walletSync = emptyWalletSync();
     persistWalletSync();
     saveLightCheckpoint(seedOrDemo(), "");
-    show("sync-out", "wallet + light-checkpoint state cleared");
+    clearTrustedRelayPins(seedOrDemo());
+    show("sync-out", "wallet, checkpoint, and relay pins cleared");
   });
 
   $("btn-scan-block").addEventListener("click", async () => {

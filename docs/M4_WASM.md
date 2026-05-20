@@ -225,6 +225,17 @@ Demo sync accepts **≥2 light relay URLs** (comma-separated). Each relay indepe
 
 Wallet scan RPC (`8787/rpc`) and relay backends (`8790`, `8791`, …) may be operated by different parties.
 
+## Trusted relay pins (M4.18)
+
+| Module | Role |
+|--------|------|
+| `demo/web/trusted-relay-pins.js` | TOFU on first sync with relay URLs; thereafter rejects unknown relays |
+| `assertRelayUrlsTrusted` | Called at sync start; pins stored under `permawrite-trusted-relay-urls:<seed>` |
+
+Demo buttons **Pin relay URLs** / **Reset relay pins** let operators pin after manual verification (e.g. out-of-band TLS cert fingerprint). **Reset wallet state** also clears relay pins.
+
+Sync summary includes `relay_trust: { tofu, pinned }` when relays are configured.
+
 ## Roadmap
 
-- **M4.18** — Persist relay operator pins / TOFU in `localStorage` (weak-subjectivity for relay HTTPS endpoints).
+- **M4.19** — Optional relay TLS fingerprint pins (certificate SPKI) beyond URL TOFU.
