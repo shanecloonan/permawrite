@@ -1,10 +1,12 @@
-//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**).
+//! Weak-subjectivity checkpoint summaries for CLI light wallets (**M3.13**–**M3.14**).
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::rpc::LightCheckpointSummary;
+use crate::rpc::RpcClient;
 use crate::wallet_cmd::WalletCmdError;
+use crate::wallet_store::WalletFile;
 use mfn_consensus::validator_set_root;
 use mfn_crypto::dhash;
 use mfn_crypto::domain::LIGHT_CHECKPOINT;
@@ -58,6 +60,88 @@ pub fn load_trusted_summary_file(path: &Path) -> Result<LightCheckpointSummary, 
     serde_json::from_str(&raw).map_err(|e| {
         WalletCmdError::Usage(format!("parse trusted summary {}: {e}", path.display()))
     })
+}
+
+/// Options for `wallet export-trusted-summary` (**M3.14**).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ExportTrustedSummaryParams {
+    /// Write JSON here; stdout when `None`.
+    pub output_path: Option<PathBuf>,
+    /// Snapshot height; chain tip when `None` (ignored with [`Self::from_wallet_checkpoint`]).
+    pub height: Option<u32>,
+    /// Persist summary into `wallet.json` (`trusted_light_summary`).
+    pub pin_wallet: bool,
+    /// Derive summary from persisted `light_checkpoint_hex` instead of RPC.
+    pub from_wallet_checkpoint: bool,
+}
+
+/// Fetch or derive a trusted summary and optionally write / pin it.
+pub fn wallet_export_trusted_summary(
+    wallet_path: &Path,
+    client: &mut RpcClient,
+    params: &ExportTrustedSummaryParams,
+) -> Result<(), WalletCmdError> {
+    let summary = if params.from_wallet_checkpoint {
+        let file = WalletFile::load(wallet_path)?;
+        let cp_hex = file.light_checkpoint_hex.as_ref().ok_or_else(|| {
+            WalletCmdError::Usage(
+                "wallet has no light_checkpoint_hex; run wallet light-scan first".into(),
+            )
+        })?;
+        summary_from_checkpoint_hex(cp_hex)
+            .map_err(|e| WalletCmdError::Usage(format!("summary from checkpoint: {e}")))?
+    } else {
+        let height = match params.height {
+            Some(h) => h,
+            None => {
+                let tip = client.get_tip()?;
+                u32::try_from(tip.tip_height.unwrap_or(0))
+                    .map_err(|_| WalletCmdError::Usage("tip_height exceeds u32::MAX".into()))?
+            }
+        };
+        let snap = client.get_light_snapshot(Some(height))?;
+        if snap.tip_height != height {
+            return Err(WalletCmdError::Usage(format!(
+                "get_light_snapshot at {height} returned tip_height {}",
+                snap.tip_height
+            )));
+        }
+        let derived = summary_from_checkpoint_hex(&snap.checkpoint_hex)
+            .map_err(|e| WalletCmdError::Usage(format!("derive summary: {e}")))?;
+        if norm_hex32(&snap.summary.genesis_id) != norm_hex32(&derived.genesis_id)
+            || snap.summary.tip_height != derived.tip_height
+            || norm_hex32(&snap.summary.tip_block_id) != norm_hex32(&derived.tip_block_id)
+            || norm_hex32(&snap.summary.validator_set_root)
+                != norm_hex32(&derived.validator_set_root)
+        {
+            return Err(WalletCmdError::Usage(
+                "RPC embedded summary disagrees with checkpoint-derived summary".into(),
+            ));
+        }
+        snap.summary
+    };
+
+    if let Some(out) = &params.output_path {
+        save_trusted_summary_file(out, &summary)?;
+        println!("wrote {}", out.display());
+    } else {
+        let raw = serde_json::to_string_pretty(&summary)
+            .map_err(|e| WalletCmdError::Usage(format!("encode summary: {e}")))?;
+        println!("{raw}");
+    }
+
+    println!("tip_height={}", summary.tip_height);
+    println!("checkpoint_digest={}", summary.checkpoint_digest);
+    println!("validator_set_root={}", summary.validator_set_root);
+
+    if params.pin_wallet {
+        let mut file = WalletFile::load(wallet_path)?;
+        file.trusted_light_summary = Some(summary);
+        file.save(wallet_path)?;
+        println!("pinned trusted_light_summary in {}", wallet_path.display());
+    }
+
+    Ok(())
 }
 
 /// Write a trusted summary for out-of-band distribution.

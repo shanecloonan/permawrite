@@ -7,6 +7,7 @@ use serde_json::json;
 use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
+use crate::light_subjectivity::{wallet_export_trusted_summary, ExportTrustedSummaryParams};
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
@@ -121,6 +122,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
                 WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
                 WalletSub::Claim(params) => wallet_claim(&path, &mut client, &params)?,
+                WalletSub::ExportTrustedSummary(ref params) => {
+                    wallet_export_trusted_summary(&path, &mut client, params)?
+                }
             }
         }
     }
@@ -192,6 +196,7 @@ enum WalletSub {
     Send(SendParams),
     Upload(UploadParams),
     Claim(ClaimParams),
+    ExportTrustedSummary(ExportTrustedSummaryParams),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -232,6 +237,8 @@ fn usage() -> &'static str {
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
                          --fee N --ring-size N\n\
+       wallet export-trusted-summary      write weak-subjectivity summary JSON (**M3.14**)\n\
+                         options: --out FILE --height N --pin --from-wallet-checkpoint\n\
        claims for DATA_ROOT_HEX           authorship claims for a content data_root\n\
        claims recent                      recent claims chain-wide (list_recent_claims)\n\
        claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
@@ -285,7 +292,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 1;
             continue;
         }
-        if a == "--pin-trusted-summary" || a == "--reset-trusted-summary" {
+        if a == "--pin-trusted-summary"
+            || a == "--reset-trusted-summary"
+            || a == "--pin"
+            || a == "--from-wallet-checkpoint"
+        {
             positional.push(a);
             i += 1;
             continue;
@@ -309,6 +320,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--trusted-summary"
                 | "--pin-trusted-summary"
                 | "--reset-trusted-summary"
+                | "--out"
+                | "--height"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -588,12 +601,15 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim)\n{}",
+            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary)\n{}",
             usage()
         )));
     };
     let sub = match *sub_name {
         "light-scan" => WalletSub::LightScan(parse_wallet_light_scan_args(&rest[1..])?),
+        "export-trusted-summary" => {
+            WalletSub::ExportTrustedSummary(parse_wallet_export_trusted_summary_args(&rest[1..])?)
+        }
         "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
@@ -688,6 +704,67 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
         reset_trusted_summary,
         pin_trusted_summary,
         update_trusted_summary: true,
+    })
+}
+
+fn parse_wallet_export_trusted_summary_args(
+    rest: &[&str],
+) -> Result<ExportTrustedSummaryParams, CliError> {
+    let mut output_path: Option<std::path::PathBuf> = None;
+    let mut height: Option<u32> = None;
+    let mut pin_wallet = false;
+    let mut from_wallet_checkpoint = false;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--out" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet export-trusted-summary --out requires FILE\n".into(),
+                ));
+            };
+            output_path = Some(std::path::PathBuf::from(v));
+            i += 2;
+            continue;
+        }
+        if a == "--height" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet export-trusted-summary --height requires N\n".into(),
+                ));
+            };
+            height = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage("--height must be a positive integer".into()))?,
+            );
+            i += 2;
+            continue;
+        }
+        if a == "--pin" || a == "--pin-trusted-summary" {
+            pin_wallet = true;
+            i += 1;
+            continue;
+        }
+        if a == "--from-wallet-checkpoint" {
+            from_wallet_checkpoint = true;
+            i += 1;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unknown wallet export-trusted-summary argument `{a}`\n{}",
+            usage()
+        )));
+    }
+    if from_wallet_checkpoint && height.is_some() {
+        return Err(CliError::Usage(
+            "--from-wallet-checkpoint cannot be combined with --height\n".into(),
+        ));
+    }
+    Ok(ExportTrustedSummaryParams {
+        output_path,
+        height,
+        pin_wallet,
+        from_wallet_checkpoint,
     })
 }
 

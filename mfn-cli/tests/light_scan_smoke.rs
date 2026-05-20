@@ -174,6 +174,34 @@ fn wallet_light_scan_after_solo_step_coinbase() {
         "expected persisted light checkpoint"
     );
 
+    let summary_path = dir.join("trusted-summary.json");
+    let export = mfn_cli()
+        .args([
+            "--rpc",
+            &rpc.to_string(),
+            "--wallet",
+            wallet_path.to_str().expect("utf8 path"),
+            "wallet",
+            "export-trusted-summary",
+            "--height",
+            "1",
+            "--out",
+            summary_path.to_str().expect("utf8 path"),
+            "--pin",
+        ])
+        .output()
+        .expect("export-trusted-summary");
+    assert!(
+        export.status.success(),
+        "stderr={}",
+        String::from_utf8_lossy(&export.stderr)
+    );
+    let exported = std::fs::read_to_string(&summary_path).expect("read summary");
+    assert!(exported.contains("checkpoint_digest"));
+
+    let reloaded = WalletFile::load(&wallet_path).expect("reload after pin");
+    assert!(reloaded.trusted_light_summary.is_some());
+
     shutdown_child(&mut child);
     std::fs::remove_dir_all(&dir).ok();
 }
