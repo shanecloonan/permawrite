@@ -1980,6 +1980,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
 | **M2.3.29** | Hub `--produce` no longer runs committee catch-up dials (followers pull; avoids P2P dial storms). | ✓ shipped |
 | **M2.3.30** | Proposal fan-out reads `VoteV1` replies on live P2P sessions (fixes hub+voter quorum seal). | ✓ shipped |
+| **M2.3.31** | P2P block apply rejects non-sequential heights (`stale` / `gap`) before `Chain::apply` (cleaner catch-up aborts). | ✓ shipped |
 
 ### Why this order
 
@@ -2158,7 +2159,7 @@ See [`M4_WASM.md`](./M4_WASM.md) for build commands and JS API.
 These are work items that are individually small but cross-cutting:
 
 - **Long-running emission/treasury simulation.** Drive `apply_block` for 10⁶ blocks with realistic tx mix; verify treasury never goes negative, emission rates match the curve. **M5.0 (partial ✓):** `tests/emission_simulation.rs` — 100k-height curve check + 10k empty `apply_block` in CI; 1M curve + 100k `apply_block` `#[ignore]`; 512-block treasury ledger vs storage-proof drain. **M5.0+ (partial ✓):** 16-block validator-mode CLSAG fee chain (BLS finality, coinbase subsidy + producer fee share, treasury credit); 96-block `#[ignore]`. **M5.0++ (partial ✓):** 12-block validator mixed CLSAG fee + SPoRA proof (full coinbase including storage reward); 64-block `#[ignore]`. **M5.3 (partial ✓):** producer decrypts coinbase in validator CLSAG-fee and mixed fee+proof emission sims (amount = subsidy + producer fee share + storage rewards). **M5.1 (partial ✓):** 128-block chained CLSAG self-transfers (varying fees → treasury) in CI; 2048-block fee mix `#[ignore]`. **M5.1+ (partial ✓):** 48-block mixed CLSAG fee + SPoRA proof per block (credit then drain); 384-block `#[ignore]`.
-- **Proptest fuzzing of `apply_block`.** Randomized inputs; reject any panic / inconsistency. Target: 24-hour fuzz campaign with no findings. **M5.2 (partial ✓):** `tests/apply_block_proptest.rs` — 32-case CI props for valid empty chains + header tamper rejects with state unchanged; 128-block deep chain `#[ignore]` (nightly). **M5.2+ (partial ✓):** storage-proof chains, signed `BondOp::Register` chains, forged-register + duplicate-proof rejects.
+- **Proptest fuzzing of `apply_block`.** Randomized inputs; reject any panic / inconsistency. Target: 24-hour fuzz campaign with no findings. **M5.2 (partial ✓):** `tests/apply_block_proptest.rs` — 32-case CI props for valid empty chains + header tamper rejects with state unchanged; 128-block deep chain `#[ignore]` (nightly). **M5.2+ (partial ✓):** storage-proof chains, signed `BondOp::Register` chains, forged-register + duplicate-proof rejects. **M5.2++ (partial ✓):** alternating empty + SPoRA proof chains (`prop_alternating_empty_and_storage_chains`).
 - **Independent cryptographic review.** External third-party audit of `mfn-crypto`, `mfn-bls`, `mfn-storage`, and `apply_block`.
 - **Performance benchmarking.** Block throughput, tx verification rate, storage-proof verification rate. Compare against Monero / Arweave baselines.
 - **Spec finalization.** Write a formal MFBN-1 RFC document for cross-implementation conformance testing.

@@ -324,6 +324,18 @@ proptest! {
     }
 
     #[test]
+    fn prop_alternating_empty_and_storage_chains(n_pairs in 1u32..=8u32) {
+        let gen = genesis_with_storage();
+        let mut st = gen.state;
+        for i in 0..n_pairs {
+            let h_empty = next_height(&st);
+            st = apply_empty_at(&st, h_empty, u64::from(i).saturating_mul(2_000));
+            let h_proof = next_height(&st);
+            st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
+        }
+    }
+
+    #[test]
     fn prop_valid_storage_proof_chains(n_blocks in 1u32..=16u32) {
         let gen = genesis_with_storage();
         let mut st = gen.state;

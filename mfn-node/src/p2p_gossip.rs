@@ -101,7 +101,11 @@ impl GossipHandler for P2pGossipHandler {
             Err(_) => return "rejected:chain_mutex".to_string(),
         };
         let local_height = chain.tip_height().unwrap_or(0);
-        if height > local_height.saturating_add(1) {
+        let next_height = local_height.saturating_add(1);
+        if height != next_height {
+            if height <= local_height {
+                return format!("rejected:stale:local={local_height}:got={height}");
+            }
             return format!("rejected:gap:local={local_height}:got={height}");
         }
         match chain.apply(&block) {
@@ -122,5 +126,108 @@ impl GossipHandler for P2pGossipHandler {
             }
             Err(e) => format!("rejected:apply:{e}:height={height}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use mfn_consensus::{
+        build_genesis, build_unsealed_header, encode_block, seal_block, GenesisConfig,
+        DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_net::GossipHandler;
+    use mfn_runtime::{ChainConfig, Mempool, MempoolConfig};
+    use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+    use mfn_store::ChainStore;
+
+    use super::P2pGossipHandler;
+
+    fn handler_at_height_1() -> (Arc<P2pGossipHandler>, Vec<u8>) {
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: DEFAULT_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let _genesis = build_genesis(&cfg);
+        let dir = std::env::temp_dir().join(format!(
+            "permawrite-p2p-gossip-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        let store: Arc<dyn mfn_store::ChainPersistence + Send + Sync> =
+            Arc::new(ChainStore::new(&dir));
+        let chain_cfg = ChainConfig::new(cfg.clone());
+        let chain = Arc::new(Mutex::new(
+            store.load_or_genesis(chain_cfg).expect("genesis"),
+        ));
+        let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+
+        let mut guard = chain.lock().expect("chain");
+        let st = guard.state();
+        let height = 1u32;
+        let unsealed = build_unsealed_header(st, &[], &[], &[], &[], height, 1_000);
+        let block = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        guard.apply(&block).expect("block 1");
+        let _ = store.append_block(&block);
+        let wire = encode_block(&block);
+        let tip_id = *guard.tip_id().expect("tip");
+        drop(guard);
+
+        let tip_cell = Arc::new(Mutex::new((height, tip_id)));
+        let handler = P2pGossipHandler::new(chain, pool, store, tip_cell);
+        (handler, wire)
+    }
+
+    #[test]
+    fn rejects_stale_block_reapply() {
+        let (handler, wire) = handler_at_height_1();
+        let label = handler.on_block_v1(&wire);
+        assert!(
+            label.starts_with("rejected:stale:"),
+            "expected stale reject, got {label}"
+        );
+    }
+
+    #[test]
+    fn rejects_height_gap_without_apply() {
+        let (handler, _) = handler_at_height_1();
+        let block = {
+            let guard = handler.chain.lock().expect("chain");
+            assert_eq!(guard.tip_height(), Some(1));
+            let mut header = build_unsealed_header(guard.state(), &[], &[], &[], &[], 0, 3_000);
+            header.height = 4;
+            seal_block(
+                header,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        let wire = encode_block(&block);
+        let label = handler.on_block_v1(&wire);
+        assert!(
+            label.starts_with("rejected:gap:"),
+            "expected gap reject, got {label}"
+        );
     }
 }
