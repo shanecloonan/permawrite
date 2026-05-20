@@ -1,4 +1,4 @@
-//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.18**).
+//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.21**).
 //!
 //! Verifies BLS headers + validator-set evolution via [`mfn_light::LightChain`],
 //! scans txs via `get_block_txs` (no full blocks), matching the browser demo path.
@@ -24,7 +24,7 @@ use crate::wallet_store::WalletFile;
 /// Max inclusive span per `get_block_headers` / `get_light_follow` batch.
 const LIGHT_SCAN_CHUNK: u32 = 512;
 
-/// Options for `wallet light-scan` (**M3.12**–**M3.18**).
+/// Options for `wallet light-scan` (**M3.12**–**M3.21**).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LightScanParams {
     /// Extra `HOST:PORT` RPC bases for `get_light_follow` quorum (M4.14).
@@ -41,6 +41,8 @@ pub struct LightScanParams {
     pub pin_trusted_summary: bool,
     /// Refresh pinned summary from the post-sync checkpoint (default browser behavior).
     pub update_trusted_summary: bool,
+    /// Stop after this inclusive height even if the node tip is higher (**M3.21**).
+    pub max_height: Option<u32>,
 }
 
 impl Default for LightScanParams {
@@ -53,8 +55,31 @@ impl Default for LightScanParams {
             reset_trusted_summary: false,
             pin_trusted_summary: false,
             update_trusted_summary: true,
+            max_height: None,
         }
     }
+}
+
+fn scan_through_height(
+    tip_height: u64,
+    start_height: u32,
+    max_height: Option<u32>,
+) -> Result<u64, WalletCmdError> {
+    let mut through = tip_height;
+    if let Some(cap) = max_height {
+        if cap == 0 {
+            return Err(WalletCmdError::Usage(
+                "wallet light-scan --max-height must be >= 1".into(),
+            ));
+        }
+        if u64::from(cap) < u64::from(start_height) {
+            return Err(WalletCmdError::Usage(format!(
+                "wallet light-scan --max-height {cap} is below resume height {start_height}"
+            )));
+        }
+        through = through.min(u64::from(cap));
+    }
+    Ok(through)
 }
 
 /// `wallet light-scan` — header + evolution verified sync through chain tip.
@@ -105,7 +130,7 @@ fn sync_wallet_light_from_node(
     file.apply_pending_spends(wallet)?;
 
     let tip = client.get_tip()?;
-    let tip_height = tip.tip_height.unwrap_or(0);
+    let chain_tip_height = tip.tip_height.unwrap_or(0);
     let start_height = if used_utxo_cache {
         file.scan_height
             .expect("has_owned_cache implies scan_height")
@@ -130,7 +155,9 @@ fn sync_wallet_light_from_node(
         file.trusted_light_summary = Some(summary);
     }
 
-    if tip_height < u64::from(start_height) {
+    let scan_through = scan_through_height(chain_tip_height, start_height, params.max_height)?;
+
+    if scan_through < u64::from(start_height) {
         let (weak_subjectivity_checked, mut weak_subjectivity_pinned) =
             gate_weak_subjectivity(file, params)?;
         if refresh_trusted_summary_from_checkpoint(file, params)? {
@@ -138,7 +165,7 @@ fn sync_wallet_light_from_node(
         }
         file.apply_pending_spends(wallet)?;
         return Ok(SyncStats {
-            tip_height,
+            tip_height: chain_tip_height,
             blocks_fetched: 0,
             used_utxo_cache,
             quorum_batches: 1,
@@ -155,11 +182,11 @@ fn sync_wallet_light_from_node(
     let mut quorum_batches = 1usize;
     let mut from = u64::from(start_height);
 
-    while from <= tip_height {
+    while from <= scan_through {
         let chunk_end = from
             .saturating_add(u64::from(LIGHT_SCAN_CHUNK))
             .saturating_sub(1)
-            .min(tip_height);
+            .min(scan_through);
         let from_h = u32::try_from(from)
             .map_err(|_| WalletCmdError::Usage(format!("height {from} exceeds u32::MAX")))?;
         let to_h = u32::try_from(chunk_end)
@@ -246,7 +273,7 @@ fn sync_wallet_light_from_node(
 
     file.apply_pending_spends(wallet)?;
     Ok(SyncStats {
-        tip_height,
+        tip_height: chain_tip_height,
         blocks_fetched,
         used_utxo_cache,
         quorum_batches,

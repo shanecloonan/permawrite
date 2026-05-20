@@ -242,7 +242,7 @@ fn usage() -> &'static str {
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
                          options: --quorum-rpc HOST:PORT,... --quorum-p2p HOST:PORT,...\n\
                          --trusted-summary FILE --import-trusted-summary FILE\n\
-                         --pin-trusted-summary --reset-trusted-summary\n\
+                         --pin-trusted-summary --reset-trusted-summary --max-height N\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
@@ -350,6 +350,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--reset-trusted-summary"
                 | "--out"
                 | "--height"
+                | "--max-height"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -687,6 +688,7 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
     let mut import_trusted_summary_path: Option<std::path::PathBuf> = None;
     let mut reset_trusted_summary = false;
     let mut pin_trusted_summary = false;
+    let mut max_height: Option<u32> = None;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
@@ -740,6 +742,19 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
             i += 1;
             continue;
         }
+        if a == "--max-height" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet light-scan --max-height requires HEIGHT\n".into(),
+                ));
+            };
+            max_height = Some(
+                v.parse()
+                    .map_err(|_| CliError::Usage(format!("invalid --max-height `{v}`")))?,
+            );
+            i += 2;
+            continue;
+        }
         return Err(CliError::Usage(format!(
             "unknown wallet light-scan argument `{a}`\n{}",
             usage()
@@ -759,6 +774,7 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
         reset_trusted_summary,
         pin_trusted_summary,
         update_trusted_summary: true,
+        max_height,
     })
 }
 
@@ -1316,6 +1332,28 @@ mod tests {
             } => {
                 assert_eq!(params.quorum_rpc_addrs.len(), 2);
                 assert_eq!(params.quorum_p2p_peers, vec!["127.0.0.1:18740".to_string()]);
+            }
+            _ => panic!("expected wallet light-scan"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_light_scan_max_height() {
+        let p = parse_args(&[
+            "wallet".into(),
+            "light-scan".into(),
+            "--max-height".into(),
+            "1".into(),
+            "--pin-trusted-summary".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::LightScan(params),
+                ..
+            } => {
+                assert_eq!(params.max_height, Some(1));
+                assert!(params.pin_trusted_summary);
             }
             _ => panic!("expected wallet light-scan"),
         }

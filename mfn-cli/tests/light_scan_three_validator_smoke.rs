@@ -489,6 +489,8 @@ fn wallet_light_scan_three_validator_mesh() {
             "wallet",
             "light-scan",
             "--pin-trusted-summary",
+            "--max-height",
+            "1",
         ])
         .output()
         .expect("wallet light-scan");
@@ -499,7 +501,7 @@ fn wallet_light_scan_three_validator_mesh() {
     );
     let reloaded = WalletFile::load(&wallet_path).expect("reload wallet");
     let scan_height = reloaded.scan_height.expect("scan_height");
-    assert!(scan_height >= 1, "expected at least one block scanned");
+    assert_eq!(scan_height, 1, "mesh smoke scans through height 1 only");
     assert_light_scan_three_validator(
         &String::from_utf8_lossy(&out.stdout),
         &wallet_path,
