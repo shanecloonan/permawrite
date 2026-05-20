@@ -58,4 +58,4 @@ Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow (M4.15): `POST …/
 
 HTTPS relays (**M4.21**): set `RELAY_TLS_CERT` + `RELAY_TLS_KEY`, verify with `node demo/proxy/relay-tls-spki.mjs --cert …`, paste `url=spki_sha256` into **Expected TLS SPKI**, then **Pin relay URLs** (stores `GET /relay-spki` and checks on sync).
 
-Weak-subjectivity (**M4.22**): export with `mfn-cli wallet export-trusted-summary --out summary.json`, paste JSON into the demo **Trusted summary** field, click **Import trusted summary** (checks local checkpoint if present). **Show** / **Clear** manage the `localStorage` pin.
+Weak-subjectivity (**M4.22** / **M4.23**): CLI `mfn-cli wallet export-trusted-summary --out summary.json`, or in the demo **Export trusted summary** (from local checkpoint or RPC; optional **Pin on export**). **Import** pastes out-of-band JSON; **Show** / **Clear** manage the `localStorage` pin.

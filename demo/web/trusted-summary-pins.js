@@ -1,5 +1,5 @@
 /**
- * Weak-subjectivity summary pins in localStorage (**M4.22**).
+ * Weak-subjectivity summary pins in localStorage (**M4.22** / **M4.23**).
  * Same JSON shape as `get_light_snapshot.summary` / `mfn-cli` export.
  */
 
@@ -126,5 +126,36 @@ export function trustedSummariesEqual(a, b) {
  */
 export function formatTrustedSummaryLines(summary) {
   const s = normalizeTrustedSummary(summary);
-  return SUMMARY_KEYS.map((k) => `${k}=${s[k]}`).join("\n");
+  return SUMMARY_KEYS.map((k) => `${k} = ${s[k]}`).join("\n");
+}
+
+/**
+ * Derive summary from a light checkpoint hex via WASM (**M4.23**).
+ *
+ * @param {string} checkpointHex
+ * @param {(checkpointHex: string) => string} lightChainCheckpointSummary
+ */
+export function deriveTrustedSummaryFromCheckpoint(
+  checkpointHex,
+  lightChainCheckpointSummary,
+) {
+  if (!checkpointHex?.trim()) {
+    throw new Error("no light checkpoint; sync first or paste a checkpoint");
+  }
+  const raw = lightChainCheckpointSummary(checkpointHex.trim());
+  return normalizeTrustedSummary(JSON.parse(raw));
+}
+
+/**
+ * Ensure RPC-embedded summary matches checkpoint-derived (**M3.14** parity).
+ *
+ * @param {object} rpcSummary
+ * @param {object} derived
+ */
+export function assertRpcSummaryMatchesCheckpoint(rpcSummary, derived) {
+  if (!trustedSummariesEqual(rpcSummary, derived)) {
+    throw new Error(
+      "get_light_snapshot.summary disagrees with checkpoint-derived summary",
+    );
+  }
 }

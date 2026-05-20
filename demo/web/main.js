@@ -27,8 +27,11 @@ import {
   totalBalance,
 } from "./wallet-sync.js";
 import {
+  assertRpcSummaryMatchesCheckpoint,
+  deriveTrustedSummaryFromCheckpoint,
   formatTrustedSummaryLines,
   loadTrustedSummaryObject,
+  normalizeTrustedSummary,
   parseTrustedSummaryJson,
   saveTrustedSummaryObject,
 } from "./trusted-summary-pins.js";
@@ -453,6 +456,54 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btn-reset-relay-pins").addEventListener("click", () => {
     clearTrustedRelayPins(seedOrDemo());
     show("sync-out", "cleared trusted relay pins (next sync will TOFU)");
+  });
+
+  $("btn-export-trusted-summary").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const seed = seedOrDemo();
+      const pinOnExport = document.getElementById("sync-export-pin-summary")?.checked;
+      const checkpointHex = loadLightCheckpoint(seed);
+      let summary;
+      let source;
+      if (checkpointHex) {
+        summary = deriveTrustedSummaryFromCheckpoint(
+          checkpointHex,
+          lightChainCheckpointSummary,
+        );
+        source = "local light checkpoint (WASM)";
+      } else {
+        const tip = await mfndRpc(rpcUrl(), "get_tip", {});
+        const height = Number(
+          walletSync.lastScannedHeight || tip.tip_height || 0,
+        );
+        const snap = await mfndRpc(rpcUrl(), "get_light_snapshot", { height });
+        if (!snap?.summary) {
+          throw new Error(`get_light_snapshot at ${height} returned no summary`);
+        }
+        summary = normalizeTrustedSummary(snap.summary);
+        if (snap.checkpoint_hex && lightChainCheckpointSummary) {
+          const derived = deriveTrustedSummaryFromCheckpoint(
+            snap.checkpoint_hex,
+            lightChainCheckpointSummary,
+          );
+          assertRpcSummaryMatchesCheckpoint(summary, derived);
+        }
+        source = `RPC get_light_snapshot at height ${height}`;
+      }
+      $("sync-trusted-summary-json").value = JSON.stringify(summary, null, 2);
+      if (pinOnExport) {
+        saveTrustedSummaryObject(seed, summary);
+      }
+      show(
+        "sync-out",
+        `exported trusted summary from ${source}\n` +
+          formatTrustedSummaryLines(summary) +
+          (pinOnExport ? "\n(pinned in localStorage)" : ""),
+      );
+    } catch (e) {
+      show("sync-out", String(e));
+    }
   });
 
   $("btn-import-trusted-summary").addEventListener("click", async () => {

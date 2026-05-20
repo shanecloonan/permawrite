@@ -285,4 +285,13 @@ Same summary fields as browser `permawrite-light-trusted-summary:<seed>` and rel
 
 Paste output from `mfn-cli wallet export-trusted-summary` before sync on a fresh browser profile.
 
+## Demo trusted-summary export (M4.23)
+
+| Piece | Role |
+|-------|------|
+| **Export trusted summary** | Fill textarea from local checkpoint (`lightChainCheckpointSummary`) or `get_light_snapshot` at last scanned / tip height |
+| **Pin on export** | Optional checkbox writes the same JSON to `permawrite-light-trusted-summary:<seed>` |
+
+RPC export verifies embedded `summary` against WASM-derived checkpoint bytes when both are available (same as **M3.14**).
+
 ## Roadmap

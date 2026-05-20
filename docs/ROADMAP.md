@@ -1966,7 +1966,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ---
 
-## Coming next — M2.4 public testnet (in progress)
+## M2.4 public testnet (shipped)
 
 | Id | Deliverable | Status |
 |---|---|---|
