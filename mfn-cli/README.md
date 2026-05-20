@@ -117,6 +117,8 @@ Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.
 
 `uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand.
 
+`uploads status` (**M3.26**) pages `list_recent_uploads` and joins on commitment hash so operators see `matched`, `local_only` (artifact without chain index row), and `chain_only` (indexed upload missing local `payload.bin`).
+
 For continuous proving, run the storage-operator daemon (**M6**):
 
 ```bash

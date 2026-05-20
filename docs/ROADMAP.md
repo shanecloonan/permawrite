@@ -2075,6 +2075,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.23** | Durable `proof_pool.bytes` snapshot + reload on `mfnd serve` boot (re-admit for next-block context; skip stale). | ✓ shipped |
 | **M3.24** | Wallet upload artifacts (`{wallet}.upload-artifacts/`) persist payload + Merkle metadata; `operator prove` loads without FILE. | ✓ shipped |
 | **M3.25** | `uploads local` + `operator artifacts`: list persisted upload artifacts for `--wallet`. | ✓ shipped |
+| **M3.26** | `uploads status`: reconcile local upload artifacts vs `list_recent_uploads` (`matched` / `local_only` / `chain_only`). | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 

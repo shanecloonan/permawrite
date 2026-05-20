@@ -17,7 +17,7 @@ use crate::operator_cmd::{
     operator_artifacts, operator_challenge, operator_pool, operator_prove, OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
-use crate::uploads_cmd::{uploads_list, uploads_local, UploadsListParams};
+use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
     wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
@@ -119,6 +119,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             UploadsSub::Local => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 uploads_local(&path).map_err(CliError::Usage)?;
+            }
+            UploadsSub::Status => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                uploads_status(&path, &mut client).map_err(CliError::Usage)?;
             }
         },
         Cmd::Operator { sub } => match sub {
@@ -237,6 +241,7 @@ enum ClaimsSub {
 enum UploadsSub {
     List(UploadsListParams),
     Local,
+    Status,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -326,6 +331,7 @@ fn usage() -> &'static str {
        uploads list                       recent storage uploads (list_recent_uploads)\n\
                          options: --limit N --offset N --include-claims\n\
        uploads local                      list persisted upload artifacts for --wallet (**M3.25**)\n\
+       uploads status                     reconcile local artifacts vs chain upload index (**M3.26**)\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
@@ -549,7 +555,7 @@ fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "uploads requires SUBCOMMAND (list|local)\n{}",
+            "uploads requires SUBCOMMAND (list|local|status)\n{}",
             usage()
         )));
     };
@@ -563,6 +569,15 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
                 )));
             }
             UploadsSub::Local
+        }
+        "status" => {
+            if !rest[1..].is_empty() {
+                return Err(CliError::Usage(format!(
+                    "uploads status takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            UploadsSub::Status
         }
         other => {
             return Err(CliError::Usage(format!(
@@ -1542,6 +1557,17 @@ mod tests {
                 sub: UploadsSub::Local,
             } => {}
             _ => panic!("expected uploads local"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_status_subcommand() {
+        let p = parse_args(&["uploads".into(), "status".into()]).unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::Status,
+            } => {}
+            _ => panic!("expected uploads status"),
         }
     }
 
