@@ -1,0 +1,28 @@
+[package]
+name = "mfn-storage-operator"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite storage operator daemon: SPoRA proof loop over wallet upload artifacts."
+
+[[bin]]
+name = "mfn-storage-operator"
+path = "src/bin/mfn-storage-operator.rs"
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+mfn-crypto = { path = "../mfn-crypto" }
+mfn-storage = { path = "../mfn-storage" }
+mfn-wallet = { path = "../mfn-wallet" }
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+ctrlc = "3.4"

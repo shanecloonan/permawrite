@@ -41,9 +41,6 @@ pub fn operator_challenge(
 
 /// Build a SPoRA proof from local file bytes or a wallet upload artifact, then
 /// submit via `submit_storage_proof`.
-///
-/// When `data_path` is `None`, `wallet_path` must be set and
-/// [`crate::upload_artifact_store::load_upload_artifact`] supplies payload + tree.
 pub fn operator_prove(
     client: &mut RpcClient,
     commitment_hash_hex: &str,
@@ -89,9 +86,8 @@ pub fn operator_prove(
             (data, tree, None)
         }
         (None, Some(wallet)) => {
-            let loaded =
-                crate::upload_artifact_store::load_upload_artifact(wallet, commitment_hash_hex)
-                    .map_err(|e| OperatorCmdError::Usage(format!("upload artifact: {e}")))?;
+            let loaded = mfn_storage_operator::load_upload_artifact(wallet, commitment_hash_hex)
+                .map_err(|e| OperatorCmdError::Usage(format!("upload artifact: {e}")))?;
             let local_hash = storage_commitment_hash(&loaded.built.commit);
             if local_hash != on_chain_hash {
                 return Err(OperatorCmdError::Usage(

@@ -382,7 +382,7 @@ pub fn wallet_upload(
     let tx_bytes = encode_transaction(&art.signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
-    match crate::upload_artifact_store::save_upload_artifact(
+    match mfn_storage_operator::upload_artifact_store::save_upload_artifact(
         path,
         &art.built,
         &data,

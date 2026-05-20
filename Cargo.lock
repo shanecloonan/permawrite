@@ -487,6 +487,7 @@ dependencies = [
  "mfn-net",
  "mfn-node",
  "mfn-storage",
+ "mfn-storage-operator",
  "mfn-store",
  "mfn-wallet",
  "rand_core 0.6.4",
@@ -608,6 +609,20 @@ dependencies = [
  "hex",
  "mfn-crypto",
  "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "mfn-storage-operator"
+version = "0.1.0"
+dependencies = [
+ "ctrlc",
+ "hex",
+ "mfn-crypto",
+ "mfn-storage",
+ "mfn-wallet",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

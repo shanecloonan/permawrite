@@ -201,8 +201,7 @@ mod tests {
         let c_hash = storage_commitment_hash(&built.commit);
         let num_chunks = built.commit.num_chunks;
         let slot_old = 1u32;
-        let idx_old =
-            chunk_index_for_challenge(&prev, slot_old, &c_hash, num_chunks);
+        let idx_old = chunk_index_for_challenge(&prev, slot_old, &c_hash, num_chunks);
         let proof_old = build_storage_proof(&built.commit, &prev, slot_old, &payload, &built.tree)
             .expect("proof");
         let bytes = encode_proof_pool_snapshot_entries(std::slice::from_ref(&proof_old));

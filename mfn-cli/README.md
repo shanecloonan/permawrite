@@ -117,6 +117,15 @@ Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.
 
 `uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand.
 
+For continuous proving, run the storage-operator daemon (**M6**):
+
+```bash
+cargo build -p mfn-storage-operator --release
+mfn-storage-operator run --wallet ./alice.json --rpc 127.0.0.1:18731
+```
+
+See [`mfn-storage-operator/README.md`](../mfn-storage-operator/README.md).
+
 To mine any wallet tx: stop `mfnd serve` (flushes `mempool.bytes`), then `mfnd step --blocks 1` (reloads durable mempool per **M2.3.21**).
 
 ## Library

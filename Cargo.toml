@@ -13,6 +13,7 @@ members = [
     "mfn-light",
     "mfn-wallet",
     "mfn-cli",
+    "mfn-storage-operator",
     "mfn-wasm",
 ]
 

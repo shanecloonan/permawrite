@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-The workspace is **11 crates** as of M2.3.17, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
+The workspace is **12 crates** as of **M6**, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
 
 | Layer | Crate | Status |
 |---|---|---|
@@ -21,6 +21,7 @@ The workspace is **11 crates** as of M2.3.17, all on the same green CI gate (fmt
 | Reference daemon — `mfnd` binary (**M2.1.1**), JSON genesis (**M2.1.2**), `step` family (**M2.1.3–M2.1.5**), `serve` TCP control plane (**M2.1.6** + every `M2.1.x` / `M2.2.8` / `M2.2.10` method on the wire), `--p2p-listen` (**M2.3.3**) / `--p2p-dial` (**M2.3.6**), `--store fs\|redb` (default `redb` at **M2.3.17**), shared-mutex `Chain` / `Mempool` for concurrent RPC + P2P | `mfn-node` | ✓ live |
 | Light-client follower — **M2.0.6** header-chain follower, **M2.0.7** body-root verification, **M2.0.8** validator-set evolution, **M2.0.9** checkpoint serialization, **M2.0.10** raw-block-byte sync, **M2.0.16** shared `checkpoint_codec`, **M2.2.5** light agreement on `claims_root` | `mfn-light` | ✓ live |
 | Confidential wallet — **M2.0.11** stealth scan + transfer building, **M2.0.14** storage-upload construction, **M2.2.6** `ClaimingIdentity` + standalone claim tx, **M2.2.7** uploads with `authorship_claims` in `extra` | `mfn-wallet` | ✓ live (library; **M3.0** chain RPC + **M3.1** `mfn-cli wallet` scan/balance) |
+| Storage-operator daemon — **M6** `mfn-storage-operator run` SPoRA loop over wallet artifacts | `mfn-storage-operator` | ✓ live |
 | Canonical wire codec | (currently in `mfn-crypto::codec`) | ✓ live; extraction to `mfn-wire` still planned |
 
 **Posture.** The single-node story is end-to-end: a `mfnd` process boots from JSON genesis, persists either to a flat filesystem snapshot or an embedded `redb` database, drains its in-memory mempool into solo-produced blocks, serves a JSON-RPC 2.0 line protocol with ~20 read/write methods covering tip, blocks, headers, mempool, checkpoint, method discovery, and authorship-claim discovery, and accepts inbound P2P peers that complete a length-prefixed Hello→Ping→Tip→Goodbye handshake and then exchange tx/block gossip frames. The **multi-node** story is the next strategic block of work (durable mempool, request/response block-sync, peer-set persistence, multi-validator scheduling) — that's everything between M2.3.16 and a public testnet (M2.4). The wallet CLI (M3) and WASM bindings (M4) follow.
@@ -2074,6 +2075,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.23** | Durable `proof_pool.bytes` snapshot + reload on `mfnd serve` boot (re-admit for next-block context; skip stale). | ✓ shipped |
 | **M3.24** | Wallet upload artifacts (`{wallet}.upload-artifacts/`) persist payload + Merkle metadata; `operator prove` loads without FILE. | ✓ shipped |
 | **M3.25** | `uploads local` + `operator artifacts`: list persisted upload artifacts for `--wallet`. | ✓ shipped |
+| **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components

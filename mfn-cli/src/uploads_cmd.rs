@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::rpc::RpcClient;
-use crate::upload_artifact_store::{list_upload_artifacts, upload_artifacts_root};
+use mfn_storage_operator::upload_artifact_store::{list_upload_artifacts, upload_artifacts_root};
 
 /// Pagination and optional claims join for `uploads list`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
