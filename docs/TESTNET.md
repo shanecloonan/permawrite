@@ -41,7 +41,7 @@ Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`
 | **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. |
 | **Observer** | `serve` (no produce flags) | Syncs blocks/txs, exposes JSON-RPC; no validator env required. |
 
-CI uses one hub + two committee voters so only the proposer seals (avoids forked tips under `expected_proposers_per_slot: 10` in the local harness spec). The **public devnet** spec sets `expected_proposers_per_slot: 1.5` so operators can later run three `--produce` nodes with natural slot skipping; the commands below match the proven hub + voter topology.
+CI uses one hub + two committee voters so only the proposer seals (avoids forked tips under `expected_proposers_per_slot: 10` in the local harness spec). The hub does **not** run the committee catch-up dial loop (**M2.3.29**); voters do. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). The **public devnet** spec sets `expected_proposers_per_slot: 1.5` so operators can later run three `--produce` nodes with natural slot skipping; the commands below match the proven hub + voter topology.
 
 ---
 

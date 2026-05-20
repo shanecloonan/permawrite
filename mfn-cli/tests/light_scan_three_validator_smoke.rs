@@ -411,27 +411,42 @@ fn start_three_validator_mesh(spec: &Path) -> (ValidatorNode, ValidatorNode, Val
     watch_stdout(out2, Arc::clone(&log2), None);
     watch_stderr(&mut v2.child, Arc::clone(&log2));
 
-    thread::sleep(Duration::from_millis(2000));
+    thread::sleep(Duration::from_millis(500));
 
-    let (height, _) = wait_first_block(
+    // All validators must share the same height + tip_id (committee catch-up can lag).
+    let (height, tip_id) = wait_common_tip(
         v0.rpc,
         &[v1.rpc, v2.rpc],
-        &sealed,
-        Duration::from_secs(120),
-        &[Arc::clone(&log0), Arc::clone(&log1), Arc::clone(&log2)],
+        1,
+        Duration::from_secs(180),
     );
-    assert!(
-        height >= 1,
-        "all validators should share tip at height >= 1"
+    assert!(height >= 1, "mesh should converge before light-scan (height={height})");
+    assert_eq!(
+        get_tip(v1.rpc).1, tip_id,
+        "v1 tip_id should match hub after convergence"
+    );
+    assert_eq!(
+        get_tip(v2.rpc).1, tip_id,
+        "v2 tip_id should match hub after convergence"
     );
 
     (v0, v1, v2)
 }
 
+fn expected_payout_balance_through(scan_height: u32) -> u128 {
+    (1..=scan_height)
+        .map(|h| u128::from(emission_at_height(u64::from(h), &DEFAULT_EMISSION_PARAMS)))
+        .sum()
+}
+
 fn assert_light_scan_three_validator(stdout: &str, wallet_path: &Path, scan_height: u32) {
-    let expected = emission_at_height(u64::from(scan_height), &DEFAULT_EMISSION_PARAMS);
+    let expected = expected_payout_balance_through(scan_height);
     assert!(
         stdout.contains(&format!("balance={expected}")),
+        "stdout={stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("scan_height={scan_height}")),
         "stdout={stdout}"
     );
     assert!(stdout.contains("sync_mode=light"));
@@ -482,12 +497,20 @@ fn wallet_light_scan_three_validator_mesh() {
         "stderr={}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_light_scan_three_validator(&String::from_utf8_lossy(&out.stdout), &wallet_path, 1);
-
     let reloaded = WalletFile::load(&wallet_path).expect("reload wallet");
+    let scan_height = reloaded.scan_height.expect("scan_height");
+    assert!(scan_height >= 1, "expected at least one block scanned");
+    assert_light_scan_three_validator(
+        &String::from_utf8_lossy(&out.stdout),
+        &wallet_path,
+        scan_height,
+    );
+
     let snap = rpc_result(&tcp_request_json(
         hub_rpc,
-        r#"{"jsonrpc":"2.0","method":"get_light_snapshot","params":{"height":1},"id":2}"#,
+        &format!(
+            r#"{{"jsonrpc":"2.0","method":"get_light_snapshot","params":{{"height":{scan_height}}},"id":2}}"#
+        ),
     ));
     let summary_path = wallet_dir.join("trusted-summary.json");
     let export = mfn_cli()
@@ -499,7 +522,7 @@ fn wallet_light_scan_three_validator_mesh() {
             "wallet",
             "export-trusted-summary",
             "--height",
-            "1",
+            &scan_height.to_string(),
             "--out",
             summary_path.to_str().expect("utf8 path"),
         ])
