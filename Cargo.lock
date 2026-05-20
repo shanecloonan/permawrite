@@ -482,6 +482,7 @@ dependencies = [
  "hex",
  "mfn-consensus",
  "mfn-crypto",
+ "mfn-light",
  "mfn-node",
  "mfn-storage",
  "mfn-store",
