@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
+use mfn_storage::{encode_storage_proof, StorageProof};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -36,6 +37,55 @@ pub struct BlockHeaderInfo {
     pub block_id: String,
     /// `block_header_bytes` hex.
     pub header_hex: String,
+}
+
+/// `get_storage_challenge` response (**M3.22**).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct StorageChallenge {
+    /// Storage commitment hash (64-char hex).
+    pub commitment_hash: String,
+    /// Canonical `encode_storage_commitment` bytes (hex).
+    pub commitment_wire_hex: String,
+    /// Merkle root over chunk hashes (64-char hex).
+    pub data_root: String,
+    /// Payload size in bytes.
+    pub size_bytes: u64,
+    /// On-chain replication factor.
+    pub replication: u8,
+    /// Chunk count.
+    pub num_chunks: u32,
+    /// Chunk size.
+    pub chunk_size: u32,
+    /// Height the proof must target.
+    pub next_height: u32,
+    /// Slot for challenge derivation.
+    pub next_slot: u32,
+    /// Parent block id (64-char hex).
+    pub prev_block_id: String,
+    /// Challenged chunk index.
+    pub chunk_index: u32,
+}
+
+/// `submit_storage_proof` admission summary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubmitStorageProofResult {
+    /// Commitment hash (64-char hex).
+    pub commit_hash: String,
+    /// Pool length after admit.
+    pub pool_len: u64,
+    /// `outcome.kind` (`Fresh` / `Replaced`).
+    pub outcome_kind: String,
+    /// Expected inclusion height.
+    pub next_height: u32,
+}
+
+/// `get_proof_pool` snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProofPoolSnapshot {
+    /// Pending proof count.
+    pub pool_len: u64,
+    /// Commitment hashes (hex).
+    pub commit_hashes: Vec<String>,
 }
 
 /// `submit_tx` admission summary.
@@ -396,6 +446,66 @@ impl RpcClient {
         let v = self.call("get_block_txs", json!({ "height": height }))?;
         serde_json::from_value(v)
             .map_err(|e| RpcError::Protocol(format!("get_block_txs decode: {e}")))
+    }
+
+    /// `get_storage_challenge` for the next block (**M3.22**).
+    pub fn get_storage_challenge(
+        &mut self,
+        commitment_hash_hex: &str,
+    ) -> Result<StorageChallenge, RpcError> {
+        let v = self.call(
+            "get_storage_challenge",
+            json!({ "commitment_hash": commitment_hash_hex }),
+        )?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_storage_challenge decode: {e}")))
+    }
+
+    /// `submit_storage_proof` — queue a SPoRA proof for the next block.
+    pub fn submit_storage_proof(
+        &mut self,
+        proof: &StorageProof,
+    ) -> Result<SubmitStorageProofResult, RpcError> {
+        let wire = encode_storage_proof(proof);
+        let v = self.call(
+            "submit_storage_proof",
+            json!({ "proof_hex": hex::encode(wire) }),
+        )?;
+        let commit_hash = v
+            .get("commit_hash")
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| RpcError::Protocol("submit_storage_proof: missing commit_hash".into()))?
+            .to_string();
+        let pool_len = v
+            .get("pool_len")
+            .and_then(|x| x.as_u64())
+            .ok_or_else(|| RpcError::Protocol("submit_storage_proof: missing pool_len".into()))?;
+        let outcome_kind = v
+            .get("outcome")
+            .and_then(|o| o.get("kind"))
+            .and_then(|k| k.as_str())
+            .ok_or_else(|| RpcError::Protocol("submit_storage_proof: missing outcome.kind".into()))?
+            .to_string();
+        let next_height = v
+            .get("next_height")
+            .and_then(|x| x.as_u64())
+            .and_then(|n| u32::try_from(n).ok())
+            .ok_or_else(|| {
+                RpcError::Protocol("submit_storage_proof: missing next_height".into())
+            })?;
+        Ok(SubmitStorageProofResult {
+            commit_hash,
+            pool_len,
+            outcome_kind,
+            next_height,
+        })
+    }
+
+    /// `get_proof_pool` — pending operator proofs.
+    pub fn get_proof_pool(&mut self) -> Result<ProofPoolSnapshot, RpcError> {
+        let v = self.call("get_proof_pool", json!(null))?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_proof_pool decode: {e}")))
     }
 
     /// `get_block` for `height` (≥ 1) — returns canonical encoded block bytes.

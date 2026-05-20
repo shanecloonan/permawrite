@@ -15,7 +15,7 @@ use mfn_net::TipSnapshot;
 use mfn_runtime::{
     build_proposal, decode_block_proposal, decode_committee_vote, encode_block_proposal,
     encode_committee_vote, seal_proposal, verify_committee_vote_sig, vote_on_proposal, BlockInputs,
-    BlockProposal, Chain, Mempool, ProducerError,
+    BlockProposal, Chain, Mempool, ProducerError, ProofPool,
 };
 use mfn_store::ChainPersistence;
 
@@ -46,6 +46,8 @@ pub struct ProductionEngineDeps {
     pub chain: Arc<Mutex<Chain>>,
     /// Mempool for block proposals.
     pub pool: Arc<Mutex<Mempool>>,
+    /// SPoRA proof queue drained into produced blocks (**M3.22**).
+    pub proof_pool: Arc<Mutex<ProofPool>>,
     /// Block log + checkpoint persistence.
     pub store: Arc<dyn ChainPersistence + Send + Sync>,
     /// Shared tip for P2P height exchange.
@@ -62,6 +64,7 @@ pub struct ProductionEngineDeps {
 pub struct ProductionEngine {
     chain: Arc<Mutex<Chain>>,
     pool: Arc<Mutex<Mempool>>,
+    proof_pool: Arc<Mutex<ProofPool>>,
     store: Arc<dyn ChainPersistence + Send + Sync>,
     tip_cell: TipSnapshot,
     genesis_timestamp: u64,
@@ -76,6 +79,7 @@ impl ProductionEngine {
         Arc::new(Self {
             chain: deps.chain,
             pool: deps.pool,
+            proof_pool: deps.proof_pool,
             store: deps.store,
             tip_cell: deps.tip_cell,
             genesis_timestamp: deps.genesis_timestamp,
@@ -121,6 +125,7 @@ impl ProductionEngine {
         &self,
         chain: &Chain,
         pool: &mut Mempool,
+        proof_pool: &mut ProofPool,
     ) -> Result<BlockInputs, String> {
         let tip = chain
             .tip_height()
@@ -154,6 +159,11 @@ impl ProductionEngine {
         let mut txs = Vec::with_capacity(1 + drained.len());
         txs.push(cb);
         txs.extend(drained);
+        let prev = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
         Ok(BlockInputs {
             height,
             slot,
@@ -161,7 +171,7 @@ impl ProductionEngine {
             txs,
             bond_ops: Vec::new(),
             slashings: Vec::new(),
-            storage_proofs: Vec::new(),
+            storage_proofs,
         })
     }
 
@@ -279,6 +289,10 @@ impl ProductionEngine {
         if let Ok(mut pool) = self.pool.lock() {
             let _ = pool.remove_mined(&block);
         }
+        if let Ok(mut proof_pool) = self.proof_pool.lock() {
+            let mined: Vec<[u8; 32]> = block.storage_proofs.iter().map(|p| p.commit_hash).collect();
+            let _ = proof_pool.remove_mined(mined);
+        }
         self.store
             .append_block(&block)
             .map_err(|e| format!("store: {e}"))?;
@@ -389,7 +403,11 @@ impl ProductionEngine {
                 Ok(g) => g,
                 Err(_) => return,
             };
-            match self.block_inputs_for_next(&chain, &mut pool) {
+            let mut proof_pool = match self.proof_pool.lock() {
+                Ok(g) => g,
+                Err(_) => return,
+            };
+            match self.block_inputs_for_next(&chain, &mut pool, &mut proof_pool) {
                 Ok(i) => i,
                 Err(e) => {
                     eprintln!("mfnd_producer_slot_abort build_inputs {e}");

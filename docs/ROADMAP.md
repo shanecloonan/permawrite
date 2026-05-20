@@ -2070,6 +2070,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.19** | Harden `light_scan_three_validator` mesh smoke (stdout drain, staged boot, import-on-scan). | ✓ shipped |
 | **M3.20** | `light_scan_three_validator` smoke passes on live mesh (tip-height-aware balance assert). | ✓ shipped |
 | **M3.21** | `wallet light-scan --max-height N` caps scan below node tip (mesh smoke uses height 1). | ✓ shipped |
+| **M3.22** | Storage-operator path: `ProofPool` + `submit_storage_proof` / `get_storage_challenge` / `get_proof_pool` RPC; producer drains proofs into blocks; `mfn-cli operator challenge|prove|pool`. | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components

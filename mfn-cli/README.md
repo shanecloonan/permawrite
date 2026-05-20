@@ -99,6 +99,17 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 
 `wallet claim` derives a deterministic [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs) from the wallet seed, signs an MFCL claim over `DATA_ROOT_HEX` via [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), and submits it. Use `--commit-hash` to bind the claim to a storage commitment hash from a prior upload.
 
+Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
+
+```bash
+mfn-cli uploads list
+mfn-cli operator challenge <COMMITMENT_HASH_HEX>
+mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
+mfn-cli operator pool
+```
+
+`operator prove` rebuilds the Merkle tree from local file bytes, verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
+
 To mine any wallet tx: stop `mfnd serve` (flushes `mempool.bytes`), then `mfnd step --blocks 1` (reloads durable mempool per **M2.3.21**).
 
 ## Library

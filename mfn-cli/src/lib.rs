@@ -15,6 +15,7 @@ pub mod cli;
 pub mod light_follow_quorum;
 pub mod light_subjectivity;
 pub mod light_wallet;
+pub mod operator_cmd;
 pub mod rpc;
 pub mod uploads_cmd;
 pub mod wallet_cmd;

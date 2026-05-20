@@ -191,6 +191,7 @@ fn run_solo_step(
     };
 
     let mut pool = Mempool::new(MempoolConfig::default());
+    let mut proof_pool = mfn_runtime::ProofPool::new(mfn_runtime::ProofPoolConfig::default());
     {
         let stats = load_mempool(store, &mut pool, chain.state())
             .map_err(|e| format!("mfnd step: load mempool: {e}"))?;
@@ -236,6 +237,11 @@ fn run_solo_step(
         txs.push(cb);
         txs.extend(drained);
 
+        let prev = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
         let inputs = BlockInputs {
             height: next_height,
             slot: next_height,
@@ -243,7 +249,7 @@ fn run_solo_step(
             txs,
             bond_ops: Vec::new(),
             slashings: Vec::new(),
-            storage_proofs: Vec::new(),
+            storage_proofs,
         };
         let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
             .map_err(|e| format!("produce_solo_block: {e}"))?;
@@ -251,6 +257,8 @@ fn run_solo_step(
             .apply(&block)
             .map_err(|e| format!("apply_block: {e}"))?;
         pool.remove_mined(&block);
+        let mined: Vec<[u8; 32]> = block.storage_proofs.iter().map(|p| p.commit_hash).collect();
+        let _ = proof_pool.remove_mined(mined);
         store
             .append_block(&block)
             .map_err(|e| format!("append_block: {e}"))?;

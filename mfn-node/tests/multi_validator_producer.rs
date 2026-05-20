@@ -15,7 +15,7 @@ use mfn_node::store::{ChainPersistence, ChainStore};
 use mfn_node::{ChainConfig, Mempool, MempoolConfig, P2pPeerSet, ProduceConfig, ProductionEngine};
 use mfn_runtime::encode_block_proposal;
 use mfn_runtime::proposal_wire::encode_committee_vote;
-use mfn_runtime::{build_proposal, vote_on_proposal, BlockInputs};
+use mfn_runtime::{build_proposal, vote_on_proposal, BlockInputs, ProofPool, ProofPoolConfig};
 
 #[test]
 fn three_validators_proposal_vote_seal_in_process() {
@@ -36,6 +36,7 @@ fn three_validators_proposal_vote_seal_in_process() {
 
     let chain = Arc::new(Mutex::new(store.load_or_genesis(cfg).expect("genesis")));
     let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     let genesis_id = *chain.lock().unwrap().genesis_id();
     let tip = Arc::new(Mutex::new((0u32, genesis_id)));
     let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir);
@@ -67,6 +68,7 @@ fn three_validators_proposal_vote_seal_in_process() {
     let engine = ProductionEngine::new(mfn_node::ProductionEngineDeps {
         chain: Arc::clone(&chain),
         pool: Arc::clone(&pool),
+        proof_pool: Arc::clone(&proof_pool),
         store: Arc::clone(&store),
         tip_cell: Arc::clone(&tip),
         genesis_timestamp: genesis.timestamp,
@@ -187,6 +189,7 @@ fn competing_proposals_at_same_height_converge_on_pick_winner() {
     let store: Arc<dyn ChainPersistence + Send + Sync> = Arc::new(ChainStore::new(&dir));
     let chain = Arc::new(Mutex::new(store.load_or_genesis(cfg).expect("genesis")));
     let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     let genesis_id = *chain.lock().unwrap().genesis_id();
     let tip = Arc::new(Mutex::new((0u32, genesis_id)));
     let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir);
@@ -233,6 +236,7 @@ fn competing_proposals_at_same_height_converge_on_pick_winner() {
     let engine = ProductionEngine::new(mfn_node::ProductionEngineDeps {
         chain: Arc::clone(&chain),
         pool: Arc::clone(&pool),
+        proof_pool: Arc::clone(&proof_pool),
         store: Arc::clone(&store),
         tip_cell: Arc::clone(&tip),
         genesis_timestamp: genesis.timestamp,

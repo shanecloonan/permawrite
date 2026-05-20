@@ -16,7 +16,9 @@ use mfn_net::serve::{
 };
 use mfn_net::FanoutPeerSet;
 use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
-use mfn_runtime::{mempool_root, Chain, ChainConfig, Mempool, MempoolConfig};
+use mfn_runtime::{
+    mempool_root, Chain, ChainConfig, Mempool, MempoolConfig, ProofPool, ProofPoolConfig,
+};
 use mfn_store::{load_mempool, save_mempool, ChainPersistence};
 use serde_json::Value;
 
@@ -50,6 +52,7 @@ fn handle_client(
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
+    proof_pool: &mut ProofPool,
     dispatch_opts: ServeDispatchOpts,
 ) -> Result<(), String> {
     let peer = stream
@@ -60,7 +63,8 @@ fn handle_client(
     reader
         .read_line(&mut line)
         .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
-    let resp = parse_and_dispatch_serve_opts(store, chain, pool, &line, dispatch_opts);
+    let resp =
+        parse_and_dispatch_serve_opts(store, chain, pool, Some(proof_pool), &line, dispatch_opts);
     write_line(stream, &resp)
 }
 
@@ -187,6 +191,7 @@ pub(crate) fn run_serve(
         store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
     ));
     let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+    let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     {
         let guard = chain
             .lock()
@@ -240,6 +245,7 @@ pub(crate) fn run_serve(
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),
             Arc::clone(&pool),
+            Arc::clone(&proof_pool),
             Arc::clone(&store),
             Arc::clone(&tip_cell),
         );
@@ -273,6 +279,7 @@ pub(crate) fn run_serve(
             let engine = ProductionEngine::new(ProductionEngineDeps {
                 chain: Arc::clone(&chain),
                 pool: Arc::clone(&pool),
+                proof_pool: Arc::clone(&proof_pool),
                 store: Arc::clone(&store),
                 tip_cell: Arc::clone(&tip_cell),
                 genesis_timestamp,
@@ -460,6 +467,10 @@ pub(crate) fn run_serve(
             eprintln!("mfnd serve: pool mutex poisoned");
             continue;
         };
+        let Ok(mut proof_guard) = proof_pool.lock() else {
+            eprintln!("mfnd serve: proof_pool mutex poisoned");
+            continue;
+        };
         let len_before = pool_guard.len();
         let root_before = mempool_root(&pool_guard);
         match handle_client(
@@ -467,6 +478,7 @@ pub(crate) fn run_serve(
             store.as_ref(),
             &mut chain_guard,
             &mut pool_guard,
+            &mut proof_guard,
             dispatch_opts.clone(),
         ) {
             Ok(()) => {

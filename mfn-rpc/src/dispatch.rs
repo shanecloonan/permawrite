@@ -19,7 +19,8 @@ use mfn_light::LightChain;
 use mfn_net::LightFollowV1;
 use serde_json::{json, Map, Value};
 
-use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool};
+use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool, ProofAdmitOutcome, ProofPool};
+use mfn_storage::{chunk_index_for_challenge, decode_storage_proof, encode_storage_commitment};
 use mfn_store::ChainPersistence;
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -39,6 +40,8 @@ pub mod rpc_codes {
     pub const MEMPOOL_TX_NOT_FOUND: i64 = -32003;
     /// [`mfn_store::ChainStore::save`] failed (IO or other store error).
     pub const CHECKPOINT_SAVE: i64 = -32004;
+    /// [`mfn_runtime::ProofPool::admit`] rejected the decoded proof.
+    pub const PROOF_POOL_REJECT: i64 = -32005;
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -88,6 +91,74 @@ fn request_id(req: &Value) -> Value {
     match req.get("id") {
         None => Value::Null,
         Some(v) => v.clone(),
+    }
+}
+
+/// `submit_storage_proof` accepts `params` as `{"proof_hex": "…"}` or `["…"]`.
+fn extract_submit_proof_hex(params: Option<&Value>) -> Result<&str, String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    match p {
+        Value::Object(obj) => match obj.get("proof_hex") {
+            Some(Value::String(s)) => Ok(s.as_str()),
+            Some(_) => Err("params.proof_hex must be a JSON string".to_string()),
+            None => {
+                Err("missing params.proof_hex (hex-encoded encode_storage_proof bytes)".to_string())
+            }
+        },
+        Value::Array(arr) => {
+            let first = arr
+                .first()
+                .ok_or_else(|| "params array is empty (expected one hex string)".to_string())?;
+            match first {
+                Value::String(s) => Ok(s.as_str()),
+                _ => Err(
+                    "params[0] must be a JSON string (hex-encoded encode_storage_proof bytes)"
+                        .to_string(),
+                ),
+            }
+        }
+        _ => Err("params must be a JSON object or a JSON array".to_string()),
+    }
+}
+
+fn extract_commitment_hash_param(params: Option<&Value>) -> Result<[u8; 32], String> {
+    let p = match params {
+        None | Some(Value::Null) => return Err("missing `params`".to_string()),
+        Some(v) => v,
+    };
+    let hex_s: &str = match p {
+        Value::Object(obj) => obj
+            .get("commitment_hash")
+            .or_else(|| obj.get("commit_hash"))
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                "missing params.commitment_hash (64-char hex storage commitment hash)".to_string()
+            })?,
+        Value::Array(arr) => arr
+            .first()
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "params array is empty (expected commitment_hash hex)".to_string())?,
+        _ => return Err("params must be a JSON object or a JSON array".to_string()),
+    };
+    parse_tx_id_hex32(hex_s)
+}
+
+fn next_block_context(chain: &Chain) -> ([u8; 32], u32) {
+    let prev = chain
+        .tip_id()
+        .copied()
+        .unwrap_or_else(|| *chain.genesis_id());
+    let next_height = chain.tip_height().map(|h| h.saturating_add(1)).unwrap_or(1);
+    (prev, next_height)
+}
+
+fn proof_admit_outcome_json(o: &ProofAdmitOutcome) -> Value {
+    match o {
+        ProofAdmitOutcome::Fresh => json!({"kind": "Fresh"}),
+        ProofAdmitOutcome::Replaced => json!({"kind": "Replaced"}),
     }
 }
 
@@ -629,6 +700,7 @@ fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<
 fn serve_rpc_methods_json_result() -> Value {
     let mut methods: Vec<&'static str> = vec![
         "clear_mempool",
+        "clear_proof_pool",
         "get_block",
         "get_block_header",
         "get_block_evolution",
@@ -645,6 +717,8 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_checkpoint",
         "get_mempool",
         "get_mempool_tx",
+        "get_proof_pool",
+        "get_storage_challenge",
         "get_tip",
         "list_data_roots_with_claims",
         "list_methods",
@@ -653,6 +727,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "list_utxos",
         "remove_mempool_tx",
         "save_checkpoint",
+        "submit_storage_proof",
         "submit_tx",
     ];
     methods.sort_unstable();
@@ -956,7 +1031,7 @@ pub fn parse_and_dispatch_serve(
     pool: &mut Mempool,
     line: &str,
 ) -> Value {
-    parse_and_dispatch_serve_opts(store, chain, pool, line, ServeDispatchOpts::default())
+    parse_and_dispatch_serve_opts(store, chain, pool, None, line, ServeDispatchOpts::default())
 }
 
 /// Like [`parse_and_dispatch_serve`] with optional post-admit hooks.
@@ -964,6 +1039,7 @@ pub fn parse_and_dispatch_serve_opts(
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
+    proof_pool: Option<&mut ProofPool>,
     line: &str,
     opts: ServeDispatchOpts,
 ) -> Value {
@@ -995,13 +1071,14 @@ pub fn parse_and_dispatch_serve_opts(
             );
         }
     }
-    dispatch_serve_methods(store, chain, pool, &req, &id, &opts)
+    dispatch_serve_methods(store, chain, pool, proof_pool, &req, &id, &opts)
 }
 
 fn dispatch_serve_methods(
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
+    proof_pool: Option<&mut ProofPool>,
     req: &Value,
     id: &Value,
     opts: &ServeDispatchOpts,
@@ -1187,6 +1264,133 @@ fn dispatch_serve_methods(
                 }
                 Err(e) => rpc_error(id, rpc_codes::MEMPOOL_REJECT, format!("mempool admit: {e}")),
             }
+        }
+        "submit_storage_proof" => {
+            let Some(proof_pool) = proof_pool else {
+                return rpc_error(
+                    id,
+                    rpc_codes::INTERNAL_ERROR,
+                    "proof pool not configured on this node",
+                );
+            };
+            let hex_s = match extract_submit_proof_hex(req.get("params")) {
+                Ok(s) => s,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let hex_s = hex_s.trim();
+            let hex_s = hex_s
+                .strip_prefix("0x")
+                .or_else(|| hex_s.strip_prefix("0X"))
+                .unwrap_or(hex_s);
+            let bytes = match hex::decode(hex_s) {
+                Ok(b) => b,
+                Err(e) => {
+                    return rpc_error(id, rpc_codes::INVALID_PARAMS, format!("hex decode: {e}"));
+                }
+            };
+            let proof = match decode_storage_proof(&bytes) {
+                Ok(p) => p,
+                Err(e) => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::INVALID_PARAMS,
+                        format!("decode_storage_proof: {e}"),
+                    );
+                }
+            };
+            let commit_hash = proof.commit_hash;
+            let (prev, next_h) = next_block_context(chain);
+            match proof_pool.admit(proof, chain.state(), &prev, next_h) {
+                Ok(outcome) => {
+                    let body = json!({
+                        "commit_hash": hex32(&commit_hash),
+                        "pool_len": proof_pool.len(),
+                        "outcome": proof_admit_outcome_json(&outcome),
+                        "next_height": next_h,
+                        "prev_block_id": hex32(&prev),
+                    });
+                    rpc_success(id, body)
+                }
+                Err(e) => rpc_error(
+                    id,
+                    rpc_codes::PROOF_POOL_REJECT,
+                    format!("proof pool admit: {e}"),
+                ),
+            }
+        }
+        "get_proof_pool" => {
+            let Some(proof_pool) = proof_pool else {
+                return rpc_error(
+                    id,
+                    rpc_codes::INTERNAL_ERROR,
+                    "proof pool not configured on this node",
+                );
+            };
+            let ids: Vec<String> = proof_pool
+                .commit_hashes()
+                .into_iter()
+                .map(|id| hex32(&id))
+                .collect();
+            rpc_success(
+                id,
+                json!({
+                    "pool_len": proof_pool.len(),
+                    "commit_hashes": ids,
+                }),
+            )
+        }
+        "clear_proof_pool" => {
+            let Some(proof_pool) = proof_pool else {
+                return rpc_error(
+                    id,
+                    rpc_codes::INTERNAL_ERROR,
+                    "proof pool not configured on this node",
+                );
+            };
+            let cleared = proof_pool.len();
+            proof_pool.clear();
+            rpc_success(
+                id,
+                json!({
+                    "cleared": cleared,
+                    "pool_len": proof_pool.len(),
+                }),
+            )
+        }
+        "get_storage_challenge" => {
+            let commit_hash = match extract_commitment_hash_param(req.get("params")) {
+                Ok(h) => h,
+                Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let entry = match chain.state().storage.get(&commit_hash) {
+                Some(e) => e,
+                None => {
+                    return rpc_error(
+                        id,
+                        rpc_codes::INVALID_PARAMS,
+                        format!("unknown storage commitment {}", hex32(&commit_hash)),
+                    );
+                }
+            };
+            let (prev, next_h) = next_block_context(chain);
+            let idx =
+                chunk_index_for_challenge(&prev, next_h, &commit_hash, entry.commit.num_chunks);
+            rpc_success(
+                id,
+                json!({
+                    "commitment_hash": hex32(&commit_hash),
+                    "commitment_wire_hex": hex::encode(encode_storage_commitment(&entry.commit)),
+                    "data_root": hex32(&entry.commit.data_root),
+                    "size_bytes": entry.commit.size_bytes,
+                    "replication": entry.commit.replication,
+                    "num_chunks": entry.commit.num_chunks,
+                    "chunk_size": entry.commit.chunk_size,
+                    "next_height": next_h,
+                    "next_slot": next_h,
+                    "prev_block_id": hex32(&prev),
+                    "chunk_index": idx,
+                }),
+            )
         }
         "get_block" => {
             let height = match extract_height_param(req.get("params")) {
@@ -2303,6 +2507,7 @@ mod tests {
             store,
             chain,
             pool,
+            None,
             line,
             ServeDispatchOpts {
                 genesis: Some(genesis),
@@ -2877,6 +3082,7 @@ mod tests {
         assert_eq!(names, sorted, "methods must be lexicographically sorted");
         for expected in [
             "clear_mempool",
+            "clear_proof_pool",
             "get_block",
             "get_block_header",
             "get_block_evolution",
@@ -2892,6 +3098,8 @@ mod tests {
             "get_checkpoint",
             "get_mempool",
             "get_mempool_tx",
+            "get_proof_pool",
+            "get_storage_challenge",
             "get_tip",
             "list_data_roots_with_claims",
             "list_methods",
@@ -2900,11 +3108,12 @@ mod tests {
             "list_utxos",
             "remove_mempool_tx",
             "save_checkpoint",
+            "submit_storage_proof",
             "submit_tx",
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 26);
+        assert_eq!(names.len(), 30);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -2918,7 +3127,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 26);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 30);
         fs::remove_dir_all(&root).ok();
     }
 

@@ -4,13 +4,14 @@ use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{decode_block, decode_transaction, tx_id};
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
-use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool};
+use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
 use mfn_store::ChainPersistence;
 
 /// Shared chain + mempool + store for inbound gossip (**M2.3.16**).
 pub struct P2pGossipHandler {
     chain: Arc<Mutex<Chain>>,
     pool: Arc<Mutex<Mempool>>,
+    proof_pool: Arc<Mutex<ProofPool>>,
     store: Arc<dyn ChainPersistence + Send + Sync>,
     tip_cell: TipSnapshot,
 }
@@ -20,12 +21,14 @@ impl P2pGossipHandler {
     pub fn new(
         chain: Arc<Mutex<Chain>>,
         pool: Arc<Mutex<Mempool>>,
+        proof_pool: Arc<Mutex<ProofPool>>,
         store: Arc<dyn ChainPersistence + Send + Sync>,
         tip_cell: TipSnapshot,
     ) -> Arc<Self> {
         Arc::new(Self {
             chain,
             pool,
+            proof_pool,
             store,
             tip_cell,
         })
@@ -116,6 +119,11 @@ impl GossipHandler for P2pGossipHandler {
                 if let Ok(mut pool) = self.pool.lock() {
                     let _ = pool.remove_mined(&block);
                 }
+                if let Ok(mut proof_pool) = self.proof_pool.lock() {
+                    let mined: Vec<[u8; 32]> =
+                        block.storage_proofs.iter().map(|p| p.commit_hash).collect();
+                    let _ = proof_pool.remove_mined(mined);
+                }
                 self.refresh_tip_cell(&chain);
                 let mut bid_hex = String::with_capacity(64);
                 for b in bid {
@@ -138,7 +146,7 @@ mod tests {
         DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_net::GossipHandler;
-    use mfn_runtime::{ChainConfig, Mempool, MempoolConfig};
+    use mfn_runtime::{ChainConfig, Mempool, MempoolConfig, ProofPool, ProofPoolConfig};
     use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
     use mfn_store::ChainStore;
 
@@ -172,6 +180,7 @@ mod tests {
             store.load_or_genesis(chain_cfg).expect("genesis"),
         ));
         let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
+        let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
 
         let mut guard = chain.lock().expect("chain");
         let st = guard.state();
@@ -192,7 +201,7 @@ mod tests {
         drop(guard);
 
         let tip_cell = Arc::new(Mutex::new((height, tip_id)));
-        let handler = P2pGossipHandler::new(chain, pool, store, tip_cell);
+        let handler = P2pGossipHandler::new(chain, pool, proof_pool, store, tip_cell);
         (handler, wire)
     }
 

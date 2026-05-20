@@ -13,6 +13,7 @@ use crate::light_subjectivity::{
     ImportTrustedSummaryParams, ShowTrustedSummaryParams,
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
+use crate::operator_cmd::{operator_challenge, operator_pool, operator_prove, OperatorCmdError};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
 use crate::wallet_cmd::{
@@ -33,6 +34,9 @@ pub enum CliError {
     /// Wallet file / scan error.
     #[error("{0}")]
     Wallet(#[from] WalletCmdError),
+    /// Storage operator command error.
+    #[error("{0}")]
+    Operator(#[from] OperatorCmdError),
 }
 
 /// Entry for the `mfn-cli` binary.
@@ -110,6 +114,16 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 uploads_list(&mut client, &params).map_err(CliError::Usage)?
             }
         },
+        Cmd::Operator { sub } => match sub {
+            OperatorSub::Challenge {
+                commitment_hash_hex,
+            } => operator_challenge(&mut client, &commitment_hash_hex)?,
+            OperatorSub::Prove {
+                commitment_hash_hex,
+                data_path,
+            } => operator_prove(&mut client, &commitment_hash_hex, &data_path)?,
+            OperatorSub::Pool => operator_pool(&mut client)?,
+        },
         Cmd::Wallet {
             sub,
             wallet_path,
@@ -178,6 +192,9 @@ enum Cmd {
     Uploads {
         sub: UploadsSub,
     },
+    Operator {
+        sub: OperatorSub,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,6 +213,18 @@ enum ClaimsSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum UploadsSub {
     List(UploadsListParams),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum OperatorSub {
+    Challenge {
+        commitment_hash_hex: String,
+    },
+    Prove {
+        commitment_hash_hex: String,
+        data_path: std::path::PathBuf,
+    },
+    Pool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -269,7 +298,10 @@ fn usage() -> &'static str {
                          options for recent/roots: --limit N --offset N\n\
                          options for by-pubkey: --limit N\n\
        uploads list                       recent storage uploads (list_recent_uploads)\n\
-                         options: --limit N --offset N --include-claims\n"
+                         options: --limit N --offset N --include-claims\n\
+       operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
+       operator prove COMMIT_HASH_HEX FILE build proof from FILE bytes + submit_storage_proof\n\
+       operator pool                      list pending proofs (get_proof_pool)\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -433,6 +465,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         "wallet" => parse_wallet_cmd(&positional[1..], wallet_path, force)?,
         "claims" => parse_claims_cmd(&positional[1..])?,
         "uploads" => parse_uploads_cmd(&positional[1..])?,
+        "operator" => parse_operator_cmd(&positional[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown command `{other}`\n{}",
@@ -498,6 +531,56 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
     };
     Ok(Cmd::Uploads { sub })
+}
+
+fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
+    let Some(sub_name) = rest.first() else {
+        return Err(CliError::Usage(format!(
+            "operator requires SUBCOMMAND (challenge|prove|pool)\n{}",
+            usage()
+        )));
+    };
+    let sub = match *sub_name {
+        "challenge" => {
+            if rest.len() != 2 {
+                return Err(CliError::Usage(format!(
+                    "operator challenge requires COMMITMENT_HASH_HEX\n{}",
+                    usage()
+                )));
+            }
+            OperatorSub::Challenge {
+                commitment_hash_hex: rest[1].to_string(),
+            }
+        }
+        "prove" => {
+            if rest.len() != 3 {
+                return Err(CliError::Usage(format!(
+                    "operator prove requires COMMITMENT_HASH_HEX FILE\n{}",
+                    usage()
+                )));
+            }
+            OperatorSub::Prove {
+                commitment_hash_hex: rest[1].to_string(),
+                data_path: std::path::PathBuf::from(rest[2]),
+            }
+        }
+        "pool" => {
+            if rest.len() != 1 {
+                return Err(CliError::Usage(format!(
+                    "operator pool takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            OperatorSub::Pool
+        }
+        other => {
+            return Err(CliError::Usage(format!(
+                "unknown operator subcommand `{other}`\n{}",
+                usage()
+            )));
+        }
+    };
+    Ok(Cmd::Operator { sub })
 }
 
 fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError> {

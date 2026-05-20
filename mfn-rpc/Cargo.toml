@@ -19,6 +19,7 @@ mfn-bls = { path = "../mfn-bls" }
 mfn-light = { path = "../mfn-light" }
 mfn-net = { path = "../mfn-net" }
 mfn-crypto = { path = "../mfn-crypto" }
+mfn-storage = { path = "../mfn-storage" }
 
 serde_json = { workspace = true }
 hex = { workspace = true }

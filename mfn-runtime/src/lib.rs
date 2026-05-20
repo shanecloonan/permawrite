@@ -9,6 +9,7 @@
 //! - [`Chain`] — owns [`mfn_consensus::ChainState`], applies blocks via
 //!   [`mfn_consensus::apply_block`], checkpoint encode/decode.
 //! - [`Mempool`] — admission, replace-by-fee, fee-ordered drain, mined eviction.
+//! - [`ProofPool`] — SPoRA proof queue for storage operators (**M3.22**).
 //! - [`producer`] — build / vote / seal block proposals; [`produce_solo_block`] for devnet.
 //! - [`genesis_spec`] — versioned JSON → [`mfn_consensus::GenesisConfig`].
 //! - [`demo_genesis`] — default empty local dev genesis.
@@ -43,6 +44,7 @@ pub mod genesis_spec;
 pub mod mempool;
 pub mod mempool_snapshot;
 pub mod producer;
+pub mod proof_pool;
 pub mod proposal_wire;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
@@ -60,6 +62,7 @@ pub use producer::{
     build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs,
     BlockProposal, ProducerError,
 };
+pub use proof_pool::{ProofAdmitError, ProofAdmitOutcome, ProofPool, ProofPoolConfig};
 pub use proposal_wire::{
     decode_block_proposal, decode_committee_vote, encode_block_proposal, encode_committee_vote,
     verify_committee_vote_sig, ProposalWireError,
