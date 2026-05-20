@@ -5,6 +5,7 @@
 //! - Persisted upload artifacts ([`upload_artifact_store`], **M3.24**)
 //! - SPoRA proof construction + `submit_storage_proof` ([`prove`])
 //! - Long-running prove loop ([`daemon`])
+//! - HTTP chunk replication from wallet artifacts ([`chunk_http`], **M6.2**)
 //!
 //! The `mfn-storage-operator` binary polls `mfnd` and every local upload
 //! artifact, submitting proofs into the node's proof pool (**M3.22** / **M3.23**).
@@ -16,11 +17,13 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod chunk_http;
 pub mod daemon;
 pub mod prove;
 pub mod rpc;
 pub mod upload_artifact_store;
 
+pub use chunk_http::{serve_chunks, ChunkServeConfig, ChunkServeError};
 pub use daemon::{
     run_daemon, run_prove_cycle, OperatorDaemonConfig, ProveAttempt, ProveAttemptStatus,
     ProveCycleSummary,

@@ -9,7 +9,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
-use mfn_storage_operator::{run_daemon, OperatorDaemonConfig, DEFAULT_RPC_ADDR};
+use mfn_storage_operator::{
+    run_daemon, serve_chunks, ChunkServeConfig, OperatorDaemonConfig, DEFAULT_RPC_ADDR,
+};
 
 fn main() -> ExitCode {
     match run_cli(env::args().skip(1).collect()) {
@@ -26,6 +28,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
     let mut wallet_path = PathBuf::from("wallet.json");
     let mut interval_secs = 30u64;
     let mut once = false;
+    let mut listen_addr = "127.0.0.1:18780".to_string();
     let mut positional: Vec<String> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -48,6 +51,14 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             i += 2;
             continue;
         }
+        if a == "--listen" {
+            listen_addr = args
+                .get(i + 1)
+                .ok_or("--listen requires HOST:PORT")?
+                .clone();
+            i += 2;
+            continue;
+        }
         if a == "--once" {
             once = true;
             i += 1;
@@ -61,15 +72,6 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
     }
 
     let sub = positional.first().map(String::as_str).unwrap_or("run");
-    if sub != "run" {
-        return Err(format!(
-            "unknown subcommand `{sub}` (expected: mfn-storage-operator run)"
-        ));
-    }
-    if positional.len() > 1 {
-        return Err("too many arguments (only `run` is supported)".into());
-    }
-
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(unix)]
     {
@@ -78,14 +80,37 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             .map_err(|e| format!("ctrlc handler: {e}"))?;
     }
 
-    run_daemon(
-        OperatorDaemonConfig {
-            rpc_addr,
-            wallet_path,
-            interval: Duration::from_secs(interval_secs),
-            once,
-        },
-        stop,
-    )
-    .map_err(|e| e.to_string())
+    match sub {
+        "run" => {
+            if positional.len() > 1 {
+                return Err("too many arguments for `run`".into());
+            }
+            run_daemon(
+                OperatorDaemonConfig {
+                    rpc_addr,
+                    wallet_path,
+                    interval: Duration::from_secs(interval_secs),
+                    once,
+                },
+                stop,
+            )
+            .map_err(|e| e.to_string())
+        }
+        "serve-chunks" => {
+            if positional.len() > 1 {
+                return Err("too many arguments for `serve-chunks`".into());
+            }
+            serve_chunks(
+                ChunkServeConfig {
+                    wallet_path,
+                    listen_addr,
+                },
+                stop,
+            )
+            .map_err(|e| e.to_string())
+        }
+        other => Err(format!(
+            "unknown subcommand `{other}` (expected: run | serve-chunks)"
+        )),
+    }
 }

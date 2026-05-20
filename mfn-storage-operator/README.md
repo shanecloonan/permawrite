@@ -23,6 +23,15 @@ mfn-storage-operator run --wallet ./alice.json --once
 mfn-storage-operator run --wallet ./alice.json --interval 60
 ```
 
+## Serve chunks (replication, **M6.2**)
+
+Expose persisted upload payloads over minimal HTTP so peers can fetch raw chunk bytes:
+
+```bash
+mfn-storage-operator serve-chunks --wallet ./alice.json --listen 127.0.0.1:18780
+# GET /chunk/{commitment_hash_hex}/{chunk_index}  -> application/octet-stream
+```
+
 Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
 
 ## Library
