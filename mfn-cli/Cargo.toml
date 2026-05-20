@@ -30,6 +30,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+mfn-bls = { path = "../mfn-bls" }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-node = { path = "../mfn-node" }
 mfn-store = { path = "../mfn-store" }

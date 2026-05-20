@@ -4,4 +4,4 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export RUSTFLAGS="${RUSTFLAGS:--D warnings}"
 cargo build -p mfn-node --bin mfnd --release
-cargo test -p mfn-node --release -- --ignored --test-threads=1
+cargo test -p mfn-node -p mfn-cli --release -- --ignored --test-threads=1

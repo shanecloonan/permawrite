@@ -426,7 +426,9 @@ fn decode_hex(s: &str, label: &str) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mfn_consensus::{BondingParams, ConsensusParams, GenesisConfig};
+    use mfn_consensus::{BondingParams, ConsensusParams, GenesisConfig, Validator};
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_light::LightChainConfig;
 
     fn sample_chain() -> LightChain {
@@ -469,6 +471,50 @@ mod tests {
         let mut summary = summary_from_checkpoint_hex(&hex).expect("summary");
         summary.tip_height = 99;
         assert!(weak_subjectivity_agrees(&summary, &hex).is_err());
+    }
+
+    #[test]
+    fn three_validator_genesis_summary_count() {
+        let validators: Vec<Validator> = (0u32..3)
+            .map(|i| {
+                let seed = [(i + 1) as u8; 32];
+                let vrf = vrf_keygen_from_seed(&seed).expect("vrf keygen");
+                let bls = bls_keygen_from_seed(&seed);
+                Validator {
+                    index: i,
+                    vrf_pk: vrf.pk,
+                    bls_pk: bls.pk,
+                    stake: 1_000_000,
+                    payout: None,
+                }
+            })
+            .collect();
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: Vec::new(),
+            initial_storage: Vec::new(),
+            validators,
+            params: ConsensusParams {
+                expected_proposers_per_slot: 10.0,
+                quorum_stake_bps: 6666,
+                liveness_max_consecutive_missed: 64,
+                liveness_slash_bps: 0,
+            },
+            emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
+            endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: Some(BondingParams {
+                min_validator_stake: 1,
+                unbond_delay_heights: 1,
+                max_entry_churn_per_epoch: 1,
+                max_exit_churn_per_epoch: 1,
+                slots_per_epoch: 1,
+            }),
+        };
+        let chain = LightChain::from_genesis(LightChainConfig::new(cfg));
+        let hex = hex::encode(chain.encode_checkpoint());
+        let summary = summary_from_checkpoint_hex(&hex).expect("summary");
+        assert_eq!(summary.validator_count, 3);
+        assert_eq!(summary.tip_height, 0);
     }
 
     #[test]

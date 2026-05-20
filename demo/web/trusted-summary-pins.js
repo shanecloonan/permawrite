@@ -126,7 +126,7 @@ export function trustedSummariesEqual(a, b) {
  */
 export function formatTrustedSummaryLines(summary) {
   const s = normalizeTrustedSummary(summary);
-  return SUMMARY_KEYS.map((k) => `${k} = ${s[k]}`).join("\n");
+  return SUMMARY_KEYS.map((k) => `${k}=${s[k]}`).join("\n");
 }
 
 /**

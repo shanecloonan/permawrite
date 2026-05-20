@@ -161,6 +161,7 @@ Run locally:
 ```bash
 cargo test -p mfn-node --test three_validator_produce_smoke --release
 cargo test -p mfn-node --test three_validator_all_produce_smoke --release
+cargo test -p mfn-cli --test light_scan_three_validator_smoke --release -- --ignored
 ```
 
 ---

@@ -78,6 +78,8 @@ mfn-cli wallet import-trusted-summary trusted-summary.json --verify-checkpoint
 
 Import (**M3.15**) pins an out-of-band JSON file into `wallet.json` without syncing; `--verify-checkpoint` checks the file against persisted `light_checkpoint_hex` when present.
 
+Three-validator devnet (**M3.17**): unit test asserts `validator_count=3` on a three-validator genesis checkpoint; live `light_scan_three_validator_smoke` mesh harness is `#[ignore]` (nightly `scripts/ci-ignored.sh`). Genesis spec: `mfn-node/testdata/devnet_three_validators_wallet_payout.json`.
+
 Inspect and diff (**M3.16**):
 
 ```bash
