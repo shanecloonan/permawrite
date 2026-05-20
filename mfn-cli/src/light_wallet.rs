@@ -1,10 +1,10 @@
-//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.12**).
+//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.13**).
 //!
 //! Verifies BLS headers + validator-set evolution via [`mfn_light::LightChain`],
 //! scans txs via `get_block_txs` (no full blocks), matching the browser demo path.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use mfn_consensus::{
     block_id, decode_block_header, decode_bond_op, decode_evidence, decode_transaction,
@@ -14,20 +14,44 @@ use mfn_light::{LightChain, LightChainError};
 use mfn_wallet::Wallet;
 
 use crate::light_follow_quorum::light_follow_pages_quorum;
-use crate::rpc::{LightFollowPage, RpcClient};
+use crate::light_subjectivity::{
+    load_trusted_summary_file, summary_from_checkpoint_hex, weak_subjectivity_agrees,
+};
+use crate::rpc::{LightCheckpointSummary, LightFollowPage, RpcClient};
 use crate::wallet_cmd::{persist_wallet, print_scan_summary, SyncStats, WalletCmdError};
 use crate::wallet_store::WalletFile;
 
 /// Max inclusive span per `get_block_headers` / `get_light_follow` batch.
 const LIGHT_SCAN_CHUNK: u32 = 512;
 
-/// Options for `wallet light-scan` (**M3.12**).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// Options for `wallet light-scan` (**M3.12**–**M3.13**).
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LightScanParams {
     /// Extra `HOST:PORT` RPC bases for `get_light_follow` quorum (M4.14).
     pub quorum_rpc_addrs: Vec<String>,
     /// P2P peers for `get_light_follow_p2p` on the primary `--rpc` node (M4.15).
     pub quorum_p2p_peers: Vec<String>,
+    /// Optional JSON file with a pinned `get_light_snapshot.summary` (**M3.13**).
+    pub trusted_summary_path: Option<PathBuf>,
+    /// Clear `trusted_light_summary` in the wallet file before sync.
+    pub reset_trusted_summary: bool,
+    /// TOFU-pin summary from RPC/bootstrap when none is stored yet.
+    pub pin_trusted_summary: bool,
+    /// Refresh pinned summary from the post-sync checkpoint (default browser behavior).
+    pub update_trusted_summary: bool,
+}
+
+impl Default for LightScanParams {
+    fn default() -> Self {
+        Self {
+            quorum_rpc_addrs: Vec::new(),
+            quorum_p2p_peers: Vec::new(),
+            trusted_summary_path: None,
+            reset_trusted_summary: false,
+            pin_trusted_summary: false,
+            update_trusted_summary: true,
+        }
+    }
 }
 
 /// `wallet light-scan` — header + evolution verified sync through chain tip.
@@ -48,6 +72,12 @@ pub fn wallet_light_scan(
     );
     println!("sync_mode=light");
     println!("light_follow_quorum_batches={}", stats.quorum_batches);
+    if stats.weak_subjectivity_checked {
+        println!("weak_subjectivity=checked");
+    }
+    if stats.weak_subjectivity_pinned {
+        println!("weak_subjectivity=pinned");
+    }
     println!(
         "light_checkpoint_tip={}",
         file.light_checkpoint_hex
@@ -87,10 +117,34 @@ fn sync_wallet_light_from_node(
             blocks_fetched: 0,
             used_utxo_cache,
             quorum_batches: 1,
+            weak_subjectivity_checked: false,
+            weak_subjectivity_pinned: false,
         });
     }
 
-    let mut light = bootstrap_light_chain(client, file, start_height)?;
+    if params.reset_trusted_summary {
+        file.trusted_light_summary = None;
+    }
+
+    let mut light = bootstrap_light_chain(client, file, start_height, params)?;
+    let mut weak_subjectivity_checked = false;
+    let mut weak_subjectivity_pinned = false;
+
+    if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
+        let trusted = resolve_trusted_summary(file, params)?;
+        if let Some(ref summary) = trusted {
+            weak_subjectivity_agrees(summary, cp_hex)
+                .map_err(|e| WalletCmdError::Usage(format!("weak-subjectivity: {e}")))?;
+            weak_subjectivity_checked = true;
+        } else if params.pin_trusted_summary {
+            file.trusted_light_summary = Some(
+                summary_from_checkpoint_hex(cp_hex)
+                    .map_err(|e| WalletCmdError::Usage(format!("pin summary: {e}")))?,
+            );
+            weak_subjectivity_pinned = true;
+        }
+    }
+
     let mut blocks_fetched = 0u32;
     let mut quorum_batches = 1usize;
     let mut from = u64::from(start_height);
@@ -180,13 +234,35 @@ fn sync_wallet_light_from_node(
         file.light_checkpoint_hex = Some(hex::encode(light.encode_checkpoint()));
     }
 
+    if params.update_trusted_summary {
+        if let Some(cp_hex) = file.light_checkpoint_hex.as_ref() {
+            file.trusted_light_summary = Some(
+                summary_from_checkpoint_hex(cp_hex)
+                    .map_err(|e| WalletCmdError::Usage(format!("update trusted summary: {e}")))?,
+            );
+            weak_subjectivity_pinned = true;
+        }
+    }
+
     file.apply_pending_spends(wallet)?;
     Ok(SyncStats {
         tip_height,
         blocks_fetched,
         used_utxo_cache,
         quorum_batches,
+        weak_subjectivity_checked,
+        weak_subjectivity_pinned,
     })
+}
+
+fn resolve_trusted_summary(
+    file: &WalletFile,
+    params: &LightScanParams,
+) -> Result<Option<LightCheckpointSummary>, WalletCmdError> {
+    if let Some(path) = &params.trusted_summary_path {
+        return Ok(Some(load_trusted_summary_file(path)?));
+    }
+    Ok(file.trusted_light_summary.clone())
 }
 
 fn fetch_light_follow_with_quorum(
@@ -226,6 +302,7 @@ fn bootstrap_light_chain(
     client: &mut RpcClient,
     file: &mut WalletFile,
     start_height: u32,
+    params: &LightScanParams,
 ) -> Result<LightChain, WalletCmdError> {
     if let Some(cp_hex) = &file.light_checkpoint_hex {
         let bytes = decode_hex(cp_hex, "light_checkpoint_hex")?;
@@ -267,7 +344,10 @@ fn bootstrap_light_chain(
             chain.tip_height()
         )));
     }
-    file.light_checkpoint_hex = Some(snap.checkpoint_hex);
+    file.light_checkpoint_hex = Some(snap.checkpoint_hex.clone());
+    if file.trusted_light_summary.is_none() && params.pin_trusted_summary {
+        file.trusted_light_summary = Some(snap.summary);
+    }
     Ok(chain)
 }
 

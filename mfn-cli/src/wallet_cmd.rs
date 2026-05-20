@@ -505,6 +505,10 @@ pub(crate) struct SyncStats {
     pub(crate) used_utxo_cache: bool,
     /// Max light-follow quorum batch count seen during sync (**M3.12**).
     pub(crate) quorum_batches: usize,
+    /// Weak-subjectivity pin was compared at sync start (**M3.13**).
+    pub(crate) weak_subjectivity_checked: bool,
+    /// Trusted summary was written or refreshed (**M3.13**).
+    pub(crate) weak_subjectivity_pinned: bool,
 }
 
 pub(crate) fn persist_wallet(
@@ -555,6 +559,8 @@ fn sync_wallet_from_node(
         blocks_fetched,
         used_utxo_cache,
         quorum_batches: 1,
+        weak_subjectivity_checked: false,
+        weak_subjectivity_pinned: false,
     })
 }
 

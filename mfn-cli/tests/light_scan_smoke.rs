@@ -144,6 +144,7 @@ fn wallet_light_scan_after_solo_step_coinbase() {
             wallet_path.to_str().expect("utf8 path"),
             "wallet",
             "light-scan",
+            "--pin-trusted-summary",
         ])
         .output()
         .expect("wallet light-scan");
@@ -161,6 +162,7 @@ fn wallet_light_scan_after_solo_step_coinbase() {
     assert!(stdout.contains("owned_count=1"));
     assert!(stdout.contains("scan_height=1"));
     assert!(stdout.contains("sync_mode=light"));
+    assert!(stdout.contains("weak_subjectivity=pinned"));
     assert!(stdout.contains("light_checkpoint_tip=1"));
 
     let reloaded = WalletFile::load(&wallet_path).expect("reload wallet");

@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 /// Default `mfnd serve --rpc-listen` when not overridden.
@@ -112,7 +112,7 @@ pub struct LightFollowPage {
 }
 
 /// Weak-subjectivity summary embedded in `get_light_snapshot`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LightCheckpointSummary {
     /// Genesis block id (64-char hex).
     pub genesis_id: String,

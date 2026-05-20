@@ -7,6 +7,8 @@ use mfn_crypto::stealth::stealth_wallet_from_seed;
 use mfn_wallet::{wallet_from_seed, StoredOwnedOutput, Wallet, WalletKeys};
 use serde::{Deserialize, Serialize};
 
+use crate::rpc::LightCheckpointSummary;
+
 /// Current wallet file schema version.
 pub const WALLET_FILE_VERSION: u32 = 2;
 
@@ -45,6 +47,9 @@ pub struct WalletFile {
     /// Last `LightChain::encode_checkpoint` hex after `wallet light-scan` (**M3.11**).
     #[serde(default)]
     pub light_checkpoint_hex: Option<String>,
+    /// Pinned weak-subjectivity summary for light-scan (**M3.13**).
+    #[serde(default)]
+    pub trusted_light_summary: Option<LightCheckpointSummary>,
 }
 
 /// Wallet file parse / IO errors.
@@ -72,6 +77,7 @@ impl WalletFile {
             pending_spent_utxo_keys: Vec::new(),
             owned_outputs: Vec::new(),
             light_checkpoint_hex: None,
+            trusted_light_summary: None,
         }
     }
 
@@ -250,6 +256,24 @@ mod tests {
         file.hydrate_wallet(&mut wallet).expect("hydrate");
         assert_eq!(wallet.balance(), 1000);
         assert!(file.has_owned_cache());
+    }
+
+    #[test]
+    fn trusted_light_summary_round_trips_in_json() {
+        use crate::rpc::LightCheckpointSummary;
+
+        let mut file = WalletFile::new(&[3u8; 32], KeyDerivation::MfnWalletV1);
+        file.trusted_light_summary = Some(LightCheckpointSummary {
+            genesis_id: "aa".repeat(32),
+            tip_height: 0,
+            tip_block_id: "bb".repeat(32),
+            validator_count: 0,
+            validator_set_root: "cc".repeat(32),
+            checkpoint_digest: "dd".repeat(32),
+        });
+        let raw = serde_json::to_string(&file).expect("json");
+        let back: WalletFile = serde_json::from_str(&raw).expect("parse");
+        assert_eq!(back.trusted_light_summary, file.trusted_light_summary);
     }
 
     #[test]

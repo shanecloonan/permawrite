@@ -2057,6 +2057,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.10** | Smoke: `wallet upload --message` + `uploads list --include-claims` + `claims for`. | ✓ shipped |
 | **M3.11** | `mfn-cli wallet light-scan`: BLS headers + `get_light_follow` evolution + `get_block_txs` scan (no full blocks). | ✓ shipped |
 | **M3.12** | `wallet light-scan --quorum-rpc` / `--quorum-p2p` (byte-identical evolution quorum via `mfn-net`). | ✓ shipped |
+| **M3.13** | Weak-subjectivity summary pins in `wallet.json` + `--trusted-summary` / `--pin-trusted-summary`. | ✓ shipped |
 
 ### Components
 
@@ -2076,6 +2077,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `mfn-cli uploads list` | Query on-chain storage commitment index via RPC. | ✓ M3.9 |
 | `mfn-cli wallet light-scan` | Light-client sync via headers + evolution + tx scan. | ✓ M3.11 |
 | `wallet light-scan` quorum flags | Multi-RPC / P2P `get_light_follow` agreement before evolution apply. | ✓ M3.12 |
+| `trusted_light_summary` | Pinned checkpoint digest fields; CLI weak-subjectivity gate (**M3.13**). | ✓ M3.13 |
 
 ### Scope
 

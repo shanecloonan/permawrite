@@ -25,7 +25,7 @@ mfn-net = { path = "../mfn-net" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet" }
 rand_core = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 

@@ -66,6 +66,8 @@ mfn-cli --rpc 127.0.0.1:18731 wallet light-scan \
 
 The primary `--rpc` node must expose P2P fetch (`mfnd serve --p2p-listen`) when using `--quorum-p2p`.
 
+Weak-subjectivity (**M3.13**): pin `get_light_snapshot.summary` fields in `wallet.json` (`--pin-trusted-summary`), verify an out-of-band file (`--trusted-summary FILE`), or reset with `--reset-trusted-summary`. After each sync the pinned summary is refreshed from the evolved checkpoint (same as the browser demo).
+
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.

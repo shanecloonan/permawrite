@@ -220,6 +220,7 @@ fn usage() -> &'static str {
        wallet scan       scan full blocks from node tip (get_block)\n\
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
                          options: --quorum-rpc HOST:PORT,... --quorum-p2p HOST:PORT,...\n\
+                         --trusted-summary FILE --pin-trusted-summary --reset-trusted-summary\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
@@ -284,6 +285,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
             i += 1;
             continue;
         }
+        if a == "--pin-trusted-summary" || a == "--reset-trusted-summary" {
+            positional.push(a);
+            i += 1;
+            continue;
+        }
         if matches!(
             a,
             "--fee"
@@ -300,6 +306,9 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--offset"
                 | "--quorum-rpc"
                 | "--quorum-p2p"
+                | "--trusted-summary"
+                | "--pin-trusted-summary"
+                | "--reset-trusted-summary"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -621,6 +630,9 @@ fn parse_wallet_cmd(
 fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliError> {
     let mut quorum_rpc_addrs: Vec<String> = Vec::new();
     let mut quorum_p2p_peers: Vec<String> = Vec::new();
+    let mut trusted_summary_path: Option<std::path::PathBuf> = None;
+    let mut reset_trusted_summary = false;
+    let mut pin_trusted_summary = false;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
@@ -644,6 +656,26 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
             i += 2;
             continue;
         }
+        if a == "--trusted-summary" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet light-scan --trusted-summary requires FILE\n".into(),
+                ));
+            };
+            trusted_summary_path = Some(std::path::PathBuf::from(v));
+            i += 2;
+            continue;
+        }
+        if a == "--pin-trusted-summary" {
+            pin_trusted_summary = true;
+            i += 1;
+            continue;
+        }
+        if a == "--reset-trusted-summary" {
+            reset_trusted_summary = true;
+            i += 1;
+            continue;
+        }
         return Err(CliError::Usage(format!(
             "unknown wallet light-scan argument `{a}`\n{}",
             usage()
@@ -652,6 +684,10 @@ fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliErr
     Ok(LightScanParams {
         quorum_rpc_addrs,
         quorum_p2p_peers,
+        trusted_summary_path,
+        reset_trusted_summary,
+        pin_trusted_summary,
+        update_trusted_summary: true,
     })
 }
 
