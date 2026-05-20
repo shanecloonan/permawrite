@@ -1978,6 +1978,8 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
+| **M2.3.29** | Hub `--produce` no longer runs committee catch-up dials (followers pull; avoids P2P dial storms). | ✓ shipped |
+| **M2.3.30** | Proposal fan-out reads `VoteV1` replies on live P2P sessions (fixes hub+voter quorum seal). | ✓ shipped |
 
 ### Why this order
 
@@ -2022,7 +2024,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | 3-validator process smoke | `tests/three_validator_produce_smoke.rs` — hub produces, followers vote, shared tip through height 2. | ✓ `#[ignore]` in default CI; nightly + `scripts/ci-ignored.*` |
 | 3-validator all-produce smoke | `tests/three_validator_all_produce_smoke.rs` — three `--produce` nodes, `devnet_three_validators_produce.json` (`F=1.5`), shared tip + `pick_winner` convergence. | ✓ `#[ignore]` in default CI; nightly |
 | P2P sync / fanout smokes | `mfnd_p2p_dial_syncs_blocks_from_ahead_peer`, `mfnd_p2p_tx_fanout_reaches_third_hop_peer` in `mfnd_smoke.rs`. | ✓ `#[ignore]`; stdout timeouts (**M2.3.27**) |
-| Committee catch-up loop | `--committee-vote` periodic `spawn_catch_up_dial` to saved peers. | ✓ live (M2.3.25) |
+| Committee catch-up loop | `--committee-vote` periodic `spawn_catch_up_dial` to saved peers (not on hub `--produce`). | ✓ live (M2.3.25 / **M2.3.29**) |
 
 ### Phases
 
@@ -2064,6 +2066,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.16** | `wallet show-trusted-summary` / `compare-trusted-summary` (inspect + diff pins). | ✓ shipped |
 | **M3.17** | Three-validator weak-subjectivity unit test + ignored `light_scan_three_validator` mesh smoke. | ✓ shipped |
 | **M3.18** | `wallet light-scan --import-trusted-summary FILE` (pin + sync in one step). | ✓ shipped |
+| **M3.19** | Harden `light_scan_three_validator` mesh smoke (stdout drain, staged boot, import-on-scan). | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components
@@ -2088,7 +2091,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | `wallet export-trusted-summary` | Export `get_light_snapshot.summary` for out-of-band verification. | ✓ M3.14 |
 | `wallet import-trusted-summary` | Pin exported summary into `wallet.json` without RPC sync. | ✓ M3.15 |
 | `wallet show-trusted-summary` / `compare-trusted-summary` | Print or diff weak-subjectivity summary JSON. | ✓ M3.16 |
-| `light_scan_three_validator_smoke` | CLI light wallet sync on live `--produce` + `--committee-vote` mesh. | ✓ M3.17 |
+| `light_scan_three_validator_smoke` | CLI light wallet sync on live `--produce` + `--committee-vote` mesh. | ✓ M3.17 / **M3.19** harness |
 | `light-scan --import-trusted-summary` | Pin exported summary then sync without a separate import command. | ✓ M3.18 |
 | Demo sync textarea import | Pin pasted summary on catch-up / sync-ready / range (at-tip too). | ✓ M4.24 |
 

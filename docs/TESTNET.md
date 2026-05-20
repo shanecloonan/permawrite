@@ -38,7 +38,7 @@ Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`
 | Role | Flags | Responsibility |
 |------|--------|----------------|
 | **Hub producer** | `serve --produce` | Slot timer, builds proposals when VRF-eligible, seals when local validator is proposer and quorum votes arrive. |
-| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; does **not** run the slot loop. |
+| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. |
 | **Observer** | `serve` (no produce flags) | Syncs blocks/txs, exposes JSON-RPC; no validator env required. |
 
 CI uses one hub + two committee voters so only the proposer seals (avoids forked tips under `expected_proposers_per_slot: 10` in the local harness spec). The **public devnet** spec sets `expected_proposers_per_slot: 1.5` so operators can later run three `--produce` nodes with natural slot skipping; the commands below match the proven hub + voter topology.

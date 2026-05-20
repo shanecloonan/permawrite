@@ -63,7 +63,7 @@ pub use light_follow::{
 };
 pub use production::{
     push_proposal_v1_to_peer, push_vote_v1_to_peer, send_proposal_v1, send_vote_v1,
-    ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
+    read_vote_v1_reply, ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
 };
 pub use serve::{
     height_cmp_label, spawn_catch_up_dial, spawn_inbound_handshake_loop, spawn_outbound_dial,

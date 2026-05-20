@@ -1,6 +1,6 @@
 //! Post-handshake block proposal and committee vote frames (**M2.3.23**).
 
-use std::io::Write;
+use std::io::{Read, Write};
 
 use crate::block_sync::GET_BLOCKS_BY_HEIGHT_V1_TAG;
 use crate::frame::ChainTipV1;
@@ -76,6 +76,36 @@ fn push_production_frames_to_peer(
     Ok(())
 }
 
+/// Read the first `VoteV1` reply after a proposal on an open post-handshake socket.
+pub fn read_vote_v1_reply<R: Read>(reader: &mut R) -> Result<Option<Vec<u8>>, FrameReadError> {
+    loop {
+        let reply = match read_frame(reader) {
+            Ok(p) => p,
+            Err(FrameReadError::Io(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                return Ok(None);
+            }
+            Err(e) => return Err(e),
+        };
+        if reply.is_empty() {
+            return Err(FrameReadError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "empty production reply",
+            )));
+        }
+        match reply[0] {
+            VOTE_V1_TAG => return Ok(Some(reply[1..].to_vec())),
+            0x08 => return Ok(None),
+            GET_BLOCKS_BY_HEIGHT_V1_TAG | PROPOSAL_V1_TAG => {}
+            tag => {
+                return Err(FrameReadError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("unexpected production reply tag 0x{tag:02x}"),
+                )));
+            }
+        }
+    }
+}
+
 /// Dial a peer, send one `ProposalV1` frame, read an optional `VoteV1` reply, then [`GossipEndV1`].
 pub fn push_proposal_v1_to_peer(
     peer_addr: &str,
@@ -91,33 +121,7 @@ pub fn push_proposal_v1_to_peer(
     payload.push(PROPOSAL_V1_TAG);
     payload.extend_from_slice(proposal_wire);
     write_frame_io(&mut sock, &payload)?;
-    let vote_body = loop {
-        let reply = match read_frame(&mut sock) {
-            Ok(p) => p,
-            Err(FrameReadError::Io(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
-                break None;
-            }
-            Err(e) => return Err(PushProductionError::Read(e)),
-        };
-        if reply.is_empty() {
-            return Err(PushProductionError::Read(FrameReadError::Io(
-                std::io::Error::new(std::io::ErrorKind::InvalidData, "empty production reply"),
-            )));
-        }
-        match reply[0] {
-            VOTE_V1_TAG => break Some(reply[1..].to_vec()),
-            0x08 => break None,
-            GET_BLOCKS_BY_HEIGHT_V1_TAG | PROPOSAL_V1_TAG => continue,
-            tag => {
-                return Err(PushProductionError::Read(FrameReadError::Io(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        format!("unexpected production reply tag 0x{tag:02x}"),
-                    ),
-                )));
-            }
-        }
-    };
+    let vote_body = read_vote_v1_reply(&mut sock).map_err(PushProductionError::Read)?;
     send_gossip_end_v1(&mut sock)?;
     Ok(vote_body)
 }

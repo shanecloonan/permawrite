@@ -10,9 +10,10 @@ use std::time::Duration;
 use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
     push_block_gossip_to_peer, push_proposal_v1_to_peer, push_tx_gossip_to_peer,
-    push_vote_v1_to_peer, send_block_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial,
-    spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet,
-    GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
+    push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_proposal_v1, send_vote_v1,
+    spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1,
+    FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook,
+    TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -178,20 +179,18 @@ impl P2pPeerSet {
                     Err(_) => return,
                 };
                 for peer in peers {
-                    if peer_set.push_proposal_on_session(&peer, &wire) {
-                        continue;
-                    }
-                    match push_proposal_v1_to_peer(&peer, &genesis_id, &local, &wire) {
-                        Ok(Some(vote_body)) => {
-                            if let Some(h) = production.as_ref() {
-                                let label = h.on_vote_v1(&vote_body);
-                                println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
-                                let _ = std::io::Write::flush(&mut std::io::stdout());
-                            }
-                        }
-                        Ok(None) => {}
-                        Err(e) => {
-                            eprintln!("mfnd_p2p_proposal_fanout_abort peer={peer} {e}");
+                    let vote_body = peer_set
+                        .push_proposal_collect_vote_on_session(&peer, &wire)
+                        .or_else(|| {
+                            push_proposal_v1_to_peer(&peer, &genesis_id, &local, &wire)
+                                .ok()
+                                .flatten()
+                        });
+                    if let Some(vote_body) = vote_body {
+                        if let Some(h) = production.as_ref() {
+                            let label = h.on_vote_v1(&vote_body);
+                            println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
+                            let _ = std::io::Write::flush(&mut std::io::stdout());
                         }
                     }
                 }
@@ -199,8 +198,18 @@ impl P2pPeerSet {
             .ok();
     }
 
-    fn push_proposal_on_session(&self, peer: &str, proposal_wire: &[u8]) -> bool {
-        self.send_on_session(peer, |sock| send_proposal_v1(sock, proposal_wire))
+    /// Send `ProposalV1` on a live session and read an optional `VoteV1` reply (**M2.3.30**).
+    fn push_proposal_collect_vote_on_session(
+        &self,
+        peer: &str,
+        proposal_wire: &[u8],
+    ) -> Option<Vec<u8>> {
+        let guard = self.sessions.lock().ok()?;
+        let sock = guard.get(peer).cloned()?;
+        drop(guard);
+        let mut sock = sock.try_lock().ok()?;
+        send_proposal_v1(&mut *sock, proposal_wire).ok()?;
+        read_vote_v1_reply(&mut *sock).ok().flatten()
     }
 
     /// Push `vote_wire` to every registered peer except `except_peer` (**M2.3.23**).
