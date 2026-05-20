@@ -1,4 +1,4 @@
-﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -7,12 +7,12 @@ use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
-    encode_finality_proof, finalize, header_signing_hash, seal_block, sign_register,
-    sign_transaction, try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainState,
-    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
-    SlotContext, TransactionWire, Validator, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
-    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
+    emission_at_height, encode_finality_proof, finalize, header_signing_hash, seal_block,
+    sign_register, sign_transaction, try_produce_slot, ApplyOutcome, BlockError, BondOp,
+    ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput,
+    InputSpec, OutputSpec, PayoutAddress, SlotContext, TransactionWire, Validator, ValidatorPayout,
+    ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
@@ -267,6 +267,187 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
         spend,
         built,
         payload,
+    }
+}
+
+/// Three-validator quorum with deterministic keys (**M5.6**).
+struct PropValidatorFixture {
+    validators: Vec<Validator>,
+    secrets: Vec<ValidatorSecrets>,
+    payout: PayoutAddress,
+    params: ConsensusParams,
+    total_stake: u64,
+}
+
+impl PropValidatorFixture {
+    fn three_deterministic() -> Self {
+        let stake = 100u64;
+        let mk = |i: u32| -> (Validator, ValidatorSecrets, PayoutAddress) {
+            let vrf = vrf_keygen_from_seed(&[i.wrapping_add(1) as u8; 32]).expect("vrf");
+            let bls = bls_keygen_from_seed(&[i.wrapping_add(101) as u8; 32]);
+            let view_priv = hash_to_scalar(&[b"M5.6/view", &i.to_le_bytes()]);
+            let spend_priv = hash_to_scalar(&[b"M5.6/spend", &i.to_le_bytes()]);
+            let view_pub = generator_g() * view_priv;
+            let spend_pub = generator_g() * spend_priv;
+            let val = Validator {
+                index: i,
+                vrf_pk: vrf.pk,
+                bls_pk: bls.pk,
+                stake,
+                payout: Some(ValidatorPayout {
+                    view_pub,
+                    spend_pub,
+                }),
+            };
+            let secrets = ValidatorSecrets { index: i, vrf, bls };
+            let payout = PayoutAddress {
+                view_pub,
+                spend_pub,
+            };
+            (val, secrets, payout)
+        };
+        let (v0, s0, payout) = mk(0);
+        let (v1, s1, _) = mk(1);
+        let (v2, s2, _) = mk(2);
+        let validators = vec![v0, v1, v2];
+        let secrets = vec![s0, s1, s2];
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6667,
+            ..ConsensusParams::default()
+        };
+        let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+        Self {
+            validators,
+            secrets,
+            payout,
+            params,
+            total_stake,
+        }
+    }
+}
+
+fn expected_coinbase_amount(
+    height: u32,
+    fee_sum: u128,
+    storage_proofs: u128,
+    params: &EmissionParams,
+) -> u64 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let producer_fee = fee_sum - treasury_fee;
+    let storage_reward_total = u128::from(params.storage_proof_reward) * storage_proofs;
+    let subsidy = u128::from(emission_at_height(u64::from(height), params));
+    let total = subsidy
+        .saturating_add(producer_fee)
+        .saturating_add(storage_reward_total);
+    u64::try_from(total).unwrap_or(u64::MAX)
+}
+
+struct PropValidatorPrivacyStorageGenesis {
+    state: ChainState,
+    spend: PropSpendState,
+    built: BuiltCommitment,
+    payload: Vec<u8>,
+    fixture: PropValidatorFixture,
+}
+
+fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStorageGenesis {
+    let fixture = PropValidatorFixture::three_deterministic();
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropValidatorPrivacyStorageGenesis {
+        state,
+        spend,
+        built,
+        payload,
+        fixture,
+    }
+}
+
+fn apply_validator_mixed_clsag_fee_and_storage_proof(
+    fixture: &PropValidatorFixture,
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    proof: &mfn_storage::StorageProof,
+) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let unsealed =
+        build_unsealed_header(st, &txs, &[], &[], std::slice::from_ref(proof), height, ts);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height,
+        slot: height,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer = &fixture.validators[0];
+    let producer_secrets = &fixture.secrets[0];
+    let producer_proof = try_produce_slot(
+        &ctx,
+        producer_secrets,
+        producer,
+        fixture.total_stake,
+        fixture.params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("producer eligible");
+    let votes: Vec<_> = fixture
+        .secrets
+        .iter()
+        .map(|secrets| {
+            cast_vote(
+                &header_hash,
+                secrets,
+                &ctx,
+                &producer_proof,
+                producer,
+                fixture.total_stake,
+                fixture.params.expected_proposers_per_slot,
+            )
+            .expect("vote")
+        })
+        .collect();
+    let agg = finalize(&header_hash, &votes, fixture.validators.len()).expect("finalize");
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: agg,
+        signing_stake: fixture.total_stake,
+    };
+    let blk = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        encode_finality_proof(&fin),
+        Vec::new(),
+        vec![proof.clone()],
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
     }
 }
 
@@ -703,6 +884,46 @@ proptest! {
         }
     }
 
+    /// Validator quorum + coinbase + CLSAG fee + SPoRA proof in one block (**M5.6**).
+    #[test]
+    fn prop_validator_mixed_clsag_fee_and_storage_proof_treasury(
+        n_blocks in 1u32..=8u32,
+        fee_base in 1_000u64..=200_000u64,
+    ) {
+        let gen = genesis_validator_privacy_storage_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 7_001));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let cb_amount = expected_coinbase_amount(h, fee_sum, 1, emission);
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let prev = *st.tip_id().expect("tip");
+            let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+                .expect("proof");
+            st = apply_validator_mixed_clsag_fee_and_storage_proof(
+                &gen.fixture, &st, h, txs, &proof,
+            );
+            model = treasury_after_block(model, fee_sum, 1, emission);
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {})",
+                h,
+                fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
 }
 
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
@@ -786,6 +1007,35 @@ fn deep_storage_proof_chain_32() {
     let mut st = gen.state;
     for h in 1..=32u32 {
         st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h);
+    }
+    assert_eq!(st.height, Some(32));
+}
+
+/// Deep validator-mode mixed CLSAG + SPoRA treasury chain (**M5.6**).
+#[test]
+#[ignore = "deep validator mixed CLSAG+SPoRA treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
+fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let mut st = gen.state;
+    let mut spend = gen.spend;
+    let mut model = 0u128;
+    let emission = &PROP_MIXED_EMISSION;
+
+    for h in 1..=32u32 {
+        let fee = 2_000u64 + u64::from(h % 5_001);
+        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        spend = next_spend;
+        let fee_sum = u128::from(fee);
+        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, emission);
+        let coinbase =
+            build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+        let txs = vec![coinbase, tx];
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+            .expect("proof");
+        st = apply_validator_mixed_clsag_fee_and_storage_proof(&gen.fixture, &st, h, txs, &proof);
+        model = treasury_after_block(model, fee_sum, 1, emission);
+        assert_eq!(st.treasury, model, "treasury mismatch at height {h}");
     }
     assert_eq!(st.height, Some(32));
 }

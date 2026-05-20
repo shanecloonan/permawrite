@@ -12,8 +12,9 @@ cargo fmt --all --check
 echo "==> clippy"
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-echo "==> build mfnd (mfn-cli integration tests)"
+echo "==> build mfnd + mfn-storage-operator (mfn-cli integration tests)"
 cargo build -p mfn-node --bin mfnd --release
+cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 
 echo "==> test (release)"
 cargo test --workspace --release

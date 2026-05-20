@@ -126,7 +126,7 @@ cargo build -p mfn-storage-operator --release
 mfn-storage-operator run --wallet ./alice.json --rpc 127.0.0.1:18731
 ```
 
-See [`mfn-storage-operator/README.md`](../mfn-storage-operator/README.md).
+See [`mfn-storage-operator/README.md`](../mfn-storage-operator/README.md). Integration smokes in `tests/storage_operator_smoke.rs` (**M6.1**) cover `operator prove` → `mfnd step` → `uploads list` / `uploads status`, and `mfn-storage-operator run --once`.
 
 To mine any wallet tx: stop `mfnd serve` (flushes `mempool.bytes`), then `mfnd step --blocks 1` (reloads durable mempool per **M2.3.21**).
 

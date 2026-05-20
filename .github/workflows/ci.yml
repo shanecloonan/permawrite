@@ -68,8 +68,9 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-      # mfn-cli integration tests spawn `target/{profile}/mfnd` (see CARGO_BIN_EXE_mfnd).
+      # mfn-cli integration tests spawn `target/{profile}/mfnd` and `mfn-storage-operator`.
       - run: cargo build -p mfn-node --bin mfnd --release
+      - run: cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
       # Default `cargo test` skips `#[ignore]` slow P2P / multi-validator harness tests.
       - run: cargo test --workspace --release -- --test-threads=4
 
