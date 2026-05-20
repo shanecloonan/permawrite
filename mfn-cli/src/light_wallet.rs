@@ -1,4 +1,4 @@
-//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**).
+//! Light-wallet sync for `mfn-cli wallet light-scan` (**M3.11**–**M3.12**).
 //!
 //! Verifies BLS headers + validator-set evolution via [`mfn_light::LightChain`],
 //! scans txs via `get_block_txs` (no full blocks), matching the browser demo path.
@@ -13,18 +13,32 @@ use mfn_consensus::{
 use mfn_light::{LightChain, LightChainError};
 use mfn_wallet::Wallet;
 
-use crate::rpc::RpcClient;
+use crate::light_follow_quorum::light_follow_pages_quorum;
+use crate::rpc::{LightFollowPage, RpcClient};
 use crate::wallet_cmd::{persist_wallet, print_scan_summary, SyncStats, WalletCmdError};
 use crate::wallet_store::WalletFile;
 
 /// Max inclusive span per `get_block_headers` / `get_light_follow` batch.
 const LIGHT_SCAN_CHUNK: u32 = 512;
 
+/// Options for `wallet light-scan` (**M3.12**).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LightScanParams {
+    /// Extra `HOST:PORT` RPC bases for `get_light_follow` quorum (M4.14).
+    pub quorum_rpc_addrs: Vec<String>,
+    /// P2P peers for `get_light_follow_p2p` on the primary `--rpc` node (M4.15).
+    pub quorum_p2p_peers: Vec<String>,
+}
+
 /// `wallet light-scan` — header + evolution verified sync through chain tip.
-pub fn wallet_light_scan(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdError> {
+pub fn wallet_light_scan(
+    path: &Path,
+    client: &mut RpcClient,
+    params: &LightScanParams,
+) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
-    let stats = sync_wallet_light_from_node(&mut wallet, &mut file, client)?;
+    let stats = sync_wallet_light_from_node(&mut wallet, &mut file, client, params)?;
     persist_wallet(path, &mut file, &wallet)?;
     print_scan_summary(
         &stats,
@@ -33,6 +47,7 @@ pub fn wallet_light_scan(path: &Path, client: &mut RpcClient) -> Result<(), Wall
         wallet.owned_count(),
     );
     println!("sync_mode=light");
+    println!("light_follow_quorum_batches={}", stats.quorum_batches);
     println!(
         "light_checkpoint_tip={}",
         file.light_checkpoint_hex
@@ -48,6 +63,7 @@ fn sync_wallet_light_from_node(
     wallet: &mut Wallet,
     file: &mut WalletFile,
     client: &mut RpcClient,
+    params: &LightScanParams,
 ) -> Result<SyncStats, WalletCmdError> {
     let used_utxo_cache = file.has_owned_cache();
     if used_utxo_cache {
@@ -70,11 +86,13 @@ fn sync_wallet_light_from_node(
             tip_height,
             blocks_fetched: 0,
             used_utxo_cache,
+            quorum_batches: 1,
         });
     }
 
     let mut light = bootstrap_light_chain(client, file, start_height)?;
     let mut blocks_fetched = 0u32;
+    let mut quorum_batches = 1usize;
     let mut from = u64::from(start_height);
 
     while from <= tip_height {
@@ -88,7 +106,9 @@ fn sync_wallet_light_from_node(
             .map_err(|_| WalletCmdError::Usage(format!("height {chunk_end} exceeds u32::MAX")))?;
 
         let headers_page = client.get_block_headers(from_h, to_h)?;
-        let follow_page = client.get_light_follow(from_h, to_h)?;
+        let (follow_page, batch_count) =
+            fetch_light_follow_with_quorum(client, from_h, to_h, params)?;
+        quorum_batches = quorum_batches.max(batch_count);
         let genesis_id = parse_block_id_hex(&headers_page.genesis_id)?;
         let mut expected_prev = if from_h == 1 {
             genesis_id
@@ -165,7 +185,41 @@ fn sync_wallet_light_from_node(
         tip_height,
         blocks_fetched,
         used_utxo_cache,
+        quorum_batches,
     })
+}
+
+fn fetch_light_follow_with_quorum(
+    primary: &mut RpcClient,
+    from_h: u32,
+    to_h: u32,
+    params: &LightScanParams,
+) -> Result<(LightFollowPage, usize), WalletCmdError> {
+    let mut pages = vec![primary.get_light_follow(from_h, to_h)?];
+    let primary_addr = primary.addr().to_string();
+
+    for addr in &params.quorum_rpc_addrs {
+        if addr == &primary_addr {
+            continue;
+        }
+        let mut peer_client = RpcClient::new(addr);
+        pages.push(peer_client.get_light_follow(from_h, to_h)?);
+    }
+
+    for peer in &params.quorum_p2p_peers {
+        pages.push(primary.get_light_follow_p2p(peer, from_h, to_h)?);
+    }
+
+    let batch_count = if pages.len() > 1 {
+        light_follow_pages_quorum(&pages)
+            .map_err(|e| WalletCmdError::Usage(format!("light-follow quorum: {e}")))?
+    } else {
+        1
+    };
+    Ok((
+        pages.into_iter().next().expect("at least local page"),
+        batch_count,
+    ))
 }
 
 fn bootstrap_light_chain(

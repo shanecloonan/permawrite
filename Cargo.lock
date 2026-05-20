@@ -483,6 +483,7 @@ dependencies = [
  "mfn-consensus",
  "mfn-crypto",
  "mfn-light",
+ "mfn-net",
  "mfn-node",
  "mfn-storage",
  "mfn-store",

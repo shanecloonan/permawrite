@@ -57,6 +57,15 @@ Default wallet file: `wallet.json` (override with `--wallet PATH`). The file sto
 
 `wallet light-scan` (**M3.11**) verifies BLS headers and validator-set evolution via [`mfn-light`](../mfn-light) + batched `get_light_follow`, scans txs with `get_block_txs` only (no full block download), and persists `light_checkpoint_hex` in `wallet.json` for incremental resume.
 
+```bash
+# Require agreeing evolution batches from extra RPC nodes and/or P2P peers (**M3.12**)
+mfn-cli --rpc 127.0.0.1:18731 wallet light-scan \
+  --quorum-rpc 127.0.0.1:18732,127.0.0.1:18733 \
+  --quorum-p2p 127.0.0.1:18740,127.0.0.1:18741
+```
+
+The primary `--rpc` node must expose P2P fetch (`mfnd serve --p2p-listen`) when using `--quorum-p2p`.
+
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.

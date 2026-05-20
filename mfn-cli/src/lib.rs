@@ -12,6 +12,7 @@
 
 pub mod claims_cmd;
 pub mod cli;
+pub mod light_follow_quorum;
 pub mod light_wallet;
 pub mod rpc;
 pub mod uploads_cmd;
@@ -20,6 +21,7 @@ pub mod wallet_store;
 
 pub use claims_cmd::ClaimsListParams;
 pub use cli::{cli_main, run_cli, CliError};
+pub use light_wallet::LightScanParams;
 pub use rpc::{BlockHeaderInfo, ChainTip, MempoolSummary, RpcClient, RpcError, SubmitTxResult};
 pub use uploads_cmd::UploadsListParams;
 pub use wallet_cmd::{

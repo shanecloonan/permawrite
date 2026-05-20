@@ -503,6 +503,8 @@ pub(crate) struct SyncStats {
     pub(crate) tip_height: u64,
     pub(crate) blocks_fetched: u32,
     pub(crate) used_utxo_cache: bool,
+    /// Max light-follow quorum batch count seen during sync (**M3.12**).
+    pub(crate) quorum_batches: usize,
 }
 
 pub(crate) fn persist_wallet(
@@ -552,6 +554,7 @@ fn sync_wallet_from_node(
         tip_height,
         blocks_fetched,
         used_utxo_cache,
+        quorum_batches: 1,
     })
 }
 

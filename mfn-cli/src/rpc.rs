@@ -347,6 +347,25 @@ impl RpcClient {
             .map_err(|e| RpcError::Protocol(format!("get_block_headers decode: {e}")))
     }
 
+    /// `get_light_follow_p2p` — dial `peer` (`HOST:PORT`) and return the same batch shape as local.
+    pub fn get_light_follow_p2p(
+        &mut self,
+        peer: &str,
+        from_height: u32,
+        to_height: u32,
+    ) -> Result<LightFollowPage, RpcError> {
+        let v = self.call(
+            "get_light_follow_p2p",
+            json!({
+                "peer": peer,
+                "from_height": from_height,
+                "to_height": to_height,
+            }),
+        )?;
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_light_follow_p2p decode: {e}")))
+    }
+
     /// `get_light_follow` evolution rows for an inclusive height range.
     pub fn get_light_follow(
         &mut self,

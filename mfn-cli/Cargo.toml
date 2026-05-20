@@ -21,6 +21,7 @@ hex = { workspace = true }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-light = { path = "../mfn-light" }
+mfn-net = { path = "../mfn-net" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet" }
 rand_core = { workspace = true }

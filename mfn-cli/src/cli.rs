@@ -7,7 +7,7 @@ use serde_json::json;
 use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
-use crate::light_wallet::wallet_light_scan;
+use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
 use crate::wallet_cmd::{
@@ -115,7 +115,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::New => wallet_new(&path, force)?,
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
-                WalletSub::LightScan => wallet_light_scan(&path, &mut client)?,
+                WalletSub::LightScan(ref params) => wallet_light_scan(&path, &mut client, params)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
                 WalletSub::Status => wallet_status(&path, &mut client)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
@@ -186,7 +186,7 @@ enum WalletSub {
     New,
     Address,
     Scan,
-    LightScan,
+    LightScan(LightScanParams),
     Balance,
     Status,
     Send(SendParams),
@@ -219,6 +219,7 @@ fn usage() -> &'static str {
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan full blocks from node tip (get_block)\n\
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
+                         options: --quorum-rpc HOST:PORT,... --quorum-p2p HOST:PORT,...\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
@@ -297,6 +298,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--commit-hash"
                 | "--limit"
                 | "--offset"
+                | "--quorum-rpc"
+                | "--quorum-p2p"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -581,7 +584,8 @@ fn parse_wallet_cmd(
         )));
     };
     let sub = match *sub_name {
-        "new" | "address" | "scan" | "light-scan" | "balance" | "status" => {
+        "light-scan" => WalletSub::LightScan(parse_wallet_light_scan_args(&rest[1..])?),
+        "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -592,7 +596,6 @@ fn parse_wallet_cmd(
                 "new" => WalletSub::New,
                 "address" => WalletSub::Address,
                 "scan" => WalletSub::Scan,
-                "light-scan" => WalletSub::LightScan,
                 "balance" => WalletSub::Balance,
                 "status" => WalletSub::Status,
                 _ => unreachable!(),
@@ -613,6 +616,51 @@ fn parse_wallet_cmd(
         wallet_path,
         force,
     })
+}
+
+fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliError> {
+    let mut quorum_rpc_addrs: Vec<String> = Vec::new();
+    let mut quorum_p2p_peers: Vec<String> = Vec::new();
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--quorum-rpc" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet light-scan --quorum-rpc requires HOST:PORT list\n".into(),
+                ));
+            };
+            quorum_rpc_addrs.extend(split_host_list(v));
+            i += 2;
+            continue;
+        }
+        if a == "--quorum-p2p" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet light-scan --quorum-p2p requires HOST:PORT list\n".into(),
+                ));
+            };
+            quorum_p2p_peers.extend(split_host_list(v));
+            i += 2;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unknown wallet light-scan argument `{a}`\n{}",
+            usage()
+        )));
+    }
+    Ok(LightScanParams {
+        quorum_rpc_addrs,
+        quorum_p2p_peers,
+    })
+}
+
+fn split_host_list(raw: &str) -> Vec<String> {
+    raw.split(&[',', ' ', '\t'][..])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
@@ -950,6 +998,29 @@ mod tests {
                 assert!(!force);
             }
             _ => panic!("expected wallet balance"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_light_scan_quorum_flags() {
+        let p = parse_args(&[
+            "wallet".into(),
+            "light-scan".into(),
+            "--quorum-rpc".into(),
+            "127.0.0.1:18732,127.0.0.1:18733".into(),
+            "--quorum-p2p".into(),
+            "127.0.0.1:18740".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::LightScan(params),
+                ..
+            } => {
+                assert_eq!(params.quorum_rpc_addrs.len(), 2);
+                assert_eq!(params.quorum_p2p_peers, vec!["127.0.0.1:18740".to_string()]);
+            }
+            _ => panic!("expected wallet light-scan"),
         }
     }
 
