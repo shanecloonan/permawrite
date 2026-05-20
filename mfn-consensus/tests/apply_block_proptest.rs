@@ -315,9 +315,15 @@ fn validator_secrets_for_index(index: u32) -> ValidatorSecrets {
 }
 
 /// Attach a valid MFBN finality blob when the pre-state has validators (**M5.4**).
-fn attach_test_finality(st: &ChainState, mut unsealed: mfn_consensus::BlockHeader) -> Vec<u8> {
+///
+/// Returns the header (possibly with an adjusted `slot` for VRF eligibility) and
+/// encoded finality bytes. The header and proof must use the same `slot`.
+fn attach_test_finality(
+    st: &ChainState,
+    mut unsealed: mfn_consensus::BlockHeader,
+) -> (mfn_consensus::BlockHeader, Vec<u8>) {
     if st.validators.is_empty() {
-        return Vec::new();
+        return (unsealed, Vec::new());
     }
     let total_stake: u64 = st.validators.iter().map(|v| v.stake).sum();
     let f = st.params.expected_proposers_per_slot;
@@ -369,7 +375,7 @@ fn attach_test_finality(st: &ChainState, mut unsealed: mfn_consensus::BlockHeade
             finality: agg,
             signing_stake: total_stake,
         };
-        return encode_finality_proof(&fin);
+        return (unsealed, encode_finality_proof(&fin));
     }
     panic!(
         "attach_test_finality: no VRF-eligible producer in 512 slot attempts (validators={})",
@@ -385,7 +391,7 @@ fn seal_with_test_finality(
     slashings: Vec<mfn_consensus::SlashEvidence>,
     storage_proofs: Vec<mfn_storage::StorageProof>,
 ) -> mfn_consensus::Block {
-    let fin = attach_test_finality(st, unsealed.clone());
+    let (unsealed, fin) = attach_test_finality(st, unsealed);
     seal_block(unsealed, txs, bond_ops, fin, slashings, storage_proofs)
 }
 
