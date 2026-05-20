@@ -17,7 +17,7 @@ use mfn_runtime::{
     encode_committee_vote, seal_proposal, verify_committee_vote_sig, vote_on_proposal, BlockInputs,
     BlockProposal, Chain, Mempool, ProducerError, ProofPool,
 };
-use mfn_store::ChainPersistence;
+use mfn_store::{save_proof_pool, ChainPersistence};
 
 use crate::p2p_fanout::P2pPeerSet;
 
@@ -292,6 +292,9 @@ impl ProductionEngine {
         if let Ok(mut proof_pool) = self.proof_pool.lock() {
             let mined: Vec<[u8; 32]> = block.storage_proofs.iter().map(|p| p.commit_hash).collect();
             let _ = proof_pool.remove_mined(mined);
+            if let Err(e) = save_proof_pool(self.store.as_ref(), &proof_pool) {
+                eprintln!("mfnd_proof_pool_save_abort {e}");
+            }
         }
         self.store
             .append_block(&block)

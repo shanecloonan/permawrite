@@ -19,7 +19,7 @@ use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
 use mfn_runtime::{
     mempool_root, Chain, ChainConfig, Mempool, MempoolConfig, ProofPool, ProofPoolConfig,
 };
-use mfn_store::{load_mempool, save_mempool, ChainPersistence};
+use mfn_store::{load_mempool, load_proof_pool, save_mempool, save_proof_pool, ChainPersistence};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
@@ -115,6 +115,40 @@ fn persist_mempool(store: &dyn ChainPersistence, pool: &Mempool) {
     }
 }
 
+fn log_proof_pool_save(meta: &mfn_store::ProofPoolSaveMeta) {
+    println!(
+        "mfnd_proof_pool_save_ok bytes={} proof_count={}",
+        meta.bytes_written, meta.proof_count
+    );
+    let _ = std::io::stdout().flush();
+}
+
+fn log_proof_pool_load(stats: &mfn_runtime::ProofPoolRestoreStats) {
+    if stats.loaded > 0 {
+        println!(
+            "mfnd_proof_pool_load_ok loaded={} admitted={} skipped={}",
+            stats.loaded, stats.admitted, stats.skipped
+        );
+        let _ = std::io::stdout().flush();
+    }
+}
+
+fn persist_proof_pool(store: &dyn ChainPersistence, pool: &ProofPool) {
+    match save_proof_pool(store, pool) {
+        Ok(m) => log_proof_pool_save(&m),
+        Err(e) => eprintln!("mfnd_proof_pool_save_abort {e}"),
+    }
+}
+
+fn next_block_context(chain: &Chain) -> ([u8; 32], u32) {
+    let prev = chain
+        .tip_id()
+        .copied()
+        .unwrap_or_else(|| *chain.genesis_id());
+    let next_height = chain.tip_height().map(|h| h.saturating_add(1)).unwrap_or(1);
+    (prev, next_height)
+}
+
 fn serve_dispatch_opts(
     store: &Arc<dyn ChainPersistence + Send + Sync>,
     fanout_peers: Option<&Arc<P2pPeerSet>>,
@@ -123,8 +157,11 @@ fn serve_dispatch_opts(
     serve_tip: TipSnapshot,
 ) -> ServeDispatchOpts {
     let store_persist = Arc::clone(store);
+    let store_proof = Arc::clone(store);
     let on_fresh_admit =
         Arc::new(move |pool: &Mempool| persist_mempool(store_persist.as_ref(), pool));
+    let on_proof_pool_change =
+        Arc::new(move |pool: &ProofPool| persist_proof_pool(store_proof.as_ref(), pool));
     let on_fresh_tx = fanout_peers.map(|ps| {
         let ps = Arc::clone(ps);
         Arc::new(move |bytes: &[u8]| {
@@ -166,6 +203,7 @@ fn serve_dispatch_opts(
         genesis: Some(genesis),
         on_fresh_tx,
         on_fresh_admit: Some(on_fresh_admit),
+        on_proof_pool_change: Some(on_proof_pool_change),
         p2p_light_follow: Some(p2p_light_follow),
         p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
     }
@@ -202,6 +240,24 @@ pub(crate) fn run_serve(
         let stats = load_mempool(store.as_ref(), &mut pool_guard, guard.state())
             .map_err(|e| format!("mfnd serve: load mempool: {e}"))?;
         log_mempool_load(&stats);
+    }
+    {
+        let guard = chain
+            .lock()
+            .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
+        let mut proof_guard = proof_pool
+            .lock()
+            .map_err(|_| "mfnd serve: proof_pool mutex poisoned".to_string())?;
+        let (prev, next_h) = next_block_context(&guard);
+        let stats = load_proof_pool(
+            store.as_ref(),
+            &mut proof_guard,
+            guard.state(),
+            &prev,
+            next_h,
+        )
+        .map_err(|e| format!("mfnd serve: load proof pool: {e}"))?;
+        log_proof_pool_load(&stats);
     }
     let genesis_id = {
         let guard = chain
@@ -438,10 +494,14 @@ pub(crate) fn run_serve(
     {
         let store_c = Arc::clone(&store);
         let pool_c = Arc::clone(&pool);
+        let proof_pool_c = Arc::clone(&proof_pool);
         let peers_c = fanout_peers.clone();
         ctrlc::set_handler(move || {
             if let Ok(guard) = pool_c.lock() {
                 persist_mempool(store_c.as_ref(), &guard);
+            }
+            if let Ok(guard) = proof_pool_c.lock() {
+                persist_proof_pool(store_c.as_ref(), &guard);
             }
             if let Some(ps) = peers_c.as_ref() {
                 ps.persist();

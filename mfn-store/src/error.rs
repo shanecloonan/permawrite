@@ -59,4 +59,13 @@ pub enum StoreError {
         /// Error detail.
         detail: String,
     },
+
+    /// `proof_pool.bytes` decode failure (**M3.23**).
+    #[error("proof pool snapshot `{}`: {detail}", path.display())]
+    ProofPoolSnapshot {
+        /// Snapshot path.
+        path: PathBuf,
+        /// Decode error detail.
+        detail: String,
+    },
 }

@@ -100,6 +100,36 @@ impl ProofPool {
         self.by_commit.keys().copied().collect()
     }
 
+    /// Pending proofs in canonical `commit_hash` order (for snapshots).
+    #[must_use]
+    pub fn proofs_sorted(&self) -> Vec<StorageProof> {
+        self.by_commit.values().cloned().collect()
+    }
+
+    /// Re-admit every proof from a decoded snapshot against the current next-block context.
+    ///
+    /// Proofs that no longer verify (tip moved, wrong challenge index) are skipped.
+    pub fn restore_snapshot(
+        &mut self,
+        proofs: impl IntoIterator<Item = StorageProof>,
+        state: &ChainState,
+        prev_block_id: &[u8; 32],
+        next_height: u32,
+    ) -> crate::proof_pool_snapshot::ProofPoolRestoreStats {
+        let mut stats = crate::proof_pool_snapshot::ProofPoolRestoreStats::default();
+        for proof in proofs {
+            stats.loaded = stats.loaded.saturating_add(1);
+            match self.admit(proof, state, prev_block_id, next_height) {
+                Ok(_) => stats.admitted = stats.admitted.saturating_add(1),
+                Err(ProofAdmitError::PoolFull { .. }) => {
+                    stats.skipped = stats.skipped.saturating_add(1);
+                }
+                Err(_) => stats.skipped = stats.skipped.saturating_add(1),
+            }
+        }
+        stats
+    }
+
     /// Admit a decoded proof for inclusion in the *next* block.
     pub fn admit(
         &mut self,

@@ -45,6 +45,7 @@ pub mod mempool;
 pub mod mempool_snapshot;
 pub mod producer;
 pub mod proof_pool;
+pub mod proof_pool_snapshot;
 pub mod proposal_wire;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
@@ -63,6 +64,10 @@ pub use producer::{
     BlockProposal, ProducerError,
 };
 pub use proof_pool::{ProofAdmitError, ProofAdmitOutcome, ProofPool, ProofPoolConfig};
+pub use proof_pool_snapshot::{
+    decode_proof_pool_snapshot, encode_proof_pool_snapshot, ProofPoolRestoreStats,
+    ProofPoolSnapshotError, PROOF_POOL_SNAPSHOT_MAGIC, PROOF_POOL_SNAPSHOT_VERSION,
+};
 pub use proposal_wire::{
     decode_block_proposal, decode_committee_vote, encode_block_proposal, encode_committee_vote,
     verify_committee_vote_sig, ProposalWireError,

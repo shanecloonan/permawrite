@@ -33,6 +33,7 @@ pub mod error;
 pub mod fs;
 pub mod mempool_persist;
 pub mod peers_persist;
+pub mod proof_pool_persist;
 pub mod redb_store;
 #[path = "trait.rs"]
 pub mod r#trait;
@@ -46,6 +47,10 @@ pub use mempool_persist::{
 pub use peers_persist::{
     load_peers, peers_path, remove_peers_file, save_peers, PeersFileV1, DEFAULT_MAX_OUTBOUND_PEERS,
     PEERS_FILE,
+};
+pub use proof_pool_persist::{
+    load_proof_pool, proof_pool_path, remove_proof_pool_file, save_proof_pool, ProofPoolSaveMeta,
+    PROOF_POOL_FILE,
 };
 pub use r#trait::ChainPersistence;
 pub use redb_store::RedbChainStore;

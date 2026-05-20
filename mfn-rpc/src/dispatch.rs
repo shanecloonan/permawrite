@@ -1002,6 +1002,9 @@ pub type FreshTxHook = Arc<dyn Fn(&[u8]) + Send + Sync>;
 /// Called with the live mempool immediately after a Fresh admit (before the RPC response is sent).
 pub type FreshAdmitHook = Arc<dyn Fn(&Mempool) + Send + Sync>;
 
+/// Called after the proof pool changes (**M3.23** durable snapshot).
+pub type ProofPoolPersistHook = Arc<dyn Fn(&ProofPool) + Send + Sync>;
+
 /// Fetch a light-follow batch from a remote P2P peer (`HOST:PORT`) (**M4.15**).
 pub type P2pLightFollowHook = Arc<dyn Fn(&str, u32, u32) -> Result<Value, String> + Send + Sync>;
 
@@ -1022,6 +1025,8 @@ pub struct ServeDispatchOpts {
     pub p2p_light_follow: Option<P2pLightFollowHook>,
     /// Multi-peer P2P quorum for [`get_light_follow_quorum_p2p`].
     pub p2p_light_follow_quorum: Option<P2pLightFollowQuorumHook>,
+    /// Persist `proof_pool.bytes` after admit/clear (**M3.23**).
+    pub on_proof_pool_change: Option<ProofPoolPersistHook>,
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -1302,6 +1307,9 @@ fn dispatch_serve_methods(
             let (prev, next_h) = next_block_context(chain);
             match proof_pool.admit(proof, chain.state(), &prev, next_h) {
                 Ok(outcome) => {
+                    if let Some(cb) = &opts.on_proof_pool_change {
+                        cb(proof_pool);
+                    }
                     let body = json!({
                         "commit_hash": hex32(&commit_hash),
                         "pool_len": proof_pool.len(),
@@ -1349,6 +1357,9 @@ fn dispatch_serve_methods(
             };
             let cleared = proof_pool.len();
             proof_pool.clear();
+            if let Some(cb) = &opts.on_proof_pool_change {
+                cb(proof_pool);
+            }
             rpc_success(
                 id,
                 json!({
