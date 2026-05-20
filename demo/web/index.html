@@ -54,15 +54,23 @@
       </section>
 
       <section>
-        <h2>Wallet sync (M4.7–M4.19)</h2>
+        <h2>Wallet sync (M4.7–M4.22)</h2>
         <p class="lede">
           Verifies headers with an evolving light-follower checkpoint (<code>lightChainVerifyHeader</code>),
           scans txs via <code>get_block_txs</code>, and applies validator-set evolution per block
           (<code>lightChainApplyEvolution</code> + batched <code>get_light_follow</code>).
           Cleared checkpoints resume via <code>get_light_snapshot</code> at the last scanned height (M4.12).
           Optional quorum RPC URLs, P2P peers, or ≥2 independent light relays (M4.14–M4.17);
-          trusted checkpoint summaries, relay URL TOFU (M4.18), and per-relay summary pins (M4.19) live in <code>localStorage</code>.
+          trusted checkpoint summaries, relay URL TOFU (M4.18), per-relay summary pins (M4.19),
+          and pasted weak-subjectivity import (M4.22) live in <code>localStorage</code>.
         </p>
+        <label for="sync-trusted-summary-json">Trusted summary JSON (optional — paste from <code>mfn-cli wallet export-trusted-summary</code>)</label>
+        <textarea
+          id="sync-trusted-summary-json"
+          rows="4"
+          spellcheck="false"
+          placeholder='{"genesis_id":"…","tip_height":1,…}'
+        ></textarea>
         <label for="sync-quorum-urls">Quorum RPC URLs (comma-separated, optional)</label>
         <input
           id="sync-quorum-urls"
@@ -97,6 +105,9 @@
           <button type="button" id="btn-sync-catch-up">Catch up to tip</button>
           <button type="button" id="btn-pin-relays">Pin relay URLs</button>
           <button type="button" id="btn-reset-relay-pins">Reset relay pins</button>
+          <button type="button" id="btn-import-trusted-summary">Import trusted summary</button>
+          <button type="button" id="btn-show-trusted-summary">Show trusted summary</button>
+          <button type="button" id="btn-clear-trusted-summary">Clear trusted summary</button>
           <button type="button" id="btn-sync-reset">Reset wallet state</button>
         </div>
         <label for="sync-from">Rescan from height</label>

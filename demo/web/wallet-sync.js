@@ -116,7 +116,16 @@ export function loadTrustedSummary(seedHex) {
 }
 
 export function saveTrustedSummary(seedHex, summaryJson) {
+  if (!summaryJson) {
+    localStorage.removeItem(TRUSTED_SUMMARY_PREFIX + seedHex);
+    return;
+  }
   localStorage.setItem(TRUSTED_SUMMARY_PREFIX + seedHex, summaryJson);
+}
+
+/** Clear pinned weak-subjectivity summary (**M4.22**). */
+export function clearTrustedSummary(seedHex) {
+  localStorage.removeItem(TRUSTED_SUMMARY_PREFIX + seedHex);
 }
 
 /**

@@ -57,3 +57,5 @@ In the demo page:
 Proxy default: `http://127.0.0.1:8787/rpc`. P2P light-follow (M4.15): `POST …/p2p/light-follow` with `{"peer":"HOST:PORT",…}`. Light relay (M4.16–M4.17): run one or more `RELAY_RPC=… node demo/proxy/light-relay.mjs` instances (ports `8790`, `8791`, …). Demo sync with **≥2 relay URLs** + **≥2 P2P peers** fetches each relay independently and WASM-quorums the batches against local `get_light_follow`. Relay URLs are TOFU-pinned in `localStorage` (M4.18); **Pin relay URLs** also stores each relay's `checkpoint_digest` at tip (M4.19, `GET /checkpoint-summary`). Use **Reset relay pins** to re-trust.
 
 HTTPS relays (**M4.21**): set `RELAY_TLS_CERT` + `RELAY_TLS_KEY`, verify with `node demo/proxy/relay-tls-spki.mjs --cert …`, paste `url=spki_sha256` into **Expected TLS SPKI**, then **Pin relay URLs** (stores `GET /relay-spki` and checks on sync).
+
+Weak-subjectivity (**M4.22**): export with `mfn-cli wallet export-trusted-summary --out summary.json`, paste JSON into the demo **Trusted summary** field, click **Import trusted summary** (checks local checkpoint if present). **Show** / **Clear** manage the `localStorage` pin.

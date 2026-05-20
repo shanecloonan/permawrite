@@ -17,13 +17,21 @@ import init, {
 import { mfndRpc } from "./rpc-client.js";
 import {
   applyBlockScan,
+  clearTrustedSummary,
   emptyWalletSync,
+  loadLightCheckpoint,
   loadWalletSync,
   saveLightCheckpoint,
   saveWalletSync,
   syncBlockRange,
   totalBalance,
 } from "./wallet-sync.js";
+import {
+  formatTrustedSummaryLines,
+  loadTrustedSummaryObject,
+  parseTrustedSummaryJson,
+  saveTrustedSummaryObject,
+} from "./trusted-summary-pins.js";
 import {
   fetchRelayCheckpointSummary,
   fetchRelayTlsSpki,
@@ -447,12 +455,67 @@ document.addEventListener("DOMContentLoaded", () => {
     show("sync-out", "cleared trusted relay pins (next sync will TOFU)");
   });
 
+  $("btn-import-trusted-summary").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const seed = seedOrDemo();
+      const raw = $("sync-trusted-summary-json").value;
+      const summary = parseTrustedSummaryJson(raw);
+      const checkpointHex = loadLightCheckpoint(seed);
+      if (checkpointHex && lightChainWeakSubjectivity) {
+        const ws = JSON.parse(
+          lightChainWeakSubjectivity(JSON.stringify(summary), checkpointHex),
+        );
+        if (!ws.ok || !ws.agrees) {
+          throw new Error(
+            ws.error ||
+              "trusted summary disagrees with wallet light checkpoint (import aborted)",
+          );
+        }
+      }
+      saveTrustedSummaryObject(seed, summary);
+      show(
+        "sync-out",
+        `imported trusted summary (tip_height=${summary.tip_height})\n` +
+          `checkpoint_digest=${summary.checkpoint_digest}\n` +
+          (checkpointHex
+            ? "verified against local light checkpoint"
+            : "no local checkpoint yet; sync will check on next run"),
+      );
+    } catch (e) {
+      show("sync-out", String(e));
+    }
+  });
+
+  $("btn-show-trusted-summary").addEventListener("click", () => {
+    try {
+      const seed = seedOrDemo();
+      const summary = loadTrustedSummaryObject(seed);
+      if (!summary) {
+        show("sync-out", "no trusted summary pinned for this seed");
+        return;
+      }
+      $("sync-trusted-summary-json").value = JSON.stringify(summary, null, 2);
+      show("sync-out", formatTrustedSummaryLines(summary));
+    } catch (e) {
+      show("sync-out", String(e));
+    }
+  });
+
+  $("btn-clear-trusted-summary").addEventListener("click", () => {
+    clearTrustedSummary(seedOrDemo());
+    $("sync-trusted-summary-json").value = "";
+    show("sync-out", "cleared trusted summary pin (sync will not weak-subjectivity gate)");
+  });
+
   $("btn-sync-reset").addEventListener("click", () => {
     walletSync = emptyWalletSync();
     persistWalletSync();
     saveLightCheckpoint(seedOrDemo(), "");
     clearTrustedRelayPins(seedOrDemo());
-    show("sync-out", "wallet, checkpoint, and relay pins cleared");
+    clearTrustedSummary(seedOrDemo());
+    $("sync-trusted-summary-json").value = "";
+    show("sync-out", "wallet, checkpoint, relay pins, and trusted summary cleared");
   });
 
   $("btn-scan-block").addEventListener("click", async () => {

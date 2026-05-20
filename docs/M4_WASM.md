@@ -274,4 +274,15 @@ Browsers cannot read the TLS certificate from `fetch`; operators publish SPKI wi
 
 Same summary fields as browser `permawrite-light-trusted-summary:<seed>` and relay `checkpoint-summary` pins.
 
+## Demo trusted-summary import (M4.22)
+
+| Piece | Role |
+|-------|------|
+| `demo/web/trusted-summary-pins.js` | Parse/validate `get_light_snapshot.summary` JSON |
+| **Import trusted summary** | Pin pasted JSON; verifies against local checkpoint when present |
+| **Show / Clear** | Inspect or remove `permawrite-light-trusted-summary:<seed>` |
+| **Reset wallet state** | Also clears trusted summary |
+
+Paste output from `mfn-cli wallet export-trusted-summary` before sync on a fresh browser profile.
+
 ## Roadmap

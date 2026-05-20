@@ -2124,6 +2124,7 @@ The TypeScript reference implementation (`cloonan-group/lib/network`) exists for
 | **M4.19** | Relay checkpoint-summary pins (`GET /checkpoint-summary`, verify on sync). | done |
 | **M4.20** | Chunked demo wallet sync (512-block batches, RPC span safe). | done |
 | **M4.21** | Relay TLS SPKI pins (`relay-tls-spki.mjs`, `GET /relay-spki`, demo HTTPS pin field). | ✓ shipped |
+| **M4.22** | Demo import/show/clear trusted summary JSON (`trusted-summary-pins.js`, paste field). | ✓ shipped |
 
 ### Use cases
 
