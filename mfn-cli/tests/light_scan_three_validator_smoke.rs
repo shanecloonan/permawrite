@@ -115,6 +115,17 @@ struct ValidatorNode {
     p2p: SocketAddr,
 }
 
+struct SpawnOpts<'a> {
+    data_dir: &'a Path,
+    genesis_spec: &'a Path,
+    index: u32,
+    vrf_hex: &'a str,
+    bls_hex: &'a str,
+    p2p_dial: Option<&'a str>,
+    slot_duration_ms: u64,
+    produce: bool,
+}
+
 fn read_startup_addrs(
     out: &mut BufReader<impl Read>,
     slot_producer: bool,
@@ -155,21 +166,12 @@ fn read_startup_addrs(
     (rpc.unwrap(), p2p.unwrap())
 }
 
-fn spawn_validator(
-    data_dir: &Path,
-    genesis_spec: &Path,
-    index: u32,
-    vrf_hex: &str,
-    bls_hex: &str,
-    p2p_dial: Option<&str>,
-    slot_duration_ms: u64,
-    produce: bool,
-) -> ValidatorNode {
+fn spawn_validator(opts: &SpawnOpts<'_>) -> ValidatorNode {
     let mut cmd = mfnd();
     cmd.args(["--data-dir"])
-        .arg(data_dir)
+        .arg(opts.data_dir)
         .arg("--genesis")
-        .arg(genesis_spec)
+        .arg(opts.genesis_spec)
         .arg("--store")
         .arg("fs")
         .arg("--rpc-listen")
@@ -177,17 +179,17 @@ fn spawn_validator(
         .arg("--p2p-listen")
         .arg("127.0.0.1:0")
         .arg("--slot-duration-ms")
-        .arg(slot_duration_ms.to_string())
-        .env("MFND_VALIDATOR_INDEX", index.to_string())
-        .env("MFND_VRF_SEED_HEX", vrf_hex)
-        .env("MFND_BLS_SEED_HEX", bls_hex)
+        .arg(opts.slot_duration_ms.to_string())
+        .env("MFND_VALIDATOR_INDEX", opts.index.to_string())
+        .env("MFND_VRF_SEED_HEX", opts.vrf_hex)
+        .env("MFND_BLS_SEED_HEX", opts.bls_hex)
         .arg("serve");
-    if produce {
+    if opts.produce {
         cmd.arg("--produce");
     } else {
         cmd.arg("--committee-vote");
     }
-    if let Some(dial) = p2p_dial {
+    if let Some(dial) = opts.p2p_dial {
         cmd.arg("--p2p-dial").arg(dial);
     }
     let mut child = cmd
@@ -197,7 +199,7 @@ fn spawn_validator(
         .expect("spawn mfnd");
     let stdout = child.stdout.take().expect("stdout");
     let mut out = BufReader::new(stdout);
-    let (rpc, p2p) = read_startup_addrs(&mut out, produce, p2p_dial.is_some());
+    let (rpc, p2p) = read_startup_addrs(&mut out, opts.produce, opts.p2p_dial.is_some());
     drop(out);
     ValidatorNode { child, rpc, p2p }
 }
@@ -255,34 +257,43 @@ fn start_three_validator_mesh(
     std::fs::create_dir_all(&dir1).ok();
     std::fs::create_dir_all(&dir2).ok();
 
-    let v0 = spawn_validator(&dir0, spec, 0, V0_VRF, V0_BLS, None, slot_ms, true);
+    let v0 = spawn_validator(&SpawnOpts {
+        data_dir: &dir0,
+        genesis_spec: spec,
+        index: 0,
+        vrf_hex: V0_VRF,
+        bls_hex: V0_BLS,
+        p2p_dial: None,
+        slot_duration_ms: slot_ms,
+        produce: true,
+    });
     thread::sleep(Duration::from_millis(500));
     let hub_p2p = v0.p2p.to_string();
-    let v1 = spawn_validator(
-        &dir1,
-        spec,
-        1,
-        V1_VRF,
-        V1_BLS,
-        Some(&hub_p2p),
-        slot_ms,
-        false,
-    );
+    let v1 = spawn_validator(&SpawnOpts {
+        data_dir: &dir1,
+        genesis_spec: spec,
+        index: 1,
+        vrf_hex: V1_VRF,
+        bls_hex: V1_BLS,
+        p2p_dial: Some(&hub_p2p),
+        slot_duration_ms: slot_ms,
+        produce: false,
+    });
     thread::sleep(Duration::from_millis(1500));
 
     let (h1, _) = wait_common_tip(v0.rpc, &[v1.rpc], 1, Duration::from_secs(120));
     assert!(h1 >= 1, "hub+v1 should seal height 1");
 
-    let v2 = spawn_validator(
-        &dir2,
-        spec,
-        2,
-        V2_VRF,
-        V2_BLS,
-        Some(&hub_p2p),
-        slot_ms,
-        false,
-    );
+    let v2 = spawn_validator(&SpawnOpts {
+        data_dir: &dir2,
+        genesis_spec: spec,
+        index: 2,
+        vrf_hex: V2_VRF,
+        bls_hex: V2_BLS,
+        p2p_dial: Some(&hub_p2p),
+        slot_duration_ms: slot_ms,
+        produce: false,
+    });
     thread::sleep(Duration::from_millis(2000));
 
     let (height, _) = wait_common_tip(v0.rpc, &[v1.rpc, v2.rpc], 1, Duration::from_secs(120));

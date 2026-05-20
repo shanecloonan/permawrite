@@ -426,8 +426,8 @@ fn decode_hex(s: &str, label: &str) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mfn_consensus::{BondingParams, ConsensusParams, GenesisConfig, Validator};
     use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{BondingParams, ConsensusParams, GenesisConfig, Validator};
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_light::LightChainConfig;
 
