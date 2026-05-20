@@ -53,7 +53,11 @@ Default RPC address: `127.0.0.1:18731` (mfnd default `--rpc-listen`).
 
 Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex` and optional `scan_height`. **Back it up** — it is the only recovery path for funds.
 
-`wallet scan` / `wallet balance` fetch only blocks after the persisted `scan_height` when `owned_outputs` is populated in `wallet.json` (**M3.6**); otherwise they replay from height `1`. `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
+`wallet scan` / `wallet balance` fetch full blocks via `get_block` after the persisted `scan_height` when `owned_outputs` is populated (**M3.6**); otherwise they replay from height `1`.
+
+`wallet light-scan` (**M3.11**) verifies BLS headers and validator-set evolution via [`mfn-light`](../mfn-light) + batched `get_light_follow`, scans txs with `get_block_txs` only (no full block download), and persists `light_checkpoint_hex` in `wallet.json` for incremental resume.
+
+`wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 

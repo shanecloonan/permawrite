@@ -165,7 +165,10 @@ fn wallet_light_scan_after_solo_step_coinbase() {
 
     let reloaded = WalletFile::load(&wallet_path).expect("reload wallet");
     assert!(
-        reloaded.light_checkpoint_hex.as_ref().is_some_and(|h| h.len() > 64),
+        reloaded
+            .light_checkpoint_hex
+            .as_ref()
+            .is_some_and(|h| h.len() > 64),
         "expected persisted light checkpoint"
     );
 

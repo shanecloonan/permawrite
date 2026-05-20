@@ -343,9 +343,8 @@ impl RpcClient {
             "get_block_headers",
             json!({ "from_height": from_height, "to_height": to_height }),
         )?;
-        serde_json::from_value(v).map_err(|e| {
-            RpcError::Protocol(format!("get_block_headers decode: {e}"))
-        })
+        serde_json::from_value(v)
+            .map_err(|e| RpcError::Protocol(format!("get_block_headers decode: {e}")))
     }
 
     /// `get_light_follow` evolution rows for an inclusive height range.

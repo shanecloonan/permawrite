@@ -7,9 +7,9 @@ use serde_json::json;
 use crate::claims_cmd::{
     claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
 };
+use crate::light_wallet::wallet_light_scan;
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, UploadsListParams};
-use crate::light_wallet::wallet_light_scan;
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
     wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,

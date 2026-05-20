@@ -96,11 +96,8 @@ fn sync_wallet_light_from_node(
             *light.tip_id()
         };
 
-        let follow_by_height: HashMap<u32, _> = follow_page
-            .rows
-            .iter()
-            .map(|r| (r.height, r))
-            .collect();
+        let follow_by_height: HashMap<u32, _> =
+            follow_page.rows.iter().map(|r| (r.height, r)).collect();
 
         for row in &headers_page.headers {
             let h = row.height;
@@ -115,13 +112,11 @@ fn sync_wallet_light_from_node(
             })?;
 
             let header_bytes = decode_hex(&row.header_hex, "header_hex")?;
-            let header = decode_block_header(&header_bytes).map_err(|e| {
-                WalletCmdError::Usage(format!("decode header at height {h}: {e}"))
-            })?;
+            let header = decode_block_header(&header_bytes)
+                .map_err(|e| WalletCmdError::Usage(format!("decode header at height {h}: {e}")))?;
 
-            verify_header(&header, light.trusted_validators(), light.params()).map_err(
-                |e| WalletCmdError::Usage(format!("verify_header at height {h}: {e}")),
-            )?;
+            verify_header(&header, light.trusted_validators(), light.params())
+                .map_err(|e| WalletCmdError::Usage(format!("verify_header at height {h}: {e}")))?;
 
             let computed_id = block_id(&header);
             let rpc_id = parse_block_id_hex(&row.block_id)?;
@@ -136,9 +131,11 @@ fn sync_wallet_light_from_node(
             let mut txs = Vec::with_capacity(txs_page.txs.len());
             for t in &txs_page.txs {
                 let wire = decode_hex(&t.tx_hex, "tx_hex")?;
-                txs.push(decode_transaction(&wire).map_err(|e| {
-                    WalletCmdError::Usage(format!("decode tx at height {h}: {e}"))
-                })?);
+                txs.push(
+                    decode_transaction(&wire).map_err(|e| {
+                        WalletCmdError::Usage(format!("decode tx at height {h}: {e}"))
+                    })?,
+                );
             }
 
             let block = Block {
@@ -220,7 +217,9 @@ fn bootstrap_light_chain(
     Ok(chain)
 }
 
-fn decode_slashings(row: &crate::rpc::LightFollowRow) -> Result<Vec<SlashEvidence>, WalletCmdError> {
+fn decode_slashings(
+    row: &crate::rpc::LightFollowRow,
+) -> Result<Vec<SlashEvidence>, WalletCmdError> {
     let mut out = Vec::with_capacity(row.slashings.len());
     for (i, s) in row.slashings.iter().enumerate() {
         let bytes = decode_hex(&s.evidence_hex, "evidence_hex")?;
