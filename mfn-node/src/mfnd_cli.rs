@@ -34,7 +34,7 @@ use crate::{
     demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
     Chain, ChainConfig, Mempool, MempoolConfig, NodeStore, StoreBackend,
 };
-use mfn_store::{load_mempool, save_mempool, ChainPersistence};
+use mfn_store::{load_mempool, load_proof_pool, save_mempool, save_proof_pool, ChainPersistence};
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -200,6 +200,19 @@ fn run_solo_step(
             stats.loaded, stats.admitted, stats.skipped
         );
     }
+    {
+        let prev = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        let next_h = chain.tip_height().map(|h| h.saturating_add(1)).unwrap_or(0);
+        let stats = load_proof_pool(store, &mut proof_pool, chain.state(), &prev, next_h)
+            .map_err(|e| format!("mfnd step: load proof pool: {e}"))?;
+        println!(
+            "mfnd_step_proof_pool_load loaded={} admitted={} skipped={}",
+            stats.loaded, stats.admitted, stats.skipped
+        );
+    }
 
     for bi in 0..step_count {
         let tip = chain
@@ -259,6 +272,9 @@ fn run_solo_step(
         pool.remove_mined(&block);
         let mined: Vec<[u8; 32]> = block.storage_proofs.iter().map(|p| p.commit_hash).collect();
         let _ = proof_pool.remove_mined(mined);
+        if let Err(e) = save_proof_pool(store, &proof_pool) {
+            eprintln!("mfnd_step_proof_pool_save_abort {e}");
+        }
         store
             .append_block(&block)
             .map_err(|e| format!("append_block: {e}"))?;
