@@ -17,12 +17,14 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod chunk_client;
 pub mod chunk_http;
 pub mod daemon;
 pub mod prove;
 pub mod rpc;
 pub mod upload_artifact_store;
 
+pub use chunk_client::{fetch_chunk_http, ChunkFetchError};
 pub use chunk_http::{serve_chunks, ChunkServeConfig, ChunkServeError};
 pub use daemon::{
     run_daemon, run_prove_cycle, OperatorDaemonConfig, ProveAttempt, ProveAttemptStatus,

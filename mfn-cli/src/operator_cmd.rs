@@ -6,6 +6,7 @@ use mfn_storage::{
     build_storage_proof, chunk_data, decode_storage_commitment, merkle_tree_from_chunks,
     storage_commitment_hash,
 };
+use mfn_storage_operator::fetch_chunk_http;
 
 use crate::rpc::RpcClient;
 
@@ -157,6 +158,44 @@ fn commit_data_root_from_challenge(
 /// List wallet-local upload artifacts (same as `uploads local`) (**M3.25**).
 pub fn operator_artifacts(wallet_path: &std::path::Path) -> Result<(), OperatorCmdError> {
     crate::uploads_cmd::uploads_local(wallet_path).map_err(OperatorCmdError::Usage)
+}
+
+/// Fetch a chunk from a peer HTTP chunk server and optionally verify against a
+/// wallet upload artifact (**M6.5**).
+pub fn operator_fetch_chunk(
+    peer: &str,
+    commitment_hash_hex: &str,
+    chunk_index: u32,
+    wallet_path: Option<&Path>,
+) -> Result<(), OperatorCmdError> {
+    let body = fetch_chunk_http(peer, commitment_hash_hex, chunk_index)
+        .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    println!("peer={peer}");
+    println!("commitment_hash={commitment_hash_hex}");
+    println!("chunk_index={chunk_index}");
+    println!("chunk_len={}", body.len());
+
+    if let Some(wallet) = wallet_path {
+        let loaded = mfn_storage_operator::load_upload_artifact(wallet, commitment_hash_hex)
+            .map_err(|e| OperatorCmdError::Usage(format!("upload artifact: {e}")))?;
+        let chunks = chunk_data(&loaded.payload, loaded.built.commit.chunk_size as usize)
+            .map_err(|e| OperatorCmdError::Usage(format!("chunk_data: {e}")))?;
+        let idx = usize::try_from(chunk_index)
+            .map_err(|_| OperatorCmdError::Usage("chunk_index overflow".into()))?;
+        let expected = chunks.get(idx).ok_or_else(|| {
+            OperatorCmdError::Usage(format!(
+                "chunk_index {chunk_index} >= num_chunks {}",
+                chunks.len()
+            ))
+        })?;
+        if expected[..] != body[..] {
+            return Err(OperatorCmdError::Usage(
+                "peer chunk bytes do not match wallet upload artifact".into(),
+            ));
+        }
+        println!("verify=artifact_match");
+    }
+    Ok(())
 }
 
 /// List pending proofs in the node proof pool.

@@ -14,7 +14,8 @@ use crate::light_subjectivity::{
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::operator_cmd::{
-    operator_artifacts, operator_challenge, operator_pool, operator_prove, OperatorCmdError,
+    operator_artifacts, operator_challenge, operator_fetch_chunk, operator_pool, operator_prove,
+    OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
@@ -150,6 +151,14 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 operator_artifacts(&path)?;
             }
+            OperatorSub::FetchChunk {
+                commitment_hash_hex,
+                chunk_index,
+                peer,
+            } => {
+                let wallet = Some(resolve_wallet_path(global_wallet_path.as_deref()));
+                operator_fetch_chunk(&peer, &commitment_hash_hex, chunk_index, wallet.as_deref())?
+            }
         },
         Cmd::Wallet {
             sub,
@@ -255,6 +264,11 @@ enum OperatorSub {
     },
     Pool,
     Artifacts,
+    FetchChunk {
+        commitment_hash_hex: String,
+        chunk_index: u32,
+        peer: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -335,7 +349,8 @@ fn usage() -> &'static str {
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
-       operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n"
+       operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
+       operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -592,7 +607,7 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts)\n{}",
+            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk)\n{}",
             usage()
         )));
     };
@@ -638,6 +653,22 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
                 )));
             }
             OperatorSub::Artifacts
+        }
+        "fetch-chunk" => {
+            if rest.len() != 4 {
+                return Err(CliError::Usage(format!(
+                    "operator fetch-chunk requires COMMITMENT_HASH_HEX CHUNK_INDEX PEER\n{}",
+                    usage()
+                )));
+            }
+            let chunk_index = rest[2]
+                .parse()
+                .map_err(|_| CliError::Usage(format!("invalid chunk index `{}`", rest[2])))?;
+            OperatorSub::FetchChunk {
+                commitment_hash_hex: rest[1].to_string(),
+                chunk_index,
+                peer: rest[3].to_string(),
+            }
         }
         other => {
             return Err(CliError::Usage(format!(
@@ -1579,6 +1610,34 @@ mod tests {
                 sub: OperatorSub::Artifacts,
             } => {}
             _ => panic!("expected operator artifacts"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_fetch_chunk_subcommand() {
+        let h = "ab".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "fetch-chunk".into(),
+            h.clone(),
+            "0".into(),
+            "127.0.0.1:18780".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::FetchChunk {
+                        commitment_hash_hex,
+                        chunk_index,
+                        peer,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(chunk_index, 0);
+                assert_eq!(peer, "127.0.0.1:18780");
+            }
+            _ => panic!("expected operator fetch-chunk"),
         }
     }
 }

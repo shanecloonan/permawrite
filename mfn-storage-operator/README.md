@@ -37,6 +37,16 @@ mfn-storage-operator serve-chunks --wallet ./alice.json --listen 127.0.0.1:18780
 
 Integration tests in `tests/chunk_http_smoke.rs`: **M6.3** `serve-chunks` and **M6.4** `run --once --chunk-listen` both return the same bytes as the saved artifact for `GET /chunk/.../0`.
 
+## Fetch chunks from peers (**M6.5**)
+
+Library [`fetch_chunk_http`](src/chunk_client.rs) and CLI:
+
+```bash
+mfn-cli --wallet ./alice.json operator fetch-chunk COMMIT_HEX 0 127.0.0.1:18780
+```
+
+With `--wallet`, bytes are checked against the local upload artifact slice.
+
 Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
 
 ## Library
