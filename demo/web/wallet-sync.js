@@ -6,8 +6,14 @@
  */
 
 import { syncHeaderRange, verifyHeaderChain } from "./header-sync.js";
-import { fetchLightRelayFollowPage } from "./light-relay-client.js";
-import { assertRelayUrlsTrusted } from "./trusted-relay-pins.js";
+import {
+  fetchLightRelayFollowPage,
+  fetchRelayCheckpointSummary,
+} from "./light-relay-client.js";
+import {
+  assertRelayUrlsTrusted,
+  verifyRelayCheckpointSummaries,
+} from "./trusted-relay-pins.js";
 
 const STORAGE_PREFIX = "permawrite-wallet-sync:";
 const CHECKPOINT_PREFIX = "permawrite-light-checkpoint:";
@@ -233,6 +239,14 @@ export async function syncBlockRange({
     lightRelayUrls && lightRelayUrls.length > 0
       ? assertRelayUrlsTrusted(seedHex, lightRelayUrls)
       : null;
+  let relaySummaryCheck;
+  if (lightRelayUrls && lightRelayUrls.length > 0) {
+    relaySummaryCheck = await verifyRelayCheckpointSummaries(
+      seedHex,
+      lightRelayUrls,
+      fetchRelayCheckpointSummary,
+    );
+  }
 
   const headerPage = await rpc(rpcUrl, "get_block_headers", {
     from_height: fromHeight,
@@ -380,7 +394,11 @@ export async function syncBlockRange({
     evolutionSteps,
     checkpoint_hex: checkpoint,
     relay_trust: relayTrust
-      ? { tofu: relayTrust.tofu, pinned_relays: relayTrust.pinned }
+      ? {
+          tofu: relayTrust.tofu,
+          pinned_relays: relayTrust.pinned,
+          summary_checks: relaySummaryCheck?.checked ?? 0,
+        }
       : undefined,
   };
 }

@@ -1,6 +1,25 @@
 /**
- * HTTP client for dedicated light-follow relays (**M4.16**–**M4.17**).
+ * HTTP client for dedicated light-follow relays (**M4.16**–**M4.19**).
  */
+
+/**
+ * @param {string} relayBase
+ * @returns {Promise<object>} weak-subjectivity summary from relay backend tip
+ */
+export async function fetchRelayCheckpointSummary(relayBase) {
+  const url = relayBase.replace(/\/$/, "");
+  const res = await fetch(`${url}/checkpoint-summary`);
+  if (!res.ok) {
+    throw new Error(
+      `light relay ${url} checkpoint-summary HTTP ${res.status}: ${await res.text()}`,
+    );
+  }
+  const summary = await res.json();
+  if (!summary?.checkpoint_digest) {
+    throw new Error(`light relay ${url} returned invalid checkpoint summary`);
+  }
+  return summary;
+}
 
 /**
  * @param {string} relayBase e.g. http://127.0.0.1:8790

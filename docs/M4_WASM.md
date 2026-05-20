@@ -234,8 +234,18 @@ Wallet scan RPC (`8787/rpc`) and relay backends (`8790`, `8791`, …) may be ope
 
 Demo buttons **Pin relay URLs** / **Reset relay pins** let operators pin after manual verification (e.g. out-of-band TLS cert fingerprint). **Reset wallet state** also clears relay pins.
 
-Sync summary includes `relay_trust: { tofu, pinned }` when relays are configured.
+Sync summary includes `relay_trust: { tofu, pinned_relays, summary_checks }` when relays are configured.
+
+## Relay checkpoint-summary pins (M4.19)
+
+| Endpoint / module | Role |
+|-------------------|------|
+| `GET /checkpoint-summary` on `light-relay.mjs` | Proxies `get_light_snapshot.summary` from `RELAY_RPC` tip |
+| `fetchRelayCheckpointSummary` | Browser fetches summary before trusting relay evolution |
+| Pin record | `{ urls, summaries }` in `localStorage`; **Pin relay URLs** stores digest per relay |
+
+On sync, when summaries were pinned, each configured relay must still report the same `checkpoint_digest` (and related weak-subjectivity fields) or sync aborts.
 
 ## Roadmap
 
-- **M4.19** — Optional relay TLS fingerprint pins (certificate SPKI) beyond URL TOFU.
+- **M4.20** — Optional relay TLS SPKI pins for Node relay operators (out-of-band cert verification).

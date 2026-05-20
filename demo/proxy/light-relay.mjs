@@ -62,9 +62,41 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === "/checkpoint-summary" && req.method === "GET") {
+    try {
+      const rpcLine = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "get_light_snapshot",
+        id: 1,
+      });
+      const line = await tcpLineRpc(rpcLine);
+      const msg = JSON.parse(line);
+      if (msg.error) {
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(`${line}\n`);
+        return;
+      }
+      const summary = msg.result?.summary;
+      if (!summary) {
+        res.writeHead(502, { "Content-Type": "text/plain" });
+        res.end("get_light_snapshot returned no summary\n");
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(`${JSON.stringify(summary)}\n`);
+    } catch (e) {
+      res.writeHead(502, { "Content-Type": "text/plain" });
+      res.end(String(e));
+    }
+    return;
+  }
+
   if (req.url !== "/light-follow" || req.method !== "POST") {
     res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("POST /light-follow with {peers,from_height,to_height}\n");
+    res.end(
+      "POST /light-follow with {peers,from_height,to_height}\n" +
+        "GET /checkpoint-summary\n",
+    );
     return;
   }
 

@@ -24,6 +24,7 @@ import {
   syncBlockRange,
   totalBalance,
 } from "./wallet-sync.js";
+import { fetchRelayCheckpointSummary } from "./light-relay-client.js";
 import {
   clearTrustedRelayPins,
   saveTrustedRelayPins,
@@ -379,15 +380,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  $("btn-pin-relays").addEventListener("click", () => {
-    const seed = seedOrDemo();
-    const relays = lightRelayUrls();
-    if (relays.length === 0) {
-      show("sync-out", "enter light relay URLs first");
-      return;
+  $("btn-pin-relays").addEventListener("click", async () => {
+    try {
+      const seed = seedOrDemo();
+      const relays = lightRelayUrls();
+      if (relays.length === 0) {
+        show("sync-out", "enter light relay URLs first");
+        return;
+      }
+      const summaries = {};
+      for (const base of relays) {
+        summaries[base] = await fetchRelayCheckpointSummary(base);
+      }
+      saveTrustedRelayPins(seed, relays, summaries);
+      const digests = relays.map(
+        (r) => `${r} → ${summaries[r].checkpoint_digest}`,
+      );
+      show(
+        "sync-out",
+        `pinned ${relays.length} relay URL(s) + checkpoint summaries:\n${digests.join("\n")}`,
+      );
+    } catch (e) {
+      show("sync-out", String(e));
     }
-    saveTrustedRelayPins(seed, relays);
-    show("sync-out", `pinned ${relays.length} relay URL(s):\n${relays.join("\n")}`);
   });
 
   $("btn-reset-relay-pins").addEventListener("click", () => {
