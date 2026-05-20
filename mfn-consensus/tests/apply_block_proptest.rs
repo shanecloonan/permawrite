@@ -8,11 +8,12 @@ use curve25519_dalek::scalar::Scalar;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
-    emission_at_height, encode_finality_proof, finalize, header_signing_hash, seal_block,
-    sign_register, sign_transaction, try_produce_slot, ApplyOutcome, BlockError, BondOp,
-    ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput,
-    InputSpec, OutputSpec, PayoutAddress, SlotContext, TransactionWire, Validator, ValidatorPayout,
-    ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    emission_at_height, encode_finality_proof, finalize, header_signing_hash, pick_winner,
+    seal_block, sign_register, sign_transaction, try_produce_slot, ApplyOutcome, BlockError,
+    BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
+    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, ProducerProof, SlotContext,
+    TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
+    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
@@ -519,20 +520,22 @@ fn attach_test_finality(
             prev_hash: unsealed.prev_hash,
         };
 
-        let mut producer_proof = None;
-        let mut producer_validator: Option<&Validator> = None;
+        let mut candidates: Vec<ProducerProof> = Vec::new();
         for v in &st.validators {
             let secrets = validator_secrets_for_index(v.index);
             if let Ok(Some(p)) = try_produce_slot(&ctx, &secrets, v, total_stake, f, &header_hash) {
-                producer_proof = Some(p);
-                producer_validator = Some(v);
-                break;
+                candidates.push(p);
             }
         }
-        let (producer_proof, producer_validator) = match (producer_proof, producer_validator) {
-            (Some(p), Some(v)) => (p, v),
-            _ => continue,
+        let producer_proof = match pick_winner(&candidates) {
+            None => continue,
+            Some(p) => p.clone(),
         };
+        let producer_validator = st
+            .validators
+            .iter()
+            .find(|v| v.index == producer_proof.validator_index)
+            .expect("producer index in validator set");
 
         let mut votes = Vec::with_capacity(st.validators.len());
         for v in &st.validators {
