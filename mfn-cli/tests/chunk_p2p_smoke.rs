@@ -242,7 +242,7 @@ fn push_chunks_inbox_assemble_then_prove() {
 
     std::fs::remove_dir_all(&artifact_dir).expect("remove local artifact");
 
-    let inbox_stdout = wait_for_inbox_complete(&rpc2, &dir, &commitment_hash);
+    wait_for_inbox_complete(&rpc2, &dir, &commitment_hash);
 
     let assemble_out = mfn_cli()
         .args(["--rpc", &rpc2, "--wallet"])
