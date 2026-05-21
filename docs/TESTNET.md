@@ -27,7 +27,7 @@ After `cargo build -p mfn-node --release --bin mfnd`:
 | Platform | Start three validators | Health check |
 |----------|------------------------|--------------|
 | Linux / macOS | `bash scripts/public-devnet-v1/start-all.sh` | `bash scripts/public-devnet-v1/health-check.sh` |
-| Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` | `powershell -File scripts/public-devnet-v1/health-check.ps1` |
+| Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` | `powershell -File scripts/public-devnet-v1/health-check.ps1` (exits 1 if tips diverge) |
 
 Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md). **Storage permanence** (upload, chunk HTTP/P2P replication, SPoRA prove): see the [Permanence operators (M6 / M7)](../scripts/public-devnet-v1/OPERATORS.md#permanence-operators-storage--spora--m6--m7) section in that file.
 

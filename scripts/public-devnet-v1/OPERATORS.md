@@ -34,7 +34,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux/macOS | `bash scripts/public-devnet-v1/start-all.sh` |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 
-Health check: `health-check.sh` or `health-check.ps1` in the same directory.
+Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** — exits non-zero if hub/voters diverge or `genesis_id` ≠ public devnet manifest).
 
 Full runbook: [`docs/TESTNET.md`](../../docs/TESTNET.md).
 
