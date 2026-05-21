@@ -10,12 +10,33 @@ Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/tes
 
 Add your node's **public P2P listen address** (`host:port`, reachable from the internet or your LAN) to [`public_devnet_v1.manifest.json`](../../mfn-node/testdata/public_devnet_v1.manifest.json) under `seed_nodes`, then open a PR or post in the operator channel.
 
+The manifest includes `seed_nodes_examples` (documentation only — `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
+
+### Local mesh → published seeds
+
+After `start-all.sh` / `start-all.ps1`:
+
+1. Open `scripts/public-devnet-v1/devnet-ports.env` (see [`devnet-ports.example.env`](devnet-ports.example.env)).
+2. Use `HUB_P2P` as `--p2p-dial` for committee voters (already wired in `start-voter.sh`).
+3. When exposing validators on a LAN or VPS, bind P2P explicitly, e.g. `--p2p-listen 0.0.0.0:19001`, and append the **reachable** `host:port` to `seed_nodes` in the manifest.
+
+Example manifest after three operators deploy:
+
+```json
+"seed_nodes": [
+  "203.0.113.10:19001",
+  "203.0.113.11:19002",
+  "203.0.113.12:19003"
+]
+```
+
 New peers should:
 
 1. Build `mfnd` from this repository (or a release artifact with matching consensus).
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
 3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable).
 4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
+5. Run `health-check.sh` / `health-check.ps1` — all nodes must share the same `tip_height` and `tip_id` (**M2.4.6**).
 
 ## Roles
 

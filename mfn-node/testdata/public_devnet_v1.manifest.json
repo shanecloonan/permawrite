@@ -10,5 +10,10 @@
     "network_magic": 0
   },
   "seed_nodes": [],
-  "operator_notes": "Append public P2P listen addresses (host:port) to seed_nodes after deploying validators. Peers must use the same genesis_spec bytes (hence genesis_id)."
+  "seed_nodes_examples": [
+    "203.0.113.10:19001",
+    "203.0.113.11:19002",
+    "203.0.113.12:19003"
+  ],
+  "operator_notes": "Append public P2P listen addresses (host:port) to seed_nodes after deploying validators. Peers must use the same genesis_spec bytes (hence genesis_id). Examples are documentation-only; mfnd reads only seed_nodes."
 }
