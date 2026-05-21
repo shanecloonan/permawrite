@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-20T13:21:19.714Z
+**Generated (UTC):** 2026-05-21T06:02:24.780Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 271 |
-| Total lines (all scanned source-like files) | 78,669 |
-| Non-empty lines | 69,758 |
-| UTF-8 bytes (source-like) | 3,201,590 |
-| Paths visited (before binary/huge skip) | 288 |
+| Source-like files scanned | 296 |
+| Total lines (all scanned source-like files) | 86,588 |
+| Non-empty lines | 77,086 |
+| UTF-8 bytes (source-like) | 3,479,749 |
+| Paths visited (before binary/huge skip) | 313 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -23,63 +23,64 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
-| `mfn-consensus` | 56 | 16,160 | 14,905 |
-| `docs` | 35 | 10,696 | 7,584 |
-| `mfn-node` | 31 | 8,168 | 7,561 |
-| `mfn-cli` | 22 | 7,295 | 6,709 |
+| `mfn-consensus` | 56 | 16,901 | 15,596 |
+| `docs` | 35 | 10,719 | 7,607 |
+| `mfn-cli` | 26 | 9,799 | 9,036 |
+| `mfn-node` | 32 | 8,459 | 7,838 |
 | `mfn-crypto` | 23 | 7,292 | 6,565 |
-| `mfn-wallet` | 14 | 4,693 | 4,301 |
+| `mfn-wallet` | 15 | 4,931 | 4,522 |
+| `mfn-runtime` | 14 | 4,323 | 4,001 |
 | `mfn-light` | 6 | 3,895 | 3,556 |
-| `mfn-runtime` | 12 | 3,709 | 3,435 |
-| `mfn-rpc` | 4 | 3,343 | 3,167 |
-| `mfn-net` | 10 | 3,207 | 2,932 |
+| `mfn-rpc` | 4 | 3,565 | 3,384 |
+| `mfn-net` | 11 | 3,488 | 3,193 |
+| `mfn-storage-operator` | 14 | 2,679 | 2,453 |
 | `demo` | 12 | 2,478 | 2,292 |
 | `mfn-wasm` | 10 | 2,029 | 1,845 |
 | `mfn-storage` | 6 | 1,960 | 1,782 |
-| `mfn-store` | 10 | 1,491 | 1,284 |
+| `mfn-store` | 12 | 1,814 | 1,573 |
 | `mfn-bls` | 4 | 865 | 757 |
-| `(root)` | 5 | 738 | 529 |
-| `scripts` | 9 | 496 | 412 |
-| `.github` | 2 | 154 | 142 |
+| `(root)` | 5 | 739 | 530 |
+| `scripts` | 9 | 497 | 413 |
+| `.github` | 2 | 155 | 143 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 173 | 61,922 | 57,078 | 2,234,135 |
-| `.md` | 50 | 12,492 | 8,812 | 819,977 |
+| `.rs` | 196 | 69,674 | 64,282 | 2,502,192 |
+| `.md` | 51 | 12,617 | 8,900 | 828,822 |
 | `.js` | 7 | 1,980 | 1,856 | 62,125 |
 | `.mjs` | 5 | 697 | 609 | 19,201 |
+| `.toml` | 15 | 522 | 439 | 14,387 |
 | `.svg` | 3 | 520 | 462 | 35,170 |
-| `.toml` | 14 | 482 | 405 | 13,315 |
 | `.json` | 10 | 238 | 228 | 6,904 |
-| `.sh` | 7 | 184 | 166 | 6,166 |
-| `.yml` | 2 | 154 | 142 | 4,597 |
+| `.sh` | 7 | 185 | 167 | 6,262 |
+| `.yml` | 2 | 155 | 143 | 4,686 |
 
 ## Largest source files (by line count)
 
 | Lines | File |
 | ---: | --- |
-| 3,273 | `mfn-rpc/src/dispatch.rs` |
-| 2,231 | `docs/ROADMAP.md` |
+| 3,493 | `mfn-rpc/src/dispatch.rs` |
+| 2,254 | `docs/ROADMAP.md` |
 | 1,952 | `mfn-node/tests/mfnd_smoke.rs` |
+| 1,916 | `mfn-cli/src/cli.rs` |
 | 1,684 | `mfn-consensus/tests/block_apply.rs` |
 | 1,661 | `mfn-consensus/tests/integration.rs` |
 | 1,634 | `mfn-light/src/chain.rs` |
 | 1,551 | `mfn-runtime/src/mempool.rs` |
-| 1,365 | `mfn-cli/src/cli.rs` |
+| 1,128 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 1,089 | `mfn-light/tests/follow_chain.rs` |
 | 986 | `mfn-wallet/src/upload.rs` |
 | 982 | `mfn-wallet/src/wallet.rs` |
+| 972 | `mfn-node/src/mfnd_cli.rs` |
 | 959 | `docs/ARCHITECTURE.md` |
-| 944 | `mfn-node/src/mfnd_cli.rs` |
 | 921 | `mfn-consensus/src/consensus/engine.rs` |
 | 870 | `mfn-crypto/src/utxo_tree.rs` |
 | 816 | `mfn-light/src/checkpoint.rs` |
 | 804 | `mfn-storage/src/spora.rs` |
 | 801 | `demo/web/main.js` |
 | 783 | `mfn-consensus/src/block/apply.rs` |
-| 733 | `mfn-consensus/tests/emission_simulation.rs` |
 
 ## Notes
 
