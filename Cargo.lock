@@ -622,6 +622,7 @@ dependencies = [
  "mfn-crypto",
  "mfn-net",
  "mfn-storage",
+ "mfn-store",
  "mfn-wallet",
  "serde",
  "serde_json",
@@ -632,6 +633,7 @@ dependencies = [
 name = "mfn-store"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "mfn-consensus",
  "mfn-runtime",
  "mfn-storage",

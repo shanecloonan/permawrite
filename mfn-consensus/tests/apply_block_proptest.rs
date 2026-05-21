@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
+﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -604,18 +604,46 @@ fn apply_with_bond_ops(st: &ChainState, height: u32, bond_ops: Vec<BondOp>) -> C
     }
 }
 
-fn apply_with_storage_proofs(
+fn apply_with_storage_proofs_at_slot(
     st: &ChainState,
     height: u32,
+    slot: u32,
     proofs: Vec<mfn_storage::StorageProof>,
 ) -> ChainState {
     let ts = u64::from(height) * 1_000;
-    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, height, ts);
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, slot, ts);
     let blk = seal_with_test_finality(st, unsealed, Vec::new(), Vec::new(), Vec::new(), proofs);
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
     }
+}
+
+/// Build a SPoRA proof whose `proof.index` matches the `slot` on the sealed block.
+///
+/// [`attach_test_finality`] may bump `header.slot` for VRF eligibility when the
+/// pre-state has validators; the proof must target that final slot, not `height`.
+fn build_storage_proof_for_sealed_slot(
+    st: &ChainState,
+    height: u32,
+    built: &BuiltCommitment,
+    payload: &[u8],
+) -> (mfn_storage::StorageProof, u32) {
+    let ts = u64::from(height) * 1_000;
+    let prev = *st.tip_id().expect("tip");
+    let mut slot = height;
+    for _ in 0..=512u32 {
+        let proof =
+            build_storage_proof(&built.commit, &prev, slot, payload, &built.tree).expect("proof");
+        let unsealed =
+            build_unsealed_header(st, &[], &[], &[], std::slice::from_ref(&proof), slot, ts);
+        let (final_hdr, _) = attach_test_finality(st, unsealed);
+        if final_hdr.slot == slot {
+            return (proof, slot);
+        }
+        slot = final_hdr.slot;
+    }
+    panic!("build_storage_proof_for_sealed_slot: no stable slot at height {height}");
 }
 
 fn apply_valid_proof_at(
@@ -624,10 +652,8 @@ fn apply_valid_proof_at(
     st: &ChainState,
     height: u32,
 ) -> ChainState {
-    let prev = *st.tip_id().expect("tip");
-    let proof =
-        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
-    apply_with_storage_proofs(st, height, vec![proof])
+    let (proof, slot) = build_storage_proof_for_sealed_slot(st, height, built, payload);
+    apply_with_storage_proofs_at_slot(st, height, slot, vec![proof])
 }
 
 fn seal_empty(st: &ChainState, header: mfn_consensus::BlockHeader) -> mfn_consensus::Block {
