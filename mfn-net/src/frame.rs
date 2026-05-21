@@ -25,6 +25,8 @@
 //!
 //! **M4.13** adds [`crate::light_follow::GetLightFollowV1`] (`0x0e`) and
 //! [`crate::light_follow::LightFollowV1`] (`0x0f`) for batched header + evolution rows.
+//!
+//! **M7** adds [`crate::chunk_v1::ChunkV1`] (`0x10`) for permanence chunk replication gossip.
 
 use std::io::{Read, Write};
 

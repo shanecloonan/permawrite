@@ -1,12 +1,14 @@
 //! Post-handshake tx/block gossip (**M2.3.16**) and outbound tx push (**M2.3.20**).
 //!
 //! After [`crate::handshake::exchange_goodbye_v1_as_listener`] / dialer goodbye, peers may
-//! exchange [`crate::frame::TxV1`] / [`crate::frame::BlockV1`] frames until
-//! [`crate::frame::GossipEndV1`]. Admission and chain apply live in `mfn-node` via [`GossipHandler`].
+//! exchange [`crate::frame::TxV1`] / [`crate::frame::BlockV1`] / [`crate::chunk_v1::ChunkV1`]
+//! frames until [`crate::frame::GossipEndV1`]. Admission and chain apply live in `mfn-node` via
+//! [`GossipHandler`].
 
 use std::io::{Read, Write};
 use std::time::Duration;
 
+use crate::chunk_v1::{ChunkV1, ChunkV1DecodeError, CHUNK_V1_TAG};
 use crate::frame::{
     read_frame, write_frame_io, BlockV1, ChainTipV1, FrameReadError, FrameWriteError, GossipEndV1,
     GossipPayloadDecodeError, TxV1,
@@ -45,6 +47,12 @@ pub trait GossipHandler: Send + Sync {
 
     /// Apply or reject a block wire blob; return a short outcome label for stdout.
     fn on_block_v1(&self, block_wire: &[u8]) -> String;
+
+    /// Store or ignore one storage chunk (**M7**). Default ignores.
+    fn on_chunk_v1(&self, commit_hash: &[u8; 32], chunk_index: u32, chunk_bytes: &[u8]) -> String {
+        let _ = (commit_hash, chunk_index, chunk_bytes);
+        "ignored:chunk_v1".into()
+    }
 }
 
 /// Counts of gossip frames handled in one burst.
@@ -54,6 +62,8 @@ pub struct GossipRecvStats {
     pub tx_frames: u32,
     /// Number of [`BlockV1`] frames accepted for handling.
     pub block_frames: u32,
+    /// Number of [`ChunkV1`] frames accepted for handling.
+    pub chunk_frames: u32,
 }
 
 /// Failure while receiving a gossip burst.
@@ -65,6 +75,9 @@ pub enum GossipRecvError {
     /// Payload tag or shape error.
     #[error("decode: {0}")]
     Decode(#[from] GossipPayloadDecodeError),
+    /// Chunk frame decode error.
+    #[error("chunk: {0}")]
+    Chunk(#[from] ChunkV1DecodeError),
     /// Unknown gossip tag during the burst.
     #[error("unknown gossip tag 0x{0:02x}")]
     UnknownTag(u8),
@@ -92,6 +105,12 @@ pub fn recv_gossip_v1<R: Read>(
                 let _ = handler.on_block_v1(block.block_wire());
                 stats.block_frames = stats.block_frames.saturating_add(1);
             }
+            CHUNK_V1_TAG => {
+                let chunk = ChunkV1::decode_payload(&payload)?;
+                let _ =
+                    handler.on_chunk_v1(&chunk.commit_hash, chunk.chunk_index, &chunk.chunk_bytes);
+                stats.chunk_frames = stats.chunk_frames.saturating_add(1);
+            }
             0x08 => {
                 GossipEndV1::decode(&payload)?;
                 return Ok(stats);
@@ -110,6 +129,20 @@ pub fn send_tx_v1<W: Write>(w: &mut W, tx_wire: &[u8]) -> Result<(), FrameWriteE
 /// Send one [`BlockV1`] frame.
 pub fn send_block_v1<W: Write>(w: &mut W, block_wire: &[u8]) -> Result<(), FrameWriteError> {
     write_frame_io(w, &BlockV1::encode_payload(block_wire))?;
+    Ok(())
+}
+
+/// Send one [`ChunkV1`] frame (**M7**).
+pub fn send_chunk_v1<W: Write>(
+    w: &mut W,
+    commit_hash: &[u8; 32],
+    chunk_index: u32,
+    chunk_bytes: &[u8],
+) -> Result<(), FrameWriteError> {
+    write_frame_io(
+        w,
+        &ChunkV1::encode_payload(commit_hash, chunk_index, chunk_bytes),
+    )?;
     Ok(())
 }
 
@@ -218,6 +251,24 @@ pub fn push_block_gossip_to_peer(
     Ok(())
 }
 
+/// Dial a peer, handshake, send one [`ChunkV1`], then [`GossipEndV1`] (**M7**).
+pub fn push_chunk_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    commit_hash: &[u8; 32],
+    chunk_index: u32,
+    chunk_bytes: &[u8],
+) -> Result<(), PushTxGossipError> {
+    let (mut sock, _remote) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    send_chunk_v1(&mut sock, commit_hash, chunk_index, chunk_bytes)?;
+    send_gossip_end_v1(&mut sock)?;
+    Ok(())
+}
+
 /// Dial a peer, complete the full handshake, send one [`TxV1`], then [`GossipEndV1`] (**M2.3.20**).
 pub fn push_tx_gossip_to_peer(
     peer_addr: &str,
@@ -263,6 +314,43 @@ mod tests {
             self.blocks.lock().unwrap().push(block_wire.to_vec());
             "mock_ok".into()
         }
+    }
+
+    #[test]
+    fn recv_gossip_v1_chunk_then_end() {
+        let hash = [0x11u8; 32];
+        let body = vec![4u8; 64];
+        let expected = body.clone();
+        let mut wire = Vec::new();
+        send_chunk_v1(&mut wire, &hash, 2, &body).unwrap();
+        send_gossip_end_v1(&mut wire).unwrap();
+        struct ChunkHandler {
+            expected: Vec<u8>,
+        }
+        impl GossipHandler for ChunkHandler {
+            fn on_tx_v1(&self, _tx_wire: &[u8]) -> String {
+                "unused".into()
+            }
+
+            fn on_block_v1(&self, _block_wire: &[u8]) -> String {
+                "unused".into()
+            }
+
+            fn on_chunk_v1(
+                &self,
+                commit_hash: &[u8; 32],
+                chunk_index: u32,
+                chunk_bytes: &[u8],
+            ) -> String {
+                assert_eq!(*commit_hash, [0x11u8; 32]);
+                assert_eq!(chunk_index, 2);
+                assert_eq!(chunk_bytes, self.expected.as_slice());
+                "stored".into()
+            }
+        }
+        let handler = ChunkHandler { expected };
+        let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
+        assert_eq!(stats.chunk_frames, 1);
     }
 
     #[test]

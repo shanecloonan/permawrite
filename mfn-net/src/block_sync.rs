@@ -6,6 +6,7 @@
 
 use std::io::{Read, Write};
 
+use crate::chunk_v1::CHUNK_V1_TAG;
 use crate::frame::{
     read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
 };
@@ -275,7 +276,7 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
 /// Read post-handshake frames until the peer closes or sends gossip.
 ///
 /// Handles zero or more [`GetBlocksByHeightV1`] requests (each answered with [`BlocksV1`]),
-/// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`–`0x08`) arrives.
+/// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`–`0x08`, `0x10`) arrives.
 pub fn serve_post_handshake_v1(
     stream: &mut std::net::TcpStream,
     sync: &dyn BlockSyncProvider,
@@ -364,7 +365,7 @@ pub fn serve_post_handshake_v1(
                     let _ = h.on_vote_v1(&payload[1..]);
                 }
             }
-            tag @ (0x06..=0x08) => {
+            tag if matches!(tag, 0x06..=0x08 | CHUNK_V1_TAG) => {
                 let stats = recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
                 return Ok(Some(stats));
             }
@@ -391,6 +392,12 @@ fn recv_gossip_v1_from_first<R: Read>(
                 let block = crate::frame::BlockV1::decode_payload(payload)?;
                 let _ = handler.on_block_v1(block.block_wire());
                 stats.block_frames = stats.block_frames.saturating_add(1);
+            }
+            CHUNK_V1_TAG => {
+                let chunk = crate::chunk_v1::ChunkV1::decode_payload(payload)?;
+                let _ =
+                    handler.on_chunk_v1(&chunk.commit_hash, chunk.chunk_index, &chunk.chunk_bytes);
+                stats.chunk_frames = stats.chunk_frames.saturating_add(1);
             }
             0x08 => {
                 crate::frame::GossipEndV1::decode(payload)?;

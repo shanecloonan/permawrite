@@ -64,6 +64,29 @@ impl BlockSyncApplier for P2pGossipHandler {
 }
 
 impl GossipHandler for P2pGossipHandler {
+    fn on_chunk_v1(&self, commit_hash: &[u8; 32], chunk_index: u32, chunk_bytes: &[u8]) -> String {
+        match crate::p2p_chunk_inbox::save_chunk_inbox(
+            self.store.root(),
+            commit_hash,
+            chunk_index,
+            chunk_bytes,
+        ) {
+            Ok(path) => {
+                let mut hex = String::with_capacity(64);
+                for b in commit_hash {
+                    use std::fmt::Write as _;
+                    let _ = write!(hex, "{b:02x}");
+                }
+                format!(
+                    "stored:commit={hex}:index={chunk_index}:bytes={}:path={}",
+                    chunk_bytes.len(),
+                    path.display()
+                )
+            }
+            Err(e) => format!("rejected:chunk_inbox:{e}"),
+        }
+    }
+
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
         let tx = match decode_transaction(tx_wire) {
             Ok(t) => t,
@@ -213,6 +236,22 @@ mod tests {
             label.starts_with("rejected:stale:"),
             "expected stale reject, got {label}"
         );
+    }
+
+    #[test]
+    fn on_chunk_v1_writes_chunk_inbox_file() {
+        let (handler, _) = handler_at_height_1();
+        let hash = [0x33u8; 32];
+        let label = handler.on_chunk_v1(&hash, 1, b"chunk-bytes");
+        assert!(label.starts_with("stored:commit="), "got {label}");
+        let path = handler
+            .store
+            .root()
+            .join(crate::p2p_chunk_inbox::CHUNK_INBOX_DIR)
+            .join(hex::encode(hash))
+            .join("1.bin");
+        assert!(path.is_file(), "missing {}", path.display());
+        assert_eq!(std::fs::read(&path).expect("read"), b"chunk-bytes");
     }
 
     #[test]
