@@ -259,7 +259,26 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
     );
 
     shutdown_child(&mut serve2);
-    mfnd_step(&dir, &spec, "1");
+    // Mine the submitted proof (pool persisted on submit_storage_proof).
+    let step_after_prove = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg("1")
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
+        .output()
+        .expect("step after prove");
+    assert!(
+        step_after_prove.status.success(),
+        "step after prove stderr={}",
+        String::from_utf8_lossy(&step_after_prove.stderr)
+    );
 
     let mut serve3 = mfnd()
         .args(["--data-dir"])
@@ -288,9 +307,8 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
         "stdout={list_stdout}"
     );
     assert!(
-        list_stdout.contains("last_proven_height=2")
-            || list_stdout.contains("last_proven_height=3"),
-        "expected SPoRA proof to advance last_proven_height (got):\n{list_stdout}"
+        list_stdout.contains("last_proven_height=3"),
+        "expected mined SPoRA proof at height 3 (got):\n{list_stdout}"
     );
 
     let status_out = mfn_cli()

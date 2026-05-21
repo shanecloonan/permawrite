@@ -1,4 +1,4 @@
-﻿//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -612,7 +612,15 @@ fn apply_with_storage_proofs_at_slot(
 ) -> ChainState {
     let ts = u64::from(height) * 1_000;
     let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, slot, ts);
-    let blk = seal_with_test_finality(st, unsealed, Vec::new(), Vec::new(), Vec::new(), proofs);
+    // Single finality attach: `seal_with_test_finality` would run attach again and can
+    // bump `header.slot` away from the SPoRA proof's challenge slot.
+    let (unsealed, fin) = attach_test_finality(st, unsealed);
+    assert_eq!(
+        unsealed.slot, slot,
+        "sealed slot {} != proof slot {slot} at height {height}",
+        unsealed.slot
+    );
+    let blk = seal_block(unsealed, Vec::new(), Vec::new(), fin, Vec::new(), proofs);
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
