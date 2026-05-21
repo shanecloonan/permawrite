@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-21T07:41:54.753Z
+**Generated (UTC):** 2026-05-21T07:59:53.653Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 297 |
-| Total lines (all scanned source-like files) | 86,803 |
-| Non-empty lines | 77,289 |
-| UTF-8 bytes (source-like) | 3,488,017 |
-| Paths visited (before binary/huge skip) | 314 |
+| Source-like files scanned | 298 |
+| Total lines (all scanned source-like files) | 87,191 |
+| Non-empty lines | 77,643 |
+| UTF-8 bytes (source-like) | 3,500,709 |
+| Paths visited (before binary/huge skip) | 315 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -24,8 +24,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 56 | 16,901 | 15,596 |
-| `docs` | 35 | 10,720 | 7,608 |
-| `mfn-cli` | 26 | 9,852 | 9,086 |
+| `docs` | 35 | 10,721 | 7,609 |
+| `mfn-cli` | 27 | 10,239 | 9,439 |
 | `mfn-node` | 33 | 8,605 | 7,975 |
 | `mfn-crypto` | 23 | 7,292 | 6,565 |
 | `mfn-wallet` | 15 | 4,931 | 4,522 |
@@ -47,8 +47,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 197 | 69,887 | 64,483 | 2,510,178 |
-| `.md` | 51 | 12,618 | 8,901 | 829,004 |
+| `.rs` | 198 | 70,274 | 64,836 | 2,522,692 |
+| `.md` | 51 | 12,619 | 8,902 | 829,182 |
 | `.js` | 7 | 1,980 | 1,856 | 62,125 |
 | `.mjs` | 5 | 697 | 609 | 19,201 |
 | `.toml` | 15 | 522 | 439 | 14,387 |
@@ -62,7 +62,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Lines | File |
 | ---: | --- |
 | 3,493 | `mfn-rpc/src/dispatch.rs` |
-| 2,255 | `docs/ROADMAP.md` |
+| 2,256 | `docs/ROADMAP.md` |
 | 1,952 | `mfn-node/tests/mfnd_smoke.rs` |
 | 1,916 | `mfn-cli/src/cli.rs` |
 | 1,684 | `mfn-consensus/tests/block_apply.rs` |
