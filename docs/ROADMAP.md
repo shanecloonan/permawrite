@@ -2095,6 +2095,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M7.4** | Two-node smoke: hub mines upload, `push-chunks` to replica P2P, replica `assemble-inbox` matches hub payload (`chunk_p2p_two_node_smoke`). | ✓ shipped |
 | **M7.5** | Auto fan-out: when a block anchors new storage, `mfnd` pushes complete `chunk-inbox/` sets to registered P2P peers (producer seal + inbound `BlockV1`). | ✓ shipped |
 | **M7.6** | Three-node smoke: hub mines upload, `push-chunks` to two replica P2P peers, both `assemble-inbox` match hub payload (`chunk_p2p_three_node_smoke`). | ✓ shipped |
+| **M7.7** | Ignored smoke: three-validator `--produce` mesh, hub live-upload + `push-chunks` to both committee voters, both `assemble-inbox` match (`chunk_p2p_three_validator_produce_smoke`; nightly `ci-ignored`). | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components
