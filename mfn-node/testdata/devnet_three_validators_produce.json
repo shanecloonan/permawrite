@@ -1,6 +1,7 @@
 {
   "version": 1,
   "timestamp": 1700000000,
+  "synthetic_decoy_utxos": 24,
   "consensus": {
     "expected_proposers_per_slot": 1.5,
     "quorum_stake_bps": 6666,

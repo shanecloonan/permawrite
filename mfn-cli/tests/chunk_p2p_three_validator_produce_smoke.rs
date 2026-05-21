@@ -1,6 +1,8 @@
 //! Three-validator `--produce` mesh: hub uploads on live chain, `push-chunks` to both
 //! committee voters, both assemble matching payload (**M7.7**).
 //!
+//! **M7.9** — same mesh without `push-chunks`; hub `chunk-inbox/` + **M7.5** session fan-out.
+//!
 //! Run via nightly `scripts/ci-ignored` (slow; ~4 min).
 
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
@@ -13,8 +15,11 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use mfn_cli::{KeyDerivation, WalletFile};
+use mfn_storage_operator::load_upload_artifact;
 
 const THREE_VALIDATOR_SPEC: &str = "devnet_three_validators.json";
+/// Hub-friendly VRF cadence for **M7.9** auto fan-out (hub seals storage more often).
+const THREE_VALIDATOR_FAST_PRODUCE_SPEC: &str = "devnet_three_validators_produce.json";
 const SLOT_DURATION_MS: u64 = 10_000;
 const UPLOAD_BYTES: usize = 512;
 
@@ -430,6 +435,29 @@ fn wait_wallet_funded(rpc: &str, wallet: &Path, min_balance: u64, timeout: Durat
     }
 }
 
+fn wait_storage_on_hub(rpc: &str, commitment_hash: &str, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let out = mfn_cli()
+            .args(["--rpc", rpc, "uploads", "list"])
+            .output()
+            .expect("uploads list");
+        assert!(
+            out.status.success(),
+            "uploads list stderr={}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if stdout.contains(commitment_hash) {
+            return;
+        }
+        if Instant::now() >= deadline {
+            panic!("timeout waiting for storage on hub chain:\n{stdout}");
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+}
+
 fn wait_tip_at_least(rpc: SocketAddr, min_height: u64, timeout: Duration) {
     let deadline = Instant::now() + timeout;
     loop {
@@ -444,8 +472,8 @@ fn wait_tip_at_least(rpc: SocketAddr, min_height: u64, timeout: Duration) {
     }
 }
 
-fn wait_for_inbox_complete(rpc: &str, data_dir: &Path, commitment_hash: &str) {
-    let deadline = Instant::now() + Duration::from_secs(30);
+fn wait_for_inbox_complete(rpc: &str, data_dir: &Path, commitment_hash: &str, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
     loop {
         let inbox_out = mfn_cli()
             .args(["--rpc", rpc, "operator", "inbox-status", commitment_hash])
@@ -496,6 +524,23 @@ fn assert_replica_payload(
     let artifact_dir = PathBuf::from(parse_stdout_field(&assemble_stdout, "artifact_dir"));
     let bytes = std::fs::read(artifact_dir.join("payload.bin")).expect("replica payload");
     assert_eq!(bytes, expected, "replica payload must match hub upload");
+}
+
+fn populate_chunk_inbox_from_artifact(data_dir: &Path, wallet: &Path, commitment_hash_hex: &str) {
+    let loaded = load_upload_artifact(wallet, commitment_hash_hex).expect("load artifact");
+    let mut hash = [0u8; 32];
+    hex::decode_to_slice(commitment_hash_hex, &mut hash).expect("commit hex");
+    let slices = mfn_storage::chunk_data(&loaded.payload, loaded.built.commit.chunk_size as usize)
+        .expect("chunk slices");
+    for (i, bytes) in slices.iter().enumerate() {
+        mfn_store::save_chunk_inbox(
+            data_dir,
+            &hash,
+            u32::try_from(i).expect("chunk index"),
+            bytes,
+        )
+        .expect("save_chunk_inbox");
+    }
 }
 
 fn save_wallet(dir: &Path, name: &str, bls_hex: &str) -> PathBuf {
@@ -594,8 +639,114 @@ fn produce_mesh_push_chunks_two_voters_assemble_matching_payload() {
 
     let v1_rpc = v1.rpc.to_string();
     let v2_rpc = v2.rpc.to_string();
-    wait_for_inbox_complete(&v1_rpc, &v1.data_dir, &commitment_hash);
-    wait_for_inbox_complete(&v2_rpc, &v2.data_dir, &commitment_hash);
+    wait_for_inbox_complete(
+        &v1_rpc,
+        &v1.data_dir,
+        &commitment_hash,
+        Duration::from_secs(30),
+    );
+    wait_for_inbox_complete(
+        &v2_rpc,
+        &v2.data_dir,
+        &commitment_hash,
+        Duration::from_secs(30),
+    );
+
+    assert_replica_payload(
+        &v1_rpc,
+        &voter1_wallet,
+        &v1.data_dir,
+        &commitment_hash,
+        &payload,
+    );
+    assert_replica_payload(
+        &v2_rpc,
+        &voter2_wallet,
+        &v2.data_dir,
+        &commitment_hash,
+        &payload,
+    );
+
+    shutdown_child(&mut v0.child);
+    shutdown_child(&mut v1.child);
+    shutdown_child(&mut v2.child);
+}
+
+/// Live hub `--produce` mesh: **M7.5** auto fan-out fills voter `chunk-inbox/` (no `push-chunks`).
+#[test]
+#[ignore = "slow three-validator produce + M7.5 auto fan-out; run: cargo test -p mfn-cli --test chunk_p2p_three_validator_produce_smoke -- --ignored"]
+fn produce_mesh_auto_fanout_two_voters_assemble_matching_payload() {
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("mfn-node/testdata")
+        .join(THREE_VALIDATOR_FAST_PRODUCE_SPEC);
+    assert!(spec.is_file(), "missing genesis {}", spec.display());
+
+    let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
+
+    let (mut v0, mut v1, mut v2) = start_three_validator_mesh(&spec);
+    let (height, _) = wait_common_tip(v0.rpc, &[v1.rpc, v2.rpc], 3, Duration::from_secs(180));
+    assert!(
+        height >= 3,
+        "need height >= 3 before upload (coinbase funding)"
+    );
+
+    let hub_rpc = v0.rpc.to_string();
+    let hub_wallet = save_wallet(&v0.data_dir, "hub.json", V0_BLS);
+    let voter1_wallet = save_wallet(&v1.data_dir, "voter1.json", V1_BLS);
+    let voter2_wallet = save_wallet(&v2.data_dir, "voter2.json", V2_BLS);
+
+    wait_wallet_funded(&hub_rpc, &hub_wallet, 20_000, Duration::from_secs(180));
+
+    let payload_path = v0.data_dir.join("payload.bin");
+    std::fs::write(&payload_path, &payload).expect("payload");
+
+    let tip_before_upload = get_tip(v0.rpc).0;
+    let upload_out = mfn_cli()
+        .args(["--rpc", &hub_rpc, "--wallet"])
+        .arg(&hub_wallet)
+        .args([
+            "wallet",
+            "upload",
+            payload_path.to_str().expect("utf8"),
+            "--fee",
+            "10000",
+            "--ring-size",
+            "8",
+        ])
+        .output()
+        .expect("wallet upload");
+    assert!(
+        upload_out.status.success(),
+        "upload stderr={}",
+        String::from_utf8_lossy(&upload_out.stderr)
+    );
+    let upload_stdout = String::from_utf8_lossy(&upload_out.stdout);
+    let commitment_hash = parse_stdout_field(&upload_stdout, "storage_commitment_hash");
+    populate_chunk_inbox_from_artifact(&v0.data_dir, &hub_wallet, &commitment_hash);
+
+    let target_height = tip_before_upload.saturating_add(1);
+    wait_storage_on_hub(&hub_rpc, &commitment_hash, Duration::from_secs(150));
+    wait_tip_at_least(v0.rpc, target_height, Duration::from_secs(30));
+    wait_tip_at_least(v1.rpc, target_height, Duration::from_secs(150));
+    wait_tip_at_least(v2.rpc, target_height, Duration::from_secs(150));
+    // Chunk fan-out runs on a background thread after hub apply/seal.
+    thread::sleep(Duration::from_secs(3));
+
+    let v1_rpc = v1.rpc.to_string();
+    let v2_rpc = v2.rpc.to_string();
+    wait_for_inbox_complete(
+        &v1_rpc,
+        &v1.data_dir,
+        &commitment_hash,
+        Duration::from_secs(90),
+    );
+    wait_for_inbox_complete(
+        &v2_rpc,
+        &v2.data_dir,
+        &commitment_hash,
+        Duration::from_secs(90),
+    );
 
     assert_replica_payload(
         &v1_rpc,

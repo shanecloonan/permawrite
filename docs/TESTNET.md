@@ -152,6 +152,8 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 
 Integration coverage lives in:
 
+- `mfn-cli/tests/chunk_p2p_auto_fanout_smoke.rs` — solo hub `--produce` + **M7.5** session chunk fan-out (**M7.8**).
+- `mfn-cli/tests/chunk_p2p_three_validator_produce_smoke.rs` — three-validator hub upload + manual `push-chunks` (**M7.7**) or auto fan-out (**M7.9**, `--ignored`).
 - `mfn-node/tests/three_validator_produce_smoke.rs` — three-process harness, hub + two voters, shared tip through **height 2** (**M2.3.25**).
 - `mfn-node/tests/three_validator_all_produce_smoke.rs` — three `--produce` validators on `devnet_three_validators_produce.json` (`expected_proposers_per_slot: 1.5`), shared canonical tip (**M2.3.26**).
 - `mfn-node/tests/multi_validator_producer.rs` — in-process proposal/vote/quorum.

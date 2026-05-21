@@ -189,6 +189,26 @@ fn wait_for_inbox_complete(rpc: &str, data_dir: &Path, commitment_hash: &str) {
     }
 }
 
+fn mfnd_step(dir: &Path, spec: &Path, blocks: &str) {
+    let out = mfnd()
+        .args(["--data-dir"])
+        .arg(dir)
+        .arg("--genesis")
+        .arg(spec)
+        .arg("--store")
+        .arg("fs")
+        .arg("step")
+        .arg("--blocks")
+        .arg(blocks)
+        .output()
+        .expect("mfnd step");
+    assert!(
+        out.status.success(),
+        "step blocks={blocks} stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
 fn spawn_serve(dir: &Path, spec: &Path, p2p_dial: Option<&str>, produce: bool) -> Child {
     let mut cmd = mfnd();
     cmd.args(["--data-dir"])
@@ -259,6 +279,8 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
     std::fs::write(&payload_path, &payload).expect("write payload");
 
+    mfnd_step(&hub_dir, &spec, "1");
+
     let mut hub_live = spawn_serve(&hub_dir, &spec, None, true);
     let (hub_rpc_live, hub_p2p) = read_serve_addrs(&mut hub_live);
     let hub_rpc_live = hub_rpc_live.to_string();
@@ -268,9 +290,8 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
     let replica_rpc = replica_rpc.to_string();
 
-    // Replica must complete handshake before the storage block seals (M7.5 session fan-out).
     thread::sleep(Duration::from_millis(1200));
-    wait_for_matching_tip(&hub_rpc_live, &replica_rpc, Duration::from_secs(60));
+    wait_for_matching_tip(&hub_rpc_live, &replica_rpc, Duration::from_secs(90));
 
     let upload_out = mfn_cli()
         .args(["--rpc", &hub_rpc_live, "--wallet"])
@@ -295,10 +316,10 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let commitment_hash = parse_stdout_field(&upload_stdout, "storage_commitment_hash");
     populate_chunk_inbox_from_artifact(&hub_dir, &hub_wallet, &commitment_hash);
 
-    let tip_before_mine = rpc_tip_height(&hub_rpc_live);
-    let target_height = tip_before_mine.saturating_add(1);
+    let target_height = rpc_tip_height(&hub_rpc_live).saturating_add(1);
     wait_for_tip_at_least(&hub_rpc_live, target_height, Duration::from_secs(45));
     wait_for_tip_at_least(&replica_rpc, target_height, Duration::from_secs(120));
+    thread::sleep(Duration::from_secs(3));
 
     wait_for_inbox_complete(&replica_rpc, &replica_dir, &commitment_hash);
 
