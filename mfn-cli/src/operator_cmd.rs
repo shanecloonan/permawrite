@@ -2,11 +2,15 @@
 
 use std::path::Path;
 
+use mfn_net::ChainTipV1;
 use mfn_storage::{
     build_storage_proof, chunk_data, decode_storage_commitment, merkle_tree_from_chunks,
     storage_commitment_hash,
 };
-use mfn_storage_operator::{backfill_upload_artifact_from_challenge, fetch_chunk_http};
+use mfn_storage_operator::{
+    backfill_upload_artifact_from_challenge, fetch_chunk_http,
+    push_wallet_artifact_chunks_to_peers_with_handshake,
+};
 
 use crate::rpc::RpcClient;
 
@@ -179,6 +183,55 @@ pub fn operator_backfill(
     println!("payload_bytes={}", result.payload_bytes);
     println!("artifact_dir={}", result.artifact_dir.display());
     println!("backfill=ok");
+    Ok(())
+}
+
+/// Push all wallet artifact chunks to one or more P2P peers (**M7.1**).
+pub fn operator_push_chunks(
+    client: &mut RpcClient,
+    wallet_path: &Path,
+    commitment_hash_hex: &str,
+    peers: &[String],
+) -> Result<(), OperatorCmdError> {
+    if peers.is_empty() {
+        return Err(OperatorCmdError::Usage(
+            "operator push-chunks requires at least one PEER (HOST:PORT)".into(),
+        ));
+    }
+    let tip = client.get_tip()?;
+    let genesis_id = parse_hex32(&tip.genesis_id)?;
+    let height = u32::try_from(tip.tip_height.unwrap_or(0))
+        .map_err(|_| OperatorCmdError::Usage("tip_height overflow".into()))?;
+    let tip_id = if tip.tip_id == "none" {
+        genesis_id
+    } else {
+        parse_hex32(&tip.tip_id)?
+    };
+    let local_tip = ChainTipV1 { height, tip_id };
+    let results = push_wallet_artifact_chunks_to_peers_with_handshake(
+        wallet_path,
+        commitment_hash_hex,
+        peers,
+        &genesis_id,
+        &local_tip,
+    )
+    .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    println!("commitment_hash={commitment_hash_hex}");
+    for r in &results {
+        println!("peer={} ok={} chunks_sent={}", r.peer, r.ok, r.chunks_sent);
+        if let Some(err) = &r.error {
+            println!("peer_error={err}");
+        }
+    }
+    let ok_count = results.iter().filter(|r| r.ok).count();
+    if ok_count != results.len() {
+        return Err(OperatorCmdError::Usage(format!(
+            "push-chunks failed for {} of {} peers",
+            results.len() - ok_count,
+            results.len()
+        )));
+    }
+    println!("push_chunks=ok");
     Ok(())
 }
 

@@ -48,9 +48,10 @@ pub use frame::{
     PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
 };
 pub use gossip::{
-    push_block_gossip_to_peer, push_chunk_gossip_to_peer, push_tx_gossip_to_peer, recv_gossip_v1,
-    send_block_v1, send_chunk_v1, send_gossip_end_v1, send_tx_v1, FanoutPeerSet, GossipHandler,
-    GossipRecvError, GossipRecvStats, PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
+    push_block_gossip_to_peer, push_chunk_gossip_to_peer, push_chunks_gossip_to_peer,
+    push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1, send_chunk_v1, send_gossip_end_v1,
+    send_tx_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats, PushTxGossipError,
+    P2P_GOSSIP_IO_TIMEOUT,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,

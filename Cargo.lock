@@ -620,6 +620,7 @@ dependencies = [
  "curve25519-dalek",
  "hex",
  "mfn-crypto",
+ "mfn-net",
  "mfn-storage",
  "mfn-wallet",
  "serde",

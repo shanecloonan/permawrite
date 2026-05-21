@@ -15,7 +15,7 @@ use crate::light_subjectivity::{
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::operator_cmd::{
     operator_artifacts, operator_backfill, operator_challenge, operator_fetch_chunk, operator_pool,
-    operator_prove, OperatorCmdError,
+    operator_prove, operator_push_chunks, OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
@@ -167,6 +167,13 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 operator_backfill(&mut client, &path, &commitment_hash_hex, &peer, force)?
             }
+            OperatorSub::PushChunks {
+                commitment_hash_hex,
+                peers,
+            } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                operator_push_chunks(&mut client, &path, &commitment_hash_hex, &peers)?
+            }
         },
         Cmd::Wallet {
             sub,
@@ -282,6 +289,10 @@ enum OperatorSub {
         peer: String,
         force: bool,
     },
+    PushChunks {
+        commitment_hash_hex: String,
+        peers: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -364,7 +375,8 @@ fn usage() -> &'static str {
        operator pool                      list pending proofs (get_proof_pool)\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
-       operator backfill HASH PEER [replace]  fetch all chunks; trailing `replace` overwrites artifact\n"
+       operator backfill HASH PEER [replace]  fetch all chunks; trailing `replace` overwrites artifact\n\
+       operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -621,7 +633,7 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk|backfill)\n{}",
+            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk|backfill|push-chunks)\n{}",
             usage()
         )));
     };
@@ -685,6 +697,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
             }
         }
         "backfill" => parse_operator_backfill_args(&rest[1..])?,
+        "push-chunks" => parse_operator_push_chunks_args(&rest[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown operator subcommand `{other}`\n{}",
@@ -716,6 +729,19 @@ fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> 
         commitment_hash_hex,
         peer,
         force,
+    })
+}
+
+fn parse_operator_push_chunks_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    if rest.len() < 2 {
+        return Err(CliError::Usage(format!(
+            "operator push-chunks requires COMMITMENT_HASH_HEX PEER [PEER...]\n{}",
+            usage()
+        )));
+    }
+    Ok(OperatorSub::PushChunks {
+        commitment_hash_hex: rest[0].to_string(),
+        peers: rest[1..].iter().map(|s| (*s).to_string()).collect(),
     })
 }
 
@@ -1690,6 +1716,32 @@ mod tests {
                 sub: OperatorSub::Backfill { force, .. },
             } => assert!(force),
             _ => panic!("expected backfill replace"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_push_chunks_subcommand() {
+        let h = "ef".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "push-chunks".into(),
+            h.clone(),
+            "127.0.0.1:18731".into(),
+            "127.0.0.1:18732".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::PushChunks {
+                        commitment_hash_hex,
+                        peers,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(peers.len(), 2);
+            }
+            _ => panic!("expected operator push-chunks"),
         }
     }
 

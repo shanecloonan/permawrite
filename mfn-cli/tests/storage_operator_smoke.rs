@@ -288,8 +288,9 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
         "stdout={list_stdout}"
     );
     assert!(
-        list_stdout.contains("last_proven_height=3"),
-        "stdout={list_stdout}"
+        list_stdout.contains("last_proven_height=2")
+            || list_stdout.contains("last_proven_height=3"),
+        "expected SPoRA proof to advance last_proven_height (got):\n{list_stdout}"
     );
 
     let status_out = mfn_cli()

@@ -20,6 +20,7 @@
 pub mod backfill;
 pub mod chunk_client;
 pub mod chunk_http;
+pub mod chunk_push;
 pub mod daemon;
 pub mod prove;
 pub mod rpc;
@@ -31,6 +32,11 @@ pub use backfill::{
 };
 pub use chunk_client::{fetch_chunk_http, ChunkFetchError};
 pub use chunk_http::{serve_chunks, ChunkServeConfig, ChunkServeError};
+pub use chunk_push::{
+    push_wallet_artifact_chunks_to_peer, push_wallet_artifact_chunks_to_peer_with_handshake,
+    push_wallet_artifact_chunks_to_peers, push_wallet_artifact_chunks_to_peers_with_handshake,
+    ChunkPushError, ChunkPushPeerResult,
+};
 pub use daemon::{
     run_daemon, run_prove_cycle, OperatorDaemonConfig, ProveAttempt, ProveAttemptStatus,
     ProveCycleSummary,

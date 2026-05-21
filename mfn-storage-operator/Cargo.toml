@@ -21,6 +21,7 @@ all = "warn"
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
+mfn-net = { path = "../mfn-net" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet" }
 curve25519-dalek = { workspace = true }

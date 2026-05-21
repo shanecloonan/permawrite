@@ -58,6 +58,8 @@ pub struct ChainTip {
     pub tip_height: Option<u64>,
     /// Tip block id hex or `none`.
     pub tip_id: String,
+    /// Chain genesis id (64-char hex).
+    pub genesis_id: String,
 }
 
 /// JSON-RPC client error.

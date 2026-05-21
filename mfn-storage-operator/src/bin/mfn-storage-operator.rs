@@ -10,7 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mfn_storage_operator::{
-    run_daemon, serve_chunks, ChunkServeConfig, OperatorDaemonConfig, DEFAULT_RPC_ADDR,
+    push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks, ChunkServeConfig,
+    OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
 };
 
 fn main() -> ExitCode {
@@ -120,8 +121,39 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             )
             .map_err(|e| e.to_string())
         }
+        "push-chunks" => {
+            if positional.len() < 3 {
+                return Err("push-chunks requires COMMITMENT_HASH_HEX PEER [PEER...]".into());
+            }
+            let commitment_hash_hex = positional[1].clone();
+            let peers: Vec<String> = positional[2..].to_vec();
+            let mut client = RpcClient::new(&rpc_addr);
+            let results = push_wallet_artifact_chunks_to_peers(
+                &mut client,
+                &wallet_path,
+                &commitment_hash_hex,
+                &peers,
+            )
+            .map_err(|e| e.to_string())?;
+            for r in &results {
+                println!("peer={} ok={} chunks_sent={}", r.peer, r.ok, r.chunks_sent);
+                if let Some(err) = &r.error {
+                    println!("peer_error={err}");
+                }
+            }
+            if results.iter().all(|r| r.ok) {
+                println!("push_chunks=ok");
+                Ok(())
+            } else {
+                Err(format!(
+                    "push-chunks failed for {} of {} peers",
+                    results.iter().filter(|r| !r.ok).count(),
+                    results.len()
+                ))
+            }
+        }
         other => Err(format!(
-            "unknown subcommand `{other}` (expected: run | serve-chunks)"
+            "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks)"
         )),
     }
 }

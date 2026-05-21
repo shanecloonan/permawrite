@@ -269,6 +269,25 @@ pub fn push_chunk_gossip_to_peer(
     Ok(())
 }
 
+/// Dial a peer, handshake, send every chunk, then [`GossipEndV1`] (**M7.1**).
+pub fn push_chunks_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    commit_hash: &[u8; 32],
+    chunks: &[(u32, Vec<u8>)],
+) -> Result<(), PushTxGossipError> {
+    let (mut sock, _remote) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    for (index, bytes) in chunks {
+        send_chunk_v1(&mut sock, commit_hash, *index, bytes)?;
+    }
+    send_gossip_end_v1(&mut sock)?;
+    Ok(())
+}
+
 /// Dial a peer, complete the full handshake, send one [`TxV1`], then [`GossipEndV1`] (**M2.3.20**).
 pub fn push_tx_gossip_to_peer(
     peer_addr: &str,
@@ -314,6 +333,33 @@ mod tests {
             self.blocks.lock().unwrap().push(block_wire.to_vec());
             "mock_ok".into()
         }
+    }
+
+    #[test]
+    fn push_chunks_gossip_to_peer_wire_burst() {
+        let hash = [0x55u8; 32];
+        let chunks = vec![(0u32, vec![1u8; 10]), (1u32, vec![2u8; 20])];
+        let mut wire = Vec::new();
+        for (idx, bytes) in &chunks {
+            send_chunk_v1(&mut wire, &hash, *idx, bytes).unwrap();
+        }
+        send_gossip_end_v1(&mut wire).unwrap();
+        struct Counter;
+        impl GossipHandler for Counter {
+            fn on_tx_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_block_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_chunk_v1(&self, _: &[u8; 32], index: u32, bytes: &[u8]) -> String {
+                let expected = if index == 0 { 10usize } else { 20usize };
+                assert_eq!(bytes.len(), expected);
+                "ok".into()
+            }
+        }
+        let stats = recv_gossip_v1(&mut Cursor::new(wire), &Counter).unwrap();
+        assert_eq!(stats.chunk_frames, 2);
     }
 
     #[test]
