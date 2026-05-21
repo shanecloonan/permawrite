@@ -48,3 +48,163 @@ Full runbook: [`docs/TESTNET.md`](../../docs/TESTNET.md).
 ## Security
 
 Validator seeds in the public genesis are **test keys only**. Do not use them on mainnet or with real funds.
+
+---
+
+## Permanence operators (storage + SPoRA) — M6 / M7
+
+Permawrite separates **on-chain anchors** (private `StorageCommitment` in a block) from **off-chain bytes** (chunk payloads). Validators only mine SPoRA proofs when they can read the challenged chunk. Operators run replication and proving on devnet today via `mfn-cli` and `mfn-storage-operator`.
+
+Build both CLIs after `mfnd`:
+
+```bash
+cargo build -p mfn-node --release --bin mfnd
+cargo build -p mfn-cli --release --bin mfn-cli
+cargo build -p mfn-storage-operator --release --bin mfn-storage-operator
+```
+
+Point `--rpc` at any synced node's `mfnd_serve_listening=` address. Use the same `--wallet` file for upload, prove, and chunk commands.
+
+### End-to-end flow
+
+```text
+wallet upload  →  tx mined (storage on-chain)
+       ↓
+replicate bytes to peers (HTTP and/or P2P ChunkV1)
+       ↓
+assemble local artifact  →  operator prove  →  SPoRA proof mined
+```
+
+| Stage | On-chain | Off-chain |
+|-------|----------|-----------|
+| Upload | Commitment + endowment in a block | `wallet.upload-artifacts/<hash>/` (payload + metadata) |
+| Replicate | — | Peers hold matching chunk bytes |
+| Prove | `StorageProof` in a later block | Operator uses artifact or inbox bytes |
+
+### 1. Anchor data (any synced node)
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC> wallet new   # once per operator
+mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  wallet upload ./myfile.bin --fee 10000 --replication 3
+```
+
+Stdout includes `storage_commitment_hash=` and `upload_artifact_dir=`. Mine the mempool tx on a producer (stop `serve`, run `mfnd step`, or wait for the next sealed block on `--produce`).
+
+Check status:
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC> uploads list --limit 20
+mfn-cli --rpc 127.0.0.1:<RPC> operator challenge <COMMIT_HASH_HEX>
+```
+
+### 2. Replicate chunk bytes
+
+Pick **at least `replication` peers** (from the commitment) that store byte-identical chunks.
+
+#### HTTP (M6) — good for observers and static fetch
+
+On a machine that has the wallet artifact:
+
+```bash
+mfn-storage-operator serve-chunks --wallet ./alice.json --listen 127.0.0.1:18780
+# GET http://127.0.0.1:18780/chunk/<commit_hex>/<index>
+```
+
+Or prove + serve in one process:
+
+```bash
+mfn-storage-operator run --once --chunk-listen 127.0.0.1:18780 \
+  --wallet ./alice.json --rpc 127.0.0.1:<RPC>
+```
+
+Pull from a peer into the local artifact tree:
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  operator fetch-chunk <COMMIT_HASH_HEX> 0 127.0.0.1:18780
+
+mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  operator backfill <COMMIT_HASH_HEX> 127.0.0.1:18780 [more-peers...]
+```
+
+With multiple peers, `backfill` requires **byte-identical** chunks from every peer (quorum verify).
+
+#### P2P ChunkV1 (M7) — good for `mfnd` mesh
+
+Each `mfnd --data-dir` may contain:
+
+```text
+<data-dir>/chunk-inbox/<commit_hex>/<index>.bin
+```
+
+Push all artifact chunks over an existing P2P session (handshake + burst + `GossipEnd`):
+
+```bash
+# PEER is the remote mfnd_p2p_listening= host:port (not your own hub port)
+mfn-cli --rpc 127.0.0.1:<HUB_RPC> --wallet ./alice.json \
+  operator push-chunks <COMMIT_HASH_HEX> <PEER1> [PEER2 ...]
+
+mfn-storage-operator push-chunks --wallet ./alice.json \
+  <COMMIT_HASH_HEX> <PEER1> [PEER2 ...]
+```
+
+On the receiver (same `genesis_id`, caught up to the upload block):
+
+```bash
+mfn-cli --rpc 127.0.0.1:<REPLICA_RPC> operator inbox-status <COMMIT_HASH_HEX> /path/to/replica-data-dir
+mfn-cli --rpc 127.0.0.1:<REPLICA_RPC> --wallet ./bob.json \
+  operator assemble-inbox <COMMIT_HASH_HEX> /path/to/replica-data-dir
+```
+
+**Auto fan-out (M7.5):** When `mfnd` applies a block that adds **new** storage and already has a **complete** inbox for that commitment, it pushes `ChunkV1` to every peer in `peers.json` (after producer seal or inbound `BlockV1`). This does **not** run for wallet-only uploads until chunks are in the producer's inbox (usually via `push-chunks` to self or peers first).
+
+**P2P catch-up:** Outbound `--p2p-dial` pulls missing blocks **before** blocking on gossip, so replicas can reach the upload height then receive chunks.
+
+### 3. Submit SPoRA proof
+
+Requires local bytes matching `data_root` (artifact or assembled inbox):
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  operator prove <COMMIT_HASH_HEX>
+
+# Or raw file (must match on-chain size_root):
+mfn-cli --rpc 127.0.0.1:<RPC> operator prove <COMMIT_HASH_HEX> ./myfile.bin
+```
+
+One-shot operator loop:
+
+```bash
+mfn-storage-operator run --once --wallet ./alice.json --rpc 127.0.0.1:<RPC>
+```
+
+Inspect the node's proof mempool:
+
+```bash
+mfn-cli --rpc 127.0.0.1:<RPC> operator pool
+```
+
+After the proof is mined, `uploads list` should show a higher `last_proven_height`.
+
+### Devnet mesh checklist
+
+1. Start hub + voters ([bootstrap scripts](#bootstrap-scripts)); note each `mfnd_p2p_listening=`.
+2. Upload on a wallet connected to the hub RPC; mine the tx.
+3. `push-chunks` to two voter P2P ports (or HTTP `serve-chunks` on the uploader).
+4. On each voter: `inbox-status` → `assemble-inbox` → `operator prove` when challenged.
+5. Confirm identical payload hashes across peers before proving.
+
+### CI reference (permanence)
+
+| Test | What it proves |
+|------|----------------|
+| `mfn-cli` `chunk_p2p_smoke` | push → inbox → assemble → prove (single node) |
+| `mfn-cli` `chunk_p2p_two_node_smoke` | hub mines, replica sync + push, matching payload |
+| `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
+| `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
+
+```bash
+cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke
+cargo test -p mfn-storage-operator --release --test chunk_http_smoke
+```

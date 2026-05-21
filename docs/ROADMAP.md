@@ -1976,6 +1976,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.3.25** | Three-validator smoke through **height 2**; committee periodic catch-up + non-blocking session fan-out. | ✓ shipped |
 | **M2.4.3** | Bootstrap scripts, chain identity banner, manifest + operator invite template. | ✓ shipped |
 | **M2.4.4** | Live public seed IPs in manifest + multi `--p2p-dial`. | ✓ shipped |
+| **M2.4.5** | Permanence operator runbook: HTTP + P2P chunk replication, inbox, prove ([`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md)). | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
