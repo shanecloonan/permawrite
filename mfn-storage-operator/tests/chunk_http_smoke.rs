@@ -50,7 +50,9 @@ fn ephemeral_listen_addr() -> String {
 
 fn try_http_get(addr: &str, path: &str) -> Option<(u16, Vec<u8>)> {
     let mut stream = TcpStream::connect(addr).ok()?;
-    stream.set_read_timeout(Some(Duration::from_secs(10)).ok()?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .ok()?;
     let req = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
     stream.write_all(req.as_bytes()).ok()?;
     stream.flush().ok()?;
