@@ -14,8 +14,8 @@ use crate::light_subjectivity::{
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::operator_cmd::{
-    operator_artifacts, operator_challenge, operator_fetch_chunk, operator_pool, operator_prove,
-    OperatorCmdError,
+    operator_artifacts, operator_backfill, operator_challenge, operator_fetch_chunk, operator_pool,
+    operator_prove, OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
@@ -159,6 +159,14 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 let wallet = Some(resolve_wallet_path(global_wallet_path.as_deref()));
                 operator_fetch_chunk(&peer, &commitment_hash_hex, chunk_index, wallet.as_deref())?
             }
+            OperatorSub::Backfill {
+                commitment_hash_hex,
+                peer,
+                force,
+            } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                operator_backfill(&mut client, &path, &commitment_hash_hex, &peer, force)?
+            }
         },
         Cmd::Wallet {
             sub,
@@ -269,6 +277,11 @@ enum OperatorSub {
         chunk_index: u32,
         peer: String,
     },
+    Backfill {
+        commitment_hash_hex: String,
+        peer: String,
+        force: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -350,7 +363,8 @@ fn usage() -> &'static str {
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
-       operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n"
+       operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
+       operator backfill HASH PEER [replace]  fetch all chunks; trailing `replace` overwrites artifact\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -607,7 +621,7 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk)\n{}",
+            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk|backfill)\n{}",
             usage()
         )));
     };
@@ -670,6 +684,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
                 peer: rest[3].to_string(),
             }
         }
+        "backfill" => parse_operator_backfill_args(&rest[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown operator subcommand `{other}`\n{}",
@@ -678,6 +693,30 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
     };
     Ok(Cmd::Operator { sub })
+}
+
+fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    if rest.len() < 2 || rest.len() > 3 {
+        return Err(CliError::Usage(format!(
+            "operator backfill requires COMMITMENT_HASH_HEX PEER [replace]\n{}",
+            usage()
+        )));
+    }
+    let commitment_hash_hex = rest[0].to_string();
+    let peer = rest[1].to_string();
+    let force = matches!(rest.get(2), Some(&"replace"));
+    if rest.len() == 3 && !force {
+        return Err(CliError::Usage(format!(
+            "operator backfill unknown modifier `{}` (expected `replace`)\n{}",
+            rest[2],
+            usage()
+        )));
+    }
+    Ok(OperatorSub::Backfill {
+        commitment_hash_hex,
+        peer,
+        force,
+    })
 }
 
 fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError> {
@@ -1610,6 +1649,47 @@ mod tests {
                 sub: OperatorSub::Artifacts,
             } => {}
             _ => panic!("expected operator artifacts"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_backfill_subcommand() {
+        let h = "cd".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "backfill".into(),
+            h.clone(),
+            "127.0.0.1:18780".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::Backfill {
+                        commitment_hash_hex,
+                        peer,
+                        force,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(peer, "127.0.0.1:18780");
+                assert!(!force);
+            }
+            _ => panic!("expected operator backfill"),
+        }
+        let p2 = parse_args(&[
+            "operator".into(),
+            "backfill".into(),
+            h,
+            "127.0.0.1:18780".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p2.cmd {
+            Cmd::Operator {
+                sub: OperatorSub::Backfill { force, .. },
+            } => assert!(force),
+            _ => panic!("expected backfill replace"),
         }
     }
 

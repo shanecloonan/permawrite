@@ -2082,6 +2082,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M6.3** | Integration smoke: HTTP fetch chunk 0 matches `payload.bin` slice (`chunk_http_smoke`). | ✓ shipped |
 | **M6.4** | `run --chunk-listen`: SPoRA prove loop + HTTP chunk server in one process. | ✓ shipped |
 | **M6.5** | `fetch_chunk_http` + `mfn-cli operator fetch-chunk` peer replication verify. | ✓ shipped |
+| **M6.6** | `operator backfill`: fetch all chunks from peer into `wallet.upload-artifacts/`. | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components

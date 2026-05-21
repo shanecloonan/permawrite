@@ -6,7 +6,7 @@ use mfn_storage::{
     build_storage_proof, chunk_data, decode_storage_commitment, merkle_tree_from_chunks,
     storage_commitment_hash,
 };
-use mfn_storage_operator::fetch_chunk_http;
+use mfn_storage_operator::{backfill_upload_artifact_from_challenge, fetch_chunk_http};
 
 use crate::rpc::RpcClient;
 
@@ -155,6 +155,33 @@ fn commit_data_root_from_challenge(
     Ok(out)
 }
 
+/// Fetch all chunks from a peer and persist a wallet upload artifact (**M6.6**).
+pub fn operator_backfill(
+    client: &mut RpcClient,
+    wallet_path: &Path,
+    commitment_hash_hex: &str,
+    peer: &str,
+    force: bool,
+) -> Result<(), OperatorCmdError> {
+    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let op_ch = storage_challenge_for_operator(&ch);
+    let result = backfill_upload_artifact_from_challenge(
+        wallet_path,
+        commitment_hash_hex,
+        peer,
+        &op_ch,
+        force,
+    )
+    .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    println!("commitment_hash={}", result.commitment_hash_hex);
+    println!("peer={peer}");
+    println!("chunks_fetched={}", result.chunks_fetched);
+    println!("payload_bytes={}", result.payload_bytes);
+    println!("artifact_dir={}", result.artifact_dir.display());
+    println!("backfill=ok");
+    Ok(())
+}
+
 /// List wallet-local upload artifacts (same as `uploads local`) (**M3.25**).
 pub fn operator_artifacts(wallet_path: &std::path::Path) -> Result<(), OperatorCmdError> {
     crate::uploads_cmd::uploads_local(wallet_path).map_err(OperatorCmdError::Usage)
@@ -206,6 +233,24 @@ pub fn operator_pool(client: &mut RpcClient) -> Result<(), OperatorCmdError> {
         println!("commit_hash={h}");
     }
     Ok(())
+}
+
+fn storage_challenge_for_operator(
+    ch: &crate::rpc::StorageChallenge,
+) -> mfn_storage_operator::rpc::StorageChallenge {
+    mfn_storage_operator::rpc::StorageChallenge {
+        commitment_hash: ch.commitment_hash.clone(),
+        commitment_wire_hex: ch.commitment_wire_hex.clone(),
+        data_root: ch.data_root.clone(),
+        size_bytes: ch.size_bytes,
+        replication: ch.replication,
+        num_chunks: ch.num_chunks,
+        chunk_size: ch.chunk_size,
+        next_height: ch.next_height,
+        next_slot: ch.next_slot,
+        prev_block_id: ch.prev_block_id.clone(),
+        chunk_index: ch.chunk_index,
+    }
 }
 
 fn parse_hex32(s: &str) -> Result<[u8; 32], OperatorCmdError> {

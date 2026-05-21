@@ -17,6 +17,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod backfill;
 pub mod chunk_client;
 pub mod chunk_http;
 pub mod daemon;
@@ -24,6 +25,10 @@ pub mod prove;
 pub mod rpc;
 pub mod upload_artifact_store;
 
+pub use backfill::{
+    backfill_upload_artifact_from_challenge, fetch_payload_from_peer, persist_backfill_artifact,
+    BackfillError, BackfillResult,
+};
 pub use chunk_client::{fetch_chunk_http, ChunkFetchError};
 pub use chunk_http::{serve_chunks, ChunkServeConfig, ChunkServeError};
 pub use daemon::{

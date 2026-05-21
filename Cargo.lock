@@ -617,6 +617,7 @@ name = "mfn-storage-operator"
 version = "0.1.0"
 dependencies = [
  "ctrlc",
+ "curve25519-dalek",
  "hex",
  "mfn-crypto",
  "mfn-storage",

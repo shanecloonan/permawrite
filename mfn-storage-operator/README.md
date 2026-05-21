@@ -47,6 +47,16 @@ mfn-cli --wallet ./alice.json operator fetch-chunk COMMIT_HEX 0 127.0.0.1:18780
 
 With `--wallet`, bytes are checked against the local upload artifact slice.
 
+## Backfill artifacts from peers (**M6.6**)
+
+Replica operators can pull the full anchored payload without re-uploading:
+
+```bash
+mfn-cli --rpc 127.0.0.1:18731 --wallet ./replica.json operator backfill COMMIT_HEX 127.0.0.1:18780
+```
+
+Uses `get_storage_challenge` for dimensions, fetches every chunk, verifies `data_root`, writes `payload.bin` + `meta.bytes`. Append `replace` to overwrite an existing artifact.
+
 Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
 
 ## Library

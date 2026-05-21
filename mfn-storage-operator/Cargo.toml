@@ -23,6 +23,7 @@ all = "warn"
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-storage = { path = "../mfn-storage" }
 mfn-wallet = { path = "../mfn-wallet" }
+curve25519-dalek = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

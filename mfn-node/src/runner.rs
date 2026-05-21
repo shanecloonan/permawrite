@@ -116,12 +116,6 @@ impl ProductionEngine {
             .sum()
     }
 
-    fn producer_fee_share(fee_sum: u128, fee_to_treasury_bps: u16) -> u64 {
-        let treasury = fee_sum * u128::from(fee_to_treasury_bps) / 10_000;
-        let producer = fee_sum.saturating_sub(treasury);
-        u64::try_from(producer).unwrap_or(u64::MAX)
-    }
-
     fn block_inputs_for_next(
         &self,
         chain: &Chain,

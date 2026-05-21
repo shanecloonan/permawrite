@@ -138,12 +138,6 @@ const MFND_SOLO_BLS_SEED_HEX: &str = "MFND_SOLO_BLS_SEED_HEX";
 /// Max regular txs pulled from the mempool into one block body (coinbase is extra).
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
 
-fn producer_fee_share_of_summed_fees(fee_sum: u128, fee_to_treasury_bps: u16) -> u64 {
-    let treasury = fee_sum.saturating_mul(u128::from(fee_to_treasury_bps)) / 10_000u128;
-    let producer = fee_sum.saturating_sub(treasury);
-    u64::try_from(producer).unwrap_or(u64::MAX)
-}
-
 fn run_solo_step(
     store: &dyn ChainPersistence,
     cfg: &ChainConfig,
