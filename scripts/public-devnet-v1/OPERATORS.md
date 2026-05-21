@@ -200,7 +200,7 @@ mfn-cli --rpc 127.0.0.1:<REPLICA_RPC> --wallet ./bob.json \
   operator assemble-inbox <COMMIT_HASH_HEX> /path/to/replica-data-dir
 ```
 
-**Auto fan-out (M7.5):** When `mfnd` applies a block that adds **new** storage and already has a **complete** inbox for that commitment, it pushes `ChunkV1` to every peer in `peers.json` (after producer seal or inbound `BlockV1`). This does **not** run for wallet-only uploads until chunks are in the producer's inbox (usually via `push-chunks` to self or peers first).
+**Auto fan-out (M7.5):** When `mfnd` applies a block that adds **new** storage and already has a **complete** inbox for that commitment, it pushes `ChunkV1` to registered `peers.json` entries **and** live P2P sessions (after producer seal or inbound `BlockV1`). This does **not** run for wallet-only uploads until chunks are in the producer's inbox (usually via `push-chunks` to self or peers first).
 
 **P2P catch-up:** Outbound `--p2p-dial` pulls missing blocks **before** blocking on gossip, so replicas can reach the upload height then receive chunks.
 

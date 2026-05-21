@@ -10,10 +10,10 @@ use std::time::Duration;
 use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
-    push_tx_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1,
-    send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook,
-    BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial,
-    P2pSessionHooks, ProductionHook, TipSnapshot,
+    push_tx_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v1,
+    send_gossip_end_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial,
+    BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
+    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -246,38 +246,96 @@ impl P2pPeerSet {
         if commits.is_empty() {
             return;
         }
+        let session_peers = self.snapshot_session_peers();
         let dial_peers = self.snapshot_peers_except(except_peer);
-        if dial_peers.is_empty() {
+        if session_peers.is_empty() && dial_peers.is_empty() {
             return;
         }
-        let genesis_id = self.genesis_id;
-        let local = self.local_tip();
-        let data_root = self.data_root.clone();
-        for (commit_hash, commit) in commits {
-            let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
-                &data_root,
-                commit_hash,
-                commit,
-            ) else {
-                continue;
-            };
-            let commit_hex = hex::encode(commit_hash);
-            let n = chunks.len();
-            for peer in &dial_peers {
-                let peer = peer.clone();
-                let chunks = chunks.clone();
-                if let Err(e) =
-                    push_chunks_gossip_to_peer(&peer, &genesis_id, &local, commit_hash, &chunks)
-                {
-                    eprintln!(
-                        "mfnd_p2p_chunk_fanout_abort peer={peer} commit={commit_hex} chunks={n} {e}"
-                    );
-                } else {
-                    println!("mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n}");
-                    let _ = std::io::Write::flush(&mut std::io::stdout());
+        let peer_set = Arc::clone(self);
+        let commits = commits.to_vec();
+        let except = except_peer.map(str::to_string);
+        let lock = Arc::clone(&self.fanout_lock);
+        thread::Builder::new()
+            .name("mfnd-p2p-chunk-fanout".into())
+            .spawn(move || {
+                let _guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let genesis_id = peer_set.genesis_id;
+                let local = peer_set.local_tip();
+                let data_root = peer_set.data_root.clone();
+                for (commit_hash, commit) in commits {
+                    let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
+                        &data_root,
+                        &commit_hash,
+                        &commit,
+                    ) else {
+                        continue;
+                    };
+                    let commit_hex = hex::encode(commit_hash);
+                    let n = chunks.len();
+                    let mut sent = BTreeSet::new();
+                    for peer in session_peers.iter() {
+                        if except.as_deref().is_some_and(|ex| ex == peer) {
+                            continue;
+                        }
+                        if peer_set.push_chunks_on_session(peer, &commit_hash, &chunks) {
+                            sent.insert(peer.clone());
+                            println!(
+                                "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n} session=1"
+                            );
+                            let _ = std::io::Write::flush(&mut std::io::stdout());
+                        }
+                    }
+                    for peer in &dial_peers {
+                        if except.as_deref().is_some_and(|ex| ex == peer) || sent.contains(peer) {
+                            continue;
+                        }
+                        let chunks = chunks.clone();
+                        if peer_set.push_chunks_on_session(peer, &commit_hash, &chunks) {
+                            sent.insert(peer.clone());
+                            println!(
+                                "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n} session=1"
+                            );
+                            let _ = std::io::Write::flush(&mut std::io::stdout());
+                            continue;
+                        }
+                        if let Err(e) = push_chunks_gossip_to_peer(
+                            peer,
+                            &genesis_id,
+                            &local,
+                            &commit_hash,
+                            &chunks,
+                        ) {
+                            eprintln!(
+                                "mfnd_p2p_chunk_fanout_abort peer={peer} commit={commit_hex} chunks={n} {e}"
+                            );
+                        } else {
+                            println!(
+                                "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n}"
+                            );
+                            let _ = std::io::Write::flush(&mut std::io::stdout());
+                        }
+                    }
                 }
+            })
+            .ok();
+    }
+
+    fn push_chunks_on_session(
+        &self,
+        peer: &str,
+        commit_hash: &[u8; 32],
+        chunks: &[(u32, Vec<u8>)],
+    ) -> bool {
+        self.send_on_session(peer, |sock| {
+            for (index, bytes) in chunks {
+                send_chunk_v1(sock, commit_hash, *index, bytes)?;
             }
-        }
+            send_gossip_end_v1(sock)?;
+            Ok(())
+        })
     }
 
     /// Push `block_wire` to every registered peer except `except_peer` (**M2.3.23**).
