@@ -1,10 +1,11 @@
 //! Two-node smoke: hub mines upload, pushes ChunkV1 to replica P2P, replica assembles
 //! matching bytes from `chunk-inbox/` (**M7.4**).
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use mfn_cli::{KeyDerivation, WalletFile};
@@ -64,34 +65,49 @@ fn unique_pair_dir(test: &str) -> (PathBuf, PathBuf) {
     (base.join("hub"), base.join("replica"))
 }
 
-fn read_stdout_line_with_prefix(child: &mut Child, prefix: &str, timeout: Duration) -> String {
-    let stdout = child.stdout.as_mut().expect("stdout");
-    let mut reader = BufReader::new(stdout);
+fn read_serve_addrs_from_reader(
+    reader: &mut impl BufRead,
+    timeout: Duration,
+) -> (SocketAddr, SocketAddr) {
+    let mut rpc = None;
+    let mut p2p = None;
     let mut line = String::new();
     let deadline = std::time::Instant::now() + timeout;
-    loop {
+    while rpc.is_none() || p2p.is_none() {
         if std::time::Instant::now() >= deadline {
-            panic!("timeout waiting for {prefix}");
+            panic!("timeout waiting for mfnd listen addrs (rpc={rpc:?} p2p={p2p:?})");
         }
         line.clear();
         let n = reader.read_line(&mut line).expect("read stdout");
         if n == 0 {
-            panic!("process exited before {prefix}");
+            panic!("mfnd exited before listen addrs");
         }
-        if let Some(rest) = line.strip_prefix(prefix) {
-            return rest.trim().to_string();
+        if let Some(rest) = line.strip_prefix("mfnd_serve_listening=") {
+            rpc = Some(rest.trim().parse().expect("rpc addr"));
+        } else if let Some(rest) = line.strip_prefix("mfnd_p2p_listening=") {
+            p2p = Some(rest.trim().parse().expect("p2p addr"));
         }
     }
+    (rpc.unwrap(), p2p.unwrap())
+}
+
+/// Prevent mfnd from blocking when P2P sync logs fill the stdout pipe.
+fn spawn_stdout_drain(reader: impl Read + Send + 'static) {
+    thread::spawn(move || {
+        let mut reader = BufReader::new(reader);
+        let mut line = String::new();
+        while reader.read_line(&mut line).ok().is_some_and(|n| n > 0) {
+            line.clear();
+        }
+    });
 }
 
 fn read_serve_addrs(child: &mut Child) -> (SocketAddr, SocketAddr) {
-    let rpc = read_stdout_line_with_prefix(child, "mfnd_serve_listening=", Duration::from_secs(30))
-        .parse()
-        .expect("rpc addr");
-    let p2p = read_stdout_line_with_prefix(child, "mfnd_p2p_listening=", Duration::from_secs(30))
-        .parse()
-        .expect("p2p addr");
-    (rpc, p2p)
+    let stdout = child.stdout.take().expect("stdout");
+    let mut reader = BufReader::new(stdout);
+    let addrs = read_serve_addrs_from_reader(&mut reader, Duration::from_secs(30));
+    spawn_stdout_drain(reader);
+    addrs
 }
 
 fn shutdown_child(child: &mut Child) {

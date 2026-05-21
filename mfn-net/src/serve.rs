@@ -643,6 +643,20 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             ps.register_session(addr.as_str(), clone);
                         }
                     }
+                    // Pull missing blocks before blocking on inbound gossip; otherwise a
+                    // behind dialer waits forever while the peer also waits (**M2.3.26**).
+                    if let Some(a) = &block_applier {
+                        if remote.height > local.height {
+                            maybe_pull_blocks_if_behind(
+                                &mut sock,
+                                hid,
+                                addr.as_str(),
+                                &local,
+                                &remote,
+                                a,
+                            );
+                        }
+                    }
                     if gossip.is_some() || production.is_some() {
                         if let Some(h) = &gossip {
                             recv_post_handshake(
