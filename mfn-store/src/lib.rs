@@ -29,6 +29,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod chunk_inbox;
 pub mod error;
 pub mod fs;
 pub mod mempool_persist;
@@ -39,6 +40,11 @@ pub mod redb_store;
 pub mod r#trait;
 mod validate;
 
+pub use chunk_inbox::{
+    chunk_inbox_commit_dir, chunk_inbox_complete, chunk_inbox_path, list_chunk_inbox_indices,
+    missing_chunk_inbox_indices, read_chunk_inbox, save_chunk_inbox, ChunkInboxError,
+    CHUNK_INBOX_DIR,
+};
 pub use error::{StoreError, StoreSave};
 pub use fs::ChainStore;
 pub use mempool_persist::{

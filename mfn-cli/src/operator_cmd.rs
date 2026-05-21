@@ -8,8 +8,8 @@ use mfn_storage::{
     storage_commitment_hash,
 };
 use mfn_storage_operator::{
-    backfill_upload_artifact_from_challenge, fetch_chunk_http,
-    push_wallet_artifact_chunks_to_peers_with_handshake,
+    backfill_upload_artifact_from_challenge, backfill_upload_artifact_from_inbox, fetch_chunk_http,
+    inbox_chunk_status, push_wallet_artifact_chunks_to_peers_with_handshake,
 };
 
 use crate::rpc::RpcClient;
@@ -232,6 +232,67 @@ pub fn operator_push_chunks(
         )));
     }
     println!("push_chunks=ok");
+    Ok(())
+}
+
+/// Report which chunk indices exist under a node's `chunk-inbox/` (**M7.2**).
+pub fn operator_inbox_status(
+    client: &mut RpcClient,
+    data_dir: &Path,
+    commitment_hash_hex: &str,
+) -> Result<(), OperatorCmdError> {
+    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let status = inbox_chunk_status(data_dir, commitment_hash_hex, ch.num_chunks)
+        .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    println!("commitment_hash={}", status.commitment_hash_hex);
+    println!("data_dir={}", status.data_dir.display());
+    println!("num_chunks={}", status.num_chunks);
+    println!("chunks_present={}", status.present_indices.len());
+    println!("chunks_missing={}", status.missing_indices.len());
+    println!("inbox_complete={}", status.complete);
+    if !status.present_indices.is_empty() {
+        let present: Vec<String> = status
+            .present_indices
+            .iter()
+            .map(|i| i.to_string())
+            .collect();
+        println!("present_indices={}", present.join(","));
+    }
+    if !status.missing_indices.is_empty() {
+        let missing: Vec<String> = status
+            .missing_indices
+            .iter()
+            .map(|i| i.to_string())
+            .collect();
+        println!("missing_indices={}", missing.join(","));
+    }
+    Ok(())
+}
+
+/// Assemble `chunk-inbox/` bytes into a wallet upload artifact (**M7.2**).
+pub fn operator_assemble_inbox(
+    client: &mut RpcClient,
+    wallet_path: &Path,
+    data_dir: &Path,
+    commitment_hash_hex: &str,
+    force: bool,
+) -> Result<(), OperatorCmdError> {
+    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let op_ch = storage_challenge_for_operator(&ch);
+    let result = backfill_upload_artifact_from_inbox(
+        wallet_path,
+        data_dir,
+        commitment_hash_hex,
+        &op_ch,
+        force,
+    )
+    .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    println!("commitment_hash={}", result.commitment_hash_hex);
+    println!("data_dir={}", data_dir.display());
+    println!("chunks_assembled={}", result.chunks_fetched);
+    println!("payload_bytes={}", result.payload_bytes);
+    println!("artifact_dir={}", result.artifact_dir.display());
+    println!("assemble_inbox=ok");
     Ok(())
 }
 

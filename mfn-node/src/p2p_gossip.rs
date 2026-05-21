@@ -247,7 +247,7 @@ mod tests {
         let path = handler
             .store
             .root()
-            .join(crate::p2p_chunk_inbox::CHUNK_INBOX_DIR)
+            .join(mfn_store::CHUNK_INBOX_DIR)
             .join(hex::encode(hash))
             .join("1.bin");
         assert!(path.is_file(), "missing {}", path.display());

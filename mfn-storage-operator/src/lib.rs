@@ -22,6 +22,7 @@ pub mod chunk_client;
 pub mod chunk_http;
 pub mod chunk_push;
 pub mod daemon;
+pub mod inbox_backfill;
 pub mod prove;
 pub mod rpc;
 pub mod upload_artifact_store;
@@ -40,6 +41,10 @@ pub use chunk_push::{
 pub use daemon::{
     run_daemon, run_prove_cycle, OperatorDaemonConfig, ProveAttempt, ProveAttemptStatus,
     ProveCycleSummary,
+};
+pub use inbox_backfill::{
+    backfill_upload_artifact_from_inbox, fetch_payload_from_inbox, inbox_chunk_status,
+    InboxBackfillError, InboxChunkStatus,
 };
 pub use prove::{prove_from_file, prove_from_wallet_artifact, ProveError, ProveSuccess};
 pub use rpc::{RpcClient, RpcError, DEFAULT_RPC_ADDR};

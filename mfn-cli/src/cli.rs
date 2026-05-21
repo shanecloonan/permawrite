@@ -14,8 +14,9 @@ use crate::light_subjectivity::{
 };
 use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::operator_cmd::{
-    operator_artifacts, operator_backfill, operator_challenge, operator_fetch_chunk, operator_pool,
-    operator_prove, operator_push_chunks, OperatorCmdError,
+    operator_artifacts, operator_assemble_inbox, operator_backfill, operator_challenge,
+    operator_fetch_chunk, operator_inbox_status, operator_pool, operator_prove,
+    operator_push_chunks, OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
@@ -174,6 +175,18 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 operator_push_chunks(&mut client, &path, &commitment_hash_hex, &peers)?
             }
+            OperatorSub::InboxStatus {
+                commitment_hash_hex,
+                data_dir,
+            } => operator_inbox_status(&mut client, &data_dir, &commitment_hash_hex)?,
+            OperatorSub::AssembleInbox {
+                commitment_hash_hex,
+                data_dir,
+                force,
+            } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                operator_assemble_inbox(&mut client, &path, &data_dir, &commitment_hash_hex, force)?
+            }
         },
         Cmd::Wallet {
             sub,
@@ -293,6 +306,15 @@ enum OperatorSub {
         commitment_hash_hex: String,
         peers: Vec<String>,
     },
+    InboxStatus {
+        commitment_hash_hex: String,
+        data_dir: std::path::PathBuf,
+    },
+    AssembleInbox {
+        commitment_hash_hex: String,
+        data_dir: std::path::PathBuf,
+        force: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -376,7 +398,9 @@ fn usage() -> &'static str {
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
        operator backfill HASH PEER [replace]  fetch all chunks; trailing `replace` overwrites artifact\n\
-       operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n"
+       operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n\
+       operator inbox-status HASH DATA_DIR  list chunk-inbox indices for commitment\n\
+       operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
@@ -633,7 +657,7 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk|backfill|push-chunks)\n{}",
+            "operator requires SUBCOMMAND (challenge|prove|pool|artifacts|fetch-chunk|backfill|push-chunks|inbox-status|assemble-inbox)\n{}",
             usage()
         )));
     };
@@ -698,6 +722,16 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
         "backfill" => parse_operator_backfill_args(&rest[1..])?,
         "push-chunks" => parse_operator_push_chunks_args(&rest[1..])?,
+        "inbox-status" => parse_operator_inbox_status_args(&rest[1..])?,
+        "assemble-inbox" => {
+            let (commitment_hash_hex, data_dir, force) =
+                parse_operator_inbox_args(&rest[1..], true)?;
+            OperatorSub::AssembleInbox {
+                commitment_hash_hex,
+                data_dir,
+                force,
+            }
+        }
         other => {
             return Err(CliError::Usage(format!(
                 "unknown operator subcommand `{other}`\n{}",
@@ -729,6 +763,45 @@ fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> 
         commitment_hash_hex,
         peer,
         force,
+    })
+}
+
+fn parse_operator_inbox_args(
+    rest: &[&str],
+    allow_replace: bool,
+) -> Result<(String, std::path::PathBuf, bool), CliError> {
+    let max = if allow_replace { 3 } else { 2 };
+    if rest.len() < 2 || rest.len() > max {
+        return Err(CliError::Usage(format!(
+            "operator inbox command requires COMMITMENT_HASH_HEX DATA_DIR{}\n{}",
+            if allow_replace { " [replace]" } else { "" },
+            usage()
+        )));
+    }
+    let commitment_hash_hex = rest[0].to_string();
+    let data_dir = std::path::PathBuf::from(rest[1]);
+    let force = allow_replace && matches!(rest.get(2), Some(&"replace"));
+    if rest.len() == 3 && allow_replace && !force {
+        return Err(CliError::Usage(format!(
+            "operator assemble-inbox unknown modifier `{}` (expected `replace`)\n{}",
+            rest[2],
+            usage()
+        )));
+    }
+    if !allow_replace && rest.len() > 2 {
+        return Err(CliError::Usage(format!(
+            "operator inbox-status takes no arguments after DATA_DIR\n{}",
+            usage()
+        )));
+    }
+    Ok((commitment_hash_hex, data_dir, force))
+}
+
+fn parse_operator_inbox_status_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    let (commitment_hash_hex, data_dir, _) = parse_operator_inbox_args(rest, false)?;
+    Ok(OperatorSub::InboxStatus {
+        commitment_hash_hex,
+        data_dir,
     })
 }
 
@@ -1716,6 +1789,59 @@ mod tests {
                 sub: OperatorSub::Backfill { force, .. },
             } => assert!(force),
             _ => panic!("expected backfill replace"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_assemble_inbox_subcommand() {
+        let h = "12".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "assemble-inbox".into(),
+            h.clone(),
+            "/tmp/node".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::AssembleInbox {
+                        commitment_hash_hex,
+                        data_dir,
+                        force,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(data_dir, std::path::PathBuf::from("/tmp/node"));
+                assert!(force);
+            }
+            _ => panic!("expected assemble-inbox"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_inbox_status_subcommand() {
+        let h = "34".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "inbox-status".into(),
+            h.clone(),
+            "C:\\node".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::InboxStatus {
+                        commitment_hash_hex,
+                        data_dir,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(data_dir, std::path::PathBuf::from("C:\\node"));
+            }
+            _ => panic!("expected inbox-status"),
         }
     }
 
