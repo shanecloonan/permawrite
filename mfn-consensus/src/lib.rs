@@ -133,8 +133,9 @@ pub use consensus::{
 };
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, cumulative_emission, emission_at_height,
-    pre_tail_supply_cap, validate_emission_params, EmissionError, EmissionParams,
-    DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
+    pre_tail_supply_cap, producer_coinbase_amount, storage_proof_coinbase_bonus,
+    validate_emission_params, EmissionError, EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE,
+    MFN_DECIMALS,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

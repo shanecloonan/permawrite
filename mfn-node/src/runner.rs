@@ -7,8 +7,9 @@ use std::time::Duration;
 
 use mfn_bls::CommitteeVote;
 use mfn_consensus::{
-    build_coinbase, emission_at_height, encode_block, pick_winner, verify_producer_proof,
-    ConsensusCheck, ConsensusParams, PayoutAddress, ProducerProof, Validator, ValidatorSecrets,
+    build_coinbase, encode_block, pick_winner, producer_coinbase_amount,
+    storage_proof_coinbase_bonus, verify_producer_proof, ConsensusCheck, ConsensusParams,
+    PayoutAddress, ProducerProof, Validator, ValidatorSecrets,
 };
 use mfn_net::production::ProductionHandler;
 use mfn_net::TipSnapshot;
@@ -141,9 +142,25 @@ impl ProductionEngine {
         for t in &drained {
             fee_sum = fee_sum.saturating_add(u128::from(t.fee));
         }
-        let producer_extra = Self::producer_fee_share(fee_sum, emission_params.fee_to_treasury_bps);
-        let emission = emission_at_height(u64::from(height), &emission_params);
-        let coinbase_amount = emission.saturating_add(producer_extra);
+        let prev = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
+        let st = chain.state();
+        let storage_bonus = storage_proof_coinbase_bonus(
+            &storage_proofs,
+            &st.storage,
+            height,
+            &st.endowment_params,
+        );
+        let coinbase_amount = producer_coinbase_amount(
+            u64::from(height),
+            &emission_params,
+            fee_sum,
+            storage_proofs.len(),
+            storage_bonus,
+        );
         let payout = self
             .local
             .validator
@@ -159,11 +176,6 @@ impl ProductionEngine {
         let mut txs = Vec::with_capacity(1 + drained.len());
         txs.push(cb);
         txs.extend(drained);
-        let prev = chain
-            .tip_id()
-            .copied()
-            .unwrap_or_else(|| *chain.genesis_id());
-        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
         Ok(BlockInputs {
             height,
             slot,

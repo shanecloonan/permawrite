@@ -27,7 +27,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use mfn_bls::bls_keygen_from_seed;
-use mfn_consensus::{build_coinbase, emission_at_height, PayoutAddress, ValidatorSecrets};
+use mfn_consensus::{
+    build_coinbase, producer_coinbase_amount, storage_proof_coinbase_bonus, PayoutAddress,
+    ValidatorSecrets,
+};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 
 use crate::{
@@ -222,13 +225,9 @@ fn run_solo_step(
             .checked_add(1)
             .ok_or_else(|| "mfnd step: tip height overflow".to_string())?;
         let timestamp = cfg.genesis.timestamp.saturating_add(u64::from(next_height));
-        let (params, emission_params, emission) = {
+        let (params, emission_params) = {
             let st = chain.state();
-            (
-                st.params,
-                st.emission_params,
-                emission_at_height(u64::from(next_height), &st.emission_params),
-            )
+            (st.params, st.emission_params)
         };
 
         let drained = pool.drain(MFND_MEMPOOL_DRAIN_MAX);
@@ -236,9 +235,26 @@ fn run_solo_step(
         for t in &drained {
             fee_sum = fee_sum.saturating_add(u128::from(t.fee));
         }
-        let producer_extra =
-            producer_fee_share_of_summed_fees(fee_sum, emission_params.fee_to_treasury_bps);
-        let coinbase_amount = emission.saturating_add(producer_extra);
+
+        let prev = chain
+            .tip_id()
+            .copied()
+            .unwrap_or_else(|| *chain.genesis_id());
+        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
+        let st = chain.state();
+        let storage_bonus = storage_proof_coinbase_bonus(
+            &storage_proofs,
+            &st.storage,
+            next_height,
+            &st.endowment_params,
+        );
+        let coinbase_amount = producer_coinbase_amount(
+            u64::from(next_height),
+            &emission_params,
+            fee_sum,
+            storage_proofs.len(),
+            storage_bonus,
+        );
 
         let cb_payout = PayoutAddress {
             view_pub: payout.view_pub,
@@ -249,12 +265,6 @@ fn run_solo_step(
         let mut txs = Vec::with_capacity(1 + drained.len());
         txs.push(cb);
         txs.extend(drained);
-
-        let prev = chain
-            .tip_id()
-            .copied()
-            .unwrap_or_else(|| *chain.genesis_id());
-        let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
         let inputs = BlockInputs {
             height: next_height,
             slot: next_height,

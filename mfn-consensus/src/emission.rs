@@ -221,6 +221,62 @@ pub fn annualized_inflation_ppb(
     year_ahead * 1_000_000_000 / supply
 }
 
+use std::collections::HashMap;
+
+use mfn_storage::{accrue_proof_reward, AccrueArgs, EndowmentParams, StorageProof};
+
+use crate::block::StorageEntry;
+
+/// PPB endowment yield bonus for storage proofs about to be mined (mirrors
+/// `apply_block` `storage_bonus_total`).
+pub fn storage_proof_coinbase_bonus(
+    proofs: &[StorageProof],
+    storage: &HashMap<[u8; 32], StorageEntry>,
+    slot: u32,
+    endowment_params: &EndowmentParams,
+) -> u128 {
+    let mut bonus = 0u128;
+    let current_slot = u64::from(slot);
+    for proof in proofs {
+        let Some(entry) = storage.get(&proof.commit_hash) else {
+            continue;
+        };
+        if let Ok(accrual) = accrue_proof_reward(AccrueArgs {
+            size_bytes: entry.commit.size_bytes,
+            replication: entry.commit.replication,
+            pending_ppb: entry.pending_yield_ppb,
+            last_proven_slot: entry.last_proven_slot,
+            current_slot,
+            params: endowment_params,
+        }) {
+            bonus = bonus.saturating_add(accrual.payout);
+        }
+    }
+    bonus
+}
+
+/// Coinbase amount [`crate::coinbase::build_coinbase`] must use so
+/// [`crate::block::apply_block`] accepts the block (subsidy + producer fee
+/// share + per-proof reward + PPB bonus).
+pub fn producer_coinbase_amount(
+    height: u64,
+    params: &EmissionParams,
+    fee_sum: u128,
+    accepted_storage_proofs: usize,
+    storage_bonus: u128,
+) -> u64 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let producer_fee = fee_sum.saturating_sub(treasury_fee);
+    let storage_reward_total = u128::from(params.storage_proof_reward)
+        .saturating_mul(accepted_storage_proofs as u128)
+        .saturating_add(storage_bonus);
+    let subsidy = u128::from(emission_at_height(height, params));
+    let total = subsidy
+        .saturating_add(producer_fee)
+        .saturating_add(storage_reward_total);
+    u64::try_from(total).unwrap_or(u64::MAX)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
