@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-21T06:02:24.780Z
+**Generated (UTC):** 2026-05-21T07:08:46.405Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 296 |
-| Total lines (all scanned source-like files) | 86,588 |
-| Non-empty lines | 77,086 |
-| UTF-8 bytes (source-like) | 3,479,749 |
-| Paths visited (before binary/huge skip) | 313 |
+| Source-like files scanned | 297 |
+| Total lines (all scanned source-like files) | 86,736 |
+| Non-empty lines | 77,225 |
+| UTF-8 bytes (source-like) | 3,485,542 |
+| Paths visited (before binary/huge skip) | 314 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -24,9 +24,9 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 56 | 16,901 | 15,596 |
-| `docs` | 35 | 10,719 | 7,607 |
+| `docs` | 35 | 10,720 | 7,608 |
 | `mfn-cli` | 26 | 9,799 | 9,036 |
-| `mfn-node` | 32 | 8,459 | 7,838 |
+| `mfn-node` | 33 | 8,605 | 7,975 |
 | `mfn-crypto` | 23 | 7,292 | 6,565 |
 | `mfn-wallet` | 15 | 4,931 | 4,522 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
@@ -41,28 +41,28 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `mfn-bls` | 4 | 865 | 757 |
 | `(root)` | 5 | 739 | 530 |
 | `scripts` | 9 | 497 | 413 |
-| `.github` | 2 | 155 | 143 |
+| `.github` | 2 | 156 | 144 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 196 | 69,674 | 64,282 | 2,502,192 |
-| `.md` | 51 | 12,617 | 8,900 | 828,822 |
+| `.rs` | 197 | 69,820 | 64,419 | 2,507,703 |
+| `.md` | 51 | 12,618 | 8,901 | 829,004 |
 | `.js` | 7 | 1,980 | 1,856 | 62,125 |
 | `.mjs` | 5 | 697 | 609 | 19,201 |
 | `.toml` | 15 | 522 | 439 | 14,387 |
 | `.svg` | 3 | 520 | 462 | 35,170 |
 | `.json` | 10 | 238 | 228 | 6,904 |
 | `.sh` | 7 | 185 | 167 | 6,262 |
-| `.yml` | 2 | 155 | 143 | 4,686 |
+| `.yml` | 2 | 156 | 144 | 4,786 |
 
 ## Largest source files (by line count)
 
 | Lines | File |
 | ---: | --- |
 | 3,493 | `mfn-rpc/src/dispatch.rs` |
-| 2,254 | `docs/ROADMAP.md` |
+| 2,255 | `docs/ROADMAP.md` |
 | 1,952 | `mfn-node/tests/mfnd_smoke.rs` |
 | 1,916 | `mfn-cli/src/cli.rs` |
 | 1,684 | `mfn-consensus/tests/block_apply.rs` |

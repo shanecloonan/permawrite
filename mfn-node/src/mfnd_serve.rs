@@ -304,6 +304,7 @@ pub(crate) fn run_serve(
             Arc::clone(&proof_pool),
             Arc::clone(&store),
             Arc::clone(&tip_cell),
+            Some(Arc::clone(&fanout)),
         );
         let (sync_hook, light_follow_hook) =
             P2pBlockSyncHandler::new_hooks(Arc::clone(&chain), Arc::clone(&store));

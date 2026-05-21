@@ -2089,6 +2089,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M7.2** | `chunk-inbox/` in `mfn-store`; `operator inbox-status` + `assemble-inbox` build wallet artifacts without HTTP. | ✓ shipped |
 | **M7.3** | Integration smoke: `push-chunks` → `chunk-inbox` → `assemble-inbox` → `operator prove` (`chunk_p2p_smoke`). | ✓ shipped |
 | **M7.4** | Two-node smoke: hub mines upload, `push-chunks` to replica P2P, replica `assemble-inbox` matches hub payload (`chunk_p2p_two_node_smoke`). | ✓ shipped |
+| **M7.5** | Auto fan-out: when a block anchors new storage, `mfnd` pushes complete `chunk-inbox/` sets to registered P2P peers (producer seal + inbound `BlockV1`). | ✓ shipped |
 | **M4.24** | Demo sync auto-imports trusted summary from textarea (M3.18 parity). | ✓ shipped |
 
 ### Components

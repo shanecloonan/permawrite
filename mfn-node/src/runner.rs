@@ -1,6 +1,6 @@
 //! Slot-driven multi-validator block production (**M2.3.23**).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -20,6 +20,7 @@ use mfn_runtime::{
 };
 use mfn_store::{save_proof_pool, ChainPersistence};
 
+use crate::p2p_chunk_fanout::new_storage_commits_in_block;
 use crate::p2p_fanout::P2pPeerSet;
 
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
@@ -291,6 +292,7 @@ impl ProductionEngine {
             .chain
             .lock()
             .map_err(|_| "chain mutex poisoned".to_string())?;
+        let known_storage: HashSet<[u8; 32]> = chain.state().storage.keys().copied().collect();
         chain.apply(&block).map_err(|e| format!("apply: {e}"))?;
         if let Ok(mut pool) = self.pool.lock() {
             let _ = pool.remove_mined(&block);
@@ -306,9 +308,12 @@ impl ProductionEngine {
             .append_block(&block)
             .map_err(|e| format!("store: {e}"))?;
         self.refresh_tip_cell(&chain);
+        let new_commits = new_storage_commits_in_block(&block, &known_storage);
         let wire = encode_block(&block);
         drop(chain);
         self.peers.fanout_block(&wire, None);
+        self.peers
+            .fanout_inbox_chunks_for_commits(&new_commits, None);
         println!("mfnd_producer_sealed height={height} votes={vote_count}");
         let _ = std::io::Write::flush(&mut std::io::stdout());
         Ok(())

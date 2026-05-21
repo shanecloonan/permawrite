@@ -9,11 +9,11 @@ use std::time::Duration;
 
 use mfn_consensus::{decode_transaction, tx_id};
 use mfn_net::{
-    push_block_gossip_to_peer, push_proposal_v1_to_peer, push_tx_gossip_to_peer,
-    push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_proposal_v1, send_vote_v1,
-    spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1,
-    FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook,
-    TipSnapshot,
+    push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
+    push_tx_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1,
+    send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook,
+    BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial,
+    P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
@@ -234,6 +234,49 @@ impl P2pPeerSet {
                     }
                 })
                 .ok();
+        }
+    }
+
+    /// Push complete `chunk-inbox/` sets for new on-chain uploads (**M7.5**).
+    pub fn fanout_inbox_chunks_for_commits(
+        self: &Arc<Self>,
+        commits: &[([u8; 32], mfn_storage::StorageCommitment)],
+        except_peer: Option<&str>,
+    ) {
+        if commits.is_empty() {
+            return;
+        }
+        let dial_peers = self.snapshot_peers_except(except_peer);
+        if dial_peers.is_empty() {
+            return;
+        }
+        let genesis_id = self.genesis_id;
+        let local = self.local_tip();
+        let data_root = self.data_root.clone();
+        for (commit_hash, commit) in commits {
+            let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
+                &data_root,
+                commit_hash,
+                commit,
+            ) else {
+                continue;
+            };
+            let commit_hex = hex::encode(commit_hash);
+            let n = chunks.len();
+            for peer in &dial_peers {
+                let peer = peer.clone();
+                let chunks = chunks.clone();
+                if let Err(e) =
+                    push_chunks_gossip_to_peer(&peer, &genesis_id, &local, commit_hash, &chunks)
+                {
+                    eprintln!(
+                        "mfnd_p2p_chunk_fanout_abort peer={peer} commit={commit_hex} chunks={n} {e}"
+                    );
+                } else {
+                    println!("mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n}");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                }
+            }
         }
     }
 

@@ -1,11 +1,15 @@
 //! P2P gossip admission: decode consensus wire bytes into mempool / chain apply.
 
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{decode_block, decode_transaction, tx_id};
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
 use mfn_store::ChainPersistence;
+
+use crate::p2p_chunk_fanout::new_storage_commits_in_block;
+use crate::p2p_fanout::P2pPeerSet;
 
 /// Shared chain + mempool + store for inbound gossip (**M2.3.16**).
 pub struct P2pGossipHandler {
@@ -14,6 +18,7 @@ pub struct P2pGossipHandler {
     proof_pool: Arc<Mutex<ProofPool>>,
     store: Arc<dyn ChainPersistence + Send + Sync>,
     tip_cell: TipSnapshot,
+    peers: Option<Arc<P2pPeerSet>>,
 }
 
 impl P2pGossipHandler {
@@ -24,6 +29,7 @@ impl P2pGossipHandler {
         proof_pool: Arc<Mutex<ProofPool>>,
         store: Arc<dyn ChainPersistence + Send + Sync>,
         tip_cell: TipSnapshot,
+        peers: Option<Arc<P2pPeerSet>>,
     ) -> Arc<Self> {
         Arc::new(Self {
             chain,
@@ -31,6 +37,7 @@ impl P2pGossipHandler {
             proof_pool,
             store,
             tip_cell,
+            peers,
         })
     }
 
@@ -126,6 +133,7 @@ impl GossipHandler for P2pGossipHandler {
             Ok(g) => g,
             Err(_) => return "rejected:chain_mutex".to_string(),
         };
+        let known_storage: HashSet<[u8; 32]> = chain.state().storage.keys().copied().collect();
         let local_height = chain.tip_height().unwrap_or(0);
         let next_height = local_height.saturating_add(1);
         if height != next_height {
@@ -148,6 +156,10 @@ impl GossipHandler for P2pGossipHandler {
                     let _ = proof_pool.remove_mined(mined);
                 }
                 self.refresh_tip_cell(&chain);
+                if let Some(ps) = &self.peers {
+                    let new_commits = new_storage_commits_in_block(&block, &known_storage);
+                    ps.fanout_inbox_chunks_for_commits(&new_commits, None);
+                }
                 let mut bid_hex = String::with_capacity(64);
                 for b in bid {
                     use std::fmt::Write as _;
@@ -224,7 +236,7 @@ mod tests {
         drop(guard);
 
         let tip_cell = Arc::new(Mutex::new((height, tip_id)));
-        let handler = P2pGossipHandler::new(chain, pool, proof_pool, store, tip_cell);
+        let handler = P2pGossipHandler::new(chain, pool, proof_pool, store, tip_cell, None);
         (handler, wire)
     }
 
