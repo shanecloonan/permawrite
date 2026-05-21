@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use mfn_storage::{
     build_storage_commitment, chunk_data, storage_commitment_hash, DEFAULT_ENDOWMENT_PARAMS,
@@ -48,17 +48,40 @@ fn ephemeral_listen_addr() -> String {
     format!("127.0.0.1:{port}")
 }
 
-fn http_get(addr: &str, path: &str) -> (u16, Vec<u8>) {
-    let mut stream = TcpStream::connect(addr).unwrap_or_else(|e| panic!("connect {addr}: {e}"));
-    stream
-        .set_read_timeout(Some(Duration::from_secs(10)))
-        .expect("read timeout");
+fn try_http_get(addr: &str, path: &str) -> Option<(u16, Vec<u8>)> {
+    let mut stream = TcpStream::connect(addr).ok()?;
+    stream.set_read_timeout(Some(Duration::from_secs(10)).ok()?;
     let req = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n");
-    stream.write_all(req.as_bytes()).expect("write request");
-    stream.flush().expect("flush");
+    stream.write_all(req.as_bytes()).ok()?;
+    stream.flush().ok()?;
     let mut raw = Vec::new();
-    stream.read_to_end(&mut raw).expect("read response");
-    parse_http_response(&raw)
+    stream.read_to_end(&mut raw).ok()?;
+    Some(parse_http_response(&raw))
+}
+
+fn http_get(addr: &str, path: &str) -> (u16, Vec<u8>) {
+    try_http_get(addr, path).unwrap_or_else(|| panic!("connect {addr} GET {path}"))
+}
+
+/// Poll until chunk HTTP returns `expected_status` or timeout (CI runners vary in bind latency).
+fn wait_for_http_status(
+    addr: &str,
+    path: &str,
+    expected_status: u16,
+    timeout: Duration,
+) -> (u16, Vec<u8>) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some((code, body)) = try_http_get(addr, path) {
+            if code == expected_status {
+                return (code, body);
+            }
+        }
+        if Instant::now() >= deadline {
+            panic!("timeout waiting for HTTP {expected_status} on {addr}{path}");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 fn parse_http_response(raw: &[u8]) -> (u16, Vec<u8>) {
@@ -143,10 +166,8 @@ fn serve_chunks_returns_upload_artifact_chunk_zero() {
         let _ = child.wait();
     });
 
-    std::thread::sleep(Duration::from_millis(200));
-
     let path = format!("/chunk/{commit_hex}/0");
-    let (code, body) = http_get(&listen, &path);
+    let (code, body) = wait_for_http_status(&listen, &path, 200, Duration::from_secs(10));
     assert_eq!(code, 200, "GET chunk 0 should succeed");
     let chunks = chunk_data(&payload, built.commit.chunk_size as usize).expect("chunks");
     assert_eq!(body.as_slice(), chunks[0]);
@@ -202,13 +223,15 @@ fn run_once_with_chunk_listen_serves_chunk_zero() {
     let wallet_bg = wallet_path.clone();
     let listen_bg = listen.clone();
     let stop_bg = Arc::clone(&stop);
+    // `once: true` exits after the prove cycle and tears down chunk-listen before HTTP
+    // probes finish on fast Linux/macOS CI; keep the daemon alive until we signal stop.
     let daemon = std::thread::spawn(move || {
         run_daemon(
             OperatorDaemonConfig {
                 rpc_addr: "127.0.0.1:1".to_string(),
                 wallet_path: wallet_bg,
                 interval: Duration::from_secs(3600),
-                once: true,
+                once: false,
                 chunk_listen: Some(listen_bg),
             },
             stop_bg,
@@ -216,10 +239,8 @@ fn run_once_with_chunk_listen_serves_chunk_zero() {
         .expect("run_daemon");
     });
 
-    std::thread::sleep(Duration::from_millis(200));
-
     let path = format!("/chunk/{commit_hex}/0");
-    let (code, body) = http_get(&listen, &path);
+    let (code, body) = wait_for_http_status(&listen, &path, 200, Duration::from_secs(10));
     assert_eq!(code, 200, "run --chunk-listen should serve chunk 0");
     let chunks = chunk_data(&payload, built.commit.chunk_size as usize).expect("chunks");
     assert_eq!(body.as_slice(), chunks[0]);

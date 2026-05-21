@@ -173,7 +173,11 @@ pub fn run_daemon(config: OperatorDaemonConfig, stop: Arc<AtomicBool>) -> Result
 
     let result = run_daemon_prove_loop(&mut client, &config, stop.as_ref());
 
-    stop.store(true, Ordering::SeqCst);
+    // Keep the chunk HTTP server alive when `--chunk-listen` is set: callers
+    // (integration tests, operators) fetch chunks after `run --once` returns.
+    if config.chunk_listen.is_none() {
+        stop.store(true, Ordering::SeqCst);
+    }
     if let Some(handle) = chunk_thread {
         if let Err(e) = handle.join() {
             eprintln!("mfno_chunk_join error={e:?}");
