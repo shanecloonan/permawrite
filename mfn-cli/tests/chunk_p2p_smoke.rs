@@ -102,6 +102,30 @@ fn parse_stdout_field(stdout: &str, key: &str) -> String {
         .unwrap_or_else(|| panic!("stdout missing {prefix}:\n{stdout}"))
 }
 
+fn wait_for_inbox_complete(rpc: &str, data_dir: &Path, commitment_hash: &str) -> String {
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        let inbox_out = mfn_cli()
+            .args(["--rpc", rpc, "operator", "inbox-status", commitment_hash])
+            .arg(data_dir)
+            .output()
+            .expect("inbox-status");
+        assert!(
+            inbox_out.status.success(),
+            "inbox-status stderr={}",
+            String::from_utf8_lossy(&inbox_out.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&inbox_out.stdout).into_owned();
+        if stdout.contains("inbox_complete=true") {
+            return stdout;
+        }
+        if std::time::Instant::now() >= deadline {
+            panic!("timeout waiting for chunk-inbox; last stdout:\n{stdout}");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn mfnd_step(dir: &Path, spec: &Path, blocks: &str) {
     let out = mfnd()
         .args(["--data-dir"])
@@ -218,21 +242,7 @@ fn push_chunks_inbox_assemble_then_prove() {
 
     std::fs::remove_dir_all(&artifact_dir).expect("remove local artifact");
 
-    let inbox_out = mfn_cli()
-        .args(["--rpc", &rpc2, "operator", "inbox-status", &commitment_hash])
-        .arg(&dir)
-        .output()
-        .expect("inbox-status");
-    assert!(
-        inbox_out.status.success(),
-        "inbox-status stderr={}",
-        String::from_utf8_lossy(&inbox_out.stderr)
-    );
-    let inbox_stdout = String::from_utf8_lossy(&inbox_out.stdout);
-    assert!(
-        inbox_stdout.contains("inbox_complete=true"),
-        "stdout={inbox_stdout}"
-    );
+    let inbox_stdout = wait_for_inbox_complete(&rpc2, &dir, &commitment_hash);
 
     let assemble_out = mfn_cli()
         .args(["--rpc", &rpc2, "--wallet"])
