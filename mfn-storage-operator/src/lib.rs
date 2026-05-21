@@ -28,10 +28,10 @@ pub mod rpc;
 pub mod upload_artifact_store;
 
 pub use backfill::{
-    backfill_upload_artifact_from_challenge, fetch_payload_from_peer, persist_backfill_artifact,
-    BackfillError, BackfillResult,
+    backfill_upload_artifact_from_challenge, fetch_payload_from_peer, fetch_payload_from_peers,
+    persist_backfill_artifact, BackfillError, BackfillResult,
 };
-pub use chunk_client::{fetch_chunk_http, ChunkFetchError};
+pub use chunk_client::{fetch_chunk_http, fetch_chunk_http_quorum, ChunkFetchError};
 pub use chunk_http::{serve_chunks, ChunkServeConfig, ChunkServeError};
 pub use chunk_push::{
     push_wallet_artifact_chunks_to_peer, push_wallet_artifact_chunks_to_peer_with_handshake,

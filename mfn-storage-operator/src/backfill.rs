@@ -7,7 +7,7 @@ use curve25519_dalek::scalar::Scalar;
 use mfn_storage::{decode_storage_commitment, storage_commitment_hash};
 use mfn_wallet::{rebuild_built_commitment, UploadArtifactMeta};
 
-use crate::chunk_client::{fetch_chunk_http, ChunkFetchError};
+use crate::chunk_client::{fetch_chunk_http, fetch_chunk_http_quorum, ChunkFetchError};
 use crate::rpc::StorageChallenge;
 use crate::upload_artifact_store::{
     has_upload_artifact, save_upload_artifact, UploadArtifactSaveMeta, UploadArtifactStoreError,
@@ -40,26 +40,35 @@ pub struct BackfillResult {
     pub artifact_dir: PathBuf,
 }
 
-/// Fetch every chunk from `peer` and persist under `wallet_path` (**M6.6**).
+/// Fetch every chunk from one or more peers and persist under `wallet_path` (**M6.6** / **M6.7**).
 ///
 /// Uses `ch` from `get_storage_challenge` for on-chain wire + dimensions.
+/// With multiple peers, each chunk index must be byte-identical across all sources.
 /// Skips when an artifact already exists unless `force` is true.
-/// Endowment Pedersen blinding is unknown for replicas; stored as zero — sufficient
-/// for SPoRA proving (payload + Merkle tree + commitment wire).
 pub fn backfill_upload_artifact_from_challenge(
     wallet_path: &Path,
     commitment_hash_hex: &str,
-    peer: &str,
+    peers: &[String],
     ch: &StorageChallenge,
     force: bool,
 ) -> Result<BackfillResult, BackfillError> {
+    if peers.is_empty() {
+        return Err(BackfillError::Usage(
+            "backfill requires at least one PEER (HOST:PORT)".into(),
+        ));
+    }
     if has_upload_artifact(wallet_path, commitment_hash_hex) && !force {
         return Err(BackfillError::Usage(format!(
             "upload artifact already exists for {commitment_hash_hex} (use `replace` to overwrite)"
         )));
     }
-    let payload = fetch_payload_from_peer(peer, commitment_hash_hex, ch)?;
-    let save = persist_backfill_artifact(wallet_path, ch, peer, &payload)?;
+    let payload = fetch_payload_from_peers(peers, commitment_hash_hex, ch)?;
+    let source_label = if peers.len() == 1 {
+        format!("backfill:{}", peers[0])
+    } else {
+        format!("backfill-quorum:{}", peers.join(","))
+    };
+    let save = persist_backfill_artifact(wallet_path, ch, &source_label, &payload)?;
     Ok(BackfillResult {
         commitment_hash_hex: commitment_hash_hex.to_string(),
         chunks_fetched: ch.num_chunks,
@@ -68,9 +77,18 @@ pub fn backfill_upload_artifact_from_challenge(
     })
 }
 
-/// Fetch and concatenate all chunks for a commitment.
+/// Fetch and concatenate all chunks for a commitment from one peer.
 pub fn fetch_payload_from_peer(
     peer: &str,
+    commitment_hash_hex: &str,
+    ch: &StorageChallenge,
+) -> Result<Vec<u8>, BackfillError> {
+    fetch_payload_from_peers(&[peer.to_string()], commitment_hash_hex, ch)
+}
+
+/// Fetch and concatenate all chunks; multiple peers require per-chunk quorum (**M6.7**).
+pub fn fetch_payload_from_peers(
+    peers: &[String],
     commitment_hash_hex: &str,
     ch: &StorageChallenge,
 ) -> Result<Vec<u8>, BackfillError> {
@@ -79,7 +97,11 @@ pub fn fetch_payload_from_peer(
 
     let mut payload = Vec::new();
     for idx in 0..ch.num_chunks {
-        let chunk = fetch_chunk_http(peer, commitment_hash_hex, idx)?;
+        let chunk = if peers.len() == 1 {
+            fetch_chunk_http(&peers[0], commitment_hash_hex, idx)?
+        } else {
+            fetch_chunk_http_quorum(peers, commitment_hash_hex, idx)?
+        };
         payload.extend_from_slice(&chunk);
     }
     let expected_len = usize::try_from(ch.size_bytes)

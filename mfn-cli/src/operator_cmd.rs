@@ -164,7 +164,7 @@ pub fn operator_backfill(
     client: &mut RpcClient,
     wallet_path: &Path,
     commitment_hash_hex: &str,
-    peer: &str,
+    peers: &[String],
     force: bool,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
@@ -172,13 +172,14 @@ pub fn operator_backfill(
     let result = backfill_upload_artifact_from_challenge(
         wallet_path,
         commitment_hash_hex,
-        peer,
+        peers,
         &op_ch,
         force,
     )
     .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
     println!("commitment_hash={}", result.commitment_hash_hex);
-    println!("peer={peer}");
+    println!("peers={}", peers.join(","));
+    println!("quorum={}", peers.len());
     println!("chunks_fetched={}", result.chunks_fetched);
     println!("payload_bytes={}", result.payload_bytes);
     println!("artifact_dir={}", result.artifact_dir.display());

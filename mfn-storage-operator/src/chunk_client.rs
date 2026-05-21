@@ -42,6 +42,34 @@ pub fn fetch_chunk_http(
     Ok(body)
 }
 
+/// Fetch the same chunk from every peer; all bodies must match byte-for-byte (**M6.7**).
+pub fn fetch_chunk_http_quorum(
+    peers: &[String],
+    commitment_hash_hex: &str,
+    chunk_index: u32,
+) -> Result<Vec<u8>, ChunkFetchError> {
+    if peers.is_empty() {
+        return Err(ChunkFetchError::Usage(
+            "quorum fetch requires at least one peer".into(),
+        ));
+    }
+    let mut bodies = Vec::with_capacity(peers.len());
+    for peer in peers {
+        bodies.push(fetch_chunk_http(peer, commitment_hash_hex, chunk_index)?);
+    }
+    let reference = &bodies[0];
+    for (i, body) in bodies.iter().enumerate().skip(1) {
+        if body.as_slice() != reference.as_slice() {
+            return Err(ChunkFetchError::Usage(format!(
+                "peer chunk mismatch at index {chunk_index}: peer0 len={} peer{i} len={} peers={peers:?}",
+                reference.len(),
+                body.len(),
+            )));
+        }
+    }
+    Ok(reference.clone())
+}
+
 fn normalize_commit_hex(s: &str) -> Result<String, ChunkFetchError> {
     let t = s.trim();
     let t = t
@@ -159,6 +187,9 @@ mod tests {
 
         let body = fetch_chunk_http(&listen, &hash, 1).expect("fetch");
         assert_eq!(body.len(), 3904);
+        let peers = vec![listen.clone(), listen.clone()];
+        let quorum = fetch_chunk_http_quorum(&peers, &hash, 1).expect("quorum");
+        assert_eq!(quorum, body);
 
         stop.store(true, Ordering::SeqCst);
         server.join().expect("join");

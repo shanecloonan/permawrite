@@ -162,11 +162,11 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             }
             OperatorSub::Backfill {
                 commitment_hash_hex,
-                peer,
+                peers,
                 force,
             } => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                operator_backfill(&mut client, &path, &commitment_hash_hex, &peer, force)?
+                operator_backfill(&mut client, &path, &commitment_hash_hex, &peers, force)?
             }
             OperatorSub::PushChunks {
                 commitment_hash_hex,
@@ -299,7 +299,7 @@ enum OperatorSub {
     },
     Backfill {
         commitment_hash_hex: String,
-        peer: String,
+        peers: Vec<String>,
         force: bool,
     },
     PushChunks {
@@ -397,7 +397,7 @@ fn usage() -> &'static str {
        operator pool                      list pending proofs (get_proof_pool)\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
-       operator backfill HASH PEER [replace]  fetch all chunks; trailing `replace` overwrites artifact\n\
+       operator backfill HASH PEER [PEER...] [replace]  HTTP fetch all chunks; quorum if multiple peers\n\
        operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n\
        operator inbox-status HASH DATA_DIR  list chunk-inbox indices for commitment\n\
        operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n"
@@ -743,25 +743,25 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 }
 
 fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
-    if rest.len() < 2 || rest.len() > 3 {
+    if rest.len() < 2 {
         return Err(CliError::Usage(format!(
-            "operator backfill requires COMMITMENT_HASH_HEX PEER [replace]\n{}",
+            "operator backfill requires COMMITMENT_HASH_HEX PEER [PEER...] [replace]\n{}",
             usage()
         )));
     }
     let commitment_hash_hex = rest[0].to_string();
-    let peer = rest[1].to_string();
-    let force = matches!(rest.get(2), Some(&"replace"));
-    if rest.len() == 3 && !force {
+    let force = matches!(rest.last(), Some(&"replace"));
+    let peer_end = if force { rest.len() - 1 } else { rest.len() };
+    let peers: Vec<String> = rest[1..peer_end].iter().map(|s| (*s).to_string()).collect();
+    if peers.is_empty() {
         return Err(CliError::Usage(format!(
-            "operator backfill unknown modifier `{}` (expected `replace`)\n{}",
-            rest[2],
+            "operator backfill requires at least one PEER\n{}",
             usage()
         )));
     }
     Ok(OperatorSub::Backfill {
         commitment_hash_hex,
-        peer,
+        peers,
         force,
     })
 }
@@ -1766,15 +1766,29 @@ mod tests {
                 sub:
                     OperatorSub::Backfill {
                         commitment_hash_hex,
-                        peer,
+                        peers,
                         force,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
-                assert_eq!(peer, "127.0.0.1:18780");
+                assert_eq!(peers, vec!["127.0.0.1:18780".to_string()]);
                 assert!(!force);
             }
             _ => panic!("expected operator backfill"),
+        }
+        let p_quorum = parse_args(&[
+            "operator".into(),
+            "backfill".into(),
+            h.clone(),
+            "127.0.0.1:18780".into(),
+            "127.0.0.1:18781".into(),
+        ])
+        .unwrap();
+        match p_quorum.cmd {
+            Cmd::Operator {
+                sub: OperatorSub::Backfill { peers, .. },
+            } => assert_eq!(peers.len(), 2),
+            _ => panic!("expected backfill quorum peers"),
         }
         let p2 = parse_args(&[
             "operator".into(),

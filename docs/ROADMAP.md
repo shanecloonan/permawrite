@@ -2083,6 +2083,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M6.4** | `run --chunk-listen`: SPoRA prove loop + HTTP chunk server in one process. | ✓ shipped |
 | **M6.5** | `fetch_chunk_http` + `mfn-cli operator fetch-chunk` peer replication verify. | ✓ shipped |
 | **M6.6** | `operator backfill`: fetch all chunks from peer into `wallet.upload-artifacts/`. | ✓ shipped |
+| **M6.7** | Multi-peer HTTP backfill quorum: byte-identical chunk required from every peer. | ✓ shipped |
 | **M7** | P2P `ChunkV1` gossip (`0x10`): replicate storage chunks; `mfnd` persists to `chunk-inbox/`. | ✓ shipped |
 | **M7.1** | `push_chunks_gossip_to_peer` burst + `operator push-chunks` / `mfn-storage-operator push-chunks` wallet→P2P replication. | ✓ shipped |
 | **M7.2** | `chunk-inbox/` in `mfn-store`; `operator inbox-status` + `assemble-inbox` build wallet artifacts without HTTP. | ✓ shipped |
