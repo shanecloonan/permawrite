@@ -64,11 +64,33 @@ Full runbook: [`docs/TESTNET.md`](../../docs/TESTNET.md).
 | Port | Purpose |
 |------|---------|
 | P2P listen | Inbound peers (`--p2p-listen 0.0.0.0:PORT` for LAN/public; default loopback-only). |
-| RPC listen | Wallets/operators (`--rpc-listen`); keep off the public internet until RPC auth ships. |
+| RPC listen | Wallets/operators (`--rpc-listen`); see [RPC exposure](#rpc-exposure-m248) below. |
+
+## RPC exposure (M2.4.8)
+
+`mfnd serve` exposes an **unauthenticated** JSON-RPC 2.0 line protocol on `--rpc-listen`. Any client that can open a TCP connection may:
+
+- Read chain state (`get_tip`, `get_block`, `list_methods`, …)
+- Submit transactions and storage proofs (`submit_tx`, `submit_storage_proof`, …)
+- Inspect the mempool and proof pool
+
+There is **no TLS and no API key** in v0.1 testnet builds.
+
+| Deployment | Recommended bind | Rationale |
+|------------|------------------|-----------|
+| Local dev / CI | `127.0.0.1:0` (default) | OS-assigned port; not reachable from other hosts. |
+| LAN validators | `127.0.0.1:PORT` + SSH tunnel for operators | Wallets/operators connect via tunnel; P2P still on `0.0.0.0` if needed. |
+| Public VPS | **Do not** publish RPC to `0.0.0.0` | Use firewall deny on the RPC port; operators use VPN/SSH. P2P may be public. |
+
+P2P and RPC are independent: you can advertise `mfnd_p2p_listening=` to the mesh while keeping RPC loopback-only.
+
+Until RPC auth ships (post–public devnet hardening), treat `--rpc-listen 0.0.0.0` as **equivalent to root on the node** for chain control.
 
 ## Security
 
 Validator seeds in the public genesis are **test keys only**. Do not use them on mainnet or with real funds.
+
+Never commit wallet files, production seeds, or `peers.json` from private networks into public repos.
 
 ---
 
