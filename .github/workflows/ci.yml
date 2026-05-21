@@ -45,7 +45,8 @@ jobs:
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Full workspace `--release` tests (proptests + integration smokes) exceed 45m on Linux/macOS.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
