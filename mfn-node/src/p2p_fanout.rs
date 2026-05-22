@@ -537,16 +537,12 @@ impl FanoutPeerSet for P2pPeerSet {
     }
 
     fn on_session_registered(&self, peer_addr: &str) {
+        self.fanout_onchain_storage_chunks_to_peer(peer_addr);
+    }
+
+    fn fanout_onchain_storage_chunks_to_peer(&self, peer_addr: &str) {
         if let Some(ps) = self.self_arc.upgrade() {
-            let peer = peer_addr.to_string();
-            thread::Builder::new()
-                .name("mfnd-p2p-chunk-on-session".into())
-                .spawn(move || {
-                    // Let the dialer finish block catch-up and enter gossip recv before ChunkV1 frames.
-                    thread::sleep(Duration::from_secs(3));
-                    ps.fanout_on_chain_storage_inboxes_to_peer(&peer);
-                })
-                .ok();
+            ps.fanout_on_chain_storage_inboxes_to_peer(peer_addr);
         }
     }
 

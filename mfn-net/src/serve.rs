@@ -443,6 +443,7 @@ fn recv_post_handshake(
     loop {
         let gossip_stats = match serve_post_handshake_v1(
             sock,
+            peer,
             &logging,
             &session,
             fanout_peers.map(|ps| ps.as_ref()),

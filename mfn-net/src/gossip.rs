@@ -30,6 +30,8 @@ pub trait FanoutPeerSet: Send + Sync {
     }
     /// Hook after [`register_session`] for chunk-inbox catch-up (**M7.5**).
     fn on_session_registered(&self, _peer_addr: &str) {}
+    /// After answering a block-sync pull, push complete operator inboxes (**M7.5**).
+    fn fanout_onchain_storage_chunks_to_peer(&self, _peer_addr: &str) {}
     /// Send one proposal on a registered session; `false` if none or write failed.
     fn send_proposal_on_session(&self, _peer_addr: &str, _proposal_wire: &[u8]) -> bool {
         false

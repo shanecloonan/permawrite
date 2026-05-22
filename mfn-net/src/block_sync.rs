@@ -305,8 +305,10 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
 ///
 /// Handles zero or more [`GetBlocksByHeightV1`] requests (each answered with [`BlocksV1`]),
 /// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`–`0x08`, `0x10`) arrives.
+#[allow(clippy::too_many_arguments)]
 pub fn serve_post_handshake_v1(
     stream: &mut std::net::TcpStream,
+    peer: &str,
     sync: &dyn BlockSyncProvider,
     gossip: &dyn GossipHandler,
     fanout_peers: Option<&dyn FanoutPeerSet>,
@@ -336,6 +338,9 @@ pub fn serve_post_handshake_v1(
                 stream
                     .flush()
                     .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
+                if let Some(ps) = fanout_peers {
+                    ps.fanout_onchain_storage_chunks_to_peer(peer);
+                }
             }
             GET_LIGHT_FOLLOW_V1_TAG => {
                 let req = GetLightFollowV1::decode_payload(&payload)

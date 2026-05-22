@@ -1,5 +1,5 @@
-//! Two-node smoke: hub `--produce` seals storage with a complete `chunk-inbox/`; replica
-//! receives chunks via **M7.5** auto fan-out (no `push-chunks`) (**M7.8**).
+//! Two-node smoke: hub has on-chain storage + complete `chunk-inbox/`; replica receives
+//! chunks via **M7.5** session fan-out (no `push-chunks`) when it dials the hub (**M7.8**).
 
 use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
@@ -17,8 +17,6 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
-/// One slot before first `--produce` tick; must exceed P2P handshake + block-sync at tip 1.
-const SLOT_DURATION_MS: u64 = 20_000;
 const INBOX_WAIT_SECS: u64 = if cfg!(target_os = "windows") { 90 } else { 180 };
 
 fn mfnd_bin() -> PathBuf {
@@ -139,38 +137,21 @@ fn rpc_tip_height(rpc: &str) -> u64 {
         .expect("tip_height u64")
 }
 
-fn wait_storage_on_hub(rpc: &str, commitment_hash: &str, timeout: Duration) {
+fn wait_for_matching_tip_at_least(
+    hub_rpc: &str,
+    replica_rpc: &str,
+    min_height: u64,
+    timeout: Duration,
+) {
     let deadline = std::time::Instant::now() + timeout;
     loop {
-        let out = mfn_cli()
-            .args(["--rpc", rpc, "uploads", "list"])
-            .output()
-            .expect("uploads list");
-        assert!(
-            out.status.success(),
-            "uploads list stderr={}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        if stdout.contains(commitment_hash) {
+        let hub_h = rpc_tip_height(hub_rpc);
+        let replica_h = rpc_tip_height(replica_rpc);
+        if hub_h >= min_height && hub_h == replica_h {
             return;
         }
         if std::time::Instant::now() >= deadline {
-            panic!("timeout waiting for storage on hub chain:\n{stdout}");
-        }
-        thread::sleep(Duration::from_millis(500));
-    }
-}
-
-fn wait_for_tip_at_least(rpc: &str, min_height: u64, timeout: Duration) {
-    let deadline = std::time::Instant::now() + timeout;
-    loop {
-        let h = rpc_tip_height(rpc);
-        if h >= min_height {
-            return;
-        }
-        if std::time::Instant::now() >= deadline {
-            panic!("timeout waiting for tip >= {min_height} (last={h})");
+            panic!("timeout: need matching tip >= {min_height} (hub={hub_h} replica={replica_h})");
         }
         thread::sleep(Duration::from_millis(300));
     }
@@ -212,7 +193,7 @@ fn mfnd_step(dir: &Path, spec: &Path, blocks: &str) {
     );
 }
 
-fn spawn_serve(dir: &Path, spec: &Path, p2p_dial: Option<&str>, produce: bool) -> Child {
+fn spawn_serve(dir: &Path, spec: &Path, p2p_dial: Option<&str>) -> Child {
     let mut cmd = mfnd();
     cmd.args(["--data-dir"])
         .arg(dir)
@@ -224,12 +205,6 @@ fn spawn_serve(dir: &Path, spec: &Path, p2p_dial: Option<&str>, produce: bool) -
         .arg("127.0.0.1:0")
         .arg("--p2p-listen")
         .arg("127.0.0.1:0");
-    if produce {
-        cmd.env("MFND_VALIDATOR_INDEX", "0")
-            .arg("--slot-duration-ms")
-            .arg(SLOT_DURATION_MS.to_string())
-            .arg("--produce");
-    }
     if let Some(dial) = p2p_dial {
         cmd.arg("--p2p-dial").arg(dial);
     }
@@ -257,7 +232,7 @@ fn populate_chunk_inbox_from_artifact(data_dir: &Path, wallet: &Path, commitment
     }
 }
 
-/// Hub producer auto fan-out after sealing storage (no manual `push-chunks`).
+/// Hub on-chain storage + inbox; replica dial triggers **M7.5** chunk catch-up (no `push-chunks`).
 #[test]
 fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (hub_dir, replica_dir) = unique_pair_dir("fanout");
@@ -282,9 +257,10 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
     std::fs::write(&payload_path, &payload).expect("write payload");
 
+    // Fund, admit upload, populate inbox, then mine storage offline (same pattern as M7.4 two-node).
     mfnd_step(&hub_dir, &spec, "1");
 
-    let mut hub_prep = spawn_serve(&hub_dir, &spec, None, false);
+    let mut hub_prep = spawn_serve(&hub_dir, &spec, None);
     let (hub_rpc_prep, _) = read_serve_addrs(&mut hub_prep);
     let hub_rpc_prep = hub_rpc_prep.to_string();
 
@@ -321,37 +297,45 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     );
     shutdown_child(&mut hub_prep);
 
-    let mut hub_live = spawn_serve(&hub_dir, &spec, None, true);
+    mfnd_step(&hub_dir, &spec, "1");
+
+    let mut hub_live = spawn_serve(&hub_dir, &spec, None);
     let (hub_rpc_live, hub_p2p) = read_serve_addrs(&mut hub_live);
     let hub_rpc_live = hub_rpc_live.to_string();
     let hub_p2p = hub_p2p.to_string();
-    wait_for_tip_at_least(&hub_rpc_live, 1, Duration::from_secs(30));
-
-    let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p), false);
-    let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
-    let replica_rpc = replica_rpc.to_string();
-
-    wait_for_tip_at_least(&replica_rpc, 1, Duration::from_secs(90));
-
-    wait_storage_on_hub(&hub_rpc_live, &commitment_hash, Duration::from_secs(90));
-    let seal_height = rpc_tip_height(&hub_rpc_live);
+    let storage_height = rpc_tip_height(&hub_rpc_live);
     assert!(
-        seal_height >= 2,
-        "storage block must extend past genesis fund height (seal_height={seal_height})"
+        storage_height >= 2,
+        "storage must be mined before replica dial (tip={storage_height})"
     );
-    // Re-dial so the replica runs block-sync catch-up to `seal_height` (live gossip can lag).
-    shutdown_child(&mut replica_live);
-    let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p), false);
+
+    let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p));
     let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
     let replica_rpc = replica_rpc.to_string();
-    wait_for_tip_at_least(&replica_rpc, seal_height, Duration::from_secs(120));
-    // Session catch-up + seal fan-out run on background threads after sync.
-    thread::sleep(Duration::from_secs(5));
+
+    wait_for_matching_tip_at_least(
+        &hub_rpc_live,
+        &replica_rpc,
+        storage_height,
+        Duration::from_secs(180),
+    );
+    // Fresh dial forces `pull_blocks_to_tip` on a clean outbound session (M7.5 catch-up).
+    shutdown_child(&mut replica_live);
+    let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p));
+    let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
+    let replica_rpc = replica_rpc.to_string();
+    wait_for_matching_tip_at_least(
+        &hub_rpc_live,
+        &replica_rpc,
+        storage_height,
+        Duration::from_secs(120),
+    );
+    thread::sleep(Duration::from_secs(3));
 
     wait_for_local_inbox_complete(&replica_dir, &commitment_hash, num_chunks);
 
     let assemble_out = mfn_cli()
-        .args(["--rpc", &hub_rpc_live, "--wallet"])
+        .args(["--rpc", &replica_rpc, "--wallet"])
         .arg(&replica_wallet)
         .args([
             "operator",

@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-22T06:03:59.783Z
+**Generated (UTC):** 2026-05-22T06:23:57.661Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 301 |
-| Total lines (all scanned source-like files) | 88,842 |
-| Non-empty lines | 79,123 |
-| UTF-8 bytes (source-like) | 3,621,990 |
+| Total lines (all scanned source-like files) | 88,838 |
+| Non-empty lines | 79,119 |
+| UTF-8 bytes (source-like) | 3,621,615 |
 | Paths visited (before binary/huge skip) | 319 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -24,14 +24,14 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 56 | 16,901 | 15,596 |
-| `mfn-cli` | 29 | 11,388 | 10,492 |
+| `mfn-cli` | 29 | 11,372 | 10,477 |
 | `docs` | 35 | 10,730 | 7,618 |
-| `mfn-node` | 34 | 8,794 | 8,156 |
+| `mfn-node` | 34 | 8,798 | 8,159 |
 | `mfn-crypto` | 23 | 7,292 | 6,565 |
 | `mfn-wallet` | 15 | 4,931 | 4,522 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
 | `mfn-light` | 6 | 3,895 | 3,556 |
-| `mfn-net` | 11 | 3,565 | 3,266 |
+| `mfn-net` | 11 | 3,573 | 3,274 |
 | `mfn-rpc` | 4 | 3,565 | 3,384 |
 | `mfn-storage-operator` | 14 | 2,679 | 2,453 |
 | `demo` | 12 | 2,478 | 2,292 |
@@ -47,7 +47,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 200 | 71,648 | 66,103 | 2,627,122 |
+| `.rs` | 200 | 71,644 | 66,099 | 2,626,747 |
 | `.md` | 51 | 12,831 | 9,051 | 840,878 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 697 | 609 | 19,633 |
