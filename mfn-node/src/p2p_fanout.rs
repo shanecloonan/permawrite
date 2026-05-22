@@ -527,8 +527,7 @@ impl FanoutPeerSet for P2pPeerSet {
             return;
         };
         guard.insert(peer_addr.to_string(), Arc::new(Mutex::new(stream)));
-        println!("mfnd_p2p_session_register peer={peer_addr}");
-        let _ = std::io::Write::flush(&mut std::io::stdout());
+        eprintln!("mfnd_p2p_session_register peer={peer_addr}");
     }
 
     fn on_session_registered(&self, peer_addr: &str) {

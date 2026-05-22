@@ -524,9 +524,8 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                         log_peer_tip(hid, &peer_s, &remote);
                         log_height_cmp(hid, &peer_s, local.height, &remote);
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
-                        // Register inbound dials for block/chunk fan-out (**M7.5**, **M2.3.23**).
+                        // Live session for block/chunk fan-out to inbound dialers (**M7.5**, **M2.3.23**).
                         if let Some(ps) = &fanout_peers {
-                            ps.register_peer(&peer_s);
                             if let Ok(clone) = sock.try_clone() {
                                 ps.register_session(&peer_s, clone);
                                 ps.on_session_registered(&peer_s);
