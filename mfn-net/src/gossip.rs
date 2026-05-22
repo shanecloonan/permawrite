@@ -23,7 +23,11 @@ pub trait FanoutPeerSet: Send + Sync {
     /// Remember a peer after a successful handshake.
     fn register_peer(&self, peer_addr: &str);
     /// Keep a duplex session for in-band proposal/vote fan-out (**M2.3.24**).
-    fn register_session(&self, _peer_addr: &str, _stream: std::net::TcpStream) {}
+    fn register_session(&self, peer_addr: &str, stream: std::net::TcpStream) {
+        let _ = (peer_addr, stream);
+    }
+    /// Hook after [`register_session`] for chunk-inbox catch-up (**M7.5**).
+    fn on_session_registered(&self, _peer_addr: &str) {}
     /// Send one proposal on a registered session; `false` if none or write failed.
     fn send_proposal_on_session(&self, _peer_addr: &str, _proposal_wire: &[u8]) -> bool {
         false

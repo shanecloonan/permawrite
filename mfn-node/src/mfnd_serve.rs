@@ -297,6 +297,7 @@ pub(crate) fn run_serve(
             genesis_id,
             Arc::clone(&tip_cell),
             store.root().to_path_buf(),
+            Arc::clone(&chain),
         );
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),

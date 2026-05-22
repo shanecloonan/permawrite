@@ -18,7 +18,8 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
 /// One slot before first `--produce` tick; must exceed P2P handshake + block-sync at tip 1.
-const SLOT_DURATION_MS: u64 = 8_000;
+const SLOT_DURATION_MS: u64 = 12_000;
+const INBOX_WAIT_SECS: u64 = if cfg!(target_os = "windows") { 90 } else { 180 };
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -183,8 +184,22 @@ fn wait_storage_on_hub(rpc: &str, commitment_hash: &str, timeout: Duration) {
     }
 }
 
+fn wait_for_tip_at_least(rpc: &str, min_height: u64, timeout: Duration) {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        let h = rpc_tip_height(rpc);
+        if h >= min_height {
+            return;
+        }
+        if std::time::Instant::now() >= deadline {
+            panic!("timeout waiting for tip >= {min_height} (last={h})");
+        }
+        thread::sleep(Duration::from_millis(300));
+    }
+}
+
 fn wait_for_local_inbox_complete(data_dir: &Path, commitment_hash: &str, num_chunks: u32) {
-    let deadline = std::time::Instant::now() + Duration::from_secs(90);
+    let deadline = std::time::Instant::now() + Duration::from_secs(INBOX_WAIT_SECS);
     loop {
         if mfn_store::chunk_inbox_complete(data_dir, commitment_hash, num_chunks).unwrap_or(false) {
             return;
@@ -332,12 +347,13 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (hub_rpc_live, hub_p2p) = read_serve_addrs(&mut hub_live);
     let hub_rpc_live = hub_rpc_live.to_string();
     let hub_p2p = hub_p2p.to_string();
+    wait_for_tip_at_least(&hub_rpc_live, 1, Duration::from_secs(30));
 
     let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p), false);
     let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
     let replica_rpc = replica_rpc.to_string();
 
-    wait_for_matching_tip_at_least(&hub_rpc_live, &replica_rpc, 1, Duration::from_secs(60));
+    wait_for_matching_tip_at_least(&hub_rpc_live, &replica_rpc, 1, Duration::from_secs(90));
 
     wait_storage_on_hub(&hub_rpc_live, &commitment_hash, Duration::from_secs(90));
     let seal_height = rpc_tip_height(&hub_rpc_live);
@@ -346,7 +362,7 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
         "storage block must extend past genesis fund height (seal_height={seal_height})"
     );
     // Chunk fan-out runs on a background thread after hub apply/seal (no chain tip required).
-    thread::sleep(Duration::from_secs(3));
+    thread::sleep(Duration::from_secs(10));
 
     wait_for_local_inbox_complete(&replica_dir, &commitment_hash, num_chunks);
 

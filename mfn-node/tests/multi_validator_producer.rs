@@ -39,7 +39,7 @@ fn three_validators_proposal_vote_seal_in_process() {
     let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     let genesis_id = *chain.lock().unwrap().genesis_id();
     let tip = Arc::new(Mutex::new((0u32, genesis_id)));
-    let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir);
+    let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir, Arc::clone(&chain));
 
     let vals = chain.lock().unwrap().validators().to_vec();
     assert_eq!(vals.len(), 3);
@@ -192,7 +192,7 @@ fn competing_proposals_at_same_height_converge_on_pick_winner() {
     let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     let genesis_id = *chain.lock().unwrap().genesis_id();
     let tip = Arc::new(Mutex::new((0u32, genesis_id)));
-    let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir);
+    let fanout = P2pPeerSet::new(genesis_id, Arc::clone(&tip), &dir, Arc::clone(&chain));
     let vals = chain.lock().unwrap().validators().to_vec();
 
     fn secrets_for(

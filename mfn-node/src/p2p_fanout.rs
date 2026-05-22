@@ -3,11 +3,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::TcpStream;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
 
-use mfn_consensus::{decode_transaction, tx_id};
+use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
     push_tx_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v1,
@@ -15,6 +15,7 @@ use mfn_net::{
     BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
     OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
+use mfn_runtime::Chain;
 use mfn_store::{load_peers, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
 /// Peers that completed a successful P2P handshake (address strings suitable for `TcpStream::connect`).
@@ -28,6 +29,8 @@ pub struct P2pPeerSet {
     sessions: Arc<Mutex<BTreeMap<String, Arc<Mutex<TcpStream>>>>>,
     production: Arc<Mutex<Option<ProductionHook>>>,
     fanout_lock: Arc<Mutex<()>>,
+    chain: Arc<Mutex<Chain>>,
+    self_arc: Weak<Self>,
 }
 
 impl P2pPeerSet {
@@ -36,6 +39,7 @@ impl P2pPeerSet {
         genesis_id: [u8; 32],
         tip_cell: TipSnapshot,
         data_root: impl Into<PathBuf>,
+        chain: Arc<Mutex<Chain>>,
     ) -> Arc<Self> {
         let data_root = data_root.into();
         let (initial, max_outbound_peers) = load_peers(&data_root).unwrap_or_else(|e| {
@@ -47,7 +51,7 @@ impl P2pPeerSet {
             println!("mfnd_peers_load_ok count={count} max_outbound_peers={max_outbound_peers}");
             let _ = std::io::Write::flush(&mut std::io::stdout());
         }
-        Arc::new(Self {
+        Arc::new_cyclic(|weak| Self {
             genesis_id,
             tip_cell,
             data_root,
@@ -56,7 +60,93 @@ impl P2pPeerSet {
             sessions: Arc::new(Mutex::new(BTreeMap::new())),
             production: Arc::new(Mutex::new(None)),
             fanout_lock: Arc::new(Mutex::new(())),
+            chain,
+            self_arc: weak.clone(),
         })
+    }
+
+    /// Push complete operator inboxes for all anchored storage to every live session (**M7.5**).
+    pub fn fanout_on_chain_storage_inboxes_to_all_sessions(self: &Arc<Self>) {
+        for peer in self.snapshot_session_peers() {
+            self.fanout_on_chain_storage_inboxes_to_peer(&peer);
+        }
+    }
+
+    /// Push every on-chain storage commitment with a complete local `chunk-inbox/` to one peer (**M7.5**).
+    pub fn fanout_on_chain_storage_inboxes_to_peer(self: &Arc<Self>, peer: &str) {
+        let commits: Vec<([u8; 32], StorageCommitment)> = match self.chain.lock() {
+            Ok(guard) => guard
+                .state()
+                .storage
+                .iter()
+                .map(|(hash, entry)| (*hash, entry.commit.clone()))
+                .collect(),
+            Err(_) => return,
+        };
+        if commits.is_empty() {
+            return;
+        }
+        self.fanout_inbox_chunks_for_commits_to_peer(peer, &commits);
+    }
+
+    fn fanout_inbox_chunks_for_commits_to_peer(
+        self: &Arc<Self>,
+        peer: &str,
+        commits: &[([u8; 32], StorageCommitment)],
+    ) {
+        if commits.is_empty() {
+            return;
+        }
+        let peer_set = Arc::clone(self);
+        let peer = peer.to_string();
+        let commits = commits.to_vec();
+        let lock = Arc::clone(&self.fanout_lock);
+        thread::Builder::new()
+            .name("mfnd-p2p-chunk-catchup".into())
+            .spawn(move || {
+                let _guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let genesis_id = peer_set.genesis_id;
+                let local = peer_set.local_tip();
+                let data_root = peer_set.data_root.clone();
+                for (commit_hash, commit) in commits {
+                    let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
+                        &data_root,
+                        &commit_hash,
+                        &commit,
+                    ) else {
+                        continue;
+                    };
+                    let commit_hex = hex::encode(commit_hash);
+                    let n = chunks.len();
+                    if peer_set.push_chunks_on_session(&peer, &commit_hash, &chunks) {
+                        println!(
+                            "mfnd_p2p_chunk_catchup_ok peer={peer} commit={commit_hex} chunks={n} session=1"
+                        );
+                        let _ = std::io::Write::flush(&mut std::io::stdout());
+                        continue;
+                    }
+                    if let Err(e) = push_chunks_gossip_to_peer(
+                        &peer,
+                        &genesis_id,
+                        &local,
+                        &commit_hash,
+                        &chunks,
+                    ) {
+                        eprintln!(
+                            "mfnd_p2p_chunk_catchup_abort peer={peer} commit={commit_hex} chunks={n} {e}"
+                        );
+                    } else {
+                        println!(
+                            "mfnd_p2p_chunk_catchup_ok peer={peer} commit={commit_hex} chunks={n}"
+                        );
+                        let _ = std::io::Write::flush(&mut std::io::stdout());
+                    }
+                }
+            })
+            .ok();
     }
 
     /// Attach the production engine so proposal push can apply returned votes.
@@ -439,6 +529,12 @@ impl FanoutPeerSet for P2pPeerSet {
         guard.insert(peer_addr.to_string(), Arc::new(Mutex::new(stream)));
         println!("mfnd_p2p_session_register peer={peer_addr}");
         let _ = std::io::Write::flush(&mut std::io::stdout());
+    }
+
+    fn on_session_registered(&self, peer_addr: &str) {
+        if let Some(ps) = self.self_arc.upgrade() {
+            ps.fanout_on_chain_storage_inboxes_to_peer(peer_addr);
+        }
     }
 
     fn send_proposal_on_session(&self, peer_addr: &str, proposal_wire: &[u8]) -> bool {

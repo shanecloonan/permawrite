@@ -529,6 +529,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                             ps.register_peer(&peer_s);
                             if let Ok(clone) = sock.try_clone() {
                                 ps.register_session(&peer_s, clone);
+                                ps.on_session_registered(&peer_s);
                             }
                         }
                         // Inbound peers may dial to send proposals/votes; do not start a height
