@@ -201,6 +201,9 @@ pub enum BlockSyncDecodeError {
     /// Unknown leading tag byte.
     #[error("unknown block-sync tag: 0x{0:02x}")]
     UnknownTag(u8),
+    /// Too many non-[`BlocksV1`] frames before a block-sync reply.
+    #[error("exceeded max interleaved frames waiting for BlocksV1")]
+    TooManyInterleaved,
 }
 
 /// Send a [`GetBlocksByHeightV1`] request.
@@ -212,10 +215,35 @@ pub fn send_get_blocks_by_height_v1<W: Write>(
     Ok(())
 }
 
+/// Max gossip/production frames to skip while waiting for a [`BlocksV1`] reply.
+const MAX_INTERLEAVED_BEFORE_BLOCKS_V1: u32 = 512;
+
 /// Read a [`BlocksV1`] response frame.
+///
+/// On live `--produce` sessions the peer may interleave [`PROPOSAL_V1_TAG`] /
+/// [`VOTE_V1_TAG`] (and gossip) before answering [`GetBlocksByHeightV1`]; skip those
+/// until a [`BLOCKS_V1_TAG`] frame arrives.
 pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError> {
-    let payload = read_frame(r).map_err(BlockSyncRecvError::Frame)?;
-    BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode)
+    for _ in 0..MAX_INTERLEAVED_BEFORE_BLOCKS_V1 {
+        let payload = read_frame(r).map_err(BlockSyncRecvError::Frame)?;
+        if payload.is_empty() {
+            return Err(BlockSyncRecvError::Decode(BlockSyncDecodeError::Empty));
+        }
+        match payload[0] {
+            BLOCKS_V1_TAG => {
+                return BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode);
+            }
+            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | 0x07 | 0x08 | 0x0b => continue,
+            tag => {
+                return Err(BlockSyncRecvError::Decode(
+                    BlockSyncDecodeError::UnknownTag(tag),
+                ));
+            }
+        }
+    }
+    Err(BlockSyncRecvError::Decode(
+        BlockSyncDecodeError::TooManyInterleaved,
+    ))
 }
 
 /// Request and apply blocks until local height reaches `remote_height` or the peer has no more.
@@ -500,5 +528,21 @@ mod tests {
         let enc = BlocksV1::encode_payload(&refs).unwrap();
         let back = BlocksV1::decode_payload(&enc).unwrap();
         assert_eq!(back.block_wires, wires);
+    }
+
+    #[test]
+    fn recv_blocks_v1_skips_interleaved_vote() {
+        use std::io::Cursor;
+
+        use crate::production::VOTE_V1_TAG;
+
+        let wires = [vec![9u8, 8, 7]];
+        let blocks = BlocksV1::encode_payload(&[&wires[0]]).unwrap();
+        let mut buf = Vec::new();
+        write_frame_io(&mut buf, &[VOTE_V1_TAG, 0xAA]).unwrap();
+        write_frame_io(&mut buf, &blocks).unwrap();
+        let mut cursor = Cursor::new(buf);
+        let back = recv_blocks_v1(&mut cursor).expect("blocks after vote");
+        assert_eq!(back.block_wires, wires[..1]);
     }
 }

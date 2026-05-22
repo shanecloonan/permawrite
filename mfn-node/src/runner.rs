@@ -512,10 +512,12 @@ pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
     thread::Builder::new()
         .name("mfnd-producer".into())
         .spawn(move || {
-            engine.on_slot_tick();
+            // Wait one slot before the first tick so inbound `--p2p-dial` peers can
+            // finish handshake + block-sync (M7.8 auto fan-out smokes, devnet boot).
+            thread::sleep(Duration::from_millis(slot_ms));
             loop {
-                thread::sleep(Duration::from_millis(slot_ms));
                 engine.on_slot_tick();
+                thread::sleep(Duration::from_millis(slot_ms));
             }
         })
         .expect("spawn mfnd-producer thread");
