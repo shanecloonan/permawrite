@@ -17,7 +17,7 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
-const INBOX_WAIT_SECS: u64 = if cfg!(target_os = "windows") { 90 } else { 180 };
+const INBOX_WAIT_SECS: u64 = 180;
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {

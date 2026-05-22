@@ -639,7 +639,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                 Ok((mut sock, remote)) => {
                     let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
                     if let Some(ps) = &fanout_peers {
-                        ps.register_ephemeral_peer(addr.as_str());
+                        ps.register_peer(addr.as_str());
                         if let Ok(clone) = sock.try_clone() {
                             ps.register_session(addr.as_str(), clone);
                             ps.on_session_registered(addr.as_str());

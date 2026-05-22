@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-05-22T06:24:29.218Z
+**Generated (UTC):** 2026-05-22T06:35:40.422Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -13,7 +13,7 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Source-like files scanned | 301 |
 | Total lines (all scanned source-like files) | 88,838 |
 | Non-empty lines | 79,119 |
-| UTF-8 bytes (source-like) | 3,621,615 |
+| UTF-8 bytes (source-like) | 3,621,558 |
 | Paths visited (before binary/huge skip) | 319 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -47,7 +47,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 200 | 71,644 | 66,099 | 2,626,747 |
+| `.rs` | 200 | 71,644 | 66,099 | 2,626,690 |
 | `.md` | 51 | 12,831 | 9,051 | 840,878 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 697 | 609 | 19,633 |
