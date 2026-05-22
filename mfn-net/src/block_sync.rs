@@ -394,8 +394,8 @@ pub fn serve_post_handshake_v1(
                 }
             }
             tag if matches!(tag, 0x06..=0x08 | CHUNK_V1_TAG) => {
-                let stats = recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
-                return Ok(Some(stats));
+                recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
+                // Keep the duplex session alive for later producer fan-out (**M7.5**).
             }
             tag => return Err(PostHandshakeError::UnknownTag(tag)),
         }

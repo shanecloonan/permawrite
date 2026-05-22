@@ -314,9 +314,6 @@ impl ProductionEngine {
         self.peers.fanout_block(&wire, None);
         self.peers
             .fanout_inbox_chunks_for_commits(&new_commits, None);
-        if !new_commits.is_empty() {
-            self.peers.fanout_on_chain_storage_inboxes_to_all_sessions();
-        }
         println!("mfnd_producer_sealed height={height} votes={vote_count}");
         let _ = std::io::Write::flush(&mut std::io::stdout());
         Ok(())

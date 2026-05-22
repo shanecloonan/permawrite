@@ -431,13 +431,17 @@ fn recv_post_handshake(
         fanout_peers: fanout_peers.cloned(),
         gap_catch_up,
     };
-    let result = if let Some(sync) = block_sync {
-        let logging = InboundBlockSync {
-            inner: sync.clone(),
-            hid,
-            peer: peer.to_string(),
-        };
-        serve_post_handshake_v1(
+    let Some(sync) = block_sync else {
+        recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
+        return;
+    };
+    let logging = InboundBlockSync {
+        inner: sync.clone(),
+        hid,
+        peer: peer.to_string(),
+    };
+    loop {
+        let gossip_stats = match serve_post_handshake_v1(
             sock,
             &logging,
             &session,
@@ -445,35 +449,31 @@ fn recv_post_handshake(
             production.map(|h| h.as_ref()),
             block_applier.map(|a| a.as_ref()),
             light_follow.map(|lf| lf.as_ref()),
-        )
-    } else {
-        recv_inbound_gossip(sock, hid, peer, gossip, fanout_peers);
-        return;
-    };
-    let gossip_stats = match result {
-        Ok(Some(stats)) => {
-            if stats.tx_frames > 0 || stats.block_frames > 0 {
-                log_gossip_end(hid, peer, &stats);
+        ) {
+            Ok(Some(stats)) => {
+                if stats.tx_frames > 0 || stats.block_frames > 0 {
+                    log_gossip_end(hid, peer, &stats);
+                }
+                Some(stats)
             }
-            Some(stats)
+            Ok(None) => break,
+            Err(e) => {
+                eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}");
+                break;
+            }
+        };
+        if let Some(a) = block_applier {
+            post_session_catch_up(
+                sock,
+                hid,
+                peer,
+                tip_cell,
+                block_sync,
+                a,
+                handshake_remote,
+                gossip_stats.as_ref(),
+            );
         }
-        Ok(None) => None,
-        Err(e) => {
-            eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}");
-            None
-        }
-    };
-    if let Some(a) = block_applier {
-        post_session_catch_up(
-            sock,
-            hid,
-            peer,
-            tip_cell,
-            block_sync,
-            a,
-            handshake_remote,
-            gossip_stats.as_ref(),
-        );
     }
 }
 
@@ -521,16 +521,17 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 Ok(remote) => match exchange_goodbye_v1_as_listener(&mut sock) {
                     Ok(()) => {
                         let peer_s = peer.to_string();
-                        log_peer_tip(hid, &peer_s, &remote);
-                        log_height_cmp(hid, &peer_s, local.height, &remote);
-                        log_handshake_ms(hid, &peer_s, t0.elapsed());
-                        // Live session for block/chunk fan-out to inbound dialers (**M7.5**, **M2.3.23**).
+                        // Register before logging so a concurrent `--produce` seal cannot miss fan-out.
                         if let Some(ps) = &fanout_peers {
+                            ps.register_ephemeral_peer(&peer_s);
                             if let Ok(clone) = sock.try_clone() {
                                 ps.register_session(&peer_s, clone);
                                 ps.on_session_registered(&peer_s);
                             }
                         }
+                        log_peer_tip(hid, &peer_s, &remote);
+                        log_height_cmp(hid, &peer_s, local.height, &remote);
+                        log_handshake_ms(hid, &peer_s, t0.elapsed());
                         // Inbound peers may dial to send proposals/votes; do not start a height
                         // pull on this socket before reading their frames.
                         if gossip.is_some() || production.is_some() {
@@ -637,7 +638,11 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                 Ok((mut sock, remote)) => {
                     let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
                     if let Some(ps) = &fanout_peers {
-                        ps.register_peer(&addr);
+                        ps.register_ephemeral_peer(addr.as_str());
+                        if let Ok(clone) = sock.try_clone() {
+                            ps.register_session(addr.as_str(), clone);
+                            ps.on_session_registered(addr.as_str());
+                        }
                     }
                     println!("mfnd_p2p_dial_ok={addr}");
                     let _ = std::io::stdout().flush();
@@ -649,11 +654,6 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                         let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
                         if let Err(e) = send_p2p_advertise_v1(&mut sock, &listen.to_string()) {
                             eprintln!("mfnd_p2p_advertise_abort hid={hid} peer={addr} {e}");
-                        }
-                    }
-                    if let Ok(clone) = sock.try_clone() {
-                        if let Some(ps) = &fanout_peers {
-                            ps.register_session(addr.as_str(), clone);
                         }
                     }
                     // Pull missing blocks before blocking on inbound gossip; otherwise a

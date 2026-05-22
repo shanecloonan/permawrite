@@ -22,6 +22,8 @@ pub const P2P_GOSSIP_IO_TIMEOUT: Duration = Duration::from_secs(10);
 pub trait FanoutPeerSet: Send + Sync {
     /// Remember a peer after a successful handshake.
     fn register_peer(&self, peer_addr: &str);
+    /// Remember an inbound dialer without persisting `peers.json`.
+    fn register_ephemeral_peer(&self, _peer_addr: &str) {}
     /// Keep a duplex session for in-band proposal/vote fan-out (**M2.3.24**).
     fn register_session(&self, peer_addr: &str, stream: std::net::TcpStream) {
         let _ = (peer_addr, stream);

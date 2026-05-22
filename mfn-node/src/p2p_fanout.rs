@@ -122,10 +122,9 @@ impl P2pPeerSet {
                     let commit_hex = hex::encode(commit_hash);
                     let n = chunks.len();
                     if peer_set.push_chunks_on_session(&peer, &commit_hash, &chunks) {
-                        println!(
+                        eprintln!(
                             "mfnd_p2p_chunk_catchup_ok peer={peer} commit={commit_hex} chunks={n} session=1"
                         );
-                        let _ = std::io::Write::flush(&mut std::io::stdout());
                         continue;
                     }
                     if let Err(e) = push_chunks_gossip_to_peer(
@@ -139,10 +138,9 @@ impl P2pPeerSet {
                             "mfnd_p2p_chunk_catchup_abort peer={peer} commit={commit_hex} chunks={n} {e}"
                         );
                     } else {
-                        println!(
+                        eprintln!(
                             "mfnd_p2p_chunk_catchup_ok peer={peer} commit={commit_hex} chunks={n}"
                         );
-                        let _ = std::io::Write::flush(&mut std::io::stdout());
                     }
                 }
             })
@@ -205,6 +203,13 @@ impl P2pPeerSet {
         };
         if changed {
             self.persist();
+        }
+    }
+
+    /// Track an inbound dialer for fan-out without writing `peers.json` (avoids mfnd stdout reordering).
+    pub fn register_ephemeral(&self, peer_addr: impl Into<String>) {
+        if let Ok(mut g) = self.peers.lock() {
+            g.insert(peer_addr.into());
         }
     }
 
@@ -372,10 +377,9 @@ impl P2pPeerSet {
                         }
                         if peer_set.push_chunks_on_session(peer, &commit_hash, &chunks) {
                             sent.insert(peer.clone());
-                            println!(
+                            eprintln!(
                                 "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n} session=1"
                             );
-                            let _ = std::io::Write::flush(&mut std::io::stdout());
                         }
                     }
                     for peer in &dial_peers {
@@ -385,10 +389,9 @@ impl P2pPeerSet {
                         let chunks = chunks.clone();
                         if peer_set.push_chunks_on_session(peer, &commit_hash, &chunks) {
                             sent.insert(peer.clone());
-                            println!(
+                            eprintln!(
                                 "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n} session=1"
                             );
-                            let _ = std::io::Write::flush(&mut std::io::stdout());
                             continue;
                         }
                         if let Err(e) = push_chunks_gossip_to_peer(
@@ -402,10 +405,9 @@ impl P2pPeerSet {
                                 "mfnd_p2p_chunk_fanout_abort peer={peer} commit={commit_hex} chunks={n} {e}"
                             );
                         } else {
-                            println!(
+                            eprintln!(
                                 "mfnd_p2p_chunk_fanout_ok peer={peer} commit={commit_hex} chunks={n}"
                             );
-                            let _ = std::io::Write::flush(&mut std::io::stdout());
                         }
                     }
                 }
@@ -521,6 +523,10 @@ impl FanoutPeerSet for P2pPeerSet {
         self.register(peer_addr);
     }
 
+    fn register_ephemeral_peer(&self, peer_addr: &str) {
+        self.register_ephemeral(peer_addr);
+    }
+
     fn register_session(&self, peer_addr: &str, stream: TcpStream) {
         let _ = stream.set_nodelay(true);
         let Ok(mut guard) = self.sessions.lock() else {
@@ -532,7 +538,15 @@ impl FanoutPeerSet for P2pPeerSet {
 
     fn on_session_registered(&self, peer_addr: &str) {
         if let Some(ps) = self.self_arc.upgrade() {
-            ps.fanout_on_chain_storage_inboxes_to_peer(peer_addr);
+            let peer = peer_addr.to_string();
+            thread::Builder::new()
+                .name("mfnd-p2p-chunk-on-session".into())
+                .spawn(move || {
+                    // Let the dialer finish block catch-up and enter gossip recv before ChunkV1 frames.
+                    thread::sleep(Duration::from_secs(3));
+                    ps.fanout_on_chain_storage_inboxes_to_peer(&peer);
+                })
+                .ok();
         }
     }
 
