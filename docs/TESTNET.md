@@ -20,14 +20,16 @@ On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd
 
 ---
 
-## One-command local mesh (M2.4.3)
+## One-command local mesh (M2.4.3 / M2.4.9)
 
 After `cargo build -p mfn-node --release --bin mfnd`:
 
-| Platform | Start three validators | Health check |
-|----------|------------------------|--------------|
+| Platform | Start hub + voters + observer | Health check |
+|----------|-------------------------------|--------------|
 | Linux / macOS | `bash scripts/public-devnet-v1/start-all.sh` | `bash scripts/public-devnet-v1/health-check.sh` |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` | `powershell -File scripts/public-devnet-v1/health-check.ps1` (exits 1 if tips diverge) |
+
+`start-all` also launches a fourth **observer** (`serve` only, no validator seeds) that dials the hub P2P address. `health-check` compares the observer `get_tip` to the hub when `OBSERVER_RPC` is present in `devnet-ports.env`.
 
 Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md). **Storage permanence** (upload, chunk HTTP/P2P replication, SPoRA prove): see the [Permanence operators (M6 / M7)](../scripts/public-devnet-v1/OPERATORS.md#permanence-operators-storage--spora--m6--m7) section in that file.
 

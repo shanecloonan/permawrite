@@ -45,5 +45,23 @@ sleep 2
 echo "Starting voter 2..."
 "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
+sleep 2
+echo "Starting observer..."
+"$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
+echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
+OBSERVER_RPC=""
+for _ in $(seq 1 60); do
+  if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
+    OBSERVER_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/observer.log" | sed 's/.*=//')
+    break
+  fi
+  sleep 1
+done
+if [[ -n "$OBSERVER_RPC" ]]; then
+  echo "OBSERVER_RPC=$OBSERVER_RPC" >>"$PORTS_FILE"
+  echo "Observer RPC=$OBSERVER_RPC"
+else
+  echo "Observer RPC not ready within 60s; health-check may skip observer (see $LOG_DIR/observer.log)" >&2
+fi
 echo "Logs: $LOG_DIR  Ports: $PORTS_FILE"
 echo "Run health-check.sh when a slot has sealed."

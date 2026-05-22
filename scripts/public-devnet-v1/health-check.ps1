@@ -58,4 +58,24 @@ foreach ($v in 1, 2) {
         throw "health-check: FAIL v$v diverged from hub"
     }
 }
+$ObserverRpc = $ports["OBSERVER_RPC"]
+if ($ObserverRpc) {
+    $obs = Query-Tip "observer" $ObserverRpc
+    if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
+        throw "health-check: FAIL observer diverged from hub"
+    }
+} else {
+    $obsLog = Join-Path $ScriptDir "logs\observer.log"
+    if (Test-Path $obsLog) {
+        $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=(.+)" | Select-Object -First 1
+        if ($m) {
+            $obs = Query-Tip "observer" $m.Matches.Groups[1].Value
+            if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
+                throw "health-check: FAIL observer diverged from hub"
+            }
+        } else {
+            Write-Host "health-check: skip observer (no RPC in log)"
+        }
+    }
+}
 Write-Host "health-check: PASS shared tip height=$refHeight id=$refId"

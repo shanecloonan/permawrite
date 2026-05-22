@@ -36,7 +36,7 @@ New peers should:
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
 3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable).
 4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
-5. Run `health-check.sh` / `health-check.ps1` — all nodes must share the same `tip_height` and `tip_id` (**M2.4.6**).
+5. Run `health-check.sh` / `health-check.ps1` — hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**).
 
 ## Roles
 
@@ -55,7 +55,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux/macOS | `bash scripts/public-devnet-v1/start-all.sh` |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 
-Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** — exits non-zero if hub/voters diverge or `genesis_id` ≠ public devnet manifest).
+Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, or `genesis_id` ≠ public devnet manifest).
 
 Full runbook: [`docs/TESTNET.md`](../../docs/TESTNET.md).
 

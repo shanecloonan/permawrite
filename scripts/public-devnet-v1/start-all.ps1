@@ -49,5 +49,28 @@ $v2Proc = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "start-voter.ps1"), "-Index", "2"
 ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $v2Log -RedirectStandardError $v2Log -PassThru
 "V2_PID=$($v2Proc.Id)" | Add-Content $PortsFile
+Start-Sleep -Seconds 2
+$obsLog = Join-Path $LogDir "observer.log"
+$obsProc = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile", "-File", (Join-Path $ScriptDir "start-observer.ps1")
+) -WorkingDirectory $RepoRoot -RedirectStandardOutput $obsLog -RedirectStandardError $obsLog -PassThru
+"OBSERVER_PID=$($obsProc.Id)" | Add-Content $PortsFile
+$ObserverRpc = $null
+for ($i = 0; $i -lt 60; $i++) {
+    if (Test-Path $obsLog) {
+        $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=([^\r\n]+)" | Select-Object -First 1
+        if ($m) {
+            $ObserverRpc = $m.Matches.Groups[1].Value.Trim()
+            break
+        }
+    }
+    Start-Sleep -Seconds 1
+}
+if ($ObserverRpc) {
+    Add-Content $PortsFile "OBSERVER_RPC=$ObserverRpc"
+    Write-Host "Observer RPC=$ObserverRpc"
+} else {
+    Write-Host "Observer RPC not ready within 60s; health-check may skip observer (see $obsLog)"
+}
 Write-Host "Started jobs. Logs: $LogDir  Ports: $PortsFile"
 Write-Host "After ~30s run: .\health-check.ps1"

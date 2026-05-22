@@ -65,4 +65,29 @@ for v in 1 2; do
     exit 1
   fi
 done
+if [[ -n "${OBSERVER_RPC:-}" ]]; then
+  line=""
+  line=$(query_tip observer "$OBSERVER_RPC") || exit 1
+  echo "$line"
+  if [[ "$TIP_HEIGHT" != "$REF_HEIGHT" || "$TIP_ID" != "$REF_ID" ]]; then
+    echo "health-check: FAIL observer diverged from hub" >&2
+    exit 1
+  fi
+else
+  obs_log="$SCRIPT_DIR/logs/observer.log"
+  if [[ -f "$obs_log" ]]; then
+    obs_rpc=$(grep -m1 mfnd_serve_listening= "$obs_log" 2>/dev/null | sed 's/.*=//' || true)
+    if [[ -n "$obs_rpc" ]]; then
+      line=""
+      line=$(query_tip observer "$obs_rpc") || exit 1
+      echo "$line"
+      if [[ "$TIP_HEIGHT" != "$REF_HEIGHT" || "$TIP_ID" != "$REF_ID" ]]; then
+        echo "health-check: FAIL observer diverged from hub" >&2
+        exit 1
+      fi
+    else
+      echo "health-check: skip observer (no RPC in $obs_log)" >&2
+    fi
+  fi
+fi
 echo "health-check: PASS shared tip height=$REF_HEIGHT id=$REF_ID"
