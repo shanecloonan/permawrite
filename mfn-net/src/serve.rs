@@ -298,7 +298,13 @@ impl GossipHandler for InboundGossip {
         } else if label.starts_with("rejected:gap:") {
             log_gossip_block(self.hid, &self.peer, "gap", None);
             if let Some(cfg) = &self.gap_catch_up {
+                let mut addrs = vec![self.peer.clone()];
                 for addr in cfg.fanout_peers.boot_peer_addrs() {
+                    if !addrs.iter().any(|a| a == &addr) {
+                        addrs.push(addr);
+                    }
+                }
+                for addr in addrs {
                     let _ = spawn_catch_up_dial(
                         addr,
                         cfg.genesis_id,
@@ -518,6 +524,13 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                         log_peer_tip(hid, &peer_s, &remote);
                         log_height_cmp(hid, &peer_s, local.height, &remote);
                         log_handshake_ms(hid, &peer_s, t0.elapsed());
+                        // Register inbound dials for block/chunk fan-out (**M7.5**, **M2.3.23**).
+                        if let Some(ps) = &fanout_peers {
+                            ps.register_peer(&peer_s);
+                            if let Ok(clone) = sock.try_clone() {
+                                ps.register_session(&peer_s, clone);
+                            }
+                        }
                         // Inbound peers may dial to send proposals/votes; do not start a height
                         // pull on this socket before reading their frames.
                         if gossip.is_some() || production.is_some() {
