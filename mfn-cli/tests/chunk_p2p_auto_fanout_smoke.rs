@@ -339,9 +339,14 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
         seal_height >= 2,
         "storage block must extend past genesis fund height (seal_height={seal_height})"
     );
+    // Re-dial so the replica runs block-sync catch-up to `seal_height` (live gossip can lag).
+    shutdown_child(&mut replica_live);
+    let mut replica_live = spawn_serve(&replica_dir, &spec, Some(&hub_p2p), false);
+    let (replica_rpc, _) = read_serve_addrs(&mut replica_live);
+    let replica_rpc = replica_rpc.to_string();
     wait_for_tip_at_least(&replica_rpc, seal_height, Duration::from_secs(120));
-    // Chunk fan-out runs on a background thread after hub apply/seal.
-    thread::sleep(Duration::from_secs(3));
+    // Session catch-up + seal fan-out run on background threads after sync.
+    thread::sleep(Duration::from_secs(5));
 
     wait_for_local_inbox_complete(&replica_dir, &commitment_hash, num_chunks);
 
