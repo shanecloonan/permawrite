@@ -126,9 +126,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
 pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentError> {
     // r = 0 is allowed and expected (deflation-funded / Arweave-style mode).
     // When r > 0 it must still beat the inflation buffer.
-    if p.real_yield_ppb > 0
-        && u128::from(p.real_yield_ppb) <= u128::from(p.inflation_ppb)
-    {
+    if p.real_yield_ppb > 0 && u128::from(p.real_yield_ppb) <= u128::from(p.inflation_ppb) {
         return Err(EndowmentError::RealYieldNotAboveInflation {
             real_yield_ppb: p.real_yield_ppb,
             inflation_ppb: p.inflation_ppb,
