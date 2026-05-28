@@ -1,0 +1,101 @@
+# Known Problems and Weaknesses
+
+This document is an honest inventory of real limitations, incentive misalignments, and architectural tensions in the Permawrite protocol and implementation. It does **not** invent problems for balance. Where the design appears sound under its stated assumptions, that is noted.
+
+The focus is on **economics/incentives** (the harder and more fundamental category) and **architectural viability**.
+
+## Economic and Incentive Problems
+
+### 1. Storage operators have almost no skin in the game (no bonds or slashing)
+
+Storage operators earn by winning SPoRA challenges. There is **no protocol-level bond**, stake, or slashing for them.
+
+- If an operator accepts an upload, collects the economic benefit (the endowment payment flows into the treasury, and the file contributes to the set of challenges that can earn rewards), and later drops the data, the only consequence is that they stop earning future rewards *on that specific file*.
+- The `min_replication` parameter (default 3) provides redundancy against single failures, but it is an upload-time check only. There is no ongoing economic penalty for widespread or selective non-compliance.
+- Roadmap items explicitly call this out as future work ("Operator bonding" for a "premium" tier). See [ECONOMICS.md § 10 Future work](./ECONOMICS.md#10-future-work) and [ROADMAP.md](./ROADMAP.md).
+
+This is a genuine hole: the permanence guarantee rests on the assumption that enough rational operators will continue to find it profitable to hold data indefinitely, with only weak direct penalties for defection.
+
+### 2. r = 0 default makes permanence heavily dependent on continuous high privacy transaction volume
+
+After the shift to `real_yield_ppb = 0` as the expected/default case (see the two-mode endowment model), storage operators no longer receive yield harvested from individual endowments. Payouts come from:
+
+- 90% of priority fees flowing into the treasury, then out as storage rewards.
+- The tiny per-proof emission backstop (`storage_proof_reward = 0.1 MFN` per accepted proof).
+
+The "endowment" an uploader pays is now largely a large one-time capitalization of the treasury rather than a self-sustaining principal whose yield covers future costs. If privacy-preserving transaction volume (the primary long-term source of treasury inflows) declines or never reaches sufficient scale, the treasury drains and storage incentives collapse to the emission backstop, which is deliberately capped at a low level.
+
+This is not a hidden assumption — it is the explicit economic thesis of the project ("privacy demand funds permanence"). It is also a real concentration risk: the storage side of the system has a single point of failure in sustained high-value private economic activity.
+
+### 3. Permanent tail emission is large in absolute terms and creates ongoing dilution
+
+Default tail emission is `(50 MFN) >> 8 ≈ 0.195 MFN per block forever`.
+
+At ~2.63 million slots per year this is roughly **half a million MFN per year** in permanent new issuance (on top of any fee-driven dynamics). Early cumulative pre-tail supply is on the order of hundreds of millions of MFN. Whether this level of perpetual issuance is acceptable depends on adoption and velocity assumptions that are not yet proven. It is a deliberate choice to keep a security + storage budget (see [ECONOMICS.md § 2](./ECONOMICS.md#2-subsidy-curve)), but it is a real long-term dilution vector for holders.
+
+### 4. Producer and storage-operator incentives are only loosely aligned
+
+- Block producers receive the 10% fee share + subsidy/tail.
+- Storage operators are paid out of the treasury (funded by the 90% fee share + validator bonds + slashes + backstop emission).
+
+The claim in the docs that "both are stake-aligned" is aspirational. A rational producer's direct revenue does not depend on the health of the storage operator set or the long-term viability of the permanence guarantees. In a low-fee or low-privacy-usage regime, producers can continue earning the tail emission while storage operators see their revenue dry up.
+
+### 5. Adverse selection on which data actually gets reliably stored
+
+Larger endowments and "hot" (frequently challenged / recently uploaded) files are more economically attractive to store and prove against. Cold archival data, small files, or files whose owners are no longer active have weaker incentives for operators to prioritize. While the protocol enforces minimum replication at upload time, nothing forces ongoing economic interest in every anchored commitment years later.
+
+## Architectural and Viability Concerns
+
+### 6. SPoRA proof winning is a pure first-to-publish latency race
+
+The challenge is deterministic per slot. The first valid proof that reaches a producer and is included wins the reward (or the accrued yield, when `r > 0`). In a globally distributed network this strongly favors:
+
+- Operators with superior peering and low-latency paths to active producers.
+- Geographic or infrastructure concentration (well-connected data centers or cloud regions).
+
+This is a centralization pressure on the storage operator set that the current design does not economically or cryptographically mitigate.
+
+### 7. State growth is fundamentally linear with usage and difficult to prune
+
+Every storage upload creates a permanent `StorageCommitment` entry (with its endowment commitment) that must be retained for future proof verification and light-client inclusion proofs. Combined with a privacy-oriented UTXO model (no easy pruning of spent outputs without breaking decoy sets or ring membership), full node state grows with both economic activity and stored data volume.
+
+Light clients and checkpoints (M2) mitigate verification cost but do not solve archival or resource requirements for operators who must actually serve the data.
+
+### 8. Extreme complexity and large attack surface
+
+The protocol composes:
+- Monero-style privacy (stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy sampling)
+- Arweave-style permanence (endowment math + SPoRA)
+- Custom PoS (VRF leader election + BLS finality + validator rotation with bonds + liveness/equivocation slashing)
+- Multiple Merkle roots binding every part of every block body
+- PPB-precision accumulator arithmetic for tiny per-slot yields
+- Light-client verification primitives
+
+A single subtle error in any commitment, root, range check, or state transition can be economically catastrophic (the counterfeit-input attack that was caught and fixed before deployment is the canonical example). The surface area is large relative to the number of eyes and the maturity of the implementation.
+
+### 9. Decoy selection remains a statistical (not cryptographic) privacy property
+
+The gamma-distribution decoy sampling inherits Monero's known limitation: it only provides plausible deniability *if real user behavior matches the calibration*. Deviations (e.g., always spending the youngest output) create a statistical distinguisher. The planned Tier 3 "OoM over the whole UTXO set" upgrade would remove rings entirely, but until then this is a real, documented weakness (see [PRIVACY.md § Decoy realism](./PRIVACY.md#decoy-realism-gamma-age-sampling)).
+
+### 10. Light-client security ultimately rests on long-term cryptographic and economic assumptions
+
+Header + body verification for light clients is elegant and powerful, but a light client that never sees full state still trusts:
+- BLS aggregate signature unforgeability over long ranges.
+- VRF correctness and uniqueness.
+- That economic finality (slashing) has worked as intended for the checkpoints it relies on.
+- Correctness of the various domain-separated Merkle roots.
+
+Long-range attacks are heavily constrained compared to naive PoS, but the mitigations are economic/cryptographic hybrids rather than pure cryptographic finality.
+
+## Areas That Appear Relatively Sound (Under Stated Assumptions)
+
+- The core privacy primitives (Pedersen + CLSAG + Bulletproofs + stealth) are well-understood and directly ported from battle-tested designs, with the important ring-membership guard added.
+- The header-binds-body commitment family (all the `*_root` fields) plus BLS finality gives strong structural guarantees once a block is finalized.
+- The two-mode endowment math (r > 0 vs r = 0 + deflation) is now cleanly implemented and validated at the parameter level.
+- Validator bonding + slashing + treasury loop is a closed, auditable economic mechanism.
+
+These do not mean the overall system is risk-free; they mean the documented problems above are the more material open issues rather than basic cryptographic soundness of the building blocks.
+
+---
+
+**This document should be updated whenever a material new weakness is discovered or a planned mitigation ships.** It is not marketing copy; it is part of the protocol's self-assessment.

@@ -22,10 +22,12 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
+- ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, and architectural weaknesses (no invented problems).
 
 ### Want to know what's next?
 
 - 🛣 [**ROADMAP.md**](./ROADMAP.md) — tier-by-tier rollout plan. Current state, validator rotation (M1), node daemon (M2), wallet CLI (M3), WASM (M4), Tier 2/3/4 privacy upgrades.
+- ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — the real limitations and open incentive/architectural holes (required reading for anyone evaluating the design seriously).
 
 ## Cross-cuts
 
@@ -48,6 +50,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Counterfeit-input attack | OVERVIEW § Why this is hard | PRIVACY § Counterfeit-input | code: `mfn-consensus/src/block.rs` (apply_block) |
 | Fee/treasury split | OVERVIEW § How they fuse | ECONOMICS § Fee economics | code: `mfn-consensus/src/emission.rs` |
 | Emission curve | (covered) | ECONOMICS § Emission curve | code: `mfn-consensus/src/emission.rs` |
+| Known weaknesses & open risks | — | PROBLEMS (full document) | — |
 
 ## Where to file questions
 
