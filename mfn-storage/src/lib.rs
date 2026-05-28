@@ -9,9 +9,8 @@
 //!   build/verify of the [`spora::StorageProof`] that ships inside a
 //!   block.
 //! - [`endowment`] — monetary policy for permanence: the
-//!   `E₀ = C₀·(1+i)/(r−i)` formula, per-slot payouts, and the
-//!   PPB-precision accumulator that lets sub-base-unit per-slot yields
-//!   eventually pay out as integer base units.
+//!   `E₀ = C₀·(1+i)/(r−i)` (r>0) or `E₀ = C₀·(1+i)/d` (r=0, deflation mode)
+//!   formula, per-slot payouts (0 when r=0), and the PPB-precision accumulator.
 //!
 //! ## Layering
 //!

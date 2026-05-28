@@ -5,16 +5,23 @@
 //! implementation of the whitepaper's §3 formula:
 //!
 //! ```text
-//!     E₀  =  C₀ · (1 + i) / (r − i)
+//!     E₀  =  C₀ · (1 + i) / (r − i)          (when r > 0)
+//!     E₀  =  C₀ · (1 + i) / d                 (when r = 0, deflation-funded mode)
 //! ```
 //!
 //! where
 //!
 //! - `E₀` = upfront endowment the user pays at upload time
 //! - `C₀ = cost_per_byte_year · size_bytes · replication` = first-year storage cost
-//! - `i` = annual inflation rate of storage cost (per year)
+//! - `i` = annual inflation rate of storage cost (per year) — used as *worst-case buffer*
 //! - `r` = annual real yield rate the treasury earns (per year)
-//! - `r > i` (non-degeneracy condition, otherwise the geometric series diverges)
+//! - `d` = assumed annual deflation rate (Kryder's law) when operating at r = 0
+//!
+//! When `r = 0` (the expected/common case — there is often no reliable real yield on
+//! escrowed endowment principal), `inflation_ppb` is re-interpreted as the conservative
+//! assumed deflation rate `d`. The endowment is then sized as a large multiple of current
+//! annual cost so that *deflation* in future storage costs funds permanence exactly as
+//! in the Arweave model. The on-chain math and validation support both modes.
 //!
 //! ## Why on-chain
 //!
@@ -63,8 +70,17 @@ pub struct EndowmentParams {
     /// **deflated** (Kryder's law), so a positive `i` is a conservative
     /// bet. Default 2.0% (`20_000_000`).
     pub inflation_ppb: u64,
-    /// Annual real yield the treasury captures, in PPB. `real_yield > inflation`
-    /// is the non-degeneracy condition. Default 4.0% (`40_000_000`).
+    /// Annual real yield the treasury captures on escrowed endowments, in PPB.
+    ///
+    /// - When > 0: must strictly exceed `inflation_ppb` (the r > i non-degeneracy
+    ///   condition for the yield-bearing perpetuity model).
+    /// - When 0 (expected/common case): the system runs in **deflation-funded mode**.
+    ///   `inflation_ppb` is re-interpreted as the conservative assumed annual
+    ///   deflation rate `d` under continued Kryder's law. The endowment is sized
+    ///   so that declining real storage costs (not nominal yield) keep the
+    ///   commitments solvent forever — exactly as Arweave's one-time-payment model.
+    ///
+    /// Default: `0` (deflation-funded; no reliance on earning real yield on locked funds).
     pub real_yield_ppb: u64,
     /// Minimum independent replicas per upload. Hard floor: 3 (a two-replica
     /// system has no quorum recoverability after a single failure).
@@ -90,7 +106,7 @@ pub struct EndowmentParams {
 pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     cost_per_byte_year_ppb: 200_000,
     inflation_ppb: 20_000_000,
-    real_yield_ppb: 40_000_000,
+    real_yield_ppb: 0, // deflation-funded mode (Kryder's law covers permanence)
     min_replication: 3,
     max_replication: 32,
     slots_per_year: 2_629_800,
@@ -108,10 +124,11 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
 /// [`EndowmentError`] for every distinguishable failure mode (so callers
 /// can surface a specific reason).
 pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentError> {
-    if p.real_yield_ppb == 0 {
-        return Err(EndowmentError::RealYieldZero);
-    }
-    if u128::from(p.real_yield_ppb) <= u128::from(p.inflation_ppb) {
+    // r = 0 is allowed and expected (deflation-funded / Arweave-style mode).
+    // When r > 0 it must still beat the inflation buffer.
+    if p.real_yield_ppb > 0
+        && u128::from(p.real_yield_ppb) <= u128::from(p.inflation_ppb)
+    {
         return Err(EndowmentError::RealYieldNotAboveInflation {
             real_yield_ppb: p.real_yield_ppb,
             inflation_ppb: p.inflation_ppb,
@@ -138,17 +155,22 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
 
 /// Compute the required upfront endowment for an upload.
 ///
-/// `E₀ = ceil(cost_per_byte_year_ppb · size · replication · (PPB + i) /
-/// (PPB · (r − i)))`. The result is in **MFN base units**; uses ceiling
-/// division so the protocol never under-funds (over-payment ≤ 1 base
-/// unit, i.e. dust).
+/// Two modes (selected by `real_yield_ppb`):
+///
+/// - **Yield-bearing mode** (`r > 0`): `E₀ = ceil(C₀ · (PPB + i) / (PPB · (r − i)))`
+/// - **Deflation-funded mode** (`r = 0`, expected): `E₀ = ceil(C₀ · (PPB + i) / (PPB · d))`
+///   where `d = inflation_ppb` is treated as the conservative assumed annual
+///   deflation rate under Kryder's law (Arweave-style). The locked nominal
+///   principal plus falling real storage costs keep commitments solvent forever.
+///
+/// The result is in **MFN base units**; uses ceiling division so the protocol
+/// never under-funds (over-payment ≤ 1 base unit, i.e. dust).
 ///
 /// # Errors
 ///
 /// - [`EndowmentError::ReplicationOutOfRange`] when `replication` falls
 ///   outside `[min_replication, max_replication]`.
-/// - [`EndowmentError::Overflow`] when intermediate products exceed
-///   `u128`.
+/// - [`EndowmentError::Overflow`] when intermediate products exceed `u128`.
 /// - Anything [`validate_endowment_params`] reports.
 pub fn required_endowment(
     size_bytes: u64,
@@ -165,10 +187,11 @@ pub fn required_endowment(
     }
     // Worked through symbolically:
     //   C₀         = (cost_per_byte_year_ppb / PPB) · size · repl   [base units]
-    //   E₀         = C₀ · (PPB + i) / (r − i)                       [base units]
+    //   spread     = r − i   (r>0)   or   d (=i)   (r=0 deflation mode)
+    //   E₀         = C₀ · (PPB + i) / spread                       [base units]
     // ⇒ E₀ · PPB · PPB = cost_per_byte_year_ppb · size · repl · (PPB + i)
     //                    --------------------------------------------
-    //                                  PPB · (r − i)
+    //                                  PPB · spread
     let size = u128::from(size_bytes);
     let repl = u128::from(replication);
     let size_repl = size.checked_mul(repl).ok_or(EndowmentError::Overflow)?;
@@ -178,6 +201,16 @@ pub fn required_endowment(
     let cost = u128::from(params.cost_per_byte_year_ppb);
     let inflation = u128::from(params.inflation_ppb);
     let real_yield = u128::from(params.real_yield_ppb);
+
+    // Effective spread for the denominator:
+    // - r > 0  → (r − i)   (yield must already have been validated > i)
+    // - r == 0 → d (= i configured value)  — the assumed deflation rate
+    let spread = if real_yield == 0 {
+        inflation
+    } else {
+        real_yield - inflation
+    };
+
     let numerator = cost
         .checked_mul(size_repl)
         .and_then(|x| {
@@ -188,9 +221,7 @@ pub fn required_endowment(
             )
         })
         .ok_or(EndowmentError::Overflow)?;
-    let denominator = PPB
-        .checked_mul(real_yield - inflation)
-        .ok_or(EndowmentError::Overflow)?;
+    let denominator = PPB.checked_mul(spread).ok_or(EndowmentError::Overflow)?;
     Ok(ceil_div(numerator, denominator))
 }
 
@@ -203,6 +234,10 @@ pub fn required_endowment(
 ///
 /// `per_slot = floor(endowment · real_yield_ppb / (PPB · slots_per_year))`.
 /// Floor so the treasury never overdraws.
+///
+/// When `real_yield_ppb == 0` (deflation-funded mode) this is always 0:
+/// operators are paid from fresh treasury inflows (fees + emission backstop)
+/// rather than from yield on individual endowments.
 ///
 /// # Errors
 ///
@@ -230,6 +265,8 @@ pub fn payout_per_slot(
 ///
 /// Matches `accrue_proof_reward.payout` exactly when run against an empty
 /// accumulator and `slots ≤ proof_reward_window_slots`.
+///
+/// When `real_yield_ppb == 0` this is always 0 (see [`payout_per_slot`]).
 ///
 /// # Errors
 ///
@@ -291,12 +328,10 @@ pub struct AccrueResult {
 
 /// Per-proof reward accrual with a PPB-precision accumulator.
 ///
-/// **Why an accumulator.** At default params, even a 100 GB commitment
-/// yields well under one base unit per slot. The naive `floor(per_slot)`
-/// would clamp every reward to zero. The PPB accumulator carries unpaid
-/// fractions across proofs; over the commitment's lifetime it eventually
-/// crosses a base unit and pays out. Total payout over a year still
-/// matches `endowment · real_yield` to the base unit, by construction.
+/// **Why an accumulator.** At default params (r=0), the per-endowment yield
+/// component is zero; operators are compensated from ongoing treasury inflows.
+/// The accumulator + formulas remain in place so the same code path works for
+/// both r>0 and r=0 modes, and for future parameter changes.
 ///
 /// **Anti-hoarding.** Without a cap on `elapsed_slots`, a prover could
 /// lie dormant for a year and submit one proof for a year's yield.
@@ -380,11 +415,20 @@ pub fn max_bytes_for_endowment(
     if denominator == 0 {
         return Ok(0);
     }
+
+    // Effective spread mirrors required_endowment:
+    // r > 0 → (r − i),   r == 0 → d (= inflation_ppb as assumed deflation)
+    let real_yield = u128::from(params.real_yield_ppb);
+    let inflation = u128::from(params.inflation_ppb);
+    let spread = if real_yield == 0 {
+        inflation
+    } else {
+        real_yield - inflation
+    };
+
     let numerator = endowment
         .checked_mul(PPB)
-        .and_then(|x| {
-            x.checked_mul(u128::from(params.real_yield_ppb) - u128::from(params.inflation_ppb))
-        })
+        .and_then(|x| x.checked_mul(spread))
         .ok_or(EndowmentError::Overflow)?;
     Ok(numerator / denominator)
 }
@@ -412,12 +456,10 @@ fn ceil_div(numerator: u128, denominator: u128) -> u128 {
 /// Endowment-math errors.
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 pub enum EndowmentError {
-    /// `real_yield_ppb` was zero (treasury must earn something).
-    #[error("real_yield_ppb must be > 0")]
-    RealYieldZero,
-    /// Non-degeneracy condition violated: `real_yield <= inflation`.
+    /// Non-degeneracy condition violated (only checked when `real_yield_ppb > 0`).
+    /// `real_yield` must exceed `inflation` for the yield-bearing perpetuity model.
     #[error(
-        "real_yield_ppb ({real_yield_ppb}) must exceed inflation_ppb ({inflation_ppb}) — geometric series diverges otherwise"
+        "real_yield_ppb ({real_yield_ppb}) must exceed inflation_ppb ({inflation_ppb}) when real_yield > 0 — geometric series diverges otherwise"
     )]
     RealYieldNotAboveInflation {
         /// Configured real-yield value (PPB).
@@ -466,13 +508,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_real_yield_zero() {
-        let mut bad = p();
-        bad.real_yield_ppb = 0;
-        assert_eq!(
-            validate_endowment_params(&bad),
-            Err(EndowmentError::RealYieldZero)
-        );
+    fn accepts_real_yield_zero_deflation_mode() {
+        let mut p0 = p();
+        p0.real_yield_ppb = 0;
+        assert!(validate_endowment_params(&p0).is_ok());
+
+        // And required_endowment works (uses inflation_ppb as d)
+        let e = required_endowment(1_000_000, 3, &p0).unwrap();
+        assert!(e > 0);
     }
 
     #[test]
@@ -540,11 +583,16 @@ mod tests {
 
     #[test]
     fn cumulative_payout_matches_per_slot_sum_at_round_endowment() {
+        // With default r=0 the per-endowment yield is zero; test the math
+        // with an explicit positive-yield params set instead.
+        let mut py = p();
+        py.real_yield_ppb = 40_000_000;
+
         // Pick an endowment large enough that floor-per-slot doesn't clamp
         // to zero, so the two paths agree to within one base unit.
         let e: u128 = 1_000_000_000_000; // 10000 MFN
-        let pps = payout_per_slot(e, p().slots_per_year, &p()).unwrap();
-        let cum = cumulative_payout(e, 100, p().slots_per_year, &p()).unwrap();
+        let pps = payout_per_slot(e, py.slots_per_year, &py).unwrap();
+        let cum = cumulative_payout(e, 100, py.slots_per_year, &py).unwrap();
         // cum should equal 100 * pps within the per-slot floor slack.
         let direct = pps.saturating_mul(100);
         let diff = cum.abs_diff(direct);

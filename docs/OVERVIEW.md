@@ -91,27 +91,24 @@ The naive answer ("pay storage providers monthly") fails because nobody guarante
 
 ### The endowment idea
 
-Think of a university endowment. Donors give a large lump sum *once*. The endowment is invested. The university spends only the *yield* — never touches the principal — and thus the fund lasts forever, paying the same dollar amount every year (in real terms).
+Think of a university endowment. Donors give a large lump sum *once*. The endowment is invested. The university spends only the *yield* — never touches the principal — and thus the fund lasts forever.
 
-Permawrite does the same thing for your data:
+Permawrite does the same thing for your data, with one important update:
 
 1. You upload a file. Along with the file, you pay an **endowment fee** in MFN.
-2. The endowment is sized so that, if the network is paying out a small real yield (say, 1% annual) on it forever, the yield covers the actual storage cost of your file forever — even as storage costs slowly decline.
-3. Storage operators "earn" by repeatedly proving they still hold your file. Each successful proof drips a tiny fraction of the per-file yield to whoever's making the proof.
+2. The endowment is sized under the protocol's current `EndowmentParams`.
+3. By default (`real_yield_ppb = 0`) the network does **not** assume it can earn real yield on the locked principal. Instead it relies on the same mechanism Arweave uses: **storage costs continue to fall** (Kryder's law). A large one-time payment at today's prices, combined with declining real costs in the future, keeps the commitment solvent forever.
+4. Storage operators are still required to repeatedly prove they hold the data (SPoRA). They are compensated primarily from ongoing treasury inflows (fees + emission backstop) rather than from "yield" harvested per-endowment.
 
-This is the **Arweave model**, refined. The crucial number is "how much endowment is enough?" — and the answer comes from a small piece of finance math:
+The math supports both a classical yield-bearing mode (`r > i`) and the deflation-funded mode (`r = 0`, the default). The same `required_endowment` / `accrue_proof_reward` functions work in either regime.
 
-```
-required endowment = (current storage cost) × (1 + storage cost inflation)
-                                              ─────────────────────────────
-                                              (real yield) − (cost inflation)
-```
+The old formula with its `(real yield) − (cost inflation)` denominator is still present for the positive-yield case; when `r = 0` the `inflation_ppb` value is reused as the assumed deflation rate `d` in an otherwise identical structure (`E₀ = C₀ · (1+i) / d`).
 
-That denominator — `real_yield − cost_inflation` — has to be positive. Otherwise your endowment isn't earning more than your file is costing, and the model is bankrupt. Permawrite **hard-codes** this check into consensus (we call it `validate_endowment_params` in code): if anyone tries to push consensus parameters that violate `r > i`, the chain rejects them.
+Permawrite **hard-codes** the mode-aware validation into consensus (`validate_endowment_params`): `r = 0` is accepted; positive `r` must still beat the configured inflation buffer.
 
-You can think of this as the **permanence non-degeneracy constraint**. It's the single equation that mathematically guarantees infinite-horizon solvency. As long as the real yield exceeds the cost decline curve, your data will outlive the chain itself.
+> **Deep dive:** [`docs/ECONOMICS.md`](./ECONOMICS.md) and [`docs/STORAGE.md`](./STORAGE.md).
 
-> **→ Deep dive:** [`docs/ECONOMICS.md § Endowment derivation`](./ECONOMICS.md#1-the-permanence-equation-derived)
+> **→ Deep dive:** [`docs/ECONOMICS.md`](./ECONOMICS.md) (two operating modes for the endowment math) and [`docs/STORAGE.md`](./STORAGE.md).
 
 ### Random-access audits (SPoRA)
 
@@ -199,7 +196,7 @@ Two hundred years from now, if the permanence equation has held — if real yiel
 Worth saying plainly: there are real reasons nobody's shipped this yet.
 
 1. **Privacy + permanence pull in opposite directions for state size.** Privacy schemes (ring signatures, range proofs) cost bytes per tx. Permanent storage adds bytes per tx. Together you've got a chain with chunky transactions. The mitigation is OoM proofs (log-size rings) at Tier 3 and Bulletproof+ at Tier 2, both of which compress the privacy footprint by ~10x.
-2. **The endowment math has to hold across decades.** If real yield drops below storage-cost inflation for any sustained period, the model becomes a slow-motion bank run. The mitigation is the hardcoded `r > i` consensus check, plus a long simulation campaign (in the roadmap) to stress-test parameter choices against historical storage-cost data.
+2. **The endowment math has to hold across decades.** In the default r = 0 mode, permanence rests on continued storage-cost deflation (Kryder's law) plus ongoing fee/emission inflows rather than on harvesting yield from the locked principal. The mitigation is the mode-aware validation in `validate_endowment_params` (r = 0 is accepted; positive r must still beat the inflation buffer) together with the ability to upgrade parameters on-chain if the cost curve ever reverses.
 3. **Ring-membership verification is consensus-critical and was almost the first thing to go wrong.** An earlier version of `apply_block` didn't verify that CLSAG ring members were real on-chain UTXOs — meaning an attacker could fabricate ring members with arbitrary hidden commitments and inflate balances arbitrarily. This was caught and fixed before any deployment (see the [counterfeit-input attack section](./PRIVACY.md#counterfeit-input-attack-closed) of the privacy doc). Everything not yet built carries similar latent traps; this is a chain where individual line-level mistakes can be economically catastrophic.
 4. **Decoy realism is a research problem.** Even Monero's gamma-distributed decoy selection has been shown vulnerable to statistical de-anonymization in some adversarial contexts. Permawrite uses the same default, then plans to move to OoM-over-the-whole-UTXO-set at Tier 3, which strictly dominates.
 

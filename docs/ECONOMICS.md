@@ -68,34 +68,28 @@ E₀ = C₀ · (1 + i) / (r − i)
 
 The `(1 + i)` factor accounts for the fact that we owe `C_0` immediately *and* `C_1 = C₀(1 + i)` next year, etc. The formula prices the endowment to cover one year ahead of its yield.
 
-### Non-degeneracy
+### Non-degeneracy (two modes)
 
-The denominator `r − i` must be **positive**:
+- **Yield-bearing** (`real_yield_ppb > 0`): the denominator `r − i` must be positive (`r > i`).
+- **Deflation-funded** (`real_yield_ppb = 0` — expected/common case): `r = 0` is allowed and the default. `inflation_ppb` is treated as the conservative assumed deflation rate `d`. The formula becomes `E₀ = C₀ · (1 + i) / d`. Declining real storage costs (Kryder's law) keep the fixed nominal principal solvent forever, exactly as Arweave.
 
-```text
-r > i    (the permanence non-degeneracy condition)
-```
-
-If this is violated, the endowment can't keep up with the cost. The geometric series diverges. The model collapses.
-
-This is the **single most important invariant** in the economic design. The consensus code enforces it in [`validate_endowment_params`](../mfn-storage/src/endowment.rs):
+`validate_endowment_params` only enforces the old `r > i` rule when `r > 0`:
 
 ```rust
-if real_yield_ppb <= inflation_ppb {
+if real_yield_ppb > 0 && real_yield_ppb <= inflation_ppb {
     return Err(EndowmentError::RealYieldNotAboveInflation { … });
 }
 ```
 
-Any consensus parameter set violating `r > i` is rejected at genesis. The chain refuses to start.
+`r = 0` is valid. The protocol deliberately does **not** require the treasury (or operators) to earn real yield on escrowed endowment principal — there is often no safe, sustainable way to do so. Continued hardware cost deflation supplies the margin.
 
-### Why `r > i` is plausible long-term
+### Why the old `r > i` story (and the new r = 0 default) are both plausible
 
-Historical storage cost has *deflated* by roughly 35% per year (Kryder's law) for decades. Even a very modest 1-2% real yield (much less than equity-market historical real returns) clears the bar by an enormous margin.
+Historical storage cost has *deflated* by roughly 35% per year (Kryder's law) for decades. The default `inflation_ppb = 2%` is a tiny conservative buffer against the *possibility* that Kryder's law eventually ends and costs begin to rise.
 
-If Kryder's law breaks down — i.e., storage cost stops falling and starts rising — we'd need a real yield higher than the new inflation rate. The default calibration assumes:
+When `r = 0` (the new default), the same 2% knob becomes the assumed *deflation* rate `d` used to size endowments. Paying ~51× the current annual cost upfront is an extremely safe multiple under any realistic continuation of cost declines.
 
-- `i = 2%/year` (conservative — assumes Kryder's law reverses, costs go *up* 2% / year)
-- `r = 4%/year` (modest real return — well below historical equities and well above defensible US Treasury real yields)
+If Kryder's law ever reverses, a future consensus parameter update can raise `real_yield_ppb` (or the inflation buffer) while the chain is live. The two-mode math already supports both worlds.
 
 The 200-bp margin is the safety buffer.
 

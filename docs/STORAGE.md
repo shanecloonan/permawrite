@@ -9,7 +9,7 @@ Sections open with **intuition** in plain language before the math. See also [`O
 A file uploaded to Permawrite has these guarantees:
 
 1. **The file is anchored on-chain forever.** Its Merkle root is recorded in the block header, irreversible.
-2. **Storage operators are economically incentivized to hold the bytes forever.** The user pays an upfront endowment whose yield covers the storage cost in perpetuity, given the protocol's `r > i` condition holds.
+2. **Storage operators are economically incentivized to hold the bytes forever.** The user pays an upfront endowment. In the default (r = 0) mode permanence is funded by storage-cost deflation (Kryder's law) plus ongoing treasury inflows; the old yield-bearing `r > i` model is still supported for parameter upgrades.
 3. **Operators are randomly audited every block.** SPoRA challenges force them to prove they still have the data.
 4. **Multiple independent operators must hold the data.** Protocol-enforced `replication` factor with minimum and maximum bounds.
 
@@ -253,7 +253,12 @@ with:
 - `i` = annual storage-cost inflation rate.
 - `r` = annual real yield rate.
 
-The non-degeneracy condition `r > i` is the **single equation that makes infinite-horizon storage solvent**. It guarantees the geometric series converges. `validate_endowment_params` rejects any parameter set violating it.
+The non-degeneracy condition depends on the mode:
+
+- When `real_yield_ppb > 0`: `r > i` (yield must beat the inflation buffer).
+- When `real_yield_ppb = 0` (the expected/default case): the system is in **deflation-funded mode**. `inflation_ppb` is treated as the conservative assumed annual deflation rate `d` under Kryder's law. `validate_endowment_params` accepts `r = 0` unconditionally and the endowment math uses `E₀ = C₀ · (1 + i) / d`.
+
+This lets the protocol expect zero nominal yield on endowment principal (no reliable way to generate real yield on escrowed funds) while still guaranteeing permanence via hardware cost deflation — exactly as Arweave does.
 
 ### PPB precision
 
@@ -265,7 +270,7 @@ pub const PPB: u128 = 1_000_000_000;
 pub struct EndowmentParams {
     pub cost_per_byte_year_ppb: u64,   // default 200_000 = 2 × 10⁻⁴ base units / byte-year
     pub inflation_ppb:          u64,   // default 20_000_000 = 2.0%
-    pub real_yield_ppb:         u64,   // default 40_000_000 = 4.0%
+    pub real_yield_ppb:         u64,   // default 0 (deflation-funded mode)
     pub min_replication:        u8,    // default 3
     pub max_replication:        u8,    // default 32
     pub slots_per_year:         u64,   // default 2_629_800 (~12-second slots)
@@ -313,27 +318,29 @@ pub fn required_endowment(
 | Parameter | Value | Equivalent |
 |---|---|---|
 | `cost_per_byte_year_ppb` | 200_000 | 2 × 10⁻⁴ base units / byte-year / replica |
-| `inflation_ppb` | 20_000_000 | 2.0% / year |
-| `real_yield_ppb` | 40_000_000 | 4.0% / year |
+| `inflation_ppb` | 20_000_000 | 2.0% / year (worst-case inflation *buffer* when r>0; assumed deflation rate `d` when r=0) |
+| `real_yield_ppb` | 0 | **deflation-funded mode** (Kryder's law) — expected/common case |
 | `min_replication` | 3 | enforced floor |
 | `max_replication` | 32 | enforced ceiling |
 | `slots_per_year` | 2_629_800 | ≈ 12-second slots |
 
-Worked example: 1 GB at 3× replication.
+Worked example: 1 GB at 3× replication (default r = 0 deflation mode).
 
 ```
 C₀ = 200_000 × 10⁹ × 3 / 10⁹ = 600_000 base units = 6 × 10⁵ base units per year
     = 0.006 MFN/year (initial cost)
 
-E₀ = 600_000 × (1 + 0.02) / (0.04 − 0.02)
+E₀ = 600_000 × (1 + 0.02) / 0.02          // d = inflation_ppb (assumed deflation)
    = 600_000 × 1.02 / 0.02
    = 30_600_000 base units
    = 0.306 MFN
 ```
 
-So 1 GB at 3× replication endowed for permanence costs **~0.3 MFN** at the default calibration. This is intentionally Arweave-comparable.
+So 1 GB at 3× replication endowed for permanence costs **~0.3 MFN** at the default calibration (51× the first-year cost, a very conservative multiple under 2%/yr assumed deflation). This is intentionally Arweave-comparable.
 
 For 1 TB at 3× replication: ~306 MFN.
+
+Because `real_yield_ppb = 0`, there is **no per-endowment yield payout** to operators from the locked principal. Operators are paid from ongoing treasury inflows (90% of priority fees + emission backstop when needed). The large upfront endowment capitalizes the treasury; deflation in real storage costs keeps the commitments solvent.
 
 ---
 
@@ -349,14 +356,9 @@ For 1 TB at 3× replication: ~306 MFN.
 per_slot_payout_ppb = E₀ × real_yield_ppb / slots_per_year
 ```
 
-For our example (1 GB × 3, E₀ = 30.6M base units at 4% yield over 2.63M slots/year):
+At the default `real_yield_ppb = 0` this component is **zero** for every commitment. Storage operators are compensated from fresh treasury revenue (fees + emission) rather than from yield harvested on individual endowments. The formulas and accumulator remain for compatibility with positive-yield parameter sets and for future upgrades.
 
-```
-per_slot_payout = 30_600_000 × 0.04 / 2_629_800
-               ≈ 0.465 base units/slot
-```
-
-Note the per-slot value is **less than 1 base unit** — which is why we need the next section.
+(The old 4% example would have produced ~0.465 base units/slot on a 30.6 M endowment; that path is still supported if a future parameter update sets a positive `real_yield_ppb` that beats `inflation_ppb`.)
 
 ### PPB-precision accumulator
 
@@ -518,7 +520,7 @@ This is the actual logic in [`mfn_consensus::block::apply_block`](../mfn-consens
 - Operator publishes `StorageProof { commit_hash, chunk: bytes_of_chunk_214, proof: merkle_authentication_path }`.
 - `apply_block` verifies the Merkle proof connects chunk 214's hash to `data_root`.
 - `elapsed = 1000 - 1 = 999` slots (within the 7200-slot anti-hoarding cap).
-- `per_slot_payout_ppb = 3_060_000 × 40_000_000 / 2_629_800 ≈ 46.5 base-units-worth-of-PPB per slot` = `4.65 × 10⁴ PPB/slot`.
+- (positive-yield example) `per_slot_payout_ppb = 3_060_000 × 40_000_000 / 2_629_800 ≈ 46.5 base-units-worth-of-PPB per slot`. At default r=0 this value is 0 for every commitment.
 - `pending_yield_ppb = 0 + 999 × 46_500 ≈ 4.64 × 10⁷ PPB`.
 - `payout = 4.64 × 10⁷ / 10⁹ = 0` base units (still fractional).
 - `pending_yield_ppb` carries to next proof.

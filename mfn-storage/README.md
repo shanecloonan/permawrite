@@ -127,7 +127,7 @@ Total: **81 bytes**. Encoded by [`encode_storage_commitment`](src/commitment.rs)
 pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     cost_per_byte_year_ppb:    200_000,        // 2 × 10⁻⁴ base units / byte-year / replica
     inflation_ppb:             20_000_000,     // 2.0% / year
-    real_yield_ppb:            40_000_000,     // 4.0% / year
+    real_yield_ppb:            0,              // deflation-funded mode (default / expected)
     min_replication:           3,
     max_replication:           32,
     slots_per_year:            2_629_800,      // ~12-second slots
@@ -138,7 +138,7 @@ pub const DEFAULT_CHUNK_SIZE: usize = 256 * 1024;   // 256 KiB
 pub const PPB: u128 = 1_000_000_000;
 ```
 
-Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN`. See [`docs/STORAGE.md`](../docs/STORAGE.md) for more.
+Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN` (using 2% as assumed deflation rate `d`). See [`docs/STORAGE.md`](../docs/STORAGE.md) for the full two-mode explanation.
 
 ---
 
@@ -156,7 +156,8 @@ Worked example: **1 GB at 3× replication** → `E₀ ≈ 0.306 MFN`. See [`docs
 ```rust
 pub enum SporaError { ... }       // bad chunk, bad Merkle proof, wrong index, etc.
 pub enum EndowmentError {
-    RealYieldZero,
+    // RealYieldZero no longer exists — r = 0 is valid and the default (deflation mode)
+    RealYieldNotAboveInflation { .. },  // only emitted when r > 0 and r <= i
     RealYieldNotAboveInflation { real_yield_ppb, inflation_ppb },
     MinReplicationTooLow { min },
     MaxReplicationBelowMin { min, max },
@@ -183,7 +184,7 @@ hex              = "0.4"
 ## Test categories
 
 - **`spora`**: chunking edge cases (empty, single, exact-multiple, ragged final chunk), Merkle proof correctness for every position, challenge determinism across reruns, wrong-index rejection, wrong-chunk rejection, encode/decode round-trips; **M2.0.2 storage-proof Merkle commitment** (empty → zero sentinel, leaf domain-separation, deterministic leaf hashing, content-sensitive leaves, addition moves the root, order-sensitive across proofs, TS-parity golden vector for 0-sibling + 2-sibling-with-mixed-`right_side` proofs).
-- **`endowment`**: parameter validation (positive-yield, `r > i`, replication bounds), `required_endowment` matches the formula at multiple sizes, `payout_per_slot` matches in aggregate, PPB accumulator carries fractional yield correctly across proofs, anti-hoarding cap enforced, overflow paths return typed errors.
+- **`endowment`**: parameter validation (r=0 allowed+default for deflation/Kryder mode; r>0 must beat inflation buffer; replication bounds), `required_endowment` + inverse work in both modes, payout functions return 0 at r=0, PPB accumulator + anti-hoarding still correct, overflow paths return typed errors.
 - **`commitment`**: canonical hash is deterministic, field-sensitive, and matches the TS reference.
 
 ```bash

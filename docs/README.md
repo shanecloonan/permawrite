@@ -21,7 +21,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
-- 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve derivation, fee split, treasury dynamics, the `r > i` non-degeneracy condition.
+- 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
 
 ### Want to know what's next?
 
