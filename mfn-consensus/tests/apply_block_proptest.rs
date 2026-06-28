@@ -523,6 +523,7 @@ fn signing_stake_for_voters_from_state(st: &ChainState, voter_indices: &[u32]) -
 }
 
 /// Validator block with partial finality; uses live `st.validators` stake totals (**M5.8**).
+#[allow(clippy::too_many_arguments)]
 fn apply_validator_block_with_voters(
     fixture: &PropValidatorFixture,
     voter_indices: &[u32],
