@@ -701,6 +701,168 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     );
 }
 
+/// Legacy (no-validator) block 1 with CLSAG fee + SPoRA proof in one apply (**M5.5**).
+/// Treasury credits the fee tranche then drains for the storage-reward payout; no coinbase.
+#[test]
+fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
+    use curve25519_dalek::edwards::EdwardsPoint;
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, seal_block, ApplyOutcome,
+        ConsensusParams, GenesisConfig, GenesisOutput, TransactionWire, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::hash::hash_to_scalar;
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    fn treasury_after_block(
+        treasury: u128,
+        fee_sum: u128,
+        proofs: u128,
+        params: &mfn_consensus::EmissionParams,
+    ) -> u128 {
+        let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+        let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
+        let mut pending = treasury.saturating_add(treasury_fee);
+        let from_treasury = pending.min(storage_reward_total);
+        pending -= from_treasury;
+        pending
+    }
+
+    struct TrackedSpend {
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        one_time_addr: EdwardsPoint,
+    }
+
+    impl TrackedSpend {
+        fn from_seed(seed: u32, value: u64) -> Self {
+            let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
+            let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            Self {
+                spend_priv,
+                blinding,
+                value,
+                one_time_addr: generator_g() * spend_priv,
+            }
+        }
+
+        fn commitment(&self) -> EdwardsPoint {
+            (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
+        }
+
+        fn sign_self_transfer(&self, fee: u64) -> (TransactionWire, Self) {
+            assert!(fee < self.value, "fee must leave positive change");
+            let change_value = self.value - fee;
+            let next_spend = hash_to_scalar(&[b"M5.5/change-spend", &[1u8]]);
+            let change_addr = generator_g() * next_spend;
+            let signed = sign_transaction(
+                vec![InputSpec {
+                    ring: ClsagRing {
+                        p: vec![self.one_time_addr],
+                        c: vec![self.commitment()],
+                    },
+                    signer_idx: 0,
+                    spend_priv: self.spend_priv,
+                    value: self.value,
+                    blinding: self.blinding,
+                }],
+                vec![OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                }],
+                fee,
+                b"m5.5-mixed".to_vec(),
+            )
+            .expect("sign self-transfer");
+            let next = Self {
+                spend_priv: next_spend,
+                blinding: signed.output_blindings[0],
+                value: change_value,
+                one_time_addr: change_addr,
+            };
+            (signed.tx, next)
+        }
+    }
+
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    let spend = TrackedSpend::from_seed(1, 1_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: ConsensusParams {
+            expected_proposers_per_slot: 1.0,
+            quorum_stake_bps: 6667,
+            ..ConsensusParams::default()
+        },
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let genesis = build_genesis(&cfg);
+    let state0 = apply_genesis(&genesis, &cfg).expect("genesis");
+    assert_eq!(state0.storage.len(), 1);
+    assert_eq!(state0.treasury, 0);
+
+    let fee = 100_000u64;
+    let (tx, _) = spend.sign_self_transfer(fee);
+    assert!(verify_transaction(&tx).ok);
+
+    let height = 1u32;
+    let timestamp = 1_000u64;
+    let prev = *state0.tip_id().expect("tip");
+    let storage_proof =
+        build_storage_proof(&built.commit, &prev, height, &payload, &built.tree).expect("proof");
+    let storage_proofs = vec![storage_proof];
+    let unsealed = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&tx),
+        &[],
+        &[],
+        &storage_proofs,
+        height,
+        timestamp,
+    );
+    let block1 = seal_block(
+        unsealed,
+        vec![tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        storage_proofs,
+    );
+
+    let state1 = match apply_block(&state0, &block1) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(state1.height, Some(1));
+    let entry1 = state1.storage[&commit_hash].clone();
+    assert_eq!(entry1.last_proven_height, 1);
+    assert_eq!(entry1.last_proven_slot, u64::from(height));
+    let expected_treasury = treasury_after_block(0, u128::from(fee), 1, &DEFAULT_EMISSION_PARAMS);
+    assert_eq!(state1.treasury, expected_treasury);
+    assert_eq!(state1.spent_key_images.len(), 1);
+}
+
 /// Validator-mode block 1 with CLSAG fee + coinbase (emission + fee share +
 /// storage reward) + BLS quorum + SPoRA proof in one apply (**M5.6**).
 #[test]
