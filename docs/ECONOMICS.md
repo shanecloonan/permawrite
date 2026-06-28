@@ -507,7 +507,15 @@ This is the economic engine M1 unlocked: privacy demand pays the treasury via fe
 
 ### M5 settlement test matrix
 
-Long-run treasury ledger identity vs `apply_block` over CLSAG fee, mixed CLSAG + SPoRA, and validator-mode chains lives in `tests/emission_simulation.rs` (M5.0–M5.3; see [`CI.md`](./CI.md)). Per-block coinbase composition (emission + producer fee share + storage rewards) and treasury drain vs emission backstop are asserted there and in `tests/apply_block_proptest.rs` mixed-block proptests.
+**Per-block settlement (`tests/producer_treasury_settlement.rs`, default CI, `f117ce6`):**
+
+- 90/10 fee split (`default_fee_split_is_ninety_ten`, `fee_only_block_credits_treasury_ninety_percent`).
+- Coinbase = emission + producer fee share + full storage rewards (`producer_coinbase_amount_*`, `ppb_bonus_increases_validator_coinbase_and_treasury_drain`).
+- Treasury drains prefunded balance before emission backstop (`storage_reward_drains_prefunded_treasury_first`, `emission_backstop_only_when_treasury_short`).
+- Invalid / overpaid coinbase reject without state mutation (`invalid_coinbase_amount_rejected_without_state_change`, `overpaid_coinbase_amount_rejected_without_state_change`).
+- Bond burn + fee inflow compose in a closed treasury loop (`bond_burn_and_fee_inflow_compose_in_treasury_closed_loop`).
+
+**Long-run ledger identity** vs `apply_block` over CLSAG fee, mixed CLSAG + SPoRA, and validator-mode chains lives in `tests/emission_simulation.rs` (M5.0–M5.3; see [`CI.md`](./CI.md)).
 
 ### When the deferred operator payout lands
 

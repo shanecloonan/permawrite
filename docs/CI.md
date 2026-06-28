@@ -59,6 +59,8 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Emission / treasury (M5.0–M5.3):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + 16-block validator CLSAG fee chain with coinbase decrypt + 12-block validator mixed fee+proof with coinbase decrypt + 128-block legacy CLSAG fee chain + 48-block legacy mixed blocks). Longer sims are `#[ignore]` (nightly).
 
+**Producer treasury settlement (M5 economics):** default CI runs `mfn-consensus/tests/producer_treasury_settlement.rs` — 90/10 fee split, coinbase = emission + producer fee share + storage rewards (+ PPB bonus), treasury drain vs emission backstop, invalid/overpaid coinbase reject without state change, bond burn + fee inflow closed loop (`f117ce6`).
+
 **Validator finality evolution (M5 consensus):** default CI runs `mfn-consensus/tests/validator_finality_evolution.rs` — pre-block `validator_root` / quorum semantics, liveness bitmap + stats atomicity on accept vs reject, bond-root mismatch reject without state change, validator-root movement on liveness/equivocation slash.
 
 **SPoRA binding + payout (M5 storage):** default CI runs new cases in `mfn-consensus/tests/block_apply.rs` — emit-order `storage_proof_root`, tampered root rejects before payout effects, provenance + treasury on accept, unknown commit / wrong chunk / duplicate proof rejects.

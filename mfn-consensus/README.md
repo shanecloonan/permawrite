@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 250+ passing (unit + integration across `src/` and five `tests/` targets) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** `-D warnings` (see `scripts/ci-check`)
+**Tests:** 270+ passing (unit + integration across `src/` and six `tests/` targets) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** `-D warnings` (see `scripts/ci-check`)
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -268,6 +268,7 @@ pub enum BlockError {
 - **Integration** (`tests/integration.rs`) — multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks.
 - **Block apply** (`tests/block_apply.rs`) — root mismatches; SPoRA binding (`storage_proof_root` emit order, tampered root rejects before payout, provenance + treasury on accept, unknown commit / wrong chunk / duplicate proof rejects).
 - **Emission simulation (M5.0–M5.3)** (`tests/emission_simulation.rs`) — long-run treasury ledger vs `apply_block`, validator CLSAG-fee and mixed fee+proof chains, coinbase decrypt checks; deep sims `#[ignore]` (nightly).
+- **Producer treasury settlement (M5 economics)** (`tests/producer_treasury_settlement.rs`) — 90/10 fee split, coinbase = emission + producer share + storage rewards (+ PPB bonus), treasury drain vs backstop, invalid/overpaid coinbase reject without state change, bond burn + fee closed loop.
 - **apply_block proptest (M5.2–M5.6)** (`tests/apply_block_proptest.rs`) — randomized valid chains + reject-without-mutation props; mixed CLSAG + SPoRA rollback (`reject_duplicate_storage_proof_in_mixed_block_without_state_change`, `reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change`).
 - **Validator finality evolution (M5 consensus)** (`tests/validator_finality_evolution.rs`) — pre-block `validator_root` quorum, liveness stats atomicity, reject preserves state, root movement on slash.
 
