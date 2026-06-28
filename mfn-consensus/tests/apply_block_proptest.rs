@@ -1006,6 +1006,95 @@ fn reject_duplicate_storage_proof_in_mixed_block_without_state_change() {
     }
 }
 
+/// Validator finality + coinbase do not weaken the same atomicity invariant:
+/// duplicate SPoRA proofs reject after verification but before state commit.
+#[test]
+fn reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let st = gen.state;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+
+    let h = next_height(&st);
+    let fee = 25_000u64;
+    let (tx, _) = gen.spend.sign_self_transfer(fee, h);
+    let coinbase = build_coinbase(
+        u64::from(h),
+        expected_coinbase_amount(h, u128::from(fee), 1, &PROP_MIXED_EMISSION),
+        &gen.fixture.payout,
+    )
+    .expect("coinbase");
+    let txs = vec![coinbase, tx];
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+        .expect("proof");
+    let proofs = vec![proof.clone(), proof];
+
+    let unsealed = build_unsealed_header(&st, &txs, &[], &[], &proofs, h, u64::from(h) * 1_000);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height: h,
+        slot: h,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer = &gen.fixture.validators[0];
+    let producer_secrets = &gen.fixture.secrets[0];
+    let producer_proof = try_produce_slot(
+        &ctx,
+        producer_secrets,
+        producer,
+        gen.fixture.total_stake,
+        gen.fixture.params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("producer eligible");
+    let votes: Vec<_> = gen
+        .fixture
+        .secrets
+        .iter()
+        .map(|secrets| {
+            cast_vote(
+                &header_hash,
+                secrets,
+                &ctx,
+                &producer_proof,
+                producer,
+                gen.fixture.total_stake,
+                gen.fixture.params.expected_proposers_per_slot,
+            )
+            .expect("vote")
+        })
+        .collect();
+    let finality = FinalityProof {
+        producer: producer_proof,
+        finality: finalize(&header_hash, &votes, gen.fixture.validators.len()).expect("finalize"),
+        signing_stake: gen.fixture.total_stake,
+    };
+    let blk = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        encode_finality_proof(&finality),
+        Vec::new(),
+        proofs,
+    );
+
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProof { .. })),
+                "expected DuplicateStorageProof, got {errors:?}"
+            );
+            assert_eq!(snap(&st), before_snap);
+            assert_eq!(checkpoint_bytes(&st), before_bytes);
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate storage proof must reject"),
+    }
+}
+
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
 /// case in one `proptest!` block hits `macro_rules!` `$body:block` limits on CI).
 #[test]
