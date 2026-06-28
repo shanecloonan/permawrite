@@ -1,8 +1,9 @@
 //! Validator-mode finality + validator-set evolution invariants.
 //!
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
-//! liveness stats/stake updates, header body-root binding, unbond-settlement
-//! root evolution, and rejection preserving caller state.
+//! liveness stats/stake updates, header body-root binding (bond, slashing,
+//! tx, storage_proof), unbond-settlement root evolution, equivocation during
+//! unbond delay, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -686,4 +687,131 @@ fn validator_root_moves_on_unbond_settlement() {
         next.validator_root, root_after,
         "successor header commits post-settlement set"
     );
+}
+
+/// Header `tx_root` must match the (empty) tx list on validator-mode blocks.
+#[test]
+fn tx_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.tx_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::TxRootMismatch)),
+                "expected tx_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered tx_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Header `storage_proof_root` must match the (empty) proofs list.
+#[test]
+fn storage_proof_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    assert_eq!(block.header.storage_proof_root, [0u8; 32]);
+    block.header.storage_proof_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofRootMismatch)),
+                "expected storage_proof_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered storage_proof_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// A validator who requested unbond remains slashable during the delay;
+/// equivocation evidence still zeroes stake and moves `validator_root`.
+#[test]
+fn equivocation_during_unbond_delay_still_zeros_stake() {
+    let fx = boot_three_validators_cfg(64, 100);
+    let mut st = fx.state.clone();
+    let root_before = validator_set_root(&st.validators);
+    let v1_idx = st.validators[1].index;
+    let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+    let unbond = BondOp::Unbond {
+        validator_index: v1_idx,
+        sig: sign_unbond(v1_idx, &v1_bls_sk),
+    };
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![unbond],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    assert_eq!(st.validators[1].stake, 1_000_000);
+    assert!(st.pending_unbonds.contains_key(&v1_idx));
+
+    let h1 = [11u8; 32];
+    let h2 = [22u8; 32];
+    let evidence = SlashEvidence {
+        height: 2,
+        slot: 2,
+        voter_index: v1_idx,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, &v1_bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, &v1_bls_sk),
+    };
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            vec![evidence],
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("equivocation during delay");
+    assert_eq!(
+        st.validators[1].stake, 0,
+        "equivocation during unbond delay still zeros stake"
+    );
+    assert!(
+        st.pending_unbonds.contains_key(&v1_idx),
+        "pending unbond entry survives slash until settlement"
+    );
+    let root_after = validator_set_root(&st.validators);
+    assert_ne!(root_before, root_after);
 }
