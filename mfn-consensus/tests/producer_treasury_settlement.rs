@@ -1,4 +1,4 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**, **M5.8**, **M5.9**).
+//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**, **M5.8**, **M5.9**, **M5.10**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
@@ -102,6 +102,25 @@ fn treasury_after_liveness_block(
 ) -> u128 {
     treasury_after_settlement(
         treasury.saturating_add(liveness_credit),
+        fee_sum,
+        accepted_proofs,
+        params,
+    )
+}
+
+/// Bond burn and liveness slash both credit treasury before fee settlement and proof drain.
+fn treasury_after_bond_and_liveness_block(
+    treasury: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement(
+        treasury
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
         fee_sum,
         accepted_proofs,
         params,
@@ -1237,6 +1256,69 @@ fn liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
         st.validators[absentee_idx as usize].stake, 990_000,
         "liveness slash must reduce absentee stake by 1%"
     );
+    assert_eq!(
+        st.validator_stats[absentee_idx as usize].liveness_slashes,
+        1
+    );
+}
+
+#[test]
+fn bond_burn_liveness_slash_and_fee_compose_in_treasury_closed_loop() {
+    let fixture = ValidatorFixture::liveness_absentee_three_validators();
+    let absentee_idx = 1u32;
+    let initial = 50_000_000_000u64;
+    let (mut st, spend) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        true,
+    );
+    assert_eq!(st.treasury, 0);
+    st.validator_stats[absentee_idx as usize].consecutive_missed = 2;
+
+    let bond = register_op(77);
+    let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let liveness_forfeit = 10_000u128;
+    let fee = 8_000u64;
+    let (signed, _) = spend.sign_self_transfer(fee);
+    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
+    let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
+    let txs = vec![coinbase, signed.tx];
+    let voters = [0u32, 2];
+    let st = match apply_validator_block_with_voters(
+        &fixture,
+        &voters,
+        &st,
+        1,
+        txs,
+        Vec::new(),
+        vec![bond],
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("bond+liveness+fee block: {errors:?}"),
+    };
+    let expected = treasury_after_bond_and_liveness_block(
+        0,
+        bond_stake,
+        liveness_forfeit,
+        u128::from(fee),
+        0,
+        &TEST_EMISSION,
+    );
+    assert_eq!(
+        st.treasury, expected,
+        "bond burn, liveness slash, and fee inflow compose in treasury ledger"
+    );
+    assert_eq!(
+        st.validators.len(),
+        4,
+        "bond register must append validator"
+    );
+    assert_eq!(st.validators[absentee_idx as usize].stake, 990_000);
     assert_eq!(
         st.validator_stats[absentee_idx as usize].liveness_slashes,
         1
