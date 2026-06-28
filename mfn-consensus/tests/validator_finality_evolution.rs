@@ -1,11 +1,12 @@
 //! Validator-mode finality + validator-set evolution invariants.
 //!
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
-//! liveness stats/stake updates, and rejection preserving caller state.
+//! liveness stats/stake updates, header body-root binding, unbond-settlement
+//! root evolution, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
-use mfn_consensus::bond_wire::sign_register;
+use mfn_consensus::bond_wire::{sign_register, sign_unbond};
 use mfn_consensus::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use mfn_consensus::consensus::{
     cast_vote, encode_finality_proof, finalize, pick_winner, try_produce_slot, validator_set_root,
@@ -41,6 +42,13 @@ fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
 }
 
 fn boot_three_validators(liveness_max_missed: u32) -> Fixture {
+    boot_three_validators_cfg(
+        liveness_max_missed,
+        DEFAULT_BONDING_PARAMS.unbond_delay_heights,
+    )
+}
+
+fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights: u32) -> Fixture {
     let (v0, s0) = mk_validator(0, 1_000_000);
     let (v1, s1) = mk_validator(1, 1_000_000);
     let (v2, s2) = mk_validator(2, 1_000_000);
@@ -54,6 +62,7 @@ fn boot_three_validators(liveness_max_missed: u32) -> Fixture {
     };
     let bonding = BondingParams {
         min_validator_stake: 100_000,
+        unbond_delay_heights,
         ..DEFAULT_BONDING_PARAMS
     };
     let cfg = GenesisConfig {
@@ -518,4 +527,163 @@ fn equivocation_slash_moves_successor_validator_root() {
 
     let next = build_unsealed_header(&post, &[], &[], &[], &[], 2, 200);
     assert_eq!(next.validator_root, root_after);
+}
+
+/// Header `slashing_root` must match the body's slashings list even when
+/// the list carries valid equivocation evidence.
+#[test]
+fn slashing_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let v1_idx = st.validators[1].index;
+    let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+    let h1 = [55u8; 32];
+    let h2 = [66u8; 32];
+    let evidence = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v1_idx,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, &v1_bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, &v1_bls_sk),
+    };
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![evidence],
+        &all_voter_positions(&st),
+    );
+    assert_ne!(block.header.slashing_root, [0u8; 32]);
+    block.header.slashing_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::SlashingRootMismatch)),
+                "expected slashing_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered slashing_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Requesting unbond enqueues exit but keeps stake and `validator_root`
+/// stable until the delay elapses.
+#[test]
+fn unbond_request_preserves_validator_root_in_delay_window() {
+    let fx = boot_three_validators_cfg(64, 2);
+    let mut st = fx.state.clone();
+    let root_genesis = validator_set_root(&st.validators);
+    let v1_idx = st.validators[1].index;
+    let unbond = BondOp::Unbond {
+        validator_index: v1_idx,
+        sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+    };
+
+    let block1 = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![unbond],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    st = apply_block(&st, &block1)
+        .into_state()
+        .expect("unbond request block");
+    assert_eq!(st.validators[1].stake, 1_000_000);
+    assert_eq!(
+        validator_set_root(&st.validators),
+        root_genesis,
+        "request alone must not move validator_root"
+    );
+
+    let block2 = seal_empty(
+        &fx,
+        &st,
+        2,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    st = apply_block(&st, &block2)
+        .into_state()
+        .expect("delay window block");
+    assert_eq!(
+        validator_set_root(&st.validators),
+        root_genesis,
+        "delay window keeps validator_root stable"
+    );
+}
+
+/// Unbond settlement zeroes stake; the successor header commits the
+/// post-settlement validator set root.
+#[test]
+fn validator_root_moves_on_unbond_settlement() {
+    let fx = boot_three_validators_cfg(64, 2);
+    let mut st = fx.state.clone();
+    let root_genesis = validator_set_root(&st.validators);
+    let v1_idx = st.validators[1].index;
+    let unbond = BondOp::Unbond {
+        validator_index: v1_idx,
+        sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+    };
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![unbond],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("delay window");
+
+    let block3 = seal_empty(
+        &fx,
+        &st,
+        3,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    st = apply_block(&st, &block3)
+        .into_state()
+        .expect("unbond settlement");
+    assert_eq!(st.validators[1].stake, 0);
+    let root_after = validator_set_root(&st.validators);
+    assert_ne!(
+        root_genesis, root_after,
+        "settlement must move validator_root"
+    );
+
+    let next = build_unsealed_header(&st, &[], &[], &[], &[], 4, 400);
+    assert_eq!(
+        next.validator_root, root_after,
+        "successor header commits post-settlement set"
+    );
 }
