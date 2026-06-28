@@ -1062,6 +1062,96 @@ fn dual_distinct_storage_proofs_in_one_block_update_both_entries() {
 }
 
 #[test]
+fn dual_distinct_storage_proofs_positive_yield_accrues_both_entries() {
+    let ep = EndowmentParams {
+        real_yield_ppb: 50_000_000, // 5% > 2% inflation buffer
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let (mut state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
+    state0.treasury = 100_000_000;
+    let slot = 500_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof_a = mfn_storage::build_storage_proof(
+        &built_a.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_a,
+        &built_a.tree,
+    )
+    .unwrap();
+    let proof_b = mfn_storage::build_storage_proof(
+        &built_b.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_b,
+        &built_b.tree,
+    )
+    .unwrap();
+    let proofs = [proof_a, proof_b];
+    let hash_a = storage_commitment_hash(&built_a.commit);
+    let hash_b = storage_commitment_hash(&built_b.commit);
+    let accrual_a = accrue_proof_reward(AccrueArgs {
+        size_bytes: built_a.commit.size_bytes,
+        replication: built_a.commit.replication,
+        pending_ppb: 0,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot),
+        params: &ep,
+    })
+    .expect("accrue a");
+    let accrual_b = accrue_proof_reward(AccrueArgs {
+        size_bytes: built_b.commit.size_bytes,
+        replication: built_b.commit.replication,
+        pending_ppb: 0,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot),
+        params: &ep,
+    })
+    .expect("accrue b");
+    assert!(
+        accrual_a.payout > 0 || accrual_a.new_pending_ppb > 0,
+        "test setup must produce yield movement on commit a"
+    );
+    assert!(
+        accrual_b.payout > 0 || accrual_b.new_pending_ppb > 0,
+        "test setup must produce yield movement on commit b"
+    );
+    let treasury_before = state0.treasury;
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, slot, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs.to_vec(),
+    );
+    let state1 = match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("expected ok, got {errors:?}"),
+    };
+    assert_eq!(state1.storage[&hash_a].last_proven_height, 1);
+    assert_eq!(state1.storage[&hash_a].last_proven_slot, u64::from(slot));
+    assert_eq!(
+        state1.storage[&hash_a].pending_yield_ppb,
+        accrual_a.new_pending_ppb
+    );
+    assert_eq!(state1.storage[&hash_b].last_proven_height, 1);
+    assert_eq!(state1.storage[&hash_b].last_proven_slot, u64::from(slot));
+    assert_eq!(
+        state1.storage[&hash_b].pending_yield_ppb,
+        accrual_b.new_pending_ppb
+    );
+    let storage_reward_total = u128::from(state0.emission_params.storage_proof_reward)
+        .saturating_mul(2)
+        .saturating_add(accrual_a.payout)
+        .saturating_add(accrual_b.payout);
+    let expected_treasury =
+        treasury_before.saturating_sub(treasury_before.min(storage_reward_total));
+    assert_eq!(state1.treasury, expected_treasury);
+}
+
+#[test]
 fn storage_proof_body_tamper_rejects_without_state_change() {
     let ep = DEFAULT_ENDOWMENT_PARAMS;
     let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
