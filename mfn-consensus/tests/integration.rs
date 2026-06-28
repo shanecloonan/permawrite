@@ -1031,6 +1031,199 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
     }
 }
 
+/// After one valid legacy mixed block, a tampered CLSAG fee tx at height 2
+/// must reject and leave tip state byte-for-byte unchanged (**M5.5+** integration).
+#[test]
+fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
+    use curve25519_dalek::edwards::EdwardsPoint;
+    use mfn_consensus::{
+        apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header,
+        encode_chain_checkpoint, seal_block, ApplyOutcome, BlockError, ChainCheckpoint,
+        ConsensusParams, GenesisConfig, GenesisOutput, TransactionWire, DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::hash::hash_to_scalar;
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    struct TrackedSpend {
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        one_time_addr: EdwardsPoint,
+    }
+
+    impl TrackedSpend {
+        fn from_seed(seed: u32, value: u64) -> Self {
+            let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
+            let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            Self {
+                spend_priv,
+                blinding,
+                value,
+                one_time_addr: generator_g() * spend_priv,
+            }
+        }
+
+        fn commitment(&self) -> EdwardsPoint {
+            (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
+        }
+
+        fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
+            let change_value = self.value - fee;
+            let next_spend = hash_to_scalar(&[b"M5.5/change-spend", &next_seed.to_le_bytes()]);
+            let change_addr = generator_g() * next_spend;
+            let signed = sign_transaction(
+                vec![InputSpec {
+                    ring: ClsagRing {
+                        p: vec![self.one_time_addr],
+                        c: vec![self.commitment()],
+                    },
+                    signer_idx: 0,
+                    spend_priv: self.spend_priv,
+                    value: self.value,
+                    blinding: self.blinding,
+                }],
+                vec![OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                }],
+                fee,
+                Vec::new(),
+            )
+            .expect("sign");
+            (
+                signed.tx,
+                Self {
+                    spend_priv: next_spend,
+                    blinding: signed.output_blindings[0],
+                    value: change_value,
+                    one_time_addr: change_addr,
+                },
+            )
+        }
+    }
+
+    fn seal_legacy_mixed(
+        st: &mfn_consensus::ChainState,
+        height: u32,
+        tx: TransactionWire,
+        built: &mfn_storage::BuiltCommitment,
+        payload: &[u8],
+    ) -> mfn_consensus::Block {
+        let timestamp = u64::from(height) * 1_000;
+        let prev = *st.tip_id().expect("tip");
+        let storage_proof =
+            build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+        let storage_proofs = vec![storage_proof];
+        let unsealed = build_unsealed_header(
+            st,
+            std::slice::from_ref(&tx),
+            &[],
+            &[],
+            &storage_proofs,
+            height,
+            timestamp,
+        );
+        seal_block(
+            unsealed,
+            vec![tx],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            storage_proofs,
+        )
+    }
+
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: initial_spend.one_time_addr,
+            amount: initial_spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: ConsensusParams {
+            expected_proposers_per_slot: 1.0,
+            quorum_stake_bps: 6667,
+            ..ConsensusParams::default()
+        },
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let genesis = build_genesis(&cfg);
+    let genesis_id = block_id(&genesis.header);
+    let mut st = apply_genesis(&genesis, &cfg).expect("genesis");
+
+    let fee1 = 100_000u64;
+    let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
+    let block1 = seal_legacy_mixed(&st, 1, tx1, &built, &payload);
+    st = match apply_block(&st, &block1) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(st.height, Some(1));
+
+    let before_checkpoint = encode_chain_checkpoint(&ChainCheckpoint {
+        genesis_id,
+        state: st.clone(),
+    });
+    let before_proven_height = st.storage[&commit_hash].last_proven_height;
+    let before_proven_slot = st.storage[&commit_hash].last_proven_slot;
+    let before_yield = st.storage[&commit_hash].pending_yield_ppb;
+
+    let fee2 = 50_000u64;
+    let (mut tx2, _) = spend.sign_self_transfer(fee2, 2);
+    tx2.fee = tx2.fee.wrapping_add(1);
+    let bad_block = seal_legacy_mixed(&st, 2, tx2, &built, &payload);
+
+    match apply_block(&st, &bad_block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::TxInvalid { .. })),
+                "expected TxInvalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered CLSAG must reject"),
+    }
+    assert_eq!(
+        encode_chain_checkpoint(&ChainCheckpoint {
+            genesis_id,
+            state: st.clone(),
+        }),
+        before_checkpoint,
+        "reject must leave checkpoint bytes unchanged"
+    );
+    assert_eq!(
+        st.storage[&commit_hash].last_proven_height,
+        before_proven_height
+    );
+    assert_eq!(
+        st.storage[&commit_hash].last_proven_slot,
+        before_proven_slot
+    );
+    assert_eq!(st.storage[&commit_hash].pending_yield_ppb, before_yield);
+    assert_eq!(st.height, Some(1));
+    assert_eq!(st.spent_key_images.len(), 1);
+}
+
 /// Validator-mode block 1 with CLSAG fee + coinbase (emission + fee share +
 /// storage reward) + BLS quorum + SPoRA proof in one apply (**M5.6**).
 #[test]
