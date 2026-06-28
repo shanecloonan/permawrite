@@ -3,7 +3,8 @@
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
 //! liveness stats/stake updates, header body-root binding (bond, slashing,
 //! tx, storage_proof), unbond-settlement root evolution, equivocation during
-//! unbond delay, and rejection preserving caller state.
+//! unbond delay, exit-churn deferral, invalid slash rejection, and rejection
+//! preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -64,6 +65,45 @@ fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights: u32
     let bonding = BondingParams {
         min_validator_stake: 100_000,
         unbond_delay_heights,
+        ..DEFAULT_BONDING_PARAMS
+    };
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(bonding),
+    };
+    let genesis = build_genesis(&cfg);
+    let state = apply_genesis(&genesis, &cfg).expect("genesis");
+    Fixture {
+        state,
+        secrets,
+        params,
+    }
+}
+
+/// Four-validator chain with short unbond delay and a tight exit-churn cap.
+fn boot_four_validators_exit_churn() -> Fixture {
+    let (v0, s0) = mk_validator(0, 1_000_000);
+    let (v1, s1) = mk_validator(1, 1_000_000);
+    let (v2, s2) = mk_validator(2, 1_000_000);
+    let (v3, s3) = mk_validator(3, 1_000_000);
+    let validators = vec![v0, v1, v2, v3];
+    let secrets = vec![s0, s1, s2, s3];
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 5000,
+        liveness_max_consecutive_missed: 64,
+        liveness_slash_bps: 0,
+    };
+    let bonding = BondingParams {
+        min_validator_stake: 100_000,
+        unbond_delay_heights: 1,
+        max_exit_churn_per_epoch: 2,
         ..DEFAULT_BONDING_PARAMS
     };
     let cfg = GenesisConfig {
@@ -814,4 +854,113 @@ fn equivocation_during_unbond_delay_still_zeros_stake() {
     );
     let root_after = validator_set_root(&st.validators);
     assert_ne!(root_before, root_after);
+}
+
+/// A block mixing invalid and valid slash evidence is rejected whole;
+/// even the valid slash must not commit when any evidence fails.
+#[test]
+fn invalid_slash_evidence_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let v0_idx = st.validators[0].index;
+    let v2_idx = st.validators[2].index;
+    let v2_sk = fx.secrets[2].bls.sk.clone();
+
+    let h_bad_a = [77u8; 32];
+    let h_bad_b = [88u8; 32];
+    let invalid = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v0_idx,
+        header_hash_a: h_bad_a,
+        sig_a: bls_sign(&h_bad_a, &v2_sk),
+        header_hash_b: h_bad_b,
+        sig_b: bls_sign(&h_bad_b, &v2_sk),
+    };
+    let h_good_a = [99u8; 32];
+    let h_good_b = [100u8; 32];
+    let valid = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v2_idx,
+        header_hash_a: h_good_a,
+        sig_a: bls_sign(&h_good_a, &v2_sk),
+        header_hash_b: h_good_b,
+        sig_b: bls_sign(&h_good_b, &v2_sk),
+    };
+
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![invalid, valid],
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::SlashInvalid { .. })),
+                "expected slash invalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("mixed slash evidence must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.validators[2].stake, 1_000_000);
+}
+
+/// Per-epoch exit churn caps defer settlement beyond the first N due unbonds.
+#[test]
+fn exit_churn_cap_defers_third_unbond_settlement() {
+    let fx = boot_four_validators_exit_churn();
+    let mut st = fx.state.clone();
+    let i1 = st.validators[1].index;
+    let i2 = st.validators[2].index;
+    let i3 = st.validators[3].index;
+    let unbonds = vec![
+        BondOp::Unbond {
+            validator_index: i1,
+            sig: sign_unbond(i1, &fx.secrets[1].bls.sk),
+        },
+        BondOp::Unbond {
+            validator_index: i2,
+            sig: sign_unbond(i2, &fx.secrets[2].bls.sk),
+        },
+        BondOp::Unbond {
+            validator_index: i3,
+            sig: sign_unbond(i3, &fx.secrets[3].bls.sk),
+        },
+    ];
+
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 1, unbonds, Vec::new(), &all_voter_positions(&st)),
+    )
+    .into_state()
+    .expect("three unbond requests");
+    assert_eq!(st.pending_unbonds.len(), 3);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("first settlement block");
+    assert_eq!(st.pending_unbonds.len(), 1);
+    assert!(st.pending_unbonds.contains_key(&i3));
+    assert_eq!(st.validators[1].stake, 0);
+    assert_eq!(st.validators[2].stake, 0);
+    assert_eq!(st.validators[3].stake, 1_000_000);
+    assert_eq!(st.bond_epoch_exit_count, 2);
 }
