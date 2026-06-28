@@ -971,6 +971,273 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     assert_eq!(state1.spent_key_images.len(), 1);
 }
 
+/// Two consecutive validator-mode mixed blocks (**M5.6+**): each block carries
+/// CLSAG fee + coinbase + BLS quorum + SPoRA proof; treasury ledger matches
+/// the fee-credit / storage-drain model across both heights.
+#[test]
+fn validator_mixed_two_block_treasury_ledger_identity() {
+    use curve25519_dalek::edwards::EdwardsPoint;
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
+        encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount, seal_block,
+        try_produce_slot, ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig,
+        GenesisOutput, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+        DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::hash::hash_to_scalar;
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    fn treasury_after_block(
+        treasury: u128,
+        fee_sum: u128,
+        proofs: u128,
+        params: &mfn_consensus::EmissionParams,
+    ) -> u128 {
+        let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+        let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
+        let mut pending = treasury.saturating_add(treasury_fee);
+        let from_treasury = pending.min(storage_reward_total);
+        pending -= from_treasury;
+        pending
+    }
+
+    struct TrackedSpend {
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        one_time_addr: EdwardsPoint,
+    }
+
+    impl TrackedSpend {
+        fn from_seed(seed: u32, value: u64) -> Self {
+            let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
+            let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            Self {
+                spend_priv,
+                blinding,
+                value,
+                one_time_addr: generator_g() * spend_priv,
+            }
+        }
+
+        fn commitment(&self) -> EdwardsPoint {
+            (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
+        }
+
+        fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
+            assert!(fee < self.value, "fee must leave positive change");
+            let change_value = self.value - fee;
+            let next_spend = hash_to_scalar(&[b"M5.6/change-spend", &next_seed.to_le_bytes()]);
+            let change_addr = generator_g() * next_spend;
+            let signed = sign_transaction(
+                vec![InputSpec {
+                    ring: ClsagRing {
+                        p: vec![self.one_time_addr],
+                        c: vec![self.commitment()],
+                    },
+                    signer_idx: 0,
+                    spend_priv: self.spend_priv,
+                    value: self.value,
+                    blinding: self.blinding,
+                }],
+                vec![OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                }],
+                fee,
+                Vec::new(),
+            )
+            .expect("sign self-transfer");
+            let next = Self {
+                spend_priv: next_spend,
+                blinding: signed.output_blindings[0],
+                value: change_value,
+                one_time_addr: change_addr,
+            };
+            (signed.tx, next)
+        }
+    }
+
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    let mk_validator = |i: u32, stake: u64| -> (Validator, ValidatorSecrets, _) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: wallet.view_pub,
+            spend_pub: wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets, wallet)
+    };
+    let (v0, s0, _) = mk_validator(0, 100);
+    let (v1, s1, _) = mk_validator(1, 100);
+    let (v2, s2, _) = mk_validator(2, 100);
+    let validators = vec![v0.clone(), v1.clone(), v2.clone()];
+    let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6667,
+        ..ConsensusParams::default()
+    };
+
+    let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: initial_spend.one_time_addr,
+            amount: initial_spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let genesis = build_genesis(&cfg);
+    let mut st = apply_genesis(&genesis, &cfg).expect("genesis");
+    let cb_payout = PayoutAddress {
+        view_pub: v0.payout.as_ref().unwrap().view_pub,
+        spend_pub: v0.payout.as_ref().unwrap().spend_pub,
+    };
+
+    let mut model_treasury = 0u128;
+    let mut spend = initial_spend;
+    for height in 1..=2u32 {
+        let fee = if height == 1 { 100_000 } else { 50_000 };
+        let (tx, next_spend) = spend.sign_self_transfer(fee, height);
+        spend = next_spend;
+        assert!(verify_transaction(&tx).ok);
+
+        let cb_amount = producer_coinbase_amount(
+            u64::from(height),
+            &DEFAULT_EMISSION_PARAMS,
+            u128::from(fee),
+            1,
+            0,
+        );
+        let coinbase = build_coinbase(u64::from(height), cb_amount, &cb_payout).expect("coinbase");
+        let txs = vec![coinbase, tx];
+        let timestamp = u64::from(height) * 1_000;
+
+        let scratch = build_unsealed_header(&st, &txs, &[], &[], &[], height, timestamp);
+        let storage_proof = build_storage_proof(
+            &built.commit,
+            &scratch.prev_hash,
+            height,
+            &payload,
+            &built.tree,
+        )
+        .expect("proof");
+        let storage_proofs = vec![storage_proof];
+        let unsealed =
+            build_unsealed_header(&st, &txs, &[], &[], &storage_proofs, height, timestamp);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height,
+            slot: height,
+            prev_hash: unsealed.prev_hash,
+        };
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &s0,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+        let votes = vec![
+            cast_vote(
+                &header_hash,
+                &s0,
+                &ctx,
+                &producer_proof,
+                &v0,
+                total_stake,
+                params.expected_proposers_per_slot,
+            )
+            .unwrap(),
+            cast_vote(
+                &header_hash,
+                &s1,
+                &ctx,
+                &producer_proof,
+                &v0,
+                total_stake,
+                params.expected_proposers_per_slot,
+            )
+            .unwrap(),
+            cast_vote(
+                &header_hash,
+                &s2,
+                &ctx,
+                &producer_proof,
+                &v0,
+                total_stake,
+                params.expected_proposers_per_slot,
+            )
+            .unwrap(),
+        ];
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: finalize(&header_hash, &votes, validators.len()).expect("finalize"),
+            signing_stake: total_stake,
+        };
+        let block = seal_block(
+            unsealed,
+            txs,
+            Vec::new(),
+            encode_finality_proof(&fin),
+            Vec::new(),
+            storage_proofs,
+        );
+
+        st = match apply_block(&st, &block) {
+            ApplyOutcome::Ok { state, .. } => state,
+            ApplyOutcome::Err { errors, .. } => panic!("height {height} rejected: {errors:?}"),
+        };
+        model_treasury =
+            treasury_after_block(model_treasury, u128::from(fee), 1, &DEFAULT_EMISSION_PARAMS);
+        assert_eq!(
+            st.treasury, model_treasury,
+            "treasury mismatch at height {height}"
+        );
+        assert_eq!(st.height, Some(height));
+        assert_eq!(st.storage[&commit_hash].last_proven_height, height);
+        assert_eq!(st.spent_key_images.len(), height as usize);
+    }
+}
+
 #[test]
 fn coinbase_replay_is_byte_identical() {
     // Two nodes computing the same height + amount + payout must produce
