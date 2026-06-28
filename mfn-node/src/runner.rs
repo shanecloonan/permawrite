@@ -389,6 +389,30 @@ impl ProductionEngine {
         format!("accepted:height={}", proposal.ctx.height)
     }
 
+    fn adopt_pending_for_direct_vote(&self, proposal: &BlockProposal) -> Result<(), String> {
+        let chain = self.chain.lock().map_err(|_| "chain_mutex".to_string())?;
+        self.verify_proposal(proposal, &chain)
+            .map_err(|e| format!("proposal:{e}"))?;
+        drop(chain);
+
+        let mut guard = self
+            .pending
+            .lock()
+            .map_err(|_| "pending_mutex".to_string())?;
+        if let Some(existing) = guard.as_ref() {
+            Self::reconcile_pending(existing, proposal)?;
+            if existing.proposal.header_hash == proposal.header_hash {
+                return Ok(());
+            }
+        }
+        *guard = Some(PendingProposal {
+            proposal: proposal.clone(),
+            votes: Vec::new(),
+            indices: BTreeSet::new(),
+        });
+        Ok(())
+    }
+
     /// One slot tick: try to propose when locally eligible.
     pub fn on_slot_tick(&self) {
         if let Ok(guard) = self.pending.lock() {
@@ -480,6 +504,11 @@ impl ProductionHandler for ProductionEngine {
     fn proposal_vote_reply_v1(&self, proposal_wire: &[u8]) -> Option<Vec<u8>> {
         let proposal = decode_block_proposal(proposal_wire).ok()?;
         if proposal.producer_proof.validator_index == self.local.validator.index {
+            return None;
+        }
+        if let Err(e) = self.adopt_pending_for_direct_vote(&proposal) {
+            println!("mfnd_producer_vote_reply_reject {e}");
+            let _ = std::io::Write::flush(&mut std::io::stdout());
             return None;
         }
         let vote = self.try_vote_locally(&proposal)?;

@@ -347,7 +347,8 @@ pub(crate) fn run_serve(
             fanout.attach_production(Arc::clone(&engine) as mfn_net::ProductionHook);
             if produce {
                 spawn_slot_producer_loop(Arc::clone(&engine));
-            } else if committee_vote {
+            }
+            if produce || committee_vote {
                 spawn_committee_catch_up_loop(
                     Arc::clone(&fanout),
                     genesis_id,
