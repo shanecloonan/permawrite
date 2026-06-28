@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -268,6 +268,40 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropPrivacyStorageGenesis {
+        state,
+        spend,
+        built,
+        payload,
+    }
+}
+
+fn genesis_privacy_storage_bonding_for_proptest() -> PropPrivacyStorageGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(DEFAULT_BONDING_PARAMS),
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -1044,6 +1078,56 @@ proptest! {
                 &gen.fixture, &st, h, txs, &proof,
             );
             model = treasury_after_block(model, fee_sum, 1, emission);
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {})",
+                h,
+                fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
+    /// Bond burn inflow + randomized CLSAG fees + SPoRA drain (**M5.7**).
+    #[test]
+    fn prop_bond_inflow_random_fee_and_proof_outflow_treasury(
+        n_fee_blocks in 1u32..=8u32,
+        fee_base in 1_000u64..=150_000u64,
+    ) {
+        let gen = genesis_privacy_storage_bonding_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+
+        let h_bond = next_height(&st);
+        st = apply_with_bond_ops(&st, h_bond, vec![register_op(1)]);
+        model = treasury_after_register(model, stake);
+        prop_assert_eq!(st.treasury, model);
+        prop_assert!(st.treasury < u128::MAX);
+
+        for i in 0..n_fee_blocks {
+            let h = next_height(&st);
+            let fee = fee_base.saturating_add(u64::from((i + h) % 5_001));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            st = apply_mixed_clsag_fee_and_storage_proof(
+                &st,
+                h,
+                vec![tx],
+                &build_storage_proof(
+                    &gen.built.commit,
+                    &st.tip_id().copied().expect("tip"),
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof"),
+            );
+            model = treasury_after_block(model, u128::from(fee), 1, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,

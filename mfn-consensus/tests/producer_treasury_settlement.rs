@@ -1,4 +1,4 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.12**).
+//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.13**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
@@ -1481,6 +1481,96 @@ fn equivocation_bond_and_liveness_slash_compose_in_treasury_closed_loop() {
     assert_eq!(
         st.treasury, expected,
         "equivocation, bond burn, liveness slash, and fee compose in treasury ledger"
+    );
+    assert_eq!(
+        st.validators[equivocation_idx as usize].stake, 0,
+        "equivocation must zero slashed validator stake"
+    );
+    assert_eq!(st.validators[absentee_idx as usize].stake, 990_000);
+    assert_eq!(st.validators.len(), 4);
+    assert_eq!(
+        st.validator_stats[absentee_idx as usize].liveness_slashes,
+        1
+    );
+}
+
+#[test]
+fn equivocation_bond_liveness_fee_and_storage_proof_compose_in_treasury_closed_loop() {
+    let fixture = ValidatorFixture::liveness_absentee_three_validators();
+    let equivocation_idx = 2u32;
+    let absentee_idx = 1u32;
+    let equivocation_stake = u128::from(fixture.validators[equivocation_idx as usize].stake);
+    let slash = equivocation_evidence(
+        1,
+        1,
+        equivocation_idx,
+        &fixture.secrets[equivocation_idx as usize].bls.sk,
+    );
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (mut st, spend) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        DEFAULT_ENDOWMENT_PARAMS,
+        true,
+    );
+    assert_eq!(st.treasury, 0);
+    st.validator_stats[absentee_idx as usize].consecutive_missed = 2;
+
+    let bond = register_op(99);
+    let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let liveness_forfeit = 10_000u128;
+    let fee = 10_000u64;
+    let (signed, _) = spend.sign_self_transfer(fee);
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        1,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof");
+    let bonus = storage_proof_coinbase_bonus(
+        std::slice::from_ref(&proof),
+        &st.storage,
+        1,
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
+    let txs = vec![coinbase, signed.tx];
+    let voters = [0u32, 2];
+    let st = match apply_validator_block_with_voters(
+        &fixture,
+        &voters,
+        &st,
+        1,
+        txs,
+        vec![proof],
+        vec![bond],
+        vec![slash],
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => {
+            panic!("full five-path inflow/outflow block: {errors:?}")
+        }
+    };
+    let expected = treasury_after_equivocation_bond_liveness_block(
+        0,
+        equivocation_stake,
+        liveness_forfeit,
+        bond_stake,
+        u128::from(fee),
+        1,
+        &TEST_EMISSION,
+    );
+    assert_eq!(
+        st.treasury, expected,
+        "equivocation, bond, liveness, fee, and storage drain compose in treasury ledger"
     );
     assert_eq!(
         st.validators[equivocation_idx as usize].stake, 0,
