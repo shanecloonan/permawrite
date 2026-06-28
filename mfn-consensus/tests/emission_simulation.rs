@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1110,6 +1110,12 @@ fn treasury_ledger_matches_combined_inflow_blocks() {
 #[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_sixty_four_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(64, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_blocks() {
+    run_combined_inflow_treasury_sim(256, SIM_EMISSION);
 }
 
 #[test]
