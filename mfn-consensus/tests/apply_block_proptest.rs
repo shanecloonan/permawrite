@@ -1395,6 +1395,60 @@ fn reject_validator_mixed_invalid_clsag_without_state_change() {
     );
 }
 
+/// After a prefix of valid validator mixed blocks, a rejected block at the
+/// next height must not roll back or mutate the accepted prefix (**M5.6+**).
+#[test]
+fn reject_validator_mixed_after_partial_chain_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let PropValidatorPrivacyStorageGenesis {
+        state: mut st,
+        mut spend,
+        built,
+        payload,
+        fixture,
+    } = gen;
+    const PREFIX_LEN: u32 = 3;
+
+    for h in 1..=PREFIX_LEN {
+        let fee = 10_000u64 + u64::from(h) * 1_000;
+        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        spend = next_spend;
+        let fee_sum = u128::from(fee);
+        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, &PROP_MIXED_EMISSION);
+        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        let txs = vec![coinbase, tx];
+        let prev = *st.tip_id().expect("tip");
+        let proof =
+            build_storage_proof(&built.commit, &prev, h, &payload, &built.tree).expect("proof");
+        st = apply_validator_mixed_clsag_fee_and_storage_proof(&fixture, &st, h, txs, &proof);
+    }
+    assert_eq!(st.height, Some(PREFIX_LEN));
+
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let fee = 10_000u64 + u64::from(h) * 1_000;
+    let (mut txs, proof) =
+        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, fee);
+    txs[1].fee = txs[1].fee.wrapping_add(1);
+    let blk = build_validator_mixed_block(
+        &fixture,
+        &st,
+        h,
+        txs,
+        std::slice::from_ref(&proof),
+        &[0, 1, 2],
+    );
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::TxInvalid { .. }),
+        "reject after partial validator mixed chain",
+    );
+}
+
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
 /// case in one `proptest!` block hits `macro_rules!` `$body:block` limits on CI).
 #[test]
