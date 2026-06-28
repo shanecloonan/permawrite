@@ -608,6 +608,8 @@ For the full wire layout, strictness rules, allocation-hardening rationale, and 
 - `validator_root_moves_on_equivocation_slash` (integration) — slashing zeroes stake → next header's root differs.
 - `validator_root_moves_on_unbond_settlement` (integration) — unbond settlement zeroes stake → next header's root differs.
 - `tampered_validator_root_in_signed_block_is_rejected` (integration) — flipping `validator_root` post-signing is rejected (also invalidates the BLS aggregate, which is by design — `header_signing_hash` now binds `validator_root`).
+- `tampered_slashing_root_in_signed_block_is_rejected` (integration) — post-sign flip of `slashing_root` rejects before state mutation.
+- `tampered_storage_proof_root_in_signed_block_is_rejected` (integration) — post-sign flip of `storage_proof_root` rejects before payout effects.
 
 ### Tests added for M5 (production hardening)
 

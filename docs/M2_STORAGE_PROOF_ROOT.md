@@ -149,7 +149,7 @@ This is the textbook end-state for "header binds every body element" — combine
 - [`mfn-storage/src/lib.rs`](../mfn-storage/src/lib.rs) — exports `storage_proof_leaf_hash`, `storage_proof_merkle_root`.
 - [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs) — `BlockHeader::storage_proof_root` field, header signing/serialization, `build_unsealed_header` commits the body root, `apply_block` Phase 1 check, `BlockError::StorageProofRootMismatch`.
 - [`mfn-consensus/tests/integration.rs`](../mfn-consensus/tests/integration.rs) — `tampered_storage_proof_root_in_signed_block_is_rejected` adversarial test + storage-proof-flow positive path.
-- [`mfn-consensus/tests/block_apply.rs`](../mfn-consensus/tests/block_apply.rs) — M5 emit-order root, tampered-root-before-payout, provenance/treasury on accept, unknown commit / wrong chunk / duplicate rejects (`4e8ac41`); dual distinct proofs update both entries, body tamper rejects without state change (`9e5c129`).
+- [`mfn-consensus/tests/block_apply.rs`](../mfn-consensus/tests/block_apply.rs) — M5 emit-order root, tampered-root-before-payout, provenance/treasury on accept, unknown commit / wrong chunk / duplicate rejects (`4e8ac41`; unknown commit + invalid proof each assert no storage/treasury mutation, `46454c2`); dual distinct proofs update both entries, body tamper rejects without state change (`9e5c129`).
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — header shape + Phase 1 description.
 - [`docs/CONSENSUS.md § Storage-proof commitment`](./CONSENSUS.md) — protocol-level description.
 - [`docs/ROADMAP.md § Milestone M2.0.2`](./ROADMAP.md) — roadmap entry.
