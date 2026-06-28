@@ -1,19 +1,19 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
-use mfn_bls::bls_keygen_from_seed;
+use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
     emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
     header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
     try_produce_slot, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState,
     ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
-    OutputSpec, PayoutAddress, ProducerProof, SlotContext, TransactionWire, Validator,
-    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    OutputSpec, PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire,
+    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
@@ -191,6 +191,25 @@ fn treasury_after_combined_inflow_block(
     )
 }
 
+fn treasury_after_equivocation_combined_inflow_block(
+    treasury: u128,
+    equivocation_credit: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_block(
+        treasury
+            .saturating_add(equivocation_credit)
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        proofs,
+        params,
+    )
+}
 /// Deterministic spend material for proptest (**M5.5**).
 #[derive(Clone)]
 struct PropSpendState {
@@ -512,10 +531,12 @@ fn apply_validator_block_with_voters(
     txs: Vec<TransactionWire>,
     storage_proofs: Vec<mfn_storage::StorageProof>,
     bond_ops: Vec<BondOp>,
+    slashings: Vec<SlashEvidence>,
 ) -> ChainState {
     let slot = height;
     let ts = u64::from(height) * 1_000;
-    let unsealed = build_unsealed_header(st, &txs, &bond_ops, &[], &storage_proofs, slot, ts);
+    let unsealed =
+        build_unsealed_header(st, &txs, &bond_ops, &slashings, &storage_proofs, slot, ts);
     let header_hash = header_signing_hash(&unsealed);
     let ctx = SlotContext {
         height,
@@ -563,7 +584,7 @@ fn apply_validator_block_with_voters(
         txs,
         bond_ops,
         encode_finality_proof(&fin),
-        Vec::new(),
+        slashings,
         storage_proofs,
     );
     match apply_block(st, &blk) {
@@ -802,6 +823,24 @@ fn validator_secrets_for_index(index: u32) -> ValidatorSecrets {
     ValidatorSecrets { index, vrf, bls }
 }
 
+fn equivocation_evidence(
+    height: u32,
+    slot: u32,
+    voter_index: u32,
+    bls_sk: &BlsSecretKey,
+) -> SlashEvidence {
+    let h1 = [voter_index.wrapping_add(11) as u8; 32];
+    let h2 = [voter_index.wrapping_add(22) as u8; 32];
+    SlashEvidence {
+        height,
+        slot,
+        voter_index,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, bls_sk),
+    }
+}
 /// Attach a valid MFBN finality blob when the pre-state has validators (**M5.4**).
 ///
 /// Returns the header (possibly with an adjusted `slot` for VRF eligibility) and
@@ -1378,6 +1417,7 @@ proptest! {
                 txs,
                 storage_proofs,
                 bond_ops,
+                Vec::new(),
             );
             let bond_credit = if with_bond { bond_stake } else { 0 };
             let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
@@ -1399,6 +1439,118 @@ proptest! {
             prop_assert!(st.treasury < u128::MAX);
             if with_liveness {
                 prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
+        }
+    }
+
+    /// Equivocation slash on the terminal block with bond/liveness/fee/proof inflows (**M5.9**).
+    #[test]
+    fn prop_validator_equivocation_combined_inflow_random_fee_treasury(
+        n_blocks in 6u32..=12u32,
+        fee_base in 1_000u64..=100_000u64,
+    ) {
+        let gen = genesis_validator_combined_inflow_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let voters = [0u32, 2];
+        const EQUIVOCATION_IDX: u32 = 2;
+        let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let liveness_forfeit = 10_000u128;
+        let mut bond_seed = 50u8;
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 4_501));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let with_bond = h == 4;
+            let with_proof = h % 4 == 0;
+            let with_liveness = h == 8 && n_blocks >= 8;
+            let with_equivocation = h == n_blocks;
+            let proofs = if with_proof { 1u128 } else { 0 };
+            let equivocation_credit = if with_equivocation {
+                u128::from(st.validators[EQUIVOCATION_IDX as usize].stake)
+            } else {
+                0
+            };
+            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let storage_proofs = if with_proof {
+                let prev = *st.tip_id().expect("tip");
+                vec![build_storage_proof(
+                    &gen.built.commit,
+                    &prev,
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof")]
+            } else {
+                Vec::new()
+            };
+            let bond_ops = if with_bond {
+                bond_seed = bond_seed.wrapping_add(1);
+                vec![register_op(bond_seed)]
+            } else {
+                Vec::new()
+            };
+            let slashings = if with_equivocation {
+                vec![equivocation_evidence(
+                    h,
+                    h,
+                    EQUIVOCATION_IDX,
+                    &gen.fixture.secrets[EQUIVOCATION_IDX as usize].bls.sk,
+                )]
+            } else {
+                Vec::new()
+            };
+            if with_liveness {
+                st.validator_stats[1].consecutive_missed =
+                    gen.fixture.params.liveness_max_consecutive_missed - 1;
+            }
+            st = apply_validator_block_with_voters(
+                &gen.fixture,
+                &voters,
+                &st,
+                h,
+                txs,
+                storage_proofs,
+                bond_ops,
+                slashings,
+            );
+            let bond_credit = if with_bond { bond_stake } else { 0 };
+            let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+            model = treasury_after_equivocation_combined_inflow_block(
+                model,
+                equivocation_credit,
+                bond_credit,
+                liveness_credit,
+                fee_sum,
+                proofs,
+                emission,
+            );
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {})",
+                h,
+                fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+            if with_liveness {
+                prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
+            if with_equivocation {
+                prop_assert_eq!(
+                    st.validators[EQUIVOCATION_IDX as usize].stake,
+                    0,
+                    "equivocation must zero slashed validator stake"
+                );
             }
         }
     }
