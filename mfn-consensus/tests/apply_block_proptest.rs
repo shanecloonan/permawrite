@@ -530,6 +530,22 @@ fn assert_reject_preserves_state<F>(
     }
 }
 
+fn legacy_mixed_block_material(
+    spend: &PropSpendState,
+    built: &BuiltCommitment,
+    payload: &[u8],
+    st: &ChainState,
+    height: u32,
+    fee: u64,
+) -> (Vec<TransactionWire>, mfn_storage::StorageProof) {
+    let (tx, _) = spend.sign_self_transfer(fee, height);
+    let txs = vec![tx];
+    let prev = *st.tip_id().expect("tip");
+    let proof =
+        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+    (txs, proof)
+}
+
 fn apply_mixed_clsag_fee_and_storage_proof(
     st: &ChainState,
     height: u32,
@@ -1074,6 +1090,78 @@ fn reject_duplicate_storage_proof_in_mixed_block_without_state_change() {
         }
         ApplyOutcome::Ok { .. } => panic!("duplicate storage proof must reject"),
     }
+}
+
+/// Post-signing `storage_proof_root` tamper on a legacy mixed block (CLSAG +
+/// SPoRA, no validators) must reject before state commit (**M5.5+**).
+#[test]
+fn reject_mixed_tampered_storage_proof_root_without_state_change() {
+    let gen = genesis_privacy_storage_for_proptest();
+    let PropPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let (txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, 50_000);
+    let unsealed = build_unsealed_header(
+        &st,
+        &txs,
+        &[],
+        &[],
+        std::slice::from_ref(&proof),
+        h,
+        u64::from(h) * 1_000,
+    );
+    let mut blk = seal_with_test_finality(&st, unsealed, txs, Vec::new(), Vec::new(), vec![proof]);
+    blk.header.storage_proof_root[0] ^= 0xff;
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::StorageProofRootMismatch),
+        "legacy tampered storage_proof_root",
+    );
+}
+
+/// Fee tamper after CLSAG signing on a legacy mixed block must reject without
+/// spending inputs (**M5.5+**).
+#[test]
+fn reject_mixed_invalid_clsag_without_state_change() {
+    let gen = genesis_privacy_storage_for_proptest();
+    let PropPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let (mut txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, 50_000);
+    txs[0].fee = txs[0].fee.wrapping_add(1);
+    let unsealed = build_unsealed_header(
+        &st,
+        &txs,
+        &[],
+        &[],
+        std::slice::from_ref(&proof),
+        h,
+        u64::from(h) * 1_000,
+    );
+    let blk = seal_with_test_finality(&st, unsealed, txs, Vec::new(), Vec::new(), vec![proof]);
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::TxInvalid { .. }),
+        "legacy invalid CLSAG",
+    );
 }
 
 /// Validator finality + coinbase do not weaken the same atomicity invariant:
