@@ -59,7 +59,11 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Emission / treasury (M5.0–M5.3):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + 16-block validator CLSAG fee chain with coinbase decrypt + 12-block validator mixed fee+proof with coinbase decrypt + 128-block legacy CLSAG fee chain + 48-block legacy mixed blocks). Longer sims are `#[ignore]` (nightly).
 
-**apply_block proptest (M5.2 / M5.2+ / M5.2++):** default CI runs `mfn-consensus/tests/apply_block_proptest.rs` (32-case `proptest!` for empty chains, header tamper rejects, storage-proof chains, alternating empty+SPoRA pairs, multi-register bond ops in one block; plain `#[test]` for forged-register and duplicate-proof rejects — avoids `proptest!` `$body:block` brace limits). Deep chains are `#[ignore]`.
+**Validator finality evolution (M5 consensus):** default CI runs `mfn-consensus/tests/validator_finality_evolution.rs` — pre-block `validator_root` / quorum semantics, liveness bitmap + stats atomicity on accept vs reject, bond-root mismatch reject without state change, validator-root movement on liveness/equivocation slash.
+
+**SPoRA binding + payout (M5 storage):** default CI runs new cases in `mfn-consensus/tests/block_apply.rs` — emit-order `storage_proof_root`, tampered root rejects before payout effects, provenance + treasury on accept, unknown commit / wrong chunk / duplicate proof rejects.
+
+**apply_block proptest (M5.2–M5.6 + rollback):** default CI runs `mfn-consensus/tests/apply_block_proptest.rs` — 32-case `proptest!` props for empty chains, header tamper rejects (state unchanged), storage-proof chains, alternating empty+SPoRA pairs, bond-register + SPoRA treasury ledger identity, legacy and validator-mode mixed CLSAG fee + SPoRA same-block treasury (`prop_validator_mixed_clsag_fee_and_storage_proof_treasury`, **M5.6**); plain `#[test]` for forged-register, duplicate-proof, and **mixed-block rollback** (`reject_duplicate_storage_proof_in_mixed_block_without_state_change`, `reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change` — checkpoint bytes unchanged on reject). Deep chains are `#[ignore]` (nightly).
 
 ## Why recent pushes failed (tests)
 

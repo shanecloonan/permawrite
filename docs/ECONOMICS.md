@@ -505,6 +505,10 @@ Validator bonds are therefore a **one-way contribution to the permanence endowme
 
 This is the economic engine M1 unlocked: privacy demand pays the treasury via fees, validators pay the treasury via bonds, slashes pay the treasury via punishment, and the treasury pays permanence operators. No leakage; no second pool to govern.
 
+### M5 settlement test matrix
+
+Long-run treasury ledger identity vs `apply_block` over CLSAG fee, mixed CLSAG + SPoRA, and validator-mode chains lives in `tests/emission_simulation.rs` (M5.0–M5.3; see [`CI.md`](./CI.md)). Per-block coinbase composition (emission + producer fee share + storage rewards) and treasury drain vs emission backstop are asserted there and in `tests/apply_block_proptest.rs` mixed-block proptests.
+
 ### When the deferred operator payout lands
 
 A future milestone may restore an explicit settlement payout — either via an augmented coinbase output for the settling validator, or a dedicated payout transaction class. Both shapes treat the payout as a `treasury` outflow on the same accounting footing as storage rewards. The economics here are robust to either choice; the loop above is the invariant.

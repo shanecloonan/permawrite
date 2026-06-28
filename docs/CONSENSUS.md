@@ -609,6 +609,11 @@ For the full wire layout, strictness rules, allocation-hardening rationale, and 
 - `validator_root_moves_on_unbond_settlement` (integration) — unbond settlement zeroes stake → next header's root differs.
 - `tampered_validator_root_in_signed_block_is_rejected` (integration) — flipping `validator_root` post-signing is rejected (also invalidates the BLS aggregate, which is by design — `header_signing_hash` now binds `validator_root`).
 
+### Tests added for M5 (production hardening)
+
+- **`tests/validator_finality_evolution.rs` (M5 consensus, `a97242a`)** — `finality_quorum_uses_pre_block_validator_set`, `validator_root_is_pre_block_in_validator_mode`, liveness bitmap + stats evolve atomically on accept, `liveness_stats_unchanged_when_block_rejected`, `rejected_block_leaves_state_unchanged`, `bond_root_mismatch_rejects_without_state_change`, `validator_root_moves_on_liveness_slash`, `equivocation_slash_moves_successor_validator_root`.
+- **`tests/apply_block_proptest.rs` (Agent 1 rollback, `5c5975f` / `dd76d7f`)** — `reject_duplicate_storage_proof_in_mixed_block_without_state_change` (legacy CLSAG + SPoRA same block); `reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change` (validator quorum + coinbase + CLSAG + SPoRA); both assert checkpoint bytes unchanged on reject.
+
 ---
 
 ## 7. Genesis

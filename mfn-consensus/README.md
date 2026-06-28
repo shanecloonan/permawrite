@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 206 passing (192 unit + 14 integration) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** clean
+**Tests:** 250+ passing (unit + integration across `src/` and five `tests/` targets) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** `-D warnings` (see `scripts/ci-check`)
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 
@@ -265,7 +265,11 @@ pub enum BlockError {
 - **Full block wire codec (M2.0.10)** — 18 new unit tests: 5 in `mfn-storage::commitment` for the full `StorageCommitment` codec, 7 in `transaction::tests` for `TransactionWire` round-trip / truncation / trailing / invalid-flag handling, and 6 in `block::tests` for `encode_block` / `decode_block` shape, strictness, allocation-hardening, and a 278-byte empty-body golden shape. Plus 2 mfn-light integration tests proving real BLS-signed block bytes decode and feed `LightChain::apply_block` in lockstep with `mfn-node::Chain`.
 - **Chain checkpoint codec (M2.0.15)** — 13 unit tests in `chain_checkpoint::tests` proving pre-genesis and rich-state round-trips, deterministic output independent of `HashMap` iteration order, integrity-tag tamper rejection, typed decode errors, and domain separation from light checkpoints.
 - **Shared checkpoint codec (M2.0.16)** — 12 unit tests in `checkpoint_codec::tests` proving byte-exact round-trips for `Validator`, `ValidatorStats`, `PendingUnbond`, `ConsensusParams`, `BondingParams`; truncation and invalid-payout-flag rejection; duplicate-validator and `next_validator_index` invariant enforcement; and f64 bit preservation.
-- **Integration** (multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks).
+- **Integration** (`tests/integration.rs`) — multi-block flows: genesis → block1 → block2 with privacy tx, storage upload, slashing; full `unbond_lifecycle` with 3 validators, BLS finality, request → delay → settle, equivocation-during-delay still slashes, exit-churn cap spills across blocks.
+- **Block apply** (`tests/block_apply.rs`) — root mismatches; SPoRA binding (`storage_proof_root` emit order, tampered root rejects before payout, provenance + treasury on accept, unknown commit / wrong chunk / duplicate proof rejects).
+- **Emission simulation (M5.0–M5.3)** (`tests/emission_simulation.rs`) — long-run treasury ledger vs `apply_block`, validator CLSAG-fee and mixed fee+proof chains, coinbase decrypt checks; deep sims `#[ignore]` (nightly).
+- **apply_block proptest (M5.2–M5.6)** (`tests/apply_block_proptest.rs`) — randomized valid chains + reject-without-mutation props; mixed CLSAG + SPoRA rollback (`reject_duplicate_storage_proof_in_mixed_block_without_state_change`, `reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change`).
+- **Validator finality evolution (M5 consensus)** (`tests/validator_finality_evolution.rs`) — pre-block `validator_root` quorum, liveness stats atomicity, reject preserves state, root movement on slash.
 
 ```bash
 cargo test -p mfn-consensus --release
