@@ -3,7 +3,7 @@
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
 //! liveness stats/stake updates, header body-root binding (bond, slashing,
 //! tx, storage_proof), unbond-settlement root evolution, equivocation during
-//! unbond delay, exit-churn deferral and epoch reset, duplicate/invalid slash
+//! unbond delay, entry/exit churn caps and epoch reset, duplicate/invalid slash
 //! rejection, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
@@ -86,6 +86,49 @@ fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights: u32
     }
 }
 
+fn boot_three_validators_entry_churn_cfg(
+    max_entry_churn_per_epoch: u32,
+    slots_per_epoch: u32,
+) -> Fixture {
+    let (v0, s0) = mk_validator(0, 1_000_000);
+    let (v1, s1) = mk_validator(1, 1_000_000);
+    let (v2, s2) = mk_validator(2, 1_000_000);
+    let validators = vec![v0, v1, v2];
+    let secrets = vec![s0, s1, s2];
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6667,
+        liveness_max_consecutive_missed: 64,
+        liveness_slash_bps: 0,
+    };
+    let bonding = BondingParams {
+        min_validator_stake: 100_000,
+        max_entry_churn_per_epoch,
+        slots_per_epoch,
+        ..DEFAULT_BONDING_PARAMS
+    };
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(bonding),
+    };
+    let genesis = build_genesis(&cfg);
+    let state = apply_genesis(&genesis, &cfg).expect("genesis");
+    Fixture {
+        state,
+        secrets,
+        params,
+    }
+}
+
+/// Matches `boot_three_validators_entry_churn_cfg`'s lowered `min_validator_stake`.
+const ENTRY_CHURN_REGISTER_STAKE: u64 = 100_000;
+
 /// Four-validator chain with short unbond delay and a tight exit-churn cap.
 fn boot_four_validators_exit_churn() -> Fixture {
     boot_four_validators_exit_churn_cfg(DEFAULT_BONDING_PARAMS.slots_per_epoch)
@@ -163,7 +206,7 @@ fn attach_finality(
         };
 
         let mut candidates: Vec<ProducerProof> = Vec::new();
-        for (i, v) in st.validators.iter().enumerate() {
+        for (i, v) in st.validators.iter().enumerate().take(fx.secrets.len()) {
             if let Ok(Some(p)) =
                 try_produce_slot(&ctx, &fx.secrets[i], v, total_stake, f, &header_hash)
             {
@@ -230,6 +273,12 @@ fn seal_empty(
 
 fn all_voter_positions(st: &ChainState) -> Vec<usize> {
     (0..st.validators.len()).collect()
+}
+
+/// Genesis committee positions — only these validators have BLS secrets in
+/// the fixture, so post-`Register` blocks must not iterate new indices.
+fn incumbent_voter_positions(fx: &Fixture) -> Vec<usize> {
+    (0..fx.secrets.len()).collect()
 }
 
 fn snapshot(st: &ChainState) -> (Option<u32>, usize, Vec<u64>, Vec<ValidatorStats>) {
@@ -1099,4 +1148,148 @@ fn exit_churn_cap_resets_at_epoch_boundary() {
     assert!(!st.pending_unbonds.contains_key(&i3));
     assert_eq!(st.validators[3].stake, 0);
     assert_eq!(st.bond_epoch_exit_count, 1);
+}
+
+/// Per-epoch entry churn rejects a third `Register` in the same block.
+#[test]
+fn entry_churn_cap_rejects_third_register_without_state_change() {
+    let fx = boot_three_validators_entry_churn_cfg(2, DEFAULT_BONDING_PARAMS.slots_per_epoch);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let stake = ENTRY_CHURN_REGISTER_STAKE;
+    let ops = vec![
+        register_op(stake, 10),
+        register_op(stake, 11),
+        register_op(stake, 12),
+    ];
+    let block = seal_empty(&fx, &st, 1, ops, Vec::new(), &all_voter_positions(&st));
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondOpRejected { index: 2, .. })),
+                "expected third register rejected, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("third register must exceed entry churn cap"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.validators.len(), 3);
+}
+
+/// Two `Register` ops within the entry cap apply atomically and move
+/// `validator_root` for the successor header.
+#[test]
+fn entry_churn_cap_allows_two_registers_and_moves_validator_root() {
+    let fx = boot_three_validators_entry_churn_cfg(2, DEFAULT_BONDING_PARAMS.slots_per_epoch);
+    let st = fx.state.clone();
+    let pre_root = validator_set_root(&st.validators);
+    let stake = ENTRY_CHURN_REGISTER_STAKE;
+    let ops = vec![register_op(stake, 20), register_op(stake, 21)];
+    let block = seal_empty(&fx, &st, 1, ops, Vec::new(), &all_voter_positions(&st));
+    assert_eq!(block.header.validator_root, pre_root);
+
+    let post = apply_block(&st, &block)
+        .into_state()
+        .expect("two registers within cap");
+    assert_eq!(post.validators.len(), 5);
+    assert_eq!(post.bond_epoch_entry_count, 2);
+    let post_root = validator_set_root(&post.validators);
+    assert_ne!(pre_root, post_root);
+
+    let next = build_unsealed_header(&post, &[], &[], &[], &[], 2, 200);
+    assert_eq!(next.validator_root, post_root);
+}
+
+/// Entry-churn budget resets at the bond epoch boundary.
+#[test]
+fn entry_churn_cap_resets_at_epoch_boundary() {
+    let fx = boot_three_validators_entry_churn_cfg(2, 4);
+    let mut st = fx.state.clone();
+    let stake = ENTRY_CHURN_REGISTER_STAKE;
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(stake, 30), register_op(stake, 31)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("first two registers");
+    assert_eq!(st.validators.len(), 5);
+    assert_eq!(st.bond_epoch_entry_count, 2);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("advance to height 2");
+    assert_eq!(st.height, Some(2));
+
+    let after_two = st.clone();
+    let block3 = seal_empty(
+        &fx,
+        &st,
+        3,
+        vec![register_op(stake, 32)],
+        Vec::new(),
+        &incumbent_voter_positions(&fx),
+    );
+    match apply_block(&st, &block3) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondOpRejected { index: 0, .. })),
+                "expected entry cap rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("third register same epoch must reject"),
+    }
+    assert_eq!(st.validators.len(), after_two.validators.len());
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("advance to height 3 before epoch boundary");
+    assert_eq!(st.height, Some(3));
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            4,
+            vec![register_op(stake, 33), register_op(stake, 34)],
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("new epoch allows two more registers");
+    assert_eq!(st.validators.len(), 7);
+    assert_eq!(st.bond_epoch_entry_count, 2);
 }
