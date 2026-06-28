@@ -3,8 +3,8 @@
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
 //! liveness stats/stake updates, header body-root binding (bond, slashing,
 //! tx, storage_proof), unbond-settlement root evolution, equivocation during
-//! unbond delay, exit-churn deferral, invalid slash rejection, and rejection
-//! preserving caller state.
+//! unbond delay, exit-churn deferral and epoch reset, duplicate/invalid slash
+//! rejection, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -88,6 +88,10 @@ fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights: u32
 
 /// Four-validator chain with short unbond delay and a tight exit-churn cap.
 fn boot_four_validators_exit_churn() -> Fixture {
+    boot_four_validators_exit_churn_cfg(DEFAULT_BONDING_PARAMS.slots_per_epoch)
+}
+
+fn boot_four_validators_exit_churn_cfg(slots_per_epoch: u32) -> Fixture {
     let (v0, s0) = mk_validator(0, 1_000_000);
     let (v1, s1) = mk_validator(1, 1_000_000);
     let (v2, s2) = mk_validator(2, 1_000_000);
@@ -104,6 +108,7 @@ fn boot_four_validators_exit_churn() -> Fixture {
         min_validator_stake: 100_000,
         unbond_delay_heights: 1,
         max_exit_churn_per_epoch: 2,
+        slots_per_epoch,
         ..DEFAULT_BONDING_PARAMS
     };
     let cfg = GenesisConfig {
@@ -963,4 +968,135 @@ fn exit_churn_cap_defers_third_unbond_settlement() {
     assert_eq!(st.validators[2].stake, 0);
     assert_eq!(st.validators[3].stake, 1_000_000);
     assert_eq!(st.bond_epoch_exit_count, 2);
+}
+
+/// Duplicate slash evidence for the same validator rejects the block whole.
+#[test]
+fn duplicate_slash_evidence_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let v2_idx = st.validators[2].index;
+    let v2_sk = fx.secrets[2].bls.sk.clone();
+
+    let first = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v2_idx,
+        header_hash_a: [41u8; 32],
+        sig_a: bls_sign(&[41u8; 32], &v2_sk),
+        header_hash_b: [42u8; 32],
+        sig_b: bls_sign(&[42u8; 32], &v2_sk),
+    };
+    let duplicate = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v2_idx,
+        header_hash_a: [43u8; 32],
+        sig_a: bls_sign(&[43u8; 32], &v2_sk),
+        header_hash_b: [44u8; 32],
+        sig_b: bls_sign(&[44u8; 32], &v2_sk),
+    };
+
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![first, duplicate],
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateSlash { .. })),
+                "expected duplicate slash, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate slash evidence must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.validators[2].stake, 1_000_000);
+}
+
+/// Exit-churn budget resets at the bond epoch boundary so deferred unbonds
+/// can settle on the first block of the next epoch.
+#[test]
+fn exit_churn_cap_resets_at_epoch_boundary() {
+    let fx = boot_four_validators_exit_churn_cfg(4);
+    let mut st = fx.state.clone();
+    let i1 = st.validators[1].index;
+    let i2 = st.validators[2].index;
+    let i3 = st.validators[3].index;
+    let unbonds = vec![
+        BondOp::Unbond {
+            validator_index: i1,
+            sig: sign_unbond(i1, &fx.secrets[1].bls.sk),
+        },
+        BondOp::Unbond {
+            validator_index: i2,
+            sig: sign_unbond(i2, &fx.secrets[2].bls.sk),
+        },
+        BondOp::Unbond {
+            validator_index: i3,
+            sig: sign_unbond(i3, &fx.secrets[3].bls.sk),
+        },
+    ];
+
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 1, unbonds, Vec::new(), &all_voter_positions(&st)),
+    )
+    .into_state()
+    .expect("unbond requests");
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("cap settles first two");
+    assert_eq!(st.pending_unbonds.len(), 1);
+    assert!(st.pending_unbonds.contains_key(&i3));
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("same epoch still capped");
+    assert_eq!(st.pending_unbonds.len(), 1);
+    assert_eq!(st.validators[3].stake, 1_000_000);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            4,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("new epoch settles deferred exit");
+    assert!(!st.pending_unbonds.contains_key(&i3));
+    assert_eq!(st.validators[3].stake, 0);
+    assert_eq!(st.bond_epoch_exit_count, 1);
 }
