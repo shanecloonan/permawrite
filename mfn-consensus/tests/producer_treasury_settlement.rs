@@ -1,23 +1,23 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**).
+//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**, **M5.8**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
 //! fees split 90/10 treasury/producer by default; storage rewards drain treasury
 //! first; emission backstop covers only the treasury shortfall; validator bond
-//! burns credit treasury before fee settlement in the closed loop.
+//! burns and slash forfeits credit treasury before fee settlement in the closed loop.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
-use mfn_bls::bls_keygen_from_seed;
+use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
     emission_at_height, encode_finality_proof, finalize, header_signing_hash,
     producer_coinbase_amount, seal_block, sign_register, sign_transaction,
     storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainState,
     ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
-    OutputSpec, PayoutAddress, SignedTransaction, SlotContext, TransactionWire, Validator,
-    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence, SlotContext, TransactionWire,
+    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
@@ -70,6 +70,22 @@ fn treasury_after_block(
 ) -> u128 {
     treasury_after_settlement(
         treasury.saturating_add(bond_burn),
+        fee_sum,
+        accepted_proofs,
+        params,
+    )
+}
+
+/// Equivocation slash credits treasury before fee settlement and proof drain.
+fn treasury_after_slash_block(
+    treasury: u128,
+    slash_credit: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement(
+        treasury.saturating_add(slash_credit),
         fee_sum,
         accepted_proofs,
         params,
@@ -266,6 +282,25 @@ fn genesis_validator_with_funded_utxo(
     (st, spend)
 }
 
+fn equivocation_evidence(
+    height: u32,
+    slot: u32,
+    voter_index: u32,
+    bls_sk: &BlsSecretKey,
+) -> SlashEvidence {
+    let h1 = [voter_index.wrapping_add(11) as u8; 32];
+    let h2 = [voter_index.wrapping_add(22) as u8; 32];
+    SlashEvidence {
+        height,
+        slot,
+        voter_index,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, bls_sk),
+    }
+}
+
 fn register_op(seed: u8) -> BondOp {
     let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
     let vrf = vrf_keygen_from_seed(&[seed.wrapping_add(101); 32]).expect("vrf");
@@ -279,6 +314,8 @@ fn register_op(seed: u8) -> BondOp {
     }
 }
 
+/// Validator quorum block apply helper (BLS finality + optional bond/slash body).
+#[allow(clippy::too_many_arguments)]
 fn apply_validator_block(
     fixture: &ValidatorFixture,
     st: &ChainState,
@@ -286,10 +323,12 @@ fn apply_validator_block(
     txs: Vec<TransactionWire>,
     storage_proofs: Vec<mfn_storage::StorageProof>,
     bond_ops: Vec<BondOp>,
+    slashings: Vec<SlashEvidence>,
     slot: u32,
 ) -> ApplyOutcome {
     let ts = u64::from(height) * 1_000;
-    let unsealed = build_unsealed_header(st, &txs, &bond_ops, &[], &storage_proofs, slot, ts);
+    let unsealed =
+        build_unsealed_header(st, &txs, &bond_ops, &slashings, &storage_proofs, slot, ts);
     let header_hash = header_signing_hash(&unsealed);
     let ctx = SlotContext {
         height,
@@ -335,7 +374,7 @@ fn apply_validator_block(
         txs,
         bond_ops,
         encode_finality_proof(&fin),
-        Vec::new(),
+        slashings,
         storage_proofs,
     );
     apply_block(st, &blk)
@@ -459,7 +498,16 @@ fn storage_reward_drains_prefunded_treasury_first() {
     let cb1 = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase1 = build_coinbase(1, cb1, &fixture.payout).expect("coinbase");
     let txs1 = vec![coinbase1, signed.tx];
-    st = match apply_validator_block(&fixture, &st, 1, txs1, Vec::new(), Vec::new(), 1) {
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        txs1,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("block 1: {errors:?}"),
     };
@@ -481,7 +529,16 @@ fn storage_reward_drains_prefunded_treasury_first() {
     let cb2 = producer_coinbase_amount(2, &TEST_EMISSION, 0, 1, 0);
     let coinbase2 = build_coinbase(2, cb2, &fixture.payout).expect("coinbase");
     let txs2 = vec![coinbase2];
-    st = match apply_validator_block(&fixture, &st, 2, txs2, vec![proof], Vec::new(), 2) {
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        2,
+        txs2,
+        vec![proof],
+        Vec::new(),
+        Vec::new(),
+        2,
+    ) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("block 2: {errors:?}"),
     };
@@ -530,7 +587,16 @@ fn emission_backstop_only_when_treasury_short() {
     .expect("proof");
     let cb_amount = producer_coinbase_amount(1, &TEST_EMISSION, 0, 1, 0);
     let coinbase = build_coinbase(1, cb_amount, &fixture.payout).expect("coinbase");
-    st = match apply_validator_block(&fixture, &st, 1, vec![coinbase], vec![proof], Vec::new(), 1) {
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![coinbase],
+        vec![proof],
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("block 1: {errors:?}"),
     };
@@ -565,6 +631,7 @@ fn emission_backstop_only_when_treasury_short() {
         2,
         vec![coinbase2],
         vec![proof2],
+        Vec::new(),
         Vec::new(),
         2,
     ) {
@@ -604,7 +671,7 @@ fn invalid_coinbase_amount_rejected_without_state_change() {
     let bad_coinbase = build_coinbase(1, wrong, &fixture.payout).expect("coinbase");
     let txs = vec![bad_coinbase, signed.tx];
 
-    match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), Vec::new(), 1) {
+    match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), Vec::new(), Vec::new(), 1) {
         ApplyOutcome::Err { errors, .. } => {
             assert!(
                 errors
@@ -640,7 +707,7 @@ fn overpaid_coinbase_amount_rejected_without_state_change() {
     let bad_coinbase = build_coinbase(1, wrong, &fixture.payout).expect("coinbase");
     let txs = vec![bad_coinbase, signed.tx];
 
-    match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), Vec::new(), 1) {
+    match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), Vec::new(), Vec::new(), 1) {
         ApplyOutcome::Err { errors, .. } => {
             assert!(
                 errors
@@ -675,10 +742,11 @@ fn bond_burn_and_fee_inflow_compose_in_treasury_closed_loop() {
     let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
     let txs = vec![coinbase, signed.tx];
-    let st = match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), vec![bond], 1) {
-        ApplyOutcome::Ok { state, .. } => state,
-        ApplyOutcome::Err { errors, .. } => panic!("bond+fee block: {errors:?}"),
-    };
+    let st =
+        match apply_validator_block(&fixture, &st, 1, txs, Vec::new(), vec![bond], Vec::new(), 1) {
+            ApplyOutcome::Ok { state, .. } => state,
+            ApplyOutcome::Err { errors, .. } => panic!("bond+fee block: {errors:?}"),
+        };
     let expected = treasury_after_block(0, bond_stake, u128::from(fee), 0, &TEST_EMISSION);
     assert_eq!(
         st.treasury, expected,
@@ -748,6 +816,7 @@ fn ppb_bonus_increases_validator_coinbase_and_treasury_drain() {
         vec![coinbase],
         vec![proof],
         Vec::new(),
+        Vec::new(),
         slot,
     ) {
         ApplyOutcome::Ok { state, .. } => state,
@@ -762,5 +831,204 @@ fn ppb_bonus_increases_validator_coinbase_and_treasury_drain() {
         u128::from(cb_amount),
         subsidy + storage_reward_total,
         "coinbase must include flat proof reward plus PPB bonus"
+    );
+}
+#[test]
+fn equivocation_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
+    let fixture = ValidatorFixture::three_validators();
+    let slash_idx = 1u32;
+    let slash_stake = u128::from(fixture.validators[slash_idx as usize].stake);
+    let slash = equivocation_evidence(1, 1, slash_idx, &fixture.secrets[slash_idx as usize].bls.sk);
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (st, spend) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+    assert_eq!(st.treasury, 0);
+
+    let fee = 8_000u64;
+    let (signed, _) = spend.sign_self_transfer(fee);
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        1,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof");
+    let bonus = storage_proof_coinbase_bonus(
+        std::slice::from_ref(&proof),
+        &st.storage,
+        1,
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
+    let txs = vec![coinbase, signed.tx];
+    let st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        txs,
+        vec![proof],
+        Vec::new(),
+        vec![slash],
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("slash+fee+proof block: {errors:?}"),
+    };
+    let expected = treasury_after_slash_block(0, slash_stake, u128::from(fee), 1, &TEST_EMISSION);
+    assert_eq!(
+        st.treasury, expected,
+        "slash credit, fee inflow, and storage drain compose in treasury ledger"
+    );
+    assert_eq!(
+        st.validators[slash_idx as usize].stake, 0,
+        "equivocation must zero slashed validator stake"
+    );
+}
+
+#[test]
+fn ppb_pending_carryover_pays_on_second_proof_block() {
+    let fixture = ValidatorFixture::three_validators();
+    let ep = EndowmentParams {
+        real_yield_ppb: 40_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let payload: Vec<u8> = vec![0u8; 1 << 20];
+    let built = build_storage_commitment(&payload, 1_000, Some(4096), ep.min_replication, None)
+        .expect("commitment");
+    let storage = StorageFixture { payload, built };
+    let initial = 50_000_000_000u64;
+    let (mut st, _) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        ep,
+        false,
+    );
+    st.treasury = 1_000_000;
+    let commit_hash = storage_commitment_hash(&storage.built.commit);
+
+    let slot1 = 1u32;
+    let probe = accrue_proof_reward(AccrueArgs {
+        size_bytes: storage.built.commit.size_bytes,
+        replication: storage.built.commit.replication,
+        pending_ppb: 0,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot1),
+        params: &ep,
+    })
+    .expect("probe accrual");
+    assert_eq!(
+        probe.payout, 0,
+        "one slot of yield must not cross PPB payout boundary alone"
+    );
+    let incoming = probe.new_pending_ppb;
+    assert!(incoming > 0 && incoming < PPB);
+    let seed_pending = PPB - incoming - 1;
+    st.storage.get_mut(&commit_hash).unwrap().pending_yield_ppb = seed_pending;
+
+    let accrual1 = accrue_proof_reward(AccrueArgs {
+        size_bytes: storage.built.commit.size_bytes,
+        replication: storage.built.commit.replication,
+        pending_ppb: seed_pending,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot1),
+        params: &ep,
+    })
+    .expect("accrue block 1");
+    assert_eq!(
+        accrual1.payout, 0,
+        "seeded pending must defer payout to block 2"
+    );
+    assert_eq!(accrual1.new_pending_ppb, PPB - 1);
+
+    let prev = *st.tip_id().expect("tip");
+    let proof1 = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        slot1,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof1");
+    let cb1 = producer_coinbase_amount(1, &TEST_EMISSION, 0, 1, 0);
+    let coinbase1 = build_coinbase(1, cb1, &fixture.payout).expect("coinbase1");
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![coinbase1],
+        vec![proof1],
+        Vec::new(),
+        Vec::new(),
+        slot1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block 1: {errors:?}"),
+    };
+    assert_eq!(st.storage[&commit_hash].pending_yield_ppb, PPB - 1);
+
+    let slot2 = 2u32;
+    let accrual2 = accrue_proof_reward(AccrueArgs {
+        size_bytes: storage.built.commit.size_bytes,
+        replication: storage.built.commit.replication,
+        pending_ppb: PPB - 1,
+        last_proven_slot: u64::from(slot1),
+        current_slot: u64::from(slot2),
+        params: &ep,
+    })
+    .expect("accrue block 2");
+    assert!(
+        accrual2.payout > 0,
+        "second proof must pay integer units from carried PPB"
+    );
+
+    let treasury_before_b2 = st.treasury;
+    let prev2 = *st.tip_id().expect("tip");
+    let proof2 = build_storage_proof(
+        &storage.built.commit,
+        &prev2,
+        slot2,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof2");
+    let bonus2 =
+        storage_proof_coinbase_bonus(std::slice::from_ref(&proof2), &st.storage, slot2, &ep);
+    assert_eq!(bonus2, accrual2.payout);
+    let cb2 = producer_coinbase_amount(2, &TEST_EMISSION, 0, 1, bonus2);
+    let coinbase2 = build_coinbase(2, cb2, &fixture.payout).expect("coinbase2");
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        2,
+        vec![coinbase2],
+        vec![proof2],
+        Vec::new(),
+        Vec::new(),
+        slot2,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block 2: {errors:?}"),
+    };
+    let storage_reward_total = u128::from(TEST_EMISSION.storage_proof_reward) + accrual2.payout;
+    let expected_treasury =
+        treasury_before_b2.saturating_sub(treasury_before_b2.min(storage_reward_total));
+    assert_eq!(st.treasury, expected_treasury);
+    let subsidy2 = u128::from(emission_at_height(2, &TEST_EMISSION));
+    assert_eq!(
+        u128::from(cb2),
+        subsidy2 + storage_reward_total,
+        "coinbase on carry-over block includes flat reward plus PPB payout"
     );
 }
