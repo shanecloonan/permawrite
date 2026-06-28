@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -1541,6 +1541,132 @@ proptest! {
                 "treasury mismatch at height {} (fee {})",
                 h,
                 fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+            if with_liveness {
+                prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
+            if with_equivocation {
+                prop_assert_eq!(
+                    st.validators[EQUIVOCATION_IDX as usize].stake,
+                    0,
+                    "equivocation must zero slashed validator stake"
+                );
+            }
+        }
+    }
+
+    /// Bond/liveness/proof heights vary by proptest inputs; equivocation on terminal block (**M5.10**).
+    #[test]
+    fn prop_validator_combined_inflow_random_schedule_treasury(
+        n_blocks in 8u32..=16u32,
+        fee_base in 1_000u64..=80_000u64,
+        bond_offset in 0u32..=4u32,
+        liveness_offset in 0u32..=4u32,
+        proof_stride in 2u32..=5u32,
+    ) {
+        let gen = genesis_validator_combined_inflow_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let voters = [0u32, 2];
+        const EQUIVOCATION_IDX: u32 = 2;
+        let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let liveness_forfeit = 10_000u128;
+        let mut bond_seed = 60u8;
+
+        let bond_h = 2 + bond_offset % (n_blocks - 3);
+        let liveness_span = n_blocks.saturating_sub(5).max(1);
+        let liveness_h = 3 + liveness_offset % liveness_span;
+        prop_assert!(
+            liveness_h < n_blocks,
+            "liveness height {liveness_h} must precede terminal equivocation at {n_blocks}"
+        );
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 4_501));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let with_bond = h == bond_h;
+            let with_proof = h % proof_stride == 0;
+            let with_liveness = h == liveness_h;
+            let with_equivocation = h == n_blocks;
+            let proofs = if with_proof { 1u128 } else { 0 };
+            let equivocation_credit = if with_equivocation {
+                u128::from(st.validators[EQUIVOCATION_IDX as usize].stake)
+            } else {
+                0
+            };
+            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let storage_proofs = if with_proof {
+                let prev = *st.tip_id().expect("tip");
+                vec![build_storage_proof(
+                    &gen.built.commit,
+                    &prev,
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof")]
+            } else {
+                Vec::new()
+            };
+            let bond_ops = if with_bond {
+                bond_seed = bond_seed.wrapping_add(1);
+                vec![register_op(bond_seed)]
+            } else {
+                Vec::new()
+            };
+            let slashings = if with_equivocation {
+                vec![equivocation_evidence(
+                    h,
+                    h,
+                    EQUIVOCATION_IDX,
+                    &gen.fixture.secrets[EQUIVOCATION_IDX as usize].bls.sk,
+                )]
+            } else {
+                Vec::new()
+            };
+            if with_liveness {
+                st.validator_stats[1].consecutive_missed =
+                    gen.fixture.params.liveness_max_consecutive_missed - 1;
+            }
+            st = apply_validator_block_with_voters(
+                &gen.fixture,
+                &voters,
+                &st,
+                h,
+                txs,
+                storage_proofs,
+                bond_ops,
+                slashings,
+            );
+            let bond_credit = if with_bond { bond_stake } else { 0 };
+            let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+            model = treasury_after_equivocation_combined_inflow_block(
+                model,
+                equivocation_credit,
+                bond_credit,
+                liveness_credit,
+                fee_sum,
+                proofs,
+                emission,
+            );
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {}, bond_h {}, liveness_h {}, stride {})",
+                h,
+                fee,
+                bond_h,
+                liveness_h,
+                proof_stride
             );
             prop_assert!(st.treasury < u128::MAX);
             if with_liveness {

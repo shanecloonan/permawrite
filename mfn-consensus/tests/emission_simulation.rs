@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -7,14 +7,14 @@
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
-use mfn_bls::bls_keygen_from_seed;
+use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
     cumulative_emission, emission_at_height, encode_finality_proof, finalize, header_signing_hash,
     seal_block, sign_transaction, try_produce_slot, validate_emission_params, ApplyOutcome,
     ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput,
-    InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlotContext, TransactionWire,
-    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS,
+    InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence, SlotContext,
+    TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
@@ -103,6 +103,26 @@ fn treasury_after_combined_inflow_block(
 ) -> u128 {
     treasury_after_block(
         treasury + bond_burn + liveness_credit,
+        fee_sum,
+        proofs,
+        params,
+    )
+}
+
+fn treasury_after_equivocation_combined_inflow_block(
+    treasury: u128,
+    equivocation_credit: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_block(
+        treasury
+            .saturating_add(equivocation_credit)
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
         fee_sum,
         proofs,
         params,
@@ -351,6 +371,7 @@ fn signing_stake_for_voters_from_state(st: &ChainState, voter_indices: &[u32]) -
         .sum()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn apply_validator_block_with_voters(
     fixture: &ValidatorFixture,
     voter_indices: &[u32],
@@ -359,10 +380,12 @@ fn apply_validator_block_with_voters(
     txs: Vec<TransactionWire>,
     storage_proofs: Vec<mfn_storage::StorageProof>,
     bond_ops: Vec<mfn_consensus::BondOp>,
+    slashings: Vec<SlashEvidence>,
 ) -> ChainState {
     let slot = height;
     let ts = u64::from(height) * 1_000;
-    let unsealed = build_unsealed_header(st, &txs, &bond_ops, &[], &storage_proofs, slot, ts);
+    let unsealed =
+        build_unsealed_header(st, &txs, &bond_ops, &slashings, &storage_proofs, slot, ts);
     let header_hash = header_signing_hash(&unsealed);
     let ctx = SlotContext {
         height,
@@ -410,7 +433,7 @@ fn apply_validator_block_with_voters(
         txs,
         bond_ops,
         encode_finality_proof(&fin),
-        Vec::new(),
+        slashings,
         storage_proofs,
     );
     match apply_block(st, &blk) {
@@ -950,6 +973,7 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
             txs,
             storage_proofs,
             Vec::new(),
+            Vec::new(),
         );
         if h == 3 {
             model_treasury = treasury_after_liveness_block(
@@ -1065,6 +1089,7 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
             txs,
             storage_proofs,
             bond_ops,
+            Vec::new(),
         );
         let bond_credit = if with_bond { bond_stake } else { 0 };
         let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
@@ -1101,6 +1126,25 @@ fn register_op_for_sim(seed: u8) -> mfn_consensus::BondOp {
     }
 }
 
+fn equivocation_evidence(
+    height: u32,
+    slot: u32,
+    voter_index: u32,
+    bls_sk: &BlsSecretKey,
+) -> SlashEvidence {
+    let h1 = [voter_index.wrapping_add(11) as u8; 32];
+    let h2 = [voter_index.wrapping_add(22) as u8; 32];
+    SlashEvidence {
+        height,
+        slot,
+        voter_index,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, bls_sk),
+    }
+}
+
 #[test]
 fn treasury_ledger_matches_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(16, SIM_EMISSION);
@@ -1116,6 +1160,152 @@ fn treasury_ledger_matches_sixty_four_combined_inflow_blocks() {
 #[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(256, SIM_EMISSION);
+}
+
+/// Bond/liveness/fee/proof inflows with terminal equivocation slash (**M5.13**, **M5.16**).
+fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
+    struct StorageFixture {
+        payload: Vec<u8>,
+        built: BuiltCommitment,
+    }
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let storage = StorageFixture { payload, built };
+
+    let fixture = ValidatorFixture::liveness_absentee_long_sim();
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![storage.built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: emission,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let mut spend_state = spend;
+    let mut model_treasury = 0u128;
+    let voters = [0u32, 2];
+    const EQUIVOCATION_IDX: u32 = 2;
+    let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let liveness_forfeit = 10_000u128;
+    let mut bond_seed = 60u8;
+    let liveness_h = blocks / 2;
+
+    for h in 1..=blocks {
+        let fee = 2_500u64 + u64::from(h % 4_501);
+        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        spend_state = next_spend;
+        let fee_sum = u128::from(fee);
+        let with_bond = h == 8;
+        let with_proof = h % 4 == 0;
+        let with_liveness = h == liveness_h;
+        let with_equivocation = h == blocks;
+        let proofs = if with_proof { 1u128 } else { 0 };
+        let equivocation_credit = if with_equivocation {
+            u128::from(st.validators[EQUIVOCATION_IDX as usize].stake)
+        } else {
+            0
+        };
+        let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, &emission);
+        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
+        let txs = vec![coinbase, signed.tx];
+        let storage_proofs = if with_proof {
+            let prev = *st.tip_id().expect("tip");
+            vec![build_storage_proof(
+                &storage.built.commit,
+                &prev,
+                h,
+                &storage.payload,
+                &storage.built.tree,
+            )
+            .expect("proof")]
+        } else {
+            Vec::new()
+        };
+        let bond_ops = if with_bond {
+            bond_seed = bond_seed.wrapping_add(1);
+            vec![register_op_for_sim(bond_seed)]
+        } else {
+            Vec::new()
+        };
+        let slashings = if with_equivocation {
+            vec![equivocation_evidence(
+                h,
+                h,
+                EQUIVOCATION_IDX,
+                &fixture.secrets[EQUIVOCATION_IDX as usize].bls.sk,
+            )]
+        } else {
+            Vec::new()
+        };
+        if with_liveness {
+            st.validator_stats[1].consecutive_missed =
+                fixture.params.liveness_max_consecutive_missed - 1;
+        }
+        st = apply_validator_block_with_voters(
+            &fixture,
+            &voters,
+            &st,
+            h,
+            txs,
+            storage_proofs,
+            bond_ops,
+            slashings,
+        );
+        let bond_credit = if with_bond { bond_stake } else { 0 };
+        let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+        model_treasury = treasury_after_equivocation_combined_inflow_block(
+            model_treasury,
+            equivocation_credit,
+            bond_credit,
+            liveness_credit,
+            fee_sum,
+            proofs,
+            &emission,
+        );
+        assert_eq!(
+            st.treasury, model_treasury,
+            "treasury mismatch at height {h}"
+        );
+        assert!(st.treasury < u128::MAX);
+        if with_liveness {
+            assert_eq!(st.validators[1].stake, 990_000);
+        }
+        if with_equivocation {
+            assert_eq!(
+                st.validators[EQUIVOCATION_IDX as usize].stake, 0,
+                "equivocation must zero slashed validator stake"
+            );
+        }
+    }
+}
+
+#[test]
+fn treasury_ledger_matches_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(32, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long equivocation combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_five_hundred_twelve_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(512, SIM_EMISSION);
 }
 
 #[test]
