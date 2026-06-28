@@ -708,13 +708,21 @@ fn storage_proof_for_unknown_commit_rejected() {
         Vec::new(),
         vec![p],
     );
+    let before = (state0.storage.len(), state0.treasury, state0.height);
     match apply_block(&state0, &block) {
-        ApplyOutcome::Err { errors, .. } => assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, BlockError::StorageProofUnknownCommit { .. })),
-            "expected StorageProofUnknownCommit, got {errors:?}"
-        ),
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofUnknownCommit { .. })),
+                "expected StorageProofUnknownCommit, got {errors:?}"
+            );
+            assert_eq!(
+                (state0.storage.len(), state0.treasury, state0.height),
+                before,
+                "unknown commit must not mutate storage or treasury state"
+            );
+        }
         ApplyOutcome::Ok { .. } => panic!("unanchored proof must reject the block"),
     }
 }
@@ -762,13 +770,22 @@ fn storage_proof_with_wrong_chunk_rejected() {
         Vec::new(),
         vec![p],
     );
+    let commit_hash = storage_commitment_hash(&built.commit);
+    let before = storage_proof_payout_snap(&state0, &commit_hash);
     match apply_block(&state0, &block) {
-        ApplyOutcome::Err { errors, .. } => assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, BlockError::StorageProofInvalid { .. })),
-            "expected StorageProofInvalid, got {errors:?}"
-        ),
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofInvalid { .. })),
+                "expected StorageProofInvalid, got {errors:?}"
+            );
+            assert_eq!(
+                before,
+                storage_proof_payout_snap(&state0, &commit_hash),
+                "invalid proof must not mutate storage or treasury state"
+            );
+        }
         ApplyOutcome::Ok { .. } => panic!("corrupt proof must reject the block"),
     }
 }
