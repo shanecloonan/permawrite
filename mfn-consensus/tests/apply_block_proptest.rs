@@ -10,7 +10,7 @@ use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
     emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
     header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
-    try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainCheckpoint, ChainState,
+    try_produce_slot, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState,
     ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
     OutputSpec, PayoutAddress, ProducerProof, SlotContext, TransactionWire, Validator,
     ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
@@ -396,16 +396,18 @@ fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStora
     }
 }
 
-fn apply_validator_mixed_clsag_fee_and_storage_proof(
+/// Seal a validator-mode mixed block (BLS quorum + coinbase + CLSAG + SPoRA)
+/// without applying it (**M5.6+** rollback fixtures).
+fn build_validator_mixed_block(
     fixture: &PropValidatorFixture,
     st: &ChainState,
     height: u32,
     txs: Vec<TransactionWire>,
-    proof: &mfn_storage::StorageProof,
-) -> ChainState {
+    proofs: &[mfn_storage::StorageProof],
+    voter_indices: &[usize],
+) -> Block {
     let ts = u64::from(height) * 1_000;
-    let unsealed =
-        build_unsealed_header(st, &txs, &[], &[], std::slice::from_ref(proof), height, ts);
+    let unsealed = build_unsealed_header(st, &txs, &[], &[], proofs, height, ts);
     let header_hash = header_signing_hash(&unsealed);
     let ctx = SlotContext {
         height,
@@ -424,10 +426,12 @@ fn apply_validator_mixed_clsag_fee_and_storage_proof(
     )
     .expect("produce")
     .expect("producer eligible");
-    let votes: Vec<_> = fixture
-        .secrets
-        .iter()
-        .map(|secrets| {
+    let mut votes = Vec::new();
+    let mut signing_stake: u64 = 0;
+    for &i in voter_indices {
+        let secrets = &fixture.secrets[i];
+        let v = &fixture.validators[i];
+        votes.push(
             cast_vote(
                 &header_hash,
                 secrets,
@@ -437,26 +441,92 @@ fn apply_validator_mixed_clsag_fee_and_storage_proof(
                 fixture.total_stake,
                 fixture.params.expected_proposers_per_slot,
             )
-            .expect("vote")
-        })
-        .collect();
+            .expect("vote"),
+        );
+        signing_stake += v.stake;
+    }
     let agg = finalize(&header_hash, &votes, fixture.validators.len()).expect("finalize");
     let fin = FinalityProof {
         producer: producer_proof,
         finality: agg,
-        signing_stake: fixture.total_stake,
+        signing_stake,
     };
-    let blk = seal_block(
+    seal_block(
         unsealed,
         txs,
         Vec::new(),
         encode_finality_proof(&fin),
         Vec::new(),
-        vec![proof.clone()],
+        proofs.to_vec(),
+    )
+}
+
+fn apply_validator_mixed_clsag_fee_and_storage_proof(
+    fixture: &PropValidatorFixture,
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    proof: &mfn_storage::StorageProof,
+) -> ChainState {
+    let all_voters: Vec<usize> = (0..fixture.validators.len()).collect();
+    let blk = build_validator_mixed_block(
+        fixture,
+        st,
+        height,
+        txs,
+        std::slice::from_ref(proof),
+        &all_voters,
     );
     match apply_block(st, &blk) {
         ApplyOutcome::Ok { state, .. } => state,
         ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
+fn validator_mixed_block_material(
+    spend: &PropSpendState,
+    built: &BuiltCommitment,
+    payload: &[u8],
+    payout: &PayoutAddress,
+    st: &ChainState,
+    height: u32,
+    fee: u64,
+) -> (Vec<TransactionWire>, mfn_storage::StorageProof) {
+    let (tx, _) = spend.sign_self_transfer(fee, height);
+    let fee_sum = u128::from(fee);
+    let cb_amount = expected_coinbase_amount(height, fee_sum, 1, &PROP_MIXED_EMISSION);
+    let coinbase = build_coinbase(u64::from(height), cb_amount, payout).expect("coinbase");
+    let txs = vec![coinbase, tx];
+    let prev = *st.tip_id().expect("tip");
+    let proof =
+        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+    (txs, proof)
+}
+
+fn assert_reject_preserves_state<F>(
+    st: &ChainState,
+    before_snap: &StateSnap,
+    before_bytes: &[u8],
+    blk: Block,
+    expect: F,
+    label: &str,
+) where
+    F: Fn(&BlockError) -> bool,
+{
+    match apply_block(st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(expect),
+                "{label}: expected matching BlockError in {errors:?}"
+            );
+            assert_eq!(snap(st), *before_snap, "{label}: snap must be unchanged");
+            assert_eq!(
+                checkpoint_bytes(st),
+                before_bytes,
+                "{label}: checkpoint must be unchanged"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("{label}: expected reject"),
     }
 }
 
@@ -1093,6 +1163,148 @@ fn reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change(
         }
         ApplyOutcome::Ok { .. } => panic!("duplicate storage proof must reject"),
     }
+}
+
+/// Post-signing `storage_proof_root` tamper on a validator mixed block must
+/// reject before any UTXO/treasury/storage mutation (**M5.6+**).
+#[test]
+fn reject_validator_mixed_tampered_storage_proof_root_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let PropValidatorPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+        fixture,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let (txs, proof) =
+        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    let mut blk = build_validator_mixed_block(
+        &fixture,
+        &st,
+        h,
+        txs,
+        std::slice::from_ref(&proof),
+        &[0, 1, 2],
+    );
+    blk.header.storage_proof_root[0] ^= 0xff;
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::StorageProofRootMismatch),
+        "tampered storage_proof_root",
+    );
+}
+
+/// Underpaid coinbase on a validator mixed block must reject atomically
+/// (**M5.6+** — emission-only coinbase omits fee share + storage reward).
+#[test]
+fn reject_validator_mixed_invalid_coinbase_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let PropValidatorPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+        fixture,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let fee = 50_000u64;
+    let (mut txs, proof) =
+        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, fee);
+    let correct = expected_coinbase_amount(h, u128::from(fee), 1, &PROP_MIXED_EMISSION);
+    let wrong = emission_at_height(u64::from(h), &PROP_MIXED_EMISSION);
+    assert_ne!(wrong, correct);
+    txs[0] = build_coinbase(u64::from(h), wrong, &fixture.payout).expect("coinbase");
+    let blk = build_validator_mixed_block(
+        &fixture,
+        &st,
+        h,
+        txs,
+        std::slice::from_ref(&proof),
+        &[0, 1, 2],
+    );
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::CoinbaseInvalid(_)),
+        "invalid coinbase",
+    );
+}
+
+/// Sub-quorum BLS finality must reject a validator mixed block without
+/// touching caller state (**M5.6+**).
+#[test]
+fn reject_validator_mixed_subquorum_finality_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let PropValidatorPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+        fixture,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let (txs, proof) =
+        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    // Two of three validators → 200/300 stake; quorum at 6667 bps requires 201.
+    let blk =
+        build_validator_mixed_block(&fixture, &st, h, txs, std::slice::from_ref(&proof), &[0, 1]);
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::FinalityInvalid(_)),
+        "sub-quorum finality",
+    );
+}
+
+/// Fee tamper after CLSAG signing must reject without spending inputs
+/// (**M5.6+**).
+#[test]
+fn reject_validator_mixed_invalid_clsag_without_state_change() {
+    let gen = genesis_validator_privacy_storage_for_proptest();
+    let PropValidatorPrivacyStorageGenesis {
+        state: st,
+        spend,
+        built,
+        payload,
+        fixture,
+    } = gen;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let (mut txs, proof) =
+        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    txs[1].fee = txs[1].fee.wrapping_add(1);
+    let blk = build_validator_mixed_block(
+        &fixture,
+        &st,
+        h,
+        txs,
+        std::slice::from_ref(&proof),
+        &[0, 1, 2],
+    );
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::TxInvalid { .. }),
+        "invalid CLSAG",
+    );
 }
 
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
