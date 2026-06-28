@@ -8,12 +8,13 @@ use curve25519_dalek::scalar::Scalar;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
-    emission_at_height, encode_finality_proof, finalize, header_signing_hash, pick_winner,
-    seal_block, sign_register, sign_transaction, try_produce_slot, ApplyOutcome, BlockError,
-    BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
-    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, ProducerProof, SlotContext,
-    TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
-    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
+    header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
+    try_produce_slot, ApplyOutcome, BlockError, BondOp, ChainCheckpoint, ChainState,
+    ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
+    OutputSpec, PayoutAddress, ProducerProof, SlotContext, TransactionWire, Validator,
+    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
@@ -75,6 +76,13 @@ fn snap(st: &ChainState) -> StateSnap {
         spent_key_images_len: st.spent_key_images.len(),
         validators_len: st.validators.len(),
     }
+}
+
+fn checkpoint_bytes(st: &ChainState) -> Vec<u8> {
+    encode_chain_checkpoint(&ChainCheckpoint {
+        genesis_id: [0u8; 32],
+        state: st.clone(),
+    })
 }
 
 fn genesis_with_bonding() -> ChainState {
@@ -961,6 +969,41 @@ proptest! {
         }
     }
 
+}
+
+/// A privacy spend and SPoRA proof in the same block must still reject atomically
+/// when the storage-proof set is invalid.
+#[test]
+fn reject_duplicate_storage_proof_in_mixed_block_without_state_change() {
+    let gen = genesis_privacy_storage_for_proptest();
+    let st = gen.state;
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+
+    let h = next_height(&st);
+    let (tx, _) = gen.spend.sign_self_transfer(25_000, h);
+    let txs = vec![tx];
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
+        .expect("proof");
+    let proofs = vec![proof.clone(), proof];
+
+    let unsealed = build_unsealed_header(&st, &txs, &[], &[], &proofs, h, u64::from(h) * 1_000);
+    let blk = seal_with_test_finality(&st, unsealed, txs, Vec::new(), Vec::new(), proofs);
+
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProof { .. })),
+                "expected DuplicateStorageProof, got {errors:?}"
+            );
+            assert_eq!(snap(&st), before_snap);
+            assert_eq!(checkpoint_bytes(&st), before_bytes);
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate storage proof must reject"),
+    }
 }
 
 /// Forged bond register must reject without mutating state (plain `#[test]`; sixth
