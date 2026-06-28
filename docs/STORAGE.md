@@ -582,7 +582,7 @@ Default CI in `mfn-consensus/tests/block_apply.rs` (`4e8ac41`) pins header bindi
 - **Emit order** — `build_unsealed_header_commits_storage_proof_emit_order`; `storage_proof_root_wrong_emit_order_rejected`.
 - **Tamper before payout** — `tampered_storage_proof_root_rejects_before_payout_effects` (treasury / provenance unchanged on reject).
 - **Accept path** — `accepted_storage_proof_updates_provenance_and_treasury`; **`dual_distinct_storage_proofs_in_one_block_update_both_entries`** (`9e5c129`).
-- **Reject paths** — `duplicate_storage_proof_in_one_block_rejected`, `storage_proof_for_unknown_commit_rejected`, `storage_proof_with_wrong_chunk_rejected`; **`storage_proof_body_tamper_rejects_without_state_change`** (`9e5c129`).
+- **Reject paths** — `duplicate_storage_proof_in_one_block_rejected`, `storage_proof_for_unknown_commit_rejected`, `storage_proof_with_wrong_chunk_rejected` (each asserts no storage/treasury mutation on reject, `46454c2`); **`storage_proof_body_tamper_rejects_without_state_change`** (`9e5c129`).
 
 Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_root_in_signed_block_is_rejected`, `storage_proof_flow_at_genesis_plus_block1`.
 
