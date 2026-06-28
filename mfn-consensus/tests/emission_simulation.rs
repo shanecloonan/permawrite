@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1300,6 +1300,11 @@ fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: Emission
 #[test]
 fn treasury_ledger_matches_equivocation_combined_inflow_blocks() {
     run_equivocation_combined_inflow_treasury_sim(32, SIM_EMISSION);
+}
+
+#[test]
+fn treasury_ledger_matches_sixty_four_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(64, SIM_EMISSION);
 }
 
 #[test]
