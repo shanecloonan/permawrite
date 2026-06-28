@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -171,6 +171,24 @@ fn treasury_after_block(
 
 fn treasury_after_register(treasury: u128, stake: u128) -> u128 {
     treasury.saturating_add(stake)
+}
+
+fn treasury_after_combined_inflow_block(
+    treasury: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_block(
+        treasury
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        proofs,
+        params,
+    )
 }
 
 /// Deterministic spend material for proptest (**M5.5**).
@@ -368,6 +386,54 @@ impl PropValidatorFixture {
             total_stake,
         }
     }
+
+    /// High-stake absentee harness for combined inflow treasury props (**M5.8**).
+    fn liveness_absentee_long_sim() -> Self {
+        let stake = 1_000_000u64;
+        let mk = |i: u32| -> (Validator, ValidatorSecrets, PayoutAddress) {
+            let vrf = vrf_keygen_from_seed(&[i.wrapping_add(1) as u8; 32]).expect("vrf");
+            let bls = bls_keygen_from_seed(&[i.wrapping_add(101) as u8; 32]);
+            let view_priv = hash_to_scalar(&[b"M5.8/view", &i.to_le_bytes()]);
+            let spend_priv = hash_to_scalar(&[b"M5.8/spend", &i.to_le_bytes()]);
+            let view_pub = generator_g() * view_priv;
+            let spend_pub = generator_g() * spend_priv;
+            let val = Validator {
+                index: i,
+                vrf_pk: vrf.pk,
+                bls_pk: bls.pk,
+                stake,
+                payout: Some(ValidatorPayout {
+                    view_pub,
+                    spend_pub,
+                }),
+            };
+            let secrets = ValidatorSecrets { index: i, vrf, bls };
+            let payout = PayoutAddress {
+                view_pub,
+                spend_pub,
+            };
+            (val, secrets, payout)
+        };
+        let (v0, s0, payout) = mk(0);
+        let (v1, s1, _) = mk(1);
+        let (v2, s2, _) = mk(2);
+        let validators = vec![v0, v1, v2];
+        let secrets = vec![s0, s1, s2];
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 5000,
+            liveness_max_consecutive_missed: 64,
+            liveness_slash_bps: 100,
+        };
+        let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+        Self {
+            validators,
+            secrets,
+            payout,
+            params,
+            total_stake,
+        }
+    }
 }
 
 fn expected_coinbase_amount(
@@ -392,6 +458,118 @@ struct PropValidatorPrivacyStorageGenesis {
     built: BuiltCommitment,
     payload: Vec<u8>,
     fixture: PropValidatorFixture,
+}
+
+fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStorageGenesis {
+    let fixture = PropValidatorFixture::liveness_absentee_long_sim();
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 256) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropValidatorPrivacyStorageGenesis {
+        state,
+        spend,
+        built,
+        payload,
+        fixture,
+    }
+}
+
+fn signing_stake_for_voters_from_state(st: &ChainState, voter_indices: &[u32]) -> u64 {
+    voter_indices
+        .iter()
+        .map(|&i| st.validators[i as usize].stake)
+        .sum()
+}
+
+/// Validator block with partial finality; uses live `st.validators` stake totals (**M5.8**).
+fn apply_validator_block_with_voters(
+    fixture: &PropValidatorFixture,
+    voter_indices: &[u32],
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    storage_proofs: Vec<mfn_storage::StorageProof>,
+    bond_ops: Vec<BondOp>,
+) -> ChainState {
+    let slot = height;
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, &txs, &bond_ops, &[], &storage_proofs, slot, ts);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height,
+        slot,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer = &st.validators[0];
+    let producer_secrets = &fixture.secrets[0];
+    let total_stake: u64 = st.validators.iter().map(|v| v.stake).sum();
+    let producer_proof = try_produce_slot(
+        &ctx,
+        producer_secrets,
+        producer,
+        total_stake,
+        fixture.params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("producer eligible");
+    let votes: Vec<_> = voter_indices
+        .iter()
+        .map(|&i| {
+            let secrets = &fixture.secrets[i as usize];
+            cast_vote(
+                &header_hash,
+                secrets,
+                &ctx,
+                &producer_proof,
+                producer,
+                total_stake,
+                fixture.params.expected_proposers_per_slot,
+            )
+            .expect("vote")
+        })
+        .collect();
+    let agg = finalize(&header_hash, &votes, st.validators.len()).expect("finalize");
+    let signing_stake = signing_stake_for_voters_from_state(st, voter_indices);
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: agg,
+        signing_stake,
+    };
+    let blk = seal_block(
+        unsealed,
+        txs,
+        bond_ops,
+        encode_finality_proof(&fin),
+        Vec::new(),
+        storage_proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
 }
 
 fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStorageGenesis {
@@ -1136,6 +1314,92 @@ proptest! {
                 fee
             );
             prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
+    /// Validator-mode bond / liveness / fee / proof inflows with randomized fees (**M5.8**).
+    #[test]
+    fn prop_validator_combined_inflow_random_fee_treasury(
+        n_blocks in 4u32..=12u32,
+        fee_base in 1_000u64..=100_000u64,
+    ) {
+        let gen = genesis_validator_combined_inflow_for_proptest();
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let voters = [0u32, 2];
+        let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let liveness_forfeit = 10_000u128;
+        let mut bond_seed = 50u8;
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 4_501));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let with_bond = h == 4;
+            let with_proof = h % 4 == 0;
+            let with_liveness = h == 8 && n_blocks >= 8;
+            let proofs = if with_proof { 1u128 } else { 0 };
+            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let storage_proofs = if with_proof {
+                let prev = *st.tip_id().expect("tip");
+                vec![build_storage_proof(
+                    &gen.built.commit,
+                    &prev,
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof")]
+            } else {
+                Vec::new()
+            };
+            let bond_ops = if with_bond {
+                bond_seed = bond_seed.wrapping_add(1);
+                vec![register_op(bond_seed)]
+            } else {
+                Vec::new()
+            };
+            if with_liveness {
+                st.validator_stats[1].consecutive_missed =
+                    gen.fixture.params.liveness_max_consecutive_missed - 1;
+            }
+            st = apply_validator_block_with_voters(
+                &gen.fixture,
+                &voters,
+                &st,
+                h,
+                txs,
+                storage_proofs,
+                bond_ops,
+            );
+            let bond_credit = if with_bond { bond_stake } else { 0 };
+            let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+            model = treasury_after_combined_inflow_block(
+                model,
+                bond_credit,
+                liveness_credit,
+                fee_sum,
+                proofs,
+                emission,
+            );
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (fee {})",
+                h,
+                fee
+            );
+            prop_assert!(st.treasury < u128::MAX);
+            if with_liveness {
+                prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
         }
     }
 
