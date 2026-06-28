@@ -1,4 +1,4 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**, **M5.8**).
+//! Producer revenue and treasury settlement invariants (**M5.7**, **M5.7+**, **M5.8**, **M5.9**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
@@ -92,6 +92,22 @@ fn treasury_after_slash_block(
     )
 }
 
+/// Liveness slash credits treasury before fee settlement and proof drain.
+fn treasury_after_liveness_block(
+    treasury: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement(
+        treasury.saturating_add(liveness_credit),
+        fee_sum,
+        accepted_proofs,
+        params,
+    )
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct StateSnap {
     height: Option<u32>,
@@ -155,6 +171,54 @@ impl ValidatorFixture {
             expected_proposers_per_slot: 10.0,
             quorum_stake_bps: 6667,
             ..ConsensusParams::default()
+        };
+        let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+        Self {
+            validators,
+            secrets: vec![s0, s1, s2],
+            payout,
+            params,
+            total_stake,
+        }
+    }
+
+    /// High stakes + low liveness threshold for treasury slash composition tests.
+    fn liveness_absentee_three_validators() -> Self {
+        let mk = |i: u32, stake: u64| -> (Validator, ValidatorSecrets) {
+            let vrf = vrf_keygen_from_seed(&[(i.wrapping_add(1)) as u8; 32]).expect("vrf");
+            let bls = bls_keygen_from_seed(&[(i.wrapping_add(101)) as u8; 32]);
+            let wallet = stealth_gen();
+            let val = Validator {
+                index: i,
+                vrf_pk: vrf.pk,
+                bls_pk: bls.pk,
+                stake,
+                payout: Some(ValidatorPayout {
+                    view_pub: wallet.view_pub,
+                    spend_pub: wallet.spend_pub,
+                }),
+            };
+            let secrets = ValidatorSecrets { index: i, vrf, bls };
+            (val, secrets)
+        };
+        let (v0, s0) = mk(0, 1_000_000);
+        let (v1, s1) = mk(1, 1_000_000);
+        let (v2, s2) = mk(2, 1_000_000);
+        let producer_wallet = stealth_gen();
+        let payout = PayoutAddress {
+            view_pub: producer_wallet.view_pub,
+            spend_pub: producer_wallet.spend_pub,
+        };
+        let mut validators = vec![v0, v1, v2];
+        validators[0].payout = Some(ValidatorPayout {
+            view_pub: payout.view_pub,
+            spend_pub: payout.spend_pub,
+        });
+        let params = ConsensusParams {
+            expected_proposers_per_slot: 10.0,
+            quorum_stake_bps: 6666,
+            liveness_max_consecutive_missed: 3,
+            liveness_slash_bps: 100,
         };
         let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
         Self {
@@ -368,6 +432,81 @@ fn apply_validator_block(
         producer: producer_proof,
         finality: agg,
         signing_stake: fixture.total_stake,
+    };
+    let blk = seal_block(
+        unsealed,
+        txs,
+        bond_ops,
+        encode_finality_proof(&fin),
+        slashings,
+        storage_proofs,
+    );
+    apply_block(st, &blk)
+}
+
+fn signing_stake_for_voters(fixture: &ValidatorFixture, voter_indices: &[u32]) -> u64 {
+    voter_indices
+        .iter()
+        .map(|&i| fixture.validators[i as usize].stake)
+        .sum()
+}
+
+/// Validator block where only `voter_indices` cast finality votes (liveness miss for others).
+#[allow(clippy::too_many_arguments)]
+fn apply_validator_block_with_voters(
+    fixture: &ValidatorFixture,
+    voter_indices: &[u32],
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+    storage_proofs: Vec<mfn_storage::StorageProof>,
+    bond_ops: Vec<BondOp>,
+    slashings: Vec<SlashEvidence>,
+    slot: u32,
+) -> ApplyOutcome {
+    let ts = u64::from(height) * 1_000;
+    let unsealed =
+        build_unsealed_header(st, &txs, &bond_ops, &slashings, &storage_proofs, slot, ts);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height,
+        slot,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer = &fixture.validators[0];
+    let producer_secrets = &fixture.secrets[0];
+    let producer_proof = try_produce_slot(
+        &ctx,
+        producer_secrets,
+        producer,
+        fixture.total_stake,
+        fixture.params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("producer eligible");
+    let votes: Vec<_> = voter_indices
+        .iter()
+        .map(|&i| {
+            let secrets = &fixture.secrets[i as usize];
+            cast_vote(
+                &header_hash,
+                secrets,
+                &ctx,
+                &producer_proof,
+                producer,
+                fixture.total_stake,
+                fixture.params.expected_proposers_per_slot,
+            )
+            .expect("vote")
+        })
+        .collect();
+    let agg = finalize(&header_hash, &votes, fixture.validators.len()).expect("finalize");
+    let signing_stake = signing_stake_for_voters(fixture, voter_indices);
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: agg,
+        signing_stake,
     };
     let blk = seal_block(
         unsealed,
@@ -1030,5 +1169,76 @@ fn ppb_pending_carryover_pays_on_second_proof_block() {
         u128::from(cb2),
         subsidy2 + storage_reward_total,
         "coinbase on carry-over block includes flat reward plus PPB payout"
+    );
+}
+
+#[test]
+fn liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
+    let fixture = ValidatorFixture::liveness_absentee_three_validators();
+    let absentee_idx = 1u32;
+    let storage = StorageFixture::sample_4k();
+    let initial = 50_000_000_000u64;
+    let (mut st, spend) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+    assert_eq!(st.treasury, 0);
+    // Two prior misses; validator 1 absent again on this block → liveness slash.
+    st.validator_stats[absentee_idx as usize].consecutive_missed = 2;
+
+    let liveness_forfeit = 10_000u128;
+    let fee = 8_000u64;
+    let (signed, _) = spend.sign_self_transfer(fee);
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        1,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof");
+    let bonus = storage_proof_coinbase_bonus(
+        std::slice::from_ref(&proof),
+        &st.storage,
+        1,
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
+    let txs = vec![coinbase, signed.tx];
+    // Validators 0 and 2 sign; validator 1 misses → slash on threshold block.
+    let voters = [0u32, 2];
+    let st = match apply_validator_block_with_voters(
+        &fixture,
+        &voters,
+        &st,
+        1,
+        txs,
+        vec![proof],
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("liveness+fee+proof block: {errors:?}"),
+    };
+    let expected =
+        treasury_after_liveness_block(0, liveness_forfeit, u128::from(fee), 1, &TEST_EMISSION);
+    assert_eq!(
+        st.treasury, expected,
+        "liveness slash, fee inflow, and storage drain compose in treasury ledger"
+    );
+    assert_eq!(
+        st.validators[absentee_idx as usize].stake, 990_000,
+        "liveness slash must reduce absentee stake by 1%"
+    );
+    assert_eq!(
+        st.validator_stats[absentee_idx as usize].liveness_slashes,
+        1
     );
 }
