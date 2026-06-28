@@ -701,6 +701,276 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     );
 }
 
+/// Validator-mode block 1 with CLSAG fee + coinbase (emission + fee share +
+/// storage reward) + BLS quorum + SPoRA proof in one apply (**M5.6**).
+#[test]
+fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{
+        apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
+        encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount, seal_block,
+        try_produce_slot, ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig,
+        GenesisOutput, SlotContext, Validator, ValidatorPayout, ValidatorSecrets,
+        DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let chunk_size = 4096usize;
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(chunk_size),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    let mk_validator = |i: u32, stake: u64| -> (Validator, ValidatorSecrets, _) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let wallet = stealth_gen();
+        let payout = ValidatorPayout {
+            view_pub: wallet.view_pub,
+            spend_pub: wallet.spend_pub,
+        };
+        let val = Validator {
+            index: i,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake,
+            payout: Some(payout),
+        };
+        let secrets = ValidatorSecrets {
+            index: i,
+            vrf,
+            bls: bls.clone(),
+        };
+        (val, secrets, wallet)
+    };
+    let (v0, s0, w0) = mk_validator(0, 100);
+    let (v1, s1, _) = mk_validator(1, 100);
+    let (v2, s2, _) = mk_validator(2, 100);
+    let validators = vec![v0.clone(), v1.clone(), v2.clone()];
+    let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6667,
+        ..ConsensusParams::default()
+    };
+
+    let init_value = 1_000_000_000u64;
+    let init_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+    let ring_size = 11usize;
+    let signer_idx = 5usize;
+    let mut decoy_outputs: Vec<GenesisOutput> = Vec::with_capacity(ring_size - 1);
+    let mut decoy_p = Vec::with_capacity(ring_size - 1);
+    let mut decoy_c = Vec::with_capacity(ring_size - 1);
+    for _ in 0..(ring_size - 1) {
+        let sp = random_scalar();
+        let bp = random_scalar();
+        let vp = random_scalar();
+        decoy_p.push(generator_g() * sp);
+        decoy_c.push((generator_g() * bp) + (generator_h() * vp));
+        decoy_outputs.push(GenesisOutput {
+            one_time_addr: decoy_p.last().copied().unwrap(),
+            amount: decoy_c.last().copied().unwrap(),
+        });
+    }
+    let mut initial_outputs = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    initial_outputs.extend(decoy_outputs);
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: vec![built.commit.clone()],
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let genesis = build_genesis(&cfg);
+    let state0 = apply_genesis(&genesis, &cfg).expect("genesis");
+    assert_eq!(state0.storage.len(), 1);
+
+    let recipient_wallet = stealth_gen();
+    let r = Recipient {
+        view_pub: recipient_wallet.view_pub,
+        spend_pub: recipient_wallet.spend_pub,
+    };
+    let fee = 100_000u64;
+    let send_value = 500_000_000u64;
+    let change_value = init_value - send_value - fee;
+    let (ring_p, ring_c) = {
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        let mut di = 0usize;
+        for i in 0..ring_size {
+            if i == signer_idx {
+                p.push(signer_p);
+                c.push(signer_c);
+            } else {
+                p.push(decoy_p[di]);
+                c.push(decoy_c[di]);
+                di += 1;
+            }
+        }
+        (p, c)
+    };
+    let signed = sign_transaction(
+        vec![InputSpec {
+            ring: ClsagRing {
+                p: ring_p,
+                c: ring_c,
+            },
+            signer_idx,
+            spend_priv: signer_spend,
+            value: init_value,
+            blinding: init_blinding,
+        }],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: change_value,
+                storage: None,
+            },
+        ],
+        fee,
+        b"m5.6-mixed".to_vec(),
+    )
+    .expect("sign");
+    assert!(verify_transaction(&signed.tx).ok);
+
+    let v0_payout = v0.payout.as_ref().unwrap();
+    let cb_payout = PayoutAddress {
+        view_pub: v0_payout.view_pub,
+        spend_pub: v0_payout.spend_pub,
+    };
+    let cb_amount = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee), 1, 0);
+    let coinbase = build_coinbase(1, cb_amount, &cb_payout).expect("coinbase");
+    let txs = vec![coinbase.clone(), signed.tx.clone()];
+
+    let height = 1u32;
+    let slot = 1u32;
+    let timestamp = 1_000u64;
+    let scratch = build_unsealed_header(&state0, &txs, &[], &[], &[], slot, timestamp);
+    let storage_proof = build_storage_proof(
+        &built.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload,
+        &built.tree,
+    )
+    .expect("proof");
+    let storage_proofs = vec![storage_proof];
+    let unsealed =
+        build_unsealed_header(&state0, &txs, &[], &[], &storage_proofs, height, timestamp);
+    let header_hash = header_signing_hash(&unsealed);
+    let ctx = SlotContext {
+        height,
+        slot,
+        prev_hash: unsealed.prev_hash,
+    };
+    let producer_proof = try_produce_slot(
+        &ctx,
+        &s0,
+        &v0,
+        total_stake,
+        params.expected_proposers_per_slot,
+        &header_hash,
+    )
+    .expect("produce")
+    .expect("eligible");
+    let votes = vec![
+        cast_vote(
+            &header_hash,
+            &s0,
+            &ctx,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash,
+            &s1,
+            &ctx,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+        cast_vote(
+            &header_hash,
+            &s2,
+            &ctx,
+            &producer_proof,
+            &v0,
+            total_stake,
+            params.expected_proposers_per_slot,
+        )
+        .unwrap(),
+    ];
+    let fin = FinalityProof {
+        producer: producer_proof,
+        finality: finalize(&header_hash, &votes, validators.len()).expect("finalize"),
+        signing_stake: total_stake,
+    };
+    let block1 = seal_block(
+        unsealed,
+        txs,
+        Vec::new(),
+        encode_finality_proof(&fin),
+        Vec::new(),
+        storage_proofs,
+    );
+
+    let treasury_before = state0.treasury;
+    let state1 = match apply_block(&state0, &block1) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(state1.height, Some(1));
+    let entry1 = state1.storage[&commit_hash].clone();
+    assert_eq!(entry1.last_proven_height, 1);
+    assert_eq!(entry1.last_proven_slot, u64::from(slot));
+    let treasury_fee =
+        u128::from(fee) * u128::from(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps) / 10_000;
+    let storage_reward = u128::from(DEFAULT_EMISSION_PARAMS.storage_proof_reward);
+    let expected_treasury = treasury_before
+        .saturating_add(treasury_fee)
+        .saturating_sub(storage_reward.min(treasury_before.saturating_add(treasury_fee)));
+    assert_eq!(state1.treasury, expected_treasury);
+    let cb_dec = decrypt_output_amount(
+        &block1.txs[0].r_pub,
+        0,
+        w0.view_priv,
+        &block1.txs[0].outputs[0].enc_amount,
+    )
+    .expect("decrypt coinbase");
+    assert_eq!(cb_dec.value, cb_amount);
+    assert_eq!(state1.spent_key_images.len(), 1);
+}
+
 #[test]
 fn coinbase_replay_is_byte_identical() {
     // Two nodes computing the same height + amount + payout must produce
