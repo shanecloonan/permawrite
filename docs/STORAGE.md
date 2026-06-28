@@ -575,6 +575,19 @@ For full type signatures see [`mfn-storage/README.md`](../mfn-storage/README.md)
 
 ---
 
+## Apply-block test matrix (M5 storage hardening)
+
+Default CI in `mfn-consensus/tests/block_apply.rs` (`4e8ac41`) pins header binding and payout side-effects:
+
+- **Emit order** — `build_unsealed_header_commits_storage_proof_emit_order`; `storage_proof_root_wrong_emit_order_rejected`.
+- **Tamper before payout** — `tampered_storage_proof_root_rejects_before_payout_effects` (treasury / provenance unchanged on reject).
+- **Accept path** — `accepted_storage_proof_updates_provenance_and_treasury`.
+- **Reject paths** — `duplicate_storage_proof_in_one_block_rejected`, `storage_proof_for_unknown_commit_rejected`, `storage_proof_with_wrong_chunk_rejected`.
+
+Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_root_in_signed_block_is_rejected`, `storage_proof_flow_at_genesis_plus_block1`.
+
+---
+
 ## See also
 
 - [`ECONOMICS.md`](./ECONOMICS.md) — full derivation of the endowment formula + parameter sensitivity
