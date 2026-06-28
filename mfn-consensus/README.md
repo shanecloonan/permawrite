@@ -270,7 +270,7 @@ pub enum BlockError {
 - **Emission simulation (M5.0–M5.3)** (`tests/emission_simulation.rs`) — long-run treasury ledger vs `apply_block`, validator CLSAG-fee and mixed fee+proof chains, coinbase decrypt checks; deep sims `#[ignore]` (nightly).
 - **Producer treasury settlement (M5 economics)** (`tests/producer_treasury_settlement.rs`) — 90/10 fee split, coinbase = emission + producer share + storage rewards (+ PPB bonus), treasury drain vs backstop, invalid/overpaid coinbase reject without state change, bond burn + fee closed loop.
 - **apply_block proptest (M5.2–M5.6)** (`tests/apply_block_proptest.rs`) — randomized valid chains + reject-without-mutation props; mixed CLSAG + SPoRA rollback (`reject_duplicate_storage_proof_in_mixed_block_without_state_change`, `reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change`).
-- **Validator finality evolution (M5 consensus)** (`tests/validator_finality_evolution.rs`) — pre-block `validator_root` quorum, liveness stats atomicity, reject preserves state, root movement on slash.
+- **Validator finality evolution (M5 consensus)** (`tests/validator_finality_evolution.rs`, 11 tests) — pre-block `validator_root` quorum, liveness stats atomicity, bond/slashing-root mismatch reject without state change, reject preserves state, root movement on liveness/equivocation slash, unbond delay preserves root, settlement moves successor root.
 
 ```bash
 cargo test -p mfn-consensus --release
