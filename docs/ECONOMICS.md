@@ -507,7 +507,7 @@ This is the economic engine M1 unlocked: privacy demand pays the treasury via fe
 
 ### M5 settlement test matrix
 
-**Per-block settlement (`tests/producer_treasury_settlement.rs`, default CI, `f117ce6` through `40bfb57`):**
+**Per-block settlement (`tests/producer_treasury_settlement.rs`, default CI, `f117ce6` through `dde886e`):**
 
 - 90/10 fee split (`default_fee_split_is_ninety_ten`, `fee_only_block_credits_treasury_ninety_percent`).
 - Coinbase = emission + producer fee share + full storage rewards (`producer_coinbase_amount_*`, `ppb_bonus_increases_validator_coinbase_and_treasury_drain`).
@@ -516,8 +516,9 @@ This is the economic engine M1 unlocked: privacy demand pays the treasury via fe
 - Bond burn + fee inflow compose in a closed treasury loop (`bond_burn_and_fee_inflow_compose_in_treasury_closed_loop`).
 - Equivocation slash + fee + SPoRA drain compose, including PPB pending-yield carry-over (`equivocation_slash_fee_and_storage_proof_compose_in_treasury_closed_loop`, `ppb_pending_carryover_pays_on_second_proof_block`; `13616bc`).
 - Liveness slash, bond burn, fee inflow, and storage proof drain compose in the same treasury ledger (`liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop`, `bond_burn_liveness_slash_and_fee_compose_in_treasury_closed_loop`, `bond_liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop`, `equivocation_bond_and_liveness_slash_compose_in_treasury_closed_loop`; `ffe93d5`, `cbecb3b`, `5a8fb83`, `40bfb57`).
+- The five-path block (equivocation slash + bond burn + liveness slash + CLSAG fee + SPoRA proof) composes without ledger drift (`equivocation_bond_liveness_fee_and_storage_proof_compose_in_treasury_closed_loop`; `dde886e`).
 
-**Long-run ledger identity** vs `apply_block` over CLSAG fee, mixed CLSAG + SPoRA, validator-mode chains, liveness-slash blocks, and combined bond/slash/fee/proof inflow stacks lives in `tests/emission_simulation.rs` (M5.0–M5.7; see [`CI.md`](./CI.md)).
+**Long-run ledger identity** vs `apply_block` over CLSAG fee, mixed CLSAG + SPoRA, validator-mode chains, liveness-slash blocks, and combined bond/slash/fee/proof inflow stacks lives in `tests/emission_simulation.rs` and `tests/apply_block_proptest.rs` (M5.0–M5.7; see [`CI.md`](./CI.md)).
 
 ### When the deferred operator payout lands
 
