@@ -577,12 +577,13 @@ For full type signatures see [`mfn-storage/README.md`](../mfn-storage/README.md)
 
 ## Apply-block test matrix (M5 storage hardening)
 
-Default CI in `mfn-consensus/tests/block_apply.rs` (`4e8ac41`) pins header binding and payout side-effects:
+Default CI in `mfn-consensus/tests/block_apply.rs` (`4e8ac41` and later M5 storage commits) pins header binding and payout side-effects:
 
 - **Emit order** — `build_unsealed_header_commits_storage_proof_emit_order`; `storage_proof_root_wrong_emit_order_rejected`.
 - **Tamper before payout** — `tampered_storage_proof_root_rejects_before_payout_effects` (treasury / provenance unchanged on reject).
-- **Accept path** — `accepted_storage_proof_updates_provenance_and_treasury`; **`dual_distinct_storage_proofs_in_one_block_update_both_entries`** (`9e5c129`).
+- **Accept path** — `accepted_storage_proof_updates_provenance_and_treasury`; **`dual_distinct_storage_proofs_in_one_block_update_both_entries`** (`9e5c129`); **`dual_distinct_storage_proofs_positive_yield_accrues_both_entries`** (`8d436c9`).
 - **Reject paths** — `duplicate_storage_proof_in_one_block_rejected`, `storage_proof_for_unknown_commit_rejected`, `storage_proof_with_wrong_chunk_rejected` (each asserts no storage/treasury mutation on reject, `46454c2`); **`storage_proof_body_tamper_rejects_without_state_change`** (`9e5c129`).
+- **Accrual cap** — `storage_proof_accrual_respects_proof_reward_window_at_apply_block` pins the anti-hoarding `proof_reward_window_slots` cap in the `apply_block` path (`e310435`).
 
 Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_root_in_signed_block_is_rejected`, `storage_proof_flow_at_genesis_plus_block1`.
 
