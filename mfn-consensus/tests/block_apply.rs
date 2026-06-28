@@ -988,6 +988,121 @@ fn accepted_storage_proof_updates_provenance_and_treasury() {
     assert_eq!(state1.treasury, expected_treasury);
 }
 
+#[test]
+fn dual_distinct_storage_proofs_in_one_block_update_both_entries() {
+    let ep = DEFAULT_ENDOWMENT_PARAMS;
+    let (mut state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
+    state0.treasury = 100_000_000;
+    let slot = 5_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof_a = mfn_storage::build_storage_proof(
+        &built_a.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_a,
+        &built_a.tree,
+    )
+    .unwrap();
+    let proof_b = mfn_storage::build_storage_proof(
+        &built_b.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_b,
+        &built_b.tree,
+    )
+    .unwrap();
+    let proofs = [proof_a, proof_b];
+    let hash_a = storage_commitment_hash(&built_a.commit);
+    let hash_b = storage_commitment_hash(&built_b.commit);
+    let treasury_before = state0.treasury;
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, slot, 1_000);
+    assert_eq!(
+        unsealed.storage_proof_root,
+        storage_proof_merkle_root(&proofs),
+        "header must commit producer emit order [a, b]"
+    );
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs.to_vec(),
+    );
+    let state1 = match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("expected ok, got {errors:?}"),
+    };
+    assert_eq!(state1.storage[&hash_a].last_proven_height, 1);
+    assert_eq!(state1.storage[&hash_a].last_proven_slot, u64::from(slot));
+    assert_eq!(state1.storage[&hash_b].last_proven_height, 1);
+    assert_eq!(state1.storage[&hash_b].last_proven_slot, u64::from(slot));
+    let storage_reward_total =
+        u128::from(state0.emission_params.storage_proof_reward).saturating_mul(2);
+    let expected_treasury =
+        treasury_before.saturating_sub(treasury_before.min(storage_reward_total));
+    assert_eq!(state1.treasury, expected_treasury);
+}
+
+#[test]
+fn storage_proof_body_tamper_rejects_without_state_change() {
+    let ep = DEFAULT_ENDOWMENT_PARAMS;
+    let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
+    let slot = 5_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof_a = mfn_storage::build_storage_proof(
+        &built_a.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_a,
+        &built_a.tree,
+    )
+    .unwrap();
+    let proof_b = mfn_storage::build_storage_proof(
+        &built_b.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_b,
+        &built_b.tree,
+    )
+    .unwrap();
+    let hash_a = storage_commitment_hash(&built_a.commit);
+    let hash_b = storage_commitment_hash(&built_b.commit);
+    let before_a = storage_proof_payout_snap(&state0, &hash_a);
+    let before_b = storage_proof_payout_snap(&state0, &hash_b);
+    let unsealed = build_unsealed_header(
+        &state0,
+        &[],
+        &[],
+        &[],
+        std::slice::from_ref(&proof_a),
+        slot,
+        1_000,
+    );
+    let mut block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![proof_a],
+    );
+    block.storage_proofs.push(proof_b);
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofRootMismatch)),
+                "expected StorageProofRootMismatch, got {errors:?}"
+            );
+            assert_eq!(before_a, storage_proof_payout_snap(&state0, &hash_a));
+            assert_eq!(before_b, storage_proof_payout_snap(&state0, &hash_b));
+        }
+        ApplyOutcome::Ok { .. } => panic!("body tamper must reject before payout"),
+    }
+}
+
 /* ----------------------------------------------------------------- *
  *                                                                   *
  *  These tests target the only thing standing between Permawrite     *
