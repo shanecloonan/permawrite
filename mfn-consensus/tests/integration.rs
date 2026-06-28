@@ -668,6 +668,13 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     )
     .expect("build proof v2");
     let dup_proof = storage_proof_b2.clone();
+    let before_b2 = (
+        state1.storage[&commit_hash].last_proven_height,
+        state1.storage[&commit_hash].last_proven_slot,
+        state1.storage[&commit_hash].pending_yield_ppb,
+        state1.treasury,
+        state1.height,
+    );
     let block2 = seal_block(
         unsealed_b2,
         Vec::new(),
@@ -680,6 +687,17 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     assert!(
         matches!(outcome_b2, ApplyOutcome::Err { .. }),
         "duplicate proof must reject the block"
+    );
+    assert_eq!(
+        (
+            state1.storage[&commit_hash].last_proven_height,
+            state1.storage[&commit_hash].last_proven_slot,
+            state1.storage[&commit_hash].pending_yield_ppb,
+            state1.treasury,
+            state1.height,
+        ),
+        before_b2,
+        "duplicate proof must not double-pay or mutate storage state"
     );
 }
 

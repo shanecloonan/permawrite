@@ -13,7 +13,10 @@ use mfn_consensus::slashing::*;
 use mfn_consensus::storage::StorageCommitment;
 use mfn_consensus::*;
 use mfn_crypto::codec::Writer;
-use mfn_storage::{EndowmentParams, DEFAULT_ENDOWMENT_PARAMS};
+use mfn_storage::{
+    accrue_proof_reward, storage_commitment_hash, storage_proof_merkle_root, AccrueArgs,
+    BuiltCommitment, EndowmentParams, DEFAULT_ENDOWMENT_PARAMS,
+};
 
 fn genesis_state() -> ChainState {
     let cfg = GenesisConfig {
@@ -534,6 +537,89 @@ fn empty_genesis_with_endowment(ep: EndowmentParams) -> ChainState {
     apply_genesis(&g, &cfg).unwrap()
 }
 
+/// Snapshot storage-provenance + treasury fields for SPoRA payout tests.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct StorageProofPayoutSnap {
+    height: Option<u32>,
+    treasury: u128,
+    last_proven_height: u32,
+    last_proven_slot: u64,
+    pending_yield_ppb: u128,
+}
+
+fn storage_proof_payout_snap(st: &ChainState, commit_hash: &[u8; 32]) -> StorageProofPayoutSnap {
+    let entry = &st.storage[commit_hash];
+    StorageProofPayoutSnap {
+        height: st.height,
+        treasury: st.treasury,
+        last_proven_height: entry.last_proven_height,
+        last_proven_slot: entry.last_proven_slot,
+        pending_yield_ppb: entry.pending_yield_ppb,
+    }
+}
+
+fn genesis_with_storage_commit(
+    built: &BuiltCommitment,
+    ep: EndowmentParams,
+) -> (ChainState, [u8; 32]) {
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).unwrap();
+    let commit_hash = storage_commitment_hash(&built.commit);
+    (state, commit_hash)
+}
+
+fn twin_storage_genesis(
+    ep: EndowmentParams,
+) -> (
+    ChainState,
+    BuiltCommitment,
+    Vec<u8>,
+    BuiltCommitment,
+    Vec<u8>,
+) {
+    let payload_a: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let payload_b: Vec<u8> = (0..4096u32).map(|i| ((i + 17) % 251) as u8).collect();
+    let built_a = mfn_storage::build_storage_commitment(
+        &payload_a,
+        1_000,
+        Some(4096),
+        ep.min_replication,
+        None,
+    )
+    .unwrap();
+    let built_b = mfn_storage::build_storage_commitment(
+        &payload_b,
+        1_000,
+        Some(4096),
+        ep.min_replication,
+        None,
+    )
+    .unwrap();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built_a.commit.clone(), built_b.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).unwrap();
+    (state, built_a, payload_a, built_b, payload_b)
+}
+
 #[test]
 fn duplicate_storage_proof_in_one_block_rejected() {
     let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
@@ -574,13 +660,21 @@ fn duplicate_storage_proof_in_one_block_rejected() {
         Vec::new(),
         vec![p.clone(), p],
     );
+    let before = storage_proof_payout_snap(&state0, &storage_commitment_hash(&built.commit));
     match apply_block(&state0, &block) {
-        ApplyOutcome::Err { errors, .. } => assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, BlockError::DuplicateStorageProof { .. })),
-            "expected DuplicateStorageProof, got {errors:?}"
-        ),
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProof { .. })),
+                "expected DuplicateStorageProof, got {errors:?}"
+            );
+            assert_eq!(
+                before,
+                storage_proof_payout_snap(&state0, &storage_commitment_hash(&built.commit)),
+                "duplicate proof must not mutate storage or treasury state"
+            );
+        }
         ApplyOutcome::Ok { .. } => panic!("duplicate proof must reject the block"),
     }
 }
@@ -679,14 +773,229 @@ fn storage_proof_with_wrong_chunk_rejected() {
     }
 }
 
-/* ---- Ring-membership / counterfeit-input attack tests ------------ *
+#[test]
+fn build_unsealed_header_commits_storage_proof_emit_order() {
+    let ep = DEFAULT_ENDOWMENT_PARAMS;
+    let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
+    let slot = 5_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof_a = mfn_storage::build_storage_proof(
+        &built_a.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_a,
+        &built_a.tree,
+    )
+    .unwrap();
+    let proof_b = mfn_storage::build_storage_proof(
+        &built_b.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_b,
+        &built_b.tree,
+    )
+    .unwrap();
+    let proofs_ab = [proof_a.clone(), proof_b.clone()];
+    let root_ab = storage_proof_merkle_root(&proofs_ab);
+    let root_ba = storage_proof_merkle_root(&[proof_b, proof_a]);
+    assert_ne!(
+        root_ab, root_ba,
+        "emit order must change the committed root"
+    );
+    let header_ab = build_unsealed_header(&state0, &[], &[], &[], &proofs_ab, slot, 1_000);
+    assert_eq!(header_ab.storage_proof_root, root_ab);
+}
+
+#[test]
+fn storage_proof_root_wrong_emit_order_rejected() {
+    let ep = DEFAULT_ENDOWMENT_PARAMS;
+    let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
+    let slot = 5_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof_a = mfn_storage::build_storage_proof(
+        &built_a.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_a,
+        &built_a.tree,
+    )
+    .unwrap();
+    let proof_b = mfn_storage::build_storage_proof(
+        &built_b.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload_b,
+        &built_b.tree,
+    )
+    .unwrap();
+    let proofs_ab = [proof_a.clone(), proof_b.clone()];
+    let hash_a = proof_a.commit_hash;
+    let hash_b = proof_b.commit_hash;
+    let before_a = storage_proof_payout_snap(&state0, &hash_a);
+    let before_b = storage_proof_payout_snap(&state0, &hash_b);
+    let mut header = build_unsealed_header(&state0, &[], &[], &[], &proofs_ab, slot, 1_000);
+    // Header claims reversed emit order while the body keeps [a, b].
+    header.storage_proof_root = storage_proof_merkle_root(&[proof_b, proof_a]);
+    let block = seal_block(
+        header,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs_ab.to_vec(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofRootMismatch)),
+                "expected StorageProofRootMismatch, got {errors:?}"
+            );
+            assert_eq!(before_a, storage_proof_payout_snap(&state0, &hash_a));
+            assert_eq!(before_b, storage_proof_payout_snap(&state0, &hash_b));
+        }
+        ApplyOutcome::Ok { .. } => panic!("wrong emit-order root must reject the block"),
+    }
+}
+
+#[test]
+fn tampered_storage_proof_root_rejects_before_payout_effects() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .unwrap();
+    let (mut state0, commit_hash) = genesis_with_storage_commit(&built, DEFAULT_ENDOWMENT_PARAMS);
+    state0.treasury = 10_000_000;
+    let slot = 5_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof = mfn_storage::build_storage_proof(
+        &built.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload,
+        &built.tree,
+    )
+    .unwrap();
+    let before = storage_proof_payout_snap(&state0, &commit_hash);
+    let mut header = build_unsealed_header(
+        &state0,
+        &[],
+        &[],
+        &[],
+        std::slice::from_ref(&proof),
+        slot,
+        1_000,
+    );
+    header.storage_proof_root[0] ^= 0xff;
+    let block = seal_block(
+        header,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![proof],
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofRootMismatch)),
+                "expected StorageProofRootMismatch, got {errors:?}"
+            );
+            assert_eq!(before, storage_proof_payout_snap(&state0, &commit_hash));
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered storage_proof_root must reject before payout"),
+    }
+}
+
+#[test]
+fn accepted_storage_proof_updates_provenance_and_treasury() {
+    let ep = EndowmentParams {
+        real_yield_ppb: 50_000_000, // 5% > 2% inflation buffer
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        ep.min_replication,
+        None,
+    )
+    .unwrap();
+    let (mut state0, commit_hash) = genesis_with_storage_commit(&built, ep);
+    state0.treasury = 100_000_000;
+    let slot = 500_000u32;
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
+    let proof = mfn_storage::build_storage_proof(
+        &built.commit,
+        &scratch.prev_hash,
+        slot,
+        &payload,
+        &built.tree,
+    )
+    .unwrap();
+    let expected_accrual = accrue_proof_reward(AccrueArgs {
+        size_bytes: built.commit.size_bytes,
+        replication: built.commit.replication,
+        pending_ppb: 0,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot),
+        params: &ep,
+    })
+    .expect("accrue");
+    assert!(
+        expected_accrual.payout > 0 || expected_accrual.new_pending_ppb > 0,
+        "test setup must produce yield movement"
+    );
+    let treasury_before = state0.treasury;
+    let unsealed = build_unsealed_header(
+        &state0,
+        &[],
+        &[],
+        &[],
+        std::slice::from_ref(&proof),
+        slot,
+        1_000,
+    );
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![proof],
+    );
+    let state1 = match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("expected ok, got {errors:?}"),
+    };
+    let entry = &state1.storage[&commit_hash];
+    assert_eq!(entry.last_proven_height, 1);
+    assert_eq!(entry.last_proven_slot, u64::from(slot));
+    assert_eq!(entry.pending_yield_ppb, expected_accrual.new_pending_ppb);
+    let storage_reward_total = u128::from(state0.emission_params.storage_proof_reward)
+        .saturating_add(expected_accrual.payout);
+    let expected_treasury =
+        treasury_before.saturating_sub(treasury_before.min(storage_reward_total));
+    assert_eq!(state1.treasury, expected_treasury);
+}
+
+/* ----------------------------------------------------------------- *
  *                                                                   *
  *  These tests target the only thing standing between Permawrite     *
- *  and the "mint MFN out of thin air" attack: every CLSAG ring       *
- *  member's (P, C) MUST exist in the chain's UTXO set. Without       *
- *  this guard a spender can fabricate a ring member with arbitrary   *
- *  hidden value, balance their pseudo-output against it, and emit    *
- *  outputs they don't own.                                           *
+ *  and the mint-out-of-thin-air attack: every CLSAG ring member     *
+ *  (P, C) MUST exist in the chain UTXO set. Without this guard a    *
+ *  spender can fabricate a ring member with arbitrary hidden value, *
+ *  balance their pseudo-output against it, and emit outputs they    *
+ *  do not own.                                                       *
  * ----------------------------------------------------------------- */
 
 #[test]
