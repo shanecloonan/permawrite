@@ -1164,6 +1164,56 @@ fn reject_mixed_invalid_clsag_without_state_change() {
     );
 }
 
+/// After a prefix of valid legacy mixed blocks, a rejected block at the
+/// next height must not roll back or mutate the accepted prefix (**M5.5+**).
+#[test]
+fn reject_mixed_after_partial_chain_without_state_change() {
+    let gen = genesis_privacy_storage_for_proptest();
+    let PropPrivacyStorageGenesis {
+        state: mut st,
+        mut spend,
+        built,
+        payload,
+    } = gen;
+    const PREFIX_LEN: u32 = 3;
+
+    for h in 1..=PREFIX_LEN {
+        let fee = 10_000u64 + u64::from(h) * 1_000;
+        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        spend = next_spend;
+        let prev = *st.tip_id().expect("tip");
+        let proof =
+            build_storage_proof(&built.commit, &prev, h, &payload, &built.tree).expect("proof");
+        st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
+    }
+    assert_eq!(st.height, Some(PREFIX_LEN));
+
+    let before_snap = snap(&st);
+    let before_bytes = checkpoint_bytes(&st);
+    let h = next_height(&st);
+    let fee = 10_000u64 + u64::from(h) * 1_000;
+    let (mut txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, fee);
+    txs[0].fee = txs[0].fee.wrapping_add(1);
+    let unsealed = build_unsealed_header(
+        &st,
+        &txs,
+        &[],
+        &[],
+        std::slice::from_ref(&proof),
+        h,
+        u64::from(h) * 1_000,
+    );
+    let blk = seal_with_test_finality(&st, unsealed, txs, Vec::new(), Vec::new(), vec![proof]);
+    assert_reject_preserves_state(
+        &st,
+        &before_snap,
+        &before_bytes,
+        blk,
+        |e| matches!(e, BlockError::TxInvalid { .. }),
+        "reject after partial legacy mixed chain",
+    );
+}
+
 /// Validator finality + coinbase do not weaken the same atomicity invariant:
 /// duplicate SPoRA proofs reject after verification but before state commit.
 #[test]
