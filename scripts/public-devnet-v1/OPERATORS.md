@@ -520,7 +520,7 @@ mfn-cli --rpc 127.0.0.1:<HUB_RPC> --wallet ./alice.json \
   operator push-chunks <COMMIT_HASH_HEX> <PEER1> [PEER2 ...] --json
 
 mfn-storage-operator push-chunks --wallet ./alice.json \
-  <COMMIT_HASH_HEX> <PEER1> [PEER2 ...]
+  <COMMIT_HASH_HEX> <PEER1> [PEER2 ...] --json
 ```
 
 On the receiver (same `genesis_id`, caught up to the upload block):

@@ -50,6 +50,16 @@ mfn-cli --wallet ./alice.json operator fetch-chunk COMMIT_HEX 0 127.0.0.1:18780
 
 With `--wallet`, bytes are checked against the local upload artifact slice.
 
+## Push chunks to P2P peers (**M7.1**)
+
+Use the standalone helper when an operator shell only needs wallet artifact fan-out and not the broader `mfn-cli` command surface:
+
+```bash
+mfn-storage-operator push-chunks --wallet ./alice.json COMMIT_HEX 127.0.0.1:18740 --json
+```
+
+Add `--json` to capture `peers_attempted`, `peers_ok`, `peers_failed`, and per-peer `chunks_sent` or error details for replication support records.
+
 ## Backfill artifacts from peers (**M6.6**)
 
 Replica operators can pull the full anchored payload without re-uploading:

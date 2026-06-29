@@ -108,6 +108,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add JSON output mode to `operator challenge` and `operator pool` for proof troubleshooting records.
 - [x] Add JSON output mode to `operator prove` for proof submission support records.
 - [x] Add JSON output mode to `operator fetch-chunk` and `operator push-chunks` for chunk movement support records.
+- [x] Add JSON output mode to `mfn-storage-operator push-chunks` for standalone P2P fan-out support records.
 
 ## Cross-Agent Notes
 

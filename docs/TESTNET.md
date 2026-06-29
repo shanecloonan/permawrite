@@ -191,6 +191,7 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> --wallet ./wallet.json \
   operator fetch-chunk <COMMIT_HASH_HEX> 0 127.0.0.1:18780 --json
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> --wallet ./wallet.json \
   operator push-chunks <COMMIT_HASH_HEX> <PEER_P2P> --json
+mfn-storage-operator push-chunks --wallet ./wallet.json <COMMIT_HASH_HEX> <PEER_P2P> --json
 
 # Storage proof diagnostics
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> operator challenge <COMMIT_HASH_HEX> --json

@@ -10,8 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mfn_storage_operator::{
-    push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks, ChunkServeConfig,
-    OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
+    push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks, ChunkPushPeerResult,
+    ChunkServeConfig, OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
 };
 
 fn main() -> ExitCode {
@@ -31,6 +31,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
     let mut wallet_path = PathBuf::from("wallet.json");
     let mut interval_secs = 30u64;
     let mut once = false;
+    let mut json = false;
     let mut listen_addr = "127.0.0.1:18780".to_string();
     let mut chunk_listen: Option<String> = None;
     let mut positional: Vec<String> = Vec::new();
@@ -88,6 +89,11 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             i += 1;
             continue;
         }
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a.starts_with('-') {
             return Err(format!("unknown option `{a}`"));
         }
@@ -109,6 +115,9 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             if positional.len() > 1 {
                 return Err("too many arguments for `run`".into());
             }
+            if json {
+                return Err("--json is only supported for `push-chunks`".into());
+            }
             run_daemon(
                 OperatorDaemonConfig {
                     rpc_addr,
@@ -125,6 +134,9 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
         "serve-chunks" => {
             if positional.len() > 1 {
                 return Err("too many arguments for `serve-chunks`".into());
+            }
+            if json {
+                return Err("--json is only supported for `push-chunks`".into());
             }
             serve_chunks(
                 ChunkServeConfig {
@@ -152,19 +164,31 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 &peers,
             )
             .map_err(|e| e.to_string())?;
+            let ok_count = results.iter().filter(|r| r.ok).count();
+            if json {
+                print_push_chunks_json(&commitment_hash_hex, &peers, &results)?;
+                if ok_count == results.len() {
+                    return Ok(());
+                }
+                return Err(format!(
+                    "push-chunks failed for {} of {} peers",
+                    results.len() - ok_count,
+                    results.len()
+                ));
+            }
             for r in &results {
                 println!("peer={} ok={} chunks_sent={}", r.peer, r.ok, r.chunks_sent);
                 if let Some(err) = &r.error {
                     println!("peer_error={err}");
                 }
             }
-            if results.iter().all(|r| r.ok) {
+            if ok_count == results.len() {
                 println!("push_chunks=ok");
                 Ok(())
             } else {
                 Err(format!(
                     "push-chunks failed for {} of {} peers",
-                    results.iter().filter(|r| !r.ok).count(),
+                    results.len() - ok_count,
                     results.len()
                 ))
             }
@@ -172,5 +196,84 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
         other => Err(format!(
             "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks)"
         )),
+    }
+}
+
+fn print_push_chunks_json(
+    commitment_hash_hex: &str,
+    peers: &[String],
+    results: &[ChunkPushPeerResult],
+) -> Result<(), String> {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&push_chunks_json(commitment_hash_hex, peers, results))
+            .map_err(|e| e.to_string())?
+    );
+    Ok(())
+}
+
+fn push_chunks_json(
+    commitment_hash_hex: &str,
+    peers: &[String],
+    results: &[ChunkPushPeerResult],
+) -> serde_json::Value {
+    let ok_count = results.iter().filter(|r| r.ok).count();
+    serde_json::json!({
+        "commitment_hash": commitment_hash_hex,
+        "peers": peers,
+        "peers_attempted": results.len(),
+        "peers_ok": ok_count,
+        "peers_failed": results.len().saturating_sub(ok_count),
+        "results": results.iter().map(push_peer_result_json).collect::<Vec<_>>(),
+        "push_chunks": if ok_count == results.len() { "ok" } else { "partial_failure" },
+    })
+}
+
+fn push_peer_result_json(r: &ChunkPushPeerResult) -> serde_json::Value {
+    let mut value = serde_json::json!({
+        "peer": &r.peer,
+        "ok": r.ok,
+        "chunks_sent": r.chunks_sent,
+    });
+    if let Some(error) = &r.error {
+        value
+            .as_object_mut()
+            .expect("push peer result json object literal")
+            .insert("error".into(), serde_json::json!(error));
+    }
+    value
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_chunks_json_reports_peer_results() {
+        let results = vec![
+            ChunkPushPeerResult {
+                peer: "127.0.0.1:18740".into(),
+                chunks_sent: 3,
+                ok: true,
+                error: None,
+            },
+            ChunkPushPeerResult {
+                peer: "127.0.0.1:18741".into(),
+                chunks_sent: 0,
+                ok: false,
+                error: Some("connection refused".into()),
+            },
+        ];
+        let peers = vec!["127.0.0.1:18740".into(), "127.0.0.1:18741".into()];
+
+        let value = push_chunks_json(&"11".repeat(32), &peers, &results);
+
+        assert_eq!(value["commitment_hash"], "11".repeat(32));
+        assert_eq!(value["peers_attempted"], 2);
+        assert_eq!(value["peers_ok"], 1);
+        assert_eq!(value["peers_failed"], 1);
+        assert_eq!(value["push_chunks"], "partial_failure");
+        assert_eq!(value["results"][0]["chunks_sent"], 3);
+        assert_eq!(value["results"][1]["error"], "connection refused");
     }
 }
