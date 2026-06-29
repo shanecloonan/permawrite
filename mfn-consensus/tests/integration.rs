@@ -2521,6 +2521,299 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     assert_eq!(st.spent_key_images.len(), 1);
 }
 
+/// After one valid validator mixed block, underpaid coinbase at height 2
+/// (emission-only, omitting fee share + storage reward) must reject (**M5.6+**).
+#[test]
+fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change() {
+    use curve25519_dalek::edwards::EdwardsPoint;
+    use mfn_bls::bls_keygen_from_seed;
+    use mfn_consensus::{
+        apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
+        emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
+        header_signing_hash, producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome,
+        BlockError, ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput,
+        SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+        DEFAULT_EMISSION_PARAMS,
+    };
+    use mfn_crypto::hash::hash_to_scalar;
+    use mfn_crypto::vrf::vrf_keygen_from_seed;
+    use mfn_storage::{
+        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        DEFAULT_ENDOWMENT_PARAMS,
+    };
+
+    struct TrackedSpend {
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        one_time_addr: EdwardsPoint,
+    }
+
+    impl TrackedSpend {
+        fn from_seed(seed: u32, value: u64) -> Self {
+            let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
+            let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            Self {
+                spend_priv,
+                blinding,
+                value,
+                one_time_addr: generator_g() * spend_priv,
+            }
+        }
+
+        fn commitment(&self) -> EdwardsPoint {
+            (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
+        }
+
+        fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
+            let change_value = self.value - fee;
+            let next_spend = hash_to_scalar(&[b"M5.6/change-spend", &next_seed.to_le_bytes()]);
+            let change_addr = generator_g() * next_spend;
+            let signed = sign_transaction(
+                vec![InputSpec {
+                    ring: ClsagRing {
+                        p: vec![self.one_time_addr],
+                        c: vec![self.commitment()],
+                    },
+                    signer_idx: 0,
+                    spend_priv: self.spend_priv,
+                    value: self.value,
+                    blinding: self.blinding,
+                }],
+                vec![OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                }],
+                fee,
+                Vec::new(),
+            )
+            .expect("sign");
+            (
+                signed.tx,
+                Self {
+                    spend_priv: next_spend,
+                    blinding: signed.output_blindings[0],
+                    value: change_value,
+                    one_time_addr: change_addr,
+                },
+            )
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn seal_validator_mixed(
+        st: &mfn_consensus::ChainState,
+        validators: &[Validator],
+        secrets: &[ValidatorSecrets],
+        total_stake: u64,
+        params: &ConsensusParams,
+        height: u32,
+        mut txs: Vec<TransactionWire>,
+        built: &mfn_storage::BuiltCommitment,
+        payload: &[u8],
+        voter_indices: &[usize],
+    ) -> mfn_consensus::Block {
+        let timestamp = u64::from(height) * 1_000;
+        let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
+        let storage_proof = build_storage_proof(
+            &built.commit,
+            &scratch.prev_hash,
+            height,
+            payload,
+            &built.tree,
+        )
+        .expect("proof");
+        let storage_proofs = vec![storage_proof];
+        let unsealed =
+            build_unsealed_header(st, &txs, &[], &[], &storage_proofs, height, timestamp);
+        let header_hash = header_signing_hash(&unsealed);
+        let ctx = SlotContext {
+            height,
+            slot: height,
+            prev_hash: unsealed.prev_hash,
+        };
+        let producer_proof = try_produce_slot(
+            &ctx,
+            &secrets[0],
+            &validators[0],
+            total_stake,
+            params.expected_proposers_per_slot,
+            &header_hash,
+        )
+        .expect("produce")
+        .expect("eligible");
+        let votes: Vec<_> = voter_indices
+            .iter()
+            .map(|&i| {
+                cast_vote(
+                    &header_hash,
+                    &secrets[i],
+                    &ctx,
+                    &producer_proof,
+                    &validators[0],
+                    total_stake,
+                    params.expected_proposers_per_slot,
+                )
+                .unwrap()
+            })
+            .collect();
+        let signing_stake: u64 = voter_indices.iter().map(|&i| validators[i].stake).sum();
+        let fin = FinalityProof {
+            producer: producer_proof,
+            finality: finalize(&header_hash, &votes, validators.len()).expect("finalize"),
+            signing_stake,
+        };
+        seal_block(
+            unsealed,
+            std::mem::take(&mut txs),
+            Vec::new(),
+            encode_finality_proof(&fin),
+            Vec::new(),
+            storage_proofs,
+        )
+    }
+
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let commit_hash = storage_commitment_hash(&built.commit);
+
+    let mk_validator = |i: u32, stake: u64| -> (Validator, ValidatorSecrets) {
+        let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
+        let bls = bls_keygen_from_seed(&[i as u8 + 101; 32]);
+        let wallet = stealth_gen();
+        (
+            Validator {
+                index: i,
+                vrf_pk: vrf.pk,
+                bls_pk: bls.pk,
+                stake,
+                payout: Some(ValidatorPayout {
+                    view_pub: wallet.view_pub,
+                    spend_pub: wallet.spend_pub,
+                }),
+            },
+            ValidatorSecrets { index: i, vrf, bls },
+        )
+    };
+    let (v0, s0) = mk_validator(0, 100);
+    let (v1, s1) = mk_validator(1, 100);
+    let (v2, s2) = mk_validator(2, 100);
+    let validators = vec![v0.clone(), v1.clone(), v2.clone()];
+    let secrets = vec![s0, s1, s2];
+    let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 10.0,
+        quorum_stake_bps: 6667,
+        ..ConsensusParams::default()
+    };
+
+    let initial_spend = TrackedSpend::from_seed(3, 1_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: initial_spend.one_time_addr,
+            amount: initial_spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let genesis = build_genesis(&cfg);
+    let genesis_id = block_id(&genesis.header);
+    let mut st = apply_genesis(&genesis, &cfg).expect("genesis");
+    let cb_payout = PayoutAddress {
+        view_pub: v0.payout.as_ref().unwrap().view_pub,
+        spend_pub: v0.payout.as_ref().unwrap().spend_pub,
+    };
+
+    let fee1 = 100_000u64;
+    let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
+    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
+    st = match apply_block(
+        &st,
+        &seal_validator_mixed(
+            &st,
+            &validators,
+            &secrets,
+            total_stake,
+            &params,
+            1,
+            vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+            &built,
+            &payload,
+            &[0, 1, 2],
+        ),
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("block1 rejected: {errors:?}"),
+    };
+    assert_eq!(st.height, Some(1));
+
+    let before_checkpoint = encode_chain_checkpoint(&ChainCheckpoint {
+        genesis_id,
+        state: st.clone(),
+    });
+    let before_proven_height = st.storage[&commit_hash].last_proven_height;
+
+    let fee2 = 50_000u64;
+    let (tx2, _) = spend.sign_self_transfer(fee2, 2);
+    let correct_cb = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
+    let wrong_cb = emission_at_height(2, &DEFAULT_EMISSION_PARAMS);
+    assert_ne!(wrong_cb, correct_cb);
+    let bad_block = seal_validator_mixed(
+        &st,
+        &validators,
+        &secrets,
+        total_stake,
+        &params,
+        2,
+        vec![
+            build_coinbase(2, wrong_cb, &cb_payout).expect("coinbase"),
+            tx2,
+        ],
+        &built,
+        &payload,
+        &[0, 1, 2],
+    );
+
+    match apply_block(&st, &bad_block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::CoinbaseInvalid(_))),
+                "expected CoinbaseInvalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("underpaid coinbase must reject"),
+    }
+    assert_eq!(
+        encode_chain_checkpoint(&ChainCheckpoint {
+            genesis_id,
+            state: st.clone(),
+        }),
+        before_checkpoint,
+        "reject must leave checkpoint bytes unchanged"
+    );
+    assert_eq!(
+        st.storage[&commit_hash].last_proven_height,
+        before_proven_height
+    );
+    assert_eq!(st.height, Some(1));
+    assert_eq!(st.spent_key_images.len(), 1);
+}
+
 #[test]
 fn coinbase_replay_is_byte_identical() {
     // Two nodes computing the same height + amount + payout must produce
