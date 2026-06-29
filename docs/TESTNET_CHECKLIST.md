@@ -122,7 +122,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add public-devnet recovery plan helpers for explicit HTTP/P2P artifact repair commands with backup warnings.
 - [x] Add public-devnet recovery walkthrough helpers for support bundle, restore, hash verification, and optional proof.
 - [x] Add CI/local-CI validation for recovery walkthrough HTTP/P2P plan modes and safety text.
-- [ ] Add a full participant rehearsal that funds a wallet, uploads, restores, hash-verifies, proves, and captures a support bundle.
+- [x] Add a full participant rehearsal that funds a wallet, uploads, restores, hash-verifies, proves, and captures a support bundle.
+- [ ] Add real-run rehearsal smoke coverage against the local public-devnet harness.
 
 ## Cross-Agent Notes
 

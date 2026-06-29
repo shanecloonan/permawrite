@@ -640,6 +640,26 @@ bash scripts/public-devnet-v1/permanence-demo.sh --rpc 127.0.0.1:<RPC>
 
 The demos store wallets and payloads under `scripts/public-devnet-v1/permanence-demo/` by default and reuse existing wallet files on repeat runs. Before a real run, fund the uploader wallet with enough devnet MFN for upload fees and storage endowment; otherwise `wallet upload` will fail during tx construction. The scripts exit nonzero if the upload is not discovered, peer restore fails, proof submission fails, or the restored SHA-256 does not match the original payload.
 
+### Participant rehearsal
+
+Use the participant rehearsal when you want one outside-user proof that the faucet, upload, restore, proof, and support handoff all work together:
+
+```bash
+# Windows plan mode:
+powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly `
+  -Rpc 127.0.0.1:<RPC> -FaucetWallet ./validator0-faucet.json
+
+# Windows real run:
+powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 `
+  -Rpc 127.0.0.1:<RPC> -FaucetWallet ./validator0-faucet.json
+
+# Linux/macOS real run:
+bash scripts/public-devnet-v1/participant-rehearsal.sh --rpc 127.0.0.1:<RPC> \
+  --faucet-wallet ./validator0-faucet.json
+```
+
+The rehearsal creates/reuses wallets under `scripts/public-devnet-v1/participant-rehearsal/`, funds the uploader wallet with `fund-wallet`, runs the HTTP permanence demo, verifies the restored SHA-256, submits a proof, and captures a read-only support bundle for the replica wallet and commitment. The support bundle intentionally omits transient `fetch-chunk` capture because the demo's temporary HTTP chunk server is stopped after restore. Use only operator-controlled public-devnet/test faucet wallets; never put real faucet seeds or production keys in this repo.
+
 ### Support bundles
 
 When a participant reports a stuck wallet, missing upload, missing claim, or proof issue, collect the read-only JSON diagnostics in one directory:
@@ -727,6 +747,7 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 | `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
 | `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |
+| `participant-rehearsal.{ps1,sh}` plan validation | Full outside-user rehearsal advertises faucet funding, permanence restore/prove, SHA-256 verification, and support-bundle capture |
 
 ```bash
 cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke

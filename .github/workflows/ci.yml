@@ -45,6 +45,9 @@ jobs:
           p2p_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --data-dir /tmp/replica --expected-sha256 cdcd)"
           [[ "$p2p_plan" == *"restore_mode=p2p-inbox"* ]] || { echo "$p2p_plan"; exit 1; }
           [[ "$p2p_plan" == *"support-bundle -> recovery-plan -> restore"* ]] || { echo "$p2p_plan"; exit 1; }
+          rehearsal_plan="$(bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:18731 --faucet-wallet ./faucet.json)"
+          [[ "$rehearsal_plan" == *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* ]] || { echo "$rehearsal_plan"; exit 1; }
+          [[ "$rehearsal_plan" == *"public-devnet/test funds only"* ]] || { echo "$rehearsal_plan"; exit 1; }
       - name: Validate PowerShell helper syntax
         if: runner.os == 'Windows'
         shell: pwsh
@@ -70,6 +73,11 @@ jobs:
           $p2pPlan = (powershell -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -DataDir C:\tmp\replica -ExpectedSha256 cdcd) -join "`n"
           if ($p2pPlan -notmatch "restore_mode=p2p-inbox" -or $p2pPlan -notmatch "support-bundle -> recovery-plan -> restore") {
             $p2pPlan
+            exit 1
+          }
+          $rehearsalPlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -FaucetWallet ./faucet.json) -join "`n"
+          if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle" -or $rehearsalPlan -notmatch "public-devnet/test funds only") {
+            $rehearsalPlan
             exit 1
           }
 

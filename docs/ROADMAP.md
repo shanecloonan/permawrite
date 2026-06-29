@@ -2133,6 +2133,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.41** | Public-devnet recovery plans: print explicit HTTP/P2P artifact repair commands with backup and overwrite warnings before mutating local artifacts. | ✓ shipped |
 | **M3.42** | Public-devnet recovery walkthroughs: capture support bundles, print recovery plans, restore payloads, verify SHA-256, and optionally prove. | ✓ shipped |
 | **M3.43** | Recovery walkthrough CI validation: local and GitHub CI assert HTTP/P2P plan modes, hash-verification text, and opt-in proof safety text. | ✓ shipped |
+| **M3.44** | Participant rehearsal: compose faucet funding, permanence upload/restore/prove, SHA-256 verification, and support-bundle capture into one outside-user script. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |

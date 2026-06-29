@@ -39,6 +39,11 @@ if [[ "$p2p_plan" != *"restore_mode=p2p-inbox"* || "$p2p_plan" != *"support-bund
   printf '%s\n' "$p2p_plan" >&2
   exit 1
 fi
+rehearsal_plan="$(bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:18731 --faucet-wallet ./faucet.json)"
+if [[ "$rehearsal_plan" != *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* || "$rehearsal_plan" != *"public-devnet/test funds only"* ]]; then
+  printf '%s\n' "$rehearsal_plan" >&2
+  exit 1
+fi
 pwsh -NoProfile -Command '
   $errors = @()
   foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
@@ -63,6 +68,11 @@ pwsh -NoProfile -Command '
   $p2pPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -DataDir /tmp/replica -ExpectedSha256 cdcd) -join "`n"
   if ($p2pPlan -notmatch "restore_mode=p2p-inbox" -or $p2pPlan -notmatch "support-bundle -> recovery-plan -> restore") {
     $p2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+  }
+  $rehearsalPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -FaucetWallet ./faucet.json) -join "`n"
+  if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle" -or $rehearsalPlan -notmatch "public-devnet/test funds only") {
+    $rehearsalPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
   }
 '
