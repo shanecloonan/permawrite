@@ -9,8 +9,9 @@
 //! vrf batch, zombie unbond, forged/unknown unbond, duplicate unbond after
 //! pending request, bond rejection treasury preservation), chain linkage
 //! (prev_hash), finality proof integrity (msg mismatch, tampered blob,
-//! signing_stake claim, producer index), bond epoch counter persistence,
-//! and rejection preserving caller state.
+//! signing_stake claim, producer index), producer VRF/BLS verification
+//! failures, aggregate signature integrity, bond epoch counter persistence,
+//! checkpoint roundtrip of bond counters, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -22,10 +23,12 @@ use mfn_consensus::consensus::{
     ProducerProof, SlotContext, Validator, ValidatorSecrets,
 };
 use mfn_consensus::{
-    apply_block, apply_genesis, build_genesis, build_unsealed_header, header_signing_hash,
-    seal_block, ApplyOutcome, Block, BlockError, BondOp, ChainState, ConsensusParams,
-    GenesisConfig, SlashEvidence, ValidatorStats, DEFAULT_EMISSION_PARAMS,
+    apply_block, apply_genesis, build_genesis, build_unsealed_header, decode_chain_checkpoint,
+    encode_chain_checkpoint, header_signing_hash, seal_block, ApplyOutcome, Block, BlockError,
+    BondOp, ChainCheckpoint, ChainState, ConsensusParams, GenesisConfig, SlashEvidence,
+    ValidatorStats, DEFAULT_EMISSION_PARAMS,
 };
+use mfn_crypto::point::generator_g;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
@@ -2208,4 +2211,193 @@ fn bond_epoch_exit_count_persists_across_empty_blocks() {
     .expect("empty block 4");
     assert_eq!(st.bond_epoch_exit_count, 1);
     assert_eq!(st.bond_epoch_id, epoch0);
+}
+
+/// Invalid producer BLS signature fails finality verification.
+#[test]
+fn producer_sig_invalid_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    let attacker = bls_keygen_from_seed(&[240u8; 32]);
+    fin.producer.producer_sig = bls_sign(&header_signing_hash(&block.header), &attacker.sk);
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::ProducerSigInvalid)
+                    )
+                }),
+                "expected producer sig invalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("invalid producer sig must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Corrupt VRF proof bytes fail producer verification.
+#[test]
+fn vrf_invalid_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.producer.vrf_proof.gamma = generator_g();
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(e, BlockError::FinalityInvalid(ConsensusCheck::VrfInvalid))
+                }),
+                "expected vrf invalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("invalid vrf must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Stated `beta` must match the verified VRF output.
+#[test]
+fn vrf_output_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.producer.beta[0] ^= 0xff;
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::VrfOutputMismatch)
+                    )
+                }),
+                "expected vrf output mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("vrf output mismatch must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// BLS aggregate over the committee vote set must verify under validator keys.
+#[test]
+fn aggregate_invalid_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    let attacker = bls_keygen_from_seed(&[241u8; 32]);
+    fin.finality.agg_sig = bls_sign(&header_signing_hash(&block.header), &attacker.sk);
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::AggregateInvalid)
+                    )
+                }),
+                "expected aggregate invalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("invalid aggregate must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Bond epoch counters and validator set survive chain-checkpoint encode/decode.
+#[test]
+fn bond_epoch_counters_persist_in_chain_checkpoint_roundtrip() {
+    let fx = boot_three_validators(64);
+    let mut st = fx.state.clone();
+    let genesis_id = st.block_ids[0];
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(ENTRY_CHURN_REGISTER_STAKE, 80)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("register block");
+    assert_eq!(st.bond_epoch_entry_count, 1);
+    assert_eq!(st.validators.len(), 4);
+
+    let cp = ChainCheckpoint {
+        genesis_id,
+        state: st.clone(),
+    };
+    let restored = decode_chain_checkpoint(&encode_chain_checkpoint(&cp)).expect("roundtrip");
+    assert_eq!(restored.genesis_id, genesis_id);
+    assert_eq!(restored.state.bond_epoch_id, st.bond_epoch_id);
+    assert_eq!(
+        restored.state.bond_epoch_entry_count,
+        st.bond_epoch_entry_count
+    );
+    assert_eq!(
+        restored.state.bond_epoch_exit_count,
+        st.bond_epoch_exit_count
+    );
+    assert_eq!(restored.state.next_validator_index, st.next_validator_index);
+    assert_eq!(restored.state.validators.len(), st.validators.len());
+    assert_eq!(
+        validator_set_root(&restored.state.validators),
+        validator_set_root(&st.validators)
+    );
 }
