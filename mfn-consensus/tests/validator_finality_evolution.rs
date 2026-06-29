@@ -4,7 +4,9 @@
 //! liveness stats/stake updates, header body-root binding (bond, slashing,
 //! tx, storage_proof), unbond-settlement root evolution, equivocation during
 //! unbond delay, entry/exit churn caps and epoch reset, duplicate/invalid slash
-//! rejection, and rejection preserving caller state.
+//! rejection, bond-op admission rejects (duplicate vrf, duplicate unbond,
+//! stake below minimum, same-block register-then-unbond), and rejection preserving
+//! caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -1292,4 +1294,171 @@ fn entry_churn_cap_resets_at_epoch_boundary() {
     .expect("new epoch allows two more registers");
     assert_eq!(st.validators.len(), 7);
     assert_eq!(st.bond_epoch_entry_count, 2);
+}
+
+/// `Register` with a vrf_pk already in the active set rejects atomically.
+#[test]
+fn duplicate_vrf_register_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let dup_vrf = st.validators[0].vrf_pk;
+    let bls = bls_keygen_from_seed(&[190u8; 32]);
+    let dup_register = BondOp::Register {
+        stake,
+        vrf_pk: dup_vrf,
+        bls_pk: bls.pk,
+        payout: None,
+        sig: sign_register(stake, &dup_vrf, &bls.pk, None, &bls.sk),
+    };
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![dup_register],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("duplicate vrf_pk")
+                    )
+                }),
+                "expected duplicate vrf rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate vrf register must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Two `Unbond` ops for the same validator in one block reject atomically.
+#[test]
+fn duplicate_unbond_enqueue_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let idx = st.validators[1].index;
+    let sig = sign_unbond(idx, &fx.secrets[1].bls.sk);
+    let ops = vec![
+        BondOp::Unbond {
+            validator_index: idx,
+            sig,
+        },
+        BondOp::Unbond {
+            validator_index: idx,
+            sig: sign_unbond(idx, &fx.secrets[1].bls.sk),
+        },
+    ];
+    let block = seal_empty(&fx, &st, 1, ops, Vec::new(), &all_voter_positions(&st));
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 1,
+                            message,
+                            ..
+                        } if message.contains("pending unbond")
+                    )
+                }),
+                "expected duplicate unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate unbond enqueue must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert!(st.pending_unbonds.is_empty());
+}
+
+/// Stake below `min_validator_stake` rejects without mutating chain state.
+#[test]
+fn register_stake_below_minimum_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let below_min = st.bonding_params.min_validator_stake - 1;
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![register_op(below_min, 41)],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("min_validator_stake")
+                    )
+                }),
+                "expected stake minimum rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("sub-minimum register must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Same-block `Register` then `Unbond` of the new validator rejects atomically
+/// because unbond resolves only against the pre-block validator set.
+#[test]
+fn same_block_register_then_unbond_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let reg = register_op(stake, 42);
+    let new_index = st.next_validator_index;
+    let bls = bls_keygen_from_seed(&[192u8; 32]);
+    let unbond_new = BondOp::Unbond {
+        validator_index: new_index,
+        sig: sign_unbond(new_index, &bls.sk),
+    };
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![reg, unbond_new],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 1,
+                            message,
+                            ..
+                        } if message.contains("unknown validator")
+                    )
+                }),
+                "expected same-block register-then-unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("same-block register-then-unbond must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.validators.len(), 3);
 }
