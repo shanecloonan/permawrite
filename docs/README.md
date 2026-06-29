@@ -22,6 +22,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
+- 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, and architectural weaknesses (no invented problems).
 
 ### Want to know what's next?
@@ -50,6 +51,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Counterfeit-input attack | OVERVIEW § Why this is hard | PRIVACY § Counterfeit-input | code: `mfn-consensus/src/block.rs` (apply_block) |
 | Fee/treasury split | OVERVIEW § How they fuse | ECONOMICS § Fee economics | code: `mfn-consensus/src/emission.rs` |
 | Emission curve | (covered) | ECONOMICS § Emission curve | code: `mfn-consensus/src/emission.rs` |
+| Supply schedule | (covered) | SUPPLY_CURVE | code: `mfn-consensus/src/emission.rs` |
 | Known weaknesses & open risks | — | PROBLEMS (full document) | — |
 
 ## Where to file questions

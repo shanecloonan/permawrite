@@ -1,0 +1,134 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Permawrite scheduled MFN supply curve</title>
+  <desc id="desc">A labeled supply curve showing launch at 0 MFN, year 1 at 131.4 million MFN, year 10 at 714.25 million MFN, tail start at 796.875 million MFN, year 100 at 835.7 million MFN, and year 1000 at 1.298 billion MFN.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.52" stop-color="#101531"/>
+      <stop offset="1" stop-color="#071927"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(730 322) rotate(140) scale(620 330)">
+      <stop stop-color="#37E6C5" stop-opacity="0.32"/>
+      <stop offset="0.55" stop-color="#7C5CFF" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#07111F" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="curve" x1="112" y1="574" x2="1076" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5BF4D2"/>
+      <stop offset="0.48" stop-color="#8FA2FF"/>
+      <stop offset="1" stop-color="#FFD37A"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .label { fill: #DCE9FF; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 22px; font-weight: 700; }
+      .small { fill: #91A4C7; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; font-weight: 600; }
+      .tiny { fill: #8090AE; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; font-weight: 600; }
+      .value { fill: #FFFFFF; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+      .axis { stroke: #31506E; stroke-width: 1.5; stroke-dasharray: 6 10; opacity: 0.72; }
+      .card { fill: rgba(13, 27, 47, 0.76); stroke: rgba(137, 165, 255, 0.22); stroke-width: 1.4; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" rx="34" fill="url(#bg)"/>
+  <rect width="1200" height="720" rx="34" fill="url(#glow)"/>
+
+  <g opacity="0.24">
+    <path d="M83 124H1117" class="axis"/>
+    <path d="M83 236H1117" class="axis"/>
+    <path d="M83 348H1117" class="axis"/>
+    <path d="M83 460H1117" class="axis"/>
+    <path d="M83 572H1117" class="axis"/>
+  </g>
+
+  <text x="82" y="72" class="small" fill="#5BF4D2">PERMAWRITE MONETARY POLICY</text>
+  <text x="82" y="112" class="value">Scheduled MFN Supply</text>
+  <text x="82" y="142" class="small">Bitcoin-style halvings for 8 eras, then permanent Monero-style tail emission.</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="789" y="58" width="329" height="116" rx="22" class="card"/>
+    <text x="816" y="98" class="small">Pre-tail supply</text>
+    <text x="816" y="136" class="value">796.875M</text>
+    <text x="816" y="158" class="tiny">Reached around year 24.35</text>
+  </g>
+
+  <g transform="translate(82 188)">
+    <text x="0" y="0" class="tiny">Supply (MFN)</text>
+    <text x="0" y="387" class="tiny">0</text>
+    <text x="0" y="281" class="tiny">400M</text>
+    <text x="0" y="172" class="tiny">800M</text>
+    <text x="0" y="63" class="tiny">1.2B</text>
+  </g>
+
+  <path d="M112 574
+           C145 524 177 477 211 434
+           C245 392 278 357 312 327
+           C348 296 383 271 417 251
+           C453 232 486 220 520 212
+           C556 204 590 199 624 195
+           C660 191 695 188 728 186
+           C765 184 804 179 845 173
+           C901 165 963 151 1076 112"
+        stroke="#162840" stroke-width="16" stroke-linecap="round" opacity="0.88"/>
+  <path d="M112 574
+           C145 524 177 477 211 434
+           C245 392 278 357 312 327
+           C348 296 383 271 417 251
+           C453 232 486 220 520 212
+           C556 204 590 199 624 195
+           C660 191 695 188 728 186
+           C765 184 804 179 845 173
+           C901 165 963 151 1076 112"
+        stroke="url(#curve)" stroke-width="7" stroke-linecap="round" filter="url(#lineGlow)"/>
+
+  <g>
+    <line x1="112" y1="574" x2="112" y2="596" stroke="#5BF4D2" stroke-width="2"/>
+    <text x="96" y="623" class="tiny">Launch</text>
+
+    <line x1="171" y1="488" x2="171" y2="596" stroke="#456A8E" stroke-width="1.4" stroke-dasharray="5 8"/>
+    <circle cx="171" cy="488" r="6" fill="#5BF4D2"/>
+    <text x="145" y="465" class="small">Y1</text>
+    <text x="124" y="444" class="tiny">131.4M</text>
+
+    <line x1="290" y1="332" x2="290" y2="596" stroke="#456A8E" stroke-width="1.4" stroke-dasharray="5 8"/>
+    <circle cx="290" cy="332" r="6" fill="#71DCE8"/>
+    <text x="264" y="309" class="small">Y3</text>
+    <text x="241" y="288" class="tiny">394.2M</text>
+
+    <line x1="505" y1="214" x2="505" y2="596" stroke="#456A8E" stroke-width="1.4" stroke-dasharray="5 8"/>
+    <circle cx="505" cy="214" r="6" fill="#99A0FF"/>
+    <text x="476" y="191" class="small">Y10</text>
+    <text x="459" y="170" class="tiny">714.25M</text>
+
+    <line x1="680" y1="187" x2="680" y2="596" stroke="#FFD37A" stroke-width="1.6" stroke-dasharray="5 8"/>
+    <circle cx="680" cy="187" r="7" fill="#FFD37A"/>
+    <text x="636" y="164" class="small">Tail starts</text>
+    <text x="637" y="143" class="tiny">Y24.35 / 796.875M</text>
+
+    <line x1="842" y1="174" x2="842" y2="596" stroke="#456A8E" stroke-width="1.4" stroke-dasharray="5 8"/>
+    <circle cx="842" cy="174" r="6" fill="#BEC2FF"/>
+    <text x="812" y="623" class="tiny">Y100</text>
+    <text x="803" y="151" class="tiny">835.7M</text>
+
+    <line x1="1076" y1="112" x2="1076" y2="596" stroke="#456A8E" stroke-width="1.4" stroke-dasharray="5 8"/>
+    <circle cx="1076" cy="112" r="6" fill="#FFD37A"/>
+    <text x="1038" y="623" class="tiny">Y1000</text>
+    <text x="1017" y="89" class="tiny">1.298B</text>
+  </g>
+
+  <path d="M694 596H1064" stroke="#31506E" stroke-width="1.6"/>
+  <path d="M694 596C737 596 753 596 796 596" stroke="#31506E" stroke-width="1.6" stroke-dasharray="4 7"/>
+  <text x="705" y="654" class="tiny">Timeline compressed after year 30 so the permanent tail remains visible.</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="82" y="630" width="514" height="54" rx="18" class="card"/>
+    <text x="106" y="663" class="small">Tail emission: 0.19531250 MFN/block = 513,281.25 MFN/year at 12-second slots.</text>
+  </g>
+</svg>

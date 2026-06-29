@@ -135,7 +135,9 @@ sum_{k=0..7} (50 * 8M >> k) = 50·8M · (1 + 1/2 + 1/4 + … + 1/128)
                             ≈ 7.97 × 10^8 MFN
 ```
 
-Plus tail emission forever: 0.195 MFN/block · 2.63M slots/year ≈ 0.5 MFN/year as a percentage of supply, which goes to **less than 0.1%/year inflation after several decades** — Monero-equivalent.
+For a labeled supply curve and year-by-year schedule, see [`SUPPLY_CURVE.md`](./SUPPLY_CURVE.md).
+
+Plus tail emission forever: 0.19531250 MFN/block · 2.628M slots/year ≈ 513,281 MFN/year. That is about **0.064%/year at tail start** and declines as supply grows — Monero-equivalent permanence funding without runaway dilution.
 
 ### The tail-continuity constraint
 
