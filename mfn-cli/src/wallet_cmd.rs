@@ -119,6 +119,24 @@ pub struct BackupInfoParams {
     pub json: bool,
 }
 
+/// Parameters for `wallet status`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WalletStatusParams {
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WalletStatusSnapshot {
+    tip_height: u64,
+    scan_height: u32,
+    utxo_cache: bool,
+    balance_cached: u64,
+    owned_count_cached: usize,
+    blocks_behind: u64,
+    sync_needed: bool,
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
@@ -209,7 +227,11 @@ pub fn wallet_balance(path: &Path, client: &mut RpcClient) -> Result<(), WalletC
 }
 
 /// `wallet status` — print cached UTXO snapshot vs node tip without fetching blocks.
-pub fn wallet_status(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdError> {
+pub fn wallet_status(
+    path: &Path,
+    client: &mut RpcClient,
+    params: WalletStatusParams,
+) -> Result<(), WalletCmdError> {
     let file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     file.hydrate_wallet(&mut wallet)?;
@@ -217,6 +239,27 @@ pub fn wallet_status(path: &Path, client: &mut RpcClient) -> Result<(), WalletCm
     let tip_height = tip.tip_height.unwrap_or(0);
     let scan_height = file.scan_height.unwrap_or(0);
     let cached = file.has_owned_cache();
+    let blocks_behind = tip_height.saturating_sub(u64::from(scan_height));
+    let sync_needed = blocks_behind > 0;
+    let snapshot = WalletStatusSnapshot {
+        tip_height,
+        scan_height,
+        utxo_cache: cached,
+        balance_cached: wallet.balance(),
+        owned_count_cached: wallet.owned_count(),
+        blocks_behind,
+        sync_needed,
+    };
+
+    if params.json {
+        let value = wallet_status_json(path, &file, snapshot);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("wallet status json: {e}")))?
+        );
+        return Ok(());
+    }
 
     println!("tip_height={tip_height}");
     println!("scan_height={scan_height}");
@@ -224,16 +267,32 @@ pub fn wallet_status(path: &Path, client: &mut RpcClient) -> Result<(), WalletCm
     println!("balance_cached={}", wallet.balance());
     println!("owned_count_cached={}", wallet.owned_count());
     println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
-    if tip_height > u64::from(scan_height) {
-        println!("sync_needed=true");
-        println!("blocks_behind={}", tip_height - u64::from(scan_height));
-    } else {
-        println!("sync_needed=false");
-        println!("blocks_behind=0");
-    }
+    println!("sync_needed={sync_needed}");
+    println!("blocks_behind={blocks_behind}");
     println!("wallet_path={}", path.display());
     println!("wallet_version={}", file.version);
     Ok(())
+}
+
+fn wallet_status_json(
+    path: &Path,
+    file: &WalletFile,
+    snapshot: WalletStatusSnapshot,
+) -> serde_json::Value {
+    serde_json::json!({
+        "wallet_path": path.display().to_string(),
+        "wallet_version": file.version,
+        "tip_height": snapshot.tip_height,
+        "scan_height": snapshot.scan_height,
+        "utxo_cache": snapshot.utxo_cache,
+        "balance_cached": snapshot.balance_cached,
+        "owned_count_cached": snapshot.owned_count_cached,
+        "pending_spent_count": file.pending_spent_utxo_keys.len(),
+        "blocks_behind": snapshot.blocks_behind,
+        "sync_needed": snapshot.sync_needed,
+        "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
+        "trusted_light_summary_present": file.trusted_light_summary.is_some(),
+    })
 }
 
 /// `wallet backup-info` — print local backup inventory without revealing secrets.
@@ -849,6 +908,40 @@ mod tests {
         wallet_restore(&path, &seed, KeyDerivation::MfnWalletV1, false).expect("restore");
         wallet_backup_info(&path, BackupInfoParams::default()).expect("backup info");
         wallet_backup_info(&path, BackupInfoParams { json: true }).expect("backup info json");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(
+            mfn_storage_operator::upload_artifact_store::upload_artifacts_root(&path),
+        );
+    }
+
+    #[test]
+    fn wallet_status_json_reports_sync_gap() {
+        let path = temp_wallet_path("status-json");
+        let seed = "44".repeat(32);
+        wallet_restore(&path, &seed, KeyDerivation::MfnWalletV1, false).expect("restore");
+        let file = WalletFile::load(&path).expect("load wallet");
+        let value = wallet_status_json(
+            &path,
+            &file,
+            WalletStatusSnapshot {
+                tip_height: 7,
+                scan_height: 3,
+                utxo_cache: false,
+                balance_cached: 0,
+                owned_count_cached: 0,
+                blocks_behind: 4,
+                sync_needed: true,
+            },
+        );
+
+        assert_eq!(value["wallet_path"], path.display().to_string());
+        assert_eq!(value["tip_height"], 7);
+        assert_eq!(value["scan_height"], 3);
+        assert_eq!(value["blocks_behind"], 4);
+        assert_eq!(value["sync_needed"], true);
+        assert_eq!(value["utxo_cache"], false);
+        assert_eq!(value["pending_spent_count"], 0);
+
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_dir_all(
             mfn_storage_operator::upload_artifact_store::upload_artifacts_root(&path),

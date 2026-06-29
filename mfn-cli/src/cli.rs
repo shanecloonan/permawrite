@@ -26,8 +26,8 @@ use crate::uploads_cmd::{
 use crate::wallet_cmd::{
     resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
     wallet_new, wallet_restore, wallet_scan, wallet_send, wallet_status, wallet_upload,
-    BackupInfoParams, ClaimParams, SendParams, UploadParams, WalletCmdError, DEFAULT_CLAIM_FEE,
-    DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+    BackupInfoParams, ClaimParams, SendParams, UploadParams, WalletCmdError, WalletStatusParams,
+    DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
 };
 use crate::wallet_store::KeyDerivation;
 
@@ -256,7 +256,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
                 WalletSub::LightScan(ref params) => wallet_light_scan(&path, &mut client, params)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
-                WalletSub::Status => wallet_status(&path, &mut client)?,
+                WalletSub::Status(params) => wallet_status(&path, &mut client, params)?,
                 WalletSub::BackupInfo(params) => wallet_backup_info(&path, params)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
                 WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
@@ -398,7 +398,7 @@ enum WalletSub {
     Scan,
     LightScan(LightScanParams),
     Balance,
-    Status,
+    Status(WalletStatusParams),
     BackupInfo(BackupInfoParams),
     Send(SendParams),
     Upload(UploadParams),
@@ -447,6 +447,7 @@ fn usage() -> &'static str {
                          --pin-trusted-summary --reset-trusted-summary --max-height N\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
+                         options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
@@ -1148,8 +1149,9 @@ fn parse_wallet_cmd(
             WalletSub::CompareTrustedSummary(parse_wallet_compare_trusted_summary_args(&rest[1..])?)
         }
         "restore" => parse_wallet_restore_args(&rest[1..])?,
+        "status" => WalletSub::Status(parse_wallet_status_args(&rest[1..])?),
         "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
-        "new" | "address" | "scan" | "balance" | "status" => {
+        "new" | "address" | "scan" | "balance" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
                     "wallet {sub_name} takes no extra arguments\n{}",
@@ -1161,7 +1163,6 @@ fn parse_wallet_cmd(
                 "address" => WalletSub::Address,
                 "scan" => WalletSub::Scan,
                 "balance" => WalletSub::Balance,
-                "status" => WalletSub::Status,
                 _ => unreachable!(),
             }
         }
@@ -1234,6 +1235,22 @@ fn parse_wallet_backup_info_args(rest: &[&str]) -> Result<BackupInfoParams, CliE
             other => {
                 return Err(CliError::Usage(format!(
                     "unknown wallet backup-info argument `{other}`\n{}",
+                    usage()
+                )));
+            }
+        }
+    }
+    Ok(params)
+}
+
+fn parse_wallet_status_args(rest: &[&str]) -> Result<WalletStatusParams, CliError> {
+    let mut params = WalletStatusParams::default();
+    for a in rest {
+        match *a {
+            "--json" => params.json = true,
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unknown wallet status argument `{other}`\n{}",
                     usage()
                 )));
             }
@@ -1872,6 +1889,18 @@ mod tests {
                 assert!(!force);
             }
             _ => panic!("expected wallet balance"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_status_json() {
+        let p = parse_args(&["wallet".into(), "status".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Status(params),
+                ..
+            } => assert!(params.json),
+            _ => panic!("expected wallet status"),
         }
     }
 

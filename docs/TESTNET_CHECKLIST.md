@@ -92,6 +92,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add JSON output mode to `operator assemble-inbox` for scripted P2P artifact recovery.
 - [x] Add JSON output mode to `operator backfill` for scripted HTTP artifact recovery.
 - [x] Add JSON output mode to `uploads fetch-http` for scripted one-step HTTP restore.
+- [x] Add JSON output mode to `wallet status` for stuck-wallet and sync-gap diagnostics.
 
 ## Cross-Agent Notes
 

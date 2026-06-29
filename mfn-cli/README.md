@@ -40,6 +40,7 @@ mfn-cli wallet address
 mfn-cli --wallet ./alice.json wallet scan
 mfn-cli wallet light-scan
 mfn-cli wallet balance
+mfn-cli wallet status --json
 mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
@@ -130,7 +131,7 @@ mfn-cli wallet compare-trusted-summary trusted-summary.json
 mfn-cli wallet compare-trusted-summary a.json b.json
 ```
 
-`wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks.
+`wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks. Add `--json` for stuck-wallet diagnostics or support tickets; the structured output includes `tip_height`, `scan_height`, `blocks_behind`, `sync_needed`, cached balance/owned counts, pending-spend count, and light-summary presence without revealing the seed.
 
 `wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 
