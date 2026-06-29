@@ -1,0 +1,46 @@
+{
+  "schema_version": "release-evidence.v1",
+  "generated_utc": "2026-06-29T00:00:00Z",
+  "commit": {
+    "branch": "main",
+    "head": "0000000000000000000000000000000000000000",
+    "working_tree": "clean",
+    "codebase_stats_generated_utc": "2026-06-29T00:00:00.000Z"
+  },
+  "ci": {
+    "status": "completed",
+    "conclusion": "success",
+    "source": "gh",
+    "url": "https://github.com/shanecloonan/permawrite/actions/runs/0"
+  },
+  "chain": {
+    "expected_genesis_id": "7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df"
+  },
+  "health": {
+    "status": "not run",
+    "output": ""
+  },
+  "rpc": {
+    "endpoint": "not provided",
+    "genesis_id": "unknown",
+    "tip_height": "unknown",
+    "tip_id": "unknown",
+    "listen_addr": "unknown",
+    "public_bind": "unknown",
+    "auth_enabled": "unknown",
+    "current_in_flight": "unknown",
+    "max_in_flight": "unknown",
+    "p2p_session_count": "unknown",
+    "p2p_peer_count": "unknown",
+    "note": "no RPC endpoint provided"
+  },
+  "operator_signoff": {
+    "operator": "name or handle",
+    "threat_model_reviewed": false,
+    "residual_risks_have_named_owners": false,
+    "rpc_exposure_approved": false,
+    "backups_and_restore_rehearsed": false,
+    "halt_rollback_authority_agreed": false,
+    "notes": "sample only; not launch evidence"
+  }
+}

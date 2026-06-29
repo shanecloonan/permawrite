@@ -15,6 +15,7 @@ CHUNK_INDEX=0
 DATA_DIR=""
 DATA_ROOT=""
 CLAIM_PUBKEY=""
+RELEASE_EVIDENCE=""
 OUTPUT_DIR=""
 NO_BUILD=0
 PLAN_ONLY=0
@@ -33,6 +34,7 @@ Options:
   --data-dir DIR           replica mfnd data dir for inbox diagnostics
   --data-root HEX          data root for claims-for diagnostics
   --claim-pubkey HEX       claim public key for claims-by-pubkey diagnostics
+  --release-evidence FILE  release-evidence.v1 JSON to validate and copy into the bundle
   --output-dir DIR         bundle output directory (default: support-bundle/<UTC timestamp>)
   --no-build               use existing release mfn-cli binary
   --plan-only              print planned read-only captures without requiring binaries
@@ -75,6 +77,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --claim-pubkey)
       CLAIM_PUBKEY="${2:-}"
+      shift 2
+      ;;
+    --release-evidence)
+      RELEASE_EVIDENCE="${2:-}"
       shift 2
       ;;
     --output-dir)
@@ -240,8 +246,63 @@ json_nullable_string() {
   fi
 }
 
+validate_release_evidence() {
+  if [[ -z "$RELEASE_EVIDENCE" ]]; then
+    cat <<'JSON'
+{"provided":false,"valid":false,"source":null,"copied_file":null,"schema_version":null,"generated_utc":null,"commit_head":null,"rpc_endpoint":null,"note":"not provided"}
+JSON
+    return
+  fi
+  python3 - "$RELEASE_EVIDENCE" <<'PY'
+import json
+import os
+import sys
+
+path = os.path.abspath(sys.argv[1])
+with open(path, "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+required_paths = [
+    ("schema_version",),
+    ("generated_utc",),
+    ("commit", "head"),
+    ("ci", "status"),
+    ("chain", "expected_genesis_id"),
+    ("health", "status"),
+    ("rpc", "endpoint"),
+    ("rpc", "current_in_flight"),
+    ("rpc", "max_in_flight"),
+    ("rpc", "p2p_session_count"),
+    ("rpc", "p2p_peer_count"),
+    ("operator_signoff", "operator"),
+]
+for field_path in required_paths:
+    current = doc
+    for key in field_path:
+        current = current.get(key) if isinstance(current, dict) else None
+    if current in (None, ""):
+        raise SystemExit(
+            "support-bundle: release evidence is missing a required release-evidence.v1 field: "
+            + ".".join(field_path)
+        )
+if doc.get("schema_version") != "release-evidence.v1":
+    raise SystemExit("support-bundle: release evidence schema_version must be release-evidence.v1")
+print(json.dumps({
+    "provided": True,
+    "valid": True,
+    "source": path,
+    "copied_file": "release-evidence.json",
+    "schema_version": doc["schema_version"],
+    "generated_utc": doc["generated_utc"],
+    "commit_head": doc["commit"]["head"],
+    "rpc_endpoint": doc["rpc"]["endpoint"],
+    "note": "",
+}, separators=(",", ":")))
+PY
+}
+
 RPC_ADDR="$(resolve_rpc)"
 build_plan
+RELEASE_EVIDENCE_JSON="$(validate_release_evidence)"
 
 if (( PLAN_ONLY )); then
   echo "support-bundle: plan"
@@ -258,6 +319,11 @@ if (( PLAN_ONLY )); then
   echo "  data_dir=${DATA_DIR:-<none; inbox diagnostics skipped>}"
   echo "  data_root=${DATA_ROOT:-<none; claims-for skipped>}"
   echo "  claim_pubkey=${CLAIM_PUBKEY:-<none; claims-by-pubkey skipped>}"
+  if [[ -n "$RELEASE_EVIDENCE" ]]; then
+    echo "  release_evidence=$RELEASE_EVIDENCE (valid release-evidence.v1)"
+  else
+    echo "  release_evidence=<none; release sign-off evidence not bundled>"
+  fi
   for i in "${!COMMAND_NAMES[@]}"; do
     echo "  $(print_plan_command "${COMMAND_NAMES[$i]}") > ${COMMAND_NAMES[$i]}.json"
   done
@@ -275,6 +341,9 @@ if [[ -z "$OUTPUT_DIR" ]]; then
   OUTPUT_DIR="$SCRIPT_DIR/support-bundle/$(date -u +%Y%m%dT%H%M%SZ)"
 fi
 mkdir -p "$OUTPUT_DIR"
+if [[ -n "$RELEASE_EVIDENCE" ]]; then
+  cp "$RELEASE_EVIDENCE" "$OUTPUT_DIR/release-evidence.json"
+fi
 
 RESULT_LINES=()
 HAS_FAILURE=0
@@ -314,6 +383,7 @@ done
   echo "  \"data_dir\": $(json_nullable_string "$DATA_DIR"),"
   echo "  \"data_root\": $(json_nullable_string "$DATA_ROOT"),"
   echo "  \"claim_pubkey\": $(json_nullable_string "$CLAIM_PUBKEY"),"
+  echo "  \"release_evidence\": $RELEASE_EVIDENCE_JSON,"
   echo "  \"read_only\": true,"
   echo "  \"commands\": ["
   for i in "${!RESULT_LINES[@]}"; do

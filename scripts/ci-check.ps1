@@ -59,6 +59,99 @@ if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discove
     $rehearsalPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$evidenceText = $evidenceMarkdown -join "`n"
+foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "## RPC Posture", "## Operator Sign-Off")) {
+    if (-not $evidenceText.Contains($required)) {
+        [Console]::Error.WriteLine("release-evidence.ps1 Markdown output missing '$required'")
+        exit 1
+    }
+}
+$evidenceJson = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -Json -SkipCiLookup
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$evidenceObject = $evidenceJson | ConvertFrom-Json
+foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
+    if (-not $required) {
+        [Console]::Error.WriteLine("release-evidence.ps1 JSON output is missing a required schema field")
+        exit 1
+    }
+}
+if ($evidenceObject.schema_version -ne "release-evidence.v1") {
+    [Console]::Error.WriteLine("release-evidence.ps1 JSON output has unexpected schema_version")
+    exit 1
+}
+if ($evidenceObject.operator_signoff.operator -ne "ci-smoke") {
+    [Console]::Error.WriteLine("release-evidence.ps1 JSON output did not preserve operator sign-off metadata")
+    exit 1
+}
+foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
+    Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
+}
+$supportPlan = powershell -NoProfile -File scripts/public-devnet-v1/support-bundle.ps1 -Rpc "127.0.0.1:18731" -ReleaseEvidence docs/release-evidence-v1.sample.json -PlanOnly
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not (($supportPlan -join "`n").Contains("valid release-evidence.v1"))) {
+    [Console]::Error.WriteLine("support-bundle.ps1 did not validate release-evidence.v1 in plan mode")
+    exit 1
+}
+$dryRun = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-dry-run.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not (($dryRun -join "`n").Contains("release-signoff-dry-run: OK"))) {
+    [Console]::Error.WriteLine("release-signoff-dry-run.ps1 did not complete successfully")
+    exit 1
+}
+$checksumRows = powershell -NoProfile -File scripts/public-devnet-v1/artifact-checksums.ps1 docs/release-evidence-v1.sample.json docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$checksumText = $checksumRows -join "`n"
+foreach ($required in @("| Path | SHA-256 | Bytes |", "release-evidence-v1.sample.json", "RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md")) {
+    if (-not $checksumText.Contains($required)) {
+        [Console]::Error.WriteLine("artifact-checksums.ps1 output missing '$required'")
+        exit 1
+    }
+}
+$inventoryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-inventory-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $inventoryDir | Out-Null
+try {
+    $validInventory = Join-Path $inventoryDir "valid.md"
+    @'
+# Inventory
+
+- Path or URL: ./artifact
+- SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+- Reviewer: ci-smoke
+
+Decision: go
+'@ | Set-Content -Path $validInventory -Encoding utf8
+    powershell -NoProfile -File scripts/public-devnet-v1/artifact-inventory-validate.ps1 $validInventory | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $invalidInventory = Join-Path $inventoryDir "invalid.md"
+    @'
+# Inventory
+
+- Path or URL:
+- SHA-256:
+- Reviewer:
+
+Decision:
+'@ | Set-Content -Path $invalidInventory -Encoding utf8
+    $invalidStdout = Join-Path $inventoryDir "invalid.out"
+    $invalidStderr = Join-Path $inventoryDir "invalid.err"
+    $invalidProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/artifact-inventory-validate.ps1",
+        $invalidInventory
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $invalidStdout -RedirectStandardError $invalidStderr
+    $invalidExit = $invalidProcess.ExitCode
+    if ($invalidExit -eq 0) {
+        [Console]::Error.WriteLine("artifact-inventory-validate.ps1 accepted an incomplete inventory")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
+} finally {
+    Remove-Item -Recurse -Force $inventoryDir -ErrorAction SilentlyContinue
+}
 
 Write-Host "==> rustfmt"
 cargo fmt --all --check

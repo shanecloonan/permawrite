@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-29T23:40:11.965Z
+**Generated (UTC):** 2026-06-30T00:09:30.943Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,11 +10,11 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 327 |
-| Total lines (all scanned source-like files) | 110,587 |
-| Non-empty lines | 99,368 |
-| UTF-8 bytes (source-like) | 4,468,891 |
-| Paths visited (before binary/huge skip) | 357 |
+| Source-like files scanned | 336 |
+| Total lines (all scanned source-like files) | 112,151 |
+| Non-empty lines | 100,768 |
+| UTF-8 bytes (source-like) | 4,519,596 |
+| Paths visited (before binary/huge skip) | 370 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
 ## Lines of code by top-level directory
@@ -25,37 +25,37 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 14,529 | 13,433 |
-| `docs` | 39 | 11,427 | 8,186 |
+| `docs` | 43 | 11,909 | 8,614 |
 | `mfn-node` | 34 | 10,760 | 9,949 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
 | `mfn-net` | 11 | 4,217 | 3,849 |
+| `scripts` | 24 | 4,102 | 3,556 |
 | `mfn-rpc` | 4 | 3,996 | 3,798 |
 | `mfn-light` | 6 | 3,895 | 3,556 |
-| `scripts` | 19 | 3,236 | 2,779 |
 | `mfn-storage-operator` | 14 | 2,830 | 2,591 |
 | `demo` | 12 | 2,478 | 2,292 |
 | `mfn-store` | 13 | 2,159 | 1,875 |
 | `mfn-wasm` | 10 | 2,031 | 1,847 |
 | `mfn-storage` | 6 | 2,005 | 1,821 |
 | `mfn-bls` | 4 | 865 | 757 |
-| `(root)` | 5 | 683 | 484 |
-| `.github` | 2 | 215 | 202 |
+| `(root)` | 5 | 712 | 502 |
+| `.github` | 2 | 402 | 379 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 90,116 | 83,525 | 3,273,658 |
-| `.md` | 54 | 13,916 | 9,877 | 963,819 |
-| `.sh` | 17 | 2,210 | 2,016 | 73,824 |
+| `.rs` | 212 | 90,116 | 83,525 | 3,261,786 |
+| `.md` | 56 | 14,344 | 10,218 | 983,147 |
+| `.sh` | 22 | 2,987 | 2,728 | 102,087 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
-| `.svg` | 4 | 655 | 581 | 42,304 |
+| `.svg` | 4 | 655 | 581 | 42,170 |
 | `.toml` | 15 | 524 | 441 | 14,805 |
-| `.json` | 11 | 265 | 254 | 7,812 |
-| `.yml` | 2 | 215 | 202 | 8,655 |
+| `.json` | 13 | 437 | 424 | 12,953 |
+| `.yml` | 2 | 402 | 379 | 18,634 |
 
 ## Largest source files (by line count)
 

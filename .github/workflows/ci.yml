@@ -48,6 +48,96 @@ jobs:
           rehearsal_plan="$(bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:18731 --faucet-wallet ./faucet.json)"
           [[ "$rehearsal_plan" == *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* ]] || { echo "$rehearsal_plan"; exit 1; }
           [[ "$rehearsal_plan" == *"public-devnet/test funds only"* ]] || { echo "$rehearsal_plan"; exit 1; }
+      - name: Validate Bash release evidence output
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          evidence_md="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --skip-ci-lookup)"
+          for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "## RPC Posture" "## Operator Sign-Off"; do
+            if [[ "$evidence_md" != *"$required"* ]]; then
+              echo "release-evidence.sh Markdown output missing '$required'" >&2
+              exit 1
+            fi
+          done
+          evidence_json="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --json --skip-ci-lookup)"
+          EVIDENCE_JSON="$evidence_json" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          doc = json.loads(os.environ["EVIDENCE_JSON"])
+          required_paths = [
+              ("schema_version",),
+              ("generated_utc",),
+              ("commit", "head"),
+              ("ci", "status"),
+              ("chain", "expected_genesis_id"),
+              ("health", "status"),
+              ("rpc", "endpoint"),
+              ("rpc", "current_in_flight"),
+              ("rpc", "max_in_flight"),
+              ("rpc", "p2p_session_count"),
+              ("rpc", "p2p_peer_count"),
+          ]
+          for path in required_paths:
+              current = doc
+              for key in path:
+                  current = current.get(key) if isinstance(current, dict) else None
+              if current in (None, ""):
+                  print("release-evidence.sh JSON output missing required schema field: " + ".".join(path), file=sys.stderr)
+                  sys.exit(1)
+          if doc.get("schema_version") != "release-evidence.v1":
+              print("release-evidence.sh JSON output has unexpected schema_version", file=sys.stderr)
+              sys.exit(1)
+          if doc.get("operator_signoff", {}).get("operator") != "ci-smoke":
+              print("release-evidence.sh JSON output did not preserve operator sign-off metadata", file=sys.stderr)
+              sys.exit(1)
+          for path in ("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json"):
+              with open(path, "r", encoding="utf-8") as handle:
+                  json.load(handle)
+          PY
+          support_plan="$(bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:18731 --release-evidence docs/release-evidence-v1.sample.json --plan-only)"
+          if [[ "$support_plan" != *"valid release-evidence.v1"* ]]; then
+            echo "support-bundle.sh did not validate release-evidence.v1 in plan mode" >&2
+            exit 1
+          fi
+          dry_run="$(bash scripts/public-devnet-v1/release-signoff-dry-run.sh)"
+          if [[ "$dry_run" != *"release-signoff-dry-run: OK"* ]]; then
+            echo "release-signoff-dry-run.sh did not complete successfully" >&2
+            exit 1
+          fi
+          checksum_rows="$(bash scripts/public-devnet-v1/artifact-checksums.sh docs/release-evidence-v1.sample.json docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md)"
+          for required in "| Path | SHA-256 | Bytes |" "release-evidence-v1.sample.json" "RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md"; do
+            if [[ "$checksum_rows" != *"$required"* ]]; then
+              echo "artifact-checksums.sh output missing '$required'" >&2
+              exit 1
+            fi
+          done
+          inventory_dir="$(mktemp -d)"
+          trap 'rm -rf "$inventory_dir"' EXIT
+          cat > "$inventory_dir/valid.md" <<'EOF'
+          # Inventory
+
+          - Path or URL: ./artifact
+          - SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+          - Reviewer: ci-smoke
+
+          Decision: go
+          EOF
+          bash scripts/public-devnet-v1/artifact-inventory-validate.sh "$inventory_dir/valid.md" >/dev/null
+          cat > "$inventory_dir/invalid.md" <<'EOF'
+          # Inventory
+
+          - Path or URL:
+          - SHA-256:
+          - Reviewer:
+
+          Decision:
+          EOF
+          if bash scripts/public-devnet-v1/artifact-inventory-validate.sh "$inventory_dir/invalid.md" >/dev/null 2>&1; then
+            echo "artifact-inventory-validate.sh accepted an incomplete inventory" >&2
+            exit 1
+          fi
       - name: Validate PowerShell helper syntax
         if: runner.os == 'Windows'
         shell: pwsh
@@ -79,6 +169,103 @@ jobs:
           if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle" -or $rehearsalPlan -notmatch "public-devnet/test funds only") {
             $rehearsalPlan
             exit 1
+          }
+      - name: Validate PowerShell release evidence output
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $evidenceText = $evidenceMarkdown -join "`n"
+          foreach ($required in @("# Permawrite Release-Candidate Evidence", "## Commit And CI", "## RPC Posture", "## Operator Sign-Off")) {
+            if (-not $evidenceText.Contains($required)) {
+              Write-Error "release-evidence.ps1 Markdown output missing '$required'"
+              exit 1
+            }
+          }
+          $evidenceJson = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -Json -SkipCiLookup
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $evidenceObject = $evidenceJson | ConvertFrom-Json
+          foreach ($required in @($evidenceObject.schema_version, $evidenceObject.generated_utc, $evidenceObject.commit.head, $evidenceObject.ci.status, $evidenceObject.chain.expected_genesis_id, $evidenceObject.health.status, $evidenceObject.rpc.endpoint, $evidenceObject.rpc.current_in_flight, $evidenceObject.rpc.max_in_flight, $evidenceObject.rpc.p2p_session_count, $evidenceObject.rpc.p2p_peer_count)) {
+            if (-not $required) {
+              Write-Error "release-evidence.ps1 JSON output is missing a required schema field"
+              exit 1
+            }
+          }
+          if ($evidenceObject.schema_version -ne "release-evidence.v1") {
+            Write-Error "release-evidence.ps1 JSON output has unexpected schema_version"
+            exit 1
+          }
+          if ($evidenceObject.operator_signoff.operator -ne "ci-smoke") {
+            Write-Error "release-evidence.ps1 JSON output did not preserve operator sign-off metadata"
+            exit 1
+          }
+          foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
+            Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
+          }
+          $supportPlan = powershell -NoProfile -File scripts/public-devnet-v1/support-bundle.ps1 -Rpc "127.0.0.1:18731" -ReleaseEvidence docs/release-evidence-v1.sample.json -PlanOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (($supportPlan -join "`n").Contains("valid release-evidence.v1"))) {
+            Write-Error "support-bundle.ps1 did not validate release-evidence.v1 in plan mode"
+            exit 1
+          }
+          $dryRun = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-dry-run.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (($dryRun -join "`n").Contains("release-signoff-dry-run: OK"))) {
+            Write-Error "release-signoff-dry-run.ps1 did not complete successfully"
+            exit 1
+          }
+          $checksumRows = powershell -NoProfile -File scripts/public-devnet-v1/artifact-checksums.ps1 docs/release-evidence-v1.sample.json docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $checksumText = $checksumRows -join "`n"
+          foreach ($required in @("| Path | SHA-256 | Bytes |", "release-evidence-v1.sample.json", "RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md")) {
+            if (-not $checksumText.Contains($required)) {
+              Write-Error "artifact-checksums.ps1 output missing '$required'"
+              exit 1
+            }
+          }
+          $inventoryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-inventory-" + [System.Guid]::NewGuid().ToString("N"))
+          New-Item -ItemType Directory -Force -Path $inventoryDir | Out-Null
+          try {
+            $validInventory = Join-Path $inventoryDir "valid.md"
+            @'
+          # Inventory
+
+          - Path or URL: ./artifact
+          - SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+          - Reviewer: ci-smoke
+
+          Decision: go
+          '@ | Set-Content -Path $validInventory -Encoding utf8
+            powershell -NoProfile -File scripts/public-devnet-v1/artifact-inventory-validate.ps1 $validInventory | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            $invalidInventory = Join-Path $inventoryDir "invalid.md"
+            @'
+          # Inventory
+
+          - Path or URL:
+          - SHA-256:
+          - Reviewer:
+
+          Decision:
+          '@ | Set-Content -Path $invalidInventory -Encoding utf8
+            $invalidStdout = Join-Path $inventoryDir "invalid.out"
+            $invalidStderr = Join-Path $inventoryDir "invalid.err"
+            $invalidProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+              "-NoProfile",
+              "-File",
+              "scripts/public-devnet-v1/artifact-inventory-validate.ps1",
+              $invalidInventory
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $invalidStdout -RedirectStandardError $invalidStderr
+            $invalidExit = $invalidProcess.ExitCode
+            if ($invalidExit -eq 0) {
+              Write-Error "artifact-inventory-validate.ps1 accepted an incomplete inventory"
+              exit 1
+            }
+            $global:LASTEXITCODE = 0
+          } finally {
+            Remove-Item -Recurse -Force $inventoryDir -ErrorAction SilentlyContinue
           }
 
   clippy:

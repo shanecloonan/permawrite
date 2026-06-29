@@ -9,6 +9,7 @@ param(
     [string]$DataDir = "",
     [string]$DataRoot = "",
     [string]$ClaimPubkey = "",
+    [string]$ReleaseEvidence = "",
     [string]$OutputDir = "",
     [switch]$NoBuild,
     [switch]$PlanOnly
@@ -121,8 +122,61 @@ function Format-DisplayArgs {
     return ($display -join " ")
 }
 
+function Test-ReleaseEvidence {
+    param([string]$Path)
+    if (-not $Path) {
+        return [pscustomobject]@{
+            provided = $false
+            valid = $false
+            source = $null
+            copied_file = $null
+            schema_version = $null
+            generated_utc = $null
+            commit_head = $null
+            rpc_endpoint = $null
+            note = "not provided"
+        }
+    }
+    $resolved = (Resolve-Path $Path).Path
+    $doc = Get-Content $resolved -Raw | ConvertFrom-Json
+    $required = @(
+        $doc.schema_version,
+        $doc.generated_utc,
+        $doc.commit.head,
+        $doc.ci.status,
+        $doc.chain.expected_genesis_id,
+        $doc.health.status,
+        $doc.rpc.endpoint,
+        $doc.rpc.current_in_flight,
+        $doc.rpc.max_in_flight,
+        $doc.rpc.p2p_session_count,
+        $doc.rpc.p2p_peer_count,
+        $doc.operator_signoff.operator
+    )
+    foreach ($field in $required) {
+        if (-not $field) {
+            throw "support-bundle: release evidence is missing a required release-evidence.v1 field"
+        }
+    }
+    if ($doc.schema_version -ne "release-evidence.v1") {
+        throw "support-bundle: release evidence schema_version must be release-evidence.v1"
+    }
+    return [pscustomobject]@{
+        provided = $true
+        valid = $true
+        source = $resolved
+        copied_file = "release-evidence.json"
+        schema_version = $doc.schema_version
+        generated_utc = $doc.generated_utc
+        commit_head = $doc.commit.head
+        rpc_endpoint = $doc.rpc.endpoint
+        note = ""
+    }
+}
+
 $RpcAddr = Resolve-Rpc
 $planned = Get-PlannedCommands $RpcAddr
+$releaseEvidenceInfo = Test-ReleaseEvidence $ReleaseEvidence
 
 if ($PlanOnly) {
     $walletText = if ($Wallet) { $Wallet } else { "<none; wallet-local diagnostics skipped>" }
@@ -131,6 +185,7 @@ if ($PlanOnly) {
     $dataDirText = if ($DataDir) { $DataDir } else { "<none; inbox diagnostics skipped>" }
     $dataRootText = if ($DataRoot) { $DataRoot } else { "<none; claims-for skipped>" }
     $claimPubkeyText = if ($ClaimPubkey) { $ClaimPubkey } else { "<none; claims-by-pubkey skipped>" }
+    $evidenceText = if ($ReleaseEvidence) { "$ReleaseEvidence (valid release-evidence.v1)" } else { "<none; release sign-off evidence not bundled>" }
     Write-Host "support-bundle: plan"
     Write-Host "  rpc=$RpcAddr"
     Write-Host "  rpc_api_key_set=$([bool]$RpcApiKey)"
@@ -141,6 +196,7 @@ if ($PlanOnly) {
     Write-Host "  data_dir=$dataDirText"
     Write-Host "  data_root=$dataRootText"
     Write-Host "  claim_pubkey=$claimPubkeyText"
+    Write-Host "  release_evidence=$evidenceText"
     foreach ($cmd in $planned) {
         Write-Host "  mfn-cli $(Format-DisplayArgs $cmd.cli_args) > $($cmd.name).json"
     }
@@ -161,6 +217,9 @@ try {
         Join-Path $ScriptDir "support-bundle\$stamp"
     }
     New-Item -ItemType Directory -Force -Path $BundleDir | Out-Null
+    if ($releaseEvidenceInfo.provided) {
+        Copy-Item -Path $releaseEvidenceInfo.source -Destination (Join-Path $BundleDir $releaseEvidenceInfo.copied_file) -Force
+    }
 
     $results = New-Object System.Collections.Generic.List[object]
     foreach ($cmd in $planned) {
@@ -179,6 +238,7 @@ try {
         data_dir = if ($DataDir) { $DataDir } else { $null }
         data_root = if ($DataRoot) { $DataRoot } else { $null }
         claim_pubkey = if ($ClaimPubkey) { $ClaimPubkey } else { $null }
+        release_evidence = $releaseEvidenceInfo
         read_only = $true
         commands = $results
     }

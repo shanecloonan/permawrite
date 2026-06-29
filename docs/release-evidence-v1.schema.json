@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permawrite.dev/schemas/release-evidence-v1.schema.json",
+  "title": "Permawrite Release-Candidate Evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_utc",
+    "commit",
+    "ci",
+    "chain",
+    "health",
+    "rpc",
+    "operator_signoff"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "release-evidence.v1"
+    },
+    "generated_utc": {
+      "type": "string",
+      "description": "UTC timestamp when the evidence record was generated."
+    },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch",
+        "head",
+        "working_tree",
+        "codebase_stats_generated_utc"
+      ],
+      "properties": {
+        "branch": { "type": "string" },
+        "head": { "type": "string" },
+        "working_tree": { "enum": ["clean", "dirty"] },
+        "codebase_stats_generated_utc": { "type": "string" }
+      }
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "conclusion", "source", "url"],
+      "properties": {
+        "status": { "type": "string" },
+        "conclusion": { "type": "string" },
+        "source": { "type": "string" },
+        "url": { "type": "string" }
+      }
+    },
+    "chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_genesis_id"],
+      "properties": {
+        "expected_genesis_id": { "type": "string" }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "output"],
+      "properties": {
+        "status": { "type": "string" },
+        "output": { "type": "string" }
+      }
+    },
+    "rpc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "genesis_id",
+        "tip_height",
+        "tip_id",
+        "listen_addr",
+        "public_bind",
+        "auth_enabled",
+        "current_in_flight",
+        "max_in_flight",
+        "p2p_session_count",
+        "p2p_peer_count",
+        "note"
+      ],
+      "properties": {
+        "endpoint": { "type": "string" },
+        "genesis_id": { "type": "string" },
+        "tip_height": { "type": ["integer", "string"] },
+        "tip_id": { "type": "string" },
+        "listen_addr": { "type": "string" },
+        "public_bind": { "type": ["boolean", "string"] },
+        "auth_enabled": { "type": ["boolean", "string"] },
+        "current_in_flight": { "type": ["integer", "string"] },
+        "max_in_flight": { "type": ["integer", "string"] },
+        "p2p_session_count": { "type": ["integer", "string"] },
+        "p2p_peer_count": { "type": ["integer", "string"] },
+        "note": { "type": "string" }
+      }
+    },
+    "operator_signoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "threat_model_reviewed",
+        "residual_risks_have_named_owners",
+        "rpc_exposure_approved",
+        "backups_and_restore_rehearsed",
+        "halt_rollback_authority_agreed",
+        "notes"
+      ],
+      "properties": {
+        "operator": { "type": "string" },
+        "threat_model_reviewed": { "type": "boolean" },
+        "residual_risks_have_named_owners": { "type": "boolean" },
+        "rpc_exposure_approved": { "type": "boolean" },
+        "backups_and_restore_rehearsed": { "type": "boolean" },
+        "halt_rollback_authority_agreed": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

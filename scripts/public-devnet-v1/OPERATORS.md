@@ -133,16 +133,19 @@ After installing tools, open a fresh shell so PATH changes are visible, rerun `p
 
 ## Launch go/no-go checklist
 
-Use this checklist before advertising a public testnet endpoint, publishing seed nodes, or asking outside operators to join. A single unchecked critical item is a no-go. This project is pre-audit; passing this checklist means "acceptable experimental public-devnet risk," not production safety.
+Use this checklist before advertising a public testnet endpoint, publishing seed nodes, or asking outside operators to join. A single unchecked critical item is a no-go. This project is pre-audit; passing this checklist means "acceptable experimental public-devnet risk," not production safety. Review the [public-devnet threat model](../../docs/PUBLIC_DEVNET_THREAT_MODEL.md) before signing off.
 
 ### Critical no-go items
 
 - [ ] `git pull --ff-only origin main` succeeds on the release branch, or the exact release commit is intentionally pinned and reviewed.
 - [ ] `CODEBASE_STATS.md` was regenerated with `node scripts/codebase-stats.mjs` after the final code/doc changes.
+- [ ] The [release-candidate artifact inventory](../../docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md) was copied, filled out, and attached to launch notes with checksums for binaries, genesis, manifest, evidence, support bundle, and sign-off output.
+- [ ] Release-candidate evidence was generated and attached to the launch notes: `release-evidence.ps1` or `release-evidence.sh`.
 - [ ] The local CI mirror passed on the release host or equivalent clean machine: `scripts/ci-check.ps1` on Windows or `scripts/ci-check.sh` on Linux/macOS.
 - [ ] Ignored/nightly smoke coverage passed for public-devnet release candidates: `scripts/ci-ignored.ps1` or `scripts/ci-ignored.sh`.
 - [ ] GitHub CI is green for the exact commit that will be published.
 - [ ] `SECURITY.md` still states the software is pre-audit and does not imply production-grade security.
+- [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner.
 - [ ] The published genesis JSON and manifest are byte-identical across operators, and every node prints the expected `mfnd_chain_genesis_id=`.
 - [ ] Public deterministic test seeds were replaced for any shared, production-like, incentivized, or non-toy deployment.
 - [ ] RPC is loopback-only, VPN/SSH-only, or behind the documented firewall/TLS pattern; `mfn-cli --rpc <RPC> status` reports `rpc.public_bind=false` unless an explicit firewall/API-key/TLS review approved the exposure.
@@ -167,6 +170,90 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Operators agree where incident notes live and who can publish "pause, rollback, or rotate genesis" instructions.
 
 Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` ≠ public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
+
+Release-candidate evidence:
+
+```bash
+# Linux/macOS: write a Markdown evidence record for launch notes.
+bash scripts/public-devnet-v1/release-evidence.sh \
+  --rpc 127.0.0.1:18731 \
+  --run-health-check \
+  --operator "name or handle" \
+  --output release-evidence.md
+
+# Add --json when archiving evidence for CI dashboards or automation.
+bash scripts/public-devnet-v1/release-evidence.sh --json --output release-evidence.json
+```
+
+```powershell
+# Windows: write a Markdown evidence record for launch notes.
+powershell -File scripts/public-devnet-v1/release-evidence.ps1 `
+  -Rpc 127.0.0.1:18731 `
+  -RunHealthCheck `
+  -Operator "name or handle" `
+  -OutputPath release-evidence.md
+
+# Add -Json when archiving evidence for CI dashboards or automation.
+powershell -File scripts/public-devnet-v1/release-evidence.ps1 -Json -OutputPath release-evidence.json
+```
+
+The evidence generator records the current branch, commit, dirty-tree state, `CODEBASE_STATS.md` timestamp, GitHub CI status when available, expected public-devnet `genesis_id`, optional health-check output, optional RPC status (`rpc.public_bind`, auth, in-flight limits, tip, P2P sessions), and sign-off fields. Markdown is for launch notes; JSON is for archiving, CI dashboards, or automation. JSON output uses the versioned [`release-evidence.v1` schema](../../docs/release-evidence-v1.schema.json); see the [sample artifact](../../docs/release-evidence-v1.sample.json) for dashboard ingestion. Unknown evidence remains `unknown` or unchecked; do not treat generated output as a pass unless every launch blocker is manually reviewed.
+
+When collecting launch support diagnostics, pass the generated JSON evidence to `support-bundle` so the bundle validates the `release-evidence.v1` contract, copies the evidence as `release-evidence.json`, and records a validation summary in `manifest.json`.
+
+### Release sign-off bundle review
+
+Before advertising public endpoints, one reviewer who is not the release operator should inspect the final launch notes plus support bundle. This review is a human gate; schema validation only proves the files are shaped correctly, not that the network is safe.
+
+Start by filling out the [release-candidate artifact inventory](../../docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md). The inventory must name every binary, genesis/manifest file, evidence file, support bundle, sign-off output, checksum, and reviewer before this checklist can be treated as complete.
+
+Publish artifacts using the archive layout in that template so binaries, genesis/manifest, evidence, support bundles, docs snapshots, and checksums live together under one immutable release-candidate directory. Do not include secrets or private operator files in the archive.
+
+Use `artifact-checksums.ps1` or `artifact-checksums.sh` to generate SHA-256 rows for inventory entries. Run it only on public release artifacts; never hash or publish private keys, wallet seeds, RPC API keys, or private operator files.
+
+Before sign-off, run `artifact-inventory-validate.ps1` or `artifact-inventory-validate.sh` on the filled inventory. The validator fails on missing artifact paths, checksums, reviewers, a missing final decision, or bare `not applicable` entries without a written reason.
+
+Required files:
+
+- [ ] `release-evidence.md` is attached to the launch notes for human review.
+- [ ] `release-evidence.json` is archived beside the launch notes and uses `schema_version=release-evidence.v1`.
+- [ ] `manifest.json` from `support-bundle` contains `release_evidence.provided=true`, `release_evidence.valid=true`, and the same commit as `release-evidence.json`.
+- [ ] `node-status.json`, `uploads-list.json`, and `operator-pool.json` are present in the support bundle and have no unexplained command failures in `manifest.json`.
+- [ ] Any wallet/storage support files needed for the launch claim are present, such as `wallet-status.json`, `wallet-backup-info.json`, `uploads-status.json`, `operator-artifacts.json`, `operator-challenge.json`, or `operator-inbox-status.json`.
+
+Required approvals:
+
+- [ ] Release operator confirms the exact commit, `CODEBASE_STATS.md` timestamp, GitHub CI status, ignored/nightly smoke status, and local CI mirror status.
+- [ ] Security reviewer confirms `SECURITY.md` and the public-devnet threat model still describe pre-audit experimental risk and every accepted residual risk has an owner.
+- [ ] RPC/network reviewer confirms `rpc.public_bind`, `rpc.listen_addr`, firewall/TLS/API-key posture, P2P reachability, and expected `genesis_id`.
+- [ ] Storage/permanence reviewer confirms the upload, replication/backfill, retrieval, and SPoRA proof rehearsal evidence.
+- [ ] Operations reviewer confirms backups, restore rehearsal, rollback/halt authority, incident notes location, and launch-day watchers.
+
+Any missing required file, unchecked approval, unknown CI/health/RPC field, or dirty working tree must be treated as a no-go unless the reviewer writes down the exception and names an owner before launch.
+
+To print this checklist with paths and detected status from a generated bundle:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-signoff-review.ps1 `
+  -BundleDir scripts/public-devnet-v1/support-bundle/<UTC timestamp> `
+  -LaunchNotes release-evidence.md
+```
+
+```bash
+bash scripts/public-devnet-v1/release-signoff-review.sh \
+  --bundle-dir scripts/public-devnet-v1/support-bundle/<UTC timestamp> \
+  --launch-notes release-evidence.md
+```
+
+To rehearse the whole sign-off evidence flow without a live node:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-signoff-dry-run.ps1
+```
+
+```bash
+bash scripts/public-devnet-v1/release-signoff-dry-run.sh
+```
 
 Local soak:
 
@@ -673,12 +760,14 @@ powershell -File scripts/public-devnet-v1/support-bundle.ps1 -PlanOnly `
 powershell -File scripts/public-devnet-v1/support-bundle.ps1 `
   -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json `
   -CommitHash <COMMIT_HASH_HEX> -Peer 127.0.0.1:18780 -DataDir C:\path\to\replica-data `
-  -DataRoot <DATA_ROOT_HEX> -ClaimPubkey <CLAIM_PUBKEY_HEX>
+  -DataRoot <DATA_ROOT_HEX> -ClaimPubkey <CLAIM_PUBKEY_HEX> `
+  -ReleaseEvidence release-evidence.json
 
 # Linux/macOS:
 bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
   --commit <COMMIT_HASH_HEX> --peer 127.0.0.1:18780 --data-dir /path/to/replica-data \
-  --data-root <DATA_ROOT_HEX> --claim-pubkey <CLAIM_PUBKEY_HEX>
+  --data-root <DATA_ROOT_HEX> --claim-pubkey <CLAIM_PUBKEY_HEX> \
+  --release-evidence release-evidence.json
 ```
 
 Use `-RpcApiKey <KEY>` or `--rpc-api-key <KEY>` for auth-enabled RPC. The key is passed to `mfn-cli` but only `rpc_api_key_set=true` is written to `manifest.json`.

@@ -33,6 +33,21 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Confirm CI mirror catches fmt, clippy, tests, audit, and ignored/nightly smoke gaps before every push.
 - [x] Add a public-testnet launch go/no-go checklist for release candidates and outside-operator invites.
 - [x] Require `rpc.public_bind` / `rpc.listen_addr` verification in the launch go/no-go checklist.
+- [x] Reconcile top-level status docs so `README.md` and `IMPLEMENTATION_STATUS.md` distinguish controlled public devnet, internet-facing release candidate gates, and incentivized/adversarial testnet readiness without implying audit-grade safety.
+- [x] Add a public-devnet threat model covering RPC, P2P, wallet seeds, storage artifacts, genesis/manifest, validator keys, DoS, data loss, and operator mistakes.
+- [x] Add a release-candidate evidence generator that captures commit, CI status, stats timestamp, genesis id, health-check status, RPC posture, and operator sign-off fields.
+- [x] Add machine-readable JSON output to the release-candidate evidence generator for archiving and CI/dashboard ingestion.
+- [x] Add release-candidate evidence schema validation coverage for Markdown and JSON output examples.
+- [x] Publish a versioned release-evidence JSON schema and sample artifact for operators and dashboards.
+- [x] Add schema-aware release-evidence validation to public-devnet support bundles before launch sign-off.
+- [x] Add a release sign-off bundle review checklist that names required evidence files and operator approvals.
+- [x] Add an operator-facing command that prints the release sign-off checklist with paths from a generated support bundle.
+- [x] Add an end-to-end dry-run release-signoff fixture that covers evidence generation, support bundling, and checklist rendering together.
+- [x] Add a release-candidate artifact inventory template for binaries, genesis, manifest, evidence, support bundle, and checksums.
+- [x] Add a checksum helper that generates artifact inventory entries for release binaries and public-devnet files.
+- [x] Add artifact inventory validation that fails release sign-off when required checksums or reviewer fields are missing.
+- [x] Add release-candidate archive layout guidance for publishing inventory, checksums, evidence, and support bundles together.
+- [ ] Add release archive assembly dry-run guidance or helper that stages public artifacts without secrets.
 
 ## Agent 1 — Core Protocol, Consensus, Networking, Sync
 

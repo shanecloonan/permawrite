@@ -4,6 +4,18 @@ This file tracks the Rust crates and modules that make up Permawrite. The reposi
 
 Mark `[x]` only when the Rust module is implemented, documented, and covered by deterministic tests or protocol vectors where consensus bytes are involved.
 
+## Release posture
+
+Permawrite is a **controlled public-devnet implementation**, not production software. The Rust stack includes the reference daemon, JSON-RPC control plane, P2P sync/gossip paths, wallet CLI flows, storage-operator tooling, public-devnet helper scripts, health checks, support bundles, and operator runbooks. It remains **pre-audit experimental software**; public RPC exposure, public deterministic validator seeds, wallet seed handling, storage artifact backup, and operator mistakes are still launch-critical risks.
+
+Use these status levels when publishing or reviewing a release candidate:
+
+| Level | Status | Required evidence |
+| --- | --- | --- |
+| Controlled public devnet | [x] live | `docs/TESTNET.md`, `scripts/public-devnet-v1/OPERATORS.md`, local health checks, support/recovery helpers, regenerated `CODEBASE_STATS.md`, and green local CI mirror. |
+| Internet-facing experimental testnet | [ ] gated | Launch go/no-go completed, ignored/nightly smoke checks passed, GitHub CI green for the exact release commit, RPC exposure reviewed, and deterministic public test keys replaced for any non-toy deployment. |
+| Incentivized/adversarial testnet | [ ] not ready | Requires deeper threat modeling, broader adversarial testing, external security review, rehearsed incident response, and production-grade operator custody procedures. |
+
 ## Crates and modules
 
 ### `mfn-crypto` — discrete-log primitives (ed25519)
@@ -59,7 +71,9 @@ Mark `[x]` only when the Rust module is implemented, documented, and covered by 
 | `mfn-net` | `frame.rs`, `handshake.rs`, `gossip.rs`, `serve.rs` | [x] live |
 | `mfn-node` | `bin/mfnd.rs`, `mfnd_serve.rs`, `p2p_gossip.rs` | [x] live |
 | `mfn-wallet` | wallet library and CLI-facing primitives | [x] live |
-| `mfn-wasm` | WebAssembly bindings | [ ] planned |
+| `mfn-storage-operator` | storage proof and chunk replication helpers | [x] live |
+| `mfn-cli` | RPC client, wallet, upload, claim, operator, and support-record commands | [x] live |
+| `mfn-wasm` | WebAssembly packaging and bindings | [x] devnet-grade |
 
 ## Verification
 
