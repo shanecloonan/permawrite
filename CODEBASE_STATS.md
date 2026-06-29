@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-29T01:57:41.461Z
+**Generated (UTC):** 2026-06-29T02:05:22.004Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 305 |
-| Total lines (all scanned source-like files) | 98,961 |
-| Non-empty lines | 88,741 |
-| UTF-8 bytes (source-like) | 3,998,349 |
+| Total lines (all scanned source-like files) | 99,158 |
+| Non-empty lines | 88,931 |
+| UTF-8 bytes (source-like) | 4,006,235 |
 | Paths visited (before binary/huge skip) | 324 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -23,7 +23,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
-| `mfn-consensus` | 58 | 26,736 | 24,995 |
+| `mfn-consensus` | 58 | 26,933 | 25,185 |
 | `mfn-cli` | 29 | 11,372 | 10,477 |
 | `docs` | 36 | 10,878 | 7,710 |
 | `mfn-node` | 34 | 8,828 | 8,187 |
@@ -47,8 +47,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 202 | 81,549 | 75,560 | 2,967,370 |
-| `.md` | 52 | 12,985 | 9,149 | 874,646 |
+| `.rs` | 202 | 81,746 | 75,750 | 2,974,858 |
+| `.md` | 52 | 12,985 | 9,149 | 875,044 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 697 | 609 | 19,633 |
 | `.toml` | 15 | 522 | 439 | 14,676 |
@@ -68,8 +68,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 2,267 | `docs/ROADMAP.md` |
 | 1,975 | `mfn-consensus/tests/producer_treasury_settlement.rs` |
 | 1,952 | `mfn-node/tests/mfnd_smoke.rs` |
+| 1,917 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,916 | `mfn-cli/src/cli.rs` |
-| 1,720 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,678 | `mfn-consensus/tests/validator_finality_evolution.rs` |
 | 1,634 | `mfn-light/src/chain.rs` |
 | 1,551 | `mfn-runtime/src/mempool.rs` |
