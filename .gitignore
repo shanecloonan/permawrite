@@ -1,7 +1,9 @@
 # Rust build artifacts
 /target
 /target-*
+**/target-*
 demo/web/pkg/
+**/demo/web/pkg/
 **/*.rs.bk
 Cargo.lock.bak
 
