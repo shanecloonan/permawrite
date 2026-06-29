@@ -115,6 +115,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Extend public-devnet support bundles with read-only HTTP chunk peer and replica inbox diagnostics.
 - [x] Add node status capture to public-devnet support bundles for RPC/genesis/tip/P2P triage.
 - [x] Add public-devnet recovery plan helpers for explicit HTTP/P2P artifact repair commands with backup warnings.
+- [x] Add public-devnet recovery walkthrough helpers for support bundle, restore, hash verification, and optional proof.
 
 ## Cross-Agent Notes
 

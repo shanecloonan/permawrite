@@ -683,6 +683,27 @@ bash scripts/public-devnet-v1/recovery-plan.sh --rpc 127.0.0.1:<RPC> --wallet ./
 
 The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` → `operator assemble-inbox` → `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
 
+For a guided recovery run that captures a support bundle first, prints the plan, restores the payload, verifies an expected SHA-256 when supplied, and optionally submits a proof:
+
+```bash
+# Windows plan mode:
+powershell -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly `
+  -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json -CommitHash <COMMIT_HASH_HEX> `
+  -Peer 127.0.0.1:18780 -ExpectedSha256 <PAYLOAD_SHA256>
+
+# Windows real HTTP restore:
+powershell -File scripts/public-devnet-v1/recovery-walkthrough.ps1 `
+  -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json -CommitHash <COMMIT_HASH_HEX> `
+  -Peer 127.0.0.1:18780 -OutputPath ./restored.bin -ExpectedSha256 <PAYLOAD_SHA256>
+
+# Linux/macOS P2P inbox restore:
+bash scripts/public-devnet-v1/recovery-walkthrough.sh --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  --commit <COMMIT_HASH_HEX> --data-dir /path/to/replica-data --output ./restored.bin \
+  --expected-sha256 <PAYLOAD_SHA256>
+```
+
+The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. Use `-RpcApiKey <KEY>` / `--rpc-api-key <KEY>` for auth-enabled nodes; the support bundle records only that an API key was set.
+
 ### Permanence troubleshooting
 
 | Symptom | Likely cause | Recovery |
