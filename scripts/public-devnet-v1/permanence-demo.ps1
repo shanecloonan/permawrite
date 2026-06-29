@@ -1,0 +1,197 @@
+# End-to-end permanence demo: upload -> discover -> HTTP replicate -> retrieve -> prove.
+param(
+    [string]$Rpc = "",
+    [string]$WalletDir = "",
+    [string]$PayloadPath = "",
+    [string]$ChunkListen = "127.0.0.1:18780",
+    [int]$WaitUploadSeconds = 180,
+    [int]$WaitProofSeconds = 180,
+    [switch]$NoBuild,
+    [switch]$PlanOnly
+)
+$ErrorActionPreference = "Stop"
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+$PortsFile = Join-Path $ScriptDir "devnet-ports.env"
+$LogDir = Join-Path $ScriptDir "logs"
+$DemoRoot = if ($WalletDir) {
+    $WalletDir
+} else {
+    Join-Path $ScriptDir "permanence-demo"
+}
+$UploaderWallet = Join-Path $DemoRoot "uploader.json"
+$ReplicaWallet = Join-Path $DemoRoot "replica.json"
+$RestoredPath = Join-Path $DemoRoot "restored.bin"
+$ChunkLog = Join-Path $LogDir "permanence-demo-chunks.log"
+
+function Read-PortsFile {
+    if (-not (Test-Path $PortsFile)) { return @{} }
+    $ports = @{}
+    Get-Content $PortsFile | ForEach-Object {
+        if ($_ -match "^([^=]+)=(.*)$") { $ports[$Matches[1]] = $Matches[2] }
+    }
+    return $ports
+}
+
+function Resolve-Rpc {
+    if ($Rpc) { return $Rpc }
+    $ports = Read-PortsFile
+    if ($ports["HUB_RPC"]) { return $ports["HUB_RPC"] }
+    throw "permanence-demo: pass -Rpc HOST:PORT or run start-all.ps1 first"
+}
+
+function Resolve-Bin {
+    param([string]$Name)
+    $exe = if ($IsWindows -or $env:OS -eq "Windows_NT") { "$Name.exe" } else { $Name }
+    $path = Join-Path $RepoRoot "target\release\$exe"
+    if (-not (Test-Path $path)) {
+        throw "permanence-demo: missing $path; rerun without -NoBuild or build release binaries"
+    }
+    return $path
+}
+
+function Invoke-Checked {
+    param([string]$Exe, [string[]]$Args, [string]$Label)
+    $out = & $Exe @Args 2>&1
+    $code = $LASTEXITCODE
+    $text = ($out | Out-String).Trim()
+    if ($code -ne 0) {
+        throw "permanence-demo: $Label failed with exit=$code`n$text"
+    }
+    return $text
+}
+
+function Parse-Field {
+    param([string]$Text, [string]$Key)
+    $prefix = "$Key="
+    foreach ($line in ($Text -split "`r?`n")) {
+        if ($line.StartsWith($prefix)) { return $line.Substring($prefix.Length).Trim() }
+    }
+    throw "permanence-demo: stdout missing $prefix`n$Text"
+}
+
+function Wait-UploadsListContains {
+    param([string]$MfnCli, [string]$RpcAddr, [string]$CommitHash, [int]$TimeoutSeconds)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $out = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list"
+        if ($out -like "*$CommitHash*") { return $out }
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $deadline)
+    throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s"
+}
+
+function Ensure-SamplePayload {
+    if ($PayloadPath) { return $PayloadPath }
+    $path = Join-Path $DemoRoot "payload.bin"
+    if (-not (Test-Path $path)) {
+        $bytes = New-Object byte[] 4096
+        for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [byte]($i % 251) }
+        [System.IO.File]::WriteAllBytes($path, $bytes)
+    }
+    return $path
+}
+
+function Ensure-Wallet {
+    param([string]$MfnCli, [string]$Path, [string]$Label)
+    if (Test-Path $Path) {
+        Write-Host "permanence-demo: using existing $Label wallet at $Path"
+        return
+    }
+    Invoke-Checked $MfnCli @("--wallet", $Path, "wallet", "new") "$Label wallet new" | Out-Null
+    Write-Host "permanence-demo: created $Label wallet at $Path"
+}
+
+if ($WaitUploadSeconds -lt 1) { throw "WaitUploadSeconds must be >= 1" }
+if ($WaitProofSeconds -lt 0) { throw "WaitProofSeconds must be >= 0" }
+
+if ($PlanOnly) {
+    $planRpc = try {
+        Resolve-Rpc
+    } catch {
+        "<pass -Rpc HOST:PORT or run start-all.ps1>"
+    }
+    Write-Host "permanence-demo: plan"
+    Write-Host "  rpc=$planRpc"
+    Write-Host "  demo_dir=$DemoRoot"
+    Write-Host "  chunk_listen=$ChunkListen"
+    Write-Host "  flow=create/reuse wallets -> wallet upload -> uploads list -> serve-chunks -> uploads fetch-http -> operator prove -> uploads list"
+    Write-Host "  note=real mode requires the uploader wallet to hold enough devnet funds; use fund-wallet.ps1 with an operator faucet wallet first"
+    exit 0
+}
+
+$RpcAddr = Resolve-Rpc
+
+New-Item -ItemType Directory -Force -Path $DemoRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+
+Push-Location $RepoRoot
+try {
+    if (-not $NoBuild) {
+        cargo build -p mfn-cli --release --bin mfn-cli
+        cargo build -p mfn-storage-operator --release --bin mfn-storage-operator
+    }
+
+    $MfnCli = Resolve-Bin "mfn-cli"
+    $StorageOperator = Resolve-Bin "mfn-storage-operator"
+    $Payload = Ensure-SamplePayload
+
+    Ensure-Wallet $MfnCli $UploaderWallet "uploader"
+    Ensure-Wallet $MfnCli $ReplicaWallet "replica"
+
+    $upload = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $UploaderWallet, "wallet", "upload", $Payload, "--replication", "3") "wallet upload"
+    $commit = Parse-Field $upload "storage_commitment_hash"
+    $txId = Parse-Field $upload "tx_id"
+    Write-Host "permanence-demo: upload tx_id=$txId commitment_hash=$commit"
+
+    $indexed = Wait-UploadsListContains $MfnCli $RpcAddr $commit $WaitUploadSeconds
+    Write-Host "permanence-demo: discover=ok commitment_hash=$commit"
+
+    if (Test-Path $ChunkLog) { Remove-Item -Force $ChunkLog }
+    $chunkProc = Start-Process -FilePath $StorageOperator -ArgumentList @(
+        "serve-chunks", "--wallet", $UploaderWallet, "--listen", $ChunkListen
+    ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $ChunkLog -RedirectStandardError $ChunkLog -PassThru
+    try {
+        Start-Sleep -Seconds 1
+        if ($chunkProc.HasExited) {
+            $log = if (Test-Path $ChunkLog) { Get-Content $ChunkLog -Raw } else { "" }
+            throw "permanence-demo: chunk server exited early`n$log"
+        }
+
+        if (Test-Path $RestoredPath) { Remove-Item -Force $RestoredPath }
+        $restore = Invoke-Checked $MfnCli @(
+            "--rpc", $RpcAddr, "--wallet", $ReplicaWallet,
+            "uploads", "fetch-http", $commit, $RestoredPath, $ChunkListen
+        ) "uploads fetch-http"
+        if ($restore -notlike "*fetch_http=ok*") { throw "permanence-demo: fetch-http did not report ok`n$restore" }
+
+        $proof = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $ReplicaWallet, "operator", "prove", $commit) "operator prove"
+        $poolLen = Parse-Field $proof "pool_len"
+        Write-Host "permanence-demo: prove=ok pool_len=$poolLen"
+    } finally {
+        if ($chunkProc -and -not $chunkProc.HasExited) {
+            Stop-Process -Id $chunkProc.Id -Force -ErrorAction SilentlyContinue
+            $chunkProc.WaitForExit()
+        }
+    }
+
+    $srcHash = (Get-FileHash -Algorithm SHA256 $Payload).Hash.ToLowerInvariant()
+    $dstHash = (Get-FileHash -Algorithm SHA256 $RestoredPath).Hash.ToLowerInvariant()
+    if ($srcHash -ne $dstHash) {
+        throw "permanence-demo: restored hash mismatch source=$srcHash restored=$dstHash"
+    }
+
+    if ($WaitProofSeconds -gt 0) {
+        $deadline = (Get-Date).AddSeconds($WaitProofSeconds)
+        do {
+            $afterProof = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list after proof"
+            if ($afterProof -like "*$commit*" -and $afterProof -like "*last_proven_height=*") { break }
+            Start-Sleep -Seconds 5
+        } while ((Get-Date) -lt $deadline)
+    }
+
+    Write-Host "permanence-demo: PASS commitment_hash=$commit restored_sha256=$dstHash restored_path=$RestoredPath"
+} finally {
+    Pop-Location
+}

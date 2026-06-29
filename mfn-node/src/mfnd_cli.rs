@@ -37,7 +37,10 @@ use crate::{
     demo_genesis, genesis_config_from_json_path, hex_seed32, produce_solo_block, BlockInputs,
     Chain, ChainConfig, Mempool, MempoolConfig, NodeStore, StoreBackend,
 };
-use mfn_store::{load_mempool, load_proof_pool, save_mempool, save_proof_pool, ChainPersistence};
+use mfn_store::{
+    load_mempool, load_or_genesis_replaying_block_log, load_proof_pool, save_mempool,
+    save_proof_pool, ChainPersistence,
+};
 
 /// Entry point for the `mfnd` binary. Returns a process exit code.
 pub fn mfnd_main() -> ExitCode {
@@ -70,6 +73,8 @@ struct Parsed {
     checkpoint_each_block: bool,
     /// Solo `serve` only: `HOST:PORT` to bind (default `127.0.0.1:18731`).
     rpc_listen: Option<String>,
+    /// Solo `serve` only: API key required for wallet-write/operator-admin RPC methods.
+    rpc_api_key: Option<String>,
     /// Solo `serve` only: optional second `HOST:PORT` for binary P2P [`hello_v1_handshake`](crate::network::hello_v1_handshake).
     p2p_listen: Option<String>,
     /// Solo `serve` only: boot peer `HOST:PORT` list (repeat `--p2p-dial`; merged with genesis manifest `seed_nodes` when present — **M2.4.4**).
@@ -94,6 +99,10 @@ fn usage() -> &'static str {
                         (default 1; by default one checkpoint after the last block)\n\
        --checkpoint-each  only for `step`: write checkpoint after every applied block\n\
        --rpc-listen ADDR:PORT   only for `serve` (default 127.0.0.1:18731)\n\
+       --rpc-api-key KEY        only for `serve`: require KEY for wallet-write/operator-admin RPC\n\
+                                  methods (or set MFND_RPC_API_KEY)\n\
+      env MFND_RPC_MAX_IN_FLIGHT  only for `serve`: override RPC in-flight connection cap\n\
+                                  (default 64; use get_status to inspect active value)\n\
        --p2p-listen ADDR:PORT   only for `serve` (optional): length-prefixed HelloV1 handshake\n\
                                   on a separate TCP port (see `network::handshake`)\n\
        --p2p-dial ADDR:PORT     only for `serve` (optional, repeatable): outbound dials to peer P2P\n\
@@ -134,6 +143,7 @@ fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
 
 const MFND_SOLO_VRF_SEED_HEX: &str = "MFND_SOLO_VRF_SEED_HEX";
 const MFND_SOLO_BLS_SEED_HEX: &str = "MFND_SOLO_BLS_SEED_HEX";
+const MFND_RPC_API_KEY: &str = "MFND_RPC_API_KEY";
 
 /// Max regular txs pulled from the mempool into one block body (coinbase is extra).
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
@@ -151,9 +161,8 @@ fn run_solo_step(
         return Err("mfnd step: --blocks exceeds maximum (10000)".into());
     }
 
-    let mut chain = store
-        .load_or_genesis(cfg.clone())
-        .map_err(|e| format!("{e}"))?;
+    let (mut chain, _) =
+        load_or_genesis_replaying_block_log(store, cfg.clone()).map_err(|e| format!("{e}"))?;
     let vals = chain.validators();
     if vals.len() != 1 {
         return Err(format!(
@@ -323,11 +332,13 @@ fn run(args: Vec<String>) -> Result<(), String> {
     match parsed.cmd {
         Cmd::Status => {
             let had_checkpoint = store.has_any_checkpoint();
-            let chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
+            let (chain, _) =
+                load_or_genesis_replaying_block_log(&store, cfg).map_err(|e| format!("{e}"))?;
             print_status(&chain, had_checkpoint, parsed.store_backend);
         }
         Cmd::Save => {
-            let chain = store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?;
+            let (chain, _) =
+                load_or_genesis_replaying_block_log(&store, cfg).map_err(|e| format!("{e}"))?;
             let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
             println!(
                 "saved_checkpoint_bytes={} path={}",
@@ -337,9 +348,9 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         Cmd::Run => {
             let had_checkpoint = store.has_any_checkpoint();
-            let chain = Arc::new(Mutex::new(
-                store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
-            ));
+            let (loaded_chain, _) =
+                load_or_genesis_replaying_block_log(&store, cfg).map_err(|e| format!("{e}"))?;
+            let chain = Arc::new(Mutex::new(loaded_chain));
             {
                 let c = chain
                     .lock()
@@ -415,6 +426,11 @@ fn run(args: Vec<String>) -> Result<(), String> {
         }
         Cmd::Serve => {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
+            let rpc_api_key = parsed.rpc_api_key.or_else(|| {
+                std::env::var(MFND_RPC_API_KEY)
+                    .ok()
+                    .filter(|s| !s.is_empty())
+            });
             let store: std::sync::Arc<dyn mfn_store::ChainPersistence + Send + Sync> =
                 std::sync::Arc::new(store);
             let network_label = parsed.genesis_toml.as_ref().and_then(|p| {
@@ -432,6 +448,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 store,
                 cfg,
                 listen,
+                rpc_api_key,
                 parsed.p2p_listen.as_deref(),
                 &p2p_dials,
                 parsed.produce,
@@ -476,6 +493,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut step_count: Option<u32> = None;
     let mut checkpoint_each_block = false;
     let mut rpc_listen: Option<String> = None;
+    let mut rpc_api_key: Option<String> = None;
     let mut p2p_listen: Option<String> = None;
     let mut p2p_dials: Vec<String> = Vec::new();
     let mut store_backend = StoreBackend::default();
@@ -552,6 +570,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
                 return Err("expected HOST:PORT after --rpc-listen".into());
             }
             rpc_listen = Some(v.clone());
+            i += 2;
+            continue;
+        }
+        if a == "--rpc-api-key" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--rpc-api-key requires a non-empty key".into());
+            };
+            if v.is_empty() || v.starts_with('-') {
+                return Err("expected non-empty KEY after --rpc-api-key".into());
+            }
+            rpc_api_key = Some(v.clone());
             i += 2;
             continue;
         }
@@ -641,6 +670,12 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if rpc_api_key.is_some() && cmd != Cmd::Serve {
+        return Err(format!(
+            "--rpc-api-key is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     if p2p_listen.is_some() && cmd != Cmd::Serve {
         return Err(format!(
             "--p2p-listen is only valid with the serve command\n{}",
@@ -684,6 +719,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         step_count,
         checkpoint_each_block,
         rpc_listen,
+        rpc_api_key,
         p2p_listen,
         p2p_dials,
         store_backend,
@@ -696,6 +732,14 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn usage_mentions_rpc_safety_environment_knobs() {
+        let text = usage();
+        assert!(text.contains("MFND_RPC_API_KEY"));
+        assert!(text.contains("MFND_RPC_MAX_IN_FLIGHT"));
+        assert!(text.contains("get_status"));
+    }
 
     #[test]
     fn parse_args_step() {
@@ -733,6 +777,20 @@ mod tests {
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:19999"));
         assert_eq!(p.p2p_listen, None);
         assert!(p.p2p_dials.is_empty());
+    }
+
+    #[test]
+    fn parse_args_serve_rpc_api_key() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-api-key".into(),
+            "secret".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert_eq!(p.rpc_api_key.as_deref(), Some("secret"));
     }
 
     #[test]
@@ -821,6 +879,18 @@ mod tests {
             "/tmp/x".into(),
             "--rpc-listen".into(),
             "127.0.0.1:1".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn parse_args_rpc_api_key_rejected_without_serve() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--rpc-api-key".into(),
+            "secret".into(),
             "status".into(),
         ];
         assert!(parse_args(&args).is_err());

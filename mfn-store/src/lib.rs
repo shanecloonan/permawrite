@@ -36,6 +36,7 @@ pub mod mempool_persist;
 pub mod peers_persist;
 pub mod proof_pool_persist;
 pub mod redb_store;
+pub mod replay;
 #[path = "trait.rs"]
 pub mod r#trait;
 mod validate;
@@ -51,8 +52,8 @@ pub use mempool_persist::{
     load_mempool, mempool_path, remove_mempool_file, save_mempool, MempoolSaveMeta, MEMPOOL_FILE,
 };
 pub use peers_persist::{
-    load_peers, peers_path, remove_peers_file, save_peers, PeersFileV1, DEFAULT_MAX_OUTBOUND_PEERS,
-    PEERS_FILE,
+    load_peers, load_peers_with_report, peers_path, remove_peers_file, save_peers, PeersFileV1,
+    PeersLoadReport, DEFAULT_MAX_OUTBOUND_PEERS, MAX_OUTBOUND_PEERS_LIMIT, PEERS_FILE,
 };
 pub use proof_pool_persist::{
     load_proof_pool, proof_pool_path, remove_proof_pool_file, save_proof_pool, ProofPoolSaveMeta,
@@ -60,3 +61,4 @@ pub use proof_pool_persist::{
 };
 pub use r#trait::ChainPersistence;
 pub use redb_store::RedbChainStore;
+pub use replay::{load_or_genesis_replaying_block_log, BlockLogReplayStats};

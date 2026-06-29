@@ -88,6 +88,7 @@ pub enum RpcError {
 #[derive(Debug, Clone)]
 pub struct RpcClient {
     addr: String,
+    api_key: Option<String>,
     next_id: u64,
     connect_timeout: Duration,
     io_timeout: Duration,
@@ -98,10 +99,17 @@ impl RpcClient {
     pub fn new(addr: impl Into<String>) -> Self {
         Self {
             addr: addr.into(),
+            api_key: None,
             next_id: 1,
             connect_timeout: Duration::from_secs(10),
             io_timeout: Duration::from_secs(30),
         }
+    }
+
+    /// Attach an RPC API key to every request.
+    pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
     }
 
     /// Peer `HOST:PORT`.
@@ -113,12 +121,15 @@ impl RpcClient {
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value, RpcError> {
         let id = self.next_id;
         self.next_id = self.next_id.saturating_add(1);
-        let req = json!({
+        let mut req = json!({
             "jsonrpc": "2.0",
             "method": method,
             "params": params,
             "id": id,
         });
+        if let (Some(api_key), Value::Object(obj)) = (&self.api_key, &mut req) {
+            obj.insert("api_key".to_string(), Value::String(api_key.clone()));
+        }
         let line = serde_json::to_string(&req)?;
         let resp_line = self.request_line(&line)?;
         let v: Value = serde_json::from_str(resp_line.trim())?;

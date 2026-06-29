@@ -4,7 +4,9 @@
 
 Permawrite is **pre-network, pre-audit** software. The code in this repository implements consensus-critical cryptography but has not been independently reviewed. Treat any deployment as experimental.
 
-The reference daemon's JSON-RPC listener is a development/testnet control plane, not an audited public API. By default it binds to loopback; if you bind RPC to a LAN or public interface, set `--rpc-api-key` or `MFND_RPC_API_KEY`, place the port behind a firewall or TLS reverse proxy, and assume the node remains experimental. API-key enforcement protects `wallet-write` and `operator-admin` methods (`submit_tx`, `submit_storage_proof`, mempool/proof-pool clears, checkpoint save, and P2P light-follow proxy calls); public read methods remain unauthenticated.
+The reference daemon's JSON-RPC listener is a development/testnet control plane, not an audited public API. By default it binds to loopback; if you bind RPC to a LAN or public interface, set `--rpc-api-key` or `MFND_RPC_API_KEY`, place the port behind a firewall or TLS reverse proxy, and assume the node remains experimental. API-key enforcement protects `wallet-write` and `operator-admin` methods (`submit_tx`, `submit_storage_proof`, mempool/proof-pool clears, checkpoint save, and P2P light-follow proxy calls); public read methods remain unauthenticated. See [`scripts/public-devnet-v1/OPERATORS.md`](scripts/public-devnet-v1/OPERATORS.md#firewall-and-tls-examples) for concrete Linux/Windows firewall and TLS-wrapper examples.
+
+The RPC server has devnet DoS guards: bounded in-flight accepted connections, per-connection I/O timeouts, request-line byte limits, pre-lock request validation, and sanitized request outcome logs. These guards reduce trivial resource-exhaustion risk but do **not** make RPC safe to expose directly to the internet; use upstream firewall, VPN/SSH, TLS termination, and rate limiting for any shared operator endpoint.
 
 ## Reporting a vulnerability
 

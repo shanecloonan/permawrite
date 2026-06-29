@@ -16,6 +16,9 @@ Requires a running `mfnd serve` (JSON-RPC) and a wallet that has performed at le
 # Poll every 30s (default), prove all local artifacts
 mfn-storage-operator run --wallet ./alice.json --rpc 127.0.0.1:18731
 
+# Auth-enabled node (same key as mfnd serve --rpc-api-key / MFND_RPC_API_KEY)
+mfn-storage-operator run --wallet ./alice.json --rpc-api-key <KEY>
+
 # Single cycle (cron-friendly)
 mfn-storage-operator run --wallet ./alice.json --once
 
@@ -57,7 +60,7 @@ mfn-cli --rpc 127.0.0.1:18731 --wallet ./replica.json operator backfill COMMIT_H
 
 Uses `get_storage_challenge` for dimensions, fetches every chunk, verifies `data_root`, writes `payload.bin` + `meta.bytes`. Append `replace` to overwrite an existing artifact.
 
-Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes).
+Stdout uses `mfno_*` lines for scripting (cycle boundaries, per-commitment outcomes). When `mfnd serve` gates RPC writes, pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY`; `submit_storage_proof` is classified as `wallet-write`.
 
 ## Library
 

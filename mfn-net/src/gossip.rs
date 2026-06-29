@@ -22,6 +22,10 @@ pub const P2P_GOSSIP_IO_TIMEOUT: Duration = Duration::from_secs(10);
 pub trait FanoutPeerSet: Send + Sync {
     /// Remember a peer after a successful handshake.
     fn register_peer(&self, peer_addr: &str);
+    /// Clear any transient penalty after a successful dial/handshake.
+    fn note_peer_success(&self, _peer_addr: &str) {}
+    /// Record a failed dial/handshake/sync attempt for local peer scoring.
+    fn note_peer_failure(&self, _peer_addr: &str, _reason: &str) {}
     /// Remember an inbound dialer without persisting `peers.json`.
     fn register_ephemeral_peer(&self, _peer_addr: &str) {}
     /// Keep a duplex session for in-band proposal/vote fan-out (**M2.3.24**).

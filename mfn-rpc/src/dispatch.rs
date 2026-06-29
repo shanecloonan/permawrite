@@ -42,6 +42,8 @@ pub mod rpc_codes {
     pub const CHECKPOINT_SAVE: i64 = -32004;
     /// [`mfn_runtime::ProofPool::admit`] rejected the decoded proof.
     pub const PROOF_POOL_REJECT: i64 = -32005;
+    /// RPC method requires an API key configured by the node operator.
+    pub const AUTH_REQUIRED: i64 = -32006;
 }
 
 fn hex32(id: &[u8; 32]) -> String {
@@ -694,10 +696,24 @@ fn reject_nonempty_empty_params(params: Option<&Value>, method: &str) -> Result<
     }
 }
 
-/// Method names implemented by [`dispatch_serve_methods`], sorted for a stable wire shape.
-///
-/// **Keep in sync** when adding a new `match` arm (include the new name here).
-fn serve_rpc_methods_json_result() -> Value {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RpcMethodClass {
+    PublicSafe,
+    WalletWrite,
+    OperatorAdmin,
+}
+
+impl RpcMethodClass {
+    fn as_str(self) -> &'static str {
+        match self {
+            RpcMethodClass::PublicSafe => "public-safe",
+            RpcMethodClass::WalletWrite => "wallet-write",
+            RpcMethodClass::OperatorAdmin => "operator-admin",
+        }
+    }
+}
+
+fn serve_rpc_method_names() -> Vec<&'static str> {
     let mut methods: Vec<&'static str> = vec![
         "clear_mempool",
         "clear_proof_pool",
@@ -719,6 +735,7 @@ fn serve_rpc_methods_json_result() -> Value {
         "get_mempool_tx",
         "get_proof_pool",
         "get_storage_challenge",
+        "get_status",
         "get_tip",
         "list_data_roots_with_claims",
         "list_methods",
@@ -731,7 +748,56 @@ fn serve_rpc_methods_json_result() -> Value {
         "submit_tx",
     ];
     methods.sort_unstable();
-    json!({ "methods": methods })
+    methods
+}
+
+fn rpc_method_class(method: &str) -> Option<RpcMethodClass> {
+    match method {
+        "submit_tx" | "submit_storage_proof" => Some(RpcMethodClass::WalletWrite),
+        "clear_mempool"
+        | "clear_proof_pool"
+        | "get_light_follow_p2p"
+        | "get_light_follow_quorum_p2p"
+        | "remove_mempool_tx"
+        | "save_checkpoint" => Some(RpcMethodClass::OperatorAdmin),
+        "get_block"
+        | "get_block_header"
+        | "get_block_evolution"
+        | "get_block_headers"
+        | "get_block_txs"
+        | "get_chain_params"
+        | "get_claims_by_pubkey"
+        | "get_claims_for"
+        | "get_checkpoint"
+        | "get_light_checkpoint_summary"
+        | "get_light_follow"
+        | "get_light_snapshot"
+        | "get_mempool"
+        | "get_mempool_tx"
+        | "get_proof_pool"
+        | "get_storage_challenge"
+        | "get_status"
+        | "get_tip"
+        | "list_data_roots_with_claims"
+        | "list_methods"
+        | "list_recent_claims"
+        | "list_recent_uploads"
+        | "list_utxos" => Some(RpcMethodClass::PublicSafe),
+        _ => None,
+    }
+}
+
+/// Method names implemented by [`dispatch_serve_methods`], sorted for a stable wire shape.
+///
+/// **Keep in sync** when adding a new `match` arm (include the new name here).
+fn serve_rpc_methods_json_result() -> Value {
+    let methods = serve_rpc_method_names();
+    let mut method_classes = Map::new();
+    for method in &methods {
+        let class = rpc_method_class(method).expect("all listed methods are classified");
+        method_classes.insert((*method).to_string(), json!(class.as_str()));
+    }
+    json!({ "methods": methods, "method_classes": method_classes })
 }
 
 fn validator_row_json(v: &Validator) -> Value {
@@ -1017,6 +1083,20 @@ pub type P2pLightFollowQuorumHook =
 pub struct ServeDispatchOpts {
     /// Genesis spec for replaying light checkpoints at historical heights (M4.12).
     pub genesis: Option<Arc<GenesisConfig>>,
+    /// Optional API key required for `wallet-write` and `operator-admin` methods.
+    pub rpc_api_key: Option<String>,
+    /// Configured maximum in-flight JSON-RPC connections, when dispatch runs behind `mfnd serve`.
+    pub rpc_max_in_flight: Option<usize>,
+    /// Live in-flight JSON-RPC connection counter, when dispatch runs behind `mfnd serve`.
+    pub rpc_current_in_flight: Option<Arc<dyn Fn() -> usize + Send + Sync>>,
+    /// Maximum newline-delimited JSON-RPC request line bytes, when enforced by `mfnd serve`.
+    pub rpc_max_request_line_bytes: Option<u64>,
+    /// Per-connection JSON-RPC read/write timeout in milliseconds, when enforced by `mfnd serve`.
+    pub rpc_io_timeout_ms: Option<u64>,
+    /// Configured JSON-RPC listen address, when dispatch runs behind `mfnd serve`.
+    pub rpc_listen_addr: Option<String>,
+    /// Whether the configured JSON-RPC bind is non-loopback, when known.
+    pub rpc_public_bind: Option<bool>,
     /// Post-admit fan-out for accepted txs.
     pub on_fresh_tx: Option<FreshTxHook>,
     /// Durable mempool snapshot while `pool` is still exclusively borrowed by dispatch.
@@ -1027,6 +1107,49 @@ pub struct ServeDispatchOpts {
     pub p2p_light_follow_quorum: Option<P2pLightFollowQuorumHook>,
     /// Persist `proof_pool.bytes` after admit/clear (**M3.23**).
     pub on_proof_pool_change: Option<ProofPoolPersistHook>,
+}
+
+fn request_api_key(req: &Value) -> Option<&str> {
+    req.get("api_key")
+        .and_then(Value::as_str)
+        .or_else(|| req.get("auth")?.get("api_key")?.as_str())
+}
+
+fn api_key_matches(expected: &str, got: &str) -> bool {
+    let expected = expected.as_bytes();
+    let got = got.as_bytes();
+    if expected.len() != got.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (a, b) in expected.iter().zip(got) {
+        diff |= a ^ b;
+    }
+    diff == 0
+}
+
+fn authorize_rpc_method(
+    method: &str,
+    req: &Value,
+    id: &Value,
+    opts: &ServeDispatchOpts,
+) -> Option<Value> {
+    let expected = opts.rpc_api_key.as_deref()?;
+    let class = rpc_method_class(method)?;
+    if class == RpcMethodClass::PublicSafe {
+        return None;
+    }
+    match request_api_key(req) {
+        Some(got) if api_key_matches(expected, got) => None,
+        _ => Some(rpc_error(
+            id,
+            rpc_codes::AUTH_REQUIRED,
+            format!(
+                "method `{method}` is `{}` and requires a valid RPC API key",
+                class.as_str()
+            ),
+        )),
+    }
 }
 
 /// Parse one request line and return a single JSON-RPC 2.0 response value.
@@ -1066,6 +1189,13 @@ pub fn parse_and_dispatch_serve_opts(
             );
         }
     };
+    if !req.is_object() {
+        return rpc_error(
+            &Value::Null,
+            rpc_codes::INVALID_REQUEST,
+            "request must be a JSON object",
+        );
+    }
     let id = request_id(&req);
     if let Some(v) = req.get("jsonrpc") {
         if v.as_str() != Some(JSONRPC_VERSION) {
@@ -1100,6 +1230,10 @@ fn dispatch_serve_methods(
         None => return rpc_error(id, rpc_codes::INVALID_REQUEST, "missing field `method`"),
     };
 
+    if let Some(resp) = authorize_rpc_method(method, req, id, opts) {
+        return resp;
+    }
+
     match method {
         "get_tip" => {
             let tip_h = chain.tip_height().map(|h| json!(h)).unwrap_or(Value::Null);
@@ -1120,6 +1254,78 @@ fn dispatch_serve_methods(
                 return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
             }
             rpc_success(id, serve_rpc_methods_json_result())
+        }
+        "get_status" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_status") {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            let tip_height = chain.tip_height().map(|h| json!(h)).unwrap_or(Value::Null);
+            let tip_id = chain.tip_id().map(hex32).unwrap_or_else(|| "none".into());
+            let proof_pool_json = match proof_pool.as_ref() {
+                Some(pool) => json!({
+                    "configured": true,
+                    "pool_len": pool.len(),
+                }),
+                None => json!({
+                    "configured": false,
+                    "pool_len": Value::Null,
+                }),
+            };
+            let rpc_current_in_flight = opts
+                .rpc_current_in_flight
+                .as_ref()
+                .map(|current| json!(current()))
+                .unwrap_or(Value::Null);
+            let rpc_max_in_flight = opts
+                .rpc_max_in_flight
+                .map(|max| json!(max))
+                .unwrap_or(Value::Null);
+            let rpc_max_request_line_bytes = opts
+                .rpc_max_request_line_bytes
+                .map(|max| json!(max))
+                .unwrap_or(Value::Null);
+            let rpc_io_timeout_ms = opts
+                .rpc_io_timeout_ms
+                .map(|timeout| json!(timeout))
+                .unwrap_or(Value::Null);
+            let rpc_listen_addr = opts
+                .rpc_listen_addr
+                .as_ref()
+                .map(|addr| json!(addr))
+                .unwrap_or(Value::Null);
+            let rpc_public_bind = opts
+                .rpc_public_bind
+                .map(|public| json!(public))
+                .unwrap_or(Value::Null);
+            rpc_success(
+                id,
+                json!({
+                    "service": "mfnd",
+                    "status": "ok",
+                    "chain": {
+                        "genesis_id": hex32(chain.genesis_id()),
+                        "tip_height": tip_height,
+                        "tip_id": tip_id,
+                        "validator_count": chain.validators().len(),
+                    },
+                    "mempool": {
+                        "pool_len": pool.len(),
+                        "root": hex32(&mempool_root(pool)),
+                    },
+                    "proof_pool": proof_pool_json,
+                    "rpc": {
+                        "auth_enabled": opts.rpc_api_key.is_some(),
+                        "protected_method_classes": ["wallet-write", "operator-admin"],
+                        "method_count": serve_rpc_method_names().len(),
+                        "max_in_flight": rpc_max_in_flight,
+                        "current_in_flight": rpc_current_in_flight,
+                        "max_request_line_bytes": rpc_max_request_line_bytes,
+                        "io_timeout_ms": rpc_io_timeout_ms,
+                        "listen_addr": rpc_listen_addr,
+                        "public_bind": rpc_public_bind,
+                    },
+                }),
+            )
         }
         "get_checkpoint" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_checkpoint") {
@@ -1936,6 +2142,20 @@ mod tests {
         let v = parse_and_dispatch_serve(&store, &mut c, &mut p, "{not json");
         assert_eq!(v["jsonrpc"], JSONRPC_VERSION);
         assert_eq!(v["error"]["code"], rpc_codes::PARSE_ERROR);
+        assert_eq!(v["id"], Value::Null);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_non_object_request_is_invalid_request() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_non_object");
+        let v = parse_and_dispatch_serve(&store, &mut c, &mut p, r#"["get_tip"]"#);
+        assert_eq!(v["jsonrpc"], JSONRPC_VERSION);
+        assert_eq!(v["error"]["code"], rpc_codes::INVALID_REQUEST);
+        assert_eq!(
+            v["error"]["message"],
+            json!("request must be a JSON object")
+        );
         assert_eq!(v["id"], Value::Null);
         fs::remove_dir_all(&root).ok();
     }
@@ -3091,6 +3311,13 @@ mod tests {
         let mut sorted = names.clone();
         sorted.sort_unstable();
         assert_eq!(names, sorted, "methods must be lexicographically sorted");
+        let classes = v["result"]["method_classes"]
+            .as_object()
+            .expect("method_classes object");
+        assert_eq!(classes["get_tip"], json!("public-safe"));
+        assert_eq!(classes["get_status"], json!("public-safe"));
+        assert_eq!(classes["submit_tx"], json!("wallet-write"));
+        assert_eq!(classes["save_checkpoint"], json!("operator-admin"));
         for expected in [
             "clear_mempool",
             "clear_proof_pool",
@@ -3111,6 +3338,7 @@ mod tests {
             "get_mempool_tx",
             "get_proof_pool",
             "get_storage_challenge",
+            "get_status",
             "get_tip",
             "list_data_roots_with_claims",
             "list_methods",
@@ -3124,7 +3352,153 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 30);
+        assert_eq!(names.len(), 31);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_status_returns_machine_readable_snapshot() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_status");
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"get_status","id":"s"}"#,
+            ServeDispatchOpts {
+                rpc_api_key: Some("secret".into()),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["id"], json!("s"));
+        assert_eq!(v["result"]["service"], json!("mfnd"));
+        assert_eq!(v["result"]["status"], json!("ok"));
+        assert_eq!(v["result"]["chain"]["tip_height"], json!(0));
+        assert_eq!(v["result"]["mempool"]["pool_len"], json!(0));
+        assert_eq!(v["result"]["proof_pool"]["configured"], json!(false));
+        assert_eq!(v["result"]["rpc"]["auth_enabled"], json!(true));
+        assert_eq!(v["result"]["rpc"]["method_count"], json!(31));
+        assert_eq!(v["result"]["rpc"]["max_in_flight"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["current_in_flight"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["max_request_line_bytes"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["io_timeout_ms"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["listen_addr"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["public_bind"], Value::Null);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_status_reports_runtime_rpc_connection_limits() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_status_limits");
+        let current = Arc::new(|| 3usize);
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"get_status","id":"s"}"#,
+            ServeDispatchOpts {
+                rpc_max_in_flight: Some(9),
+                rpc_current_in_flight: Some(current),
+                rpc_max_request_line_bytes: Some(1_048_576),
+                rpc_io_timeout_ms: Some(30_000),
+                rpc_listen_addr: Some("127.0.0.1:18731".into()),
+                rpc_public_bind: Some(false),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["rpc"]["max_in_flight"], json!(9));
+        assert_eq!(v["result"]["rpc"]["current_in_flight"], json!(3));
+        assert_eq!(
+            v["result"]["rpc"]["max_request_line_bytes"],
+            json!(1_048_576)
+        );
+        assert_eq!(v["result"]["rpc"]["io_timeout_ms"], json!(30_000));
+        assert_eq!(v["result"]["rpc"]["listen_addr"], json!("127.0.0.1:18731"));
+        assert_eq!(v["result"]["rpc"]["public_bind"], json!(false));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_api_key_allows_public_methods_without_key() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_auth_public");
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#,
+            ServeDispatchOpts {
+                rpc_api_key: Some("secret".into()),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_api_key_rejects_wallet_write_without_key() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_auth_wallet");
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"submit_tx","params":["00"],"id":1}"#,
+            ServeDispatchOpts {
+                rpc_api_key: Some("secret".into()),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::AUTH_REQUIRED);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("wallet-write"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_api_key_rejects_operator_admin_with_wrong_key() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_auth_admin_bad");
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","api_key":"wrong","id":1}"#,
+            ServeDispatchOpts {
+                rpc_api_key: Some("secret".into()),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"]["code"], rpc_codes::AUTH_REQUIRED);
+        assert!(v["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("operator-admin"));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_api_key_allows_operator_admin_with_auth_object_key() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_auth_admin_ok");
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"clear_mempool","auth":{"api_key":"secret"},"id":1}"#,
+            ServeDispatchOpts {
+                rpc_api_key: Some("secret".into()),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["pool_len"], json!(0));
         fs::remove_dir_all(&root).ok();
     }
 
@@ -3138,7 +3512,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 30);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 31);
         fs::remove_dir_all(&root).ok();
     }
 

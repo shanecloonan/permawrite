@@ -334,6 +334,34 @@ fn hub_push_chunks_replica_inbox_assembles_matching_payload() {
     );
     assert_eq!(replica_bytes, payload);
 
+    let restored_path = replica_dir.join("restored.bin");
+    let retrieve_out = mfn_cli()
+        .args(["--wallet"])
+        .arg(&replica_wallet)
+        .args([
+            "uploads",
+            "retrieve",
+            &commitment_hash,
+            restored_path.to_str().expect("utf8"),
+        ])
+        .output()
+        .expect("uploads retrieve");
+    assert!(
+        retrieve_out.status.success(),
+        "uploads retrieve stderr={}",
+        String::from_utf8_lossy(&retrieve_out.stderr)
+    );
+    let retrieve_stdout = String::from_utf8_lossy(&retrieve_out.stdout);
+    assert!(
+        retrieve_stdout.contains("retrieve=ok"),
+        "stdout={retrieve_stdout}"
+    );
+    let restored_bytes = std::fs::read(&restored_path).expect("restored payload");
+    assert_eq!(
+        restored_bytes, payload,
+        "retrieved payload must match original upload bytes"
+    );
+
     shutdown_child(&mut hub_live);
     shutdown_child(&mut replica_live);
     let _ = std::fs::remove_dir_all(hub_dir.parent().expect("parent"));

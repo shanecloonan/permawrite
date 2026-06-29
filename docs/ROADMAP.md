@@ -1982,6 +1982,28 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.7** | Manifest seed publish guide: `seed_nodes_examples`, `devnet-ports.example.env`, OPERATORS dial workflow. | ✓ shipped |
 | **M2.4.8** | OPERATORS RPC exposure guidance: unauthenticated JSON-RPC bind rules for testnet. | ✓ shipped |
 | **M2.4.9** | Public devnet `start-all` + health-check include fourth **observer** node (no validator env; P2P dial hub). | ✓ shipped |
+| **M2.4.10** | Public devnet health-check liveness window: optional multi-sample stalled-height detection via `MFN_HEALTH_STALL_*`. | ✓ shipped |
+| **M2.4.11** | Public devnet soak scripts for hub + voters + observer with PID, P2P dial-log, convergence, and stalled-height assertions. | ✓ shipped |
+| **M2.4.12** | In-memory peer quarantine skips repeatedly failing peers during reconnect, catch-up, and fan-out; success clears the penalty. | ✓ shipped |
+| **M2.4.13** | Ignored restart safety smoke: a node saves a peer, falls behind while offline, restarts from disk, reconnects to the saved peer, and catches up. | ✓ shipped |
+| **M2.4.14** | Restart block-log replay: daemon load paths reconstruct the durable synced tip from checkpoint/genesis plus block-log suffix before serving, stepping, saving, or status. | ✓ shipped |
+| **M2.4.15** | Adversarial rejection coverage: durable replay rejects forked/gapped block logs, and P2P gossip rejects next-height fork blocks without mutating tip or store. | ✓ shipped |
+| **M2.4.16** | P2P outbound genesis mismatch hardening: structured `mfnd_p2p_dial_abort` / catch-up abort labels include expected/got genesis ids and foreign-chain peers are not persisted. | ✓ shipped |
+| **M2.4.17** | Public-devnet seed-list hardening: manifest `seed_nodes` and explicit `--p2p-dial` entries are trimmed, deduped, and validated as `HOST:PORT` before boot dials start. | ✓ shipped |
+| **M2.4.18** | Public-devnet self-dial hardening: explicit boot dials and saved-peer reconnects skip the node's own P2P listen address and log `mfnd_p2p_self_dial_skip`. | ✓ shipped |
+| **M2.4.19** | Public-devnet reconnect storm hardening: persisted `peers.json` reconnect fan-out is clamped to a bounded maximum even if the file is hand-edited or corrupted. | ✓ shipped |
+| **M2.4.20** | Public-devnet foreign-peer cleanup: peers that fail with outbound `genesis_mismatch` are removed from the durable peer set and log `mfnd_p2p_peer_drop`. | ✓ shipped |
+| **M2.4.21** | Public-devnet peer-file observability: malformed, empty, or duplicate `peers.json` entries filtered on load now emit `mfnd_peers_load_filtered` counts. | ✓ shipped |
+| **M2.4.22** | Public-devnet reconnect observability: saved peers skipped because they are already covered by CLI/manifest boot dials now log `mfnd_p2p_reconnect_skip reason=boot_dial`. | ✓ shipped |
+| **M2.4.23** | Public-devnet reconnect cap observability: saved-peer reconnect emits `mfnd_p2p_reconnect_cap_reached` when `max_outbound_peers` stops additional boot dials. | ✓ shipped |
+| **M2.4.24** | Public-devnet catch-up fan-out cap: periodic committee catch-up loops respect `max_outbound_peers` and log `mfnd_p2p_catchup_cap_reached` when capped. | ✓ shipped |
+| **M2.4.25** | Public-devnet catch-up self-dial hardening: periodic committee catch-up skips the node's own P2P listen address and logs `mfnd_p2p_self_dial_skip`. | ✓ shipped |
+| **M2.4.26** | Public-devnet catch-up selector coverage: unit tests pin self-skip before cap accounting for periodic committee catch-up. | ✓ shipped |
+| **M2.4.27** | Public-devnet quarantine snapshot coverage: unit tests prove quarantined peers are filtered from reconnect, catch-up, and fan-out snapshots until success clears the penalty. | ✓ shipped |
+| **M2.4.28** | Public-devnet quarantine expiry coverage: unit tests prove expired peer penalties are pruned so transient outages do not permanently suppress peers. | ✓ shipped |
+| **M2.4.29** | Public-devnet genesis-mismatch label coverage: unit tests pin the outbound `genesis_mismatch expected=... got=...` reason consumed by durable foreign-peer cleanup. | ✓ shipped |
+| **M2.4.30** | Public-devnet block-sync interleave cap coverage: unit tests prove catch-up aborts after too many non-`BlocksV1` frames while waiting for a block reply. | ✓ shipped |
+| **M2.4.31** | Public-devnet block-sync request cap coverage: unit tests prove large height gaps request at most `MAX_BLOCKS_PER_GET_V1` blocks per round trip. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

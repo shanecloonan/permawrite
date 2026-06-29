@@ -10,6 +10,7 @@ use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::{crypto_random, point_from_bytes};
 use mfn_storage::storage_commitment_hash;
+use mfn_storage_operator::upload_artifact_store::{list_upload_artifacts, upload_artifacts_root};
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 
@@ -111,6 +112,13 @@ pub struct ClaimParams {
     pub ring_size: usize,
 }
 
+/// Parameters for `wallet backup-info`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct BackupInfoParams {
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
 /// `wallet new` — generate seed and write wallet file.
 pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     if path.exists() && !force {
@@ -128,6 +136,31 @@ pub fn wallet_new(path: &Path, force: bool) -> Result<(), WalletCmdError> {
     println!("wallet_version={WALLET_FILE_VERSION}");
     eprintln!(
         "warning: back up wallet file and seed_hex; loss of either means permanent loss of funds"
+    );
+    Ok(())
+}
+
+/// `wallet restore` — write wallet file from a caller-supplied seed.
+pub fn wallet_restore(
+    path: &Path,
+    seed_hex: &str,
+    key_derivation: KeyDerivation,
+    force: bool,
+) -> Result<(), WalletCmdError> {
+    if path.exists() && !force {
+        return Err(WalletCmdError::Usage(format!(
+            "wallet file already exists at {}; pass --force to overwrite",
+            path.display()
+        )));
+    }
+    let seed = parse_restore_seed_hex(seed_hex)?;
+    let mut file = WalletFile::new(&seed, key_derivation);
+    file.save(path)?;
+    print_address_lines(&file)?;
+    println!("wallet_path={}", path.display());
+    println!("wallet_version={WALLET_FILE_VERSION}");
+    eprintln!(
+        "warning: restored wallet from seed_hex; keep seeds out of repos, chats, shell history, and logs"
     );
     Ok(())
 }
@@ -200,6 +233,74 @@ pub fn wallet_status(path: &Path, client: &mut RpcClient) -> Result<(), WalletCm
     }
     println!("wallet_path={}", path.display());
     println!("wallet_version={}", file.version);
+    Ok(())
+}
+
+/// `wallet backup-info` — print local backup inventory without revealing secrets.
+pub fn wallet_backup_info(path: &Path, params: BackupInfoParams) -> Result<(), WalletCmdError> {
+    let file = WalletFile::load(path)?;
+    let artifacts_root = upload_artifacts_root(path);
+    let artifacts = list_upload_artifacts(path)
+        .map_err(|e| WalletCmdError::Usage(format!("list upload artifacts: {e}")))?;
+    let artifact_payload_bytes: u64 = artifacts.iter().map(|a| a.payload_bytes).sum();
+    let restore_note = "seed restores spend authority; upload artifacts must be backed up or rebuilt from peers before proving/retrieving payloads";
+
+    if params.json {
+        let value = serde_json::json!({
+            "wallet_path": path.display().to_string(),
+            "wallet_version": file.version,
+            "key_derivation": key_derivation_label(file.key_derivation),
+            "seed_hex_present": true,
+            "scan_height": file.scan_height.unwrap_or(0),
+            "utxo_cache": file.has_owned_cache(),
+            "owned_outputs_cached": file.owned_outputs.len(),
+            "pending_spent_count": file.pending_spent_utxo_keys.len(),
+            "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
+            "trusted_light_summary_present": file.trusted_light_summary.is_some(),
+            "upload_artifacts_root": artifacts_root.display().to_string(),
+            "upload_artifacts_root_exists": artifacts_root.is_dir(),
+            "upload_artifacts_count": artifacts.len(),
+            "upload_artifacts_payload_bytes": artifact_payload_bytes,
+            "upload_artifacts_backup_needed": !artifacts.is_empty(),
+            "backup_wallet_file": true,
+            "backup_upload_artifacts": !artifacts.is_empty(),
+            "restore_note": restore_note,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("backup-info json: {e}")))?
+        );
+        return Ok(());
+    }
+
+    println!("wallet_path={}", path.display());
+    println!("wallet_version={}", file.version);
+    println!(
+        "key_derivation={}",
+        key_derivation_label(file.key_derivation)
+    );
+    println!("seed_hex_present=true");
+    println!("scan_height={}", file.scan_height.unwrap_or(0));
+    println!("utxo_cache={}", file.has_owned_cache());
+    println!("owned_outputs_cached={}", file.owned_outputs.len());
+    println!("pending_spent_count={}", file.pending_spent_utxo_keys.len());
+    println!(
+        "light_checkpoint_present={}",
+        file.light_checkpoint_hex.is_some()
+    );
+    println!(
+        "trusted_light_summary_present={}",
+        file.trusted_light_summary.is_some()
+    );
+    println!("upload_artifacts_root={}", artifacts_root.display());
+    println!("upload_artifacts_root_exists={}", artifacts_root.is_dir());
+    println!("upload_artifacts_count={}", artifacts.len());
+    println!("upload_artifacts_payload_bytes={artifact_payload_bytes}");
+    println!("upload_artifacts_backup_needed={}", !artifacts.is_empty());
+    println!("backup_wallet_file=true");
+    println!("backup_upload_artifacts={}", !artifacts.is_empty());
+    println!("restore_note={restore_note}");
     Ok(())
 }
 
@@ -647,6 +748,29 @@ pub(crate) fn print_scan_summary(
     println!("owned_count={owned}");
 }
 
+fn parse_restore_seed_hex(seed_hex: &str) -> Result<[u8; 32], WalletCmdError> {
+    let t = seed_hex
+        .trim()
+        .strip_prefix("0x")
+        .or_else(|| seed_hex.trim().strip_prefix("0X"))
+        .unwrap_or(seed_hex.trim());
+    if t.len() != 64 {
+        return Err(WalletCmdError::Usage(format!(
+            "SEED_HEX must be 64 hex characters (got {})",
+            t.len()
+        )));
+    }
+    if !t.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(WalletCmdError::Usage(
+            "SEED_HEX must contain only hexadecimal characters".into(),
+        ));
+    }
+    let bytes = hex::decode(t).map_err(|e| WalletCmdError::Usage(format!("SEED_HEX: {e}")))?;
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&bytes);
+    Ok(seed)
+}
+
 fn key_derivation_label(d: KeyDerivation) -> &'static str {
     match d {
         KeyDerivation::MfnWalletV1 => "mfn_wallet_v1",
@@ -670,4 +794,64 @@ fn print_address_lines(file: &WalletFile) -> Result<(), WalletCmdError> {
         key_derivation_label(file.key_derivation)
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_wallet_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "mfn-wallet-cmd-{name}-{}-{nanos}.json",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn wallet_restore_writes_seed_and_respects_force() {
+        let path = temp_wallet_path("restore");
+        let seed = "11".repeat(32);
+        wallet_restore(&path, &seed, KeyDerivation::PayoutStealthV1, false).expect("restore");
+        let file = WalletFile::load(&path).expect("load restored wallet");
+        assert_eq!(file.seed_hex, seed);
+        assert_eq!(file.key_derivation, KeyDerivation::PayoutStealthV1);
+
+        let err = wallet_restore(&path, &"22".repeat(32), KeyDerivation::MfnWalletV1, false)
+            .expect_err("overwrite should require force");
+        assert!(err.to_string().contains("pass --force"));
+
+        wallet_restore(&path, &"22".repeat(32), KeyDerivation::MfnWalletV1, true)
+            .expect("force restore");
+        let file = WalletFile::load(&path).expect("load forced wallet");
+        assert_eq!(file.seed_hex, "22".repeat(32));
+        assert_eq!(file.key_derivation, KeyDerivation::MfnWalletV1);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn parse_restore_seed_accepts_0x_prefix() {
+        assert_eq!(
+            parse_restore_seed_hex(&format!("0x{}", "ab".repeat(32))).expect("seed"),
+            [0xabu8; 32]
+        );
+        assert!(parse_restore_seed_hex("abcd").is_err());
+    }
+
+    #[test]
+    fn wallet_backup_info_runs_for_fresh_wallet() {
+        let path = temp_wallet_path("backup-info");
+        let seed = "33".repeat(32);
+        wallet_restore(&path, &seed, KeyDerivation::MfnWalletV1, false).expect("restore");
+        wallet_backup_info(&path, BackupInfoParams::default()).expect("backup info");
+        wallet_backup_info(&path, BackupInfoParams { json: true }).expect("backup info json");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(
+            mfn_storage_operator::upload_artifact_store::upload_artifacts_root(&path),
+        );
+    }
 }

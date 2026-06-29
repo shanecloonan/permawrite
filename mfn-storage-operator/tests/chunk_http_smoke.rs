@@ -231,6 +231,7 @@ fn run_once_with_chunk_listen_serves_chunk_zero() {
         run_daemon(
             OperatorDaemonConfig {
                 rpc_addr: "127.0.0.1:1".to_string(),
+                rpc_api_key: None,
                 wallet_path: wallet_bg,
                 interval: Duration::from_secs(3600),
                 once: false,

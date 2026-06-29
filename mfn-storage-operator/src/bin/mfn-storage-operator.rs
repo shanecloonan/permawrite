@@ -26,6 +26,8 @@ fn main() -> ExitCode {
 
 fn run_cli(args: Vec<String>) -> Result<(), String> {
     let mut rpc_addr = DEFAULT_RPC_ADDR.to_string();
+    let mut rpc_api_key: Option<String> =
+        env::var("MFN_RPC_API_KEY").ok().filter(|s| !s.is_empty());
     let mut wallet_path = PathBuf::from("wallet.json");
     let mut interval_secs = 30u64;
     let mut once = false;
@@ -37,6 +39,17 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
         let a = args[i].as_str();
         if a == "--rpc" {
             rpc_addr = args.get(i + 1).ok_or("--rpc requires HOST:PORT")?.clone();
+            i += 2;
+            continue;
+        }
+        if a == "--rpc-api-key" {
+            let key = args
+                .get(i + 1)
+                .ok_or("--rpc-api-key requires a non-empty key")?;
+            if key.is_empty() {
+                return Err("--rpc-api-key requires a non-empty key".into());
+            }
+            rpc_api_key = Some(key.clone());
             i += 2;
             continue;
         }
@@ -99,6 +112,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             run_daemon(
                 OperatorDaemonConfig {
                     rpc_addr,
+                    rpc_api_key,
                     wallet_path,
                     interval: Duration::from_secs(interval_secs),
                     once,
@@ -128,6 +142,9 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             let commitment_hash_hex = positional[1].clone();
             let peers: Vec<String> = positional[2..].to_vec();
             let mut client = RpcClient::new(&rpc_addr);
+            if let Some(key) = rpc_api_key {
+                client = client.with_api_key(key);
+            }
             let results = push_wallet_artifact_chunks_to_peers(
                 &mut client,
                 &wallet_path,

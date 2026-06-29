@@ -1,7 +1,7 @@
 //! End-to-end smoke: wallet upload artifact → operator prove → mined SPoRA proof (**M6.1**).
 
 use std::io::{BufRead, BufReader};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpListener};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -81,6 +81,12 @@ fn storage_operator() -> Command {
     Command::new(storage_operator_bin())
 }
 
+fn ephemeral_listen_addr() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind ephemeral");
+    let port = listener.local_addr().expect("local_addr").port();
+    format!("127.0.0.1:{port}")
+}
+
 fn unique_data_dir(test: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -158,9 +164,13 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
     let mut bls_seed = [0u8; 32];
     hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls hex");
     let wallet_path = dir.join("alice.json");
+    let replica_wallet_path = dir.join("bob.json");
     WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
         .save(&wallet_path)
         .expect("wallet");
+    WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
+        .save(&replica_wallet_path)
+        .expect("replica wallet");
 
     let payload_path = dir.join("payload.bin");
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
@@ -228,6 +238,56 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
         .spawn()
         .expect("serve2");
     let rpc2 = read_serve_listening(&mut serve2).to_string();
+
+    let chunk_listen = ephemeral_listen_addr();
+    let mut chunk_server = storage_operator()
+        .args([
+            "serve-chunks",
+            "--wallet",
+            wallet_path.to_str().expect("utf8"),
+            "--listen",
+            &chunk_listen,
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("serve-chunks");
+
+    let restored_path = dir.join("restored-from-http.bin");
+    let fetch_deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let fetch_out = loop {
+        let out = mfn_cli()
+            .args(["--rpc", &rpc2, "--wallet"])
+            .arg(&replica_wallet_path)
+            .args([
+                "uploads",
+                "fetch-http",
+                &commitment_hash,
+                restored_path.to_str().expect("utf8"),
+                &chunk_listen,
+            ])
+            .output()
+            .expect("uploads fetch-http");
+        if out.status.success() {
+            break out;
+        }
+        if std::time::Instant::now() >= fetch_deadline {
+            panic!("fetch-http stderr={}", String::from_utf8_lossy(&out.stderr));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    let fetch_stdout = String::from_utf8_lossy(&fetch_out.stdout);
+    assert!(
+        fetch_stdout.contains("fetch_http=ok") && fetch_stdout.contains("retrieve=ok"),
+        "stdout={fetch_stdout}"
+    );
+    assert_eq!(
+        std::fs::read(&restored_path).expect("restored payload"),
+        payload,
+        "HTTP-backfilled retrieve must restore original upload bytes"
+    );
+
+    shutdown_child(&mut chunk_server);
 
     let prove_out = mfn_cli()
         .args(["--rpc", &rpc2, "--wallet"])

@@ -15,8 +15,8 @@ use crate::{
 };
 use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
-    ChainTipV1, GossipHandler, GossipRecvStats, PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT,
-    P2P_HANDSHAKE_IO_TIMEOUT,
+    ChainTipV1, GossipHandler, GossipRecvStats, HelloHandshakeError, PullBlocksStats,
+    P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 
 /// Shared gossip admission hook for inbound P2P sessions (**M2.3.16**).
@@ -76,6 +76,17 @@ fn log_handshake_ms(hid: u64, peer: &str, elapsed: std::time::Duration) {
         elapsed.as_millis()
     );
     let _ = std::io::stdout().flush();
+}
+
+fn handshake_failure_label(err: &HelloHandshakeError) -> String {
+    match err {
+        HelloHandshakeError::GenesisMismatch { expected, got } => format!(
+            "genesis_mismatch expected={} got={}",
+            hex32(expected),
+            hex32(got)
+        ),
+        other => other.to_string(),
+    }
 }
 
 fn log_gossip_tx(hid: u64, peer: &str, outcome: &str, tx_id_hex: &str) {
@@ -312,6 +323,7 @@ impl GossipHandler for InboundGossip {
                         Arc::clone(&cfg.hid_counter),
                         cfg.block_sync.clone(),
                         Arc::clone(&cfg.block_applier),
+                        Some(Arc::clone(&cfg.fanout_peers)),
                     );
                 }
             }
@@ -576,6 +588,7 @@ pub fn spawn_catch_up_dial(
     hid_counter: HidCounter,
     block_sync: Option<BlockSyncHook>,
     block_applier: BlockSyncApplierHook,
+    fanout_peers: Option<FanoutPeerSetHook>,
 ) -> Result<(), String> {
     thread::Builder::new()
         .name("mfnd-p2p-catchup".into())
@@ -588,6 +601,9 @@ pub fn spawn_catch_up_dial(
                 &local,
             ) {
                 Ok((mut sock, remote)) => {
+                    if let Some(ps) = &fanout_peers {
+                        ps.note_peer_success(addr.as_str());
+                    }
                     let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
                     log_peer_tip(hid, addr.as_str(), &remote);
                     log_height_cmp(hid, addr.as_str(), local.height, &remote);
@@ -601,7 +617,13 @@ pub fn spawn_catch_up_dial(
                         &block_applier,
                     );
                 }
-                Err(e) => eprintln!("mfnd p2p catch-up dial `{addr}`: {e}"),
+                Err(e) => {
+                    let reason = handshake_failure_label(&e);
+                    if let Some(ps) = &fanout_peers {
+                        ps.note_peer_failure(addr.as_str(), &reason);
+                    }
+                    eprintln!("mfnd_p2p_catchup_dial_abort peer={addr} reason={reason}");
+                }
             }
         })
         .map_err(|e| format!("mfnd serve: spawn p2p catch-up dial: {e}"))?;
@@ -700,9 +722,32 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                         );
                     }
                 }
-                Err(e) => eprintln!("mfnd p2p dial `{addr}`: {e}"),
+                Err(e) => {
+                    let reason = handshake_failure_label(&e);
+                    if let Some(ps) = &fanout_peers {
+                        ps.note_peer_failure(addr.as_str(), &reason);
+                    }
+                    eprintln!("mfnd_p2p_dial_abort peer={addr} reason={reason}");
+                }
             }
         })
         .map_err(|e| format!("mfnd serve: spawn p2p dial thread: {e}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handshake_failure_label_pins_genesis_mismatch_reason() {
+        let expected = [0x11u8; 32];
+        let got = [0x22u8; 32];
+        let err = HelloHandshakeError::GenesisMismatch { expected, got };
+
+        assert_eq!(
+            handshake_failure_label(&err),
+            "genesis_mismatch expected=1111111111111111111111111111111111111111111111111111111111111111 got=2222222222222222222222222222222222222222222222222222222222222222"
+        );
+    }
 }

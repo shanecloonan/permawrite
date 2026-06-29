@@ -1,20 +1,26 @@
 //! Integration smoke tests for the `mfnd` binary (M2.1.1 + M2.1.2 + M2.1.3 + M2.1.4 + M2.1.5 + M2.1.6 + M2.1.6.1 + M2.1.7 + M2.1.8 + M2.1.8.1 + M2.1.9 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 + M2.3.3 + M2.3.4 + M2.3.5 + M2.3.6 + M2.3.7 + M2.3.8 + M2.3.9 + M2.3.10 + M2.3.11 + M2.3.12 + M2.3.13 + M2.3.14 + M2.3.15 + M2.3.16).
 
 use std::io::{BufRead, BufReader, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use mfn_consensus::{
-    block_header_bytes, block_id, build_genesis, decode_block, decode_block_header, encode_block,
-    encode_transaction, tx_id, TransactionWire, TX_VERSION,
+    block_header_bytes, block_id, build_coinbase, build_genesis, decode_block, decode_block_header,
+    emission_at_height, encode_block, encode_transaction, producer_coinbase_amount, tx_id,
+    PayoutAddress, TransactionWire, ValidatorSecrets, TX_VERSION,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::seeded_rng;
 use mfn_crypto::stealth_wallet_from_seed;
-use mfn_node::{genesis_config_from_json_path, Chain, ChainConfig, NodeStore, StoreBackend};
+use mfn_crypto::vrf::vrf_keygen_from_seed;
+use mfn_node::{
+    genesis_config_from_json_path, produce_solo_block, BlockInputs, Chain, ChainConfig, NodeStore,
+    StoreBackend,
+};
 use mfn_store::ChainPersistence;
 use mfn_wallet::{TransferRecipient, Wallet, WalletKeys};
 use serde_json::{json, Value};
@@ -158,6 +164,38 @@ fn read_listener_p2p_handshake_session(
     hid
 }
 
+fn read_child_stderr_line_with_prefix(
+    stderr: ChildStderr,
+    prefix: &'static str,
+    timeout: Duration,
+) -> String {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let mut reader = BufReader::new(stderr);
+        let mut line = String::new();
+        loop {
+            line.clear();
+            let Ok(n) = reader.read_line(&mut line) else {
+                let _ = tx.send(None);
+                return;
+            };
+            if n == 0 {
+                let _ = tx.send(None);
+                return;
+            }
+            if line.starts_with(prefix) {
+                let _ = tx.send(Some(line.clone()));
+                return;
+            }
+        }
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Some(line)) => line,
+        Ok(None) => panic!("mfnd stderr ended before `{prefix}`"),
+        Err(_) => panic!("timeout ({timeout:?}) waiting for stderr `{prefix}`"),
+    }
+}
+
 /// Spawns `mfnd serve` with `--rpc-listen 127.0.0.1:0`; caller must `kill` the child.
 fn spawn_mfnd_serve(data_dir: &Path, genesis_spec: &Path) -> (Child, SocketAddr) {
     spawn_mfnd_serve_with_store(data_dir, genesis_spec, None)
@@ -174,7 +212,8 @@ fn spawn_mfnd_serve_with_store(
         .arg("--genesis")
         .arg(genesis_spec)
         .arg("--rpc-listen")
-        .arg("127.0.0.1:0");
+        .arg("127.0.0.1:0")
+        .env_remove("MFND_RPC_MAX_IN_FLIGHT");
     if let Some(s) = store {
         cmd.arg("--store").arg(s);
     }
@@ -276,6 +315,81 @@ fn unique_data_dir(test: &str) -> PathBuf {
         "permawrite-mfnd-{test}-{}-{nanos}",
         std::process::id()
     ))
+}
+
+fn reserve_loopback_addr() -> SocketAddr {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("reserve loopback addr");
+    listener.local_addr().expect("reserved local addr")
+}
+
+fn step_solo_blocks_with_store(data_dir: &Path, spec: &Path, blocks: u32, store: Option<&str>) {
+    let mut cmd = mfnd();
+    cmd.args(["--data-dir"])
+        .arg(data_dir)
+        .arg("--genesis")
+        .arg(spec)
+        .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
+        .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX);
+    if let Some(s) = store {
+        cmd.arg("--store").arg(s);
+    }
+    cmd.arg("step");
+    if blocks != 1 {
+        cmd.arg("--blocks").arg(blocks.to_string());
+    }
+    let out = cmd.output().expect("spawn mfnd step");
+    assert!(
+        out.status.success(),
+        "mfnd step failed stderr={}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+fn append_solo_blocks_without_checkpoint(data_dir: &Path, spec: &Path, blocks: u32, store: &str) {
+    let store = open_mfnd_store_with_backend(data_dir, Some(store));
+    let gc = genesis_config_from_json_path(spec).expect("genesis");
+    let mut chain = store
+        .load_or_genesis(ChainConfig::new(gc.clone()))
+        .expect("load chain");
+    let producer = chain.validators()[0].clone();
+    let payout = *producer.payout.as_ref().expect("validator payout");
+
+    let mut vrf_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_VRF_SEED_HEX, &mut vrf_seed).expect("vrf seed");
+    let mut bls_seed = [0u8; 32];
+    hex::decode_to_slice(DEVNET_SOLO_BLS_SEED_HEX, &mut bls_seed).expect("bls seed");
+    let secrets = ValidatorSecrets {
+        index: producer.index,
+        vrf: vrf_keygen_from_seed(&vrf_seed).expect("vrf"),
+        bls: mfn_bls::bls_keygen_from_seed(&bls_seed),
+    };
+
+    for _ in 0..blocks {
+        let height = chain.tip_height().expect("tip").saturating_add(1);
+        let emission = emission_at_height(u64::from(height), &chain.state().emission_params);
+        let coinbase_amount =
+            producer_coinbase_amount(u64::from(height), &chain.state().emission_params, 0, 0, 0);
+        assert!(coinbase_amount >= emission);
+        let cb_payout = PayoutAddress {
+            view_pub: payout.view_pub,
+            spend_pub: payout.spend_pub,
+        };
+        let coinbase =
+            build_coinbase(u64::from(height), coinbase_amount, &cb_payout).expect("coinbase");
+        let inputs = BlockInputs {
+            height,
+            slot: height,
+            timestamp: gc.timestamp.saturating_add(u64::from(height)),
+            txs: vec![coinbase],
+            bond_ops: Vec::new(),
+            slashings: Vec::new(),
+            storage_proofs: Vec::new(),
+        };
+        let block = produce_solo_block(&chain, &producer, &secrets, chain.state().params, inputs)
+            .expect("produce solo block");
+        chain.apply(&block).expect("apply");
+        store.append_block(&block).expect("append");
+    }
 }
 
 /// One `mfnd step` on `devnet_one_validator_synth_decoys.json`, then build a signed transfer from
@@ -601,6 +715,150 @@ fn mfnd_serve_get_tip_over_tcp() {
 }
 
 #[test]
+fn mfnd_serve_slow_rpc_client_does_not_block_next_request() {
+    let dir = unique_data_dir("serve_slow_rpc_client");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+
+    let slow = TcpStream::connect(sock).expect("connect slow client");
+    std::thread::sleep(Duration::from_millis(100));
+
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let resp = tcp_request_json(sock, r#"{"jsonrpc":"2.0","method":"get_tip","id":"fast"}"#);
+        let _ = tx.send(resp);
+    });
+    let resp = rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("fast RPC response while slow client is connected");
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["tip_height"], json!(0), "r={r}");
+
+    drop(slow);
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_get_status_over_tcp() {
+    let dir = unique_data_dir("serve_get_status");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"get_status","id":"status"}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["service"], json!("mfnd"), "r={r}");
+    assert_eq!(r["status"], json!("ok"), "r={r}");
+    assert_eq!(r["chain"]["tip_height"], json!(0), "r={r}");
+    assert_eq!(r["mempool"]["pool_len"], json!(0), "r={r}");
+    assert_eq!(r["proof_pool"]["configured"], json!(true), "r={r}");
+    assert_eq!(r["rpc"]["auth_enabled"], json!(false), "r={r}");
+    assert_eq!(r["rpc"]["method_count"], json!(31), "r={r}");
+    assert_eq!(r["rpc"]["max_in_flight"], json!(64), "r={r}");
+    assert_eq!(r["rpc"]["current_in_flight"], json!(1), "r={r}");
+    assert_eq!(
+        r["rpc"]["max_request_line_bytes"],
+        json!(1_048_576),
+        "r={r}"
+    );
+    assert_eq!(r["rpc"]["io_timeout_ms"], json!(30_000), "r={r}");
+    assert_eq!(r["rpc"]["listen_addr"], json!("127.0.0.1:0"), "r={r}");
+    assert_eq!(r["rpc"]["public_bind"], json!(false), "r={r}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_public_rpc_bind_warns_even_with_api_key() {
+    let dir = unique_data_dir("serve_public_rpc_bind_warning");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let mut child = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("0.0.0.0:0")
+        .arg("--rpc-api-key")
+        .arg("secret")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mfnd serve public rpc bind");
+    let stdout = child.stdout.take().expect("stdout pipe");
+    let stderr = child.stderr.take().expect("stderr pipe");
+    let mut out_reader = BufReader::new(stdout);
+    let _sock = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
+
+    let warning = read_child_stderr_line_with_prefix(
+        stderr,
+        "mfnd_rpc_public_bind_warning",
+        SERVE_LISTEN_TIMEOUT,
+    );
+    assert!(warning.contains("listen=0.0.0.0:0"), "warning={warning}");
+    assert!(
+        warning.contains("RPC API key is enabled"),
+        "warning={warning}"
+    );
+    assert!(
+        warning.contains("public read methods remain unauthenticated"),
+        "warning={warning}"
+    );
+
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_rejects_oversized_rpc_line() {
+    let dir = unique_data_dir("serve_oversized_rpc");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let req = "x".repeat(1_048_577);
+    let resp = tcp_request_json(sock, &req);
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32600, "msg={msg}");
+    assert!(msg.contains("1048576"), "msg={msg}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_rejects_non_object_rpc_request() {
+    let dir = unique_data_dir("serve_non_object_rpc");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(sock, r#"["get_tip"]"#);
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32600, "msg={msg}");
+    assert!(msg.contains("JSON object"), "msg={msg}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_rejects_partial_json_rpc_request() {
+    let dir = unique_data_dir("serve_partial_json_rpc");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(sock, r#"{"jsonrpc":"2.0","method":"get_tip""#);
+    let (code, msg) = assert_rpc2_error(&resp);
+    assert_eq!(code, -32700, "msg={msg}");
+    assert!(msg.contains("Parse error"), "msg={msg}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn mfnd_serve_redb_store_get_tip_over_tcp() {
     let dir = unique_data_dir("serve_redb_get_tip");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
@@ -627,6 +885,22 @@ fn mfnd_serve_redb_store_get_tip_over_tcp() {
         dir.join("chain.redb").exists(),
         "expected chain.redb under data dir"
     );
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_replays_redb_block_log_without_checkpoint() {
+    let dir = unique_data_dir("serve_redb_replay_block_log");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    append_solo_blocks_without_checkpoint(&dir, &spec, 2, "redb");
+
+    let (mut child, sock) = spawn_mfnd_serve_with_store(&dir, &spec, Some("redb"));
+    let resp = tcp_request_json(sock, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["tip_height"], json!(2), "tip={r}");
+
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();
@@ -1120,6 +1394,150 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
     std::fs::remove_dir_all(&dir_b).ok();
 }
 
+/// Restart catch-up can be slow on overloaded CI runners; run locally with:
+/// `cargo test -p mfn-node mfnd_p2p_restart_reconnect_catches_up_from_saved_peer --release -- --ignored`
+#[test]
+#[ignore = "slow P2P restart catch-up integration; run with cargo test -- --ignored"]
+fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
+    let dir_a = unique_data_dir("p2p_restart_catchup_a");
+    let dir_b = unique_data_dir("p2p_restart_catchup_b");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let stable_p2p_a = reserve_loopback_addr();
+
+    step_solo_blocks_with_store(&dir_a, &spec, 1, None);
+    let mut child_a = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_a)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg(stable_p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn peer A");
+    let stdout_a = child_a.stdout.take().expect("stdout a");
+    let mut out_a = BufReader::new(stdout_a);
+    let _rpc_a = read_mfnd_serve_listening_addr(&mut out_a, SERVE_LISTEN_TIMEOUT);
+    let p2p_a_line =
+        read_stdout_line_with_prefix(&mut out_a, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+    assert!(
+        p2p_a_line.contains(&stable_p2p_a.to_string()),
+        "peer A should bind stable P2P addr, got {p2p_a_line:?}"
+    );
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_a.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(stable_p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn peer B initial dial");
+    let stdout_b = child_b.stdout.take().expect("stdout b");
+    let mut out_b = BufReader::new(stdout_b);
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
+    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, P2P_SYNC_END_TIMEOUT);
+    assert!(
+        sync_b.contains("final_height=1"),
+        "initial sync should reach height 1, got {sync_b:?}"
+    );
+    let tip_b = tcp_request_json(rpc_b, r#"{"jsonrpc":"2.0","method":"get_tip","id":1}"#);
+    let tip_b_r = assert_rpc2_result(&tip_b);
+    assert_eq!(tip_b_r["tip_height"].as_u64(), Some(1), "tip_b={tip_b_r}");
+    let _ = child_b.kill();
+    let _ = child_b.wait();
+
+    let _ = child_a.kill();
+    let _ = child_a.wait();
+    std::thread::sleep(Duration::from_millis(300));
+    step_solo_blocks_with_store(&dir_a, &spec, 2, None);
+
+    let mut child_a2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_a)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg(stable_p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("restart peer A at same P2P addr");
+    let stdout_a2 = child_a2.stdout.take().expect("stdout a2");
+    let mut out_a2 = BufReader::new(stdout_a2);
+    let _rpc_a2 = read_mfnd_serve_listening_addr(&mut out_a2, SERVE_LISTEN_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_a2, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_a2.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+
+    let mut child_b2 = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-listen")
+        .arg("127.0.0.1:0")
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("restart peer B saved reconnect");
+    let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
+    let mut out_b2 = BufReader::new(stdout_b2);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", P2P_LINE_TIMEOUT);
+    let rpc_b2 = read_mfnd_serve_listening_addr(&mut out_b2, SERVE_LISTEN_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", P2P_LINE_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
+    let sync_b2 = read_stdout_until_p2p_sync_end(&mut out_b2, P2P_SYNC_END_TIMEOUT);
+    assert!(
+        sync_b2.contains("applied=2") && sync_b2.contains("final_height=3"),
+        "restart reconnect should apply two missing blocks, got {sync_b2:?}"
+    );
+    let tip_b2 = tcp_request_json(rpc_b2, r#"{"jsonrpc":"2.0","method":"get_tip","id":2}"#);
+    let tip_b2_r = assert_rpc2_result(&tip_b2);
+    assert_eq!(
+        tip_b2_r["tip_height"].as_u64(),
+        Some(3),
+        "restarted B tip={tip_b2_r}"
+    );
+
+    let _ = child_a2.kill();
+    let _ = child_b2.kill();
+    let _ = child_a2.wait();
+    let _ = child_b2.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
+}
+
 /// Multi-hop gossip + mempool propagation; flaky/slow on CI. Run locally with `--ignored`.
 #[test]
 #[ignore = "slow P2P tx fanout integration; run with cargo test -- --ignored"]
@@ -1385,6 +1803,72 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
         .expect("read mfnd_p2p_handshake_ms from dialer");
     assert_mfnd_p2p_handshake_ms_line(&l5);
     assert_eq!(mfnd_p2p_hid_from_line(&l5), hid, "l5={l5:?}");
+    let _ = child_b.kill();
+    let _ = child_b.wait();
+    let _ = child_a.kill();
+    let _ = child_a.wait();
+    std::fs::remove_dir_all(&dir_a).ok();
+    std::fs::remove_dir_all(&dir_b).ok();
+}
+
+#[test]
+fn mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer() {
+    let dir_a = unique_data_dir("serve_p2p_foreign_genesis_a");
+    let dir_b = unique_data_dir("serve_p2p_foreign_genesis_b");
+    let spec_a =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let spec_b = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/devnet_one_validator_fast_produce.json");
+    let (mut child_a, mut out_a, _err_a, _rpc_a, p2p_a) =
+        spawn_mfnd_serve_with_p2p(&dir_a, &spec_a);
+    thread::spawn(move || {
+        let mut line = String::new();
+        while let Ok(n) = out_a.read_line(&mut line) {
+            if n == 0 {
+                break;
+            }
+            line.clear();
+        }
+    });
+
+    let mut child_b = mfnd()
+        .args(["--data-dir"])
+        .arg(&dir_b)
+        .arg("--genesis")
+        .arg(&spec_b)
+        .arg("--rpc-listen")
+        .arg("127.0.0.1:0")
+        .arg("--p2p-dial")
+        .arg(p2p_a.to_string())
+        .arg("serve")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn foreign-genesis dialer");
+    let stdout_b = child_b.stdout.take().expect("stdout b");
+    let mut out_b = BufReader::new(stdout_b);
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
+    let stderr_b = child_b.stderr.take().expect("stderr b");
+    let abort_line =
+        read_child_stderr_line_with_prefix(stderr_b, "mfnd_p2p_dial_abort ", P2P_LINE_TIMEOUT);
+    assert!(
+        abort_line.contains("reason=genesis_mismatch "),
+        "abort_line={abort_line:?}"
+    );
+    assert!(
+        abort_line.contains(" expected=") && abort_line.contains(" got="),
+        "abort_line={abort_line:?}"
+    );
+
+    let peers_path = mfn_store::peers_path(&dir_b);
+    if peers_path.exists() {
+        let peers_raw = std::fs::read_to_string(&peers_path).expect("read peers.json");
+        assert!(
+            !peers_raw.contains(&p2p_a.to_string()),
+            "foreign-genesis peer should not be persisted, got {peers_raw}"
+        );
+    }
+
     let _ = child_b.kill();
     let _ = child_b.wait();
     let _ = child_a.kill();

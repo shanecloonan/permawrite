@@ -11,6 +11,19 @@ fi
 # shellcheck source=/dev/null
 source "$PORTS_FILE"
 REQ='{"jsonrpc":"2.0","method":"get_tip","id":1}'
+validate_health_int() {
+  local name="$1" value="$2" min="$3"
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value < min )); then
+    echo "health-check: $name must be an integer >= $min" >&2
+    exit 1
+  fi
+}
+MFN_HEALTH_STALL_SAMPLES="${MFN_HEALTH_STALL_SAMPLES:-1}"
+MFN_HEALTH_STALL_INTERVAL_SECONDS="${MFN_HEALTH_STALL_INTERVAL_SECONDS:-30}"
+MFN_HEALTH_MIN_HEIGHT_DELTA="${MFN_HEALTH_MIN_HEIGHT_DELTA:-1}"
+validate_health_int MFN_HEALTH_STALL_SAMPLES "$MFN_HEALTH_STALL_SAMPLES" 1
+validate_health_int MFN_HEALTH_STALL_INTERVAL_SECONDS "$MFN_HEALTH_STALL_INTERVAL_SECONDS" 0
+validate_health_int MFN_HEALTH_MIN_HEIGHT_DELTA "$MFN_HEALTH_MIN_HEIGHT_DELTA" 1
 query_tip() {
   local name="$1" addr="$2"
   local host port line
@@ -42,52 +55,68 @@ query_tip() {
 }
 TIP_HEIGHT=""
 TIP_ID=""
-HUB_LINE=""
-HUB_LINE=$(query_tip hub "${HUB_RPC:?}") || exit 1
-REF_HEIGHT="$TIP_HEIGHT"
-REF_ID="$TIP_ID"
-echo "$HUB_LINE"
-for v in 1 2; do
-  rpc=""
-  log="$SCRIPT_DIR/logs/v$v.log"
-  if [[ -f "$log" ]]; then
-    rpc=$(grep -m1 mfnd_serve_listening= "$log" 2>/dev/null | sed 's/.*=//' || true)
-  fi
-  if [[ -z "$rpc" ]]; then
-    echo "health-check: skip v$v (no RPC in $log)" >&2
-    continue
-  fi
-  line=""
-  line=$(query_tip "v$v" "$rpc") || exit 1
-  echo "$line"
-  if [[ "$TIP_HEIGHT" != "$REF_HEIGHT" || "$TIP_ID" != "$REF_ID" ]]; then
-    echo "health-check: FAIL v$v diverged from hub (hub height=$REF_HEIGHT id=$REF_ID; v$v height=$TIP_HEIGHT id=$TIP_ID)" >&2
-    exit 1
-  fi
-done
-if [[ -n "${OBSERVER_RPC:-}" ]]; then
-  line=""
-  line=$(query_tip observer "$OBSERVER_RPC") || exit 1
-  echo "$line"
-  if [[ "$TIP_HEIGHT" != "$REF_HEIGHT" || "$TIP_ID" != "$REF_ID" ]]; then
-    echo "health-check: FAIL observer diverged from hub" >&2
-    exit 1
-  fi
-else
-  obs_log="$SCRIPT_DIR/logs/observer.log"
-  if [[ -f "$obs_log" ]]; then
-    obs_rpc=$(grep -m1 mfnd_serve_listening= "$obs_log" 2>/dev/null | sed 's/.*=//' || true)
-    if [[ -n "$obs_rpc" ]]; then
-      line=""
-      line=$(query_tip observer "$obs_rpc") || exit 1
-      echo "$line"
-      if [[ "$TIP_HEIGHT" != "$REF_HEIGHT" || "$TIP_ID" != "$REF_ID" ]]; then
-        echo "health-check: FAIL observer diverged from hub" >&2
-        exit 1
+SNAPSHOT_HEIGHT=""
+SNAPSHOT_ID=""
+run_convergence_check() {
+  query_tip hub "${HUB_RPC:?}" || exit 1
+  local ref_height="$TIP_HEIGHT"
+  local ref_id="$TIP_ID"
+  for v in 1 2; do
+    rpc=""
+    log="$SCRIPT_DIR/logs/v$v.log"
+    if [[ -f "$log" ]]; then
+      rpc=$(grep -m1 mfnd_serve_listening= "$log" 2>/dev/null | sed 's/.*=//' || true)
+    fi
+    if [[ -z "$rpc" ]]; then
+      echo "health-check: skip v$v (no RPC in $log)" >&2
+      continue
+    fi
+    query_tip "v$v" "$rpc" || exit 1
+    if [[ "$TIP_HEIGHT" != "$ref_height" || "$TIP_ID" != "$ref_id" ]]; then
+      echo "health-check: FAIL v$v diverged from hub (hub height=$ref_height id=$ref_id; v$v height=$TIP_HEIGHT id=$TIP_ID)" >&2
+      exit 1
+    fi
+  done
+  if [[ -n "${OBSERVER_RPC:-}" ]]; then
+    query_tip observer "$OBSERVER_RPC" || exit 1
+    if [[ "$TIP_HEIGHT" != "$ref_height" || "$TIP_ID" != "$ref_id" ]]; then
+      echo "health-check: FAIL observer diverged from hub" >&2
+      exit 1
+    fi
+  else
+    obs_log="$SCRIPT_DIR/logs/observer.log"
+    if [[ -f "$obs_log" ]]; then
+      obs_rpc=$(grep -m1 mfnd_serve_listening= "$obs_log" 2>/dev/null | sed 's/.*=//' || true)
+      if [[ -n "$obs_rpc" ]]; then
+        query_tip observer "$obs_rpc" || exit 1
+        if [[ "$TIP_HEIGHT" != "$ref_height" || "$TIP_ID" != "$ref_id" ]]; then
+          echo "health-check: FAIL observer diverged from hub" >&2
+          exit 1
+        fi
+      else
+        echo "health-check: skip observer (no RPC in $obs_log)" >&2
       fi
-    else
-      echo "health-check: skip observer (no RPC in $obs_log)" >&2
     fi
   fi
+  SNAPSHOT_HEIGHT="$ref_height"
+  SNAPSHOT_ID="$ref_id"
+}
+run_convergence_check
+first_height="$SNAPSHOT_HEIGHT"
+for ((sample = 2; sample <= MFN_HEALTH_STALL_SAMPLES; sample++)); do
+  echo "health-check: waiting ${MFN_HEALTH_STALL_INTERVAL_SECONDS}s before sample $sample/$MFN_HEALTH_STALL_SAMPLES"
+  if (( MFN_HEALTH_STALL_INTERVAL_SECONDS > 0 )); then
+    sleep "$MFN_HEALTH_STALL_INTERVAL_SECONDS"
+  fi
+  run_convergence_check
+done
+if (( MFN_HEALTH_STALL_SAMPLES > 1 )); then
+  delta=$((SNAPSHOT_HEIGHT - first_height))
+  if (( delta < MFN_HEALTH_MIN_HEIGHT_DELTA )); then
+    echo "health-check: FAIL stalled height first=$first_height last=$SNAPSHOT_HEIGHT samples=$MFN_HEALTH_STALL_SAMPLES min_delta=$MFN_HEALTH_MIN_HEIGHT_DELTA" >&2
+    exit 1
+  fi
+  echo "health-check: PASS shared tip height=$SNAPSHOT_HEIGHT id=$SNAPSHOT_ID advanced_by=$delta samples=$MFN_HEALTH_STALL_SAMPLES"
+else
+  echo "health-check: PASS shared tip height=$SNAPSHOT_HEIGHT id=$SNAPSHOT_ID"
 fi
-echo "health-check: PASS shared tip height=$REF_HEIGHT id=$REF_ID"

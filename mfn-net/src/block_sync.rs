@@ -250,7 +250,9 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
 ///
 /// No-op when `remote_height <= local_height`. Issues one or more
 /// [`GetBlocksByHeightV1`] / [`BlocksV1`] round-trips in batches of up to
-/// [`MAX_BLOCKS_PER_GET_V1`].
+/// [`MAX_BLOCKS_PER_GET_V1`]. Every applied block must advance exactly one
+/// height from the last accepted local tip; skipped or duplicate heights abort
+/// the pull even if the [`BlockSyncApplier`] accepted the bytes.
 pub fn pull_blocks_to_tip<S: Read + Write>(
     stream: &mut S,
     local_height: u32,
@@ -287,6 +289,13 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
             let height = applier
                 .apply_synced_block(wire)
                 .map_err(PullBlocksError::Apply)?;
+            let expected = cur.saturating_add(1);
+            if height != expected {
+                return Err(PullBlocksError::NonSequentialHeight {
+                    expected,
+                    got: height,
+                });
+            }
             stats.blocks_applied = stats.blocks_applied.saturating_add(1);
             cur = height;
             stats.local_height_after = height;
@@ -497,6 +506,14 @@ pub enum PullBlocksError {
     /// Block application rejected the wire blob.
     #[error("apply: {0}")]
     Apply(String),
+    /// The peer/applier advanced to a height other than the requested next height.
+    #[error("non-sequential block height during sync: expected {expected}, got {got}")]
+    NonSequentialHeight {
+        /// Next height requested from the peer.
+        expected: u32,
+        /// Height reported after applying the returned block.
+        got: u32,
+    },
 }
 
 /// Failure while receiving a [`BlocksV1`] frame.
@@ -513,6 +530,51 @@ pub enum BlockSyncRecvError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Cursor, Read, Result as IoResult, Write};
+
+    #[derive(Default)]
+    struct HeightByteApplier;
+
+    impl BlockSyncApplier for HeightByteApplier {
+        fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
+            block_wire
+                .first()
+                .copied()
+                .map(u32::from)
+                .ok_or_else(|| "empty test block".to_string())
+        }
+    }
+
+    struct ScriptedStream {
+        reads: Cursor<Vec<u8>>,
+        writes: Vec<u8>,
+    }
+
+    impl ScriptedStream {
+        fn new(reads: Vec<u8>) -> Self {
+            Self {
+                reads: Cursor::new(reads),
+                writes: Vec::new(),
+            }
+        }
+    }
+
+    impl Read for ScriptedStream {
+        fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+            self.reads.read(buf)
+        }
+    }
+
+    impl Write for ScriptedStream {
+        fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+            self.writes.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> IoResult<()> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn get_blocks_by_height_v1_round_trip() {
@@ -549,5 +611,81 @@ mod tests {
         let mut cursor = Cursor::new(buf);
         let back = recv_blocks_v1(&mut cursor).expect("blocks after vote");
         assert_eq!(back.block_wires, wires[..1]);
+    }
+
+    #[test]
+    fn recv_blocks_v1_rejects_too_many_interleaved_frames() {
+        use std::io::Cursor;
+
+        use crate::production::VOTE_V1_TAG;
+
+        let mut buf = Vec::new();
+        for _ in 0..MAX_INTERLEAVED_BEFORE_BLOCKS_V1 {
+            write_frame_io(&mut buf, &[VOTE_V1_TAG, 0xAA]).unwrap();
+        }
+        let mut cursor = Cursor::new(buf);
+        let err = recv_blocks_v1(&mut cursor).expect_err("interleaved frame cap must abort");
+
+        match err {
+            BlockSyncRecvError::Decode(BlockSyncDecodeError::TooManyInterleaved) => {}
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pull_blocks_to_tip_accepts_sequential_progress() {
+        let reply = BlocksV1::encode_payload(&[&[1u8][..], &[2u8][..]]).unwrap();
+        let mut reads = Vec::new();
+        write_frame_io(&mut reads, &reply).unwrap();
+        let mut stream = ScriptedStream::new(reads);
+
+        let stats =
+            pull_blocks_to_tip(&mut stream, 0, 2, &HeightByteApplier).expect("sequential sync");
+
+        assert_eq!(stats.blocks_applied, 2);
+        assert_eq!(stats.local_height_after, 2);
+        assert!(!stream.writes.is_empty(), "expected GetBlocks request");
+    }
+
+    #[test]
+    fn pull_blocks_to_tip_caps_get_blocks_request_count() {
+        let empty_reply = BlocksV1::encode_payload(&[]).unwrap();
+        let mut reads = Vec::new();
+        write_frame_io(&mut reads, &empty_reply).unwrap();
+        let mut stream = ScriptedStream::new(reads);
+
+        let stats = pull_blocks_to_tip(
+            &mut stream,
+            0,
+            MAX_BLOCKS_PER_GET_V1 + 100,
+            &HeightByteApplier,
+        )
+        .expect("empty reply stops sync cleanly");
+        let req_payload = read_frame(&mut Cursor::new(stream.writes)).expect("get blocks request");
+        let req = GetBlocksByHeightV1::decode_payload(&req_payload).expect("decode request");
+
+        assert_eq!(req.start_height, 1);
+        assert_eq!(req.count, MAX_BLOCKS_PER_GET_V1);
+        assert_eq!(stats.blocks_applied, 0);
+        assert_eq!(stats.local_height_after, 0);
+    }
+
+    #[test]
+    fn pull_blocks_to_tip_rejects_skipped_height() {
+        let reply = BlocksV1::encode_payload(&[&[2u8][..]]).unwrap();
+        let mut reads = Vec::new();
+        write_frame_io(&mut reads, &reply).unwrap();
+        let mut stream = ScriptedStream::new(reads);
+
+        let err = pull_blocks_to_tip(&mut stream, 0, 2, &HeightByteApplier)
+            .expect_err("skipped height must abort");
+
+        match err {
+            PullBlocksError::NonSequentialHeight { expected, got } => {
+                assert_eq!(expected, 1);
+                assert_eq!(got, 2);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }

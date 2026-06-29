@@ -12,6 +12,9 @@ cargo build -p mfn-cli --release
 ## Usage
 
 ```bash
+# Machine-readable node health/status snapshot
+mfn-cli --rpc 127.0.0.1:18731 status
+
 # Chain tip (same fields as mfnd get_tip RPC)
 mfn-cli --rpc 127.0.0.1:18731 tip
 
@@ -30,14 +33,28 @@ mfn-cli call get_block_header --params '{"height":1}'
 
 # Wallet (writes wallet.json in cwd by default)
 mfn-cli wallet new
+mfn-cli --wallet ./restored.json wallet restore <SEED_HEX>
+mfn-cli --wallet ./validator-faucet.json wallet restore <BLS_SEED_HEX> \
+  --key-derivation payout_stealth_v1
 mfn-cli wallet address
 mfn-cli --wallet ./alice.json wallet scan
 mfn-cli wallet light-scan
 mfn-cli wallet balance
+mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
   --fee 10000 --ring-size 8
+
+# Public-devnet helper: fund a participant wallet from an operator faucet wallet
+powershell -File scripts/public-devnet-v1/preflight.ps1
+bash scripts/public-devnet-v1/preflight.sh
+powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly
+bash scripts/public-devnet-v1/fund-wallet.sh --plan-only
+
+# Public-devnet permanence demo (upload -> HTTP restore -> prove)
+powershell -File scripts/public-devnet-v1/permanence-demo.ps1 -PlanOnly
+bash scripts/public-devnet-v1/permanence-demo.sh --plan-only
 
 # Permanent storage upload (anchor to self; fee defaults to upload_min_fee + tip)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --replication 3
@@ -45,13 +62,35 @@ mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --replication 3
 # Upload with MFCL authorship claim bound to data_root + commitment hash
 mfn-cli --rpc 127.0.0.1:<PORT> wallet upload ./document.bin --message "signed by me"
 
+# Retrieve payload bytes from a wallet-local upload artifact
+mfn-cli --wallet ./alice.json uploads retrieve <COMMITMENT_HASH_HEX> ./restored-document.bin
+
+# One-step HTTP peer restore (backfill artifact + write restored bytes)
+mfn-cli --rpc 127.0.0.1:<PORT> --wallet ./bob.json \
+  uploads fetch-http <COMMITMENT_HASH_HEX> ./restored-document.bin 127.0.0.1:18780 --json
+
 # Authorship claim (MFCL in tx.extra; unbound unless --commit-hash set)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet claim <DATA_ROOT_HEX> --message "hello permanence"
 ```
 
 Default RPC address: `127.0.0.1:18731` (mfnd default `--rpc-listen`).
 
-Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex` and optional `scan_height`. **Back it up** — it is the only recovery path for funds.
+Authenticated testnet RPC: pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY` when the node was started with `mfnd serve --rpc-api-key KEY` / `MFND_RPC_API_KEY=KEY`. The key is attached to every JSON-RPC request and is required by nodes that gate `wallet-write` and `operator-admin` methods.
+
+`mfn-cli status` prints the `get_status` snapshot. Operators should check `rpc.auth_enabled`, `rpc.listen_addr`, `rpc.public_bind`, `rpc.max_in_flight`, `rpc.current_in_flight`, `rpc.max_request_line_bytes`, and `rpc.io_timeout_ms` when validating public-devnet RPC exposure and capacity settings.
+
+Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the only recovery path for funds.
+
+`wallet restore SEED_HEX [--key-derivation mfn_wallet_v1|payout_stealth_v1]` writes a wallet file from a 32-byte seed. Use the default `mfn_wallet_v1` for normal user wallets. Use `payout_stealth_v1` only for validator payout/faucet test wallets whose rewards are derived from validator BLS seed material. Pass global `--force` to overwrite an existing wallet file.
+
+Wallet backup is two-layered:
+
+- `wallet.json` / `--wallet PATH`: required to recover spend authority, pending spends, and scan/light checkpoints.
+- `{wallet_stem}.upload-artifacts/`: required to serve chunks, prove storage, and retrieve payload bytes without relying on a peer.
+
+If you restore only the seed, funds can be rescanned from the chain, but local upload artifacts are not recreated. Use `uploads local` / `uploads status` to inventory artifacts before backup; add `--json` when scripting backups or support diagnostics. If artifacts are missing but peers still hold byte-identical chunks, rebuild them with `uploads fetch-http --json`, `operator backfill --json`, or P2P inbox assembly, then re-run `uploads retrieve`.
+
+`wallet backup-info` prints a seed-free inventory for backup planning: wallet path/version, key derivation, scan/cache state, pending spends, light-checkpoint presence, upload artifact root/count/payload bytes, and whether artifact backup is needed. Add `--json` for automation or support tickets.
 
 `wallet scan` / `wallet balance` fetch full blocks via `get_block` after the persisted `scan_height` when `owned_outputs` is populated (**M3.6**); otherwise they replay from height `1`.
 
@@ -107,7 +146,7 @@ mfn-cli --wallet ./alice.json uploads local
 mfn-cli operator challenge <COMMITMENT_HASH_HEX>
 mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
 mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX>
-mfn-cli --wallet ./alice.json operator artifacts
+mfn-cli --wallet ./alice.json operator artifacts --json
 mfn-cli operator pool
 ```
 
@@ -115,9 +154,13 @@ mfn-cli operator pool
 
 Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.23**), the same way mempool txs use `mempool.bytes` — survive `mfnd serve` restarts until mined or cleared.
 
-`uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand.
+`uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand. The summary includes total `artifacts_payload_bytes` for backup sizing. Add `--json` to either command for structured backup manifests.
 
-`uploads status` (**M3.26**) pages `list_recent_uploads` and joins on commitment hash so operators see `matched`, `local_only` (artifact without chain index row), and `chain_only` (indexed upload missing local `payload.bin`).
+`uploads status` (**M3.26**) pages `list_recent_uploads` and joins on commitment hash so operators see `matched`, `local_only` (artifact without chain index row), and `chain_only` (indexed upload missing local `payload.bin`). It also prints `local_artifacts_payload_bytes` for backup planning. Add `--json` for automation-friendly reconciliation output.
+
+`uploads retrieve HASH OUT [replace]` (**M3.27**) exports `payload.bin` from a wallet-local artifact to `OUT`. It works after the original `wallet upload`, HTTP backfill, or P2P inbox assembly, and refuses to overwrite an existing file unless the final argument is `replace`. Use `operator inbox-status HASH DATA_DIR --json` to script checks for missing P2P-replicated chunks before assembly, then `operator assemble-inbox HASH DATA_DIR --json` to capture the created artifact path and payload size.
+
+`uploads fetch-http HASH OUT PEER [PEER...] [replace]` (**M3.28**) fetches all chunks from one or more HTTP chunk peers into the wallet artifact tree, verifies them against the on-chain storage challenge, then writes the restored payload to `OUT`. Multiple peers require byte-identical chunks. Add `--json` to capture the rebuilt `artifact_dir`, restored `output_path`, `payload_bytes`, peer list, and quorum size; use `operator backfill HASH PEER [PEER...] --json` when you only need to rebuild the wallet artifact.
 
 For continuous proving, run the storage-operator daemon (**M6**):
 

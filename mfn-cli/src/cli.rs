@@ -16,15 +16,20 @@ use crate::light_wallet::{wallet_light_scan, LightScanParams};
 use crate::operator_cmd::{
     operator_artifacts, operator_assemble_inbox, operator_backfill, operator_challenge,
     operator_fetch_chunk, operator_inbox_status, operator_pool, operator_prove,
-    operator_push_chunks, OperatorCmdError,
+    operator_push_chunks, AssembleInboxParams, BackfillParams, InboxStatusParams, OperatorCmdError,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
-use crate::uploads_cmd::{uploads_list, uploads_local, uploads_status, UploadsListParams};
-use crate::wallet_cmd::{
-    resolve_wallet_path, wallet_address, wallet_balance, wallet_claim, wallet_new, wallet_scan,
-    wallet_send, wallet_status, wallet_upload, ClaimParams, SendParams, UploadParams,
-    WalletCmdError, DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+use crate::uploads_cmd::{
+    uploads_fetch_http, uploads_list, uploads_local, uploads_retrieve, uploads_status,
+    UploadsFetchHttpParams, UploadsInventoryParams, UploadsListParams,
 };
+use crate::wallet_cmd::{
+    resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
+    wallet_new, wallet_restore, wallet_scan, wallet_send, wallet_status, wallet_upload,
+    BackupInfoParams, ClaimParams, SendParams, UploadParams, WalletCmdError, DEFAULT_CLAIM_FEE,
+    DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+};
+use crate::wallet_store::KeyDerivation;
 
 /// CLI parse or RPC failure.
 #[derive(Debug, thiserror::Error)]
@@ -48,8 +53,22 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
     let mut client = RpcClient::new(&parsed.rpc_addr);
+    if let Some(api_key) = parsed.rpc_api_key.clone().or_else(|| {
+        std::env::var(MFN_RPC_API_KEY)
+            .ok()
+            .filter(|s| !s.is_empty())
+    }) {
+        client = client.with_api_key(api_key);
+    }
     let global_wallet_path = parsed.wallet_path.clone();
     match parsed.cmd {
+        Cmd::Status => {
+            let status = client.get_status()?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&status).unwrap_or_else(|_| status.to_string())
+            );
+        }
         Cmd::Tip => {
             let tip = client.get_tip()?;
             let height = tip
@@ -118,13 +137,39 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             UploadsSub::List(params) => {
                 uploads_list(&mut client, &params).map_err(CliError::Usage)?
             }
-            UploadsSub::Local => {
+            UploadsSub::Local(params) => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                uploads_local(&path).map_err(CliError::Usage)?;
+                uploads_local(&path, params).map_err(CliError::Usage)?;
             }
-            UploadsSub::Status => {
+            UploadsSub::Status(params) => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                uploads_status(&path, &mut client).map_err(CliError::Usage)?;
+                uploads_status(&path, &mut client, params).map_err(CliError::Usage)?;
+            }
+            UploadsSub::Retrieve {
+                commitment_hash_hex,
+                output_path,
+                force,
+            } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                uploads_retrieve(&path, &commitment_hash_hex, &output_path, force)
+                    .map_err(CliError::Usage)?;
+            }
+            UploadsSub::FetchHttp {
+                commitment_hash_hex,
+                output_path,
+                peers,
+                params,
+            } => {
+                let path = resolve_wallet_path(global_wallet_path.as_deref());
+                uploads_fetch_http(
+                    &path,
+                    &mut client,
+                    &commitment_hash_hex,
+                    &peers,
+                    &output_path,
+                    params,
+                )
+                .map_err(CliError::Usage)?;
             }
         },
         Cmd::Operator { sub } => match sub {
@@ -148,9 +193,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 )?
             }
             OperatorSub::Pool => operator_pool(&mut client)?,
-            OperatorSub::Artifacts => {
+            OperatorSub::Artifacts(params) => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                operator_artifacts(&path)?;
+                operator_artifacts(&path, params)?;
             }
             OperatorSub::FetchChunk {
                 commitment_hash_hex,
@@ -163,10 +208,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::Backfill {
                 commitment_hash_hex,
                 peers,
-                force,
+                params,
             } => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                operator_backfill(&mut client, &path, &commitment_hash_hex, &peers, force)?
+                operator_backfill(&mut client, &path, &commitment_hash_hex, &peers, params)?
             }
             OperatorSub::PushChunks {
                 commitment_hash_hex,
@@ -178,14 +223,21 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::InboxStatus {
                 commitment_hash_hex,
                 data_dir,
-            } => operator_inbox_status(&mut client, &data_dir, &commitment_hash_hex)?,
+                params,
+            } => operator_inbox_status(&mut client, &data_dir, &commitment_hash_hex, params)?,
             OperatorSub::AssembleInbox {
                 commitment_hash_hex,
                 data_dir,
-                force,
+                params,
             } => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                operator_assemble_inbox(&mut client, &path, &data_dir, &commitment_hash_hex, force)?
+                operator_assemble_inbox(
+                    &mut client,
+                    &path,
+                    &data_dir,
+                    &commitment_hash_hex,
+                    params,
+                )?
             }
         },
         Cmd::Wallet {
@@ -196,11 +248,16 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             let path = resolve_wallet_path(wallet_path.as_deref());
             match sub {
                 WalletSub::New => wallet_new(&path, force)?,
+                WalletSub::Restore {
+                    seed_hex,
+                    key_derivation,
+                } => wallet_restore(&path, &seed_hex, key_derivation, force)?,
                 WalletSub::Address => wallet_address(&path)?,
                 WalletSub::Scan => wallet_scan(&path, &mut client)?,
                 WalletSub::LightScan(ref params) => wallet_light_scan(&path, &mut client, params)?,
                 WalletSub::Balance => wallet_balance(&path, &mut client)?,
                 WalletSub::Status => wallet_status(&path, &mut client)?,
+                WalletSub::BackupInfo(params) => wallet_backup_info(&path, params)?,
                 WalletSub::Send(params) => wallet_send(&path, &mut client, &params)?,
                 WalletSub::Upload(params) => wallet_upload(&path, &mut client, &params)?,
                 WalletSub::Claim(params) => wallet_claim(&path, &mut client, &params)?,
@@ -235,6 +292,7 @@ pub fn cli_main() -> ExitCode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Cmd {
+    Status,
     Tip,
     Methods,
     BlockHeader {
@@ -277,8 +335,19 @@ enum ClaimsSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum UploadsSub {
     List(UploadsListParams),
-    Local,
-    Status,
+    Local(UploadsInventoryParams),
+    Status(UploadsInventoryParams),
+    Retrieve {
+        commitment_hash_hex: String,
+        output_path: std::path::PathBuf,
+        force: bool,
+    },
+    FetchHttp {
+        commitment_hash_hex: String,
+        output_path: std::path::PathBuf,
+        peers: Vec<String>,
+        params: UploadsFetchHttpParams,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -291,7 +360,7 @@ enum OperatorSub {
         data_path: Option<std::path::PathBuf>,
     },
     Pool,
-    Artifacts,
+    Artifacts(UploadsInventoryParams),
     FetchChunk {
         commitment_hash_hex: String,
         chunk_index: u32,
@@ -300,7 +369,7 @@ enum OperatorSub {
     Backfill {
         commitment_hash_hex: String,
         peers: Vec<String>,
-        force: bool,
+        params: BackfillParams,
     },
     PushChunks {
         commitment_hash_hex: String,
@@ -309,22 +378,28 @@ enum OperatorSub {
     InboxStatus {
         commitment_hash_hex: String,
         data_dir: std::path::PathBuf,
+        params: InboxStatusParams,
     },
     AssembleInbox {
         commitment_hash_hex: String,
         data_dir: std::path::PathBuf,
-        force: bool,
+        params: AssembleInboxParams,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum WalletSub {
     New,
+    Restore {
+        seed_hex: String,
+        key_derivation: KeyDerivation,
+    },
     Address,
     Scan,
     LightScan(LightScanParams),
     Balance,
     Status,
+    BackupInfo(BackupInfoParams),
     Send(SendParams),
     Upload(UploadParams),
     Claim(ClaimParams),
@@ -337,26 +412,33 @@ enum WalletSub {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Parsed {
     rpc_addr: String,
+    rpc_api_key: Option<String>,
     wallet_path: Option<String>,
     cmd: Cmd,
 }
 
+const MFN_RPC_API_KEY: &str = "MFN_RPC_API_KEY";
+
 fn usage() -> &'static str {
-    "usage: mfn-cli [--rpc HOST:PORT] [--wallet PATH] <COMMAND> [ARGS]\n\
+    "usage: mfn-cli [--rpc HOST:PORT] [--rpc-api-key KEY] [--wallet PATH] <COMMAND> [ARGS]\n\
      \n\
      options:\n\
        --rpc ADDR:PORT   mfnd JSON-RPC listen address (default 127.0.0.1:18731)\n\
+       --rpc-api-key KEY send KEY with each JSON-RPC request (or set MFN_RPC_API_KEY)\n\
        --wallet PATH     wallet JSON file (default wallet.json)\n\
        --params JSON     only for `call`: JSON-RPC params object/array (default null)\n\
-       --force           only for `wallet new`: overwrite existing wallet file\n\
+       --force           for `wallet new` / `wallet restore`: overwrite existing wallet file\n\
      \n\
      commands:\n\
+       status            print machine-readable node status (get_status)\n\
        tip               print chain tip (get_tip)\n\
        methods           list JSON-RPC methods (list_methods)\n\
        block-header H    block header at height H (get_block_header)\n\
        mempool           list mempool tx ids (get_mempool)\n\
        call METHOD       arbitrary JSON-RPC call; prints pretty JSON result\n\
        wallet new        create wallet.json with a fresh 32-byte seed\n\
+       wallet restore SEED_HEX  restore wallet.json from a 32-byte seed\n\
+                         options: --key-derivation mfn_wallet_v1|payout_stealth_v1\n\
        wallet address    print view/spend public keys from wallet file\n\
        wallet scan       scan full blocks from node tip (get_block)\n\
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
@@ -365,6 +447,8 @@ fn usage() -> &'static str {
                          --pin-trusted-summary --reset-trusted-summary --max-height N\n\
        wallet balance    scan chain and print balance\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
+       wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
+                         options: --json\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
                          options: --fee N --ring-size N --extra HEX\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
@@ -391,20 +475,31 @@ fn usage() -> &'static str {
        uploads list                       recent storage uploads (list_recent_uploads)\n\
                          options: --limit N --offset N --include-claims\n\
        uploads local                      list persisted upload artifacts for --wallet (**M3.25**)\n\
+                        options: --json\n\
        uploads status                     reconcile local artifacts vs chain upload index (**M3.26**)\n\
+                        options: --json\n\
+       uploads retrieve HASH OUT [replace]  export payload.bin from a wallet artifact (**M3.27**)\n\
+       uploads fetch-http HASH OUT PEER [PEER...] [replace]\n\
+                         HTTP backfill chunks from peer(s), then export payload.bin (**M3.28**)\n\
+                        options: --json\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
+                         options: --json\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
        operator backfill HASH PEER [PEER...] [replace]  HTTP fetch all chunks; quorum if multiple peers\n\
+                         options: --json\n\
        operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n\
        operator inbox-status HASH DATA_DIR  list chunk-inbox indices for commitment\n\
-       operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n"
+                         options: --json\n\
+       operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n\
+                         options: --json\n"
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     let mut rpc_addr = DEFAULT_RPC_ADDR.to_string();
+    let mut rpc_api_key: Option<String> = None;
     let mut wallet_path: Option<String> = None;
     let mut params_json: Option<String> = None;
     let mut force = false;
@@ -417,6 +512,19 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 return Err(CliError::Usage("--rpc requires HOST:PORT".into()));
             };
             rpc_addr = v.clone();
+            i += 2;
+            continue;
+        }
+        if a == "--rpc-api-key" {
+            let Some(v) = args.get(i + 1) else {
+                return Err(CliError::Usage("--rpc-api-key requires KEY".into()));
+            };
+            if v.is_empty() || v.starts_with('-') {
+                return Err(CliError::Usage(
+                    "expected non-empty KEY after --rpc-api-key".into(),
+                ));
+            }
+            rpc_api_key = Some(v.clone());
             i += 2;
             continue;
         }
@@ -482,6 +590,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--out"
                 | "--height"
                 | "--max-height"
+                | "--key-derivation"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -507,6 +616,15 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         return Err(CliError::Usage(format!("missing COMMAND\n{}", usage())));
     }
     let cmd = match positional[0] {
+        "status" => {
+            if positional.len() != 1 {
+                return Err(CliError::Usage(format!(
+                    "status takes no arguments\n{}",
+                    usage()
+                )));
+            }
+            Cmd::Status
+        }
         "tip" => {
             if positional.len() != 1 {
                 return Err(CliError::Usage(format!(
@@ -574,6 +692,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     };
     Ok(Parsed {
         rpc_addr,
+        rpc_api_key,
         wallet_path,
         cmd,
     })
@@ -620,30 +739,16 @@ fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "uploads requires SUBCOMMAND (list|local|status)\n{}",
+            "uploads requires SUBCOMMAND (list|local|status|retrieve|fetch-http)\n{}",
             usage()
         )));
     };
     let sub = match *sub_name {
         "list" => UploadsSub::List(parse_uploads_list_args(&rest[1..])?),
-        "local" => {
-            if !rest[1..].is_empty() {
-                return Err(CliError::Usage(format!(
-                    "uploads local takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            UploadsSub::Local
-        }
-        "status" => {
-            if !rest[1..].is_empty() {
-                return Err(CliError::Usage(format!(
-                    "uploads status takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            UploadsSub::Status
-        }
+        "local" => UploadsSub::Local(parse_inventory_output_args("uploads local", &rest[1..])?),
+        "status" => UploadsSub::Status(parse_inventory_output_args("uploads status", &rest[1..])?),
+        "retrieve" => parse_uploads_retrieve_args(&rest[1..])?,
+        "fetch-http" => parse_uploads_fetch_http_args(&rest[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown uploads subcommand `{other}`\n{}",
@@ -652,6 +757,77 @@ fn parse_uploads_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
     };
     Ok(Cmd::Uploads { sub })
+}
+
+fn parse_inventory_output_args(
+    command_name: &str,
+    rest: &[&str],
+) -> Result<UploadsInventoryParams, CliError> {
+    let mut params = UploadsInventoryParams::default();
+    for a in rest {
+        match *a {
+            "--json" => params.json = true,
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unknown {command_name} argument `{other}`\n{}",
+                    usage()
+                )));
+            }
+        }
+    }
+    Ok(params)
+}
+
+fn parse_uploads_fetch_http_args(rest: &[&str]) -> Result<UploadsSub, CliError> {
+    if rest.len() < 3 {
+        return Err(CliError::Usage(format!(
+            "uploads fetch-http requires COMMITMENT_HASH_HEX OUT PEER [PEER...] [replace] [--json]\n{}",
+            usage()
+        )));
+    }
+    let mut params = UploadsFetchHttpParams::default();
+    let mut peers = Vec::new();
+    for arg in &rest[2..] {
+        match *arg {
+            "replace" => params.force = true,
+            "--json" => params.json = true,
+            peer => peers.push(peer.to_string()),
+        }
+    }
+    if peers.is_empty() {
+        return Err(CliError::Usage(format!(
+            "uploads fetch-http requires at least one PEER\n{}",
+            usage()
+        )));
+    }
+    Ok(UploadsSub::FetchHttp {
+        commitment_hash_hex: rest[0].to_string(),
+        output_path: std::path::PathBuf::from(rest[1]),
+        peers,
+        params,
+    })
+}
+
+fn parse_uploads_retrieve_args(rest: &[&str]) -> Result<UploadsSub, CliError> {
+    if rest.len() < 2 || rest.len() > 3 {
+        return Err(CliError::Usage(format!(
+            "uploads retrieve requires COMMITMENT_HASH_HEX OUT [replace]\n{}",
+            usage()
+        )));
+    }
+    let force = matches!(rest.get(2), Some(&"replace"));
+    if rest.len() == 3 && !force {
+        return Err(CliError::Usage(format!(
+            "uploads retrieve unknown modifier `{}` (expected `replace`)\n{}",
+            rest[2],
+            usage()
+        )));
+    }
+    Ok(UploadsSub::Retrieve {
+        commitment_hash_hex: rest[0].to_string(),
+        output_path: std::path::PathBuf::from(rest[1]),
+        force,
+    })
 }
 
 fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
@@ -695,15 +871,10 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
             }
             OperatorSub::Pool
         }
-        "artifacts" => {
-            if rest.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "operator artifacts takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            OperatorSub::Artifacts
-        }
+        "artifacts" => OperatorSub::Artifacts(parse_inventory_output_args(
+            "operator artifacts",
+            &rest[1..],
+        )?),
         "fetch-chunk" => {
             if rest.len() != 4 {
                 return Err(CliError::Usage(format!(
@@ -723,15 +894,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         "backfill" => parse_operator_backfill_args(&rest[1..])?,
         "push-chunks" => parse_operator_push_chunks_args(&rest[1..])?,
         "inbox-status" => parse_operator_inbox_status_args(&rest[1..])?,
-        "assemble-inbox" => {
-            let (commitment_hash_hex, data_dir, force) =
-                parse_operator_inbox_args(&rest[1..], true)?;
-            OperatorSub::AssembleInbox {
-                commitment_hash_hex,
-                data_dir,
-                force,
-            }
-        }
+        "assemble-inbox" => parse_operator_assemble_inbox_args(&rest[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown operator subcommand `{other}`\n{}",
@@ -745,14 +908,20 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
 fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
     if rest.len() < 2 {
         return Err(CliError::Usage(format!(
-            "operator backfill requires COMMITMENT_HASH_HEX PEER [PEER...] [replace]\n{}",
+            "operator backfill requires COMMITMENT_HASH_HEX PEER [PEER...] [replace] [--json]\n{}",
             usage()
         )));
     }
     let commitment_hash_hex = rest[0].to_string();
-    let force = matches!(rest.last(), Some(&"replace"));
-    let peer_end = if force { rest.len() - 1 } else { rest.len() };
-    let peers: Vec<String> = rest[1..peer_end].iter().map(|s| (*s).to_string()).collect();
+    let mut params = BackfillParams::default();
+    let mut peers = Vec::new();
+    for arg in &rest[1..] {
+        match *arg {
+            "replace" => params.force = true,
+            "--json" => params.json = true,
+            peer => peers.push(peer.to_string()),
+        }
+    }
     if peers.is_empty() {
         return Err(CliError::Usage(format!(
             "operator backfill requires at least one PEER\n{}",
@@ -762,46 +931,58 @@ fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> 
     Ok(OperatorSub::Backfill {
         commitment_hash_hex,
         peers,
-        force,
+        params,
     })
 }
 
-fn parse_operator_inbox_args(
-    rest: &[&str],
-    allow_replace: bool,
-) -> Result<(String, std::path::PathBuf, bool), CliError> {
-    let max = if allow_replace { 3 } else { 2 };
-    if rest.len() < 2 || rest.len() > max {
+fn parse_operator_assemble_inbox_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    if rest.len() < 2 || rest.len() > 4 {
         return Err(CliError::Usage(format!(
-            "operator inbox command requires COMMITMENT_HASH_HEX DATA_DIR{}\n{}",
-            if allow_replace { " [replace]" } else { "" },
+            "operator assemble-inbox requires COMMITMENT_HASH_HEX DATA_DIR [replace] [--json]\n{}",
             usage()
         )));
     }
-    let commitment_hash_hex = rest[0].to_string();
-    let data_dir = std::path::PathBuf::from(rest[1]);
-    let force = allow_replace && matches!(rest.get(2), Some(&"replace"));
-    if rest.len() == 3 && allow_replace && !force {
-        return Err(CliError::Usage(format!(
-            "operator assemble-inbox unknown modifier `{}` (expected `replace`)\n{}",
-            rest[2],
-            usage()
-        )));
+    let mut params = AssembleInboxParams::default();
+    for modifier in &rest[2..] {
+        match *modifier {
+            "replace" => params.force = true,
+            "--json" => params.json = true,
+            other => {
+                return Err(CliError::Usage(format!(
+                    "operator assemble-inbox unknown modifier `{other}` (expected `replace` or `--json`)\n{}",
+                    usage()
+                )));
+            }
+        }
     }
-    if !allow_replace && rest.len() > 2 {
-        return Err(CliError::Usage(format!(
-            "operator inbox-status takes no arguments after DATA_DIR\n{}",
-            usage()
-        )));
-    }
-    Ok((commitment_hash_hex, data_dir, force))
+    Ok(OperatorSub::AssembleInbox {
+        commitment_hash_hex: rest[0].to_string(),
+        data_dir: std::path::PathBuf::from(rest[1]),
+        params,
+    })
 }
 
 fn parse_operator_inbox_status_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
-    let (commitment_hash_hex, data_dir, _) = parse_operator_inbox_args(rest, false)?;
+    if rest.len() < 2 || rest.len() > 3 {
+        return Err(CliError::Usage(format!(
+            "operator inbox-status requires COMMITMENT_HASH_HEX DATA_DIR [--json]\n{}",
+            usage()
+        )));
+    }
+    let mut params = InboxStatusParams::default();
+    if let Some(extra) = rest.get(2) {
+        if *extra != "--json" {
+            return Err(CliError::Usage(format!(
+                "operator inbox-status unknown modifier `{extra}` (expected `--json`)\n{}",
+                usage()
+            )));
+        }
+        params.json = true;
+    }
     Ok(OperatorSub::InboxStatus {
-        commitment_hash_hex,
-        data_dir,
+        commitment_hash_hex: rest[0].to_string(),
+        data_dir: std::path::PathBuf::from(rest[1]),
+        params,
     })
 }
 
@@ -948,7 +1129,7 @@ fn parse_wallet_cmd(
 ) -> Result<Cmd, CliError> {
     let Some(sub_name) = rest.first() else {
         return Err(CliError::Usage(format!(
-            "wallet requires SUBCOMMAND (new|address|scan|light-scan|balance|status|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
+            "wallet requires SUBCOMMAND (new|restore|address|scan|light-scan|balance|status|backup-info|send|upload|claim|export-trusted-summary|import-trusted-summary|show-trusted-summary|compare-trusted-summary)\n{}",
             usage()
         )));
     };
@@ -966,6 +1147,8 @@ fn parse_wallet_cmd(
         "compare-trusted-summary" => {
             WalletSub::CompareTrustedSummary(parse_wallet_compare_trusted_summary_args(&rest[1..])?)
         }
+        "restore" => parse_wallet_restore_args(&rest[1..])?,
+        "backup-info" => WalletSub::BackupInfo(parse_wallet_backup_info_args(&rest[1..])?),
         "new" | "address" | "scan" | "balance" | "status" => {
             if rest.len() != 1 {
                 return Err(CliError::Usage(format!(
@@ -997,6 +1180,76 @@ fn parse_wallet_cmd(
         wallet_path,
         force,
     })
+}
+
+fn parse_wallet_restore_args(rest: &[&str]) -> Result<WalletSub, CliError> {
+    let mut seed_hex: Option<String> = None;
+    let mut key_derivation = KeyDerivation::MfnWalletV1;
+    let mut i = 0usize;
+    while i < rest.len() {
+        let a = rest[i];
+        if a == "--key-derivation" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet restore --key-derivation requires mfn_wallet_v1 or payout_stealth_v1\n"
+                        .into(),
+                ));
+            };
+            key_derivation = parse_key_derivation_label(v)?;
+            i += 2;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown wallet restore argument `{a}`\n{}",
+                usage()
+            )));
+        }
+        if seed_hex.is_some() {
+            return Err(CliError::Usage(format!(
+                "wallet restore accepts exactly one SEED_HEX\n{}",
+                usage()
+            )));
+        }
+        seed_hex = Some(a.to_string());
+        i += 1;
+    }
+    let Some(seed_hex) = seed_hex else {
+        return Err(CliError::Usage(format!(
+            "wallet restore requires SEED_HEX\n{}",
+            usage()
+        )));
+    };
+    Ok(WalletSub::Restore {
+        seed_hex,
+        key_derivation,
+    })
+}
+
+fn parse_wallet_backup_info_args(rest: &[&str]) -> Result<BackupInfoParams, CliError> {
+    let mut params = BackupInfoParams::default();
+    for a in rest {
+        match *a {
+            "--json" => params.json = true,
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unknown wallet backup-info argument `{other}`\n{}",
+                    usage()
+                )));
+            }
+        }
+    }
+    Ok(params)
+}
+
+fn parse_key_derivation_label(raw: &str) -> Result<KeyDerivation, CliError> {
+    match raw {
+        "mfn_wallet_v1" => Ok(KeyDerivation::MfnWalletV1),
+        "payout_stealth_v1" => Ok(KeyDerivation::PayoutStealthV1),
+        other => Err(CliError::Usage(format!(
+            "unknown key derivation `{other}` (expected mfn_wallet_v1 or payout_stealth_v1)"
+        ))),
+    }
 }
 
 fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanParams, CliError> {
@@ -1574,6 +1827,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_status_defaults_rpc() {
+        let p = parse_args(&["status".into()]).unwrap();
+        assert_eq!(p.rpc_addr, DEFAULT_RPC_ADDR);
+        assert_eq!(p.cmd, Cmd::Status);
+    }
+
+    #[test]
     fn parse_block_header_with_rpc() {
         let p = parse_args(&[
             "--rpc".into(),
@@ -1584,6 +1844,13 @@ mod tests {
         .unwrap();
         assert_eq!(p.rpc_addr, "127.0.0.1:19999");
         assert_eq!(p.cmd, Cmd::BlockHeader { height: 3 });
+    }
+
+    #[test]
+    fn parse_rpc_api_key() {
+        let p = parse_args(&["--rpc-api-key".into(), "secret".into(), "mempool".into()]).unwrap();
+        assert_eq!(p.rpc_api_key.as_deref(), Some("secret"));
+        assert_eq!(p.cmd, Cmd::Mempool);
     }
 
     #[test]
@@ -1605,6 +1872,74 @@ mod tests {
                 assert!(!force);
             }
             _ => panic!("expected wallet balance"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_backup_info_with_wallet_path() {
+        let p = parse_args(&[
+            "--wallet".into(),
+            "/tmp/alice.json".into(),
+            "wallet".into(),
+            "backup-info".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::BackupInfo(params),
+                wallet_path,
+                force,
+            } => {
+                assert_eq!(wallet_path.as_deref(), Some("/tmp/alice.json"));
+                assert!(!params.json);
+                assert!(!force);
+            }
+            _ => panic!("expected wallet backup-info"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_backup_info_json() {
+        let p = parse_args(&["wallet".into(), "backup-info".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::BackupInfo(params),
+                ..
+            } => assert!(params.json),
+            _ => panic!("expected wallet backup-info"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_restore_with_key_derivation() {
+        let seed = "44".repeat(32);
+        let p = parse_args(&[
+            "--wallet".into(),
+            "faucet.json".into(),
+            "--force".into(),
+            "wallet".into(),
+            "restore".into(),
+            seed.clone(),
+            "--key-derivation".into(),
+            "payout_stealth_v1".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub:
+                    WalletSub::Restore {
+                        seed_hex,
+                        key_derivation,
+                    },
+                wallet_path,
+                force,
+            } => {
+                assert_eq!(seed_hex, seed);
+                assert_eq!(key_derivation, KeyDerivation::PayoutStealthV1);
+                assert_eq!(wallet_path.as_deref(), Some("faucet.json"));
+                assert!(force);
+            }
+            _ => panic!("expected wallet restore"),
         }
     }
 
@@ -1723,8 +2058,19 @@ mod tests {
         let p = parse_args(&["uploads".into(), "local".into()]).unwrap();
         match p.cmd {
             Cmd::Uploads {
-                sub: UploadsSub::Local,
-            } => {}
+                sub: UploadsSub::Local(params),
+            } => assert!(!params.json),
+            _ => panic!("expected uploads local"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_local_json() {
+        let p = parse_args(&["uploads".into(), "local".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::Local(params),
+            } => assert!(params.json),
             _ => panic!("expected uploads local"),
         }
     }
@@ -1734,9 +2080,123 @@ mod tests {
         let p = parse_args(&["uploads".into(), "status".into()]).unwrap();
         match p.cmd {
             Cmd::Uploads {
-                sub: UploadsSub::Status,
-            } => {}
+                sub: UploadsSub::Status(params),
+            } => assert!(!params.json),
             _ => panic!("expected uploads status"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_status_json() {
+        let p = parse_args(&["uploads".into(), "status".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::Status(params),
+            } => assert!(params.json),
+            _ => panic!("expected uploads status"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_retrieve_subcommand() {
+        let h = "56".repeat(32);
+        let p = parse_args(&[
+            "uploads".into(),
+            "retrieve".into(),
+            h.clone(),
+            "out.bin".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub:
+                    UploadsSub::Retrieve {
+                        commitment_hash_hex,
+                        output_path,
+                        force,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(output_path, std::path::PathBuf::from("out.bin"));
+                assert!(force);
+            }
+            _ => panic!("expected uploads retrieve"),
+        }
+
+        let bad = parse_args(&[
+            "uploads".into(),
+            "retrieve".into(),
+            "aa".repeat(32),
+            "out.bin".into(),
+            "overwrite".into(),
+        ])
+        .expect_err("bad modifier");
+        assert!(bad.to_string().contains("expected `replace`"));
+    }
+
+    #[test]
+    fn parse_uploads_fetch_http_subcommand() {
+        let h = "78".repeat(32);
+        let p = parse_args(&[
+            "uploads".into(),
+            "fetch-http".into(),
+            h.clone(),
+            "restore.bin".into(),
+            "127.0.0.1:18780".into(),
+            "127.0.0.1:18781".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub:
+                    UploadsSub::FetchHttp {
+                        commitment_hash_hex,
+                        output_path,
+                        peers,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(output_path, std::path::PathBuf::from("restore.bin"));
+                assert_eq!(peers.len(), 2);
+                assert!(params.force);
+                assert!(!params.json);
+            }
+            _ => panic!("expected uploads fetch-http"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_fetch_http_json() {
+        let h = "78".repeat(32);
+        let p = parse_args(&[
+            "uploads".into(),
+            "fetch-http".into(),
+            h.clone(),
+            "restore.bin".into(),
+            "127.0.0.1:18780".into(),
+            "--json".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub:
+                    UploadsSub::FetchHttp {
+                        commitment_hash_hex,
+                        peers,
+                        params,
+                        ..
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(peers, vec!["127.0.0.1:18780".to_string()]);
+                assert!(params.force);
+                assert!(params.json);
+            }
+            _ => panic!("expected uploads fetch-http"),
         }
     }
 
@@ -1745,8 +2205,19 @@ mod tests {
         let p = parse_args(&["operator".into(), "artifacts".into()]).unwrap();
         match p.cmd {
             Cmd::Operator {
-                sub: OperatorSub::Artifacts,
-            } => {}
+                sub: OperatorSub::Artifacts(params),
+            } => assert!(!params.json),
+            _ => panic!("expected operator artifacts"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_artifacts_json() {
+        let p = parse_args(&["operator".into(), "artifacts".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub: OperatorSub::Artifacts(params),
+            } => assert!(params.json),
             _ => panic!("expected operator artifacts"),
         }
     }
@@ -1767,12 +2238,13 @@ mod tests {
                     OperatorSub::Backfill {
                         commitment_hash_hex,
                         peers,
-                        force,
+                        params,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
                 assert_eq!(peers, vec!["127.0.0.1:18780".to_string()]);
-                assert!(!force);
+                assert!(!params.force);
+                assert!(!params.json);
             }
             _ => panic!("expected operator backfill"),
         }
@@ -1800,9 +2272,39 @@ mod tests {
         .unwrap();
         match p2.cmd {
             Cmd::Operator {
-                sub: OperatorSub::Backfill { force, .. },
-            } => assert!(force),
+                sub: OperatorSub::Backfill { params, .. },
+            } => assert!(params.force),
             _ => panic!("expected backfill replace"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_backfill_json() {
+        let h = "cd".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "backfill".into(),
+            h.clone(),
+            "127.0.0.1:18780".into(),
+            "--json".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::Backfill {
+                        commitment_hash_hex,
+                        peers,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(peers, vec!["127.0.0.1:18780".to_string()]);
+                assert!(params.force);
+                assert!(params.json);
+            }
+            _ => panic!("expected operator backfill"),
         }
     }
 
@@ -1823,12 +2325,43 @@ mod tests {
                     OperatorSub::AssembleInbox {
                         commitment_hash_hex,
                         data_dir,
-                        force,
+                        params,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
                 assert_eq!(data_dir, std::path::PathBuf::from("/tmp/node"));
-                assert!(force);
+                assert!(params.force);
+                assert!(!params.json);
+            }
+            _ => panic!("expected assemble-inbox"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_assemble_inbox_json() {
+        let h = "12".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "assemble-inbox".into(),
+            h.clone(),
+            "/tmp/node".into(),
+            "--json".into(),
+            "replace".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::AssembleInbox {
+                        commitment_hash_hex,
+                        data_dir,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(data_dir, std::path::PathBuf::from("/tmp/node"));
+                assert!(params.force);
+                assert!(params.json);
             }
             _ => panic!("expected assemble-inbox"),
         }
@@ -1850,10 +2383,40 @@ mod tests {
                     OperatorSub::InboxStatus {
                         commitment_hash_hex,
                         data_dir,
+                        params,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
                 assert_eq!(data_dir, std::path::PathBuf::from("C:\\node"));
+                assert!(!params.json);
+            }
+            _ => panic!("expected inbox-status"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_inbox_status_json() {
+        let h = "34".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "inbox-status".into(),
+            h.clone(),
+            "/tmp/node".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::InboxStatus {
+                        commitment_hash_hex,
+                        data_dir,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(data_dir, std::path::PathBuf::from("/tmp/node"));
+                assert!(params.json);
             }
             _ => panic!("expected inbox-status"),
         }

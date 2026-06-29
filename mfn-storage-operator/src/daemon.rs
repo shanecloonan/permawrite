@@ -16,6 +16,8 @@ use crate::upload_artifact_store::list_upload_artifacts;
 pub struct OperatorDaemonConfig {
     /// `mfnd serve` JSON-RPC address.
     pub rpc_addr: String,
+    /// Optional RPC API key for auth-enabled nodes.
+    pub rpc_api_key: Option<String>,
     /// Wallet JSON path (upload artifacts live beside it).
     pub wallet_path: PathBuf,
     /// Sleep between prove cycles.
@@ -30,6 +32,7 @@ impl Default for OperatorDaemonConfig {
     fn default() -> Self {
         Self {
             rpc_addr: DEFAULT_RPC_ADDR.to_string(),
+            rpc_api_key: None,
             wallet_path: PathBuf::from("wallet.json"),
             interval: Duration::from_secs(30),
             once: false,
@@ -148,6 +151,9 @@ fn is_skippable_rpc(msg: &str) -> bool {
 /// Run the daemon until `stop` is set or `config.once` completes one cycle.
 pub fn run_daemon(config: OperatorDaemonConfig, stop: Arc<AtomicBool>) -> Result<(), ProveError> {
     let mut client = RpcClient::new(&config.rpc_addr);
+    if let Some(api_key) = &config.rpc_api_key {
+        client = client.with_api_key(api_key.clone());
+    }
     println!(
         "mfno_start rpc={} wallet={}",
         config.rpc_addr,

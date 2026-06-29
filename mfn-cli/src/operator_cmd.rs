@@ -13,6 +13,32 @@ use mfn_storage_operator::{
 };
 
 use crate::rpc::RpcClient;
+use crate::uploads_cmd::UploadsInventoryParams;
+
+/// Output options for `operator inbox-status`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InboxStatusParams {
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
+/// Output and overwrite options for `operator assemble-inbox`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct AssembleInboxParams {
+    /// Overwrite an existing artifact.
+    pub force: bool,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
+/// Output and overwrite options for `operator backfill`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BackfillParams {
+    /// Overwrite an existing artifact.
+    pub force: bool,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
 
 /// Operator command errors.
 #[derive(Debug, thiserror::Error)]
@@ -165,7 +191,7 @@ pub fn operator_backfill(
     wallet_path: &Path,
     commitment_hash_hex: &str,
     peers: &[String],
-    force: bool,
+    params: BackfillParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
     let op_ch = storage_challenge_for_operator(&ch);
@@ -174,9 +200,17 @@ pub fn operator_backfill(
         commitment_hash_hex,
         peers,
         &op_ch,
-        force,
+        params.force,
     )
     .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    if params.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&backfill_json(peers, &result))
+                .map_err(|e| OperatorCmdError::Usage(e.to_string()))?
+        );
+        return Ok(());
+    }
     println!("commitment_hash={}", result.commitment_hash_hex);
     println!("peers={}", peers.join(","));
     println!("quorum={}", peers.len());
@@ -185,6 +219,21 @@ pub fn operator_backfill(
     println!("artifact_dir={}", result.artifact_dir.display());
     println!("backfill=ok");
     Ok(())
+}
+
+fn backfill_json(
+    peers: &[String],
+    result: &mfn_storage_operator::BackfillResult,
+) -> serde_json::Value {
+    serde_json::json!({
+        "commitment_hash": result.commitment_hash_hex,
+        "peers": peers,
+        "quorum": peers.len(),
+        "chunks_fetched": result.chunks_fetched,
+        "payload_bytes": result.payload_bytes,
+        "artifact_dir": result.artifact_dir.display().to_string(),
+        "backfill": "ok",
+    })
 }
 
 /// Push all wallet artifact chunks to one or more P2P peers (**M7.1**).
@@ -241,10 +290,19 @@ pub fn operator_inbox_status(
     client: &mut RpcClient,
     data_dir: &Path,
     commitment_hash_hex: &str,
+    params: InboxStatusParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
     let status = inbox_chunk_status(data_dir, commitment_hash_hex, ch.num_chunks)
         .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    if params.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&inbox_status_json(&status))
+                .map_err(|e| OperatorCmdError::Usage(e.to_string()))?
+        );
+        return Ok(());
+    }
     println!("commitment_hash={}", status.commitment_hash_hex);
     println!("data_dir={}", status.data_dir.display());
     println!("num_chunks={}", status.num_chunks);
@@ -270,13 +328,26 @@ pub fn operator_inbox_status(
     Ok(())
 }
 
+fn inbox_status_json(status: &mfn_storage_operator::InboxChunkStatus) -> serde_json::Value {
+    serde_json::json!({
+        "commitment_hash": status.commitment_hash_hex,
+        "data_dir": status.data_dir.display().to_string(),
+        "num_chunks": status.num_chunks,
+        "chunks_present": status.present_indices.len(),
+        "chunks_missing": status.missing_indices.len(),
+        "inbox_complete": status.complete,
+        "present_indices": status.present_indices,
+        "missing_indices": status.missing_indices,
+    })
+}
+
 /// Assemble `chunk-inbox/` bytes into a wallet upload artifact (**M7.2**).
 pub fn operator_assemble_inbox(
     client: &mut RpcClient,
     wallet_path: &Path,
     data_dir: &Path,
     commitment_hash_hex: &str,
-    force: bool,
+    params: AssembleInboxParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
     let op_ch = storage_challenge_for_operator(&ch);
@@ -285,9 +356,17 @@ pub fn operator_assemble_inbox(
         data_dir,
         commitment_hash_hex,
         &op_ch,
-        force,
+        params.force,
     )
     .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    if params.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&assemble_inbox_json(data_dir, &result))
+                .map_err(|e| OperatorCmdError::Usage(e.to_string()))?
+        );
+        return Ok(());
+    }
     println!("commitment_hash={}", result.commitment_hash_hex);
     println!("data_dir={}", data_dir.display());
     println!("chunks_assembled={}", result.chunks_fetched);
@@ -297,9 +376,26 @@ pub fn operator_assemble_inbox(
     Ok(())
 }
 
+fn assemble_inbox_json(
+    data_dir: &Path,
+    result: &mfn_storage_operator::BackfillResult,
+) -> serde_json::Value {
+    serde_json::json!({
+        "commitment_hash": result.commitment_hash_hex,
+        "data_dir": data_dir.display().to_string(),
+        "chunks_assembled": result.chunks_fetched,
+        "payload_bytes": result.payload_bytes,
+        "artifact_dir": result.artifact_dir.display().to_string(),
+        "assemble_inbox": "ok",
+    })
+}
+
 /// List wallet-local upload artifacts (same as `uploads local`) (**M3.25**).
-pub fn operator_artifacts(wallet_path: &std::path::Path) -> Result<(), OperatorCmdError> {
-    crate::uploads_cmd::uploads_local(wallet_path).map_err(OperatorCmdError::Usage)
+pub fn operator_artifacts(
+    wallet_path: &std::path::Path,
+    params: UploadsInventoryParams,
+) -> Result<(), OperatorCmdError> {
+    crate::uploads_cmd::uploads_local(wallet_path, params).map_err(OperatorCmdError::Usage)
 }
 
 /// Fetch a chunk from a peer HTTP chunk server and optionally verify against a
@@ -384,4 +480,67 @@ fn parse_hex32(s: &str) -> Result<[u8; 32], OperatorCmdError> {
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mfn_storage_operator::InboxChunkStatus;
+    use std::path::PathBuf;
+
+    #[test]
+    fn inbox_status_json_reports_missing_chunks() {
+        let status = InboxChunkStatus {
+            commitment_hash_hex: "11".repeat(32),
+            data_dir: PathBuf::from("node-data"),
+            num_chunks: 4,
+            present_indices: vec![0, 2],
+            missing_indices: vec![1, 3],
+            complete: false,
+        };
+        let value = inbox_status_json(&status);
+        assert_eq!(value["commitment_hash"], "11".repeat(32));
+        assert_eq!(value["num_chunks"], 4);
+        assert_eq!(value["chunks_present"], 2);
+        assert_eq!(value["chunks_missing"], 2);
+        assert_eq!(value["inbox_complete"], false);
+        assert_eq!(value["present_indices"][1], 2);
+        assert_eq!(value["missing_indices"][1], 3);
+    }
+
+    #[test]
+    fn assemble_inbox_json_reports_artifact_output() {
+        let result = mfn_storage_operator::BackfillResult {
+            commitment_hash_hex: "22".repeat(32),
+            chunks_fetched: 3,
+            payload_bytes: 2048,
+            artifact_dir: PathBuf::from("wallet.upload-artifacts/22"),
+        };
+        let value = assemble_inbox_json(Path::new("node-data"), &result);
+        assert_eq!(value["commitment_hash"], "22".repeat(32));
+        assert_eq!(value["data_dir"], "node-data");
+        assert_eq!(value["chunks_assembled"], 3);
+        assert_eq!(value["payload_bytes"], 2048);
+        assert_eq!(value["artifact_dir"], "wallet.upload-artifacts/22");
+        assert_eq!(value["assemble_inbox"], "ok");
+    }
+
+    #[test]
+    fn backfill_json_reports_peers_and_artifact_output() {
+        let peers = vec!["127.0.0.1:19080".to_string(), "127.0.0.1:19081".to_string()];
+        let result = mfn_storage_operator::BackfillResult {
+            commitment_hash_hex: "33".repeat(32),
+            chunks_fetched: 5,
+            payload_bytes: 4096,
+            artifact_dir: PathBuf::from("wallet.upload-artifacts/33"),
+        };
+        let value = backfill_json(&peers, &result);
+        assert_eq!(value["commitment_hash"], "33".repeat(32));
+        assert_eq!(value["peers"][0], "127.0.0.1:19080");
+        assert_eq!(value["quorum"], 2);
+        assert_eq!(value["chunks_fetched"], 5);
+        assert_eq!(value["payload_bytes"], 4096);
+        assert_eq!(value["artifact_dir"], "wallet.upload-artifacts/33");
+        assert_eq!(value["backfill"], "ok");
+    }
 }

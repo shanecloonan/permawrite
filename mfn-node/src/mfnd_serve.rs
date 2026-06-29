@@ -3,10 +3,12 @@
 //! JSON-RPC parsing and method dispatch are in [`mfn_rpc`]. P2P framing and handshake
 //! threads are in [`mfn_net::serve`].
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use mfn_consensus::GenesisConfig;
 use mfn_net::serve::{
@@ -19,12 +21,16 @@ use mfn_rpc::{parse_and_dispatch_serve_opts, ServeDispatchOpts};
 use mfn_runtime::{
     mempool_root, Chain, ChainConfig, Mempool, MempoolConfig, ProofPool, ProofPoolConfig,
 };
-use mfn_store::{load_mempool, load_proof_pool, save_mempool, save_proof_pool, ChainPersistence};
+use mfn_store::{
+    load_mempool, load_or_genesis_replaying_block_log, load_proof_pool, save_mempool,
+    save_proof_pool, ChainPersistence,
+};
 use serde_json::Value;
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{
-    spawn_committee_catch_up_loop, spawn_reconnect_saved_peers, P2pPeerSet, ReconnectPeersBoot,
+    is_self_peer_addr, spawn_committee_catch_up_loop, spawn_reconnect_saved_peers,
+    CommitteeCatchUpLoop, P2pPeerSet, ReconnectPeersBoot,
 };
 use crate::p2p_gossip::P2pGossipHandler;
 use crate::runner::{
@@ -42,30 +48,256 @@ type P2pServeHooks = (
     Option<mfn_net::ProductionHook>,
 );
 
+/// Maximum accepted newline-delimited JSON-RPC request line.
+///
+/// `mfnd serve` intentionally handles one request per TCP connection. Cap the line before
+/// dispatch so malformed clients cannot force unbounded memory growth before JSON parsing.
+pub(crate) const MFND_RPC_MAX_REQUEST_LINE_BYTES: u64 = 1_048_576;
+
+/// Per-connection JSON-RPC read/write timeout.
+pub(crate) const MFND_RPC_IO_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Maximum accepted JSON-RPC connections being handled at once.
+pub(crate) const MFND_RPC_MAX_IN_FLIGHT_CONNECTIONS: usize = 64;
+
+const MFND_RPC_MAX_IN_FLIGHT_ENV: &str = "MFND_RPC_MAX_IN_FLIGHT";
+
+fn rpc_max_in_flight_from_env() -> Result<usize, String> {
+    match std::env::var(MFND_RPC_MAX_IN_FLIGHT_ENV) {
+        Ok(raw) => {
+            let n: usize = raw
+                .trim()
+                .parse()
+                .map_err(|_| format!("{MFND_RPC_MAX_IN_FLIGHT_ENV} must be a positive integer"))?;
+            if n == 0 {
+                return Err(format!("{MFND_RPC_MAX_IN_FLIGHT_ENV} must be at least 1"));
+            }
+            Ok(n)
+        }
+        Err(std::env::VarError::NotPresent) => Ok(MFND_RPC_MAX_IN_FLIGHT_CONNECTIONS),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            Err(format!("{MFND_RPC_MAX_IN_FLIGHT_ENV} must be valid UTF-8"))
+        }
+    }
+}
+
+fn configure_rpc_stream(stream: &TcpStream) -> Result<(), String> {
+    stream
+        .set_read_timeout(Some(MFND_RPC_IO_TIMEOUT))
+        .map_err(|e| format!("mfnd serve: set RPC read timeout: {e}"))?;
+    stream
+        .set_write_timeout(Some(MFND_RPC_IO_TIMEOUT))
+        .map_err(|e| format!("mfnd serve: set RPC write timeout: {e}"))
+}
+
 fn write_line(stream: &mut TcpStream, v: &Value) -> Result<(), String> {
     let s = v.to_string();
     writeln!(stream, "{s}").map_err(|e| format!("mfnd serve: write response: {e}"))
 }
 
-fn handle_client(
+fn write_rpc_busy_response(stream: &mut TcpStream, rpc_max_in_flight: usize) -> Result<(), String> {
+    configure_rpc_stream(stream)?;
+    let resp = mfn_rpc::rpc_error(
+        &Value::Null,
+        mfn_rpc::rpc_codes::INTERNAL_ERROR,
+        format!("RPC server busy: maximum in-flight connections is {rpc_max_in_flight}"),
+    );
+    log_rpc_request_outcome("unknown", &resp, Duration::ZERO);
+    write_line(stream, &resp)
+}
+
+struct RpcInFlightPermit {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for RpcInFlightPermit {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
+fn try_acquire_rpc_permit(counter: &Arc<AtomicUsize>, max: usize) -> Option<RpcInFlightPermit> {
+    let mut current = counter.load(Ordering::Acquire);
+    loop {
+        if current >= max {
+            return None;
+        }
+        match counter.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => {
+                return Some(RpcInFlightPermit {
+                    counter: Arc::clone(counter),
+                });
+            }
+            Err(next) => current = next,
+        }
+    }
+}
+
+fn rpc_log_token(s: &str) -> String {
+    let token: String = s
+        .chars()
+        .take(64)
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.' | ':' => c,
+            _ => '_',
+        })
+        .collect();
+    if token.is_empty() {
+        "unknown".to_string()
+    } else {
+        token
+    }
+}
+
+fn rpc_method_for_log(line: &str) -> String {
+    serde_json::from_str::<Value>(line)
+        .ok()
+        .and_then(|v| v.get("method").and_then(|m| m.as_str()).map(rpc_log_token))
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn log_rpc_request_outcome(method: &str, resp: &Value, elapsed: Duration) {
+    let error_code = resp
+        .get("error")
+        .filter(|e| !e.is_null())
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    let result = if error_code.is_some() { "error" } else { "ok" };
+    let code = error_code
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    println!(
+        "mfnd_rpc_request method={} result={} error_code={} elapsed_ms={}",
+        method,
+        result,
+        code,
+        elapsed.as_millis()
+    );
+    let _ = std::io::stdout().flush();
+}
+
+enum RpcRequestLine {
+    Dispatch(String),
+    Respond(Value),
+}
+
+fn read_rpc_request_line(stream: &mut TcpStream) -> Result<RpcRequestLine, String> {
+    let peer = stream
+        .peer_addr()
+        .map_err(|e| format!("mfnd serve: peer_addr: {e}"))?;
+    configure_rpc_stream(stream)?;
+    let mut reader = BufReader::new(stream.try_clone().map_err(|e| format!("{e}"))?);
+    let mut line = String::new();
+    reader
+        .by_ref()
+        .take(MFND_RPC_MAX_REQUEST_LINE_BYTES.saturating_add(1))
+        .read_line(&mut line)
+        .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
+    if (line.len() as u64) > MFND_RPC_MAX_REQUEST_LINE_BYTES {
+        return Ok(RpcRequestLine::Respond(mfn_rpc::rpc_error(
+            &Value::Null,
+            mfn_rpc::rpc_codes::INVALID_REQUEST,
+            format!("request line exceeds maximum of {MFND_RPC_MAX_REQUEST_LINE_BYTES} bytes"),
+        )));
+    }
+    Ok(RpcRequestLine::Dispatch(line))
+}
+
+fn dispatch_client_request(
     stream: &mut TcpStream,
     store: &dyn ChainPersistence,
     chain: &mut Chain,
     pool: &mut Mempool,
     proof_pool: &mut ProofPool,
+    line: &str,
     dispatch_opts: ServeDispatchOpts,
 ) -> Result<(), String> {
-    let peer = stream
-        .peer_addr()
-        .map_err(|e| format!("mfnd serve: peer_addr: {e}"))?;
-    let mut reader = BufReader::new(stream.try_clone().map_err(|e| format!("{e}"))?);
-    let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
+    let method = rpc_method_for_log(line);
+    let started = Instant::now();
     let resp =
-        parse_and_dispatch_serve_opts(store, chain, pool, Some(proof_pool), &line, dispatch_opts);
+        parse_and_dispatch_serve_opts(store, chain, pool, Some(proof_pool), line, dispatch_opts);
+    log_rpc_request_outcome(&method, &resp, started.elapsed());
     write_line(stream, &resp)
+}
+
+struct RpcServeState {
+    store: Arc<dyn ChainPersistence + Send + Sync>,
+    chain: Arc<Mutex<Chain>>,
+    pool: Arc<Mutex<Mempool>>,
+    proof_pool: Arc<Mutex<ProofPool>>,
+    serve_tip: TipSnapshot,
+    dispatch_opts: ServeDispatchOpts,
+}
+
+fn handle_accepted_rpc_stream(
+    mut stream: TcpStream,
+    state: RpcServeState,
+    _permit: RpcInFlightPermit,
+) {
+    let read_started = Instant::now();
+    let line = match read_rpc_request_line(&mut stream) {
+        Ok(RpcRequestLine::Dispatch(line)) => line,
+        Ok(RpcRequestLine::Respond(resp)) => {
+            log_rpc_request_outcome("unknown", &resp, read_started.elapsed());
+            let _ = write_line(&mut stream, &resp);
+            return;
+        }
+        Err(e) => {
+            let resp = mfn_rpc::rpc_error(
+                &Value::Null,
+                mfn_rpc::rpc_codes::INTERNAL_ERROR,
+                format!("mfnd serve: {e}"),
+            );
+            log_rpc_request_outcome("unknown", &resp, read_started.elapsed());
+            let _ = write_line(&mut stream, &resp);
+            return;
+        }
+    };
+    let Ok(mut chain_guard) = state.chain.lock() else {
+        eprintln!("mfnd serve: chain mutex poisoned");
+        return;
+    };
+    let Ok(mut pool_guard) = state.pool.lock() else {
+        eprintln!("mfnd serve: pool mutex poisoned");
+        return;
+    };
+    let Ok(mut proof_guard) = state.proof_pool.lock() else {
+        eprintln!("mfnd serve: proof_pool mutex poisoned");
+        return;
+    };
+    let len_before = pool_guard.len();
+    let root_before = mempool_root(&pool_guard);
+    match dispatch_client_request(
+        &mut stream,
+        state.store.as_ref(),
+        &mut chain_guard,
+        &mut pool_guard,
+        &mut proof_guard,
+        &line,
+        state.dispatch_opts,
+    ) {
+        Ok(()) => {
+            if pool_guard.len() != len_before || mempool_root(&pool_guard) != root_before {
+                persist_mempool(state.store.as_ref(), &pool_guard);
+            }
+            if let Ok(mut g) = state.serve_tip.lock() {
+                *g = snapshot_chain_tip_for_p2p(&chain_guard);
+            }
+        }
+        Err(e) => {
+            let resp = mfn_rpc::rpc_error(
+                &Value::Null,
+                mfn_rpc::rpc_codes::INTERNAL_ERROR,
+                format!("mfnd serve: {e}"),
+            );
+            let _ = write_line(&mut stream, &resp);
+        }
+    }
 }
 
 fn snapshot_chain_tip_for_p2p(chain: &Chain) -> (u32, [u8; 32]) {
@@ -155,6 +387,10 @@ fn serve_dispatch_opts(
     genesis: Arc<GenesisConfig>,
     genesis_id: [u8; 32],
     serve_tip: TipSnapshot,
+    rpc_api_key: Option<String>,
+    rpc_max_in_flight: usize,
+    rpc_in_flight: Arc<AtomicUsize>,
+    rpc_listen: &str,
 ) -> ServeDispatchOpts {
     let store_persist = Arc::clone(store);
     let store_proof = Arc::clone(store);
@@ -170,6 +406,7 @@ fn serve_dispatch_opts(
     });
     let tip_for_fetch = serve_tip.clone();
     let tip_for_quorum = serve_tip.clone();
+    let rpc_in_flight_current = Arc::new(move || rpc_in_flight.load(Ordering::Acquire));
     let p2p_light_follow: mfn_rpc::P2pLightFollowHook = Arc::new(move |peer, from, to| {
         let tip_guard = tip_for_fetch
             .lock()
@@ -201,12 +438,41 @@ fn serve_dispatch_opts(
         });
     ServeDispatchOpts {
         genesis: Some(genesis),
+        rpc_api_key,
+        rpc_max_in_flight: Some(rpc_max_in_flight),
+        rpc_current_in_flight: Some(rpc_in_flight_current),
+        rpc_max_request_line_bytes: Some(MFND_RPC_MAX_REQUEST_LINE_BYTES),
+        rpc_io_timeout_ms: Some(MFND_RPC_IO_TIMEOUT.as_millis() as u64),
+        rpc_listen_addr: Some(rpc_listen.to_string()),
+        rpc_public_bind: Some(!rpc_listen_is_loopback(rpc_listen)),
         on_fresh_tx,
         on_fresh_admit: Some(on_fresh_admit),
         on_proof_pool_change: Some(on_proof_pool_change),
         p2p_light_follow: Some(p2p_light_follow),
         p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
     }
+}
+
+fn rpc_listen_is_loopback(addr: &str) -> bool {
+    let host = addr
+        .rsplit_once(':')
+        .map(|(host, _)| host.trim_matches(['[', ']']))
+        .unwrap_or(addr);
+    host == "localhost" || host == "::1" || host.starts_with("127.")
+}
+
+fn rpc_public_bind_warning(rpc_listen: &str, auth_enabled: bool) -> Option<String> {
+    if rpc_listen_is_loopback(rpc_listen) {
+        return None;
+    }
+    let auth_note = if auth_enabled {
+        "RPC API key is enabled for wallet-write/operator-admin methods, but public read methods remain unauthenticated"
+    } else {
+        "RPC API key is not enabled; wallet-write/operator-admin methods are unauthenticated"
+    };
+    Some(format!(
+        "mfnd_rpc_public_bind_warning listen={rpc_listen} {auth_note}; use firewall/TLS/VPN/SSH tunnel and upstream rate limits before internet exposure"
+    ))
 }
 
 /// Run a blocking TCP loop: load chain + mempool snapshot, print bound address, then
@@ -216,6 +482,7 @@ pub(crate) fn run_serve(
     store: Arc<dyn ChainPersistence + Send + Sync>,
     cfg: ChainConfig,
     rpc_listen: &str,
+    rpc_api_key: Option<String>,
     p2p_listen: Option<&str>,
     p2p_dials: &[String],
     produce: bool,
@@ -225,9 +492,16 @@ pub(crate) fn run_serve(
 ) -> Result<(), String> {
     let genesis_timestamp = cfg.genesis.timestamp;
     let genesis_for_rpc = Arc::new(cfg.genesis.clone());
-    let chain = Arc::new(Mutex::new(
-        store.load_or_genesis(cfg).map_err(|e| format!("{e}"))?,
-    ));
+    let (loaded_chain, replay_stats) =
+        load_or_genesis_replaying_block_log(store.as_ref(), cfg).map_err(|e| format!("{e}"))?;
+    println!(
+        "mfnd_block_log_replay blocks_read={} skipped={} applied={} final_height={}",
+        replay_stats.blocks_read,
+        replay_stats.blocks_skipped,
+        replay_stats.blocks_applied,
+        replay_stats.final_height
+    );
+    let chain = Arc::new(Mutex::new(loaded_chain));
     let pool = Arc::new(Mutex::new(Mempool::new(MempoolConfig::default())));
     let proof_pool = Arc::new(Mutex::new(ProofPool::new(ProofPoolConfig::default())));
     {
@@ -275,6 +549,25 @@ pub(crate) fn run_serve(
     if produce && committee_vote {
         return Err("mfnd serve: --produce and --committee-vote are mutually exclusive".into());
     }
+    if rpc_api_key.is_some() {
+        println!("mfnd_rpc_auth=enabled protected_classes=wallet-write,operator-admin");
+    }
+    if let Some(warning) = rpc_public_bind_warning(rpc_listen, rpc_api_key.is_some()) {
+        eprintln!("{warning}");
+    }
+    let rpc_max_in_flight = rpc_max_in_flight_from_env()?;
+    println!("mfnd_rpc_max_in_flight={rpc_max_in_flight}");
+
+    let (p2p_listener, local_p2p_listen) = if let Some(addr) = p2p_listen {
+        let listener =
+            TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?;
+        let listen_addr = listener
+            .local_addr()
+            .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
+        (Some(listener), Some(listen_addr))
+    } else {
+        (None, None)
+    };
 
     let p2p_enabled = p2p_listen.is_some() || !p2p_dials.is_empty();
     let (
@@ -349,15 +642,16 @@ pub(crate) fn run_serve(
                 spawn_slot_producer_loop(Arc::clone(&engine));
             }
             if produce || committee_vote {
-                spawn_committee_catch_up_loop(
-                    Arc::clone(&fanout),
+                spawn_committee_catch_up_loop(CommitteeCatchUpLoop {
+                    peer_set: Arc::clone(&fanout),
                     genesis_id,
-                    Arc::clone(&tip_cell),
-                    Arc::clone(&hid_counter),
-                    Arc::clone(&sync_hook),
-                    Arc::clone(&applier_hook),
-                    slot_duration_ms.max(2_000) / 2,
-                )?;
+                    tip_cell: Arc::clone(&tip_cell),
+                    hid_counter: Arc::clone(&hid_counter),
+                    block_sync: Arc::clone(&sync_hook),
+                    block_applier: Arc::clone(&applier_hook),
+                    local_p2p_listen,
+                    interval_ms: slot_duration_ms.max(2_000) / 2,
+                })?;
             }
             Some(engine as mfn_net::ProductionHook)
         } else {
@@ -375,17 +669,6 @@ pub(crate) fn run_serve(
         )
     } else {
         (None, None, None, None, None, None, None, None)
-    };
-
-    let (p2p_listener, local_p2p_listen) = if let Some(addr) = p2p_listen {
-        let listener =
-            TcpListener::bind(addr).map_err(|e| format!("mfnd serve: bind P2P `{addr}`: {e}"))?;
-        let listen_addr = listener
-            .local_addr()
-            .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
-        (Some(listener), Some(listen_addr))
-    } else {
-        (None, None)
     };
 
     log_chain_identity(&genesis_id, network_label);
@@ -431,6 +714,13 @@ pub(crate) fn run_serve(
     }
 
     for dial in p2p_dials {
+        if is_self_peer_addr(dial, local_p2p_listen) {
+            println!("mfnd_p2p_self_dial_skip peer={dial}");
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (p2p self skip): {e}"))?;
+            continue;
+        }
         spawn_outbound_dial(OutboundP2pDial {
             addr: dial.clone(),
             genesis_id,
@@ -485,12 +775,17 @@ pub(crate) fn run_serve(
                 .unwrap_or((0, genesis_id)),
         ))
     });
+    let rpc_in_flight = Arc::new(AtomicUsize::new(0));
     let dispatch_opts = serve_dispatch_opts(
         &store,
         fanout_peers.as_ref(),
         genesis_for_rpc,
         genesis_id,
         serve_tip.clone(),
+        rpc_api_key,
+        rpc_max_in_flight,
+        Arc::clone(&rpc_in_flight),
+        rpc_listen,
     );
 
     #[cfg(unix)]
@@ -522,44 +817,217 @@ pub(crate) fn run_serve(
                 continue;
             }
         };
-        let Ok(mut chain_guard) = chain.lock() else {
-            eprintln!("mfnd serve: chain mutex poisoned");
+        let Some(permit) = try_acquire_rpc_permit(&rpc_in_flight, rpc_max_in_flight) else {
+            let _ = write_rpc_busy_response(&mut stream, rpc_max_in_flight);
             continue;
         };
-        let Ok(mut pool_guard) = pool.lock() else {
-            eprintln!("mfnd serve: pool mutex poisoned");
-            continue;
+        let store_c = Arc::clone(&store);
+        let chain_c = Arc::clone(&chain);
+        let pool_c = Arc::clone(&pool);
+        let proof_pool_c = Arc::clone(&proof_pool);
+        let serve_tip_c = Arc::clone(&serve_tip);
+        let dispatch_opts_c = dispatch_opts.clone();
+        let rpc_state = RpcServeState {
+            store: store_c,
+            chain: chain_c,
+            pool: pool_c,
+            proof_pool: proof_pool_c,
+            serve_tip: serve_tip_c,
+            dispatch_opts: dispatch_opts_c,
         };
-        let Ok(mut proof_guard) = proof_pool.lock() else {
-            eprintln!("mfnd serve: proof_pool mutex poisoned");
-            continue;
-        };
-        let len_before = pool_guard.len();
-        let root_before = mempool_root(&pool_guard);
-        match handle_client(
-            &mut stream,
-            store.as_ref(),
-            &mut chain_guard,
-            &mut pool_guard,
-            &mut proof_guard,
-            dispatch_opts.clone(),
-        ) {
-            Ok(()) => {
-                if pool_guard.len() != len_before || mempool_root(&pool_guard) != root_before {
-                    persist_mempool(store.as_ref(), &pool_guard);
-                }
-                if let Ok(mut g) = serve_tip.lock() {
-                    *g = snapshot_chain_tip_for_p2p(&chain_guard);
-                }
-            }
-            Err(e) => {
-                let resp = mfn_rpc::rpc_error(
-                    &Value::Null,
-                    mfn_rpc::rpc_codes::INTERNAL_ERROR,
-                    format!("mfnd serve: {e}"),
-                );
-                let _ = write_line(&mut stream, &resp);
-            }
+        if let Err(e) = thread::Builder::new()
+            .name("mfnd-rpc".to_string())
+            .spawn(move || {
+                handle_accepted_rpc_stream(stream, rpc_state, permit);
+            })
+        {
+            eprintln!("mfnd serve: spawn RPC worker: {e}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn configure_rpc_stream_sets_read_and_write_timeouts() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let addr = listener.local_addr().expect("local addr");
+        let client = TcpStream::connect(addr).expect("connect client");
+        let (server, _) = listener.accept().expect("accept server");
+
+        configure_rpc_stream(&server).expect("configure server stream");
+
+        assert_eq!(
+            server.read_timeout().expect("server read timeout"),
+            Some(MFND_RPC_IO_TIMEOUT)
+        );
+        assert_eq!(
+            server.write_timeout().expect("server write timeout"),
+            Some(MFND_RPC_IO_TIMEOUT)
+        );
+
+        drop(client);
+    }
+
+    #[test]
+    fn write_rpc_busy_response_sets_timeouts_and_returns_json_error() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let addr = listener.local_addr().expect("local addr");
+        let client = TcpStream::connect(addr).expect("connect client");
+        let (mut server, _) = listener.accept().expect("accept server");
+
+        write_rpc_busy_response(&mut server, 7).expect("write busy response");
+
+        assert_eq!(
+            server.read_timeout().expect("server read timeout"),
+            Some(MFND_RPC_IO_TIMEOUT)
+        );
+        assert_eq!(
+            server.write_timeout().expect("server write timeout"),
+            Some(MFND_RPC_IO_TIMEOUT)
+        );
+
+        let mut reader = BufReader::new(client);
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("read busy response");
+        let resp: Value = serde_json::from_str(line.trim()).expect("json busy response");
+        assert_eq!(resp["id"], Value::Null);
+        assert_eq!(
+            resp["error"]["code"],
+            Value::from(mfn_rpc::rpc_codes::INTERNAL_ERROR)
+        );
+        assert!(resp["error"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("maximum in-flight connections is 7"));
+    }
+
+    #[test]
+    fn rpc_in_flight_permit_caps_and_releases() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let first = try_acquire_rpc_permit(&counter, 2).expect("first permit");
+        let second = try_acquire_rpc_permit(&counter, 2).expect("second permit");
+        assert!(try_acquire_rpc_permit(&counter, 2).is_none());
+        assert_eq!(counter.load(Ordering::Acquire), 2);
+
+        drop(first);
+        assert_eq!(counter.load(Ordering::Acquire), 1);
+        let third = try_acquire_rpc_permit(&counter, 2).expect("third permit");
+        assert_eq!(counter.load(Ordering::Acquire), 2);
+
+        drop(second);
+        drop(third);
+        assert_eq!(counter.load(Ordering::Acquire), 0);
+    }
+
+    #[test]
+    fn rpc_max_in_flight_env_defaults_when_unset() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        std::env::remove_var(MFND_RPC_MAX_IN_FLIGHT_ENV);
+        assert_eq!(
+            rpc_max_in_flight_from_env().expect("default max"),
+            MFND_RPC_MAX_IN_FLIGHT_CONNECTIONS
+        );
+    }
+
+    #[test]
+    fn rpc_max_in_flight_env_accepts_positive_integer() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        std::env::set_var(MFND_RPC_MAX_IN_FLIGHT_ENV, "7");
+        assert_eq!(rpc_max_in_flight_from_env().expect("custom max"), 7);
+        std::env::remove_var(MFND_RPC_MAX_IN_FLIGHT_ENV);
+    }
+
+    #[test]
+    fn rpc_max_in_flight_env_rejects_zero_and_malformed_values() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
+        std::env::set_var(MFND_RPC_MAX_IN_FLIGHT_ENV, "0");
+        assert!(rpc_max_in_flight_from_env()
+            .expect_err("zero must fail")
+            .contains("at least 1"));
+        std::env::set_var(MFND_RPC_MAX_IN_FLIGHT_ENV, "not-a-number");
+        assert!(rpc_max_in_flight_from_env()
+            .expect_err("malformed must fail")
+            .contains("positive integer"));
+        std::env::remove_var(MFND_RPC_MAX_IN_FLIGHT_ENV);
+    }
+
+    #[test]
+    fn rpc_public_bind_warning_skips_loopback() {
+        assert!(rpc_public_bind_warning("127.0.0.1:18731", false).is_none());
+        assert!(rpc_public_bind_warning("[::1]:18731", true).is_none());
+        assert!(rpc_public_bind_warning("localhost:18731", true).is_none());
+    }
+
+    #[test]
+    fn rpc_public_bind_warning_without_auth_mentions_unauthenticated_writes() {
+        let warning = rpc_public_bind_warning("0.0.0.0:18731", false).expect("warning");
+        assert!(warning.contains("mfnd_rpc_public_bind_warning"));
+        assert!(warning.contains("listen=0.0.0.0:18731"));
+        assert!(warning.contains("RPC API key is not enabled"));
+        assert!(warning.contains("wallet-write/operator-admin methods are unauthenticated"));
+    }
+
+    #[test]
+    fn rpc_public_bind_warning_with_auth_mentions_public_reads() {
+        let warning = rpc_public_bind_warning("0.0.0.0:18731", true).expect("warning");
+        assert!(warning.contains("RPC API key is enabled"));
+        assert!(warning.contains("public read methods remain unauthenticated"));
+        assert!(warning.contains("upstream rate limits"));
+    }
+
+    #[test]
+    fn read_rpc_request_line_rejects_oversized_before_dispatch() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let addr = listener.local_addr().expect("local addr");
+        let client = TcpStream::connect(addr).expect("connect client");
+        let (mut server, _) = listener.accept().expect("accept server");
+
+        let oversized = "x".repeat((MFND_RPC_MAX_REQUEST_LINE_BYTES as usize) + 1);
+        let writer = std::thread::spawn(move || {
+            let mut client = client;
+            writeln!(client, "{oversized}").expect("write oversized request");
+        });
+        let line = read_rpc_request_line(&mut server).expect("read request line");
+        match line {
+            RpcRequestLine::Respond(resp) => {
+                assert_eq!(resp["error"]["code"], mfn_rpc::rpc_codes::INVALID_REQUEST);
+                assert!(resp["error"]["message"]
+                    .as_str()
+                    .expect("error message")
+                    .contains("request line exceeds maximum"));
+            }
+            RpcRequestLine::Dispatch(_) => panic!("oversized request must not dispatch"),
+        }
+        writer.join().expect("writer thread");
+    }
+
+    #[test]
+    fn rpc_method_for_log_sanitizes_without_params() {
+        let method = rpc_method_for_log(
+            r#"{"jsonrpc":"2.0","method":"submit_tx\napi_key=leak","params":{"api_key":"secret"},"id":1}"#,
+        );
+        assert_eq!(method, "submit_tx_api_key_leak");
+        assert!(!method.contains("secret"));
+    }
+
+    #[test]
+    fn rpc_method_for_log_uses_unknown_for_malformed_or_missing_method() {
+        assert_eq!(rpc_method_for_log(r#"{"jsonrpc":"2.0""#), "unknown");
+        assert_eq!(
+            rpc_method_for_log(r#"{"jsonrpc":"2.0","params":{"api_key":"secret"}}"#),
+            "unknown"
+        );
+    }
+
+    #[test]
+    fn rpc_log_token_limits_length_and_replaces_controls() {
+        let token = rpc_log_token(&format!("{}{}", "a".repeat(80), "\n"));
+        assert_eq!(token.len(), 64);
+        assert!(token.chars().all(|c| c == 'a'));
     }
 }

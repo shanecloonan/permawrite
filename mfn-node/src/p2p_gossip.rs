@@ -290,4 +290,35 @@ mod tests {
             "expected gap reject, got {label}"
         );
     }
+
+    #[test]
+    fn rejects_next_height_fork_without_apply_or_store_append() {
+        let (handler, _) = handler_at_height_1();
+        let block = {
+            let guard = handler.chain.lock().expect("chain");
+            assert_eq!(guard.tip_height(), Some(1));
+            let mut header = build_unsealed_header(guard.state(), &[], &[], &[], &[], 2, 3_000);
+            header.prev_hash[0] ^= 0xff;
+            seal_block(
+                header,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        let wire = encode_block(&block);
+        let label = handler.on_block_v1(&wire);
+        assert!(
+            label.starts_with("rejected:apply:"),
+            "expected apply reject, got {label}"
+        );
+
+        let guard = handler.chain.lock().expect("chain");
+        assert_eq!(guard.tip_height(), Some(1));
+        let stored = handler.store.read_block_log().expect("block log");
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].header.height, 1);
+    }
 }
