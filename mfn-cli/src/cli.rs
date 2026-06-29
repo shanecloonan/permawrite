@@ -5,7 +5,8 @@ use std::process::ExitCode;
 use serde_json::json;
 
 use crate::claims_cmd::{
-    claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsListParams,
+    claims_by_pubkey, claims_for, claims_recent, claims_roots, ClaimsByPubkeyParams,
+    ClaimsListParams,
 };
 use crate::light_subjectivity::{
     wallet_compare_trusted_summary, wallet_export_trusted_summary, wallet_import_trusted_summary,
@@ -117,17 +118,15 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             );
         }
         Cmd::Claims { sub } => match sub {
-            ClaimsSub::For { data_root_hex } => {
-                claims_for(&mut client, &data_root_hex).map_err(CliError::Usage)?
-            }
+            ClaimsSub::For {
+                data_root_hex,
+                json,
+            } => claims_for(&mut client, &data_root_hex, json).map_err(CliError::Usage)?,
             ClaimsSub::Recent(params) => {
                 claims_recent(&mut client, &params).map_err(CliError::Usage)?
             }
-            ClaimsSub::ByPubkey {
-                claim_pubkey_hex,
-                limit,
-            } => {
-                claims_by_pubkey(&mut client, &claim_pubkey_hex, limit).map_err(CliError::Usage)?
+            ClaimsSub::ByPubkey(params) => {
+                claims_by_pubkey(&mut client, &params).map_err(CliError::Usage)?
             }
             ClaimsSub::Roots(params) => {
                 claims_roots(&mut client, &params).map_err(CliError::Usage)?
@@ -321,14 +320,9 @@ enum Cmd {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ClaimsSub {
-    For {
-        data_root_hex: String,
-    },
+    For { data_root_hex: String, json: bool },
     Recent(ClaimsListParams),
-    ByPubkey {
-        claim_pubkey_hex: String,
-        limit: Option<u64>,
-    },
+    ByPubkey(ClaimsByPubkeyParams),
     Roots(ClaimsListParams),
 }
 
@@ -474,6 +468,7 @@ fn usage() -> &'static str {
        claims recent                      recent claims chain-wide (list_recent_claims)\n\
        claims by-pubkey PUBKEY_HEX        claims by claiming public key\n\
        claims roots                       data_roots that have claims\n\
+                         options for all claims queries: --json\n\
                          options for recent/roots: --limit N --offset N\n\
                          options for by-pubkey: --limit N\n\
        uploads list                       recent storage uploads (list_recent_uploads)\n\
@@ -710,26 +705,10 @@ fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         )));
     };
     let sub = match *sub_name {
-        "for" => {
-            if rest.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "claims for requires DATA_ROOT_HEX\n{}",
-                    usage()
-                )));
-            }
-            ClaimsSub::For {
-                data_root_hex: rest[1].to_string(),
-            }
-        }
+        "for" => parse_claims_for_args(&rest[1..])?,
         "recent" => ClaimsSub::Recent(parse_claims_list_args(&rest[1..])?),
         "roots" => ClaimsSub::Roots(parse_claims_list_args(&rest[1..])?),
-        "by-pubkey" => {
-            let (claim_pubkey_hex, limit) = parse_claims_by_pubkey_args(&rest[1..])?;
-            ClaimsSub::ByPubkey {
-                claim_pubkey_hex,
-                limit,
-            }
-        }
+        "by-pubkey" => ClaimsSub::ByPubkey(parse_claims_by_pubkey_args(&rest[1..])?),
         other => {
             return Err(CliError::Usage(format!(
                 "unknown claims subcommand `{other}`\n{}",
@@ -1049,12 +1028,52 @@ fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError>
     })
 }
 
+fn parse_claims_for_args(rest: &[&str]) -> Result<ClaimsSub, CliError> {
+    let mut data_root_hex: Option<String> = None;
+    let mut json = false;
+    for a in rest {
+        if *a == "--json" {
+            json = true;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown claims for option `{a}`\n{}",
+                usage()
+            )));
+        }
+        if data_root_hex.is_some() {
+            return Err(CliError::Usage(format!(
+                "claims for accepts one DATA_ROOT_HEX\n{}",
+                usage()
+            )));
+        }
+        data_root_hex = Some((*a).to_string());
+    }
+    let Some(data_root_hex) = data_root_hex else {
+        return Err(CliError::Usage(format!(
+            "claims for requires DATA_ROOT_HEX\n{}",
+            usage()
+        )));
+    };
+    Ok(ClaimsSub::For {
+        data_root_hex,
+        json,
+    })
+}
+
 fn parse_claims_list_args(rest: &[&str]) -> Result<ClaimsListParams, CliError> {
     let mut limit = None;
     let mut offset = None;
+    let mut json = false;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--limit" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--limit requires a value".into()));
@@ -1082,15 +1101,25 @@ fn parse_claims_list_args(rest: &[&str]) -> Result<ClaimsListParams, CliError> {
             usage()
         )));
     }
-    Ok(ClaimsListParams { limit, offset })
+    Ok(ClaimsListParams {
+        limit,
+        offset,
+        json,
+    })
 }
 
-fn parse_claims_by_pubkey_args(rest: &[&str]) -> Result<(String, Option<u64>), CliError> {
+fn parse_claims_by_pubkey_args(rest: &[&str]) -> Result<ClaimsByPubkeyParams, CliError> {
     let mut limit = None;
+    let mut json = false;
     let mut claim_pubkey_hex: Option<String> = None;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--limit" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--limit requires a value".into()));
@@ -1123,7 +1152,11 @@ fn parse_claims_by_pubkey_args(rest: &[&str]) -> Result<(String, Option<u64>), C
             usage()
         )));
     };
-    Ok((hex, limit))
+    Ok(ClaimsByPubkeyParams {
+        claim_pubkey_hex: hex,
+        limit,
+        json,
+    })
 }
 
 fn parse_wallet_cmd(
@@ -2194,8 +2227,39 @@ mod tests {
         let p = parse_args(&["claims".into(), "for".into(), "aa".repeat(32)]).unwrap();
         match p.cmd {
             Cmd::Claims {
-                sub: ClaimsSub::For { data_root_hex },
-            } => assert_eq!(data_root_hex.len(), 64),
+                sub:
+                    ClaimsSub::For {
+                        data_root_hex,
+                        json,
+                    },
+            } => {
+                assert_eq!(data_root_hex.len(), 64);
+                assert!(!json);
+            }
+            _ => panic!("expected claims for"),
+        }
+    }
+
+    #[test]
+    fn parse_claims_for_json() {
+        let p = parse_args(&[
+            "claims".into(),
+            "for".into(),
+            "aa".repeat(32),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Claims {
+                sub:
+                    ClaimsSub::For {
+                        data_root_hex,
+                        json,
+                    },
+            } => {
+                assert_eq!(data_root_hex.len(), 64);
+                assert!(json);
+            }
             _ => panic!("expected claims for"),
         }
     }
@@ -2212,8 +2276,34 @@ mod tests {
         match p.cmd {
             Cmd::Claims {
                 sub: ClaimsSub::Recent(params),
-            } => assert_eq!(params.limit, Some(10)),
+            } => {
+                assert_eq!(params.limit, Some(10));
+                assert!(!params.json);
+            }
             _ => panic!("expected claims recent"),
+        }
+    }
+
+    #[test]
+    fn parse_claims_by_pubkey_json() {
+        let p = parse_args(&[
+            "claims".into(),
+            "by-pubkey".into(),
+            "bb".repeat(32),
+            "--limit".into(),
+            "5".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Claims {
+                sub: ClaimsSub::ByPubkey(params),
+            } => {
+                assert_eq!(params.claim_pubkey_hex.len(), 64);
+                assert_eq!(params.limit, Some(5));
+                assert!(params.json);
+            }
+            _ => panic!("expected claims by-pubkey"),
         }
     }
 

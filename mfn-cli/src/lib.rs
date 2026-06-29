@@ -24,7 +24,7 @@ pub mod wallet_store;
 /// Wallet-side upload artifact persistence (**M3.24**, crate **M6**).
 pub use mfn_storage_operator::upload_artifact_store;
 
-pub use claims_cmd::ClaimsListParams;
+pub use claims_cmd::{ClaimsByPubkeyParams, ClaimsListParams};
 pub use cli::{cli_main, run_cli, CliError};
 pub use light_subjectivity::{
     format_summary_diff, load_trusted_summary_file, save_trusted_summary_file, summaries_equal,

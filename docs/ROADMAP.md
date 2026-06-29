@@ -2112,6 +2112,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.29** | `wallet upload --json`: emit a structured permanence handoff record with commitment, data root, tx id, artifact path/bytes, fees, and post-upload wallet state. | ✓ shipped |
 | **M3.30** | `wallet send --json`: emit a structured faucet/funding support record with recipient public keys, amount, fee, tx id, mempool outcome, and post-send wallet state. | ✓ shipped |
 | **M3.31** | `wallet claim --json`: emit a structured authorship support record with claim pubkey, data root, bound commitment status, tx id, mempool outcome, and post-claim wallet state. | ✓ shipped |
+| **M3.32** | `claims ... --json`: emit structured authorship index query results for support-ticket reconciliation after claim publication. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |
