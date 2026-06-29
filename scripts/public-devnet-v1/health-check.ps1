@@ -25,6 +25,7 @@ $StallSamples = Get-HealthEnvInt "MFN_HEALTH_STALL_SAMPLES" 1 1
 $StallIntervalSeconds = Get-HealthEnvInt "MFN_HEALTH_STALL_INTERVAL_SECONDS" 30 0
 $MinHeightDelta = Get-HealthEnvInt "MFN_HEALTH_MIN_HEIGHT_DELTA" 1 1
 $MinP2pSessions = Get-HealthEnvInt "MFN_HEALTH_MIN_P2P_SESSIONS" 1 0
+$RequireAllRoles = Get-HealthEnvInt "MFN_HEALTH_REQUIRE_ALL_ROLES" 1 0
 function Query-Status {
     param([string]$Name, [string]$Addr)
     $parts = $Addr.Split(":")
@@ -72,12 +73,14 @@ function Invoke-ConvergenceCheck {
     foreach ($v in 1, 2) {
         $log = Join-Path $ScriptDir "logs\v$v.log"
         if (-not (Test-Path $log)) {
-            Write-Host "health-check: skip v$v (no log)"
+            if ($RequireAllRoles -gt 0) { throw "health-check: FAIL missing v$v log at $log" }
+            Write-Host "health-check: skip v$v (no log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)"
             continue
         }
         $m = Select-String -Path $log -Pattern "mfnd_serve_listening=(.+)" | Select-Object -First 1
         if (-not $m) {
-            Write-Host "health-check: skip v$v (no RPC in log)"
+            if ($RequireAllRoles -gt 0) { throw "health-check: FAIL missing v$v RPC in $log" }
+            Write-Host "health-check: skip v$v (no RPC in log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)"
             continue
         }
         $tip = Query-Status "v$v" $m.Matches.Groups[1].Value
@@ -101,8 +104,11 @@ function Invoke-ConvergenceCheck {
                     throw "health-check: FAIL observer diverged from hub"
                 }
             } else {
-                Write-Host "health-check: skip observer (no RPC in log)"
+                if ($RequireAllRoles -gt 0) { throw "health-check: FAIL missing observer RPC in $obsLog" }
+                Write-Host "health-check: skip observer (no RPC in log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)"
             }
+        } elseif ($RequireAllRoles -gt 0) {
+            throw "health-check: FAIL missing observer log at $obsLog"
         }
     }
     return @{ Height = $refHeight; Id = $refId }

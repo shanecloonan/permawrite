@@ -22,10 +22,12 @@ MFN_HEALTH_STALL_SAMPLES="${MFN_HEALTH_STALL_SAMPLES:-1}"
 MFN_HEALTH_STALL_INTERVAL_SECONDS="${MFN_HEALTH_STALL_INTERVAL_SECONDS:-30}"
 MFN_HEALTH_MIN_HEIGHT_DELTA="${MFN_HEALTH_MIN_HEIGHT_DELTA:-1}"
 MFN_HEALTH_MIN_P2P_SESSIONS="${MFN_HEALTH_MIN_P2P_SESSIONS:-1}"
+MFN_HEALTH_REQUIRE_ALL_ROLES="${MFN_HEALTH_REQUIRE_ALL_ROLES:-1}"
 validate_health_int MFN_HEALTH_STALL_SAMPLES "$MFN_HEALTH_STALL_SAMPLES" 1
 validate_health_int MFN_HEALTH_STALL_INTERVAL_SECONDS "$MFN_HEALTH_STALL_INTERVAL_SECONDS" 0
 validate_health_int MFN_HEALTH_MIN_HEIGHT_DELTA "$MFN_HEALTH_MIN_HEIGHT_DELTA" 1
 validate_health_int MFN_HEALTH_MIN_P2P_SESSIONS "$MFN_HEALTH_MIN_P2P_SESSIONS" 0
+validate_health_int MFN_HEALTH_REQUIRE_ALL_ROLES "$MFN_HEALTH_REQUIRE_ALL_ROLES" 0
 query_status() {
   local name="$1" addr="$2"
   local host port line
@@ -82,7 +84,11 @@ run_convergence_check() {
       rpc=$(grep -m1 mfnd_serve_listening= "$log" 2>/dev/null | sed 's/.*=//' || true)
     fi
     if [[ -z "$rpc" ]]; then
-      echo "health-check: skip v$v (no RPC in $log)" >&2
+      if (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
+        echo "health-check: FAIL missing v$v RPC in $log" >&2
+        exit 1
+      fi
+      echo "health-check: skip v$v (no RPC in $log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)" >&2
       continue
     fi
     query_status "v$v" "$rpc" || exit 1
@@ -108,8 +114,15 @@ run_convergence_check() {
           exit 1
         fi
       else
-        echo "health-check: skip observer (no RPC in $obs_log)" >&2
+        if (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
+          echo "health-check: FAIL missing observer RPC in $obs_log" >&2
+          exit 1
+        fi
+        echo "health-check: skip observer (no RPC in $obs_log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)" >&2
       fi
+    elif (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
+      echo "health-check: FAIL missing observer log at $obs_log" >&2
+      exit 1
     fi
   fi
   SNAPSHOT_HEIGHT="$ref_height"
