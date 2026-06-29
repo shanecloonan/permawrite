@@ -20,7 +20,7 @@
 //! indistinguishable from any decoy's, collapsing the heuristic attack to
 //! baseline (`1/ring_size`, e.g. ~6% for a 16-member ring).
 //!
-//! Mirrors `lib/network/decoy.ts` byte-for-byte for deterministic seeded
+//! Defines canonical Rust protocol behavior.
 //! tests.
 
 use crate::CryptoError;
@@ -34,7 +34,7 @@ use crate::Result;
 ///
 /// In production wallets use [`crypto_random`] (OS CSPRNG backed). For
 /// deterministic tests use [`seeded_rng`] which implements Mulberry32 with
-/// the same bit pattern as the TypeScript reference.
+/// the same bit pattern as the protocol.
 pub trait Random: FnMut() -> f64 {}
 impl<T> Random for T where T: FnMut() -> f64 {}
 
@@ -54,7 +54,7 @@ pub fn crypto_random() -> f64 {
 /// Seeded Mulberry32 PRNG.
 ///
 /// Returns a closure suitable for deterministic tests. The byte sequence
-/// matches the TS reference implementation exactly when seeded with the
+/// is deterministic when seeded with the
 /// same `u32`.
 pub fn seeded_rng(seed: u32) -> impl FnMut() -> f64 {
     let mut s: u32 = seed;

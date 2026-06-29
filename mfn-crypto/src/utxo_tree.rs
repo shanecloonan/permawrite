@@ -1,6 +1,6 @@
 //! UTXO accumulator — incremental sparse Merkle tree.
 //!
-//! Port of `lib/network/utxo-tree.ts`. The chain commits to every output ever
+//! The chain commits to every output ever
 //! produced via a fixed-depth Merkle tree; the 32-byte root rides in each
 //! block header. Light clients verify "this output existed at height h" with a
 //! O(log N) sibling path, and log-size ring proofs (Triptych/OoM family) build
@@ -29,10 +29,10 @@
 //! | [`utxo_membership_proof`]| O(D) sibling fetches|
 //! | [`verify_utxo_membership`]| O(D) hashes        |
 //!
-//! ## Byte-for-byte compatibility
+//! ## Canonical bytes
 //!
-//! The leaf hash, node hash, and empty-leaf precomputation match the TS
-//! reference exactly: every input is wrapped in the MFBN-1 `Writer::blob`
+//! The leaf hash, node hash, and empty-leaf precomputation are deterministic:
+//! every input is wrapped in the MFBN-1 `Writer::blob`
 //! framing via [`crate::hash::dhash`], with the same `UTXO_LEAF`,
 //! `UTXO_NODE`, and `UTXO_EMPTY` domain tags.
 
@@ -119,7 +119,7 @@ pub fn empty_utxo_tree() -> UtxoTreeState {
 /// leaf to a specific point in chain history — a wallet's membership witness
 /// is therefore valid only against the tree state at-or-after that height.
 ///
-/// The 4-byte height is encoded big-endian to match the TS reference's
+/// The 4-byte height is encoded big-endian to match the protocol's
 /// `DataView.setUint32(0, height, false)`.
 pub fn utxo_leaf_hash(
     one_time_addr: &EdwardsPoint,
@@ -250,7 +250,7 @@ pub fn utxo_membership_proof(
 /// Re-hashes leaf+siblings up the tree and compares to `expected_root`. Uses a
 /// constant-time final comparison via [`subtle::ConstantTimeEq`]; the hash
 /// loop itself is data-independent in shape (`D` hashes regardless of input),
-/// matching the TS reference.
+/// matching the protocol rules.
 pub fn verify_utxo_membership(
     leaf: &[u8; 32],
     proof: &UtxoMembershipProof,

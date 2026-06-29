@@ -174,13 +174,13 @@ impl Wallet {
         let key_images = self.key_image_bytes();
         let scan = scan_block(block, &self.keys, &key_images);
 
-        for (_tx_id, ts) in scan.txs.iter() {
-            for ki in ts.spent_key_images.iter() {
+        for (_tx_id, tx_scan) in scan.txs.iter() {
+            for ki in tx_scan.spent_key_images.iter() {
                 if let Some(utxo_key) = self.by_key_image.remove(ki) {
                     self.owned.remove(&utxo_key);
                 }
             }
-            for o in ts.recovered.iter() {
+            for o in tx_scan.recovered.iter() {
                 let utxo_key = o.utxo_key();
                 let ki_bytes = o.key_image.compress().to_bytes();
                 self.by_key_image.insert(ki_bytes, utxo_key);

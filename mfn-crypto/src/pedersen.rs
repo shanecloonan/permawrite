@@ -19,7 +19,7 @@
 //!   RingCT-style confidential amounts.
 //!
 //! Mirrors `pedersenCommit`/`pedersenVerify`/`pedersenSum`/`pedersenBalance`
-//! in `lib/network/primitives.ts`.
+//! in `the MFBN-1 primitive spec`.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;

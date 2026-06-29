@@ -27,7 +27,7 @@ Whitepaper-grade system specification. For intuition first, see [`OVERVIEW.md`](
 
 The protocol is defined by seven non-negotiable invariants. Every design decision in this repository is downstream of one or more of these.
 
-1. **Determinism.** Byte-identical replay across implementations (Rust here, TypeScript reference in `cloonan-group/lib/network`). All math is integer; all serialization is big-endian; all hash inputs are domain-separated; all map/set iterations are explicit-ordered.
+1. **Determinism.** Byte-identical replay across implementations (Rust here, protocol in `protocol`). All math is integer; all serialization is big-endian; all hash inputs are domain-separated; all map/set iterations are explicit-ordered.
 2. **Confidentiality by default.** Every regular transaction hides senders (ring signature), receivers (stealth address), and amounts (Pedersen commitment + range proof). There is no "transparent mode" for regular transfers. Coinbase is the only transparent transaction class, and it's structurally distinguishable.
 3. **Permanence as a consensus invariant.** Storage upload tx → upfront endowment that the protocol math says is sufficient to pay storage operators forever. The endowment formula is enforced by `apply_block`. There is no off-chain bookkeeping.
 4. **Privacy revenue funds permanence.** Default 90% of every priority fee flows into the treasury. The treasury funds per-slot storage yield. There is no separate "compute layer" to monetize. The two halves of the network are economically interlocked.
@@ -39,7 +39,7 @@ The protocol is defined by seven non-negotiable invariants. Every design decisio
 
 ## Wire codec (MFBN-1)
 
-All on-chain bytes — transaction ids, block hashes, signature inputs — are encoded with a custom canonical format named **MFBN-1**. Mirrored implementation: `mfn_crypto::codec` in Rust, `lib/network/codec.ts` in TS.
+All on-chain bytes — transaction ids, block hashes, signature inputs — are encoded with a custom canonical format named **MFBN-1**. Canonical implementation: `mfn_crypto::codec` in Rust.
 
 ### Atoms
 

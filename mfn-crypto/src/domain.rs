@@ -5,7 +5,7 @@
 //! computed for purpose B. Adding a new domain is backwards-incompatible by
 //! design — once a chain is running, this set is frozen.
 //!
-//! Mirrors the `DOMAIN` constant in `lib/network/codec.ts`.
+//! Mirrors the `DOMAIN` constant in `the MFBN-1 codec spec`.
 
 /// A domain tag is a static byte string. We model it as a `&'static [u8]` so
 /// callers can pass it directly into the [`crate::codec::Writer::blob`] API.

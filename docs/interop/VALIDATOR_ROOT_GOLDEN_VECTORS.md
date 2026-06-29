@@ -1,6 +1,6 @@
-# TypeScript reference — validator-set commitment golden vectors
+# Validator-set commitment golden vectors
 
-This file pins the canonical bytes and hashes for the M2.0 validator-set commitment so the Rust and TypeScript implementations stay byte-for-byte identical. Both reference vectors are deterministic — same seed inputs, same bytes, every time — and asserted in `mfn-consensus` unit tests. Any drift here is a consensus-breaking change.
+This file pins the canonical bytes and hashes for the M2.0 validator-set commitment for the Rust protocol implementation. Both reference vectors are deterministic — same seed inputs, same bytes, every time — and asserted in `mfn-consensus` unit tests. Any drift here is a consensus-breaking change.
 
 For the protocol-level rationale see [`docs/M2_VALIDATOR_ROOT.md`](../M2_VALIDATOR_ROOT.md) and [`docs/CONSENSUS.md § Validator-set commitment in the header`](../CONSENSUS.md).
 
@@ -19,7 +19,7 @@ Leaf length:
 
 ## Inputs (deterministic)
 
-The same fixture is exercised at every consensus layer that touches the commitment, including the root over a two-validator set so the TS port can validate Merkle combination semantics in one shot.
+The same fixture is exercised at every consensus layer that touches the commitment, including the root over a two-validator set to validate Merkle combination semantics in one shot.
 
 | Validator | Field | Value |
 |---|---|---|
@@ -78,7 +78,7 @@ validator_set_root(vs) = if vs.is_empty() { [0u8; 32] } else { binary_merkle(lea
 
 ## Rust assertion
 
-`consensus::tests::validator_root_wire_matches_cloonan_ts_smoke_reference` in `mfn-consensus`. The test asserts every line of the table above and also pins the canonical encoding length for both branches.
+`consensus::tests::validator_root_wire_matches_protocol_golden_vector` in `mfn-consensus`. The test asserts every line of the table above and also pins the canonical encoding length for both branches.
 
 ## Notes
 

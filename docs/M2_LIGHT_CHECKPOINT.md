@@ -234,7 +234,7 @@ storage layer that already hashed the payload upstream).
 - `block_header_codec_has_no_dead_bytes` — single-byte tamper either
   fails decode or materially changes `block_id`.
 - `block_header_codec_golden_vector` — fixed input → pinned 274-byte
-  output (TS-parity vector for the genesis-shaped header).
+  output (protocol golden vector for the genesis-shaped header).
 
 ### `mfn-light::checkpoint` (13 new unit tests)
 
@@ -297,9 +297,7 @@ Each of these is its own clean follow-on slice:
 - **Multi-version codec.** Today version 1 is the only known
   version. When we bump it (e.g. to add a new shadow field), the
   decode switch on `version` is the natural extension point.
-- **TS reference port.** The TS reference doesn't carry a
-  light-client today; the checkpoint format is Rust-only. When TS
-  catches up, this doc's wire-layout section is the spec.
+- **Client ports.** The checkpoint format is Rust-owned today. If another client catches up, this doc's wire-layout section is the spec.
 
 ## What's next
 

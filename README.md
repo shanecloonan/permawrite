@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # Permawrite
 
@@ -61,7 +61,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 
 - [**CONTRIBUTING.md**](./CONTRIBUTING.md) — how to set up, what conventions to follow, how the test gate works
 - [**CODEBASE_STATS.md**](./CODEBASE_STATS.md) — auto-generated line counts / file breakdown (regenerate via `node scripts/codebase-stats.mjs`)
-- [**PORTING.md**](./PORTING.md) — TypeScript reference → Rust port tracker; one row per module
+- [**IMPLEMENTATION_STATUS.md**](./IMPLEMENTATION_STATUS.md) — Rust implementation status and module map
 - [**SECURITY.md**](./SECURITY.md) — vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
 
@@ -92,7 +92,7 @@ Each crate has its own README with public API summary, test counts, and links in
 | ed25519 primitives + ZK    | [`mfn-crypto`](./mfn-crypto/README.md)    |  154  | All Tier-1 primitives live: Schnorr, Pedersen, CLSAG, LSAG, Bulletproofs, range proofs, OoM, VRF, gamma decoys, UTXO accumulator, Merkle. **M2.0.15** adds the public `encode_utxo_tree_state` / `decode_utxo_tree_state` codec so the sparse Merkle accumulator can ride inside a `ChainState` checkpoint. |
 | BLS12-381 sig aggregation  | [`mfn-bls`](./mfn-bls/README.md)       |   16  | BLS signatures + committee aggregation live; KZG pending. |
 | Permanent-storage primitives | [`mfn-storage`](./mfn-storage/README.md) |   44  | SPoRA chunking + Merkle proofs, endowment math, PPB-precision yield accumulator, **storage-proof Merkle root** (M2.0.2), and **M2.0.10 full `StorageCommitment` codec** (`encode_storage_commitment` / `decode_storage_commitment`) for lossless block-wire round-trip of storage-bearing tx outputs. |
-| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  206  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with TS-parity golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted), **M2.0.5 light-header verifier** (`verify_header`), **M2.0.7 light-body verifier** (`verify_block_body`), **M2.0.8 shared `validator_evolution` helpers**, **M2.0.9 round-trippable `BlockHeader` codec**, **M2.0.10 canonical full-block codec** (`encode_transaction` / `decode_transaction`, `encode_block` / `decode_block`, typed `TxDecodeError` / `BlockDecodeError`), **M2.0.15 deterministic `ChainState` checkpoint codec** (`encode_chain_checkpoint` / `decode_chain_checkpoint`, `ChainCheckpoint`, full typed `ChainCheckpointError` family, magic `"MFCC"` + version + integrity-tagged payload), and **M2.0.16 shared `checkpoint_codec`** so `mfn-light` + full-node checkpoints now use one byte-identical source of truth for validators, validator stats, pending unbonds, consensus params, and bonding params. |
+| Chain state machine        | [`mfn-consensus`](./mfn-consensus/README.md) |  206  | Confidential txs, coinbase, emission, finality, equivocation slashing, storage-proof verification, endowment-burden enforcement, two-sided treasury settlement, **ring-membership chain guard** (counterfeit-input attack closed), **liveness slashing**, **validator rotation** (burn-on-bond `Register` BLS-authenticated by the operator's voting key, BLS-signed `Unbond`, delayed settlement, per-epoch entry/exit churn caps, slash-to-treasury, mainnet-ready wire format with protocol golden vectors for both arms), **full header-binds-body commitment family** (M2.0 validator-set + M2.0.1 slashing + M2.0.2 storage-proof Merkle roots — every block body element is now header-rooted), **M2.0.5 light-header verifier** (`verify_header`), **M2.0.7 light-body verifier** (`verify_block_body`), **M2.0.8 shared `validator_evolution` helpers**, **M2.0.9 round-trippable `BlockHeader` codec**, **M2.0.10 canonical full-block codec** (`encode_transaction` / `decode_transaction`, `encode_block` / `decode_block`, typed `TxDecodeError` / `BlockDecodeError`), **M2.0.15 deterministic `ChainState` checkpoint codec** (`encode_chain_checkpoint` / `decode_chain_checkpoint`, `ChainCheckpoint`, full typed `ChainCheckpointError` family, magic `"MFCC"` + version + integrity-tagged payload), and **M2.0.16 shared `checkpoint_codec`** so `mfn-light` + full-node checkpoints now use one byte-identical source of truth for validators, validator stats, pending unbonds, consensus params, and bonding params. |
 | In-process chain + mempool  | [`mfn-runtime`](./mfn-runtime/README.md) |  —  | **`Chain`**, **`Mempool`**, producer helpers (extracted from `mfn-node`). |
 | Persistence                 | [`mfn-store`](./mfn-store/README.md) |  —  | **`ChainPersistence`**: filesystem + **`redb`** checkpoint + block log. |
 | JSON-RPC dispatch           | [`mfn-rpc`](./mfn-rpc/README.md) |  —  | **`parse_and_dispatch_serve`** for `mfnd serve` methods. |
@@ -102,10 +102,10 @@ Each crate has its own README with public API summary, test counts, and links in
 | Confidential wallet         | [`mfn-wallet`](./mfn-wallet/README.md) |   42  | **M2.0.11 stealth scanning + transfer-tx construction + M2.0.14 storage-upload construction** — first consumer-facing crate. `Wallet` holds `WalletKeys` (deterministic seed-derivable) + an owned-UTXO map keyed by one-time-address + a key-image reverse index. `ingest_block` scans every output via `indexed_stealth_detect`, decrypts the amount blob with `decrypt_output_amount`, and verifies the Pedersen commitment opens (defeats grinding attacks against the XOR-pad-shaped encrypted-amount layer). `build_transfer` runs greedy largest-first coin selection, samples `select_gamma_decoys` against the chain's UTXO set, and delegates to `sign_transaction`. **M2.0.14 `build_storage_upload`** closes the symmetry: same coin selection + decoy sampling + change handling, but anchors a `StorageCommitment` over `data` in the tx's first output and gates every reason the mempool's M2.0.13 storage admission would refuse the tx — `UploadReplicationOutOfRange`, `UploadUnderfunded { min_fee }`, `UploadEndowmentExceedsU64`, `UploadTreasuryRouteDisabled` — surfaced **before** signing so the wallet never leaks input key images on a doomed upload. Returns the `BuiltCommitment` (Merkle tree + endowment blinding) so the uploader can serve SPoRA chunks later. End-to-end integration tests drive `wallet → Mempool → produce_solo_block → Chain` round-trips for both privacy transfers AND storage uploads; the upload test asserts `state.storage[hash]` is populated after block apply. Pure-Rust, IO-free, WASM-friendly. |
 | Canonical wire codec       | `mfn-wire`      |   —   | Planned (currently lives inside `mfn-crypto::codec`). |
 | Wallet CLI (`mfn-cli`)     | [`mfn-cli`](./mfn-cli/README.md) |  21  | **M3.0–M3.16** TCP JSON-RPC client + `wallet` subcommands: full/light scan, send/upload/claim, claims/uploads index queries, weak-subjectivity export/import/show/compare for light wallets. |
-| WASM bindings              | `mfn-wasm`      |   —   | Planned (consumed by the [TS reference demo page](https://github.com/shanecloonan/cloonan-group)). |
+| WASM bindings              | `mfn-wasm`      |   —   | Planned WebAssembly bindings for browser clients. |
 | **Total** | | **699** | Zero `unsafe`. Zero clippy warnings. Two ignored placeholders/doc examples. |
 
-Detailed module-level porting tracking lives in [`PORTING.md`](./PORTING.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+Detailed module-level implementation status lives in [`IMPLEMENTATION_STATUS.md`](./IMPLEMENTATION_STATUS.md). The phased rollout (Tier 1 → Tier 2 → Tier 3 → Tier 4) and what each tier delivers live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
 
 ---
 
@@ -150,7 +150,7 @@ Tested toolchains: `stable-x86_64-unknown-linux-gnu`, `stable-x86_64-apple-darwi
 ```
 permawrite/
 ├── README.md                    ← you are here
-├── PORTING.md                   ← TS → Rust port tracker
+├── IMPLEMENTATION_STATUS.md                   ← Rust implementation status
 ├── SECURITY.md                  ← vulnerability disclosure
 ├── CONTRIBUTING.md              ← contribution guide
 ├── LICENSE-MIT / LICENSE-APACHE
@@ -195,7 +195,7 @@ permawrite/
 2. **Constant-time where it matters.** Secret-dependent comparisons use [`subtle`](https://crates.io/crates/subtle). Secret material implements [`zeroize::Zeroize`] on drop.
 3. **Audited libraries only.** No hand-rolled curves, no toy SHA. We compose; we don't reinvent. See the [audited-dependency table](./docs/ARCHITECTURE.md#audited-dependencies) in the architecture doc.
 4. **Domain separation everywhere.** Every hash carries an MFBN-1 tag. Adding a new tag is a hard fork by design — no accidental cross-domain collisions.
-5. **Reference-implementation parity.** The TypeScript reference in [`cloonan-group/lib/network`](https://github.com/shanecloonan/cloonan-group/tree/main/lib/network) and the Rust code here are byte-for-byte compatible. When they diverge, the test suite catches it.
+5. **Protocol-owned canonical bytes.** Rust encoders, decoders, docs, and golden vectors define MFBN-1 behavior. Other clients can compare against them, but they do not drive the design.
 6. **Production-grade error handling.** No `panic!`/`unwrap` outside of test code. Every fallible operation returns `Result<_, CryptoError>` or the crate-local equivalent.
 7. **Determinism is non-negotiable.** Every consensus-critical primitive uses only integer arithmetic, big-endian byte order, and explicit ordering of map/set traversals. The chain MUST replay byte-identically across implementations.
 

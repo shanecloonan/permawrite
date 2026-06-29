@@ -19,7 +19,7 @@
 //! is a one-time-pad.
 //!
 //! Mirrors `encryptOutputAmount` / `decryptOutputAmount` in
-//! `lib/network/primitives.ts`.
+//! `the MFBN-1 primitive spec`.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;

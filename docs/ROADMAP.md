@@ -1,4 +1,4 @@
-# Roadmap
+﻿# Roadmap
 
 The tier system maps the conceptual roadmap onto concrete code milestones.
 
@@ -102,8 +102,8 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - ✓ Unbond submitted → validator still slashable during the delay *(`unbond_lifecycle_equivocation_during_delay_still_slashes` in `tests/integration.rs`).*
 - ✓ Settlement at `unlock_height` zeros stake + leaves bonded MFN in treasury *(`unbond_lifecycle_request_delay_settle`).*
 - ✓ Oversubscribed unbonds spill across blocks honoring the per-epoch exit cap *(`unbond_lifecycle_exit_churn_cap_spills_to_next_block`).*
-- ✓ TS interop: `BondOp::Register` byte parity with the `cloonan-group` smoke reference *(`bond_register_wire_matches_cloonan_ts_smoke_reference`).*
-- ✓ TS interop: `BondOp::Unbond` byte parity with the `cloonan-group` smoke reference *(`bond_unbond_wire_matches_cloonan_ts_smoke_reference`).*
+- ✓ Protocol vector: `BondOp::Register` canonical bytes pinned *(`bond_register_wire_matches_protocol_golden_vector`).*
+- ✓ Protocol vector: `BondOp::Unbond` canonical bytes pinned *(`bond_unbond_wire_matches_protocol_golden_vector`).*
 - ✓ M1.5 — `Register` sig is payload-bound and operator-bound; forged signatures reject atomically at `apply_block` *(`register_sig_is_bound_to_bls_pk_and_payload`, `register_signing_hash_is_domain_separated`, `block::tests::register_rejects_invalid_signature`).*
 
 ### Deferred to a future milestone
@@ -146,7 +146,7 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 
 ### Deferred to a future milestone
 
-- **TS-side reference port for `validator_leaf_bytes` and `validator_set_root`.** Rust-side golden vectors are pinned in `validator_root_wire_matches_cloonan_ts_smoke_reference` (canonical bytes + leaf hash for both with-payout and no-payout branches, plus the root over a two-validator set); the matching TS smoke fixture will land in `cloonan-group` next.
+- **Protocol golden vector for `validator_leaf_bytes` and `validator_set_root`.** Rust-side golden vectors are pinned in `validator_root_wire_matches_protocol_golden_vector` (canonical bytes + leaf hash for both with-payout and no-payout branches, plus the root over a two-validator set).
 - **Light-client crate.** The header is now self-describing, but a separate `mfn-light` crate is intentionally postponed until the node daemon (M2.x) is up — without a real chain to query, there's nothing for the light client to verify against.
 
 ---
@@ -162,7 +162,7 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - **`BlockHeader.slashing_root: [u8; 32]`**, included in both `header_signing_bytes` and `block_header_bytes`. Empty slashings list → all-zero sentinel.
 - **`build_unsealed_header` gained a `slashings: &[SlashEvidence]` parameter** so producers commit the root alongside everything else when building the unsealed header.
 - **`apply_block` Phase 1 check + `BlockError::SlashingRootMismatch`.** Runs before finality verification (defense in depth, same posture as `validator_root`).
-- **TS-parity golden vector** under the existing `bls_keygen_from_seed([1..=48])` convention. Exercises both the no-swap branch (`e0`, header_hash_a < header_hash_b in emit order) and the swap branch (`e1`, header_hash_a > header_hash_b) plus the Merkle root over both.
+- **protocol golden vector** under the existing `bls_keygen_from_seed([1..=48])` convention. Exercises both the no-swap branch (`e0`, header_hash_a < header_hash_b in emit order) and the swap branch (`e1`, header_hash_a > header_hash_b) plus the Merkle root over both.
 
 ### Test matrix (delivered)
 
@@ -174,11 +174,11 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - ✓ Leaf domain-separated (`MFBN-1/slashing-leaf` not confusable with any other dhash domain).
 - ✓ Tampered `header.slashing_root` rejected by `apply_block` (legacy/no-validator mode).
 - ✓ Tampered `header.slashing_root` in a fully BLS-signed block rejected.
-- ✓ TS-parity golden vector pinned.
+- ✓ protocol golden vector pinned.
 
 ### Deferred
 
-- **TS-side reference port for `slashing_leaf_hash` + `slashing_merkle_root`.** Same pattern as `validator_root` — Rust pins the bytes; TS mirrors.
+- **Protocol golden vector for `slashing_leaf_hash` + `slashing_merkle_root`.** Same pattern as `validator_root`: Rust pins the canonical bytes.
 
 ---
 
@@ -194,7 +194,7 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - **`build_unsealed_header` gained a `storage_proofs: &[StorageProof]` parameter** so producers commit the root alongside everything else when building the unsealed header.
 - **`apply_block` Phase 1 check + `BlockError::StorageProofRootMismatch`.** Runs before per-proof verification (defense in depth, same posture as the other body roots).
 - **Order semantics — producer-emit, not sorted.** The chain pays yield to the first proof that lands per commitment; sorting would lose that alignment and force the applier to re-sort just to verify the header. Per-commitment duplicates are rejected separately, so emit order is the only ordering choice across distinct commitments.
-- **TS-parity golden vector.** Two hand-built proofs (`p0`: 0-sibling boundary; `p1`: 2-sibling with mixed `right_side`) pin leaf hashes + Merkle root. See [`docs/interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`](./interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md).
+- **protocol golden vector.** Two hand-built proofs (`p0`: 0-sibling boundary; `p1`: 2-sibling with mixed `right_side`) pin leaf hashes + Merkle root. See [`docs/interop/STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`](./interop/STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md).
 
 ### Test matrix (delivered)
 
@@ -207,7 +207,7 @@ Validator bonds are a **one-way contribution** to the permanence endowment in M1
 - ✓ `apply_block` rejects a header whose `storage_proof_root` doesn't match the body (legacy / no-validator path).
 - ✓ Tampered `header.storage_proof_root` in a fully BLS-signed block rejected.
 - ✓ Positive path: `storage_proof_flow_at_genesis_plus_block1` builds a real proof, threads it through `build_unsealed_header` + `seal_block`, and the chain accepts it.
-- ✓ TS-parity golden vector pinned.
+- ✓ protocol golden vector pinned.
 
 ### Closed the "header binds every body element" invariant
 
@@ -223,7 +223,7 @@ See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF
 
 ### Deferred
 
-- **TS-side reference port for `storage_proof_leaf_hash` + `storage_proof_merkle_root`.** Same pattern as the other M2.0.x vectors — Rust pins the bytes; TS mirrors.
+- **Protocol golden vector for `storage_proof_leaf_hash` + `storage_proof_merkle_root`.** Same pattern as the other M2.0.x vectors: Rust pins the canonical bytes.
 - **Sparse-Merkle variant.** A future `mfn-light` could use a sparse storage-proof root keyed by `commit_hash` for log-size "did commitment C have a proof land in block N?" audits.
 
 ---
@@ -1439,7 +1439,7 @@ Workspace **+10 tests** vs the M2.1.18 line count: **680 → 690** passing.
 - **[`docs/AUTHORSHIP.md`](../docs/AUTHORSHIP.md)** — status block reflects **live Rust**; implementation milestone section maps ids → crates/modules; cross-links expanded (`GLOSSARY`, `README`, `mfn-node` README).
 - **[`README.md`](../README.md)** — doc index line for authorship mentions **`mfnd serve`** discovery (**M2.2.8**) and derived views (**M2.2.10**).
 - **[`docs/OVERVIEW.md`](../docs/OVERVIEW.md)** — “Where to read next” points at **AUTHORSHIP**.
-- **[`PORTING.md`](../PORTING.md)** — `mfn-consensus` authorship row; `mfn-node` **`mfnd`** / mempool rows marked live where implemented.
+- **[`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)** — `mfn-consensus` authorship row; `mfn-node` **`mfnd`** / mempool rows marked live where implemented.
 
 Workspace test count unchanged vs **M2.2.8**.
 
@@ -1523,7 +1523,7 @@ See [`docs/AUTHORSHIP.md`](./AUTHORSHIP.md) for the full normative spec includin
 | **M2.2.6** (✓ shipped) | `mfn-wallet`: `ClaimingIdentity` + standalone claim tx path + e2e mempool → block. |
 | **M2.2.7** (✓ shipped) | `mfn-wallet`: storage uploads carry optional `authorship_claims` in `extra` (`StorageUploadPlan` + `build_storage_upload`) + e2e coverage. |
 | **M2.2.8** (✓ shipped) | `mfn-node` `mfnd serve`: `get_claims_for`, `get_claims_by_pubkey`, `list_recent_uploads` + TCP tests. |
-| **M2.2.9** (✓ shipped) | Docs pass (AUTHORSHIP + cross-links; [`PORTING.md`](../PORTING.md) + overview; roadmap milestone text). |
+| **M2.2.9** (✓ shipped) | Docs pass (AUTHORSHIP + cross-links; [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) + overview; roadmap milestone text). |
 | **M2.2.10** (✓ shipped) | `mfn-node` `mfnd serve`: `list_recent_claims`, `list_data_roots_with_claims` + unit/smoke tests (no consensus change). |
 | **M2.2.11** (✓ shipped) | `mfn-consensus` + `mfn-crypto` + `mfn-wallet` + `mfnd serve`: MFCL v2 wire (`commit_hash` field), 256-byte messages, storage-binding consensus check, keyed `(data_root, claim_pubkey, commit_hash)` claims index, checkpoint codec **v3**, RPC payloads now include `commit_hash`. |
 
@@ -1541,7 +1541,7 @@ See [`docs/AUTHORSHIP.md`](./AUTHORSHIP.md) for the full normative spec includin
 
 - **[`mfn-node/src/network.rs`](../mfn-node/src/network.rs)** — public [`NetworkConfig`](../mfn-node/src/network.rs) (`listen_addr`, `max_outbound_peers`) with [`Default`]; module docs spell the integration boundary ([`Chain`](../mfn-node/src/chain.rs), [`Mempool`](../mfn-node/src/mempool.rs), no fork-choice in this slice).
 - **One unit test** (defaults).
-- **[`PORTING.md`](../PORTING.md)**, **[`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)** tree, **[`mfn-node/README.md`](../mfn-node/README.md)** module table — `network` is no longer listed under the obsolete “M2.2 = P2P” label in the crate README’s planned table.
+- **[`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)**, **[`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)** tree, **[`mfn-node/README.md`](../mfn-node/README.md)** module table — `network` is no longer listed under the obsolete “M2.2 = P2P” label in the crate README’s planned table.
 
 Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
@@ -1885,12 +1885,13 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 
 ### What shipped
 
-- **[`mfn-net/src/block_sync.rs`](../mfn-net/src/block_sync.rs)** — [`BlockSyncApplier`] trait + [`pull_blocks_to_tip`]: when `remote_height > local_height`, batched `GetBlocksByHeightV1` / `BlocksV1` round-trips until caught up or the peer returns an empty batch.
+- **[`mfn-net/src/block_sync.rs`](../mfn-net/src/block_sync.rs)** — [`BlockSyncApplier`] trait + [`pull_blocks_to_tip`]: when `remote_height > local_height`, batched `GetBlocksByHeightV1` / `BlocksV1` round-trips until caught up or the peer returns an empty batch. Each returned block must advance exactly to the requested next height; skipped, stale, or out-of-order progress aborts sync with `NonSequentialHeight`.
 - **[`mfn-net/src/serve.rs`](../mfn-net/src/serve.rs)** — After handshake on **inbound** and **outbound** P2P sessions, calls `pull_blocks_to_tip` when the remote tip is ahead; stdout **`mfnd_p2p_sync_start`** / **`mfnd_p2p_sync_end`** / **`mfnd_p2p_sync_abort`**.
 - **[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs)** — `P2pGossipHandler` implements [`BlockSyncApplier`] via the same `Chain::apply` + `append_block` + `remove_mined` path as inbound `BlockV1` gossip.
 
 ### Tests
 
+- **`mfn-net`**: `pull_blocks_to_tip_accepts_sequential_progress`, `pull_blocks_to_tip_rejects_skipped_height`.
 - **`tests::mfnd_smoke::mfnd_p2p_dial_syncs_blocks_from_ahead_peer`** — peer A runs `step --blocks 3` then `serve --p2p-listen`; peer B boots genesis-only and `serve --p2p-dial A`; B reaches `tip_height=3` with `mfnd_p2p_sync_end applied=3`.
 
 ---
@@ -2140,7 +2141,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 
 **Goal.** Run the same primitives in a browser.
 
-The TypeScript reference implementation (`cloonan-group/lib/network`) exists for in-browser experimentation. WASM bindings let the *same Rust crate* power the browser, eliminating the cross-implementation drift risk.
+WASM bindings let the same Rust crates power browser clients without maintaining a separate protocol implementation.
 
 | Id | Deliverable | Status |
 |---|---|---|
@@ -2253,7 +2254,7 @@ These are scope-discipline choices, not philosophical hostility. Each one is con
 
 - **Repo-level:** the `main` branch is always green (CI gates: fmt + clippy + tests on Linux/macOS/Windows). Commits are small, frequent, and self-describing.
 - **Crate-level:** each crate's README has its test count. Watch for it to grow.
-- **Doc-level:** [`PORTING.md`](../PORTING.md) tracks the TS → Rust module porting status one row at a time.
+- **Doc-level:** [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) tracks the Rust implementation status one row at a time.
 - **Issue-level (future):** when GitHub issues open, they'll be labeled by milestone.
 
 ---

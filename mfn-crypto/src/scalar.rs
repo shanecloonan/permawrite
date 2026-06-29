@@ -4,7 +4,7 @@
 //! `ℓ = 2²⁵² + 27 742 317 777 372 353 535 851 937 790 883 648 493`.
 //!
 //! Scalars are stored in little-endian (the curve25519-dalek native form,
-//! which also matches the TS reference and the ed25519 RFC).
+//! which also matches the ed25519 RFC).
 
 use curve25519_dalek::scalar::Scalar;
 use rand_core::CryptoRngCore;
@@ -35,7 +35,7 @@ pub fn wide_reduce(b: &[u8; 64]) -> Scalar {
 /// Cryptographically secure random scalar in `[1, ℓ−1]`.
 ///
 /// Uses the OS CSPRNG via [`rand_core::OsRng`]. The implementation draws 64
-/// random bytes, hashes them with SHA-512 (matching the TS reference for
+/// random bytes, hashes them with SHA-512 (matching the protocol transcript for
 /// stream behaviour), reduces, and rejects zero. The probability of rejection
 /// is negligible (≈ 2⁻²⁵²).
 pub fn random_scalar() -> Scalar {

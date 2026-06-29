@@ -22,7 +22,7 @@ For the vision and context, start with [`docs/OVERVIEW.md`](./docs/OVERVIEW.md).
 - New dependencies without strong justification. Every additional crate is a transitive audit-surface.
 - "Optimizations" that complicate code without measurable benchmark gains.
 - Floating-point math in consensus-touching paths.
-- Anything that breaks byte-parity with the TypeScript reference *without* updating both sides in the same PR.
+- Anything that changes consensus bytes, domain tags, or canonical encodings without updating the Rust tests and protocol docs in the same PR.
 
 ---
 
@@ -69,7 +69,7 @@ CI runs these same three commands on Linux + macOS + Windows. A PR that's green 
 ### Code style
 
 - 4-space indent. Standard Rust. `cargo fmt --all` enforces.
-- Module-level doc comment (`//!`) summarizing what the module does. Refer to the corresponding TS reference module by path.
+- Module-level doc comment (`//!`) summarizing what the module does. Refer to the corresponding protocol module by path.
 - Public items get Rustdoc (`///`). Brief, sentence-case, no period at end of the first line.
 - Private items get doc comments only when the *why* isn't obvious.
 - No `expect`/`unwrap` outside test code. Every fallible path returns a typed `Result`.
@@ -87,7 +87,7 @@ CI runs these same three commands on Linux + macOS + Windows. A PR that's green 
 A typical module follows this rough shape:
 
 ```rust
-//! Module-level summary. Why this exists. What TS reference module it ports.
+//! Module-level summary. Why this exists. What protocol surface it owns.
 
 use ...;
 
@@ -158,7 +158,7 @@ If your change involves hashing for a new purpose:
 1. Add a new constant in [`mfn-crypto/src/domain.rs`](./mfn-crypto/src/domain.rs).
 2. Format: `MFBN-1/<purpose-with-dashes>` (lowercase, dash-delimited).
 3. Document the purpose in a Rustdoc comment.
-4. **Never** reuse an existing tag for a new purpose. Doing so is a hard fork — both implementations would compute different digests.
+4. **Never** reuse an existing tag for a new purpose. Doing so is a hard fork: existing nodes would compute different digests.
 
 ---
 
@@ -187,7 +187,7 @@ When code changes, docs change. Common patterns:
 | New `BlockError` variant | `docs/GLOSSARY.md § Common error variants` |
 | New consensus rule | `docs/ARCHITECTURE.md § State-transition function` |
 | New domain tag | `docs/ARCHITECTURE.md § Domain separation` |
-| New crate | Workspace `README.md` status table + per-crate README + `PORTING.md` row |
+| New crate | Workspace `README.md` status table + per-crate README + `IMPLEMENTATION_STATUS.md` row |
 | New roadmap item | `docs/ROADMAP.md` |
 | Change to a parameter default | Both the relevant deep-dive (`PRIVACY.md`/`STORAGE.md`/etc.) AND the deep dive that explains the rationale (`ECONOMICS.md` typically) |
 

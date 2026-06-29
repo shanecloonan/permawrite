@@ -325,7 +325,7 @@ fn peek_block_header_len(r: &Reader<'_>) -> Result<usize, BlockDecodeError> {
 }
 
 /// Merkle root over the tx ids of the block. Empty list → 32-byte zero
-/// (matches the TS reference's sentinel).
+/// (matches the protocol's sentinel).
 pub fn tx_merkle_root(txs: &[TransactionWire]) -> [u8; 32] {
     if txs.is_empty() {
         return [0u8; 32];

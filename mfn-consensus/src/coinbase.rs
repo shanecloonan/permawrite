@@ -5,8 +5,7 @@
 //! `emission_at_height(height) + Σ fees` of the block; any deviation rejects
 //! the block.
 //!
-//! Port of `cloonan-group/lib/network/coinbase.ts`.
-//!
+//! //!
 //! ## Deterministic ephemeral key
 //!
 //! For regular transactions the tx-level private scalar `r` is randomly

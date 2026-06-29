@@ -2,7 +2,7 @@
 //!
 //! Exposes the same Rust wallet and storage primitives as `mfn-cli` / `mfn-wallet`
 //! via [`wasm-bindgen`] so web extensions and demo pages do not drift from the
-//! reference implementation.
+//! protocol implementation.
 //!
 //! Network IO (JSON-RPC to `mfnd serve`) stays in JavaScript; cryptography and
 //! commitment construction run here.

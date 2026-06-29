@@ -2082,7 +2082,7 @@ fn block_header_codec_has_no_dead_bytes() {
     }
 }
 
-/// TS-parity golden vector for the header wire codec. The fixed
+/// protocol golden vector for the header wire codec. The fixed
 /// input below pins the byte-for-byte encoding produced by
 /// `block_header_bytes` and the resulting `block_id`. Changing
 /// the codec is consensus-critical and must bump this vector

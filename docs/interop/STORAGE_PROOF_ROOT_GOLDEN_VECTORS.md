@@ -1,6 +1,6 @@
-# TypeScript reference — storage-proof-root commitment golden vectors
+# Storage-proof-root commitment golden vectors
 
-This file pins the canonical bytes and hashes for the M2.0.2 storage-proof commitment so the Rust and TypeScript implementations stay byte-for-byte identical. The vector is deterministic — same hand-built proofs, same bytes, every time — and asserted in `mfn-storage` unit tests. Any drift here is a consensus-breaking change.
+This file pins the canonical bytes and hashes for the M2.0.2 storage-proof commitment for the Rust protocol implementation. The vector is deterministic — same hand-built proofs, same bytes, every time — and asserted in `mfn-storage` unit tests. Any drift here is a consensus-breaking change.
 
 For the protocol-level rationale see [`docs/ROADMAP.md § Milestone M2.0.2`](../ROADMAP.md), [`docs/CONSENSUS.md § Storage-proof commitment`](../CONSENSUS.md), and the design note [`docs/M2_STORAGE_PROOF_ROOT.md`](../M2_STORAGE_PROOF_ROOT.md).
 
@@ -24,7 +24,7 @@ commit_hash(32)
 
 ## Inputs (deterministic, hand-constructed)
 
-We construct two proofs by hand so the vector pins the *encoding + hashing* surface without depending on the chunking pipeline. This is enough to lock down byte-for-byte parity across implementations because the rest of the SPoRA stack already has its own golden vectors.
+We construct two proofs by hand so the vector pins the *encoding + hashing* surface without depending on the chunking pipeline. This is enough to lock down the commitment surface because the rest of the SPoRA stack already has its own golden vectors.
 
 | Proof | Field | Value |
 |---|---|---|
@@ -62,7 +62,7 @@ storage_proof_merkle_root(ps) = if ps.is_empty() { [0u8; 32] }
 
 ## Rust assertion
 
-`spora::tests::storage_proof_root_wire_matches_cloonan_ts_smoke_reference` in `mfn-storage`.
+`spora::tests::storage_proof_root_wire_matches_protocol_golden_vector` in `mfn-storage`.
 
 ## Notes
 

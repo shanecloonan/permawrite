@@ -351,7 +351,7 @@
 
 **weak subjectivity** — The PoS-specific concept that nodes joining the chain for the first time must trust a recent checkpoint (because they can't distinguish histories where a majority of validators have been since-slashed). Long-range attack mitigation in future versions.
 
-**whitepaper** — The conceptual design document. The TypeScript reference + this Rust implementation + the docs in `/docs` are the *implementation* of the whitepaper.
+**whitepaper** — The conceptual design document. The protocol + this Rust implementation + the docs in `/docs` are the *implementation* of the whitepaper.
 
 **wire format** — The on-the-wire byte representation of protocol data. Permawrite's is MFBN-1.
 

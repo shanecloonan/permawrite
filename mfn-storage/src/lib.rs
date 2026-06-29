@@ -19,10 +19,10 @@
 //! [`endowment::required_endowment`] / [`endowment::accrue_proof_reward`]
 //! for the two-sided treasury settlement.
 //!
-//! ## Byte-for-byte parity
+//! ## Canonical bytes
 //!
-//! Every encoder and hash in this crate matches the TypeScript reference
-//! in `cloonan-group/lib/network/{storage,endowment}.ts` exactly.
+//! Encoders, hashes, and protocol vectors in this crate define the Rust storage
+//! wire formats. Byte drift is treated as a consensus bug.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

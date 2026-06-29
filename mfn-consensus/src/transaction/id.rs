@@ -12,7 +12,7 @@ use super::wire::TransactionWire;
 /// Consensus-critical preimage. This is the message CLSAG signs over and
 /// the input to [`tx_id`].
 ///
-/// **Byte-for-byte compatible with `txPreimage` in `transaction.ts`.**
+/// **Canonical Rust transaction preimage hash.**
 pub fn tx_preimage(tx: &TransactionWire) -> [u8; 32] {
     let mut w = Writer::new();
     w.varint(u64::from(tx.version));
@@ -51,7 +51,7 @@ pub fn tx_preimage(tx: &TransactionWire) -> [u8; 32] {
 /// signatures. Two txs with the same preimage but different sigs hash to
 /// different ids (malleability defense).
 ///
-/// **Byte-for-byte compatible with `txId` in `transaction.ts`.**
+/// **Canonical Rust transaction id hash.**
 pub fn tx_id(tx: &TransactionWire) -> [u8; 32] {
     let preimage = tx_preimage(tx);
     let mut w = Writer::new();

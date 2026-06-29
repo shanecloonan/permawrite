@@ -31,11 +31,10 @@
 //! - [`slashing`] — on-chain equivocation evidence: two BLS-signed headers
 //!   at the same slot from the same validator → stake slashed to zero.
 //!
-//! ## Byte-for-byte parity
+//! ## Canonical bytes
 //!
-//! Every encoder in this crate matches the TypeScript reference in
-//! `cloonan-group/lib/network/*.ts` exactly. Test vectors flow TS → Rust
-//! initially; once a primitive lands here it becomes the ground truth.
+//! Encoders, decoders, state transitions, and golden vectors in this crate define
+//! the protocol bytes used by Rust nodes. Byte drift is treated as a consensus bug.
 //!
 //! ## Safety
 //!

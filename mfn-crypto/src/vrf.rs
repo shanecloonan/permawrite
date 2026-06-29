@@ -44,7 +44,7 @@
 //!     accept iff c′ = c, return β = dhash(VRF_OUTPUT, 8·Γ)
 //! ```
 //!
-//! Mirrors `lib/network/vrf.ts` byte-for-byte.
+//! Defines canonical Rust protocol behavior.
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;

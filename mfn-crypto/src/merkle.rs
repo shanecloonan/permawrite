@@ -8,7 +8,7 @@
 //! - When a level has an odd number of nodes, the last node is duplicated
 //!   (the same scheme Bitcoin uses) — simple and unambiguous.
 //!
-//! Port of the binary-Merkle subset of `lib/network/storage.ts`. The
+//! Canonical binary Merkle helpers. The
 //! data-side Merkle root (with `MERKLE_LEAF`-tagged leaf hashing) used by
 //! the SPoRA storage prover will live in the future `mfn-storage` crate;
 //! here we only need the consensus-side primitive that hashes already-
@@ -17,7 +17,7 @@
 //! ## Empty input
 //!
 //! [`merkle_root_or_zero`] returns the all-zero 32-byte sentinel for an
-//! empty input (matching the TS reference's `txMerkleRoot([])`). Callers
+//! empty input (matching the protocol's `txMerkleRoot([])`). Callers
 //! that want to forbid empty inputs use [`merkle_tree_from_leaves`], which
 //! returns `Err(MerkleError::Empty)`.
 
@@ -102,7 +102,7 @@ pub fn merkle_tree_from_leaves(leaves: &[[u8; 32]]) -> Result<MerkleTree, Merkle
 
 /// Convenience: just the Merkle root, or `[0u8; 32]` for empty input.
 ///
-/// Matches the TS reference's `txMerkleRoot([])` and `storageMerkleRoot([])`
+/// Matches the protocol's `txMerkleRoot([])` and `storageMerkleRoot([])`
 /// behavior.
 pub fn merkle_root_or_zero(leaves: &[[u8; 32]]) -> [u8; 32] {
     if leaves.is_empty() {

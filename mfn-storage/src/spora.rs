@@ -1,7 +1,7 @@
 //! SPoRA — Succinct Proofs of Random Access.
 //!
 //! Port of the chunking + Merkle-tree + storage-proof subset of
-//! `cloonan-group/lib/network/storage.ts`. Lets the chain audit storage
+//! the Rust protocol. Lets the chain audit storage
 //! operators with `O(log N)`-sized Merkle proofs of random chunk access.
 //!
 //! ## Workflow
@@ -39,7 +39,7 @@ use crate::commitment::{storage_commitment_hash, StorageCommitment};
  *  Chunking                                                                *
  * ----------------------------------------------------------------------- */
 
-/// Canonical chunk size (256 KiB). Matches the TS reference's
+/// Canonical chunk size (256 KiB). Matches the protocol's
 /// `DEFAULT_CHUNK_SIZE`.
 pub const DEFAULT_CHUNK_SIZE: usize = 1 << 18;
 
@@ -205,7 +205,7 @@ pub fn chunk_index_for_challenge(
 
 /// Same as [`chunk_index_for_challenge`] but accepts a SHA-512 digest
 /// over `commit_hash || seed` for arbitrary-seed callers (matches the
-/// TS reference's `challengeFromSeed`).
+/// protocol's `challengeFromSeed`).
 pub fn challenge_index_from_seed(commit: &StorageCommitment, seed: &[u8]) -> u32 {
     if commit.num_chunks == 0 {
         return 0;
@@ -723,9 +723,8 @@ mod tests {
         assert_ne!(leaf, other);
     }
 
-    /// **TS-parity reference vector (M2.0.2).**
+    /// **Protocol golden vector (M2.0.2).**
     ///
-    /// A TypeScript port (or any independent implementation) of
     /// `storage_proof_leaf_hash` / `storage_proof_merkle_root` MUST
     /// produce these exact hex values from the deterministic inputs
     /// `p0` and `p1` below.
@@ -739,7 +738,7 @@ mod tests {
     /// the goal is to pin the *encoding + hashing* surface, not the
     /// Merkle-membership semantics (which are exercised elsewhere).
     ///
-    /// ## Reproducing in TS
+    /// ## Reproducing the vector
     ///
     /// 1. Build each leaf as
     ///    ```text
@@ -756,9 +755,9 @@ mod tests {
     ///    same canonical Merkle scheme (`MERKLE_NODE` interior domain,
     ///    odd-leaf duplication).
     ///
-    /// See `docs/interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`.
+    /// See `docs/interop/STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`.
     #[test]
-    fn storage_proof_root_wire_matches_cloonan_ts_smoke_reference() {
+    fn storage_proof_root_wire_matches_protocol_golden_vector() {
         // Deterministic, hand-constructed proofs (no randomness, no
         // dependency on the chunking pipeline).
         let p0 = StorageProof {

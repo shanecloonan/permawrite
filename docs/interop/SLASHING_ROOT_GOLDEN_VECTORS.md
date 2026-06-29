@@ -1,6 +1,6 @@
-# TypeScript reference — slashing-root commitment golden vectors
+# Slashing-root commitment golden vectors
 
-This file pins the canonical bytes and hashes for the M2.0.1 slashing-evidence commitment so the Rust and TypeScript implementations stay byte-for-byte identical. The vector is deterministic — same seed inputs, same bytes, every time — and asserted in `mfn-consensus` unit tests. Any drift here is a consensus-breaking change.
+This file pins the canonical bytes and hashes for the M2.0.1 slashing-evidence commitment for the Rust protocol implementation. The vector is deterministic — same seed inputs, same bytes, every time — and asserted in `mfn-consensus` unit tests. Any drift here is a consensus-breaking change.
 
 For the protocol-level rationale see [`docs/ROADMAP.md § Milestone M2.0.1`](../ROADMAP.md) and [`docs/CONSENSUS.md § Slashing-evidence commitment`](../CONSENSUS.md).
 
@@ -26,7 +26,7 @@ height(u32, BE)
 
 ## Inputs (deterministic)
 
-Two pieces of evidence under a shared keypair so the TS port can validate the same hash function across both branches of `canonicalize()`:
+Two pieces of evidence under a shared keypair validate the same hash function across both branches of `canonicalize()`:
 
 | Evidence | Field | Value |
 |---|---|---|
@@ -67,11 +67,11 @@ slashing_merkle_root(evs) = if evs.is_empty() { [0u8; 32] }
 
 ## Rust assertion
 
-`slashing::tests::slashing_root_wire_matches_cloonan_ts_smoke_reference` in `mfn-consensus`.
+`slashing::tests::slashing_root_wire_matches_protocol_golden_vector` in `mfn-consensus`.
 
 ## Notes
 
 - **Pair-order canonicalization is internal to the leaf.** Across distinct evidence pieces, the producer's emit order is committed — sorting across the list would force the block applier to re-sort just to verify the header.
 - **Why canonicalize?** Without it, an adversarial producer could flip the pair ordering of a single evidence piece to produce a different `slashing_root` without changing what is being slashed. With it, the root is invariant under pair-swap and a light client doesn't have to guess which ordering the producer used.
 - **Domain separation.** `MFBN-1/slashing-leaf` is distinct from every other consensus tag (`MFBN-1/bond-op-leaf`, `MFBN-1/validator-leaf`, `MFBN-1/register-op-sig`, `MFBN-1/unbond-op-sig`, etc.) — a leaked slashing leaf cannot collide with any other consensus message.
-- **Same seed family.** The `[1..=48]` keygen seed is the canonical TS smoke fixture across `BondOp::Register`, `BondOp::Unbond`, and `SlashEvidence` — one keypair, all three vectors.
+- **Same seed family.** The `[1..=48]` keygen seed is reused across `BondOp::Register`, `BondOp::Unbond`, and `SlashEvidence` — one keypair, all three vectors.

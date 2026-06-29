@@ -183,9 +183,9 @@ hex              = "0.4"
 
 ## Test categories
 
-- **`spora`**: chunking edge cases (empty, single, exact-multiple, ragged final chunk), Merkle proof correctness for every position, challenge determinism across reruns, wrong-index rejection, wrong-chunk rejection, encode/decode round-trips; **M2.0.2 storage-proof Merkle commitment** (empty → zero sentinel, leaf domain-separation, deterministic leaf hashing, content-sensitive leaves, addition moves the root, order-sensitive across proofs, TS-parity golden vector for 0-sibling + 2-sibling-with-mixed-`right_side` proofs).
+- **`spora`**: chunking edge cases (empty, single, exact-multiple, ragged final chunk), Merkle proof correctness for every position, challenge determinism across reruns, wrong-index rejection, wrong-chunk rejection, encode/decode round-trips; **M2.0.2 storage-proof Merkle commitment** (empty → zero sentinel, leaf domain-separation, deterministic leaf hashing, content-sensitive leaves, addition moves the root, order-sensitive across proofs, protocol golden vector for 0-sibling + 2-sibling-with-mixed-`right_side` proofs).
 - **`endowment`**: parameter validation (r=0 allowed+default for deflation/Kryder mode; r>0 must beat inflation buffer; replication bounds), `required_endowment` + inverse work in both modes, payout functions return 0 at r=0, PPB accumulator + anti-hoarding still correct, overflow paths return typed errors.
-- **`commitment`**: canonical hash is deterministic, field-sensitive, and matches the TS reference.
+- **`commitment`**: canonical hash is deterministic, field-sensitive, and protocol-owned.
 
 ```bash
 cargo test -p mfn-storage --release
