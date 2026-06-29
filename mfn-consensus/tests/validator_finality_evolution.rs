@@ -13,7 +13,8 @@
 //! failures, aggregate signature integrity, bond epoch counter persistence,
 //! checkpoint roundtrip of bond counters, missing/malformed producer proof,
 //! explicit sub-quorum `QuorumNotMet`, zero-stake liveness skip after equivocation,
-//! monotonic register index assignment, and rejection preserving caller state.
+//! monotonic register index assignment, register stats/treasury credits, and
+//! slash-forfeiture treasury credits in validator mode, plus rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -2660,4 +2661,118 @@ fn register_assigns_monotonic_validator_index() {
     assert_eq!(post.validators[3].index, 3);
     assert_eq!(post.next_validator_index, 4);
     assert_eq!(post.bond_epoch_entry_count, 1);
+}
+
+/// Successful `Register` extends `validator_stats` in lockstep with the set.
+#[test]
+fn register_extends_validator_stats() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    assert_eq!(st.validator_stats.len(), 3);
+
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let post = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(stake, 41)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("register block");
+    assert_eq!(post.validators.len(), 4);
+    assert_eq!(post.validator_stats.len(), 4);
+    assert_eq!(post.validator_stats[3], ValidatorStats::default());
+}
+
+/// Successful `Register` burns bonded stake into the permanence treasury.
+#[test]
+fn register_success_credits_treasury() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    assert_eq!(st.treasury, 0);
+
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let post = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(stake, 42)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("register block");
+    assert_eq!(post.treasury, u128::from(stake));
+}
+
+/// Equivocation forfeiture credits treasury through validator-mode `apply_block`.
+#[test]
+fn equivocation_slash_credits_treasury_in_validator_mode() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    assert_eq!(st.treasury, 0);
+    let v1_idx = st.validators[1].index;
+    let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+    let h1 = [33u8; 32];
+    let h2 = [44u8; 32];
+    let evidence = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v1_idx,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, &v1_bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, &v1_bls_sk),
+    };
+    let post = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            Vec::new(),
+            vec![evidence],
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("equivocation slash block");
+    assert_eq!(post.validators[1].stake, 0);
+    assert_eq!(post.treasury, 1_000_000);
+}
+
+/// Liveness slash forfeiture credits treasury through validator-mode `apply_block`.
+#[test]
+fn liveness_slash_credits_treasury_in_validator_mode() {
+    let fx = boot_three_validators(2);
+    let mut st = fx.state.clone();
+    let mut params = fx.params;
+    params.quorum_stake_bps = 6666;
+    st.params = params;
+    assert_eq!(st.treasury, 0);
+
+    let voters_miss_v1 = [0usize, 2];
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 1, Vec::new(), Vec::new(), &voters_miss_v1),
+    )
+    .into_state()
+    .expect("first miss");
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 2, Vec::new(), Vec::new(), &voters_miss_v1),
+    )
+    .into_state()
+    .expect("liveness slash");
+    assert_eq!(st.validators[1].stake, 990_000);
+    assert_eq!(st.treasury, 10_000);
 }
