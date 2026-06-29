@@ -2123,6 +2123,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.37** | `mfn-storage-operator push-chunks --json`: emit standalone P2P fan-out records for operator shells that do not use `mfn-cli`. | ✓ shipped |
 | **M3.38** | Public-devnet support bundles: collect read-only wallet, upload, proof, and claim JSON diagnostics into a handoff directory. | ✓ shipped |
 | **M3.39** | Support-bundle chunk diagnostics: optionally capture HTTP `fetch-chunk` and replica `inbox-status` records without mutating wallet or node state. | ✓ shipped |
+| **M3.40** | Support-bundle node status: capture `get_status` JSON for RPC, genesis, tip, and P2P triage alongside wallet/permanence records. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |

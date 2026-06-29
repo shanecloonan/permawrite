@@ -57,6 +57,7 @@ function Get-PlannedCommands {
     $commands = New-Object System.Collections.Generic.List[object]
     $rpcArgs = @("--rpc", $RpcAddr)
     if ($RpcApiKey) { $rpcArgs += @("--rpc-api-key", $RpcApiKey) }
+    Add-PlannedCommand $commands "node-status" ($rpcArgs + @("status"))
     Add-PlannedCommand $commands "uploads-list" ($rpcArgs + @("uploads", "list", "--include-claims", "--json"))
     Add-PlannedCommand $commands "operator-pool" ($rpcArgs + @("operator", "pool", "--json"))
     if ($Wallet) {

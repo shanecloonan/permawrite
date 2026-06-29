@@ -663,7 +663,7 @@ bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:<RPC> --wallet .
 
 Use `-RpcApiKey <KEY>` or `--rpc-api-key <KEY>` for auth-enabled RPC. The key is passed to `mfn-cli` but only `rpc_api_key_set=true` is written to `manifest.json`.
 
-The bundle writes `manifest.json` plus JSON command outputs such as `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, `operator-fetch-chunk.json`, `operator-inbox-status.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, assemble inbox artifacts, or submit proofs.
+The bundle writes `manifest.json` plus JSON command outputs such as `node-status.json`, `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, `operator-fetch-chunk.json`, `operator-inbox-status.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, assemble inbox artifacts, or submit proofs.
 
 ### Permanence troubleshooting
 

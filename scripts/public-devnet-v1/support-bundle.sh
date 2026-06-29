@@ -143,6 +143,7 @@ add_command() {
 }
 
 build_plan() {
+  add_command "node-status"
   add_command "uploads-list"
   add_command "operator-pool"
   if [[ -n "$WALLET" ]]; then
@@ -180,6 +181,7 @@ print_plan_command() {
     wallet_arg=" --wallet $WALLET"
   fi
   case "$name" in
+    node-status) echo "mfn-cli --rpc $RPC_ADDR$auth status" ;;
     uploads-list) echo "mfn-cli --rpc $RPC_ADDR$auth uploads list --include-claims --json" ;;
     operator-pool) echo "mfn-cli --rpc $RPC_ADDR$auth operator pool --json" ;;
     wallet-status) echo "mfn-cli --rpc $RPC_ADDR$auth --wallet $WALLET wallet status --json" ;;
@@ -207,6 +209,7 @@ run_bundle_command() {
     wallet_prefix=(--wallet "$WALLET")
   fi
   case "$name" in
+    node-status) "$MFN_CLI" "${rpc_prefix[@]}" status ;;
     uploads-list) "$MFN_CLI" "${rpc_prefix[@]}" uploads list --include-claims --json ;;
     operator-pool) "$MFN_CLI" "${rpc_prefix[@]}" operator pool --json ;;
     wallet-status) "$MFN_CLI" "${rpc_prefix[@]}" --wallet "$WALLET" wallet status --json ;;
