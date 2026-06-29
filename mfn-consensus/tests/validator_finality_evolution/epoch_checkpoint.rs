@@ -284,3 +284,51 @@ fn validator_stats_persist_in_chain_checkpoint_after_liveness_evolution() {
     assert_eq!(restored.state.validator_stats, st.validator_stats);
     assert_eq!(restored.state.validators[1].stake, st.validators[1].stake);
 }
+
+/// Pending unbond queue survives chain-checkpoint encode/decode after an exit request.
+#[test]
+fn pending_unbonds_persist_in_chain_checkpoint_after_unbond_request() {
+    let fx = boot_three_validators_cfg(64, 4);
+    let mut st = fx.state.clone();
+    let genesis_id = st.block_ids[0];
+    let v1_idx = st.validators[1].index;
+    let unbond = BondOp::Unbond {
+        validator_index: v1_idx,
+        sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+    };
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![unbond],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    assert_eq!(st.pending_unbonds.len(), 1);
+    let unlock = st
+        .pending_unbonds
+        .get(&v1_idx)
+        .expect("pending entry")
+        .unlock_height;
+
+    let cp = ChainCheckpoint {
+        genesis_id,
+        state: st.clone(),
+    };
+    let restored = decode_chain_checkpoint(&encode_chain_checkpoint(&cp)).expect("roundtrip");
+    assert_eq!(restored.state.pending_unbonds, st.pending_unbonds);
+    assert_eq!(
+        restored
+            .state
+            .pending_unbonds
+            .get(&v1_idx)
+            .map(|p| p.unlock_height),
+        Some(unlock)
+    );
+}
