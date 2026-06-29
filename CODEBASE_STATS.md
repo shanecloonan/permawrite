@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-29T23:15:43.403Z
+**Generated (UTC):** 2026-06-29T23:40:11.965Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 327 |
-| Total lines (all scanned source-like files) | 110,512 |
-| Non-empty lines | 99,297 |
-| UTF-8 bytes (source-like) | 4,466,138 |
+| Total lines (all scanned source-like files) | 110,587 |
+| Non-empty lines | 99,368 |
+| UTF-8 bytes (source-like) | 4,468,891 |
 | Paths visited (before binary/huge skip) | 357 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,12 +25,12 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 14,529 | 13,433 |
-| `docs` | 39 | 11,425 | 8,184 |
+| `docs` | 39 | 11,427 | 8,186 |
 | `mfn-node` | 34 | 10,760 | 9,949 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
-| `mfn-net` | 11 | 4,144 | 3,780 |
+| `mfn-net` | 11 | 4,217 | 3,849 |
 | `mfn-rpc` | 4 | 3,996 | 3,798 |
 | `mfn-light` | 6 | 3,895 | 3,556 |
 | `scripts` | 19 | 3,236 | 2,779 |
@@ -47,8 +47,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 90,043 | 83,456 | 3,271,267 |
-| `.md` | 54 | 13,914 | 9,875 | 963,457 |
+| `.rs` | 212 | 90,116 | 83,525 | 3,273,658 |
+| `.md` | 54 | 13,916 | 9,877 | 963,819 |
 | `.sh` | 17 | 2,210 | 2,016 | 73,824 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
@@ -66,7 +66,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 3,015 | `mfn-cli/src/cli.rs` |
 | 2,784 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 2,409 | `mfn-node/tests/mfnd_smoke.rs` |
-| 2,320 | `docs/ROADMAP.md` |
+| 2,321 | `docs/ROADMAP.md` |
 | 2,290 | `mfn-consensus/tests/block_apply.rs` |
 | 1,975 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,975 | `mfn-consensus/tests/producer_treasury_settlement.rs` |

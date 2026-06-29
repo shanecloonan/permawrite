@@ -2018,6 +2018,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.43** | Public-devnet light-follow response bound hardening: P2P light-follow fetch rejects oversized or skipped-height row batches before exposing them to single-peer or quorum callers. | ✓ shipped |
 | **M2.4.44** | Public-devnet light-follow page-bound hardening: P2P light-follow JSON responses advertise the capped wire request range instead of overstating long caller ranges. | ✓ shipped |
 | **M2.4.45** | Public-devnet block-sync no-progress hardening: catch-up aborts when a higher-tip peer returns an empty `BlocksV1` batch for the next requested height. | ✓ shipped |
+| **M2.4.46** | Public-devnet sync-failure peer scoring: block-sync aborts now feed stable failure labels into peer scoring so repeated no-progress or malformed sync peers are quarantined. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

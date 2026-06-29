@@ -15,8 +15,8 @@ use crate::{
 };
 use crate::{
     tcp_connect_peer_v1_handshake_with_tip_exchange, BlockSyncApplier, BlockSyncProvider,
-    ChainTipV1, GossipHandler, GossipRecvStats, HelloHandshakeError, PullBlocksStats,
-    P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
+    ChainTipV1, GossipHandler, GossipRecvStats, HelloHandshakeError, PullBlocksError,
+    PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
 };
 
 /// Shared gossip admission hook for inbound P2P sessions (**M2.3.16**).
@@ -89,6 +89,26 @@ fn handshake_failure_label(err: &HelloHandshakeError) -> String {
     }
 }
 
+fn sync_failure_label(err: &PullBlocksError) -> String {
+    match err {
+        PullBlocksError::NoProgress {
+            requested_start,
+            requested,
+            local_height,
+            remote_height,
+        } => format!(
+            "sync_no_progress start={requested_start} requested={requested} local_height={local_height} remote_height={remote_height}"
+        ),
+        PullBlocksError::TooManyResponseBlocks { requested, got } => {
+            format!("sync_too_many_response_blocks requested={requested} got={got}")
+        }
+        PullBlocksError::NonSequentialHeight { expected, got } => {
+            format!("sync_non_sequential_height expected={expected} got={got}")
+        }
+        other => format!("sync_abort {other}"),
+    }
+}
+
 fn log_gossip_tx(hid: u64, peer: &str, outcome: &str, tx_id_hex: &str) {
     println!("mfnd_p2p_tx_admit hid={hid} peer={peer} outcome={outcome} tx_id={tx_id_hex}");
     let _ = std::io::stdout().flush();
@@ -151,6 +171,7 @@ fn maybe_pull_blocks_if_behind(
     local: &ChainTipV1,
     remote: &ChainTipV1,
     applier: &BlockSyncApplierHook,
+    fanout_peers: Option<&FanoutPeerSetHook>,
 ) {
     if remote.height <= local.height {
         return;
@@ -160,7 +181,13 @@ fn maybe_pull_blocks_if_behind(
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     match pull_blocks_to_tip(sock, local.height, remote.height, applier.as_ref()) {
         Ok(stats) => log_sync_end(hid, peer, &stats),
-        Err(e) => log_sync_abort(hid, peer, &e),
+        Err(e) => {
+            let reason = sync_failure_label(&e);
+            if let Some(ps) = fanout_peers {
+                ps.note_peer_failure(peer, &reason);
+            }
+            log_sync_abort(hid, peer, &e);
+        }
     }
 }
 
@@ -178,6 +205,7 @@ fn post_session_catch_up(
     applier: &BlockSyncApplierHook,
     handshake_remote: &ChainTipV1,
     gossip_stats: Option<&GossipRecvStats>,
+    fanout_peers: Option<&FanoutPeerSetHook>,
 ) {
     let local = local_chain_tip(tip_cell, block_sync);
     let max_extra = crate::block_sync::MAX_BLOCKS_PER_GET_V1;
@@ -195,11 +223,19 @@ fn post_session_catch_up(
             height: target_height,
             tip_id: handshake_remote.tip_id,
         };
-        maybe_pull_blocks_if_behind(sock, hid, peer, &local, &probe, applier);
+        maybe_pull_blocks_if_behind(sock, hid, peer, &local, &probe, applier, fanout_peers);
     }
     let local_after = local_chain_tip(tip_cell, block_sync);
     if handshake_remote.height > local_after.height {
-        maybe_pull_blocks_if_behind(sock, hid, peer, &local_after, handshake_remote, applier);
+        maybe_pull_blocks_if_behind(
+            sock,
+            hid,
+            peer,
+            &local_after,
+            handshake_remote,
+            applier,
+            fanout_peers,
+        );
     }
 }
 
@@ -525,6 +561,7 @@ fn recv_post_handshake(
                 a,
                 handshake_remote,
                 gossip_stats.as_ref(),
+                fanout_peers,
             );
         }
     }
@@ -657,6 +694,7 @@ pub fn spawn_catch_up_dial(
                         &local,
                         &remote,
                         &block_applier,
+                        fanout_peers.as_ref(),
                     );
                 }
                 Err(e) => {
@@ -732,6 +770,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                                 &local,
                                 &remote,
                                 a,
+                                fanout_peers.as_ref(),
                             );
                         }
                     }
@@ -762,6 +801,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                             &local,
                             &remote,
                             a,
+                            fanout_peers.as_ref(),
                         );
                     }
                 }
@@ -791,6 +831,39 @@ mod tests {
         assert_eq!(
             handshake_failure_label(&err),
             "genesis_mismatch expected=1111111111111111111111111111111111111111111111111111111111111111 got=2222222222222222222222222222222222222222222222222222222222222222"
+        );
+    }
+
+    #[test]
+    fn sync_failure_label_pins_no_progress_reason() {
+        let err = PullBlocksError::NoProgress {
+            requested_start: 12,
+            requested: 8,
+            local_height: 11,
+            remote_height: 30,
+        };
+
+        assert_eq!(
+            sync_failure_label(&err),
+            "sync_no_progress start=12 requested=8 local_height=11 remote_height=30"
+        );
+    }
+
+    #[test]
+    fn sync_failure_label_pins_adversarial_response_reasons() {
+        assert_eq!(
+            sync_failure_label(&PullBlocksError::TooManyResponseBlocks {
+                requested: 1,
+                got: 2
+            }),
+            "sync_too_many_response_blocks requested=1 got=2"
+        );
+        assert_eq!(
+            sync_failure_label(&PullBlocksError::NonSequentialHeight {
+                expected: 4,
+                got: 6
+            }),
+            "sync_non_sequential_height expected=4 got=6"
         );
     }
 
