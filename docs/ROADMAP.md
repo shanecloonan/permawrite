@@ -2006,6 +2006,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.31** | Public-devnet block-sync request cap coverage: unit tests prove large height gaps request at most `MAX_BLOCKS_PER_GET_V1` blocks per round trip. | ✓ shipped |
 | **M2.4.32** | Public-devnet block-sync response cap coverage: `BlocksV1` decode rejects advertised block counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing. | ✓ shipped |
 | **M2.4.33** | Public-devnet block-sync response encode cap: `BlocksV1` encode refuses to serialize more than `MAX_BLOCKS_PER_GET_V1` blocks even if an internal provider returns an oversized batch. | ✓ shipped |
+| **M2.4.34** | Public-devnet light-follow response cap coverage: `LightFollowV1` encode/decode rejects row counts above `MAX_LIGHT_FOLLOW_PER_GET_V1` before serialization/allocation. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

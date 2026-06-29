@@ -223,6 +223,7 @@ Integration coverage lives in:
 - `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer` — outbound mismatch smoke: foreign-genesis peers produce structured abort logs and are not written to `peers.json`.
 - `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers.
 - `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, response-count encode/decode capping, interleaved production/gossip frame skipping, and bounded abort after too many non-`BlocksV1` frames.
+- `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps before serialization/allocation.
 - `mfn-node::p2p_boot` / `mfn-node::p2p_fanout` unit tests — manifest/CLI boot-peer validation for malformed ports, whitespace, duplicate seeds, bracketed IPv6, self-dial detection, boot-dial reconnect skip classification, reconnect cap classification, committee catch-up self-skip before cap accounting, peer-set quarantine filtering and expiry, and durable foreign-genesis `peers.json` cleanup.
 - `mfn-store::peers_persist` unit tests — `peers.json` save/load sorting, malformed/duplicate peer filtering reports, and bounded reconnect fan-out caps.
 - `mfn-store::replay` and `mfn-node::p2p_gossip` unit tests — adversarial replay/gossip coverage for forked prefixes, height gaps, stale blocks, and next-height fork rejection.

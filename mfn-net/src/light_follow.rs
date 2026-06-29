@@ -87,6 +87,9 @@ pub struct LightFollowV1 {
 impl LightFollowV1 {
     /// Encode the on-wire payload (without the length prefix).
     pub fn encode_payload(&self) -> Result<Vec<u8>, LightFollowEncodeError> {
+        if self.rows.len() > MAX_LIGHT_FOLLOW_PER_GET_V1 as usize {
+            return Err(LightFollowEncodeError::TooManyRows(self.rows.len()));
+        }
         let mut out = Vec::new();
         out.push(LIGHT_FOLLOW_V1_TAG);
         out.extend_from_slice(&self.genesis_id);
@@ -117,6 +120,12 @@ impl LightFollowV1 {
         genesis_id.copy_from_slice(&payload[1..33]);
         let count =
             u32::from_be_bytes([payload[33], payload[34], payload[35], payload[36]]) as usize;
+        if count > MAX_LIGHT_FOLLOW_PER_GET_V1 as usize {
+            return Err(LightFollowDecodeError::TooManyRows {
+                max: MAX_LIGHT_FOLLOW_PER_GET_V1,
+                got: count,
+            });
+        }
         let mut off = 37;
         let mut rows = Vec::with_capacity(count);
         for _ in 0..count {
@@ -291,6 +300,14 @@ pub enum LightFollowDecodeError {
         /// Actual byte length.
         got: usize,
     },
+    /// Response advertised more rows than one capped reply may carry.
+    #[error("light-follow v1 advertised {got} rows, max {max}")]
+    TooManyRows {
+        /// Maximum legal response row count.
+        max: u32,
+        /// Count advertised by the peer.
+        got: usize,
+    },
 }
 
 /// Two light-follow batches disagree (multi-peer quorum, **M4.14**).
@@ -422,6 +439,43 @@ mod tests {
         };
         let wire = msg.encode_payload().unwrap();
         assert_eq!(LightFollowV1::decode_payload(&wire).unwrap(), msg);
+    }
+
+    #[test]
+    fn light_follow_v1_encode_rejects_count_above_cap() {
+        let msg = LightFollowV1 {
+            genesis_id: [7u8; 32],
+            rows: vec![sample_row(1); MAX_LIGHT_FOLLOW_PER_GET_V1 as usize + 1],
+        };
+
+        let err = msg
+            .encode_payload()
+            .expect_err("oversized response must reject");
+
+        match err {
+            LightFollowEncodeError::TooManyRows(got) => {
+                assert_eq!(got, MAX_LIGHT_FOLLOW_PER_GET_V1 as usize + 1);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn light_follow_v1_decode_rejects_advertised_count_above_cap() {
+        let mut payload = Vec::new();
+        payload.push(LIGHT_FOLLOW_V1_TAG);
+        payload.extend_from_slice(&[7u8; 32]);
+        payload.extend_from_slice(&(MAX_LIGHT_FOLLOW_PER_GET_V1 + 1).to_be_bytes());
+
+        let err = LightFollowV1::decode_payload(&payload).expect_err("oversized count must reject");
+
+        match err {
+            LightFollowDecodeError::TooManyRows { max, got } => {
+                assert_eq!(max, MAX_LIGHT_FOLLOW_PER_GET_V1);
+                assert_eq!(got, MAX_LIGHT_FOLLOW_PER_GET_V1 as usize + 1);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 
     #[test]
