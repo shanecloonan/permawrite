@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-29T18:21:16.224Z
+**Generated (UTC):** 2026-06-29T18:28:57.958Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 323 |
-| Total lines (all scanned source-like files) | 108,238 |
-| Non-empty lines | 97,209 |
-| UTF-8 bytes (source-like) | 4,354,493 |
+| Total lines (all scanned source-like files) | 108,317 |
+| Non-empty lines | 97,280 |
+| UTF-8 bytes (source-like) | 4,378,231 |
 | Paths visited (before binary/huge skip) | 349 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,13 +25,13 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 13,897 | 12,840 |
-| `docs` | 39 | 11,366 | 8,126 |
+| `docs` | 39 | 11,369 | 8,129 |
 | `mfn-node` | 34 | 10,636 | 9,839 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
+| `mfn-net` | 11 | 4,003 | 3,651 |
 | `mfn-rpc` | 4 | 3,941 | 3,744 |
-| `mfn-net` | 11 | 3,927 | 3,583 |
 | `mfn-light` | 6 | 3,895 | 3,556 |
 | `mfn-storage-operator` | 14 | 2,717 | 2,489 |
 | `demo` | 12 | 2,478 | 2,292 |
@@ -47,12 +47,12 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 88,918 | 82,410 | 3,212,855 |
-| `.md` | 54 | 13,753 | 9,744 | 946,555 |
+| `.rs` | 212 | 88,994 | 82,478 | 3,235,966 |
+| `.md` | 54 | 13,756 | 9,747 | 947,048 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.sh` | 13 | 1,281 | 1,163 | 41,459 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
-| `.svg` | 4 | 655 | 581 | 42,170 |
+| `.svg` | 4 | 655 | 581 | 42,304 |
 | `.toml` | 15 | 524 | 441 | 14,805 |
 | `.json` | 11 | 265 | 254 | 7,812 |
 | `.yml` | 2 | 156 | 144 | 4,823 |
@@ -66,7 +66,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 2,784 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 2,746 | `mfn-cli/src/cli.rs` |
 | 2,407 | `mfn-node/tests/mfnd_smoke.rs` |
-| 2,299 | `docs/ROADMAP.md` |
+| 2,300 | `docs/ROADMAP.md` |
 | 2,290 | `mfn-consensus/tests/block_apply.rs` |
 | 1,975 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,975 | `mfn-consensus/tests/producer_treasury_settlement.rs` |

@@ -283,6 +283,41 @@ struct GapCatchUpOnGap {
     block_sync: Option<BlockSyncHook>,
     block_applier: BlockSyncApplierHook,
     fanout_peers: FanoutPeerSetHook,
+    local_p2p_listen: Option<SocketAddr>,
+}
+
+fn is_self_peer_addr(peer_addr: &str, local_p2p_listen: Option<SocketAddr>) -> bool {
+    let Some(local) = local_p2p_listen else {
+        return false;
+    };
+    let trimmed = peer_addr.trim();
+    if trimmed == local.to_string() {
+        return true;
+    }
+    trimmed
+        .parse::<SocketAddr>()
+        .map(|peer| peer == local)
+        .unwrap_or(false)
+}
+
+fn gap_catch_up_peer_addrs(
+    inbound_peer: &str,
+    boot_peer_addrs: Vec<String>,
+    local_p2p_listen: Option<SocketAddr>,
+) -> (Vec<String>, Vec<String>) {
+    let mut addrs = Vec::new();
+    let mut skipped_self = Vec::new();
+    for addr in std::iter::once(inbound_peer.to_string()).chain(boot_peer_addrs) {
+        if addrs.iter().any(|a| a == &addr) || skipped_self.iter().any(|a| a == &addr) {
+            continue;
+        }
+        if is_self_peer_addr(&addr, local_p2p_listen) {
+            skipped_self.push(addr);
+        } else {
+            addrs.push(addr);
+        }
+    }
+    (addrs, skipped_self)
 }
 
 impl GossipHandler for InboundGossip {
@@ -309,11 +344,14 @@ impl GossipHandler for InboundGossip {
         } else if label.starts_with("rejected:gap:") {
             log_gossip_block(self.hid, &self.peer, "gap", None);
             if let Some(cfg) = &self.gap_catch_up {
-                let mut addrs = vec![self.peer.clone()];
-                for addr in cfg.fanout_peers.boot_peer_addrs() {
-                    if !addrs.iter().any(|a| a == &addr) {
-                        addrs.push(addr);
-                    }
+                let (addrs, skipped_self) = gap_catch_up_peer_addrs(
+                    &self.peer,
+                    cfg.fanout_peers.boot_peer_addrs(),
+                    cfg.local_p2p_listen,
+                );
+                for addr in skipped_self {
+                    println!("mfnd_p2p_self_dial_skip peer={addr}");
+                    let _ = std::io::stdout().flush();
                 }
                 for addr in addrs {
                     let _ = spawn_catch_up_dial(
@@ -422,6 +460,7 @@ fn recv_post_handshake(
     light_follow: Option<&LightFollowHook>,
     fanout_peers: Option<&FanoutPeerSetHook>,
     production: Option<&ProductionHook>,
+    local_p2p_listen: Option<SocketAddr>,
 ) {
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
@@ -433,6 +472,7 @@ fn recv_post_handshake(
             block_sync: block_sync.cloned(),
             block_applier: Arc::clone(a),
             fanout_peers: Arc::clone(ps),
+            local_p2p_listen,
         }),
         _ => None,
     };
@@ -507,6 +547,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 production,
             },
     } = cfg;
+    let local_p2p_listen = listener.local_addr().ok();
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
@@ -563,6 +604,7 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                                     light_follow.as_ref(),
                                     fanout_peers.as_ref(),
                                     production.as_ref(),
+                                    local_p2p_listen,
                                 );
                             }
                         }
@@ -709,6 +751,7 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                                 light_follow.as_ref(),
                                 fanout_peers.as_ref(),
                                 production.as_ref(),
+                                local_p2p_listen,
                             );
                         }
                     } else if let Some(a) = &block_applier {
@@ -749,5 +792,38 @@ mod tests {
             handshake_failure_label(&err),
             "genesis_mismatch expected=1111111111111111111111111111111111111111111111111111111111111111 got=2222222222222222222222222222222222222222222222222222222222222222"
         );
+    }
+
+    #[test]
+    fn gap_catch_up_peer_addrs_skips_self_before_dialing() {
+        let local = "127.0.0.1:19001".parse::<SocketAddr>().unwrap();
+
+        let (addrs, skipped) = gap_catch_up_peer_addrs(
+            "127.0.0.1:19001",
+            vec!["127.0.0.1:19002".to_string()],
+            Some(local),
+        );
+
+        assert_eq!(addrs, vec!["127.0.0.1:19002"]);
+        assert_eq!(skipped, vec!["127.0.0.1:19001"]);
+    }
+
+    #[test]
+    fn gap_catch_up_peer_addrs_dedupes_self_skips_and_dials() {
+        let local = "127.0.0.1:19001".parse::<SocketAddr>().unwrap();
+
+        let (addrs, skipped) = gap_catch_up_peer_addrs(
+            "127.0.0.1:19002",
+            vec![
+                " 127.0.0.1:19001 ".to_string(),
+                "127.0.0.1:19002".to_string(),
+                "127.0.0.1:19003".to_string(),
+                "127.0.0.1:19003".to_string(),
+            ],
+            Some(local),
+        );
+
+        assert_eq!(addrs, vec!["127.0.0.1:19002", "127.0.0.1:19003"]);
+        assert_eq!(skipped, vec![" 127.0.0.1:19001 "]);
     }
 }

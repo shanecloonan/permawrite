@@ -225,6 +225,7 @@ Integration coverage lives in:
 - `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers.
 - `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, response-count encode/decode capping, interleaved production/gossip frame skipping, and bounded abort after too many non-`BlocksV1` frames.
 - `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.
+- `mfn-net::serve` unit tests — gap-triggered catch-up peer selection skips the node's own P2P listen address before spawning recovery dials.
 - `mfn-node::p2p_block_sync` unit tests — block-sync and light-follow provider responses stop at the largest prefix that fits `MAX_FRAME_PAYLOAD_LEN`.
 - `mfn-node::p2p_boot` / `mfn-node::p2p_fanout` unit tests — manifest/CLI boot-peer validation for malformed ports, whitespace, duplicate seeds, bracketed IPv6, self-dial detection, boot-dial reconnect skip classification, reconnect cap classification, committee catch-up self-skip before cap accounting, peer-set quarantine filtering and expiry, and durable foreign-genesis `peers.json` cleanup.
 - `mfn-store::peers_persist` unit tests — `peers.json` save/load sorting, malformed/duplicate peer filtering reports, and bounded reconnect fan-out caps.
