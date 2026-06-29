@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1163,7 +1163,11 @@ fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_blocks() {
 }
 
 /// Bond/liveness/fee/proof inflows with terminal equivocation slash (**M5.13**, **M5.16**).
-fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
+fn run_equivocation_combined_inflow_treasury_sim(
+    blocks: u32,
+    emission: EmissionParams,
+    initial_treasury: u128,
+) {
     struct StorageFixture {
         payload: Vec<u8>,
         built: BuiltCommitment,
@@ -1198,9 +1202,9 @@ fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: Emission
     };
     let g = build_genesis(&cfg);
     let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    st.treasury = initial_treasury;
     let mut spend_state = spend;
-    let mut model_treasury = 0u128;
-    let voters = [0u32, 2];
+    let mut model_treasury = initial_treasury;
     const EQUIVOCATION_IDX: u32 = 2;
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
     let liveness_forfeit = 10_000u128;
@@ -1255,13 +1259,21 @@ fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: Emission
         } else {
             Vec::new()
         };
+        if h > liveness_h {
+            st.validator_stats[1].consecutive_missed = 0;
+        }
         if with_liveness {
             st.validator_stats[1].consecutive_missed =
                 fixture.params.liveness_max_consecutive_missed - 1;
         }
+        let voters: &[u32] = if with_liveness {
+            &[0u32, 2]
+        } else {
+            &[0u32, 1, 2]
+        };
         st = apply_validator_block_with_voters(
             &fixture,
-            &voters,
+            voters,
             &st,
             h,
             txs,
@@ -1271,6 +1283,7 @@ fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: Emission
         );
         let bond_credit = if with_bond { bond_stake } else { 0 };
         let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+        let treasury_before_block = model_treasury;
         model_treasury = treasury_after_equivocation_combined_inflow_block(
             model_treasury,
             equivocation_credit,
@@ -1294,23 +1307,57 @@ fn run_equivocation_combined_inflow_treasury_sim(blocks: u32, emission: Emission
                 "equivocation must zero slashed validator stake"
             );
         }
+        if with_proof {
+            let treasury_fee = fee_sum * u128::from(emission.fee_to_treasury_bps) / 10_000;
+            let pending_before_drain = treasury_before_block
+                .saturating_add(equivocation_credit)
+                .saturating_add(bond_credit)
+                .saturating_add(liveness_credit)
+                .saturating_add(treasury_fee);
+            let storage_reward = u128::from(emission.storage_proof_reward) * proofs;
+            let from_treasury = pending_before_drain.min(storage_reward);
+            let backstop = storage_reward - from_treasury;
+            if backstop > 0 {
+                let producer_fee = fee_sum - treasury_fee;
+                let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
+                    + producer_fee
+                    + storage_reward;
+                assert_eq!(
+                    u128::from(cb_amount),
+                    expected_cb,
+                    "coinbase must pay full storage reward; backstop {backstop} at height {h}"
+                );
+            }
+        }
     }
 }
 
 #[test]
 fn treasury_ledger_matches_equivocation_combined_inflow_blocks() {
-    run_equivocation_combined_inflow_treasury_sim(32, SIM_EMISSION);
+    run_equivocation_combined_inflow_treasury_sim(32, SIM_EMISSION, 0);
 }
 
 #[test]
 fn treasury_ledger_matches_sixty_four_equivocation_combined_inflow_blocks() {
-    run_equivocation_combined_inflow_treasury_sim(64, SIM_EMISSION);
+    run_equivocation_combined_inflow_treasury_sim(64, SIM_EMISSION, 0);
+}
+
+/// Partial treasury prefund: proof blocks drain treasury first; emission backstop fills shortfall (**M5.19**).
+#[test]
+fn treasury_ledger_matches_prefunded_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(32, SIM_EMISSION, 10);
+}
+
+#[test]
+#[ignore = "long equivocation combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_one_hundred_twenty_eight_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(128, SIM_EMISSION, 0);
 }
 
 #[test]
 #[ignore = "long equivocation combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_five_hundred_twelve_equivocation_combined_inflow_blocks() {
-    run_equivocation_combined_inflow_treasury_sim(512, SIM_EMISSION);
+    run_equivocation_combined_inflow_treasury_sim(512, SIM_EMISSION, 0);
 }
 
 #[test]
