@@ -7,9 +7,11 @@
 use std::io::{Read, Write};
 
 use crate::block_sync::MAX_BLOCKS_PER_GET_V1;
+use crate::chunk_v1::CHUNK_V1_TAG;
 use crate::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
 };
+use crate::production::{PROPOSAL_V1_TAG, VOTE_V1_TAG};
 
 /// Post-handshake light-follow pull request tag.
 pub const GET_LIGHT_FOLLOW_V1_TAG: u8 = 0x0e;
@@ -250,9 +252,31 @@ pub fn send_get_light_follow_v1<W: Write>(
 
 /// Receive a [`LightFollowV1`] response.
 pub fn recv_light_follow_v1<R: Read>(r: &mut R) -> Result<LightFollowV1, LightFollowRecvError> {
-    let payload = read_frame(r).map_err(LightFollowRecvError::Frame)?;
-    LightFollowV1::decode_payload(&payload).map_err(LightFollowRecvError::Decode)
+    for _ in 0..MAX_INTERLEAVED_BEFORE_LIGHT_FOLLOW_V1 {
+        let payload = read_frame(r).map_err(LightFollowRecvError::Frame)?;
+        if payload.is_empty() {
+            return Err(LightFollowRecvError::Decode(LightFollowDecodeError::Empty));
+        }
+        match payload[0] {
+            LIGHT_FOLLOW_V1_TAG => {
+                return LightFollowV1::decode_payload(&payload)
+                    .map_err(LightFollowRecvError::Decode);
+            }
+            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | 0x07 | 0x08 | 0x0b => continue,
+            tag => {
+                return Err(LightFollowRecvError::Decode(
+                    LightFollowDecodeError::UnknownTag(tag),
+                ));
+            }
+        }
+    }
+    Err(LightFollowRecvError::Decode(
+        LightFollowDecodeError::TooManyInterleaved,
+    ))
 }
+
+/// Max gossip/production frames to skip while waiting for a [`LightFollowV1`] reply.
+const MAX_INTERLEAVED_BEFORE_LIGHT_FOLLOW_V1: u32 = 512;
 
 /// Failed to encode a light-follow payload.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -308,6 +332,9 @@ pub enum LightFollowDecodeError {
         /// Count advertised by the peer.
         got: usize,
     },
+    /// Too many non-light-follow frames arrived before the response.
+    #[error("too many interleaved frames before light-follow response")]
+    TooManyInterleaved,
 }
 
 /// Two light-follow batches disagree (multi-peer quorum, **M4.14**).
@@ -474,6 +501,43 @@ mod tests {
                 assert_eq!(max, MAX_LIGHT_FOLLOW_PER_GET_V1);
                 assert_eq!(got, MAX_LIGHT_FOLLOW_PER_GET_V1 as usize + 1);
             }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn recv_light_follow_v1_skips_interleaved_vote() {
+        use std::io::Cursor;
+
+        let msg = LightFollowV1 {
+            genesis_id: [7u8; 32],
+            rows: vec![sample_row(1)],
+        };
+        let response = msg.encode_payload().unwrap();
+        let mut buf = Vec::new();
+        write_frame_io(&mut buf, &[VOTE_V1_TAG, 0xaa]).unwrap();
+        write_frame_io(&mut buf, &response).unwrap();
+        let mut cursor = Cursor::new(buf);
+
+        let back = recv_light_follow_v1(&mut cursor).expect("light follow after vote");
+
+        assert_eq!(back, msg);
+    }
+
+    #[test]
+    fn recv_light_follow_v1_rejects_too_many_interleaved_frames() {
+        use std::io::Cursor;
+
+        let mut buf = Vec::new();
+        for _ in 0..MAX_INTERLEAVED_BEFORE_LIGHT_FOLLOW_V1 {
+            write_frame_io(&mut buf, &[VOTE_V1_TAG, 0xaa]).unwrap();
+        }
+        let mut cursor = Cursor::new(buf);
+
+        let err = recv_light_follow_v1(&mut cursor).expect_err("interleaved frame cap must abort");
+
+        match err {
+            LightFollowRecvError::Decode(LightFollowDecodeError::TooManyInterleaved) => {}
             other => panic!("unexpected error: {other:?}"),
         }
     }
