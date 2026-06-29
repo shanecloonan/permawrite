@@ -97,6 +97,43 @@ fn liveness_stats_unchanged_when_block_rejected() {
     assert_eq!(st.validators[1].stake, 1_000_000);
 }
 
+/// Sub-quorum finality must not advance liveness stats even when the
+/// finality bitmap would record misses for absent validators.
+#[test]
+fn liveness_stats_unchanged_on_subquorum_finality_reject() {
+    let fx = boot_three_validators(2);
+    let mut st = fx.state.clone();
+
+    let good = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    st = apply_block(&st, &good)
+        .into_state()
+        .expect("baseline block");
+    let before = st.validator_stats.clone();
+
+    // v0 + v1 sign (2M); v2 missing — below 6667 bps quorum on 3M total.
+    let block = seal_empty(&fx, &st, 2, Vec::new(), Vec::new(), &[0, 1]);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(e, BlockError::FinalityInvalid(ConsensusCheck::QuorumNotMet))
+                }),
+                "expected quorum not met, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("sub-quorum block must reject"),
+    }
+    assert_eq!(st.validator_stats, before);
+    assert_eq!(st.validators[2].stake, 1_000_000);
+}
+
 /// Multiplicative liveness slash reduces stake; the successor header
 /// must commit the post-slash validator set root.
 #[test]

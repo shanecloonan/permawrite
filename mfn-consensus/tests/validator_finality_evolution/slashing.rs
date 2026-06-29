@@ -182,6 +182,64 @@ fn invalid_slash_evidence_rejects_without_state_change() {
     assert_eq!(st.validators[2].stake, 1_000_000);
 }
 
+/// Valid slash evidence before invalid still rejects atomically — staging
+/// must not commit the valid slash when any evidence fails.
+#[test]
+fn valid_then_invalid_slash_evidence_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let v0_idx = st.validators[0].index;
+    let v2_idx = st.validators[2].index;
+    let v2_sk = fx.secrets[2].bls.sk.clone();
+
+    let h_good_a = [99u8; 32];
+    let h_good_b = [100u8; 32];
+    let valid = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v2_idx,
+        header_hash_a: h_good_a,
+        sig_a: bls_sign(&h_good_a, &v2_sk),
+        header_hash_b: h_good_b,
+        sig_b: bls_sign(&h_good_b, &v2_sk),
+    };
+    let h_bad_a = [77u8; 32];
+    let h_bad_b = [88u8; 32];
+    let invalid = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v0_idx,
+        header_hash_a: h_bad_a,
+        sig_a: bls_sign(&h_bad_a, &v2_sk),
+        header_hash_b: h_bad_b,
+        sig_b: bls_sign(&h_bad_b, &v2_sk),
+    };
+
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![valid, invalid],
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::SlashInvalid { .. })),
+                "expected slash invalid, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("valid-then-invalid slash batch must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.validators[2].stake, 1_000_000);
+    assert_eq!(st.treasury, 0);
+}
+
 /// Duplicate slash evidence for the same validator rejects the block whole.
 #[test]
 fn duplicate_slash_evidence_rejects_without_state_change() {

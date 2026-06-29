@@ -332,3 +332,52 @@ fn pending_unbonds_persist_in_chain_checkpoint_after_unbond_request() {
         Some(unlock)
     );
 }
+
+/// Zeroed stake and slash treasury credit survive chain-checkpoint encode/decode.
+#[test]
+fn equivocation_slash_persists_in_chain_checkpoint_roundtrip() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let genesis_id = st.block_ids[0];
+    let v1_idx = st.validators[1].index;
+    let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+    let h1 = [55u8; 32];
+    let h2 = [66u8; 32];
+    let evidence = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v1_idx,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, &v1_bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, &v1_bls_sk),
+    };
+    let post = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            Vec::new(),
+            vec![evidence],
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("equivocation slash");
+    assert_eq!(post.validators[1].stake, 0);
+    assert_eq!(post.treasury, 1_000_000);
+
+    let cp = ChainCheckpoint {
+        genesis_id,
+        state: post.clone(),
+    };
+    let restored = decode_chain_checkpoint(&encode_chain_checkpoint(&cp)).expect("roundtrip");
+    assert_eq!(restored.state.validators[1].stake, 0);
+    assert_eq!(restored.state.treasury, post.treasury);
+    assert_eq!(
+        validator_set_root(&restored.state.validators),
+        validator_set_root(&post.validators)
+    );
+}
