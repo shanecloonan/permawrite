@@ -13,8 +13,10 @@
 //! failures, aggregate signature integrity, bond epoch counter persistence,
 //! checkpoint roundtrip of bond counters, missing/malformed producer proof,
 //! explicit sub-quorum `QuorumNotMet`, zero-stake liveness skip after equivocation,
-//! monotonic register index assignment, register stats/treasury credits, and
-//! slash-forfeiture treasury credits in validator mode, plus rejection preserving caller state.
+//! monotonic register index assignment, register stats/treasury credits,
+//! slash-forfeiture treasury credits in validator mode, liveness sign resets
+//! consecutive misses, unbond settlement clears pending queue, bond epoch rollover,
+//! plus rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -2775,4 +2777,160 @@ fn liveness_slash_credits_treasury_in_validator_mode() {
     .expect("liveness slash");
     assert_eq!(st.validators[1].stake, 990_000);
     assert_eq!(st.treasury, 10_000);
+}
+
+/// Signing after consecutive misses resets the counter without slashing.
+#[test]
+fn liveness_signed_clears_consecutive_missed_in_validator_mode() {
+    let fx = boot_three_validators(64);
+    let mut st = fx.state.clone();
+    let mut params = fx.params;
+    params.quorum_stake_bps = 6666;
+    st.params = params;
+    let miss_v1 = [0usize, 2];
+
+    for height in 1..=30 {
+        st = apply_block(
+            &st,
+            &seal_empty(&fx, &st, height, Vec::new(), Vec::new(), &miss_v1),
+        )
+        .into_state()
+        .expect("miss block");
+    }
+    assert_eq!(st.validator_stats[1].consecutive_missed, 30);
+    assert_eq!(st.validators[1].stake, 1_000_000);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            31,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("full quorum block");
+    assert_eq!(st.validator_stats[1].consecutive_missed, 0);
+    assert_eq!(st.validator_stats[1].total_signed, 1);
+    assert_eq!(st.validator_stats[1].liveness_slashes, 0);
+    assert_eq!(st.validators[1].stake, 1_000_000);
+}
+
+/// Unbond settlement removes the pending exit entry from chain state.
+#[test]
+fn unbond_settlement_clears_pending_unbond_in_validator_mode() {
+    let fx = boot_three_validators_cfg(64, 2);
+    let mut st = fx.state.clone();
+    let v1_idx = st.validators[1].index;
+    let unbond = BondOp::Unbond {
+        validator_index: v1_idx,
+        sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+    };
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![unbond],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    assert!(st.pending_unbonds.contains_key(&v1_idx));
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("delay window");
+    assert!(st.pending_unbonds.contains_key(&v1_idx));
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("settlement");
+    assert!(!st.pending_unbonds.contains_key(&v1_idx));
+    assert_eq!(st.validators[1].stake, 0);
+}
+
+/// Empty blocks at the epoch boundary roll `bond_epoch_id` and reset churn counters.
+#[test]
+fn bond_epoch_id_increments_at_epoch_boundary() {
+    let fx = boot_three_validators_entry_churn_cfg(2, 4);
+    let mut st = fx.state.clone();
+    let stake = ENTRY_CHURN_REGISTER_STAKE;
+    assert_eq!(st.bond_epoch_id, 0);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(stake, 50), register_op(stake, 51)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("two registers in epoch 0");
+    assert_eq!(st.bond_epoch_entry_count, 2);
+    assert_eq!(st.bond_epoch_id, 0);
+
+    for height in 2..=3 {
+        st = apply_block(
+            &st,
+            &seal_empty(
+                &fx,
+                &st,
+                height,
+                Vec::new(),
+                Vec::new(),
+                &incumbent_voter_positions(&fx),
+            ),
+        )
+        .into_state()
+        .expect("advance within epoch 0");
+    }
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            4,
+            Vec::new(),
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("first block of epoch 1");
+    assert_eq!(st.bond_epoch_id, 1);
+    assert_eq!(st.bond_epoch_entry_count, 0);
+    assert_eq!(st.bond_epoch_exit_count, 0);
 }
