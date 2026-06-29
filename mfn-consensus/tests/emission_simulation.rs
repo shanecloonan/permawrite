@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1670,6 +1670,12 @@ fn treasury_ledger_matches_prefunded_equivocation_combined_inflow_blocks() {
 #[test]
 fn treasury_ledger_matches_equivocation_combined_inflow_ppb_blocks() {
     run_equivocation_combined_inflow_ppb_treasury_sim(32, SIM_EMISSION, 0);
+}
+
+/// Partial treasury prefund with PPB proof drain: treasury first, backstop on shortfall (**M5.24**).
+#[test]
+fn treasury_ledger_matches_prefunded_equivocation_combined_inflow_ppb_blocks() {
+    run_equivocation_combined_inflow_ppb_treasury_sim(32, SIM_EMISSION, 10);
 }
 
 #[test]
