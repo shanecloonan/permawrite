@@ -259,12 +259,45 @@ fn backfill_json(
     })
 }
 
+fn push_chunks_json(
+    commitment_hash_hex: &str,
+    peers: &[String],
+    results: &[mfn_storage_operator::ChunkPushPeerResult],
+) -> serde_json::Value {
+    let ok_count = results.iter().filter(|r| r.ok).count();
+    serde_json::json!({
+        "commitment_hash": commitment_hash_hex,
+        "peers": peers,
+        "peers_attempted": results.len(),
+        "peers_ok": ok_count,
+        "peers_failed": results.len().saturating_sub(ok_count),
+        "results": results.iter().map(push_peer_result_json).collect::<Vec<_>>(),
+        "push_chunks": if ok_count == results.len() { "ok" } else { "partial_failure" },
+    })
+}
+
+fn push_peer_result_json(r: &mfn_storage_operator::ChunkPushPeerResult) -> serde_json::Value {
+    let mut value = serde_json::json!({
+        "peer": &r.peer,
+        "ok": r.ok,
+        "chunks_sent": r.chunks_sent,
+    });
+    if let Some(error) = &r.error {
+        value
+            .as_object_mut()
+            .expect("push peer result json object literal")
+            .insert("error".into(), serde_json::json!(error));
+    }
+    value
+}
+
 /// Push all wallet artifact chunks to one or more P2P peers (**M7.1**).
 pub fn operator_push_chunks(
     client: &mut RpcClient,
     wallet_path: &Path,
     commitment_hash_hex: &str,
     peers: &[String],
+    params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
     if peers.is_empty() {
         return Err(OperatorCmdError::Usage(
@@ -289,6 +322,18 @@ pub fn operator_push_chunks(
         &local_tip,
     )
     .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
+    let ok_count = results.iter().filter(|r| r.ok).count();
+    if params.json {
+        print_pretty_json(&push_chunks_json(commitment_hash_hex, peers, &results))?;
+        if ok_count != results.len() {
+            return Err(OperatorCmdError::Usage(format!(
+                "push-chunks failed for {} of {} peers",
+                results.len() - ok_count,
+                results.len()
+            )));
+        }
+        return Ok(());
+    }
     println!("commitment_hash={commitment_hash_hex}");
     for r in &results {
         println!("peer={} ok={} chunks_sent={}", r.peer, r.ok, r.chunks_sent);
@@ -296,7 +341,6 @@ pub fn operator_push_chunks(
             println!("peer_error={err}");
         }
     }
-    let ok_count = results.iter().filter(|r| r.ok).count();
     if ok_count != results.len() {
         return Err(OperatorCmdError::Usage(format!(
             "push-chunks failed for {} of {} peers",
@@ -428,14 +472,12 @@ pub fn operator_fetch_chunk(
     commitment_hash_hex: &str,
     chunk_index: u32,
     wallet_path: Option<&Path>,
+    params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
     let body = fetch_chunk_http(peer, commitment_hash_hex, chunk_index)
         .map_err(|e| OperatorCmdError::Usage(e.to_string()))?;
-    println!("peer={peer}");
-    println!("commitment_hash={commitment_hash_hex}");
-    println!("chunk_index={chunk_index}");
-    println!("chunk_len={}", body.len());
 
+    let mut verified_artifact_match = false;
     if let Some(wallet) = wallet_path {
         let loaded = mfn_storage_operator::load_upload_artifact(wallet, commitment_hash_hex)
             .map_err(|e| OperatorCmdError::Usage(format!("upload artifact: {e}")))?;
@@ -454,6 +496,23 @@ pub fn operator_fetch_chunk(
                 "peer chunk bytes do not match wallet upload artifact".into(),
             ));
         }
+        verified_artifact_match = true;
+    }
+    if params.json {
+        print_pretty_json(&fetch_chunk_json(
+            peer,
+            commitment_hash_hex,
+            chunk_index,
+            body.len(),
+            verified_artifact_match,
+        ))?;
+        return Ok(());
+    }
+    println!("peer={peer}");
+    println!("commitment_hash={commitment_hash_hex}");
+    println!("chunk_index={chunk_index}");
+    println!("chunk_len={}", body.len());
+    if verified_artifact_match {
         println!("verify=artifact_match");
     }
     Ok(())
@@ -537,6 +596,22 @@ fn prove_submission_json(
             .insert("artifact_source_path".into(), serde_json::json!(src));
     }
     value
+}
+
+fn fetch_chunk_json(
+    peer: &str,
+    commitment_hash_hex: &str,
+    chunk_index: u32,
+    chunk_len: usize,
+    verified_artifact_match: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "peer": peer,
+        "commitment_hash": commitment_hash_hex,
+        "chunk_index": chunk_index,
+        "chunk_len": chunk_len,
+        "verify": if verified_artifact_match { "artifact_match" } else { "not_checked" },
+    })
 }
 
 fn storage_challenge_for_operator(
@@ -658,6 +733,46 @@ mod tests {
         assert_eq!(value["artifact_source_path"], "src.bin");
         assert_eq!(value["proof"]["chunk_index"], 1);
         assert_eq!(value["challenge"]["data_root"], "22".repeat(32));
+    }
+
+    #[test]
+    fn push_chunks_json_reports_peer_results() {
+        let results = vec![
+            mfn_storage_operator::ChunkPushPeerResult {
+                peer: "127.0.0.1:18740".into(),
+                chunks_sent: 3,
+                ok: true,
+                error: None,
+            },
+            mfn_storage_operator::ChunkPushPeerResult {
+                peer: "127.0.0.1:18741".into(),
+                chunks_sent: 0,
+                ok: false,
+                error: Some("connection refused".into()),
+            },
+        ];
+        let peers = vec!["127.0.0.1:18740".into(), "127.0.0.1:18741".into()];
+
+        let value = push_chunks_json(&"11".repeat(32), &peers, &results);
+
+        assert_eq!(value["commitment_hash"], "11".repeat(32));
+        assert_eq!(value["peers_attempted"], 2);
+        assert_eq!(value["peers_ok"], 1);
+        assert_eq!(value["peers_failed"], 1);
+        assert_eq!(value["push_chunks"], "partial_failure");
+        assert_eq!(value["results"][0]["chunks_sent"], 3);
+        assert_eq!(value["results"][1]["error"], "connection refused");
+    }
+
+    #[test]
+    fn fetch_chunk_json_reports_verification_status() {
+        let value = fetch_chunk_json("127.0.0.1:18780", &"22".repeat(32), 4, 1024, true);
+
+        assert_eq!(value["peer"], "127.0.0.1:18780");
+        assert_eq!(value["commitment_hash"], "22".repeat(32));
+        assert_eq!(value["chunk_index"], 4);
+        assert_eq!(value["chunk_len"], 1024);
+        assert_eq!(value["verify"], "artifact_match");
     }
 
     #[test]

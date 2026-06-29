@@ -153,6 +153,8 @@ mfn-cli operator challenge <COMMITMENT_HASH_HEX> --json
 mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin --json
 mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX> --json
 mfn-cli --wallet ./alice.json operator artifacts --json
+mfn-cli --wallet ./alice.json operator fetch-chunk <COMMITMENT_HASH_HEX> 0 127.0.0.1:18780 --json
+mfn-cli --wallet ./alice.json operator push-chunks <COMMITMENT_HASH_HEX> 127.0.0.1:18740 --json
 mfn-cli operator pool --json
 ```
 
@@ -169,6 +171,8 @@ Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.
 `uploads retrieve HASH OUT [replace]` (**M3.27**) exports `payload.bin` from a wallet-local artifact to `OUT`. It works after the original `wallet upload`, HTTP backfill, or P2P inbox assembly, and refuses to overwrite an existing file unless the final argument is `replace`. Use `operator inbox-status HASH DATA_DIR --json` to script checks for missing P2P-replicated chunks before assembly, then `operator assemble-inbox HASH DATA_DIR --json` to capture the created artifact path and payload size.
 
 `uploads fetch-http HASH OUT PEER [PEER...] [replace]` (**M3.28**) fetches all chunks from one or more HTTP chunk peers into the wallet artifact tree, verifies them against the on-chain storage challenge, then writes the restored payload to `OUT`. Multiple peers require byte-identical chunks. Add `--json` to capture the rebuilt `artifact_dir`, restored `output_path`, `payload_bytes`, peer list, and quorum size; use `operator backfill HASH PEER [PEER...] --json` when you only need to rebuild the wallet artifact.
+
+For lower-level replication diagnostics, `operator fetch-chunk --json` records a single HTTP chunk fetch and whether it matched the wallet artifact, while `operator push-chunks --json` records per-peer P2P ChunkV1 fan-out results and failures.
 
 For continuous proving, run the storage-operator daemon (**M6**):
 

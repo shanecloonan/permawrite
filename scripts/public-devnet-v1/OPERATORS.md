@@ -487,7 +487,7 @@ Pull from a peer into the local artifact tree:
 
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
-  operator fetch-chunk <COMMIT_HASH_HEX> 0 127.0.0.1:18780
+  operator fetch-chunk <COMMIT_HASH_HEX> 0 127.0.0.1:18780 --json
 
 mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
   operator backfill <COMMIT_HASH_HEX> 127.0.0.1:18780 [more-peers...] --json
@@ -517,7 +517,7 @@ Push all artifact chunks over an existing P2P session (handshake + burst + `Goss
 ```bash
 # PEER is the remote mfnd_p2p_listening= host:port (not your own hub port)
 mfn-cli --rpc 127.0.0.1:<HUB_RPC> --wallet ./alice.json \
-  operator push-chunks <COMMIT_HASH_HEX> <PEER1> [PEER2 ...]
+  operator push-chunks <COMMIT_HASH_HEX> <PEER1> [PEER2 ...] --json
 
 mfn-storage-operator push-chunks --wallet ./alice.json \
   <COMMIT_HASH_HEX> <PEER1> [PEER2 ...]
@@ -647,7 +647,7 @@ The demos store wallets and payloads under `scripts/public-devnet-v1/permanence-
 | `wallet upload` succeeds but `uploads list` does not show the commitment | The tx is still only in the mempool, or the wallet is pointed at a node on a different chain/tip | Prefer `wallet upload --json` and keep the `tx_id`, `storage_commitment_hash`, `data_root`, `upload_artifact_dir`, and `fee` fields. After mining, run `uploads list --include-claims --json` and keep `uploads_returned`, matching upload rows, and any claim arrays. Check `mfn-cli --rpc <RPC> mempool` for the tx id, mine or wait for the next producer block, then verify `mfn-cli --rpc <RPC> tip` and `genesis_id` match the public devnet manifest. |
 | `wallet claim --json` succeeds but claim queries do not show the authorship row | The claim tx is still only in the mempool, the query is pointed at a stale/diverged node, or the wrong `data_root`/`claim_pubkey` is being queried | Keep the `tx_id`, `claim_pubkey_hex`, `data_root`, and `commit_hash` from `wallet claim --json`; after mining, run `claims for <DATA_ROOT_HEX> --json` and, if needed, `claims by-pubkey <CLAIM_PUBKEY_HEX> --json` against a synced node with the same `genesis_id`. |
 | `wallet balance` looks stale or support cannot tell whether funds were scanned | The wallet cache is behind the node tip, or pending spends are masking locally selected outputs | Run `mfn-cli --rpc <RPC> --wallet <WALLET> wallet status --json` and capture `scan_height`, `tip_height`, `blocks_behind`, `sync_needed`, `balance_cached`, and `pending_spent_count`; if `sync_needed=true`, run `wallet scan --json` or `wallet balance --json` against the same RPC and capture `blocks_scanned`, final `scan_height`, `balance`, and `owned_count`. |
-| `operator inbox-status` reports `inbox_complete=false` | The replica has only some chunks, or it has not caught up to the upload block yet | Wait for `mfn-cli --rpc <REPLICA_RPC> tip` to match the hub, rerun `operator push-chunks <COMMIT_HASH_HEX> <REPLICA_P2P>`, or use HTTP `operator backfill <COMMIT_HASH_HEX> <PEER_HTTP>` from a peer with a complete artifact. Add `--json` to capture `present_indices` and `missing_indices` in support tickets. |
+| `operator inbox-status` reports `inbox_complete=false` | The replica has only some chunks, or it has not caught up to the upload block yet | Wait for `mfn-cli --rpc <REPLICA_RPC> tip` to match the hub, rerun `operator push-chunks <COMMIT_HASH_HEX> <REPLICA_P2P> --json`, or use HTTP `operator backfill <COMMIT_HASH_HEX> <PEER_HTTP> --json` from a peer with a complete artifact. Capture `push_chunks` peer results plus `present_indices` and `missing_indices` in support tickets. |
 | `operator assemble-inbox` says chunks are missing | The node's `chunk-inbox/<commit>/<index>.bin` set is incomplete | Run `operator inbox-status --json` to see `missing_indices`, push chunks again from the original uploader, then retry `operator assemble-inbox ... replace --json` only after `inbox_complete=true`; the JSON output records the rebuilt `artifact_dir` and `payload_bytes`. |
 | `operator prove` fails with `data_root` or size mismatch | The local payload/artifact is not the bytes anchored on-chain | Rebuild the artifact from a known-good peer with `operator backfill --json` or `operator assemble-inbox --json`, then run `uploads retrieve <COMMIT_HASH_HEX> ./restored.bin` and compare the restored file hash against the uploader before proving. |
 | `operator prove` submits but `uploads list` still shows the old `last_proven_height` | The proof is queued but not mined yet, or the producer cannot read the challenged chunk | Check `mfn-cli --rpc <RPC> operator pool --json`; make sure the producer's data dir has the chunk inbox or artifact bytes, then mine/wait for the next block. Use `operator challenge --json`, `operator prove --json`, and `uploads list --json` before and after mining to capture the challenge target, proof submission outcome, and indexed `last_proven_height` row without parsing key/value output. |

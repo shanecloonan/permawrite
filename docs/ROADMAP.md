@@ -2118,6 +2118,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.33** | `uploads list --json`: emit structured upload-index pages with optional claim joins for permanence discovery and operator support records. | ✓ shipped |
 | **M3.34** | `operator challenge --json` and `operator pool --json`: emit structured SPoRA challenge and proof-pool records for proof troubleshooting. | ✓ shipped |
 | **M3.35** | `operator prove --json`: emit structured SPoRA proof submission records with challenge context, payload source, and proof-pool outcome. | ✓ shipped |
+| **M3.36** | `operator fetch-chunk --json` and `operator push-chunks --json`: emit structured HTTP/P2P chunk movement records for replication troubleshooting. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |

@@ -204,9 +204,16 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 commitment_hash_hex,
                 chunk_index,
                 peer,
+                params,
             } => {
                 let wallet = Some(resolve_wallet_path(global_wallet_path.as_deref()));
-                operator_fetch_chunk(&peer, &commitment_hash_hex, chunk_index, wallet.as_deref())?
+                operator_fetch_chunk(
+                    &peer,
+                    &commitment_hash_hex,
+                    chunk_index,
+                    wallet.as_deref(),
+                    params,
+                )?
             }
             OperatorSub::Backfill {
                 commitment_hash_hex,
@@ -219,9 +226,10 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::PushChunks {
                 commitment_hash_hex,
                 peers,
+                params,
             } => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
-                operator_push_chunks(&mut client, &path, &commitment_hash_hex, &peers)?
+                operator_push_chunks(&mut client, &path, &commitment_hash_hex, &peers, params)?
             }
             OperatorSub::InboxStatus {
                 commitment_hash_hex,
@@ -365,6 +373,7 @@ enum OperatorSub {
         commitment_hash_hex: String,
         chunk_index: u32,
         peer: String,
+        params: OperatorJsonParams,
     },
     Backfill {
         commitment_hash_hex: String,
@@ -374,6 +383,7 @@ enum OperatorSub {
     PushChunks {
         commitment_hash_hex: String,
         peers: Vec<String>,
+        params: OperatorJsonParams,
     },
     InboxStatus {
         commitment_hash_hex: String,
@@ -496,9 +506,11 @@ fn usage() -> &'static str {
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
                          options: --json\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
+                         options: --json\n\
        operator backfill HASH PEER [PEER...] [replace]  HTTP fetch all chunks; quorum if multiple peers\n\
                          options: --json\n\
        operator push-chunks HASH PEER [PEER...]  P2P ChunkV1 gossip all artifact chunks to peers\n\
+                         options: --json\n\
        operator inbox-status HASH DATA_DIR  list chunk-inbox indices for commitment\n\
                          options: --json\n\
        operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n\
@@ -837,22 +849,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
             "operator artifacts",
             &rest[1..],
         )?),
-        "fetch-chunk" => {
-            if rest.len() != 4 {
-                return Err(CliError::Usage(format!(
-                    "operator fetch-chunk requires COMMITMENT_HASH_HEX CHUNK_INDEX PEER\n{}",
-                    usage()
-                )));
-            }
-            let chunk_index = rest[2]
-                .parse()
-                .map_err(|_| CliError::Usage(format!("invalid chunk index `{}`", rest[2])))?;
-            OperatorSub::FetchChunk {
-                commitment_hash_hex: rest[1].to_string(),
-                chunk_index,
-                peer: rest[3].to_string(),
-            }
-        }
+        "fetch-chunk" => parse_operator_fetch_chunk_args(&rest[1..])?,
         "backfill" => parse_operator_backfill_args(&rest[1..])?,
         "push-chunks" => parse_operator_push_chunks_args(&rest[1..])?,
         "inbox-status" => parse_operator_inbox_status_args(&rest[1..])?,
@@ -1042,13 +1039,57 @@ fn parse_operator_inbox_status_args(rest: &[&str]) -> Result<OperatorSub, CliErr
 fn parse_operator_push_chunks_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
     if rest.len() < 2 {
         return Err(CliError::Usage(format!(
-            "operator push-chunks requires COMMITMENT_HASH_HEX PEER [PEER...]\n{}",
+            "operator push-chunks requires COMMITMENT_HASH_HEX PEER [PEER...] [--json]\n{}",
+            usage()
+        )));
+    }
+    let mut peers = Vec::new();
+    let mut json = false;
+    for a in &rest[1..] {
+        if *a == "--json" {
+            json = true;
+            continue;
+        }
+        peers.push((*a).to_string());
+    }
+    if peers.is_empty() {
+        return Err(CliError::Usage(format!(
+            "operator push-chunks requires at least one PEER\n{}",
             usage()
         )));
     }
     Ok(OperatorSub::PushChunks {
         commitment_hash_hex: rest[0].to_string(),
-        peers: rest[1..].iter().map(|s| (*s).to_string()).collect(),
+        peers,
+        params: OperatorJsonParams { json },
+    })
+}
+
+fn parse_operator_fetch_chunk_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    if rest.len() < 3 || rest.len() > 4 {
+        return Err(CliError::Usage(format!(
+            "operator fetch-chunk requires COMMITMENT_HASH_HEX CHUNK_INDEX PEER [--json]\n{}",
+            usage()
+        )));
+    }
+    let mut json = false;
+    if let Some(extra) = rest.get(3) {
+        if *extra != "--json" {
+            return Err(CliError::Usage(format!(
+                "operator fetch-chunk unknown modifier `{extra}` (expected `--json`)\n{}",
+                usage()
+            )));
+        }
+        json = true;
+    }
+    let chunk_index = rest[1]
+        .parse()
+        .map_err(|_| CliError::Usage(format!("invalid chunk index `{}`", rest[1])))?;
+    Ok(OperatorSub::FetchChunk {
+        commitment_hash_hex: rest[0].to_string(),
+        chunk_index,
+        peer: rest[2].to_string(),
+        params: OperatorJsonParams { json },
     })
 }
 
@@ -2871,10 +2912,40 @@ mod tests {
                     OperatorSub::PushChunks {
                         commitment_hash_hex,
                         peers,
+                        params,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
                 assert_eq!(peers.len(), 2);
+                assert!(!params.json);
+            }
+            _ => panic!("expected operator push-chunks"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_push_chunks_json() {
+        let h = "ef".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "push-chunks".into(),
+            h.clone(),
+            "127.0.0.1:18731".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::PushChunks {
+                        commitment_hash_hex,
+                        peers,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(peers, vec!["127.0.0.1:18731".to_string()]);
+                assert!(params.json);
             }
             _ => panic!("expected operator push-chunks"),
         }
@@ -2898,11 +2969,44 @@ mod tests {
                         commitment_hash_hex,
                         chunk_index,
                         peer,
+                        params,
                     },
             } => {
                 assert_eq!(commitment_hash_hex, h);
                 assert_eq!(chunk_index, 0);
                 assert_eq!(peer, "127.0.0.1:18780");
+                assert!(!params.json);
+            }
+            _ => panic!("expected operator fetch-chunk"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_fetch_chunk_json() {
+        let h = "ab".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "fetch-chunk".into(),
+            h.clone(),
+            "0".into(),
+            "127.0.0.1:18780".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::FetchChunk {
+                        commitment_hash_hex,
+                        chunk_index,
+                        peer,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(chunk_index, 0);
+                assert_eq!(peer, "127.0.0.1:18780");
+                assert!(params.json);
             }
             _ => panic!("expected operator fetch-chunk"),
         }
