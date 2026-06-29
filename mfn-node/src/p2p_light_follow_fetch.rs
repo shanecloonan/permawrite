@@ -136,8 +136,11 @@ fn fetch_light_follow_v1(
                     last_err = format!("send GetLightFollowV1 to {addr}: {e}");
                     continue;
                 }
-                return recv_light_follow_v1(&mut stream)
-                    .map_err(|e| format!("recv LightFollowV1 from {addr}: {e}"));
+                let follow = recv_light_follow_v1(&mut stream)
+                    .map_err(|e| format!("recv LightFollowV1 from {addr}: {e}"))?;
+                validate_light_follow_response(&follow, start_height, count)
+                    .map_err(|e| format!("invalid LightFollowV1 from {addr}: {e}"))?;
+                return Ok(follow);
             }
             Err(e) => {
                 last_err = format!("p2p handshake with {addr}: {e}");
@@ -145,4 +148,83 @@ fn fetch_light_follow_v1(
         }
     }
     Err(last_err)
+}
+
+fn validate_light_follow_response(
+    follow: &LightFollowV1,
+    start_height: u32,
+    requested_count: u32,
+) -> Result<(), String> {
+    let got = follow.rows.len();
+    if got > requested_count as usize {
+        return Err(format!("returned {got} rows, requested {requested_count}"));
+    }
+    for (idx, row) in follow.rows.iter().enumerate() {
+        let idx = u32::try_from(idx).map_err(|_| "row index overflow".to_string())?;
+        let expected = start_height
+            .checked_add(idx)
+            .ok_or_else(|| "row height overflow".to_string())?;
+        if row.height != expected {
+            return Err(format!(
+                "non-sequential row height: expected {expected}, got {}",
+                row.height
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mfn_net::LightFollowRow;
+
+    fn row(height: u32) -> LightFollowRow {
+        LightFollowRow {
+            height,
+            block_id: [height as u8; 32],
+            header_wire: vec![0xab, height as u8],
+            slashings: Vec::new(),
+            bond_ops: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn validate_light_follow_response_accepts_prefix() {
+        let follow = LightFollowV1 {
+            genesis_id: [7u8; 32],
+            rows: vec![row(10), row(11)],
+        };
+
+        validate_light_follow_response(&follow, 10, 4).expect("prefix may be shorter than request");
+    }
+
+    #[test]
+    fn validate_light_follow_response_rejects_more_rows_than_requested() {
+        let follow = LightFollowV1 {
+            genesis_id: [7u8; 32],
+            rows: vec![row(10), row(11)],
+        };
+
+        let err = validate_light_follow_response(&follow, 10, 1)
+            .expect_err("oversized response must reject");
+
+        assert!(err.contains("returned 2 rows, requested 1"), "err={err}");
+    }
+
+    #[test]
+    fn validate_light_follow_response_rejects_skipped_height() {
+        let follow = LightFollowV1 {
+            genesis_id: [7u8; 32],
+            rows: vec![row(10), row(12)],
+        };
+
+        let err = validate_light_follow_response(&follow, 10, 2)
+            .expect_err("skipped row height must reject");
+
+        assert!(
+            err.contains("non-sequential row height: expected 11, got 12"),
+            "err={err}"
+        );
+    }
 }
