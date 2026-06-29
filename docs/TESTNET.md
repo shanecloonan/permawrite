@@ -68,7 +68,7 @@ Minimal participant path:
 2. Build release binaries: `cargo build -p mfn-node --release --bin mfnd`, `cargo build -p mfn-cli --release --bin mfn-cli`, and for storage operators `cargo build -p mfn-storage-operator --release --bin mfn-storage-operator`.
 3. Start or connect to a node whose stdout `mfnd_chain_genesis_id=` equals `7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df`.
 4. Keep RPC on loopback or behind a tunnel. If the node uses `--rpc-api-key`, pass `mfn-cli --rpc-api-key <KEY>` or set `MFN_RPC_API_KEY=<KEY>`.
-5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning.
+5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning; use `wallet scan --json` or `wallet balance --json` when you need a seed-free support record of the rescan result.
 6. Create a test wallet with `mfn-cli --wallet ./alice.json wallet new`, or restore a known test-only seed with `mfn-cli --wallet ./alice.json wallet restore <SEED_HEX>`. Back up the wallet file and never reuse devnet keys for real funds.
 7. Fund the wallet from an operator-controlled devnet faucet wallet, for example `powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/fund-wallet.sh --plan-only`, then rerun with a faucet wallet and `./alice.json` as the recipient.
 8. For permanence testing, upload with `wallet upload`, replicate with `operator push-chunks` or `operator backfill`, verify with `uploads retrieve`, and prove with `operator prove`.
@@ -162,7 +162,7 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> --rpc-api-key <KEY> mempool
 
 # Wallet (local wallet.json; scans blocks via get_block)
 mfn-cli wallet new
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance --json
 
 # Send (then stop serve and `mfnd step` to mine the mempool tx)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> --fee 10000

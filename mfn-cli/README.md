@@ -37,9 +37,9 @@ mfn-cli --wallet ./restored.json wallet restore <SEED_HEX>
 mfn-cli --wallet ./validator-faucet.json wallet restore <BLS_SEED_HEX> \
   --key-derivation payout_stealth_v1
 mfn-cli wallet address
-mfn-cli --wallet ./alice.json wallet scan
+mfn-cli --wallet ./alice.json wallet scan --json
 mfn-cli wallet light-scan
-mfn-cli wallet balance
+mfn-cli wallet balance --json
 mfn-cli wallet status --json
 mfn-cli --wallet ./alice.json wallet backup-info
 
@@ -93,7 +93,7 @@ If you restore only the seed, funds can be rescanned from the chain, but local u
 
 `wallet backup-info` prints a seed-free inventory for backup planning: wallet path/version, key derivation, scan/cache state, pending spends, light-checkpoint presence, upload artifact root/count/payload bytes, and whether artifact backup is needed. Add `--json` for automation or support tickets.
 
-`wallet scan` / `wallet balance` fetch full blocks via `get_block` after the persisted `scan_height` when `owned_outputs` is populated (**M3.6**); otherwise they replay from height `1`.
+`wallet scan` / `wallet balance` fetch full blocks via `get_block` after the persisted `scan_height` when `owned_outputs` is populated (**M3.6**); otherwise they replay from height `1`. Add `--json` to either command for support-safe automation fields: `tip_height`, `blocks_scanned`, `utxo_cache`, `scan_height`, `balance`, `owned_count`, pending-spend count, and light-summary presence.
 
 `wallet light-scan` (**M3.11**) verifies BLS headers and validator-set evolution via [`mfn-light`](../mfn-light) + batched `get_light_follow`, scans txs with `get_block_txs` only (no full block download), and persists `light_checkpoint_hex` in `wallet.json` for incremental resume.
 

@@ -126,6 +126,13 @@ pub struct WalletStatusParams {
     pub json: bool,
 }
 
+/// Parameters for wallet scan-style commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WalletScanParams {
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct WalletStatusSnapshot {
     tip_height: u64,
@@ -195,34 +202,46 @@ pub fn wallet_address(path: &Path) -> Result<(), WalletCmdError> {
 }
 
 /// `wallet scan` — ingest blocks from the node through chain tip.
-pub fn wallet_scan(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdError> {
+pub fn wallet_scan(
+    path: &Path,
+    client: &mut RpcClient,
+    params: WalletScanParams,
+) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
     persist_wallet(path, &mut file, &wallet)?;
-    print_scan_summary(
+    print_or_json_scan_summary(
+        path,
+        &file,
         &stats,
         wallet.scan_height(),
         wallet.balance(),
         wallet.owned_count(),
-    );
-    println!("wallet_path={}", path.display());
+        params,
+    )?;
     Ok(())
 }
 
 /// `wallet balance` — scan chain then print balance.
-pub fn wallet_balance(path: &Path, client: &mut RpcClient) -> Result<(), WalletCmdError> {
+pub fn wallet_balance(
+    path: &Path,
+    client: &mut RpcClient,
+    params: WalletScanParams,
+) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
     persist_wallet(path, &mut file, &wallet)?;
-    print_scan_summary(
+    print_or_json_scan_summary(
+        path,
+        &file,
         &stats,
         wallet.scan_height(),
         wallet.balance(),
         wallet.owned_count(),
-    );
-    println!("wallet_path={}", path.display());
+        params,
+    )?;
     Ok(())
 }
 
@@ -807,6 +826,54 @@ pub(crate) fn print_scan_summary(
     println!("owned_count={owned}");
 }
 
+fn print_or_json_scan_summary(
+    path: &Path,
+    file: &WalletFile,
+    stats: &SyncStats,
+    scan_height: Option<u32>,
+    balance: u64,
+    owned: usize,
+    params: WalletScanParams,
+) -> Result<(), WalletCmdError> {
+    if params.json {
+        let value = scan_summary_json(path, file, stats, scan_height, balance, owned);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("wallet scan json: {e}")))?
+        );
+        return Ok(());
+    }
+
+    print_scan_summary(stats, scan_height, balance, owned);
+    println!("wallet_path={}", path.display());
+    Ok(())
+}
+
+fn scan_summary_json(
+    path: &Path,
+    file: &WalletFile,
+    stats: &SyncStats,
+    scan_height: Option<u32>,
+    balance: u64,
+    owned: usize,
+) -> serde_json::Value {
+    serde_json::json!({
+        "wallet_path": path.display().to_string(),
+        "wallet_version": file.version,
+        "tip_height": stats.tip_height,
+        "blocks_scanned": stats.blocks_fetched,
+        "utxo_cache": stats.used_utxo_cache,
+        "scan_height": scan_height.unwrap_or(0),
+        "scan_height_present": scan_height.is_some(),
+        "balance": balance,
+        "owned_count": owned,
+        "pending_spent_count": file.pending_spent_utxo_keys.len(),
+        "light_checkpoint_present": file.light_checkpoint_hex.is_some(),
+        "trusted_light_summary_present": file.trusted_light_summary.is_some(),
+    })
+}
+
 fn parse_restore_seed_hex(seed_hex: &str) -> Result<[u8; 32], WalletCmdError> {
     let t = seed_hex
         .trim()
@@ -940,6 +1007,39 @@ mod tests {
         assert_eq!(value["blocks_behind"], 4);
         assert_eq!(value["sync_needed"], true);
         assert_eq!(value["utxo_cache"], false);
+        assert_eq!(value["pending_spent_count"], 0);
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(
+            mfn_storage_operator::upload_artifact_store::upload_artifacts_root(&path),
+        );
+    }
+
+    #[test]
+    fn scan_summary_json_reports_balance_and_scan_progress() {
+        let path = temp_wallet_path("scan-json");
+        let seed = "55".repeat(32);
+        wallet_restore(&path, &seed, KeyDerivation::MfnWalletV1, false).expect("restore");
+        let file = WalletFile::load(&path).expect("load wallet");
+        let stats = SyncStats {
+            tip_height: 9,
+            blocks_fetched: 4,
+            used_utxo_cache: true,
+            quorum_batches: 1,
+            weak_subjectivity_checked: false,
+            weak_subjectivity_pinned: false,
+        };
+
+        let value = scan_summary_json(&path, &file, &stats, Some(9), 123, 2);
+
+        assert_eq!(value["wallet_path"], path.display().to_string());
+        assert_eq!(value["tip_height"], 9);
+        assert_eq!(value["blocks_scanned"], 4);
+        assert_eq!(value["utxo_cache"], true);
+        assert_eq!(value["scan_height"], 9);
+        assert_eq!(value["scan_height_present"], true);
+        assert_eq!(value["balance"], 123);
+        assert_eq!(value["owned_count"], 2);
         assert_eq!(value["pending_spent_count"], 0);
 
         let _ = std::fs::remove_file(&path);
