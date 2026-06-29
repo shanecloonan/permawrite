@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -374,6 +374,7 @@ fn signing_stake_for_voters_from_state(st: &ChainState, voter_indices: &[u32]) -
 #[allow(clippy::too_many_arguments)]
 fn apply_validator_block_with_voters(
     fixture: &ValidatorFixture,
+    bond_secrets: &[ValidatorSecrets],
     voter_indices: &[u32],
     st: &ChainState,
     height: u32,
@@ -408,7 +409,7 @@ fn apply_validator_block_with_voters(
     let votes: Vec<_> = voter_indices
         .iter()
         .map(|&i| {
-            let secrets = &fixture.secrets[i as usize];
+            let secrets = validator_secrets_for_index(fixture, bond_secrets, i);
             cast_vote(
                 &header_hash,
                 secrets,
@@ -967,6 +968,7 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
         }
         st = apply_validator_block_with_voters(
             &fixture,
+            &[],
             &voters,
             &st,
             h,
@@ -1040,10 +1042,10 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
     let mut st = apply_genesis(&g, &cfg).expect("genesis");
     let mut spend_state = spend;
     let mut model_treasury = 0u128;
-    let voters = [0u32, 2];
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
     let liveness_forfeit = 10_000u128;
     let mut bond_seed = 50u8;
+    let mut bond_validator_secrets: Vec<ValidatorSecrets> = Vec::new();
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
@@ -1073,6 +1075,8 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
         };
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
+            let new_index = st.validators.len() as u32;
+            bond_validator_secrets.push(validator_secrets_from_bond_seed(bond_seed, new_index));
             vec![register_op_for_sim(bond_seed)]
         } else {
             Vec::new()
@@ -1081,8 +1085,15 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
             st.validator_stats[1].consecutive_missed =
                 fixture.params.liveness_max_consecutive_missed - 1;
         }
+        let voters = active_voter_indices_for_treasury_sim(
+            &st,
+            &fixture,
+            &bond_validator_secrets,
+            with_liveness,
+        );
         st = apply_validator_block_with_voters(
             &fixture,
+            &bond_validator_secrets,
             &voters,
             &st,
             h,
@@ -1123,6 +1134,51 @@ fn register_op_for_sim(seed: u8) -> mfn_consensus::BondOp {
         bls_pk: bls.pk,
         payout: None,
         sig: sign_register(stake, &vrf.pk, &bls.pk, None, &bls.sk),
+    }
+}
+
+fn validator_secrets_from_bond_seed(seed: u8, validator_index: u32) -> ValidatorSecrets {
+    let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
+    let vrf = vrf_keygen_from_seed(&[seed.wrapping_add(101); 32]).expect("vrf");
+    ValidatorSecrets {
+        index: validator_index,
+        vrf,
+        bls,
+    }
+}
+
+fn validator_secrets_for_index<'a>(
+    fixture: &'a ValidatorFixture,
+    bond_secrets: &'a [ValidatorSecrets],
+    index: u32,
+) -> &'a ValidatorSecrets {
+    if index < fixture.secrets.len() as u32 {
+        &fixture.secrets[index as usize]
+    } else {
+        &bond_secrets[(index as usize) - fixture.secrets.len()]
+    }
+}
+
+/// All staked validators vote except on intentional absentee blocks (**M5.22**).
+fn active_voter_indices_for_treasury_sim(
+    st: &ChainState,
+    fixture: &ValidatorFixture,
+    bond_secrets: &[ValidatorSecrets],
+    intentional_absentee_block: bool,
+) -> Vec<u32> {
+    if intentional_absentee_block {
+        vec![0, 2]
+    } else {
+        st.validators
+            .iter()
+            .enumerate()
+            .filter(|(i, v)| {
+                v.stake > 0
+                    && (*i < fixture.secrets.len()
+                        || *i - fixture.secrets.len() < bond_secrets.len())
+            })
+            .map(|(i, _)| i as u32)
+            .collect()
     }
 }
 
@@ -1209,6 +1265,7 @@ fn run_equivocation_combined_inflow_treasury_sim(
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
     let liveness_forfeit = 10_000u128;
     let mut bond_seed = 60u8;
+    let mut bond_validator_secrets: Vec<ValidatorSecrets> = Vec::new();
     let liveness_h = blocks / 2;
 
     for h in 1..=blocks {
@@ -1245,6 +1302,8 @@ fn run_equivocation_combined_inflow_treasury_sim(
         };
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
+            let new_index = st.validators.len() as u32;
+            bond_validator_secrets.push(validator_secrets_from_bond_seed(bond_seed, new_index));
             vec![register_op_for_sim(bond_seed)]
         } else {
             Vec::new()
@@ -1266,14 +1325,16 @@ fn run_equivocation_combined_inflow_treasury_sim(
             st.validator_stats[1].consecutive_missed =
                 fixture.params.liveness_max_consecutive_missed - 1;
         }
-        let voters: &[u32] = if with_liveness {
-            &[0u32, 2]
-        } else {
-            &[0u32, 1, 2]
-        };
+        let voters = active_voter_indices_for_treasury_sim(
+            &st,
+            &fixture,
+            &bond_validator_secrets,
+            with_liveness,
+        );
         st = apply_validator_block_with_voters(
             &fixture,
-            voters,
+            &bond_validator_secrets,
+            &voters,
             &st,
             h,
             txs,
