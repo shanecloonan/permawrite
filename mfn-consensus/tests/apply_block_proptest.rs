@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -9,20 +9,21 @@ use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
     emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
-    header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
-    try_produce_slot, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState,
-    ConsensusParams, EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
-    OutputSpec, PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire,
-    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
-    DEFAULT_EMISSION_PARAMS,
+    header_signing_hash, pick_winner, producer_coinbase_amount, seal_block, sign_register,
+    sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, Block,
+    BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams, EmissionParams,
+    FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress,
+    ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout,
+    ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    build_storage_commitment, build_storage_proof, BuiltCommitment, DEFAULT_CHUNK_SIZE,
-    DEFAULT_ENDOWMENT_PARAMS,
+    accrue_proof_reward, build_storage_commitment, build_storage_proof, storage_commitment_hash,
+    AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS,
+    PPB,
 };
 use proptest::prelude::*;
 
@@ -38,6 +39,11 @@ const PROP_MIXED_EMISSION: EmissionParams = EmissionParams {
 
 /// Genesis UTXO value large enough for many fee-bearing self-transfers.
 const PROP_MIXED_SPEND_VALUE: u64 = 10_000_000_000;
+
+const PROP_PPB_ENDOWMENT: EndowmentParams = EndowmentParams {
+    real_yield_ppb: 40_000_000,
+    ..DEFAULT_ENDOWMENT_PARAMS
+};
 
 fn genesis_state() -> ChainState {
     let cfg = GenesisConfig {
@@ -210,6 +216,85 @@ fn treasury_after_equivocation_combined_inflow_block(
         params,
     )
 }
+
+fn treasury_after_settlement_with_ppb_bonus(
+    treasury: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let storage_reward = u128::from(params.storage_proof_reward) * accepted_proofs + ppb_bonus;
+    let mut pending = treasury.saturating_add(treasury_fee);
+    let from_treasury = pending.min(storage_reward);
+    pending -= from_treasury;
+    pending
+}
+
+fn treasury_after_combined_inflow_block_with_ppb_bonus(
+    treasury: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement_with_ppb_bonus(
+        treasury
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        proofs,
+        ppb_bonus,
+        params,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn treasury_after_equivocation_combined_inflow_block_with_ppb_bonus(
+    treasury: u128,
+    equivocation_credit: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement_with_ppb_bonus(
+        treasury
+            .saturating_add(equivocation_credit)
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        proofs,
+        ppb_bonus,
+        params,
+    )
+}
+
+fn seed_ppb_pending_and_expected_payout(
+    st: &mut ChainState,
+    commit_hash: &[u8; 32],
+    slot: u32,
+    ep: &EndowmentParams,
+) -> u128 {
+    let entry = st.storage.get_mut(commit_hash).expect("storage entry");
+    entry.pending_yield_ppb = PPB - 1;
+    let accrual = accrue_proof_reward(AccrueArgs {
+        size_bytes: entry.commit.size_bytes,
+        replication: entry.commit.replication,
+        pending_ppb: entry.pending_yield_ppb,
+        last_proven_slot: entry.last_proven_slot,
+        current_slot: u64::from(slot),
+        params: ep,
+    })
+    .expect("accrue PPB payout");
+    accrual.payout
+}
+
 /// Deterministic spend material for proptest (**M5.5**).
 #[derive(Clone)]
 struct PropSpendState {
@@ -502,6 +587,42 @@ fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStora
         params: fixture.params,
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropValidatorPrivacyStorageGenesis {
+        state,
+        spend,
+        built,
+        payload,
+        fixture,
+    }
+}
+
+fn genesis_validator_combined_inflow_ppb_for_proptest() -> PropValidatorPrivacyStorageGenesis {
+    let fixture = PropValidatorFixture::liveness_absentee_long_sim();
+    let payload: Vec<u8> = vec![0u8; 1 << 20];
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        PROP_PPB_ENDOWMENT.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: PROP_PPB_ENDOWMENT,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
     };
     let g = build_genesis(&cfg);
@@ -1765,6 +1886,275 @@ proptest! {
                 st.treasury,
                 model,
                 "treasury mismatch at height {} (fee {}, bond_h {}, liveness_h {}, stride {})",
+                h,
+                fee,
+                bond_h,
+                liveness_h,
+                proof_stride
+            );
+            prop_assert!(st.treasury < u128::MAX);
+            if with_liveness {
+                prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
+            if with_equivocation {
+                prop_assert_eq!(
+                    st.validators[EQUIVOCATION_IDX as usize].stake,
+                    0,
+                    "equivocation must zero slashed validator stake"
+                );
+            }
+        }
+    }
+
+    /// PPB-augmented proof drain composes with bond/liveness/fee inflow (**M5.21**).
+    #[test]
+    fn prop_validator_combined_inflow_random_schedule_no_equivocation_ppb_treasury(
+        n_blocks in 6u32..=14u32,
+        fee_base in 1_000u64..=80_000u64,
+        bond_offset in 0u32..=4u32,
+        liveness_offset in 0u32..=4u32,
+        proof_stride in 2u32..=5u32,
+    ) {
+        let gen = genesis_validator_combined_inflow_ppb_for_proptest();
+        let commit_hash = storage_commitment_hash(&gen.built.commit);
+        let ep = &PROP_PPB_ENDOWMENT;
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let voters = [0u32, 2];
+        let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let liveness_forfeit = 10_000u128;
+        let mut bond_seed = 80u8;
+
+        let bond_span = (n_blocks - 2).max(1);
+        let bond_h = 2 + bond_offset % bond_span;
+        let liveness_span = n_blocks.saturating_sub(3).max(1);
+        let liveness_h = 2 + liveness_offset % liveness_span;
+        prop_assert!(bond_h <= n_blocks, "bond height {bond_h} must fit chain length {n_blocks}");
+        prop_assert!(
+            liveness_h <= n_blocks,
+            "liveness height {liveness_h} must fit chain length {n_blocks}"
+        );
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 4_501));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let with_bond = h == bond_h;
+            let with_proof = h % proof_stride == 0;
+            let with_liveness = h == liveness_h;
+            let proofs = if with_proof { 1u128 } else { 0 };
+            let ppb_bonus = if with_proof {
+                let payout = seed_ppb_pending_and_expected_payout(&mut st, &commit_hash, h, ep);
+                prop_assert!(payout > 0, "seeded PPB must cross integer payout boundary");
+                payout
+            } else {
+                0
+            };
+            let cb_amount = producer_coinbase_amount(
+                u64::from(h),
+                emission,
+                fee_sum,
+                proofs as usize,
+                ppb_bonus,
+            );
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let storage_proofs = if with_proof {
+                let prev = *st.tip_id().expect("tip");
+                let proof = build_storage_proof(
+                    &gen.built.commit,
+                    &prev,
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof");
+                let bonus =
+                    storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, h, ep);
+                prop_assert_eq!(bonus, ppb_bonus, "PPB bonus must match accrual payout");
+                vec![proof]
+            } else {
+                Vec::new()
+            };
+            let bond_ops = if with_bond {
+                bond_seed = bond_seed.wrapping_add(1);
+                vec![register_op(bond_seed)]
+            } else {
+                Vec::new()
+            };
+            if with_liveness {
+                st.validator_stats[1].consecutive_missed =
+                    gen.fixture.params.liveness_max_consecutive_missed - 1;
+            }
+            st = apply_validator_block_with_voters(
+                &gen.fixture,
+                &voters,
+                &st,
+                h,
+                txs,
+                storage_proofs,
+                bond_ops,
+                Vec::new(),
+            );
+            let bond_credit = if with_bond { bond_stake } else { 0 };
+            let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+            model = treasury_after_combined_inflow_block_with_ppb_bonus(
+                model,
+                bond_credit,
+                liveness_credit,
+                fee_sum,
+                proofs,
+                ppb_bonus,
+                emission,
+            );
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "PPB treasury mismatch at height {} (fee {}, bond_h {}, liveness_h {}, stride {})",
+                h,
+                fee,
+                bond_h,
+                liveness_h,
+                proof_stride
+            );
+            prop_assert!(st.treasury < u128::MAX);
+            if with_liveness {
+                prop_assert_eq!(st.validators[1].stake, 990_000);
+            }
+        }
+    }
+
+    /// PPB proof drain with terminal equivocation on combined inflow schedule (**M5.21**).
+    #[test]
+    fn prop_validator_equivocation_combined_inflow_random_schedule_ppb_treasury(
+        n_blocks in 8u32..=16u32,
+        fee_base in 1_000u64..=80_000u64,
+        bond_offset in 0u32..=4u32,
+        liveness_offset in 0u32..=4u32,
+        proof_stride in 2u32..=5u32,
+    ) {
+        let gen = genesis_validator_combined_inflow_ppb_for_proptest();
+        let commit_hash = storage_commitment_hash(&gen.built.commit);
+        let ep = &PROP_PPB_ENDOWMENT;
+        let mut st = gen.state;
+        let mut spend = gen.spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+        let voters = [0u32, 2];
+        const EQUIVOCATION_IDX: u32 = 2;
+        let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+        let liveness_forfeit = 10_000u128;
+        let mut bond_seed = 90u8;
+
+        let bond_h = 2 + bond_offset % (n_blocks - 3);
+        let liveness_span = n_blocks.saturating_sub(5).max(1);
+        let liveness_h = 3 + liveness_offset % liveness_span;
+        prop_assert!(
+            liveness_h < n_blocks,
+            "liveness height {liveness_h} must precede terminal equivocation at {n_blocks}"
+        );
+
+        for h in 1..=n_blocks {
+            let fee = fee_base.saturating_add(u64::from(h % 4_501));
+            prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
+            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            spend = next_spend;
+            let fee_sum = u128::from(fee);
+            let with_bond = h == bond_h;
+            let with_proof = h % proof_stride == 0;
+            let with_liveness = h == liveness_h;
+            let with_equivocation = h == n_blocks;
+            let proofs = if with_proof { 1u128 } else { 0 };
+            let equivocation_credit = if with_equivocation {
+                u128::from(st.validators[EQUIVOCATION_IDX as usize].stake)
+            } else {
+                0
+            };
+            let ppb_bonus = if with_proof {
+                let payout = seed_ppb_pending_and_expected_payout(&mut st, &commit_hash, h, ep);
+                prop_assert!(payout > 0, "seeded PPB must cross integer payout boundary");
+                payout
+            } else {
+                0
+            };
+            let cb_amount = producer_coinbase_amount(
+                u64::from(h),
+                emission,
+                fee_sum,
+                proofs as usize,
+                ppb_bonus,
+            );
+            let coinbase =
+                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
+            let txs = vec![coinbase, tx];
+            let storage_proofs = if with_proof {
+                let prev = *st.tip_id().expect("tip");
+                let proof = build_storage_proof(
+                    &gen.built.commit,
+                    &prev,
+                    h,
+                    &gen.payload,
+                    &gen.built.tree,
+                )
+                .expect("proof");
+                let bonus =
+                    storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, h, ep);
+                prop_assert_eq!(bonus, ppb_bonus, "PPB bonus must match accrual payout");
+                vec![proof]
+            } else {
+                Vec::new()
+            };
+            let bond_ops = if with_bond {
+                bond_seed = bond_seed.wrapping_add(1);
+                vec![register_op(bond_seed)]
+            } else {
+                Vec::new()
+            };
+            let slashings = if with_equivocation {
+                vec![equivocation_evidence(
+                    h,
+                    h,
+                    EQUIVOCATION_IDX,
+                    &gen.fixture.secrets[EQUIVOCATION_IDX as usize].bls.sk,
+                )]
+            } else {
+                Vec::new()
+            };
+            if with_liveness {
+                st.validator_stats[1].consecutive_missed =
+                    gen.fixture.params.liveness_max_consecutive_missed - 1;
+            }
+            st = apply_validator_block_with_voters(
+                &gen.fixture,
+                &voters,
+                &st,
+                h,
+                txs,
+                storage_proofs,
+                bond_ops,
+                slashings,
+            );
+            let bond_credit = if with_bond { bond_stake } else { 0 };
+            let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+            model = treasury_after_equivocation_combined_inflow_block_with_ppb_bonus(
+                model,
+                equivocation_credit,
+                bond_credit,
+                liveness_credit,
+                fee_sum,
+                proofs,
+                ppb_bonus,
+                emission,
+            );
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "PPB treasury mismatch at height {} (fee {}, bond_h {}, liveness_h {}, stride {})",
                 h,
                 fee,
                 bond_h,
