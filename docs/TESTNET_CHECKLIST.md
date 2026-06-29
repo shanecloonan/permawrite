@@ -71,6 +71,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add block-sync unit coverage that unsolicited post-handshake `BlocksV1` batches reject skipped heights.
 - [x] Add block-sync unit coverage that catch-up rejects responses larger than the requested batch before apply.
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
+- [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

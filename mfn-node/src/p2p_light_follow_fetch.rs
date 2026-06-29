@@ -33,7 +33,8 @@ pub fn fetch_light_follow_json(
     if follow.genesis_id != *genesis_id {
         return Err("peer genesis_id does not match local chain".into());
     }
-    let mut page = light_follow_v1_to_json(&follow, from_height, to_height);
+    let page_to_height = capped_page_to_height(from_height, to_height);
+    let mut page = light_follow_v1_to_json(&follow, from_height, page_to_height);
     if let Some(obj) = page.as_object_mut() {
         obj.insert("peer".into(), Value::String(peer.to_string()));
         obj.insert("source".into(), Value::String("p2p".into()));
@@ -101,7 +102,8 @@ pub fn fetch_light_follow_quorum_json(
             .next()
             .expect("quorum requires ≥1 batch"),
     };
-    let mut page = light_follow_v1_to_json(&page_follow, from_height, to_height);
+    let page_to_height = capped_page_to_height(from_height, to_height);
+    let mut page = light_follow_v1_to_json(&page_follow, from_height, page_to_height);
     if let Some(obj) = page.as_object_mut() {
         obj.insert("quorum".into(), json!(true));
         obj.insert("peer_count".into(), json!(peers.len()));
@@ -174,6 +176,12 @@ fn validate_light_follow_response(
     Ok(())
 }
 
+fn capped_page_to_height(from_height: u32, to_height: u32) -> u32 {
+    let span = to_height - from_height + 1;
+    let capped = span.min(MAX_LIGHT_FOLLOW_PER_GET_V1);
+    from_height + capped - 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +233,19 @@ mod tests {
         assert!(
             err.contains("non-sequential row height: expected 11, got 12"),
             "err={err}"
+        );
+    }
+
+    #[test]
+    fn capped_page_to_height_preserves_short_range() {
+        assert_eq!(capped_page_to_height(10, 12), 12);
+    }
+
+    #[test]
+    fn capped_page_to_height_limits_long_range_to_wire_request() {
+        assert_eq!(
+            capped_page_to_height(10, 10 + MAX_LIGHT_FOLLOW_PER_GET_V1 + 99),
+            10 + MAX_LIGHT_FOLLOW_PER_GET_V1 - 1
         );
     }
 }
