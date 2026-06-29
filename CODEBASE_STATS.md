@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-29T17:33:44.075Z
+**Generated (UTC):** 2026-06-29T17:59:40.574Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 323 |
-| Total lines (all scanned source-like files) | 107,822 |
-| Non-empty lines | 96,833 |
-| UTF-8 bytes (source-like) | 4,361,896 |
+| Total lines (all scanned source-like files) | 108,003 |
+| Non-empty lines | 96,995 |
+| UTF-8 bytes (source-like) | 4,367,664 |
 | Paths visited (before binary/huge skip) | 349 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,8 +25,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 13,666 | 12,630 |
-| `docs` | 39 | 11,360 | 8,120 |
-| `mfn-node` | 34 | 10,458 | 9,680 |
+| `docs` | 39 | 11,363 | 8,123 |
+| `mfn-node` | 34 | 10,636 | 9,839 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
@@ -47,8 +47,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 88,514 | 82,044 | 3,221,672 |
-| `.md` | 54 | 13,741 | 9,734 | 945,007 |
+| `.rs` | 212 | 88,692 | 82,203 | 3,226,924 |
+| `.md` | 54 | 13,744 | 9,737 | 945,523 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.sh` | 13 | 1,281 | 1,163 | 41,459 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
@@ -66,7 +66,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 2,784 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 2,656 | `mfn-cli/src/cli.rs` |
 | 2,407 | `mfn-node/tests/mfnd_smoke.rs` |
-| 2,297 | `docs/ROADMAP.md` |
+| 2,298 | `docs/ROADMAP.md` |
 | 2,290 | `mfn-consensus/tests/block_apply.rs` |
 | 1,975 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,975 | `mfn-consensus/tests/producer_treasury_settlement.rs` |

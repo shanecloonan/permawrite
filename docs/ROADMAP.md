@@ -2008,6 +2008,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.33** | Public-devnet block-sync response encode cap: `BlocksV1` encode refuses to serialize more than `MAX_BLOCKS_PER_GET_V1` blocks even if an internal provider returns an oversized batch. | ✓ shipped |
 | **M2.4.34** | Public-devnet light-follow response cap coverage: `LightFollowV1` encode/decode rejects row counts above `MAX_LIGHT_FOLLOW_PER_GET_V1` before serialization/allocation. | ✓ shipped |
 | **M2.4.35** | Public-devnet light-follow interleave coverage: `recv_light_follow_v1` skips bounded production/gossip frames before a `LightFollowV1` reply and aborts deterministically after the cap. | ✓ shipped |
+| **M2.4.36** | Public-devnet sync response byte-budgeting: P2P block-sync and light-follow providers return the largest prefix that fits `MAX_FRAME_PAYLOAD_LEN` instead of aborting oversized capped batches. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
