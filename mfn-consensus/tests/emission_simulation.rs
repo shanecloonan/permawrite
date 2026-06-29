@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1088,7 +1088,7 @@ fn treasury_ledger_matches_liveness_slash_plus_fee_and_proof_blocks() {
     run_liveness_slash_mixed_treasury_sim(SIM_EMISSION);
 }
 
-/// Alternating bond / liveness / fee / proof inflows over many blocks (**M5.11**, **M5.31**).
+/// Alternating bond / liveness / fee / proof inflows over many blocks (**M5.11**, **M5.31**, **M5.32**).
 fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initial_treasury: u128) {
     struct StorageFixture {
         payload: Vec<u8>,
@@ -1488,6 +1488,12 @@ fn treasury_ledger_matches_sixty_four_combined_inflow_blocks() {
 #[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(256, SIM_EMISSION, 0);
+}
+
+#[test]
+#[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_five_hundred_twelve_combined_inflow_blocks() {
+    run_combined_inflow_treasury_sim(512, SIM_EMISSION, 0);
 }
 
 /// Partial treasury prefund, no equivocation: proof blocks drain treasury first; backstop on shortfall (**M5.31**).
