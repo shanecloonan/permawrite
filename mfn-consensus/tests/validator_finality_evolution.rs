@@ -5,7 +5,8 @@
 //! tx, storage_proof), unbond-settlement root evolution, equivocation during
 //! unbond delay, entry/exit churn caps and epoch reset, duplicate/invalid slash
 //! rejection, bond-op admission rejects (duplicate vrf, duplicate unbond,
-//! stake below minimum, same-block register-then-unbond), and rejection preserving
+//! stake below minimum, same-block register-then-unbond, same-block duplicate
+//! vrf batch, zombie unbond, forged/unknown unbond), and rejection preserving
 //! caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
@@ -1461,4 +1462,216 @@ fn same_block_register_then_unbond_rejects_without_state_change() {
     }
     assert_eq!(snapshot(&st), before);
     assert_eq!(st.validators.len(), 3);
+}
+
+/// Two `Register` ops sharing a vrf_pk in one block reject at the second op.
+#[test]
+fn same_block_duplicate_vrf_register_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let stake = st.bonding_params.min_validator_stake;
+    let vrf = vrf_keygen_from_seed(&[60u8; 32]).expect("vrf");
+    let bls0 = bls_keygen_from_seed(&[161u8; 32]);
+    let bls1 = bls_keygen_from_seed(&[162u8; 32]);
+    let ops = vec![
+        BondOp::Register {
+            stake,
+            vrf_pk: vrf.pk,
+            bls_pk: bls0.pk,
+            payout: None,
+            sig: sign_register(stake, &vrf.pk, &bls0.pk, None, &bls0.sk),
+        },
+        BondOp::Register {
+            stake,
+            vrf_pk: vrf.pk,
+            bls_pk: bls1.pk,
+            payout: None,
+            sig: sign_register(stake, &vrf.pk, &bls1.pk, None, &bls1.sk),
+        },
+    ];
+    let block = seal_empty(&fx, &st, 1, ops, Vec::new(), &all_voter_positions(&st));
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 1,
+                            message,
+                            ..
+                        } if message.contains("duplicate vrf_pk")
+                    )
+                }),
+                "expected same-block duplicate vrf rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("same-block duplicate vrf must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// `Unbond` of a settled zombie (`stake == 0`) rejects atomically.
+#[test]
+fn unbond_zombie_validator_rejects_without_state_change() {
+    let fx = boot_three_validators_cfg(64, 2);
+    let mut st = fx.state.clone();
+    let v1_idx = st.validators[1].index;
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![BondOp::Unbond {
+                validator_index: v1_idx,
+                sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+            }],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("delay window");
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("settlement");
+    assert_eq!(st.validators[1].stake, 0);
+
+    let before = snapshot(&st);
+    let block = seal_empty(
+        &fx,
+        &st,
+        4,
+        vec![BondOp::Unbond {
+            validator_index: v1_idx,
+            sig: sign_unbond(v1_idx, &fx.secrets[1].bls.sk),
+        }],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("zombie")
+                    )
+                }),
+                "expected zombie unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("unbond of zombie must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Forged `Unbond` signature rejects without mutating chain state.
+#[test]
+fn forged_unbond_signature_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let idx = st.validators[1].index;
+    let attacker = bls_keygen_from_seed(&[253u8; 32]);
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![BondOp::Unbond {
+            validator_index: idx,
+            sig: sign_unbond(idx, &attacker.sk),
+        }],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("unbond signature invalid")
+                    )
+                }),
+                "expected forged unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("forged unbond must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert!(st.pending_unbonds.is_empty());
+}
+
+/// `Unbond` referencing an unknown validator index rejects atomically.
+#[test]
+fn unbond_unknown_validator_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+    let bls = bls_keygen_from_seed(&[254u8; 32]);
+    let unknown = st.next_validator_index;
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![BondOp::Unbond {
+            validator_index: unknown,
+            sig: sign_unbond(unknown, &bls.sk),
+        }],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("unknown validator")
+                    )
+                }),
+                "expected unknown validator unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("unbond of unknown validator must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
 }
