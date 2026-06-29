@@ -174,7 +174,7 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3 --
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution" --json
 
 # Authorship claim over a data root (discover via get_claims_for after mining)
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet claim <DATA_ROOT_HEX> --message "attribution"
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet claim <DATA_ROOT_HEX> --message "attribution" --json
 
 # Cached balance vs tip (no block download)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet status --json

@@ -116,6 +116,8 @@ pub struct ClaimParams {
     pub fee: u64,
     /// Ring size (≥ 2).
     pub ring_size: usize,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
 }
 
 /// Parameters for `wallet backup-info`.
@@ -177,6 +179,20 @@ struct SendOutcome<'a> {
     outcome_kind: &'a str,
     balance_after_send: u64,
     owned_count_after_send: usize,
+}
+
+struct ClaimOutcome<'a> {
+    stats: &'a SyncStats,
+    path: &'a Path,
+    params: &'a ClaimParams,
+    claim_pubkey: [u8; 32],
+    data_root: [u8; 32],
+    commit_hash: [u8; 32],
+    tx_id: &'a str,
+    mempool_len: u64,
+    outcome_kind: &'a str,
+    balance_after_claim: u64,
+    owned_count_after_claim: usize,
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -828,24 +844,20 @@ pub fn wallet_claim(
     let tx_bytes = encode_transaction(&signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
-    println!("tip_height={}", stats.tip_height);
-    println!("blocks_scanned={}", stats.blocks_fetched);
-    println!("utxo_cache={}", stats.used_utxo_cache);
-    println!(
-        "claim_pubkey_hex={}",
-        hex::encode(claiming.claim_pubkey().compress().to_bytes())
-    );
-    println!("data_root={}", hex::encode(data_root));
-    println!("commit_hash={}", hex::encode(commit_hash));
-    println!("message_len={}", params.message.len());
-    println!("fee={}", params.fee);
-    println!("ring_size={}", params.ring_size);
-    println!("tx_id={}", submit.tx_id);
-    println!("mempool_len={}", submit.pool_len);
-    println!("outcome={}", submit.outcome_kind);
-    println!("balance_after_claim={}", wallet.balance());
-    println!("owned_count_after_claim={}", wallet.owned_count());
-    println!("wallet_path={}", path.display());
+    let outcome = ClaimOutcome {
+        stats: &stats,
+        path,
+        params,
+        claim_pubkey: claiming.claim_pubkey().compress().to_bytes(),
+        data_root,
+        commit_hash,
+        tx_id: &submit.tx_id,
+        mempool_len: submit.pool_len,
+        outcome_kind: &submit.outcome_kind,
+        balance_after_claim: wallet.balance(),
+        owned_count_after_claim: wallet.owned_count(),
+    };
+    print_claim_outcome(&outcome)?;
     if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
         eprintln!(
             "warning: submit_tx outcome is {}; tx may not be in the mempool",
@@ -853,6 +865,59 @@ pub fn wallet_claim(
         );
     }
     Ok(())
+}
+
+fn print_claim_outcome(outcome: &ClaimOutcome<'_>) -> Result<(), WalletCmdError> {
+    if outcome.params.json {
+        let value = claim_outcome_json(outcome);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("wallet claim json: {e}")))?
+        );
+        return Ok(());
+    }
+
+    println!("tip_height={}", outcome.stats.tip_height);
+    println!("blocks_scanned={}", outcome.stats.blocks_fetched);
+    println!("utxo_cache={}", outcome.stats.used_utxo_cache);
+    println!("claim_pubkey_hex={}", hex::encode(outcome.claim_pubkey));
+    println!("data_root={}", hex::encode(outcome.data_root));
+    println!("commit_hash={}", hex::encode(outcome.commit_hash));
+    println!("message_len={}", outcome.params.message.len());
+    println!("fee={}", outcome.params.fee);
+    println!("ring_size={}", outcome.params.ring_size);
+    println!("tx_id={}", outcome.tx_id);
+    println!("mempool_len={}", outcome.mempool_len);
+    println!("outcome={}", outcome.outcome_kind);
+    println!("balance_after_claim={}", outcome.balance_after_claim);
+    println!(
+        "owned_count_after_claim={}",
+        outcome.owned_count_after_claim
+    );
+    println!("wallet_path={}", outcome.path.display());
+    Ok(())
+}
+
+fn claim_outcome_json(outcome: &ClaimOutcome<'_>) -> serde_json::Value {
+    serde_json::json!({
+        "wallet_path": outcome.path.display().to_string(),
+        "tip_height": outcome.stats.tip_height,
+        "blocks_scanned": outcome.stats.blocks_fetched,
+        "utxo_cache": outcome.stats.used_utxo_cache,
+        "claim_pubkey_hex": hex::encode(outcome.claim_pubkey),
+        "data_root": hex::encode(outcome.data_root),
+        "commit_hash": hex::encode(outcome.commit_hash),
+        "commit_hash_bound": outcome.commit_hash != UNBOUND_COMMIT_HASH,
+        "message_len": outcome.params.message.len(),
+        "fee": outcome.params.fee,
+        "ring_size": outcome.params.ring_size,
+        "tx_id": outcome.tx_id,
+        "mempool_len": outcome.mempool_len,
+        "outcome": outcome.outcome_kind,
+        "balance_after_claim": outcome.balance_after_claim,
+        "owned_count_after_claim": outcome.owned_count_after_claim,
+    })
 }
 
 /// Resolve `--wallet` or default [`DEFAULT_WALLET_PATH`].
@@ -1334,5 +1399,58 @@ mod tests {
         assert_eq!(value["outcome"], "Fresh");
         assert_eq!(value["balance_after_send"], 9_000);
         assert_eq!(value["owned_count_after_send"], 4);
+    }
+
+    #[test]
+    fn claim_outcome_json_reports_authorship_submission() {
+        let path = temp_wallet_path("claim-json");
+        let params = ClaimParams {
+            data_root_hex: "33".repeat(32),
+            commit_hash_hex: Some("44".repeat(32)),
+            message: b"hello permanence".to_vec(),
+            fee: DEFAULT_CLAIM_FEE,
+            ring_size: DEFAULT_RING_SIZE,
+            json: true,
+        };
+        let stats = SyncStats {
+            tip_height: 13,
+            blocks_fetched: 4,
+            used_utxo_cache: true,
+            quorum_batches: 0,
+            weak_subjectivity_checked: false,
+            weak_subjectivity_pinned: false,
+        };
+        let outcome = ClaimOutcome {
+            stats: &stats,
+            path: &path,
+            params: &params,
+            claim_pubkey: [0x55; 32],
+            data_root: [0x33; 32],
+            commit_hash: [0x44; 32],
+            tx_id: "tx-claim",
+            mempool_len: 6,
+            outcome_kind: "Fresh",
+            balance_after_claim: 7_000,
+            owned_count_after_claim: 3,
+        };
+
+        let value = claim_outcome_json(&outcome);
+
+        assert_eq!(value["wallet_path"], path.display().to_string());
+        assert_eq!(value["tip_height"], 13);
+        assert_eq!(value["blocks_scanned"], 4);
+        assert_eq!(value["utxo_cache"], true);
+        assert_eq!(value["claim_pubkey_hex"], "55".repeat(32));
+        assert_eq!(value["data_root"], "33".repeat(32));
+        assert_eq!(value["commit_hash"], "44".repeat(32));
+        assert_eq!(value["commit_hash_bound"], true);
+        assert_eq!(value["message_len"], 16);
+        assert_eq!(value["fee"], DEFAULT_CLAIM_FEE);
+        assert_eq!(value["ring_size"], DEFAULT_RING_SIZE);
+        assert_eq!(value["tx_id"], "tx-claim");
+        assert_eq!(value["mempool_len"], 6);
+        assert_eq!(value["outcome"], "Fresh");
+        assert_eq!(value["balance_after_claim"], 7_000);
+        assert_eq!(value["owned_count_after_claim"], 3);
     }
 }

@@ -71,7 +71,7 @@ mfn-cli --rpc 127.0.0.1:<PORT> --wallet ./bob.json \
   uploads fetch-http <COMMITMENT_HASH_HEX> ./restored-document.bin 127.0.0.1:18780 --json
 
 # Authorship claim (MFCL in tx.extra; unbound unless --commit-hash set)
-mfn-cli --rpc 127.0.0.1:<PORT> wallet claim <DATA_ROOT_HEX> --message "hello permanence"
+mfn-cli --rpc 127.0.0.1:<PORT> wallet claim <DATA_ROOT_HEX> --message "hello permanence" --json
 ```
 
 Default RPC address: `127.0.0.1:18731` (mfnd default `--rpc-listen`).
@@ -137,7 +137,7 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 
 `wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. Add `--json` to emit a single support record with the tx id, `storage_commitment_hash`, `data_root`, fee/burden, upload artifact path, payload bytes, and post-upload wallet state for replication/proof automation. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). **M3.24** persists `payload.bin` + `meta.bytes` under `{wallet_stem}.upload-artifacts/<commit_hash>/` so operators can prove without keeping the original path.
 
-`wallet claim` derives a deterministic [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs) from the wallet seed, signs an MFCL claim over `DATA_ROOT_HEX` via [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), and submits it. Use `--commit-hash` to bind the claim to a storage commitment hash from a prior upload.
+`wallet claim` derives a deterministic [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs) from the wallet seed, signs an MFCL claim over `DATA_ROOT_HEX` via [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), and submits it. Use `--commit-hash` to bind the claim to a storage commitment hash from a prior upload. Add `--json` for an authorship support record with the claim public key, data root, bound commitment status, tx id, mempool outcome, and post-claim wallet state.
 
 Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
 

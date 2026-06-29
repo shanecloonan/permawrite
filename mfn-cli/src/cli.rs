@@ -461,7 +461,7 @@ fn usage() -> &'static str {
                          --json\n\
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
-                         --fee N --ring-size N\n\
+                         --fee N --ring-size N --json\n\
        wallet export-trusted-summary      write weak-subjectivity summary JSON (**M3.14**)\n\
                          options: --out FILE --height N --pin --from-wallet-checkpoint\n\
        wallet import-trusted-summary FILE pin weak-subjectivity summary into wallet (**M3.15**)\n\
@@ -1785,10 +1785,16 @@ fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliError> {
     let mut ring_size = DEFAULT_RING_SIZE;
     let mut commit_hash_hex: Option<String> = None;
     let mut message: Option<Vec<u8>> = None;
+    let mut json = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--fee" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
@@ -1862,6 +1868,7 @@ fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliError> {
         message,
         fee,
         ring_size,
+        json,
     })
 }
 
@@ -2024,6 +2031,35 @@ mod tests {
                 assert!(params.json);
             }
             _ => panic!("expected wallet send"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_claim_json() {
+        let data_root = "33".repeat(32);
+        let commit_hash = "44".repeat(32);
+        let p = parse_args(&[
+            "wallet".into(),
+            "claim".into(),
+            data_root.clone(),
+            "--commit-hash".into(),
+            commit_hash.clone(),
+            "--message".into(),
+            "hello permanence".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Claim(params),
+                ..
+            } => {
+                assert_eq!(params.data_root_hex, data_root);
+                assert_eq!(params.commit_hash_hex, Some(commit_hash));
+                assert_eq!(params.message, b"hello permanence");
+                assert!(params.json);
+            }
+            _ => panic!("expected wallet claim"),
         }
     }
 
