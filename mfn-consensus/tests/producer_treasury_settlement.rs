@@ -1,4 +1,4 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.13**, **M5.18**, **M5.20**).
+//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.13**, **M5.18**, **M5.20**, **M5.27**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
@@ -1073,6 +1073,105 @@ fn ppb_bonus_increases_validator_coinbase_and_treasury_drain() {
         "coinbase must include flat proof reward plus PPB bonus"
     );
 }
+
+/// Prefunded treasury covers flat + PPB payout; emission backstop does not activate (**M5.27**).
+#[test]
+fn prefunded_treasury_fully_covers_ppb_storage_reward_without_backstop() {
+    let fixture = ValidatorFixture::three_validators();
+    let ep = EndowmentParams {
+        real_yield_ppb: 40_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let payload: Vec<u8> = vec![0u8; 1 << 20];
+    let built = build_storage_commitment(&payload, 1_000, Some(4096), ep.min_replication, None)
+        .expect("commitment");
+    let storage = StorageFixture { payload, built };
+    let initial = 50_000_000_000u64;
+    let (mut st, _) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        ep,
+        false,
+    );
+    st.treasury = 100_000_000;
+    let treasury_before = st.treasury;
+    let commit_hash = storage_commitment_hash(&storage.built.commit);
+    st.storage.get_mut(&commit_hash).unwrap().pending_yield_ppb = PPB - 1;
+    let slot = 1u32;
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        slot,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof");
+    let accrual = accrue_proof_reward(AccrueArgs {
+        size_bytes: storage.built.commit.size_bytes,
+        replication: storage.built.commit.replication,
+        pending_ppb: PPB - 1,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot),
+        params: &ep,
+    })
+    .expect("accrue");
+    assert!(
+        accrual.payout > 0,
+        "seeded PPB must cross integer payout boundary"
+    );
+    let bonus = storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, slot, &ep);
+    assert_eq!(bonus, accrual.payout);
+    let storage_reward_total = u128::from(TEST_EMISSION.storage_proof_reward) + accrual.payout;
+    assert!(
+        treasury_before >= storage_reward_total,
+        "prefund must cover flat reward plus PPB bonus without backstop"
+    );
+    let cb_amount = producer_coinbase_amount(1, &TEST_EMISSION, 0, 1, bonus);
+    let coinbase = build_coinbase(1, cb_amount, &fixture.payout).expect("coinbase");
+    st = match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![coinbase],
+        vec![proof],
+        Vec::new(),
+        Vec::new(),
+        slot,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => {
+            panic!("prefunded PPB proof without backstop: {errors:?}")
+        }
+    };
+    let expected = treasury_after_settlement_with_ppb_bonus(
+        treasury_before,
+        0,
+        1,
+        accrual.payout,
+        &TEST_EMISSION,
+    );
+    assert_eq!(st.treasury, expected);
+    assert_eq!(
+        st.treasury,
+        treasury_before - storage_reward_total,
+        "treasury pays full PPB-augmented storage reward from prefund alone"
+    );
+    let backstop = storage_reward_total.saturating_sub(treasury_before);
+    assert_eq!(
+        backstop, 0,
+        "emission backstop must not activate when treasury is sufficient"
+    );
+    let subsidy = u128::from(emission_at_height(1, &TEST_EMISSION));
+    assert_eq!(
+        u128::from(cb_amount),
+        subsidy + storage_reward_total,
+        "coinbase emission covers subsidy only; storage reward not backstop-minted"
+    );
+}
+
 #[test]
 fn equivocation_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
     let fixture = ValidatorFixture::three_validators();
