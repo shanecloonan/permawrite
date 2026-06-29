@@ -150,13 +150,13 @@ Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
 mfn-cli uploads list --include-claims --json
 mfn-cli --wallet ./alice.json uploads local
 mfn-cli operator challenge <COMMITMENT_HASH_HEX> --json
-mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
-mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX>
+mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin --json
+mfn-cli --wallet ./alice.json operator prove <COMMITMENT_HASH_HEX> --json
 mfn-cli --wallet ./alice.json operator artifacts --json
 mfn-cli operator pool --json
 ```
 
-`operator challenge --json` captures the exact next-block SPoRA inputs (`chunk_index`, `next_height`, `next_slot`, `prev_block_id`, `data_root`, and commitment metadata) for support tickets. `operator prove` rebuilds the Merkle tree from local file bytes (or from the wallet upload artifact when FILE is omitted and `--wallet` is set), verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
+`operator challenge --json` captures the exact next-block SPoRA inputs (`chunk_index`, `next_height`, `next_slot`, `prev_block_id`, `data_root`, and commitment metadata) for support tickets. `operator prove` rebuilds the Merkle tree from local file bytes (or from the wallet upload artifact when FILE is omitted and `--wallet` is set), verifies `data_root`, builds the proof for the next block, and queues it via `submit_storage_proof`. Add `--json` to record the submission outcome, payload source, payload bytes, and challenge context. Validators include queued proofs when producing the next block (`mfnd serve --produce` or `mfnd step`).
 
 Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.23**), the same way mempool txs use `mempool.bytes` — survive `mfnd serve` restarts until mined or cleared. Add `--json` to `operator pool` to capture `pool_len` and pending commitment hashes before/after mining.
 

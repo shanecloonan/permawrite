@@ -89,11 +89,12 @@ pub fn operator_prove(
     commitment_hash_hex: &str,
     data_path: Option<&Path>,
     wallet_path: Option<&Path>,
+    params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
     let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
 
-    let (data, tree, artifact_source) = match (data_path, wallet_path) {
+    let (data, tree, payload_source, artifact_source) = match (data_path, wallet_path) {
         (Some(path), _) => {
             let commit = decode_storage_commitment(
                 &hex::decode(&ch.commitment_wire_hex)
@@ -126,7 +127,7 @@ pub fn operator_prove(
                         .into(),
                 ));
             }
-            (data, tree, None)
+            (data, tree, "file", Some(path.display().to_string()))
         }
         (None, Some(wallet)) => {
             let loaded = mfn_storage_operator::load_upload_artifact(wallet, commitment_hash_hex)
@@ -147,7 +148,7 @@ pub fn operator_prove(
             } else {
                 Some(loaded.source_path)
             };
-            (loaded.payload, loaded.built.tree, source)
+            (loaded.payload, loaded.built.tree, "wallet_artifact", source)
         }
         (None, None) => {
             return Err(OperatorCmdError::Usage(
@@ -171,6 +172,16 @@ pub fn operator_prove(
         )));
     }
     let submit = client.submit_storage_proof(&proof)?;
+    if params.json {
+        print_pretty_json(&prove_submission_json(
+            &ch,
+            &submit,
+            data.len(),
+            payload_source,
+            artifact_source.as_deref(),
+        ))?;
+        return Ok(());
+    }
     println!("commit_hash={}", submit.commit_hash);
     println!("pool_len={}", submit.pool_len);
     println!("outcome={}", submit.outcome_kind);
@@ -497,6 +508,37 @@ fn proof_pool_json(pool: &crate::rpc::ProofPoolSnapshot) -> serde_json::Value {
     })
 }
 
+fn prove_submission_json(
+    ch: &crate::rpc::StorageChallenge,
+    submit: &crate::rpc::SubmitStorageProofResult,
+    payload_bytes: usize,
+    payload_source: &str,
+    artifact_source_path: Option<&str>,
+) -> serde_json::Value {
+    let mut value = serde_json::json!({
+        "commit_hash": &submit.commit_hash,
+        "pool_len": submit.pool_len,
+        "outcome": &submit.outcome_kind,
+        "next_height": submit.next_height,
+        "payload_bytes": payload_bytes,
+        "payload_source": payload_source,
+        "challenge": storage_challenge_json(ch),
+        "proof": {
+            "chunk_index": ch.chunk_index,
+            "next_height": ch.next_height,
+            "next_slot": ch.next_slot,
+            "prev_block_id": &ch.prev_block_id,
+        },
+    });
+    if let Some(src) = artifact_source_path {
+        value
+            .as_object_mut()
+            .expect("prove submission json object literal")
+            .insert("artifact_source_path".into(), serde_json::json!(src));
+    }
+    value
+}
+
 fn storage_challenge_for_operator(
     ch: &crate::rpc::StorageChallenge,
 ) -> mfn_storage_operator::rpc::StorageChallenge {
@@ -576,6 +618,46 @@ mod tests {
         assert_eq!(value["pool_len"], 2);
         assert_eq!(value["proofs_returned"], 2);
         assert_eq!(value["commit_hashes"][1], "22".repeat(32));
+    }
+
+    #[test]
+    fn prove_submission_json_reports_challenge_and_outcome() {
+        let challenge = crate::rpc::StorageChallenge {
+            commitment_hash: "11".repeat(32),
+            commitment_wire_hex: "aa".repeat(16),
+            data_root: "22".repeat(32),
+            size_bytes: 4096,
+            replication: 3,
+            num_chunks: 4,
+            chunk_size: 1024,
+            next_height: 7,
+            next_slot: 2,
+            prev_block_id: "33".repeat(32),
+            chunk_index: 1,
+        };
+        let submit = crate::rpc::SubmitStorageProofResult {
+            commit_hash: "11".repeat(32),
+            pool_len: 1,
+            outcome_kind: "Fresh".into(),
+            next_height: 7,
+        };
+
+        let value = prove_submission_json(
+            &challenge,
+            &submit,
+            4096,
+            "wallet_artifact",
+            Some("src.bin"),
+        );
+
+        assert_eq!(value["commit_hash"], "11".repeat(32));
+        assert_eq!(value["pool_len"], 1);
+        assert_eq!(value["outcome"], "Fresh");
+        assert_eq!(value["payload_bytes"], 4096);
+        assert_eq!(value["payload_source"], "wallet_artifact");
+        assert_eq!(value["artifact_source_path"], "src.bin");
+        assert_eq!(value["proof"]["chunk_index"], 1);
+        assert_eq!(value["challenge"]["data_root"], "22".repeat(32));
     }
 
     #[test]

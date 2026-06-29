@@ -180,6 +180,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::Prove {
                 commitment_hash_hex,
                 data_path,
+                params,
             } => {
                 let wallet = if data_path.is_none() {
                     Some(resolve_wallet_path(global_wallet_path.as_deref()))
@@ -191,6 +192,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     &commitment_hash_hex,
                     data_path.as_deref(),
                     wallet.as_deref(),
+                    params,
                 )?
             }
             OperatorSub::Pool(params) => operator_pool(&mut client, params)?,
@@ -355,6 +357,7 @@ enum OperatorSub {
     Prove {
         commitment_hash_hex: String,
         data_path: Option<std::path::PathBuf>,
+        params: OperatorJsonParams,
     },
     Pool(OperatorJsonParams),
     Artifacts(UploadsInventoryParams),
@@ -487,6 +490,7 @@ fn usage() -> &'static str {
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
                          options: --json\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
+                         options: --json\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
                          options: --json\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
@@ -827,19 +831,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     };
     let sub = match *sub_name {
         "challenge" => parse_operator_challenge_args(&rest[1..])?,
-        "prove" => {
-            if rest.len() < 2 || rest.len() > 3 {
-                return Err(CliError::Usage(format!(
-                    "operator prove requires COMMITMENT_HASH_HEX [FILE]\n\
-                     (omit FILE to load payload from --wallet upload artifact)\n{}",
-                    usage()
-                )));
-            }
-            OperatorSub::Prove {
-                commitment_hash_hex: rest[1].to_string(),
-                data_path: rest.get(2).map(|p| std::path::PathBuf::from(*p)),
-            }
-        }
+        "prove" => parse_operator_prove_args(&rest[1..])?,
         "pool" => OperatorSub::Pool(parse_operator_json_args("operator pool", &rest[1..])?),
         "artifacts" => OperatorSub::Artifacts(parse_inventory_output_args(
             "operator artifacts",
@@ -922,6 +914,48 @@ fn parse_operator_json_args(command: &str, rest: &[&str]) -> Result<OperatorJson
         )));
     }
     Ok(OperatorJsonParams { json })
+}
+
+fn parse_operator_prove_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    let mut commitment_hash_hex: Option<String> = None;
+    let mut data_path: Option<std::path::PathBuf> = None;
+    let mut json = false;
+    for a in rest {
+        if *a == "--json" {
+            json = true;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown operator prove option `{a}`\n{}",
+                usage()
+            )));
+        }
+        if commitment_hash_hex.is_none() {
+            commitment_hash_hex = Some((*a).to_string());
+            continue;
+        }
+        if data_path.is_none() {
+            data_path = Some(std::path::PathBuf::from(*a));
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "operator prove accepts COMMITMENT_HASH_HEX [FILE]\n{}",
+            usage()
+        )));
+    }
+    let Some(commitment_hash_hex) = commitment_hash_hex else {
+        return Err(CliError::Usage(format!(
+            "operator prove requires COMMITMENT_HASH_HEX [FILE]\n\
+             (omit FILE to load payload from --wallet upload artifact)\n{}",
+            usage()
+        )));
+    };
+    Ok(OperatorSub::Prove {
+        commitment_hash_hex,
+        data_path,
+        params: OperatorJsonParams { json },
+    })
 }
 
 fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
@@ -2589,6 +2623,34 @@ mod tests {
                 sub: OperatorSub::Pool(params),
             } => assert!(params.json),
             _ => panic!("expected operator pool"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_prove_json_with_file() {
+        let h = "cd".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "prove".into(),
+            h.clone(),
+            "payload.bin".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::Prove {
+                        commitment_hash_hex,
+                        data_path,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert_eq!(data_path, Some(std::path::PathBuf::from("payload.bin")));
+                assert!(params.json);
+            }
+            _ => panic!("expected operator prove"),
         }
     }
 

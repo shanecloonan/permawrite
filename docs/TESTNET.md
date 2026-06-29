@@ -190,6 +190,7 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> --wallet ./wallet.json \
 
 # Storage proof diagnostics
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> operator challenge <COMMIT_HASH_HEX> --json
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> --wallet ./wallet.json operator prove <COMMIT_HASH_HEX> --json
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> operator pool --json
 ```
 
