@@ -12,7 +12,8 @@
 //! signing_stake claim, producer index), producer VRF/BLS verification
 //! failures, aggregate signature integrity, bond epoch counter persistence,
 //! checkpoint roundtrip of bond counters, missing/malformed producer proof,
-//! and rejection preserving caller state.
+//! explicit sub-quorum `QuorumNotMet`, zero-stake liveness skip after equivocation,
+//! monotonic register index assignment, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -2565,4 +2566,98 @@ fn finality_decode_error_rejects_without_state_change() {
         ApplyOutcome::Ok { .. } => panic!("truncated producer_proof must reject"),
     }
     assert_eq!(snapshot(&st), before);
+}
+
+/// Sub-quorum BLS finality must surface `QuorumNotMet` through `apply_block`.
+#[test]
+fn sub_quorum_finality_rejects_with_quorum_not_met() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let block = seal_empty(&fx, &st, 1, Vec::new(), Vec::new(), &[0, 1]);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(e, BlockError::FinalityInvalid(ConsensusCheck::QuorumNotMet))
+                }),
+                "expected quorum not met, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("sub-quorum block must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Equivocation-zeroed validators are zombies; liveness must not touch them.
+#[test]
+fn liveness_skips_zero_stake_validator_after_equivocation() {
+    let fx = boot_three_validators(64);
+    let mut st = fx.state.clone();
+    let v1_idx = st.validators[1].index;
+    let v1_bls_sk = fx.secrets[1].bls.sk.clone();
+
+    let h1 = [33u8; 32];
+    let h2 = [44u8; 32];
+    let evidence = SlashEvidence {
+        height: 1,
+        slot: 1,
+        voter_index: v1_idx,
+        header_hash_a: h1,
+        sig_a: bls_sign(&h1, &v1_bls_sk),
+        header_hash_b: h2,
+        sig_b: bls_sign(&h2, &v1_bls_sk),
+    };
+    let slash_block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        vec![evidence],
+        &all_voter_positions(&st),
+    );
+    st = apply_block(&st, &slash_block)
+        .into_state()
+        .expect("equivocation slash");
+    assert_eq!(st.validators[1].stake, 0);
+    let stats_after_slash = st.validator_stats[1];
+
+    let mut params = fx.params;
+    params.quorum_stake_bps = 6666;
+    st.params = params;
+    let miss_v1 = seal_empty(&fx, &st, 2, Vec::new(), Vec::new(), &[0, 2]);
+    st = apply_block(&st, &miss_v1)
+        .into_state()
+        .expect("miss block without v1 in bitmap");
+    assert_eq!(
+        st.validator_stats[1], stats_after_slash,
+        "zero-stake validator stats must not evolve"
+    );
+    assert_eq!(st.validators[1].stake, 0);
+}
+
+/// Successful `Register` assigns `next_validator_index` monotonically.
+#[test]
+fn register_assigns_monotonic_validator_index() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    assert_eq!(st.next_validator_index, 3);
+
+    let stake = DEFAULT_BONDING_PARAMS.min_validator_stake;
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![register_op(stake, 40)],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let post = apply_block(&st, &block)
+        .into_state()
+        .expect("register block");
+    assert_eq!(post.validators.len(), 4);
+    assert_eq!(post.validators[3].index, 3);
+    assert_eq!(post.next_validator_index, 4);
+    assert_eq!(post.bond_epoch_entry_count, 1);
 }
