@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -148,6 +148,26 @@ fn treasury_after_settlement_with_ppb_bonus(
     let from_treasury = pending.min(storage_reward);
     pending -= from_treasury;
     pending
+}
+
+fn treasury_after_combined_inflow_block_with_ppb_bonus(
+    treasury: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement_with_ppb_bonus(
+        treasury
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        proofs,
+        ppb_bonus,
+        params,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1187,6 +1207,166 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
     }
 }
 
+/// Bond/liveness/fee/PPB-proof inflows over many blocks without equivocation (**M5.28**).
+fn run_combined_inflow_ppb_treasury_sim(blocks: u32, emission: EmissionParams) {
+    struct StorageFixture {
+        payload: Vec<u8>,
+        built: BuiltCommitment,
+    }
+    let payload: Vec<u8> = vec![0u8; 1 << 20];
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(4096),
+        SIM_PPB_ENDOWMENT.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let storage = StorageFixture { payload, built };
+    let commit_hash = storage_commitment_hash(&storage.built.commit);
+
+    let fixture = ValidatorFixture::liveness_absentee_long_sim();
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        }],
+        initial_storage: vec![storage.built.commit.clone()],
+        validators: fixture.validators.clone(),
+        params: fixture.params,
+        emission_params: emission,
+        endowment_params: SIM_PPB_ENDOWMENT,
+        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    };
+    let g = build_genesis(&cfg);
+    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let mut spend_state = spend;
+    let mut model_treasury = 0u128;
+    let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let liveness_forfeit = 10_000u128;
+    let mut bond_seed = 80u8;
+    let mut bond_validator_secrets: Vec<ValidatorSecrets> = Vec::new();
+
+    for h in 1..=blocks {
+        let fee = 2_500u64 + u64::from(h % 4_501);
+        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        spend_state = next_spend;
+        let fee_sum = u128::from(fee);
+        let with_bond = h == 8;
+        let with_proof = h % 4 == 0;
+        let with_liveness = h == 12;
+        let proofs = if with_proof { 1u128 } else { 0 };
+        let ppb_bonus = if with_proof {
+            let payout =
+                seed_ppb_pending_and_expected_payout(&mut st, &commit_hash, h, &SIM_PPB_ENDOWMENT);
+            assert!(payout > 0, "seeded PPB must cross integer payout boundary");
+            payout
+        } else {
+            0
+        };
+        let cb_amount =
+            producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, ppb_bonus);
+        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
+        let txs = vec![coinbase, signed.tx];
+        let storage_proofs = if with_proof {
+            let prev = *st.tip_id().expect("tip");
+            let proof = build_storage_proof(
+                &storage.built.commit,
+                &prev,
+                h,
+                &storage.payload,
+                &storage.built.tree,
+            )
+            .expect("proof");
+            let bonus = storage_proof_coinbase_bonus(
+                std::slice::from_ref(&proof),
+                &st.storage,
+                h,
+                &SIM_PPB_ENDOWMENT,
+            );
+            assert_eq!(bonus, ppb_bonus, "PPB bonus must match accrual payout");
+            vec![proof]
+        } else {
+            Vec::new()
+        };
+        let bond_ops = if with_bond {
+            bond_seed = bond_seed.wrapping_add(1);
+            let new_index = st.validators.len() as u32;
+            bond_validator_secrets.push(validator_secrets_from_bond_seed(bond_seed, new_index));
+            vec![register_op_for_sim(bond_seed)]
+        } else {
+            Vec::new()
+        };
+        if with_liveness {
+            st.validator_stats[1].consecutive_missed =
+                fixture.params.liveness_max_consecutive_missed - 1;
+        }
+        let voters = active_voter_indices_for_treasury_sim(
+            &st,
+            &fixture,
+            &bond_validator_secrets,
+            with_liveness,
+        );
+        st = apply_validator_block_with_voters(
+            &fixture,
+            &bond_validator_secrets,
+            &voters,
+            &st,
+            h,
+            txs,
+            storage_proofs,
+            bond_ops,
+            Vec::new(),
+        );
+        let bond_credit = if with_bond { bond_stake } else { 0 };
+        let liveness_credit = if with_liveness { liveness_forfeit } else { 0 };
+        let treasury_before_block = model_treasury;
+        model_treasury = treasury_after_combined_inflow_block_with_ppb_bonus(
+            model_treasury,
+            bond_credit,
+            liveness_credit,
+            fee_sum,
+            proofs,
+            ppb_bonus,
+            &emission,
+        );
+        assert_eq!(
+            st.treasury, model_treasury,
+            "PPB combined inflow treasury mismatch at height {h}"
+        );
+        assert!(st.treasury < u128::MAX);
+        if with_liveness {
+            assert_eq!(st.validators[1].stake, 990_000);
+        }
+        if with_proof {
+            let treasury_fee = fee_sum * u128::from(emission.fee_to_treasury_bps) / 10_000;
+            let pending_before_drain = treasury_before_block
+                .saturating_add(bond_credit)
+                .saturating_add(liveness_credit)
+                .saturating_add(treasury_fee);
+            let storage_reward = u128::from(emission.storage_proof_reward) * proofs + ppb_bonus;
+            let from_treasury = pending_before_drain.min(storage_reward);
+            let backstop = storage_reward - from_treasury;
+            if backstop > 0 {
+                let producer_fee = fee_sum - treasury_fee;
+                let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
+                    + producer_fee
+                    + storage_reward;
+                assert_eq!(
+                    u128::from(cb_amount),
+                    expected_cb,
+                    "coinbase must pay full PPB-augmented storage reward; backstop {backstop} at height {h}"
+                );
+            }
+        }
+    }
+}
+
 fn register_op_for_sim(seed: u8) -> mfn_consensus::BondOp {
     use mfn_consensus::{sign_register, BondOp, DEFAULT_BONDING_PARAMS};
     let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
@@ -1280,6 +1460,23 @@ fn treasury_ledger_matches_sixty_four_combined_inflow_blocks() {
 #[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(256, SIM_EMISSION);
+}
+
+#[test]
+fn treasury_ledger_matches_combined_inflow_ppb_blocks() {
+    run_combined_inflow_ppb_treasury_sim(16, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long combined inflow PPB treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_sixty_four_combined_inflow_ppb_blocks() {
+    run_combined_inflow_ppb_treasury_sim(64, SIM_EMISSION);
+}
+
+#[test]
+#[ignore = "long combined inflow PPB treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_ppb_blocks() {
+    run_combined_inflow_ppb_treasury_sim(256, SIM_EMISSION);
 }
 
 /// Bond/liveness/fee/proof inflows with terminal equivocation slash (**M5.13**, **M5.16**).
