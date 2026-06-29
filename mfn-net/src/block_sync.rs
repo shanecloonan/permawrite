@@ -263,7 +263,7 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
     ))
 }
 
-/// Request and apply blocks until local height reaches `remote_height` or the peer has no more.
+/// Request and apply blocks until local height reaches `remote_height`.
 ///
 /// No-op when `remote_height <= local_height`. Issues one or more
 /// [`GetBlocksByHeightV1`] / [`BlocksV1`] round-trips in batches of up to
@@ -299,7 +299,12 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
         )?;
         let blocks = recv_blocks_v1(stream)?;
         if blocks.block_wires.is_empty() {
-            break;
+            return Err(PullBlocksError::NoProgress {
+                requested_start: start,
+                requested: count,
+                local_height: cur,
+                remote_height,
+            });
         }
         let got = blocks.block_wires.len();
         if got > count as usize {
@@ -573,6 +578,20 @@ pub enum PullBlocksError {
         /// Number of block wires returned by the peer.
         got: usize,
     },
+    /// Peer advertised a higher tip but returned no blocks for the next requested height.
+    #[error(
+        "blocks v1 response made no progress: start={requested_start} requested={requested} local_height={local_height} remote_height={remote_height}"
+    )]
+    NoProgress {
+        /// First height requested from the peer.
+        requested_start: u32,
+        /// Number of blocks requested in the round trip.
+        requested: u32,
+        /// Local height before this round trip.
+        local_height: u32,
+        /// Remote height advertised by the peer.
+        remote_height: u32,
+    },
 }
 
 /// Failure while receiving a [`BlocksV1`] frame.
@@ -764,20 +783,32 @@ mod tests {
         write_frame_io(&mut reads, &empty_reply).unwrap();
         let mut stream = ScriptedStream::new(reads);
 
-        let stats = pull_blocks_to_tip(
+        let err = pull_blocks_to_tip(
             &mut stream,
             0,
             MAX_BLOCKS_PER_GET_V1 + 100,
             &HeightByteApplier,
         )
-        .expect("empty reply stops sync cleanly");
+        .expect_err("empty reply must abort when remote advertised progress");
         let req_payload = read_frame(&mut Cursor::new(stream.writes)).expect("get blocks request");
         let req = GetBlocksByHeightV1::decode_payload(&req_payload).expect("decode request");
 
         assert_eq!(req.start_height, 1);
         assert_eq!(req.count, MAX_BLOCKS_PER_GET_V1);
-        assert_eq!(stats.blocks_applied, 0);
-        assert_eq!(stats.local_height_after, 0);
+        match err {
+            PullBlocksError::NoProgress {
+                requested_start,
+                requested,
+                local_height,
+                remote_height,
+            } => {
+                assert_eq!(requested_start, 1);
+                assert_eq!(requested, MAX_BLOCKS_PER_GET_V1);
+                assert_eq!(local_height, 0);
+                assert_eq!(remote_height, MAX_BLOCKS_PER_GET_V1 + 100);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 
     #[test]
