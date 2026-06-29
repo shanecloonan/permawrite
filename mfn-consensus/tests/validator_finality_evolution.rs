@@ -11,16 +11,18 @@
 //! (prev_hash), finality proof integrity (msg mismatch, tampered blob,
 //! signing_stake claim, producer index), producer VRF/BLS verification
 //! failures, aggregate signature integrity, bond epoch counter persistence,
-//! checkpoint roundtrip of bond counters, and rejection preserving caller state.
+//! checkpoint roundtrip of bond counters, missing/malformed producer proof,
+//! and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
 use mfn_consensus::bond_wire::{sign_register, sign_unbond};
 use mfn_consensus::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use mfn_consensus::consensus::{
-    cast_vote, decode_finality_proof, encode_finality_proof, finalize, pick_winner,
-    try_produce_slot, validator_set_root, verify_finality_proof, ConsensusCheck, FinalityProof,
-    ProducerProof, SlotContext, Validator, ValidatorSecrets,
+    cast_vote, decode_finality_proof, eligibility_threshold, encode_finality_proof, finalize,
+    is_eligible, pick_winner, slot_seed, try_produce_slot, validator_set_root,
+    verify_finality_proof, ConsensusCheck, FinalityProof, ProducerProof, SlotContext, Validator,
+    ValidatorSecrets,
 };
 use mfn_consensus::{
     apply_block, apply_genesis, build_genesis, build_unsealed_header, decode_chain_checkpoint,
@@ -29,7 +31,7 @@ use mfn_consensus::{
     ValidatorStats, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::generator_g;
-use mfn_crypto::vrf::vrf_keygen_from_seed;
+use mfn_crypto::vrf::{vrf_keygen_from_seed, vrf_prove};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
 struct Fixture {
@@ -57,6 +59,44 @@ fn boot_three_validators(liveness_max_missed: u32) -> Fixture {
         liveness_max_missed,
         DEFAULT_BONDING_PARAMS.unbond_delay_heights,
     )
+}
+
+/// Algorand-style `F = 1` with a dust-stake validator whose eligibility
+/// threshold is negligible — used to deterministically exercise `NotEligible`.
+fn boot_three_validators_strict_eligibility(liveness_max_missed: u32) -> Fixture {
+    let (v0, s0) = mk_validator(0, 1);
+    let (v1, s1) = mk_validator(1, 1_000_000);
+    let (v2, s2) = mk_validator(2, 1_000_000);
+    let validators = vec![v0, v1, v2];
+    let secrets = vec![s0, s1, s2];
+    let params = ConsensusParams {
+        expected_proposers_per_slot: 1.0,
+        quorum_stake_bps: 6667,
+        liveness_max_consecutive_missed: liveness_max_missed,
+        liveness_slash_bps: 100,
+    };
+    let bonding = BondingParams {
+        min_validator_stake: 100_000,
+        unbond_delay_heights: DEFAULT_BONDING_PARAMS.unbond_delay_heights,
+        ..DEFAULT_BONDING_PARAMS
+    };
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        validators: validators.clone(),
+        params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(bonding),
+    };
+    let genesis = build_genesis(&cfg);
+    let state = apply_genesis(&genesis, &cfg).expect("genesis");
+    Fixture {
+        state,
+        secrets,
+        params,
+    }
 }
 
 fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights: u32) -> Fixture {
@@ -2400,4 +2440,129 @@ fn bond_epoch_counters_persist_in_chain_checkpoint_roundtrip() {
         validator_set_root(&restored.state.validators),
         validator_set_root(&st.validators)
     );
+}
+
+fn ineligible_producer_at_ctx(
+    fx: &Fixture,
+    st: &ChainState,
+    ctx: &SlotContext,
+    header_hash: &[u8; 32],
+) -> Option<ProducerProof> {
+    let total_stake: u64 = st.validators.iter().map(|v| v.stake).sum();
+    let f = st.params.expected_proposers_per_slot;
+    let seed = slot_seed(ctx);
+    for (i, v) in st.validators.iter().enumerate().take(fx.secrets.len()) {
+        let res = vrf_prove(&fx.secrets[i].vrf, &seed).ok()?;
+        let threshold = eligibility_threshold(v.stake, total_stake, f);
+        if !is_eligible(&res.output, threshold) {
+            return Some(ProducerProof {
+                validator_index: v.index,
+                beta: res.output,
+                vrf_proof: res.proof,
+                producer_sig: bls_sign(header_hash, &fx.secrets[i].bls.sk),
+            });
+        }
+    }
+    None
+}
+
+/// VRF output at or above the eligibility threshold is rejected as producer.
+#[test]
+fn producer_not_eligible_rejects_without_state_change() {
+    let fx = boot_three_validators_strict_eligibility(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let ctx = SlotContext {
+        height: block.header.height,
+        slot: block.header.slot,
+        prev_hash: block.header.prev_hash,
+    };
+    let header_hash = header_signing_hash(&block.header);
+    let ineligible = ineligible_producer_at_ctx(&fx, &st, &ctx, &header_hash)
+        .expect("at least one validator ineligible at sealed slot");
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.producer = ineligible;
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(e, BlockError::FinalityInvalid(ConsensusCheck::NotEligible))
+                }),
+                "expected not eligible, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("ineligible producer must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Validator-mode blocks must carry a non-empty `producer_proof`.
+#[test]
+fn missing_producer_proof_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.producer_proof.clear();
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::MissingProducerProof)),
+                "expected missing producer proof, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("empty producer_proof must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Truncated `producer_proof` bytes fail decode before state mutation.
+#[test]
+fn finality_decode_error_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.producer_proof.truncate(8);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::FinalityDecode(_))),
+                "expected finality decode error, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("truncated producer_proof must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
 }
