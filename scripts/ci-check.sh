@@ -29,6 +29,16 @@ echo "==> public-devnet scripts"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
 done
+http_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --peer 127.0.0.1:18780 --expected-sha256 cdcd --prove)"
+if [[ "$http_plan" != *"restore_mode=http"* || "$http_plan" != *"optional sha256 verify"* || "$http_plan" != *"only proves when --prove is set"* ]]; then
+  printf '%s\n' "$http_plan" >&2
+  exit 1
+fi
+p2p_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --data-dir /tmp/replica --expected-sha256 cdcd)"
+if [[ "$p2p_plan" != *"restore_mode=p2p-inbox"* || "$p2p_plan" != *"support-bundle -> recovery-plan -> restore"* ]]; then
+  printf '%s\n' "$p2p_plan" >&2
+  exit 1
+fi
 pwsh -NoProfile -Command '
   $errors = @()
   foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
@@ -41,6 +51,18 @@ pwsh -NoProfile -Command '
   }
   if ($errors.Count -gt 0) {
     $errors | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+  }
+'
+pwsh -NoProfile -Command '
+  $httpPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -Peer 127.0.0.1:18780 -ExpectedSha256 cdcd -Prove) -join "`n"
+  if ($httpPlan -notmatch "restore_mode=http" -or $httpPlan -notmatch "optional sha256 verify" -or $httpPlan -notmatch "only proves when -Prove is set") {
+    $httpPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+  }
+  $p2pPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -DataDir /tmp/replica -ExpectedSha256 cdcd) -join "`n"
+  if ($p2pPlan -notmatch "restore_mode=p2p-inbox" -or $p2pPlan -notmatch "support-bundle -> recovery-plan -> restore") {
+    $p2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
   }
 '

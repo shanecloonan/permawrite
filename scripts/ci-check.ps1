@@ -44,6 +44,16 @@ Get-ChildItem scripts -Filter *.sh -Recurse | ForEach-Object {
     bash -n $_.FullName
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
+$httpPlan = (powershell -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -Peer 127.0.0.1:18780 -ExpectedSha256 cdcd -Prove) -join "`n"
+if ($httpPlan -notmatch "restore_mode=http" -or $httpPlan -notmatch "optional sha256 verify" -or $httpPlan -notmatch "only proves when -Prove is set") {
+    $httpPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$p2pPlan = (powershell -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -DataDir C:\tmp\replica -ExpectedSha256 cdcd) -join "`n"
+if ($p2pPlan -notmatch "restore_mode=p2p-inbox" -or $p2pPlan -notmatch "support-bundle -> recovery-plan -> restore") {
+    $p2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 
 Write-Host "==> rustfmt"
 cargo fmt --all --check

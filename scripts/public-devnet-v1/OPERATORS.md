@@ -726,6 +726,7 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 | `mfn-cli` `chunk_p2p_two_node_smoke` | hub mines, replica sync + push, matching payload |
 | `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
+| `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |
 
 ```bash
 cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke
