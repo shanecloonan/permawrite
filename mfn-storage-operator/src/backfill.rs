@@ -120,7 +120,7 @@ pub fn fetch_payload_from_peers(
 pub fn persist_backfill_artifact(
     wallet_path: &Path,
     ch: &StorageChallenge,
-    peer: &str,
+    source_label: &str,
     payload: &[u8],
 ) -> Result<UploadArtifactSaveMeta, BackfillError> {
     let commit = commitment_from_challenge(ch)?;
@@ -130,7 +130,7 @@ pub fn persist_backfill_artifact(
         commitment_wire: hex::decode(&ch.commitment_wire_hex)
             .map_err(|e| BackfillError::Usage(format!("commitment_wire_hex: {e}")))?,
         blinding: Scalar::ZERO,
-        source_path: format!("backfill:{peer}"),
+        source_path: source_label.to_string(),
         tx_id: None,
     };
     let built = rebuild_built_commitment(&meta, payload)

@@ -381,17 +381,30 @@ fn next_block_context(chain: &Chain) -> ([u8; 32], u32) {
     (prev, next_height)
 }
 
-fn serve_dispatch_opts(
-    store: &Arc<dyn ChainPersistence + Send + Sync>,
-    fanout_peers: Option<&Arc<P2pPeerSet>>,
+struct ServeDispatchState<'a> {
+    store: &'a Arc<dyn ChainPersistence + Send + Sync>,
+    fanout_peers: Option<&'a Arc<P2pPeerSet>>,
     genesis: Arc<GenesisConfig>,
     genesis_id: [u8; 32],
     serve_tip: TipSnapshot,
     rpc_api_key: Option<String>,
     rpc_max_in_flight: usize,
     rpc_in_flight: Arc<AtomicUsize>,
-    rpc_listen: &str,
-) -> ServeDispatchOpts {
+    rpc_listen: &'a str,
+}
+
+fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
+    let ServeDispatchState {
+        store,
+        fanout_peers,
+        genesis,
+        genesis_id,
+        serve_tip,
+        rpc_api_key,
+        rpc_max_in_flight,
+        rpc_in_flight,
+        rpc_listen,
+    } = state;
     let store_persist = Arc::clone(store);
     let store_proof = Arc::clone(store);
     let on_fresh_admit =
@@ -776,17 +789,17 @@ pub(crate) fn run_serve(
         ))
     });
     let rpc_in_flight = Arc::new(AtomicUsize::new(0));
-    let dispatch_opts = serve_dispatch_opts(
-        &store,
-        fanout_peers.as_ref(),
-        genesis_for_rpc,
+    let dispatch_opts = serve_dispatch_opts(ServeDispatchState {
+        store: &store,
+        fanout_peers: fanout_peers.as_ref(),
+        genesis: genesis_for_rpc,
         genesis_id,
-        serve_tip.clone(),
+        serve_tip: serve_tip.clone(),
         rpc_api_key,
         rpc_max_in_flight,
-        Arc::clone(&rpc_in_flight),
+        rpc_in_flight: Arc::clone(&rpc_in_flight),
         rpc_listen,
-    );
+    });
 
     #[cfg(unix)]
     {

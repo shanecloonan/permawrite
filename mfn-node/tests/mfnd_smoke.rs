@@ -109,14 +109,8 @@ fn read_listener_p2p_handshake_session(
     tip_h: u32,
     tip_id_hex: &str,
 ) -> u64 {
-    let mut peer_tip_line = String::new();
-    child_out
-        .read_line(&mut peer_tip_line)
-        .expect("read mfnd_p2p_peer_tip from listener");
-    assert!(
-        peer_tip_line.starts_with("mfnd_p2p_peer_tip "),
-        "expected mfnd_p2p_peer_tip, got {peer_tip_line:?}"
-    );
+    let peer_tip_line =
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_peer_tip ", P2P_LINE_TIMEOUT);
     assert!(
         peer_tip_line.contains(&format!("height={tip_h} ")),
         "peer_tip_line={peer_tip_line:?}"
@@ -126,14 +120,8 @@ fn read_listener_p2p_handshake_session(
         "peer_tip_line={peer_tip_line:?}"
     );
     let hid = mfnd_p2p_hid_from_line(&peer_tip_line);
-    let mut height_cmp_line = String::new();
-    child_out
-        .read_line(&mut height_cmp_line)
-        .expect("read mfnd_p2p_height_cmp from listener");
-    assert!(
-        height_cmp_line.starts_with("mfnd_p2p_height_cmp "),
-        "expected mfnd_p2p_height_cmp, got {height_cmp_line:?}"
-    );
+    let height_cmp_line =
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_height_cmp ", P2P_LINE_TIMEOUT);
     assert!(
         height_cmp_line.contains(&format!("local_height={tip_h} ")),
         "height_cmp_line={height_cmp_line:?}"
@@ -151,10 +139,8 @@ fn read_listener_p2p_handshake_session(
         hid,
         "height_cmp_line={height_cmp_line:?}"
     );
-    let mut handshake_ms_line = String::new();
-    child_out
-        .read_line(&mut handshake_ms_line)
-        .expect("read mfnd_p2p_handshake_ms from listener");
+    let handshake_ms_line =
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_handshake_ms ", P2P_LINE_TIMEOUT);
     assert_mfnd_p2p_handshake_ms_line(&handshake_ms_line);
     assert_eq!(
         mfnd_p2p_hid_from_line(&handshake_ms_line),
@@ -1774,33 +1760,18 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
     let mut out_reader = BufReader::new(stdout);
     let _rpc_b = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
     read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let mut l3 = String::new();
-    out_reader
-        .read_line(&mut l3)
-        .expect("read mfnd_p2p_peer_tip from dialer");
-    assert!(
-        l3.starts_with("mfnd_p2p_peer_tip "),
-        "expected mfnd_p2p_peer_tip, got {l3:?}"
-    );
+    let l3 = read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_peer_tip ", P2P_LINE_TIMEOUT);
     assert!(
         l3.contains("height=") && l3.contains("tip_id="),
         "l3={l3:?}"
     );
     let hid = mfnd_p2p_hid_from_line(&l3);
-    let mut l4 = String::new();
-    out_reader
-        .read_line(&mut l4)
-        .expect("read mfnd_p2p_height_cmp from dialer");
-    assert!(
-        l4.starts_with("mfnd_p2p_height_cmp "),
-        "expected mfnd_p2p_height_cmp, got {l4:?}"
-    );
+    let l4 =
+        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_height_cmp ", P2P_LINE_TIMEOUT);
     assert!(l4.contains("cmp=equal"), "l4={l4:?}");
     assert_eq!(mfnd_p2p_hid_from_line(&l4), hid, "l4={l4:?}");
-    let mut l5 = String::new();
-    out_reader
-        .read_line(&mut l5)
-        .expect("read mfnd_p2p_handshake_ms from dialer");
+    let l5 =
+        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_handshake_ms ", P2P_LINE_TIMEOUT);
     assert_mfnd_p2p_handshake_ms_line(&l5);
     assert_eq!(mfnd_p2p_hid_from_line(&l5), hid, "l5={l5:?}");
     let _ = child_b.kill();

@@ -403,6 +403,7 @@ pub fn uploads_fetch_http(
     println!("chunks_fetched={}", backfill.chunks_fetched);
     println!("artifact_dir={}", backfill.artifact_dir.display());
     print_retrieve_output(commitment_hash_hex, &retrieve);
+    println!("retrieve=ok");
     println!("fetch_http=ok");
     Ok(())
 }

@@ -28,6 +28,10 @@ const SKIP_DIR_NAMES = new Set([
   ".pnpm-store",
 ]);
 
+function isSkippedDirName(name) {
+  return SKIP_DIR_NAMES.has(name) || name.startsWith("target-");
+}
+
 const SKIP_BASENAMES = new Set(["package-lock.json", "yarn.lock", "pnpm-lock.yaml"]);
 
 const SKIP_EXT = new Set([
@@ -77,7 +81,7 @@ function walk(dir, out = []) {
   for (const ent of entries) {
     const full = path.join(dir, ent.name);
     if (ent.isDirectory()) {
-      if (SKIP_DIR_NAMES.has(ent.name)) continue;
+      if (isSkippedDirName(ent.name)) continue;
       walk(full, out);
     } else if (ent.isFile()) {
       out.push(full);
