@@ -22,6 +22,8 @@ pub struct UploadsListParams {
     pub offset: Option<u64>,
     /// When true, each row may include a `claims` array for its `data_root`.
     pub include_claims: bool,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
 }
 
 /// Output options for local upload inventory and reconciliation commands.
@@ -593,6 +595,10 @@ pub fn uploads_list(client: &mut RpcClient, params: &UploadsListParams) -> Resul
     let v = client
         .call("list_recent_uploads", list_params_json(params))
         .map_err(|e| e.to_string())?;
+    if params.json {
+        print_pretty_json(&upload_list_page_json(&v)?)?;
+        return Ok(());
+    }
     print_upload_list_page(&v)
 }
 
@@ -628,6 +634,33 @@ fn print_upload_list_page(v: &Value) -> Result<(), String> {
         print_upload_line(i, u, include_claims)?;
     }
     Ok(())
+}
+
+fn print_pretty_json(v: &Value) -> Result<(), String> {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(v).map_err(|e| format!("uploads json: {e}"))?
+    );
+    Ok(())
+}
+
+fn upload_list_page_json(v: &Value) -> Result<Value, String> {
+    let total = field_u64(v, "total")?;
+    let offset = field_u64(v, "offset")?;
+    let limit = field_u64(v, "limit")?;
+    let include_claims = v
+        .get("include_claims")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let uploads = field_array(v, "uploads")?;
+    Ok(serde_json::json!({
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "include_claims": include_claims,
+        "uploads_returned": uploads.len(),
+        "uploads": uploads,
+    }))
 }
 
 fn print_upload_line(i: usize, u: &Value, include_claims: bool) -> Result<(), String> {
@@ -795,6 +828,43 @@ mod tests {
         assert_eq!(value["reconcile"]["local_only"], 1);
         assert_eq!(value["reconcile"]["chain_only"], 1);
         assert_eq!(value["rows"].as_array().expect("rows").len(), 2);
+    }
+
+    #[test]
+    fn upload_list_page_json_includes_claim_join_rows() {
+        let response = serde_json::json!({
+            "total": 1,
+            "offset": 0,
+            "limit": 10,
+            "include_claims": true,
+            "uploads": [{
+                "commitment_hash": "11".repeat(32),
+                "data_root": "aa".repeat(32),
+                "size_bytes": 42,
+                "num_chunks": 1,
+                "replication": 3,
+                "last_proven_height": 7,
+                "claims": [{
+                    "height": 9,
+                    "claim_pubkey": "22".repeat(32),
+                    "commit_hash": "11".repeat(32),
+                    "tx_id": "33".repeat(32),
+                }],
+            }],
+        });
+
+        let value = upload_list_page_json(&response).expect("uploads list json");
+
+        assert_eq!(value["total"], 1);
+        assert_eq!(value["offset"], 0);
+        assert_eq!(value["limit"], 10);
+        assert_eq!(value["include_claims"], true);
+        assert_eq!(value["uploads_returned"], 1);
+        assert_eq!(value["uploads"][0]["commitment_hash"], "11".repeat(32));
+        assert_eq!(
+            value["uploads"][0]["claims"][0]["claim_pubkey"],
+            "22".repeat(32)
+        );
     }
 
     #[test]

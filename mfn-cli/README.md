@@ -147,7 +147,7 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 Storage operators (**M3.22**) answer SPoRA challenges for anchored data:
 
 ```bash
-mfn-cli uploads list
+mfn-cli uploads list --include-claims --json
 mfn-cli --wallet ./alice.json uploads local
 mfn-cli operator challenge <COMMITMENT_HASH_HEX>
 mfn-cli operator prove <COMMITMENT_HASH_HEX> ./same-bytes-as-upload.bin
@@ -163,6 +163,8 @@ Queued proofs persist in `proof_pool.bytes` under the node data directory (**M3.
 `uploads local` and `operator artifacts` (**M3.25**) enumerate `{wallet_stem}.upload-artifacts/` so you can copy `commitment_hash` into `operator prove` without hunting directories by hand. The summary includes total `artifacts_payload_bytes` for backup sizing. Add `--json` to either command for structured backup manifests.
 
 `uploads status` (**M3.26**) pages `list_recent_uploads` and joins on commitment hash so operators see `matched`, `local_only` (artifact without chain index row), and `chain_only` (indexed upload missing local `payload.bin`). It also prints `local_artifacts_payload_bytes` for backup planning. Add `--json` for automation-friendly reconciliation output.
+
+`uploads list --json` emits the on-chain upload page with `uploads_returned` and the full `uploads` rows. Combine it with `--include-claims` to capture claim arrays beside each `data_root` for permanence handoffs and support-ticket reconciliation.
 
 `uploads retrieve HASH OUT [replace]` (**M3.27**) exports `payload.bin` from a wallet-local artifact to `OUT`. It works after the original `wallet upload`, HTTP backfill, or P2P inbox assembly, and refuses to overwrite an existing file unless the final argument is `replace`. Use `operator inbox-status HASH DATA_DIR --json` to script checks for missing P2P-replicated chunks before assembly, then `operator assemble-inbox HASH DATA_DIR --json` to capture the created artifact path and payload size.
 

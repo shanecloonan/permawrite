@@ -103,6 +103,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add JSON output mode to `wallet send` for faucet and participant funding records.
 - [x] Add JSON output mode to `wallet claim` for authorship support records.
 - [x] Add JSON output mode to `claims` queries for authorship index reconciliation.
+- [x] Add JSON output mode to `uploads list` for permanence discovery and claim-join reconciliation.
 
 ## Cross-Agent Notes
 

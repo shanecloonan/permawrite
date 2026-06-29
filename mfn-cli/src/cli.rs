@@ -472,7 +472,7 @@ fn usage() -> &'static str {
                          options for recent/roots: --limit N --offset N\n\
                          options for by-pubkey: --limit N\n\
        uploads list                       recent storage uploads (list_recent_uploads)\n\
-                         options: --limit N --offset N --include-claims\n\
+                         options: --limit N --offset N --include-claims --json\n\
        uploads local                      list persisted upload artifacts for --wallet (**M3.25**)\n\
                         options: --json\n\
        uploads status                     reconcile local artifacts vs chain upload index (**M3.26**)\n\
@@ -986,9 +986,15 @@ fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError>
     let mut limit = None;
     let mut offset = None;
     let mut include_claims = false;
+    let mut json = false;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--limit" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--limit requires a value".into()));
@@ -1025,6 +1031,7 @@ fn parse_uploads_list_args(rest: &[&str]) -> Result<UploadsListParams, CliError>
         limit,
         offset,
         include_claims,
+        json,
     })
 }
 
@@ -2315,6 +2322,30 @@ mod tests {
                 sub: UploadsSub::List(params),
             } => {
                 assert!(params.include_claims);
+                assert!(!params.json);
+            }
+            _ => panic!("expected uploads list"),
+        }
+    }
+
+    #[test]
+    fn parse_uploads_list_json() {
+        let p = parse_args(&[
+            "uploads".into(),
+            "list".into(),
+            "--limit".into(),
+            "5".into(),
+            "--include-claims".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Uploads {
+                sub: UploadsSub::List(params),
+            } => {
+                assert_eq!(params.limit, Some(5));
+                assert!(params.include_claims);
+                assert!(params.json);
             }
             _ => panic!("expected uploads list"),
         }

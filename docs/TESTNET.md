@@ -169,6 +169,7 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> -
 
 # Upload bytes (permanence anchor; default replication 3)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3 --json
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> uploads list --include-claims --json
 
 # Upload + bind authorship to commitment (same tx)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution" --json
