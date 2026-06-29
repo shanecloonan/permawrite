@@ -4,6 +4,9 @@ param(
     [string]$RpcApiKey = "",
     [string]$Wallet = "",
     [string]$CommitHash = "",
+    [string]$Peer = "",
+    [UInt32]$ChunkIndex = 0,
+    [string]$DataDir = "",
     [string]$DataRoot = "",
     [string]$ClaimPubkey = "",
     [string]$OutputDir = "",
@@ -65,6 +68,14 @@ function Get-PlannedCommands {
     }
     if ($CommitHash) {
         Add-PlannedCommand $commands "operator-challenge" ($rpcArgs + @("operator", "challenge", $CommitHash, "--json"))
+        if ($Peer) {
+            $fetchArgs = $rpcArgs
+            if ($Wallet) { $fetchArgs += @("--wallet", $Wallet) }
+            Add-PlannedCommand $commands "operator-fetch-chunk" ($fetchArgs + @("operator", "fetch-chunk", $CommitHash, "$ChunkIndex", $Peer, "--json"))
+        }
+        if ($DataDir) {
+            Add-PlannedCommand $commands "operator-inbox-status" ($rpcArgs + @("operator", "inbox-status", $CommitHash, $DataDir, "--json"))
+        }
     }
     if ($DataRoot) {
         Add-PlannedCommand $commands "claims-for" ($rpcArgs + @("claims", "for", $DataRoot, "--json"))
@@ -115,6 +126,8 @@ $planned = Get-PlannedCommands $RpcAddr
 if ($PlanOnly) {
     $walletText = if ($Wallet) { $Wallet } else { "<none; wallet-local diagnostics skipped>" }
     $commitText = if ($CommitHash) { $CommitHash } else { "<none; challenge diagnostics skipped>" }
+    $peerText = if ($Peer) { $Peer } else { "<none; fetch-chunk skipped>" }
+    $dataDirText = if ($DataDir) { $DataDir } else { "<none; inbox diagnostics skipped>" }
     $dataRootText = if ($DataRoot) { $DataRoot } else { "<none; claims-for skipped>" }
     $claimPubkeyText = if ($ClaimPubkey) { $ClaimPubkey } else { "<none; claims-by-pubkey skipped>" }
     Write-Host "support-bundle: plan"
@@ -122,6 +135,9 @@ if ($PlanOnly) {
     Write-Host "  rpc_api_key_set=$([bool]$RpcApiKey)"
     Write-Host "  wallet=$walletText"
     Write-Host "  commit_hash=$commitText"
+    Write-Host "  peer=$peerText"
+    Write-Host "  chunk_index=$ChunkIndex"
+    Write-Host "  data_dir=$dataDirText"
     Write-Host "  data_root=$dataRootText"
     Write-Host "  claim_pubkey=$claimPubkeyText"
     foreach ($cmd in $planned) {
@@ -157,6 +173,9 @@ try {
         rpc_api_key_set = [bool]$RpcApiKey
         wallet = if ($Wallet) { $Wallet } else { $null }
         commit_hash = if ($CommitHash) { $CommitHash } else { $null }
+        peer = if ($Peer) { $Peer } else { $null }
+        chunk_index = $ChunkIndex
+        data_dir = if ($DataDir) { $DataDir } else { $null }
         data_root = if ($DataRoot) { $DataRoot } else { $null }
         claim_pubkey = if ($ClaimPubkey) { $ClaimPubkey } else { $null }
         read_only = $true

@@ -10,6 +10,9 @@ RPC=""
 RPC_API_KEY=""
 WALLET=""
 COMMIT_HASH=""
+PEER=""
+CHUNK_INDEX=0
+DATA_DIR=""
 DATA_ROOT=""
 CLAIM_PUBKEY=""
 OUTPUT_DIR=""
@@ -25,6 +28,9 @@ Options:
   --rpc-api-key KEY        RPC API key for auth-enabled nodes (not written to manifest)
   --wallet FILE            wallet for wallet-local diagnostics
   --commit HASH            storage commitment hash for challenge diagnostics
+  --peer HOST:PORT         HTTP chunk peer for fetch-chunk diagnostics
+  --chunk-index N          chunk index for fetch-chunk diagnostics (default: 0)
+  --data-dir DIR           replica mfnd data dir for inbox diagnostics
   --data-root HEX          data root for claims-for diagnostics
   --claim-pubkey HEX       claim public key for claims-by-pubkey diagnostics
   --output-dir DIR         bundle output directory (default: support-bundle/<UTC timestamp>)
@@ -49,6 +55,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --commit)
       COMMIT_HASH="${2:-}"
+      shift 2
+      ;;
+    --peer)
+      PEER="${2:-}"
+      shift 2
+      ;;
+    --chunk-index)
+      CHUNK_INDEX="${2:-}"
+      shift 2
+      ;;
+    --data-dir)
+      DATA_DIR="${2:-}"
       shift 2
       ;;
     --data-root)
@@ -82,6 +100,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ ! "$CHUNK_INDEX" =~ ^[0-9]+$ ]]; then
+  echo "support-bundle: --chunk-index must be an integer >= 0" >&2
+  exit 1
+fi
 
 resolve_rpc() {
   if [[ -n "$RPC" ]]; then
@@ -131,6 +154,12 @@ build_plan() {
   fi
   if [[ -n "$COMMIT_HASH" ]]; then
     add_command "operator-challenge"
+    if [[ -n "$PEER" ]]; then
+      add_command "operator-fetch-chunk"
+    fi
+    if [[ -n "$DATA_DIR" ]]; then
+      add_command "operator-inbox-status"
+    fi
   fi
   if [[ -n "$DATA_ROOT" ]]; then
     add_command "claims-for"
@@ -146,6 +175,10 @@ print_plan_command() {
   if [[ -n "$RPC_API_KEY" ]]; then
     auth=" --rpc-api-key <KEY>"
   fi
+  local wallet_arg=""
+  if [[ -n "$WALLET" ]]; then
+    wallet_arg=" --wallet $WALLET"
+  fi
   case "$name" in
     uploads-list) echo "mfn-cli --rpc $RPC_ADDR$auth uploads list --include-claims --json" ;;
     operator-pool) echo "mfn-cli --rpc $RPC_ADDR$auth operator pool --json" ;;
@@ -155,6 +188,8 @@ print_plan_command() {
     uploads-status) echo "mfn-cli --rpc $RPC_ADDR$auth --wallet $WALLET uploads status --json" ;;
     operator-artifacts) echo "mfn-cli --wallet $WALLET operator artifacts --json" ;;
     operator-challenge) echo "mfn-cli --rpc $RPC_ADDR$auth operator challenge $COMMIT_HASH --json" ;;
+    operator-fetch-chunk) echo "mfn-cli --rpc $RPC_ADDR$auth$wallet_arg operator fetch-chunk $COMMIT_HASH $CHUNK_INDEX $PEER --json" ;;
+    operator-inbox-status) echo "mfn-cli --rpc $RPC_ADDR$auth operator inbox-status $COMMIT_HASH $DATA_DIR --json" ;;
     claims-for) echo "mfn-cli --rpc $RPC_ADDR$auth claims for $DATA_ROOT --json" ;;
     claims-by-pubkey) echo "mfn-cli --rpc $RPC_ADDR$auth claims by-pubkey $CLAIM_PUBKEY --json" ;;
     *) echo "support-bundle: internal error: unknown command $name" >&2; return 1 ;;
@@ -167,6 +202,10 @@ run_bundle_command() {
   if [[ -n "$RPC_API_KEY" ]]; then
     rpc_prefix+=(--rpc-api-key "$RPC_API_KEY")
   fi
+  local wallet_prefix=()
+  if [[ -n "$WALLET" ]]; then
+    wallet_prefix=(--wallet "$WALLET")
+  fi
   case "$name" in
     uploads-list) "$MFN_CLI" "${rpc_prefix[@]}" uploads list --include-claims --json ;;
     operator-pool) "$MFN_CLI" "${rpc_prefix[@]}" operator pool --json ;;
@@ -176,6 +215,8 @@ run_bundle_command() {
     uploads-status) "$MFN_CLI" "${rpc_prefix[@]}" --wallet "$WALLET" uploads status --json ;;
     operator-artifacts) "$MFN_CLI" --wallet "$WALLET" operator artifacts --json ;;
     operator-challenge) "$MFN_CLI" "${rpc_prefix[@]}" operator challenge "$COMMIT_HASH" --json ;;
+    operator-fetch-chunk) "$MFN_CLI" "${rpc_prefix[@]}" "${wallet_prefix[@]}" operator fetch-chunk "$COMMIT_HASH" "$CHUNK_INDEX" "$PEER" --json ;;
+    operator-inbox-status) "$MFN_CLI" "${rpc_prefix[@]}" operator inbox-status "$COMMIT_HASH" "$DATA_DIR" --json ;;
     claims-for) "$MFN_CLI" "${rpc_prefix[@]}" claims for "$DATA_ROOT" --json ;;
     claims-by-pubkey) "$MFN_CLI" "${rpc_prefix[@]}" claims by-pubkey "$CLAIM_PUBKEY" --json ;;
     *) echo "support-bundle: internal error: unknown command $name" >&2; return 1 ;;
@@ -209,6 +250,9 @@ if (( PLAN_ONLY )); then
   fi
   echo "  wallet=${WALLET:-<none; wallet-local diagnostics skipped>}"
   echo "  commit_hash=${COMMIT_HASH:-<none; challenge diagnostics skipped>}"
+  echo "  peer=${PEER:-<none; fetch-chunk skipped>}"
+  echo "  chunk_index=$CHUNK_INDEX"
+  echo "  data_dir=${DATA_DIR:-<none; inbox diagnostics skipped>}"
   echo "  data_root=${DATA_ROOT:-<none; claims-for skipped>}"
   echo "  claim_pubkey=${CLAIM_PUBKEY:-<none; claims-by-pubkey skipped>}"
   for i in "${!COMMAND_NAMES[@]}"; do
@@ -262,6 +306,9 @@ done
   fi
   echo "  \"wallet\": $(json_nullable_string "$WALLET"),"
   echo "  \"commit_hash\": $(json_nullable_string "$COMMIT_HASH"),"
+  echo "  \"peer\": $(json_nullable_string "$PEER"),"
+  echo "  \"chunk_index\": $CHUNK_INDEX,"
+  echo "  \"data_dir\": $(json_nullable_string "$DATA_DIR"),"
   echo "  \"data_root\": $(json_nullable_string "$DATA_ROOT"),"
   echo "  \"claim_pubkey\": $(json_nullable_string "$CLAIM_PUBKEY"),"
   echo "  \"read_only\": true,"

@@ -652,16 +652,18 @@ powershell -File scripts/public-devnet-v1/support-bundle.ps1 -PlanOnly `
 # Windows capture:
 powershell -File scripts/public-devnet-v1/support-bundle.ps1 `
   -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json `
-  -CommitHash <COMMIT_HASH_HEX> -DataRoot <DATA_ROOT_HEX> -ClaimPubkey <CLAIM_PUBKEY_HEX>
+  -CommitHash <COMMIT_HASH_HEX> -Peer 127.0.0.1:18780 -DataDir C:\path\to\replica-data `
+  -DataRoot <DATA_ROOT_HEX> -ClaimPubkey <CLAIM_PUBKEY_HEX>
 
 # Linux/macOS:
 bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
-  --commit <COMMIT_HASH_HEX> --data-root <DATA_ROOT_HEX> --claim-pubkey <CLAIM_PUBKEY_HEX>
+  --commit <COMMIT_HASH_HEX> --peer 127.0.0.1:18780 --data-dir /path/to/replica-data \
+  --data-root <DATA_ROOT_HEX> --claim-pubkey <CLAIM_PUBKEY_HEX>
 ```
 
 Use `-RpcApiKey <KEY>` or `--rpc-api-key <KEY>` for auth-enabled RPC. The key is passed to `mfn-cli` but only `rpc_api_key_set=true` is written to `manifest.json`.
 
-The bundle writes `manifest.json` plus JSON command outputs such as `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, or submit proofs.
+The bundle writes `manifest.json` plus JSON command outputs such as `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, `operator-fetch-chunk.json`, `operator-inbox-status.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, assemble inbox artifacts, or submit proofs.
 
 ### Permanence troubleshooting
 
