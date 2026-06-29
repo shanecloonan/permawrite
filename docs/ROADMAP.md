@@ -2012,6 +2012,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.37** | Public-devnet gap catch-up self-dial hardening: gap-triggered catch-up skips the node's own P2P listen address before spawning recovery dials. | ✓ shipped |
 | **M2.4.38** | Public-devnet P2P health status: `get_status` reports live P2P peer/session counts and health checks fail when nodes are below the configured session floor. | ✓ shipped |
 | **M2.4.39** | Public-devnet role-presence health checks: hub/voter/observer health checks fail when expected role RPC endpoints are missing unless partial-mesh mode is explicitly enabled. | ✓ shipped |
+| **M2.4.40** | Public-devnet script validation gate: CI and local mirrors parse-check Bash and PowerShell helper scripts before public-testnet operator regressions can ship. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

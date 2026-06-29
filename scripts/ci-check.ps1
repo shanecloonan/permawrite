@@ -18,6 +18,7 @@ function Add-MissingCommand($Name, $InstallHint) {
 
 Add-MissingCommand cargo "Install Rust from https://rustup.rs/ and reopen the shell."
 Add-MissingCommand rustup "Install Rust from https://rustup.rs/ and reopen the shell."
+Add-MissingCommand bash "Install Git Bash, MSYS2, or WSL and reopen the shell."
 Add-MissingCommand wasm-pack "Install with: cargo install wasm-pack --locked"
 Add-MissingCommand cargo-audit "Install with: cargo install cargo-audit --locked"
 $isWindowsHost = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
@@ -27,6 +28,21 @@ if ($isWindowsHost -and -not (Test-Command dlltool)) {
 if ($missingTools.Count -gt 0) {
     $missingTools | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 127
+}
+
+Write-Host "==> public-devnet scripts"
+Get-ChildItem scripts -Filter *.ps1 -Recurse | ForEach-Object {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) {
+        $errors | ForEach-Object { [Console]::Error.WriteLine("$($_.Extent.File): $_") }
+        exit 1
+    }
+}
+Get-ChildItem scripts -Filter *.sh -Recurse | ForEach-Object {
+    bash -n $_.FullName
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 Write-Host "==> rustfmt"

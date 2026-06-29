@@ -22,6 +22,40 @@ jobs:
       - run: rustup default stable && rustc --version && cargo --version
       - run: cargo fmt --all --check
 
+  scripts:
+    name: public-devnet scripts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Bash helper syntax
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
+            bash -n "$script"
+          done
+      - name: Validate PowerShell helper syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $errors = @()
+          foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $errors += $parseErrors | ForEach-Object { "$($script.FullName): $_" }
+            }
+          }
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+
   clippy:
     name: clippy
     runs-on: ubuntu-latest
