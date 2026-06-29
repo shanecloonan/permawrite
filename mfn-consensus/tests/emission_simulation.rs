@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1207,7 +1207,7 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams) {
     }
 }
 
-/// Bond/liveness/fee/PPB-proof inflows over many blocks without equivocation (**M5.28**, **M5.29**).
+/// Bond/liveness/fee/PPB-proof inflows over many blocks without equivocation (**M5.28**–**M5.30**).
 fn run_combined_inflow_ppb_treasury_sim(
     blocks: u32,
     emission: EmissionParams,
@@ -1482,6 +1482,12 @@ fn treasury_ledger_matches_sixty_four_combined_inflow_ppb_blocks() {
 #[ignore = "long combined inflow PPB treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_two_hundred_fifty_six_combined_inflow_ppb_blocks() {
     run_combined_inflow_ppb_treasury_sim(256, SIM_EMISSION, 0);
+}
+
+#[test]
+#[ignore = "long combined inflow PPB treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+fn treasury_ledger_matches_five_hundred_twelve_combined_inflow_ppb_blocks() {
+    run_combined_inflow_ppb_treasury_sim(512, SIM_EMISSION, 0);
 }
 
 /// Partial treasury prefund with PPB proof drain, no equivocation: treasury first, backstop on shortfall (**M5.29**).
