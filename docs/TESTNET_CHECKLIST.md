@@ -60,6 +60,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add block-sync unit coverage that catch-up aborts after too many interleaved non-`BlocksV1` frames instead of waiting forever.
 - [x] Add block-sync unit coverage that large catch-up gaps request at most `MAX_BLOCKS_PER_GET_V1` blocks per round trip.
 - [x] Add block-sync unit coverage that `BlocksV1` rejects advertised response counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing.
+- [x] Add block-sync unit coverage that `BlocksV1` encode refuses internal oversized response batches above `MAX_BLOCKS_PER_GET_V1`.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

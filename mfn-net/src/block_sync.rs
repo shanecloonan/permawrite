@@ -76,6 +76,9 @@ pub struct BlocksV1 {
 impl BlocksV1 {
     /// Encode the on-wire payload (without the length prefix).
     pub fn encode_payload(block_wires: &[&[u8]]) -> Result<Vec<u8>, BlockSyncEncodeError> {
+        if block_wires.len() > MAX_BLOCKS_PER_GET_V1 as usize {
+            return Err(BlockSyncEncodeError::TooManyBlocks(block_wires.len()));
+        }
         let mut out = Vec::with_capacity(1 + 4);
         out.push(BLOCKS_V1_TAG);
         let n = u32::try_from(block_wires.len())
@@ -609,6 +612,20 @@ mod tests {
         let enc = BlocksV1::encode_payload(&refs).unwrap();
         let back = BlocksV1::decode_payload(&enc).unwrap();
         assert_eq!(back.block_wires, wires);
+    }
+
+    #[test]
+    fn blocks_v1_encode_rejects_count_above_cap() {
+        let wires = vec![&[][..]; MAX_BLOCKS_PER_GET_V1 as usize + 1];
+
+        let err = BlocksV1::encode_payload(&wires).expect_err("oversized response must reject");
+
+        match err {
+            BlockSyncEncodeError::TooManyBlocks(got) => {
+                assert_eq!(got, MAX_BLOCKS_PER_GET_V1 as usize + 1);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 
     #[test]
