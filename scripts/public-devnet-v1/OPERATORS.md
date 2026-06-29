@@ -640,6 +640,29 @@ bash scripts/public-devnet-v1/permanence-demo.sh --rpc 127.0.0.1:<RPC>
 
 The demos store wallets and payloads under `scripts/public-devnet-v1/permanence-demo/` by default and reuse existing wallet files on repeat runs. Before a real run, fund the uploader wallet with enough devnet MFN for upload fees and storage endowment; otherwise `wallet upload` will fail during tx construction. The scripts exit nonzero if the upload is not discovered, peer restore fails, proof submission fails, or the restored SHA-256 does not match the original payload.
 
+### Support bundles
+
+When a participant reports a stuck wallet, missing upload, missing claim, or proof issue, collect the read-only JSON diagnostics in one directory:
+
+```bash
+# Windows plan mode:
+powershell -File scripts/public-devnet-v1/support-bundle.ps1 -PlanOnly `
+  -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json -CommitHash <COMMIT_HASH_HEX>
+
+# Windows capture:
+powershell -File scripts/public-devnet-v1/support-bundle.ps1 `
+  -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json `
+  -CommitHash <COMMIT_HASH_HEX> -DataRoot <DATA_ROOT_HEX> -ClaimPubkey <CLAIM_PUBKEY_HEX>
+
+# Linux/macOS:
+bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  --commit <COMMIT_HASH_HEX> --data-root <DATA_ROOT_HEX> --claim-pubkey <CLAIM_PUBKEY_HEX>
+```
+
+Use `-RpcApiKey <KEY>` or `--rpc-api-key <KEY>` for auth-enabled RPC. The key is passed to `mfn-cli` but only `rpc_api_key_set=true` is written to `manifest.json`.
+
+The bundle writes `manifest.json` plus JSON command outputs such as `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, or submit proofs.
+
 ### Permanence troubleshooting
 
 | Symptom | Likely cause | Recovery |

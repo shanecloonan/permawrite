@@ -99,7 +99,7 @@ add_command_check rustc "Rust compiler" required "Install Rust stable from https
 add_command_check git "Git client" required "Install Git and reopen the shell."
 add_command_check node "CODEBASE_STATS.md generator runtime" optional "Install Node.js or expose node on PATH before regenerating CODEBASE_STATS.md. $TOOLCHAIN_RECOVERY."
 add_command_check nc "JSON-RPC health-check transport" optional "Install netcat (nc) before running health-check.sh against a local mesh. $TOOLCHAIN_RECOVERY."
-add_command_check python3 "permanence-demo.sh sample-payload fallback" optional "Install python3 or pass --payload to permanence-demo.sh. $TOOLCHAIN_RECOVERY."
+add_command_check python3 "permanence-demo.sh sample-payload fallback and support-bundle.sh manifest writer" optional "Install python3, pass --payload to permanence-demo.sh, or run the PowerShell support bundle on Windows. $TOOLCHAIN_RECOVERY."
 add_command_check wasm-pack "WASM package test runner used by the local CI mirror" optional "Install with: cargo install wasm-pack --locked. $TOOLCHAIN_RECOVERY."
 add_command_check cargo-audit "dependency advisory scanner used by the local CI mirror" optional "Install with: cargo install cargo-audit --locked. $TOOLCHAIN_RECOVERY."
 add_release_binary_check mfnd "cargo build -p mfn-node --release --bin mfnd"
