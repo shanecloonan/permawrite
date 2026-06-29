@@ -2004,6 +2004,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.29** | Public-devnet genesis-mismatch label coverage: unit tests pin the outbound `genesis_mismatch expected=... got=...` reason consumed by durable foreign-peer cleanup. | ✓ shipped |
 | **M2.4.30** | Public-devnet block-sync interleave cap coverage: unit tests prove catch-up aborts after too many non-`BlocksV1` frames while waiting for a block reply. | ✓ shipped |
 | **M2.4.31** | Public-devnet block-sync request cap coverage: unit tests prove large height gaps request at most `MAX_BLOCKS_PER_GET_V1` blocks per round trip. | ✓ shipped |
+| **M2.4.32** | Public-devnet block-sync response cap coverage: `BlocksV1` decode rejects advertised block counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

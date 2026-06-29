@@ -59,6 +59,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Pin the outbound handshake `genesis_mismatch expected=... got=...` failure label that drives durable foreign-peer cleanup.
 - [x] Add block-sync unit coverage that catch-up aborts after too many interleaved non-`BlocksV1` frames instead of waiting forever.
 - [x] Add block-sync unit coverage that large catch-up gaps request at most `MAX_BLOCKS_PER_GET_V1` blocks per round trip.
+- [x] Add block-sync unit coverage that `BlocksV1` rejects advertised response counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

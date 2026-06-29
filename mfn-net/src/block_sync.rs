@@ -105,6 +105,12 @@ impl BlocksV1 {
             return Err(BlockSyncDecodeError::Truncated);
         }
         let count = u32::from_be_bytes([payload[1], payload[2], payload[3], payload[4]]) as usize;
+        if count > MAX_BLOCKS_PER_GET_V1 as usize {
+            return Err(BlockSyncDecodeError::TooManyBlocks {
+                max: MAX_BLOCKS_PER_GET_V1,
+                got: count,
+            });
+        }
         let mut off = 5;
         let mut block_wires = Vec::with_capacity(count);
         for _ in 0..count {
@@ -204,6 +210,14 @@ pub enum BlockSyncDecodeError {
     /// Too many non-[`BlocksV1`] frames before a block-sync reply.
     #[error("exceeded max interleaved frames waiting for BlocksV1")]
     TooManyInterleaved,
+    /// Response advertised more blocks than one capped reply may carry.
+    #[error("blocks v1 advertised {got} blocks, max {max}")]
+    TooManyBlocks {
+        /// Maximum legal response block count.
+        max: u32,
+        /// Count advertised by the peer.
+        got: usize,
+    },
 }
 
 /// Send a [`GetBlocksByHeightV1`] request.
@@ -595,6 +609,23 @@ mod tests {
         let enc = BlocksV1::encode_payload(&refs).unwrap();
         let back = BlocksV1::decode_payload(&enc).unwrap();
         assert_eq!(back.block_wires, wires);
+    }
+
+    #[test]
+    fn blocks_v1_decode_rejects_advertised_count_above_cap() {
+        let mut payload = Vec::new();
+        payload.push(BLOCKS_V1_TAG);
+        payload.extend_from_slice(&(MAX_BLOCKS_PER_GET_V1 + 1).to_be_bytes());
+
+        let err = BlocksV1::decode_payload(&payload).expect_err("oversized count must reject");
+
+        match err {
+            BlockSyncDecodeError::TooManyBlocks { max, got } => {
+                assert_eq!(max, MAX_BLOCKS_PER_GET_V1);
+                assert_eq!(got, MAX_BLOCKS_PER_GET_V1 as usize + 1);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 
     #[test]
