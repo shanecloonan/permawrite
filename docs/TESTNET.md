@@ -165,7 +165,7 @@ mfn-cli wallet new
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance --json
 
 # Send (then stop serve and `mfnd step` to mine the mempool tx)
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> --fee 10000
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> --fee 10000 --json
 
 # Upload bytes (permanence anchor; default replication 3)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3 --json

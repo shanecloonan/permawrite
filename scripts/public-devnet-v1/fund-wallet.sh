@@ -154,6 +154,20 @@ parse_field() {
   exit 1
 }
 
+json_field() {
+  local text="$1" key="$2"
+  if command -v node >/dev/null 2>&1; then
+    printf '%s\n' "$text" | node -e 'const fs=require("fs"); const key=process.argv[1]; const value=JSON.parse(fs.readFileSync(0,"utf8"))[key]; if (value === undefined || value === null) process.exit(2); console.log(value);' "$key"
+    return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s\n' "$text" | python3 -c 'import json,sys; value=json.load(sys.stdin).get(sys.argv[1]); sys.exit(2) if value is None else print(value)' "$key"
+    return
+  fi
+  echo "fund-wallet: wallet send --json requires node or python3 to parse tx_id; install one or run mfn-cli wallet send manually" >&2
+  exit 1
+}
+
 get_wallet_balance() {
   local mfn_cli="$1" rpc_addr="$2" wallet_path="$3" label="$4"
   local out
@@ -201,7 +215,7 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  recipient_wallet=$RECIPIENT"
   echo "  amount=$AMOUNT fee=$FEE ring_size=$RING_SIZE wait_mined_seconds=$WAIT_MINED_SECONDS"
-  echo "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send -> wait for balance delta"
+  echo "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
   echo "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
   exit 0
 fi
@@ -234,10 +248,11 @@ ADDR_OUT="$(run_checked "recipient wallet address" "$MFN_CLI" --wallet "$RECIPIE
 VIEW_HEX="$(parse_field "$ADDR_OUT" view_pub_hex)"
 SPEND_HEX="$(parse_field "$ADDR_OUT" spend_pub_hex)"
 
-SEND_OUT="$(run_checked "faucet wallet send" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet send "$VIEW_HEX" "$SPEND_HEX" "$AMOUNT" --fee "$FEE" --ring-size "$RING_SIZE")"
-TX_ID="$(parse_field "$SEND_OUT" tx_id)"
-MEMPOOL_LEN="$(parse_field "$SEND_OUT" mempool_len)"
-echo "fund-wallet: submitted tx_id=$TX_ID mempool_len=$MEMPOOL_LEN recipient_wallet=$RECIPIENT"
+SEND_OUT="$(run_checked "faucet wallet send" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet send "$VIEW_HEX" "$SPEND_HEX" "$AMOUNT" --fee "$FEE" --ring-size "$RING_SIZE" --json)"
+TX_ID="$(json_field "$SEND_OUT" tx_id)"
+MEMPOOL_LEN="$(json_field "$SEND_OUT" mempool_len)"
+OUTCOME="$(json_field "$SEND_OUT" outcome)"
+echo "fund-wallet: submitted tx_id=$TX_ID mempool_len=$MEMPOOL_LEN outcome=$OUTCOME recipient_wallet=$RECIPIENT"
 echo "fund-wallet: wait_for_mining=$WAIT_MINED_SECONDS"
 wait_recipient_balance "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" "$STARTING_BALANCE" "$TARGET_BALANCE" "$WAIT_MINED_SECONDS"
 echo "fund-wallet: PASS tx_id=$TX_ID recipient_wallet=$RECIPIENT amount=$AMOUNT"

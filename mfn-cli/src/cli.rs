@@ -453,7 +453,7 @@ fn usage() -> &'static str {
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
        wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
-                         options: --fee N --ring-size N --extra HEX\n\
+                         options: --fee N --ring-size N --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
@@ -1563,10 +1563,16 @@ fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
     let mut fee = DEFAULT_TRANSFER_FEE;
     let mut ring_size = DEFAULT_RING_SIZE;
     let mut extra: Vec<u8> = Vec::new();
+    let mut json = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--fee" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--fee requires a value".into()));
@@ -1625,6 +1631,7 @@ fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
         fee,
         ring_size,
         extra,
+        json,
     })
 }
 
@@ -1987,6 +1994,36 @@ mod tests {
                 ..
             } => assert!(params.json),
             _ => panic!("expected wallet backup-info"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_send_json() {
+        let view = "11".repeat(32);
+        let spend = "22".repeat(32);
+        let p = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            view.clone(),
+            spend.clone(),
+            "1000".into(),
+            "--fee".into(),
+            "10".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => {
+                assert_eq!(params.to_view_hex, view);
+                assert_eq!(params.to_spend_hex, spend);
+                assert_eq!(params.amount, 1000);
+                assert_eq!(params.fee, 10);
+                assert!(params.json);
+            }
+            _ => panic!("expected wallet send"),
         }
     }
 

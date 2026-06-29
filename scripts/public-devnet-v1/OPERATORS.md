@@ -614,7 +614,7 @@ bash scripts/public-devnet-v1/fund-wallet.sh \
   --amount 1000000
 ```
 
-`fund-wallet.ps1` and `fund-wallet.sh` never embed faucet seeds; they require an operator-supplied wallet file that already has spendable devnet outputs. For repeat runs, they record the recipient's starting balance and wait for `starting_balance + Amount`, so an already-funded wallet does not mask an unmined transfer. For the checked-in `public_devnet_v1.json`, validator payout wallets are derived from each public validator `bls_seed_hex` with `payout_stealth_v1`, so the examples above are only appropriate for local/public test funds earned by validator 0. Keep faucet wallets out of the repo, never reuse public genesis seeds on a network with real value, and wait for the transfer to mine before asking the participant to run `wallet upload` or the permanence demo.
+`fund-wallet.ps1` and `fund-wallet.sh` never embed faucet seeds; they require an operator-supplied wallet file that already has spendable devnet outputs. They submit with `wallet send --json`, record the `tx_id`, mempool length, and submission outcome, then wait for `starting_balance + Amount`, so an already-funded wallet does not mask an unmined transfer. For the checked-in `public_devnet_v1.json`, validator payout wallets are derived from each public validator `bls_seed_hex` with `payout_stealth_v1`, so the examples above are only appropriate for local/public test funds earned by validator 0. Keep faucet wallets out of the repo, never reuse public genesis seeds on a network with real value, and wait for the transfer to mine before asking the participant to run `wallet upload` or the permanence demo.
 
 ### Permanence demo scripts
 

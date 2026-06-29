@@ -113,7 +113,7 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  recipient_wallet=$Recipient"
     Write-Host "  amount=$Amount fee=$Fee ring_size=$RingSize wait_mined_seconds=$WaitMinedSeconds"
-    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send -> wait for balance delta"
+    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
     Write-Host "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
     exit 0
 }
@@ -148,11 +148,14 @@ try {
     $send = Invoke-Checked $MfnCli @(
         "--rpc", $RpcAddr, "--wallet", $FaucetWallet,
         "wallet", "send", $view, $spend, "$Amount",
-        "--fee", "$Fee", "--ring-size", "$RingSize"
+        "--fee", "$Fee", "--ring-size", "$RingSize", "--json"
     ) "faucet wallet send"
-    $txId = Parse-Field $send "tx_id"
-    $mempoolLen = Parse-Field $send "mempool_len"
-    Write-Host "fund-wallet: submitted tx_id=$txId mempool_len=$mempoolLen recipient_wallet=$Recipient"
+    $sendJson = $send | ConvertFrom-Json
+    $txId = [string]$sendJson.tx_id
+    $mempoolLen = [string]$sendJson.mempool_len
+    $outcome = [string]$sendJson.outcome
+    if (-not $txId) { throw "fund-wallet: wallet send --json missing tx_id`n$send" }
+    Write-Host "fund-wallet: submitted tx_id=$txId mempool_len=$mempoolLen outcome=$outcome recipient_wallet=$Recipient"
     Write-Host "fund-wallet: wait_for_mining=$WaitMinedSeconds"
     Wait-RecipientBalance $MfnCli $RpcAddr $Recipient $startingBalance $targetBalance $WaitMinedSeconds
     Write-Host "fund-wallet: PASS tx_id=$txId recipient_wallet=$Recipient amount=$Amount"

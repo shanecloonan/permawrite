@@ -45,7 +45,7 @@ mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
-  --fee 10000 --ring-size 8
+  --fee 10000 --ring-size 8 --json
 
 # Public-devnet helper: fund a participant wallet from an operator faucet wallet
 powershell -File scripts/public-devnet-v1/preflight.ps1
@@ -133,7 +133,7 @@ mfn-cli wallet compare-trusted-summary a.json b.json
 
 `wallet status` prints the cached balance and how many blocks behind the node tip you are without downloading blocks. Add `--json` for stuck-wallet diagnostics or support tickets; the structured output includes `tip_height`, `scan_height`, `blocks_behind`, `sync_needed`, cached balance/owned counts, pending-spend count, and light-summary presence without revealing the seed.
 
-`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
+`wallet send` syncs the chain, loads UTXO set + `get_checkpoint` for decoys, builds a CLSAG transfer with [`Wallet::build_transfer`](../mfn-wallet/src/wallet.rs), and broadcasts via `submit_tx`. Add `--json` for a faucet/support record with recipient public keys, amount, fee, tx id, mempool outcome, and post-send wallet state. Locally spent inputs are recorded in `pending_spent_utxo_keys` until the tx mines.
 
 `wallet upload` reads a file (≤ 32 MiB), validates fee/replication against chain endowment rules via [`Wallet::build_storage_upload`](../mfn-wallet/src/upload.rs), prints `data_root` and `storage_commitment_hash`, and submits the signed tx. Add `--json` to emit a single support record with the tx id, `storage_commitment_hash`, `data_root`, fee/burden, upload artifact path, payload bytes, and post-upload wallet state for replication/proof automation. With `--message`, it uses [`Wallet::build_storage_upload_with_authorship`](../mfn-wallet/src/wallet.rs) to pack a storage-bound MFCL claim in `tx.extra` (mutually exclusive with `--extra`). **M3.24** persists `payload.bin` + `meta.bytes` under `{wallet_stem}.upload-artifacts/<commit_hash>/` so operators can prove without keeping the original path.
 

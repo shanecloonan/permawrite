@@ -74,6 +74,8 @@ pub struct SendParams {
     pub ring_size: usize,
     /// Optional `tx.extra` memo bytes (hex).
     pub extra: Vec<u8>,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
 }
 
 /// Parameters for `wallet upload`.
@@ -164,6 +166,17 @@ struct UploadOutcome<'a> {
     outcome_kind: &'a str,
     balance_after_upload: u64,
     owned_count_after_upload: usize,
+}
+
+struct SendOutcome<'a> {
+    stats: &'a SyncStats,
+    path: &'a Path,
+    params: &'a SendParams,
+    tx_id: &'a str,
+    mempool_len: u64,
+    outcome_kind: &'a str,
+    balance_after_send: u64,
+    owned_count_after_send: usize,
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -449,18 +462,17 @@ pub fn wallet_send(
     let tx_bytes = encode_transaction(&signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
-    println!("tip_height={}", stats.tip_height);
-    println!("blocks_scanned={}", stats.blocks_fetched);
-    println!("utxo_cache={}", stats.used_utxo_cache);
-    println!("amount={}", params.amount);
-    println!("fee={}", params.fee);
-    println!("ring_size={}", params.ring_size);
-    println!("tx_id={}", submit.tx_id);
-    println!("mempool_len={}", submit.pool_len);
-    println!("outcome={}", submit.outcome_kind);
-    println!("balance_after_send={}", wallet.balance());
-    println!("owned_count_after_send={}", wallet.owned_count());
-    println!("wallet_path={}", path.display());
+    let outcome = SendOutcome {
+        stats: &stats,
+        path,
+        params,
+        tx_id: &submit.tx_id,
+        mempool_len: submit.pool_len,
+        outcome_kind: &submit.outcome_kind,
+        balance_after_send: wallet.balance(),
+        owned_count_after_send: wallet.owned_count(),
+    };
+    print_send_outcome(&outcome)?;
     if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
         eprintln!(
             "warning: submit_tx outcome is {}; tx may not be in the mempool",
@@ -468,6 +480,52 @@ pub fn wallet_send(
         );
     }
     Ok(())
+}
+
+fn print_send_outcome(outcome: &SendOutcome<'_>) -> Result<(), WalletCmdError> {
+    if outcome.params.json {
+        let value = send_outcome_json(outcome);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("wallet send json: {e}")))?
+        );
+        return Ok(());
+    }
+
+    println!("tip_height={}", outcome.stats.tip_height);
+    println!("blocks_scanned={}", outcome.stats.blocks_fetched);
+    println!("utxo_cache={}", outcome.stats.used_utxo_cache);
+    println!("amount={}", outcome.params.amount);
+    println!("fee={}", outcome.params.fee);
+    println!("ring_size={}", outcome.params.ring_size);
+    println!("tx_id={}", outcome.tx_id);
+    println!("mempool_len={}", outcome.mempool_len);
+    println!("outcome={}", outcome.outcome_kind);
+    println!("balance_after_send={}", outcome.balance_after_send);
+    println!("owned_count_after_send={}", outcome.owned_count_after_send);
+    println!("wallet_path={}", outcome.path.display());
+    Ok(())
+}
+
+fn send_outcome_json(outcome: &SendOutcome<'_>) -> serde_json::Value {
+    serde_json::json!({
+        "wallet_path": outcome.path.display().to_string(),
+        "tip_height": outcome.stats.tip_height,
+        "blocks_scanned": outcome.stats.blocks_fetched,
+        "utxo_cache": outcome.stats.used_utxo_cache,
+        "recipient_view_hex": outcome.params.to_view_hex.as_str(),
+        "recipient_spend_hex": outcome.params.to_spend_hex.as_str(),
+        "amount": outcome.params.amount,
+        "fee": outcome.params.fee,
+        "ring_size": outcome.params.ring_size,
+        "extra_len": outcome.params.extra.len(),
+        "tx_id": outcome.tx_id,
+        "mempool_len": outcome.mempool_len,
+        "outcome": outcome.outcome_kind,
+        "balance_after_send": outcome.balance_after_send,
+        "owned_count_after_send": outcome.owned_count_after_send,
+    })
 }
 
 /// `wallet upload` — read file, build storage upload tx, `submit_tx`.
@@ -1226,5 +1284,55 @@ mod tests {
         assert_eq!(value["upload_artifact_payload_bytes"], 42);
         assert_eq!(value["upload_artifact_meta_bytes"], 99);
         assert_eq!(value["upload_artifact_error"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn send_outcome_json_reports_transfer_submission() {
+        let path = temp_wallet_path("send-json");
+        let params = SendParams {
+            to_view_hex: "11".repeat(32),
+            to_spend_hex: "22".repeat(32),
+            amount: 1_000,
+            fee: 10,
+            ring_size: DEFAULT_RING_SIZE,
+            extra: vec![0xaa, 0xbb],
+            json: true,
+        };
+        let stats = SyncStats {
+            tip_height: 12,
+            blocks_fetched: 3,
+            used_utxo_cache: false,
+            quorum_batches: 0,
+            weak_subjectivity_checked: false,
+            weak_subjectivity_pinned: false,
+        };
+        let outcome = SendOutcome {
+            stats: &stats,
+            path: &path,
+            params: &params,
+            tx_id: "tx-send",
+            mempool_len: 5,
+            outcome_kind: "Fresh",
+            balance_after_send: 9_000,
+            owned_count_after_send: 4,
+        };
+
+        let value = send_outcome_json(&outcome);
+
+        assert_eq!(value["wallet_path"], path.display().to_string());
+        assert_eq!(value["tip_height"], 12);
+        assert_eq!(value["blocks_scanned"], 3);
+        assert_eq!(value["utxo_cache"], false);
+        assert_eq!(value["recipient_view_hex"], "11".repeat(32));
+        assert_eq!(value["recipient_spend_hex"], "22".repeat(32));
+        assert_eq!(value["amount"], 1_000);
+        assert_eq!(value["fee"], 10);
+        assert_eq!(value["ring_size"], DEFAULT_RING_SIZE);
+        assert_eq!(value["extra_len"], 2);
+        assert_eq!(value["tx_id"], "tx-send");
+        assert_eq!(value["mempool_len"], 5);
+        assert_eq!(value["outcome"], "Fresh");
+        assert_eq!(value["balance_after_send"], 9_000);
+        assert_eq!(value["owned_count_after_send"], 4);
     }
 }
