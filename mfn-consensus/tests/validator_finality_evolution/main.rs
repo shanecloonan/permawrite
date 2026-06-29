@@ -16,7 +16,8 @@
 //! monotonic register index assignment, register stats/treasury credits,
 //! slash-forfeiture treasury credits in validator mode, liveness sign resets
 //! consecutive misses, unbond settlement clears pending queue, bond epoch rollover,
-//! plus rejection preserving caller state.
+//! producer proof index mismatch, validator stats checkpoint roundtrip after
+//! liveness evolution, plus rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 #![allow(unused_imports)]
 
@@ -26,5 +27,6 @@ mod finality_rejection;
 mod header_roots;
 mod liveness;
 mod pre_block;
+mod producer_proof;
 mod slashing;
 mod support;

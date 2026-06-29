@@ -248,3 +248,39 @@ fn bond_epoch_id_increments_at_epoch_boundary() {
     assert_eq!(st.bond_epoch_entry_count, 0);
     assert_eq!(st.bond_epoch_exit_count, 0);
 }
+
+/// Liveness counters and slashed stake survive chain-checkpoint encode/decode.
+#[test]
+fn validator_stats_persist_in_chain_checkpoint_after_liveness_evolution() {
+    let fx = boot_three_validators(2);
+    let mut st = fx.state.clone();
+    let mut params = fx.params;
+    params.quorum_stake_bps = 6666;
+    st.params = params;
+    let genesis_id = st.block_ids[0];
+    let voters_miss_v1 = [0usize, 2];
+
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 1, Vec::new(), Vec::new(), &voters_miss_v1),
+    )
+    .into_state()
+    .expect("first miss");
+    st = apply_block(
+        &st,
+        &seal_empty(&fx, &st, 2, Vec::new(), Vec::new(), &voters_miss_v1),
+    )
+    .into_state()
+    .expect("liveness slash");
+    assert_eq!(st.validator_stats[1].liveness_slashes, 1);
+    assert_eq!(st.validator_stats[1].total_missed, 2);
+    assert_eq!(st.validators[1].stake, 990_000);
+
+    let cp = ChainCheckpoint {
+        genesis_id,
+        state: st.clone(),
+    };
+    let restored = decode_chain_checkpoint(&encode_chain_checkpoint(&cp)).expect("roundtrip");
+    assert_eq!(restored.state.validator_stats, st.validator_stats);
+    assert_eq!(restored.state.validators[1].stake, st.validators[1].stake);
+}
