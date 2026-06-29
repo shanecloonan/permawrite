@@ -458,6 +458,7 @@ fn usage() -> &'static str {
                          options: --replication N --fee N --anchor-value N --ring-size N\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
+                         --json\n\
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
                          --fee N --ring-size N\n\
@@ -1640,10 +1641,16 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
     let mut anchor_view: Option<String> = None;
     let mut anchor_spend: Option<String> = None;
     let mut message: Option<Vec<u8>> = None;
+    let mut json = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
+        if a == "--json" {
+            json = true;
+            i += 1;
+            continue;
+        }
         if a == "--message" {
             let Some(v) = rest.get(i + 1) else {
                 return Err(CliError::Usage("--message requires text".into()));
@@ -1762,6 +1769,7 @@ fn parse_wallet_upload_args(rest: &[&str]) -> Result<UploadParams, CliError> {
         anchor_view_hex: anchor_view,
         anchor_spend_hex: anchor_spend,
         message,
+        json,
     })
 }
 
@@ -1979,6 +1987,30 @@ mod tests {
                 ..
             } => assert!(params.json),
             _ => panic!("expected wallet backup-info"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_upload_json() {
+        let p = parse_args(&[
+            "wallet".into(),
+            "upload".into(),
+            "document.bin".into(),
+            "--replication".into(),
+            "3".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Upload(params),
+                ..
+            } => {
+                assert_eq!(params.file_path, std::path::PathBuf::from("document.bin"));
+                assert_eq!(params.replication, 3);
+                assert!(params.json);
+            }
+            _ => panic!("expected wallet upload"),
         }
     }
 

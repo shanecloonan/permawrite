@@ -451,10 +451,10 @@ assemble local artifact  →  operator prove  →  SPoRA proof mined
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC> wallet new   # once per operator
 mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
-  wallet upload ./myfile.bin --fee 10000 --replication 3
+  wallet upload ./myfile.bin --fee 10000 --replication 3 --json
 ```
 
-Stdout includes `storage_commitment_hash=` and `upload_artifact_dir=`. Mine the mempool tx on a producer (stop `serve`, run `mfnd step`, or wait for the next sealed block on `--produce`).
+JSON stdout includes `storage_commitment_hash`, `data_root`, `tx_id`, `upload_artifact_dir`, `upload_artifact_payload_bytes`, fee/burden fields, and post-upload wallet state. Mine the mempool tx on a producer (stop `serve`, run `mfnd step`, or wait for the next sealed block on `--produce`).
 
 Check status:
 
@@ -644,7 +644,7 @@ The demos store wallets and payloads under `scripts/public-devnet-v1/permanence-
 
 | Symptom | Likely cause | Recovery |
 |---------|--------------|----------|
-| `wallet upload` succeeds but `uploads list` does not show the commitment | The tx is still only in the mempool, or the wallet is pointed at a node on a different chain/tip | Check `mfn-cli --rpc <RPC> mempool` for the tx id, mine or wait for the next producer block, then verify `mfn-cli --rpc <RPC> tip` and `genesis_id` match the public devnet manifest. |
+| `wallet upload` succeeds but `uploads list` does not show the commitment | The tx is still only in the mempool, or the wallet is pointed at a node on a different chain/tip | Prefer `wallet upload --json` and keep the `tx_id`, `storage_commitment_hash`, `data_root`, `upload_artifact_dir`, and `fee` fields. Check `mfn-cli --rpc <RPC> mempool` for the tx id, mine or wait for the next producer block, then verify `mfn-cli --rpc <RPC> tip` and `genesis_id` match the public devnet manifest. |
 | `wallet balance` looks stale or support cannot tell whether funds were scanned | The wallet cache is behind the node tip, or pending spends are masking locally selected outputs | Run `mfn-cli --rpc <RPC> --wallet <WALLET> wallet status --json` and capture `scan_height`, `tip_height`, `blocks_behind`, `sync_needed`, `balance_cached`, and `pending_spent_count`; if `sync_needed=true`, run `wallet scan --json` or `wallet balance --json` against the same RPC and capture `blocks_scanned`, final `scan_height`, `balance`, and `owned_count`. |
 | `operator inbox-status` reports `inbox_complete=false` | The replica has only some chunks, or it has not caught up to the upload block yet | Wait for `mfn-cli --rpc <REPLICA_RPC> tip` to match the hub, rerun `operator push-chunks <COMMIT_HASH_HEX> <REPLICA_P2P>`, or use HTTP `operator backfill <COMMIT_HASH_HEX> <PEER_HTTP>` from a peer with a complete artifact. Add `--json` to capture `present_indices` and `missing_indices` in support tickets. |
 | `operator assemble-inbox` says chunks are missing | The node's `chunk-inbox/<commit>/<index>.bin` set is incomplete | Run `operator inbox-status --json` to see `missing_indices`, push chunks again from the original uploader, then retry `operator assemble-inbox ... replace --json` only after `inbox_complete=true`; the JSON output records the rebuilt `artifact_dir` and `payload_bytes`. |

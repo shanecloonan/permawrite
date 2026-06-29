@@ -2007,6 +2007,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.32** | Public-devnet block-sync response cap coverage: `BlocksV1` decode rejects advertised block counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing. | ✓ shipped |
 | **M2.4.33** | Public-devnet block-sync response encode cap: `BlocksV1` encode refuses to serialize more than `MAX_BLOCKS_PER_GET_V1` blocks even if an internal provider returns an oversized batch. | ✓ shipped |
 | **M2.4.34** | Public-devnet light-follow response cap coverage: `LightFollowV1` encode/decode rejects row counts above `MAX_LIGHT_FOLLOW_PER_GET_V1` before serialization/allocation. | ✓ shipped |
+| **M2.4.35** | Public-devnet light-follow interleave coverage: `recv_light_follow_v1` skips bounded production/gossip frames before a `LightFollowV1` reply and aborts deterministically after the cap. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
@@ -2107,6 +2108,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.24** | Wallet upload artifacts (`{wallet}.upload-artifacts/`) persist payload + Merkle metadata; `operator prove` loads without FILE. | ✓ shipped |
 | **M3.25** | `uploads local` + `operator artifacts`: list persisted upload artifacts for `--wallet`. | ✓ shipped |
 | **M3.26** | `uploads status`: reconcile local upload artifacts vs `list_recent_uploads` (`matched` / `local_only` / `chain_only`). | ✓ shipped |
+| **M3.29** | `wallet upload --json`: emit a structured permanence handoff record with commitment, data root, tx id, artifact path/bytes, fees, and post-upload wallet state. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |

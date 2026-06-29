@@ -10,7 +10,9 @@ use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::{crypto_random, point_from_bytes};
 use mfn_storage::storage_commitment_hash;
-use mfn_storage_operator::upload_artifact_store::{list_upload_artifacts, upload_artifacts_root};
+use mfn_storage_operator::upload_artifact_store::{
+    list_upload_artifacts, upload_artifacts_root, UploadArtifactSaveMeta,
+};
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 
@@ -95,6 +97,8 @@ pub struct UploadParams {
     pub anchor_spend_hex: Option<String>,
     /// MFCL claim message; bound to upload `data_root` + `commit_hash` in `tx.extra`.
     pub message: Option<Vec<u8>>,
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
 }
 
 /// Parameters for `wallet claim`.
@@ -142,6 +146,24 @@ struct WalletStatusSnapshot {
     owned_count_cached: usize,
     blocks_behind: u64,
     sync_needed: bool,
+}
+
+struct UploadOutcome<'a> {
+    stats: &'a SyncStats,
+    path: &'a Path,
+    params: &'a UploadParams,
+    file_bytes: usize,
+    fee: u64,
+    min_fee: u64,
+    burden: u128,
+    data_root: [u8; 32],
+    upload_hash: [u8; 32],
+    artifact: &'a Result<UploadArtifactSaveMeta, String>,
+    tx_id: &'a str,
+    mempool_len: u64,
+    outcome_kind: &'a str,
+    balance_after_upload: u64,
+    owned_count_after_upload: usize,
 }
 
 /// `wallet new` — generate seed and write wallet file.
@@ -561,13 +583,58 @@ pub fn wallet_upload(
     let tx_bytes = encode_transaction(&art.signed.tx);
     let submit = client.submit_tx(&tx_bytes)?;
 
-    match mfn_storage_operator::upload_artifact_store::save_upload_artifact(
+    let artifact_save = mfn_storage_operator::upload_artifact_store::save_upload_artifact(
         path,
         &art.built,
         &data,
         &params.file_path,
         Some(&submit.tx_id),
-    ) {
+    )
+    .map_err(|e| e.to_string());
+
+    let outcome = UploadOutcome {
+        stats: &stats,
+        path,
+        params,
+        file_bytes: data.len(),
+        fee,
+        min_fee: art.min_fee,
+        burden: art.burden,
+        data_root,
+        upload_hash,
+        artifact: &artifact_save,
+        tx_id: &submit.tx_id,
+        mempool_len: submit.pool_len,
+        outcome_kind: &submit.outcome_kind,
+        balance_after_upload: wallet.balance(),
+        owned_count_after_upload: wallet.owned_count(),
+    };
+
+    print_upload_outcome(&outcome)?;
+    if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
+        eprintln!(
+            "warning: submit_tx outcome is {}; tx may not be in the mempool",
+            submit.outcome_kind
+        );
+    }
+    Ok(())
+}
+
+fn print_upload_outcome(outcome: &UploadOutcome<'_>) -> Result<(), WalletCmdError> {
+    if outcome.params.json {
+        let value = upload_outcome_json(outcome);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| WalletCmdError::Usage(format!("wallet upload json: {e}")))?
+        );
+        if let Err(e) = outcome.artifact {
+            eprintln!("warning: could not persist upload artifact: {e}");
+        }
+        return Ok(());
+    }
+
+    match outcome.artifact {
         Ok(meta) => {
             println!("upload_artifact_dir={}", meta.dir.display());
             println!("upload_artifact_payload_bytes={}", meta.payload_bytes);
@@ -576,43 +643,85 @@ pub fn wallet_upload(
             eprintln!("warning: could not persist upload artifact: {e}");
         }
     }
-
-    println!("tip_height={}", stats.tip_height);
-    println!("blocks_scanned={}", stats.blocks_fetched);
-    println!("utxo_cache={}", stats.used_utxo_cache);
-    println!("file={}", params.file_path.display());
-    println!("bytes={}", data.len());
-    println!("replication={}", params.replication);
-    println!("anchor_value={}", params.anchor_value);
-    println!("fee={fee}");
-    println!("min_fee={}", art.min_fee);
-    println!("burden={}", art.burden);
-    println!("data_root={}", hex::encode(data_root));
-    println!("storage_commitment_hash={}", hex::encode(upload_hash));
-    if params.message.is_some() {
+    println!("tip_height={}", outcome.stats.tip_height);
+    println!("blocks_scanned={}", outcome.stats.blocks_fetched);
+    println!("utxo_cache={}", outcome.stats.used_utxo_cache);
+    println!("file={}", outcome.params.file_path.display());
+    println!("bytes={}", outcome.file_bytes);
+    println!("replication={}", outcome.params.replication);
+    println!("anchor_value={}", outcome.params.anchor_value);
+    println!("fee={}", outcome.fee);
+    println!("min_fee={}", outcome.min_fee);
+    println!("burden={}", outcome.burden);
+    println!("data_root={}", hex::encode(outcome.data_root));
+    println!(
+        "storage_commitment_hash={}",
+        hex::encode(outcome.upload_hash)
+    );
+    if outcome.params.message.is_some() {
         println!("authorship_claim=bound");
         println!(
             "claim_message_len={}",
-            params.message.as_ref().map_or(0, Vec::len)
+            outcome.params.message.as_ref().map_or(0, Vec::len)
         );
     }
-    println!("ring_size={}", params.ring_size);
-    println!("tx_id={}", submit.tx_id);
-    println!("mempool_len={}", submit.pool_len);
-    println!("outcome={}", submit.outcome_kind);
-    println!("balance_after_upload={}", wallet.balance());
-    println!("owned_count_after_upload={}", wallet.owned_count());
-    println!("wallet_path={}", path.display());
+    println!("ring_size={}", outcome.params.ring_size);
+    println!("tx_id={}", outcome.tx_id);
+    println!("mempool_len={}", outcome.mempool_len);
+    println!("outcome={}", outcome.outcome_kind);
+    println!("balance_after_upload={}", outcome.balance_after_upload);
+    println!(
+        "owned_count_after_upload={}",
+        outcome.owned_count_after_upload
+    );
+    println!("wallet_path={}", outcome.path.display());
     eprintln!(
         "note: payload + Merkle metadata saved under upload_artifact_dir for operator prove without --file"
     );
-    if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
-        eprintln!(
-            "warning: submit_tx outcome is {}; tx may not be in the mempool",
-            submit.outcome_kind
-        );
-    }
     Ok(())
+}
+
+fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
+    let (artifact_saved, artifact_dir, artifact_payload_bytes, artifact_meta_bytes, artifact_error) =
+        match outcome.artifact {
+            Ok(meta) => (
+                true,
+                Some(meta.dir.display().to_string()),
+                Some(meta.payload_bytes),
+                Some(meta.meta_bytes),
+                None,
+            ),
+            Err(e) => (false, None, None, None, Some(e.as_str())),
+        };
+    serde_json::json!({
+        "wallet_path": outcome.path.display().to_string(),
+        "tip_height": outcome.stats.tip_height,
+        "blocks_scanned": outcome.stats.blocks_fetched,
+        "utxo_cache": outcome.stats.used_utxo_cache,
+        "file": outcome.params.file_path.display().to_string(),
+        "bytes": outcome.file_bytes,
+        "replication": outcome.params.replication,
+        "anchor_value": outcome.params.anchor_value,
+        "fee": outcome.fee,
+        "min_fee": outcome.min_fee,
+        "burden": outcome.burden.to_string(),
+        "data_root": hex::encode(outcome.data_root),
+        "storage_commitment_hash": hex::encode(outcome.upload_hash),
+        "authorship_claim": if outcome.params.message.is_some() { "bound" } else { "none" },
+        "claim_message_len": outcome.params.message.as_ref().map_or(0, Vec::len),
+        "ring_size": outcome.params.ring_size,
+        "tx_id": outcome.tx_id,
+        "mempool_len": outcome.mempool_len,
+        "outcome": outcome.outcome_kind,
+        "balance_after_upload": outcome.balance_after_upload,
+        "owned_count_after_upload": outcome.owned_count_after_upload,
+        "upload_artifact_saved": artifact_saved,
+        "upload_artifact_dir": artifact_dir,
+        "upload_artifact_payload_bytes": artifact_payload_bytes,
+        "upload_artifact_meta_bytes": artifact_meta_bytes,
+        "upload_artifact_error": artifact_error,
+        "operator_prove_note": "payload + Merkle metadata saved under upload_artifact_dir for operator prove without --file",
+    })
 }
 
 /// `wallet claim` — publish a standalone MFCL authorship claim via `submit_tx`.
@@ -1046,5 +1155,76 @@ mod tests {
         let _ = std::fs::remove_dir_all(
             mfn_storage_operator::upload_artifact_store::upload_artifacts_root(&path),
         );
+    }
+
+    #[test]
+    fn upload_outcome_json_reports_commitment_and_artifact() {
+        let path = temp_wallet_path("upload-json");
+        let artifact_dir = path.with_extension("upload-artifacts").join("aa");
+        let params = UploadParams {
+            file_path: PathBuf::from("document.bin"),
+            replication: 3,
+            fee: None,
+            anchor_value: DEFAULT_UPLOAD_ANCHOR_VALUE,
+            ring_size: DEFAULT_RING_SIZE,
+            extra: Vec::new(),
+            anchor_view_hex: None,
+            anchor_spend_hex: None,
+            message: Some(b"signed by me".to_vec()),
+            json: true,
+        };
+        let stats = SyncStats {
+            tip_height: 11,
+            blocks_fetched: 2,
+            used_utxo_cache: true,
+            quorum_batches: 0,
+            weak_subjectivity_checked: false,
+            weak_subjectivity_pinned: false,
+        };
+        let artifact = Ok(UploadArtifactSaveMeta {
+            dir: artifact_dir.clone(),
+            payload_bytes: 42,
+            meta_bytes: 99,
+        });
+        let outcome = UploadOutcome {
+            stats: &stats,
+            path: &path,
+            params: &params,
+            file_bytes: 42,
+            fee: 1_234,
+            min_fee: 1_000,
+            burden: 21,
+            data_root: [0x11; 32],
+            upload_hash: [0x22; 32],
+            artifact: &artifact,
+            tx_id: "tx123",
+            mempool_len: 4,
+            outcome_kind: "Fresh",
+            balance_after_upload: 5_000,
+            owned_count_after_upload: 2,
+        };
+
+        let value = upload_outcome_json(&outcome);
+
+        assert_eq!(value["wallet_path"], path.display().to_string());
+        assert_eq!(value["file"], "document.bin");
+        assert_eq!(value["bytes"], 42);
+        assert_eq!(value["replication"], 3);
+        assert_eq!(value["fee"], 1_234);
+        assert_eq!(value["min_fee"], 1_000);
+        assert_eq!(value["burden"], "21");
+        assert_eq!(value["data_root"], "11".repeat(32));
+        assert_eq!(value["storage_commitment_hash"], "22".repeat(32));
+        assert_eq!(value["authorship_claim"], "bound");
+        assert_eq!(value["claim_message_len"], 12);
+        assert_eq!(value["tx_id"], "tx123");
+        assert_eq!(value["upload_artifact_saved"], true);
+        assert_eq!(
+            value["upload_artifact_dir"],
+            artifact_dir.display().to_string()
+        );
+        assert_eq!(value["upload_artifact_payload_bytes"], 42);
+        assert_eq!(value["upload_artifact_meta_bytes"], 99);
+        assert_eq!(value["upload_artifact_error"], serde_json::Value::Null);
     }
 }

@@ -71,7 +71,7 @@ Minimal participant path:
 5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning; use `wallet scan --json` or `wallet balance --json` when you need a seed-free support record of the rescan result.
 6. Create a test wallet with `mfn-cli --wallet ./alice.json wallet new`, or restore a known test-only seed with `mfn-cli --wallet ./alice.json wallet restore <SEED_HEX>`. Back up the wallet file and never reuse devnet keys for real funds.
 7. Fund the wallet from an operator-controlled devnet faucet wallet, for example `powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/fund-wallet.sh --plan-only`, then rerun with a faucet wallet and `./alice.json` as the recipient.
-8. For permanence testing, upload with `wallet upload`, replicate with `operator push-chunks` or `operator backfill`, verify with `uploads retrieve`, and prove with `operator prove`.
+8. For permanence testing, upload with `wallet upload --json`, capture `storage_commitment_hash` and `upload_artifact_dir`, replicate with `operator push-chunks` or `operator backfill`, verify with `uploads retrieve`, and prove with `operator prove`.
 9. For a guided demo, run `powershell -File scripts/public-devnet-v1/permanence-demo.ps1 -PlanOnly` on Windows or `bash scripts/public-devnet-v1/permanence-demo.sh --plan-only` on Linux/macOS, then rerun without plan mode after the uploader wallet has devnet funds.
 10. If anything stalls, use the [Permanence troubleshooting](../scripts/public-devnet-v1/OPERATORS.md#permanence-troubleshooting) matrix before deleting data dirs or regenerating wallets.
 
@@ -168,10 +168,10 @@ mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet balance --json
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet send <VIEW_HEX> <SPEND_HEX> <AMOUNT> --fee 10000
 
 # Upload bytes (permanence anchor; default replication 3)
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --replication 3 --json
 
 # Upload + bind authorship to commitment (same tx)
-mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution"
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet upload ./myfile.bin --message "attribution" --json
 
 # Authorship claim over a data root (discover via get_claims_for after mining)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> wallet claim <DATA_ROOT_HEX> --message "attribution"
@@ -223,7 +223,7 @@ Integration coverage lives in:
 - `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer` — outbound mismatch smoke: foreign-genesis peers produce structured abort logs and are not written to `peers.json`.
 - `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers.
 - `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, response-count encode/decode capping, interleaved production/gossip frame skipping, and bounded abort after too many non-`BlocksV1` frames.
-- `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps before serialization/allocation.
+- `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.
 - `mfn-node::p2p_boot` / `mfn-node::p2p_fanout` unit tests — manifest/CLI boot-peer validation for malformed ports, whitespace, duplicate seeds, bracketed IPv6, self-dial detection, boot-dial reconnect skip classification, reconnect cap classification, committee catch-up self-skip before cap accounting, peer-set quarantine filtering and expiry, and durable foreign-genesis `peers.json` cleanup.
 - `mfn-store::peers_persist` unit tests — `peers.json` save/load sorting, malformed/duplicate peer filtering reports, and bounded reconnect fan-out caps.
 - `mfn-store::replay` and `mfn-node::p2p_gossip` unit tests — adversarial replay/gossip coverage for forked prefixes, height gaps, stale blocks, and next-height fork rejection.

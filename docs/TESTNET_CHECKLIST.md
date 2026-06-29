@@ -62,6 +62,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add block-sync unit coverage that `BlocksV1` rejects advertised response counts above `MAX_BLOCKS_PER_GET_V1` before allocation/parsing.
 - [x] Add block-sync unit coverage that `BlocksV1` encode refuses internal oversized response batches above `MAX_BLOCKS_PER_GET_V1`.
 - [x] Add light-follow unit coverage that `LightFollowV1` rejects response row counts above `MAX_LIGHT_FOLLOW_PER_GET_V1` before serialization/allocation.
+- [x] Add light-follow unit coverage that `recv_light_follow_v1` skips bounded interleaved production/gossip frames and aborts after the cap.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 
@@ -96,6 +97,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add JSON output mode to `uploads fetch-http` for scripted one-step HTTP restore.
 - [x] Add JSON output mode to `wallet status` for stuck-wallet and sync-gap diagnostics.
 - [x] Add JSON output mode to `wallet scan` and `wallet balance` for rescan support records.
+- [x] Add JSON output mode to `wallet upload` for permanence handoff and support records.
 
 ## Cross-Agent Notes
 
