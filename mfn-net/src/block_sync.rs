@@ -301,6 +301,13 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
         if blocks.block_wires.is_empty() {
             break;
         }
+        let got = blocks.block_wires.len();
+        if got > count as usize {
+            return Err(PullBlocksError::TooManyResponseBlocks {
+                requested: count,
+                got,
+            });
+        }
         let prev = cur;
         for wire in &blocks.block_wires {
             let height = applier
@@ -558,6 +565,14 @@ pub enum PullBlocksError {
         /// Height reported after applying the returned block.
         got: u32,
     },
+    /// Peer returned more blocks than requested for this round trip.
+    #[error("blocks v1 response returned {got} blocks, requested {requested}")]
+    TooManyResponseBlocks {
+        /// Number of blocks requested in the round trip.
+        requested: u32,
+        /// Number of block wires returned by the peer.
+        got: usize,
+    },
 }
 
 /// Failure while receiving a [`BlocksV1`] frame.
@@ -581,6 +596,26 @@ mod tests {
 
     impl BlockSyncApplier for HeightByteApplier {
         fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
+            block_wire
+                .first()
+                .copied()
+                .map(u32::from)
+                .ok_or_else(|| "empty test block".to_string())
+        }
+    }
+
+    #[derive(Default)]
+    struct CountingApplier(std::sync::atomic::AtomicUsize);
+
+    impl CountingApplier {
+        fn count(&self) -> usize {
+            self.0.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    impl BlockSyncApplier for CountingApplier {
+        fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             block_wire
                 .first()
                 .copied()
@@ -758,6 +793,27 @@ mod tests {
         match err {
             PullBlocksError::NonSequentialHeight { expected, got } => {
                 assert_eq!(expected, 1);
+                assert_eq!(got, 2);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pull_blocks_to_tip_rejects_response_larger_than_request_before_apply() {
+        let reply = BlocksV1::encode_payload(&[&[1u8][..], &[2u8][..]]).unwrap();
+        let mut reads = Vec::new();
+        write_frame_io(&mut reads, &reply).unwrap();
+        let mut stream = ScriptedStream::new(reads);
+        let applier = CountingApplier::default();
+
+        let err = pull_blocks_to_tip(&mut stream, 0, 1, &applier)
+            .expect_err("oversized response must abort");
+
+        assert_eq!(applier.count(), 0, "must reject before applying extras");
+        match err {
+            PullBlocksError::TooManyResponseBlocks { requested, got } => {
+                assert_eq!(requested, 1);
                 assert_eq!(got, 2);
             }
             other => panic!("unexpected error: {other:?}"),
