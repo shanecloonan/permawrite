@@ -8,8 +8,9 @@
 //! stake below minimum, same-block register-then-unbond, same-block duplicate
 //! vrf batch, zombie unbond, forged/unknown unbond, duplicate unbond after
 //! pending request, bond rejection treasury preservation), chain linkage
-//! (prev_hash), finality proof integrity (msg mismatch, tampered blob),
-//! bond epoch counter persistence, and rejection preserving caller state.
+//! (prev_hash), finality proof integrity (msg mismatch, tampered blob,
+//! signing_stake claim, producer index), bond epoch counter persistence,
+//! and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
@@ -2025,4 +2026,186 @@ fn bond_epoch_entry_count_persists_across_empty_blocks() {
     assert_eq!(st.bond_epoch_entry_count, 1);
     assert_eq!(st.bond_epoch_id, epoch0);
     assert_eq!(st.validators.len(), 4);
+}
+
+/// Block height must equal `state.height + 1`.
+#[test]
+fn bad_height_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.height = 99;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BadHeight {
+                            expected: 1,
+                            got: 99
+                        }
+                    )
+                }),
+                "expected bad height, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("wrong height must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Cached `signing_stake` must match the BLS finality bitmap stake sum.
+#[test]
+fn signing_stake_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.signing_stake = fin.signing_stake.saturating_add(1);
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::SigningStakeMismatch)
+                    )
+                }),
+                "expected signing_stake mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("signing_stake mismatch must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Producer `validator_index` must exist in the pre-block validator set.
+#[test]
+fn producer_not_in_set_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.producer.validator_index = st.next_validator_index;
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::ProducerNotInSet)
+                    )
+                }),
+                "expected producer not in set, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("unknown producer index must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Bond epoch exit counters survive empty blocks until the epoch rolls.
+#[test]
+fn bond_epoch_exit_count_persists_across_empty_blocks() {
+    let fx = boot_four_validators_exit_churn_cfg(DEFAULT_BONDING_PARAMS.slots_per_epoch);
+    let mut st = fx.state.clone();
+    let epoch0 = st.bond_epoch_id;
+    let idx = st.validators[1].index;
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![BondOp::Unbond {
+                validator_index: idx,
+                sig: sign_unbond(idx, &fx.secrets[1].bls.sk),
+            }],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond request");
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("unbond settlement");
+    assert_eq!(st.bond_epoch_exit_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
+    assert_eq!(st.validators[1].stake, 0);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("empty block 3");
+    assert_eq!(st.bond_epoch_exit_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            4,
+            Vec::new(),
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("empty block 4");
+    assert_eq!(st.bond_epoch_exit_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
 }
