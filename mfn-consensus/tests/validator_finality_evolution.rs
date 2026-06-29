@@ -7,17 +7,18 @@
 //! rejection, bond-op admission rejects (duplicate vrf, duplicate unbond,
 //! stake below minimum, same-block register-then-unbond, same-block duplicate
 //! vrf batch, zombie unbond, forged/unknown unbond, duplicate unbond after
-//! pending request, bond rejection treasury preservation), and rejection preserving
-//! caller state.
+//! pending request, bond rejection treasury preservation), chain linkage
+//! (prev_hash), finality proof integrity (msg mismatch, tampered blob),
+//! bond epoch counter persistence, and rejection preserving caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign};
 use mfn_consensus::bond_wire::{sign_register, sign_unbond};
 use mfn_consensus::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use mfn_consensus::consensus::{
-    cast_vote, encode_finality_proof, finalize, pick_winner, try_produce_slot, validator_set_root,
-    verify_finality_proof, ConsensusCheck, FinalityProof, ProducerProof, SlotContext, Validator,
-    ValidatorSecrets,
+    cast_vote, decode_finality_proof, encode_finality_proof, finalize, pick_winner,
+    try_produce_slot, validator_set_root, verify_finality_proof, ConsensusCheck, FinalityProof,
+    ProducerProof, SlotContext, Validator, ValidatorSecrets,
 };
 use mfn_consensus::{
     apply_block, apply_genesis, build_genesis, build_unsealed_header, header_signing_hash,
@@ -1867,4 +1868,161 @@ fn duplicate_unbond_after_pending_request_rejects_without_state_change() {
     assert_eq!(snapshot(&st), before);
     assert_eq!(st.treasury, treasury_before);
     assert_eq!(st.pending_unbonds.len(), 1);
+}
+
+/// Wrong `prev_hash` breaks chain linkage before any state mutation.
+#[test]
+fn prev_hash_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.prev_hash[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::PrevHashMismatch)),
+                "expected prev_hash mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("wrong prev_hash must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Finality aggregate message must match `header_signing_hash`.
+#[test]
+fn finality_msg_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    let mut fin =
+        decode_finality_proof(&block.header.producer_proof).expect("decode producer proof");
+    fin.finality.msg[0] ^= 0xff;
+    block.header.producer_proof = encode_finality_proof(&fin);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::FinalityInvalid(ConsensusCheck::FinalityMsgMismatch)
+                    )
+                }),
+                "expected finality msg mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("finality msg mismatch must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Post-seal tampering of `producer_proof` invalidates finality verification.
+#[test]
+fn tampered_producer_proof_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    assert!(
+        !block.header.producer_proof.is_empty(),
+        "validator-mode block must carry producer proof"
+    );
+    block.header.producer_proof[10] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::FinalityInvalid(_))),
+                "expected finality invalidation, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered producer_proof must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Bond epoch entry counters survive empty blocks until the epoch rolls.
+#[test]
+fn bond_epoch_entry_count_persists_across_empty_blocks() {
+    let fx = boot_three_validators(64);
+    let mut st = fx.state.clone();
+    let epoch0 = st.bond_epoch_id;
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![register_op(ENTRY_CHURN_REGISTER_STAKE, 70)],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("one register");
+    assert_eq!(st.bond_epoch_entry_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            2,
+            Vec::new(),
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("empty block 2");
+    assert_eq!(st.bond_epoch_entry_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
+
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            3,
+            Vec::new(),
+            Vec::new(),
+            &incumbent_voter_positions(&fx),
+        ),
+    )
+    .into_state()
+    .expect("empty block 3");
+    assert_eq!(st.bond_epoch_entry_count, 1);
+    assert_eq!(st.bond_epoch_id, epoch0);
+    assert_eq!(st.validators.len(), 4);
 }
