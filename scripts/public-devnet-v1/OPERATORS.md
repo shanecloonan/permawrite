@@ -36,7 +36,7 @@ New peers should:
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
 3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable). `mfnd` trims, dedupes, and validates every boot peer as `HOST:PORT` before dialing; use `[IPv6]:PORT` for IPv6 literals. If your own resolved P2P listen address appears in CLI dials, manifest seeds, or `peers.json`, `mfnd` logs `mfnd_p2p_self_dial_skip peer=...` and skips that outbound dial.
 4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
-5. Run `health-check.sh` / `health-check.ps1` — hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks.
+5. Run `health-check.sh` / `health-check.ps1` — hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**), and each checked node must have at least `MFN_HEALTH_MIN_P2P_SESSIONS` live P2P sessions (default `1`). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks.
 
 ## Roles
 
@@ -166,7 +166,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Operators agree on halt conditions: divergent tips, repeated invalid block/gossip errors, leaked validator seeds, unexpected public RPC exposure, or reproducible storage data-root mismatches.
 - [ ] Operators agree where incident notes live and who can publish "pause, rollback, or rotate genesis" instructions.
 
-Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, `genesis_id` ≠ public devnet manifest, or an opt-in multi-sample liveness window stalls).
+Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, `genesis_id` ≠ public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
 
 Local soak:
 

@@ -228,6 +228,7 @@ Integration coverage lives in:
 - `mfn-node/tests/mfnd_smoke.rs::mfnd_p2p_restart_reconnect_catches_up_from_saved_peer` — ignored restart safety smoke: saved peer reconnect catches up from disk after missing blocks.
 - `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_replays_redb_block_log_without_checkpoint` — default-store restart replay smoke: `serve` reconstructs the synced tip from `redb` block logs without a fresh checkpoint.
 - `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer` — outbound mismatch smoke: foreign-genesis peers produce structured abort logs and are not written to `peers.json`.
+- `mfn-rpc::dispatch` unit tests — `get_status` exposes public-safe P2P health fields (`configured`, `listen_addr`, `peer_count`, `session_count`, `max_outbound_peers`) for operator checks.
 - `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers.
 - `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, response-count encode/decode capping, interleaved production/gossip frame skipping, and bounded abort after too many non-`BlocksV1` frames.
 - `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.

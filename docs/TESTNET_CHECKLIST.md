@@ -65,6 +65,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add light-follow unit coverage that `recv_light_follow_v1` skips bounded interleaved production/gossip frames and aborts after the cap.
 - [x] Add provider unit coverage that block-sync and light-follow responses stop at the largest prefix fitting `MAX_FRAME_PAYLOAD_LEN`.
 - [x] Add gap catch-up unit coverage that self peers are skipped before recovery dials are spawned.
+- [x] Add public-devnet health checks for live P2P session counts via `get_status`.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

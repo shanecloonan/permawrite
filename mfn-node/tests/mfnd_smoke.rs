@@ -753,6 +753,8 @@ fn mfnd_serve_get_status_over_tcp() {
     assert_eq!(r["rpc"]["io_timeout_ms"], json!(30_000), "r={r}");
     assert_eq!(r["rpc"]["listen_addr"], json!("127.0.0.1:0"), "r={r}");
     assert_eq!(r["rpc"]["public_bind"], json!(false), "r={r}");
+    assert_eq!(r["p2p"]["configured"], json!(false), "r={r}");
+    assert_eq!(r["p2p"]["session_count"], Value::Null, "r={r}");
     let _ = child.kill();
     let _ = child.wait();
     std::fs::remove_dir_all(&dir).ok();

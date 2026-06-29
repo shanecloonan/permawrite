@@ -1077,6 +1077,8 @@ pub type P2pLightFollowHook = Arc<dyn Fn(&str, u32, u32) -> Result<Value, String
 /// Fetch from multiple P2P peers and require agreeing rows (**M4.16**).
 pub type P2pLightFollowQuorumHook =
     Arc<dyn Fn(&[String], u32, u32) -> Result<Value, String> + Send + Sync>;
+/// Public-safe P2P status snapshot injected by `mfnd serve`.
+pub type P2pStatusHook = Arc<dyn Fn() -> Value + Send + Sync>;
 
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
@@ -1105,6 +1107,8 @@ pub struct ServeDispatchOpts {
     pub p2p_light_follow: Option<P2pLightFollowHook>,
     /// Multi-peer P2P quorum for [`get_light_follow_quorum_p2p`].
     pub p2p_light_follow_quorum: Option<P2pLightFollowQuorumHook>,
+    /// Public-safe P2P health fields for [`get_status`].
+    pub p2p_status: Option<P2pStatusHook>,
     /// Persist `proof_pool.bytes` after admit/clear (**M3.23**).
     pub on_proof_pool_change: Option<ProofPoolPersistHook>,
 }
@@ -1297,6 +1301,19 @@ fn dispatch_serve_methods(
                 .rpc_public_bind
                 .map(|public| json!(public))
                 .unwrap_or(Value::Null);
+            let p2p_status = opts
+                .p2p_status
+                .as_ref()
+                .map(|status| status())
+                .unwrap_or_else(|| {
+                    json!({
+                        "configured": false,
+                        "listen_addr": Value::Null,
+                        "peer_count": Value::Null,
+                        "session_count": Value::Null,
+                        "max_outbound_peers": Value::Null,
+                    })
+                });
             rpc_success(
                 id,
                 json!({
@@ -1324,6 +1341,7 @@ fn dispatch_serve_methods(
                         "listen_addr": rpc_listen_addr,
                         "public_bind": rpc_public_bind,
                     },
+                    "p2p": p2p_status,
                 }),
             )
         }
@@ -3385,6 +3403,11 @@ mod tests {
         assert_eq!(v["result"]["rpc"]["io_timeout_ms"], Value::Null);
         assert_eq!(v["result"]["rpc"]["listen_addr"], Value::Null);
         assert_eq!(v["result"]["rpc"]["public_bind"], Value::Null);
+        assert_eq!(v["result"]["p2p"]["configured"], json!(false));
+        assert_eq!(v["result"]["p2p"]["listen_addr"], Value::Null);
+        assert_eq!(v["result"]["p2p"]["peer_count"], Value::Null);
+        assert_eq!(v["result"]["p2p"]["session_count"], Value::Null);
+        assert_eq!(v["result"]["p2p"]["max_outbound_peers"], Value::Null);
         fs::remove_dir_all(&root).ok();
     }
 
@@ -3418,6 +3441,38 @@ mod tests {
         assert_eq!(v["result"]["rpc"]["io_timeout_ms"], json!(30_000));
         assert_eq!(v["result"]["rpc"]["listen_addr"], json!("127.0.0.1:18731"));
         assert_eq!(v["result"]["rpc"]["public_bind"], json!(false));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_status_reports_runtime_p2p_snapshot() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_status_p2p");
+        let status = Arc::new(|| {
+            json!({
+                "configured": true,
+                "listen_addr": "127.0.0.1:19000",
+                "peer_count": 3,
+                "session_count": 2,
+                "max_outbound_peers": 8,
+            })
+        });
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"get_status","id":"s"}"#,
+            ServeDispatchOpts {
+                p2p_status: Some(status),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["p2p"]["configured"], json!(true));
+        assert_eq!(v["result"]["p2p"]["listen_addr"], json!("127.0.0.1:19000"));
+        assert_eq!(v["result"]["p2p"]["peer_count"], json!(3));
+        assert_eq!(v["result"]["p2p"]["session_count"], json!(2));
+        assert_eq!(v["result"]["p2p"]["max_outbound_peers"], json!(8));
         fs::remove_dir_all(&root).ok();
     }
 

@@ -434,7 +434,9 @@ impl P2pPeerSet {
             .collect()
     }
 
-    fn snapshot_session_peers(&self) -> Vec<String> {
+    /// Snapshot peers with a currently registered live P2P session.
+    #[must_use]
+    pub fn snapshot_session_peers(&self) -> Vec<String> {
         match self.sessions.lock() {
             Ok(g) => g.keys().cloned().collect(),
             Err(_) => Vec::new(),

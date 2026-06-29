@@ -25,7 +25,7 @@ use mfn_store::{
     load_mempool, load_or_genesis_replaying_block_log, load_proof_pool, save_mempool,
     save_proof_pool, ChainPersistence,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{
@@ -391,6 +391,7 @@ struct ServeDispatchState<'a> {
     rpc_max_in_flight: usize,
     rpc_in_flight: Arc<AtomicUsize>,
     rpc_listen: &'a str,
+    local_p2p_listen: Option<std::net::SocketAddr>,
 }
 
 fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
@@ -404,6 +405,7 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         rpc_max_in_flight,
         rpc_in_flight,
         rpc_listen,
+        local_p2p_listen,
     } = state;
     let store_persist = Arc::clone(store);
     let store_proof = Arc::clone(store);
@@ -449,6 +451,19 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
                 to,
             )
         });
+    let p2p_status = fanout_peers.map(|ps| {
+        let ps = Arc::clone(ps);
+        let listen_addr = local_p2p_listen.map(|addr| addr.to_string());
+        Arc::new(move || {
+            json!({
+                "configured": true,
+                "listen_addr": listen_addr.as_deref(),
+                "peer_count": ps.snapshot_peers().len(),
+                "session_count": ps.snapshot_session_peers().len(),
+                "max_outbound_peers": ps.max_outbound_peers(),
+            })
+        }) as mfn_rpc::P2pStatusHook
+    });
     ServeDispatchOpts {
         genesis: Some(genesis),
         rpc_api_key,
@@ -463,6 +478,7 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         on_proof_pool_change: Some(on_proof_pool_change),
         p2p_light_follow: Some(p2p_light_follow),
         p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
+        p2p_status,
     }
 }
 
@@ -799,6 +815,7 @@ pub(crate) fn run_serve(
         rpc_max_in_flight,
         rpc_in_flight: Arc::clone(&rpc_in_flight),
         rpc_listen,
+        local_p2p_listen,
     });
 
     #[cfg(unix)]

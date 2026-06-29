@@ -1,4 +1,4 @@
-# Query get_tip on hub + voters; require matching tip_height/tip_id and public genesis_id (M2.4.3 / M2.4.6).
+# Query get_status on hub + voters; require matching tip, public genesis_id, and live P2P sessions.
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
@@ -10,7 +10,7 @@ Get-Content $PortsFile | ForEach-Object {
 }
 $HubRpc = $ports["HUB_RPC"]
 if (-not $HubRpc) { throw "HUB_RPC missing in $PortsFile" }
-$Req = '{"jsonrpc":"2.0","method":"get_tip","id":1}'
+$Req = '{"jsonrpc":"2.0","method":"get_status","id":1}'
 function Get-HealthEnvInt {
     param([string]$Name, [int]$Default, [int]$Min)
     $raw = [Environment]::GetEnvironmentVariable($Name)
@@ -24,7 +24,8 @@ function Get-HealthEnvInt {
 $StallSamples = Get-HealthEnvInt "MFN_HEALTH_STALL_SAMPLES" 1 1
 $StallIntervalSeconds = Get-HealthEnvInt "MFN_HEALTH_STALL_INTERVAL_SECONDS" 30 0
 $MinHeightDelta = Get-HealthEnvInt "MFN_HEALTH_MIN_HEIGHT_DELTA" 1 1
-function Query-Tip {
+$MinP2pSessions = Get-HealthEnvInt "MFN_HEALTH_MIN_P2P_SESSIONS" 1 0
+function Query-Status {
     param([string]$Name, [string]$Addr)
     $parts = $Addr.Split(":")
     $rpcHost = $parts[0]
@@ -41,20 +42,31 @@ function Query-Tip {
     if (-not $line) { throw "health-check: $Name RPC empty response" }
     $json = $line | ConvertFrom-Json
     if ($json.error) { throw "health-check: $Name RPC error $($json.error)" }
-    $height = $json.result.tip_height
-    $id = $json.result.tip_id
-    $genesis = $json.result.genesis_id
+    $height = $json.result.chain.tip_height
+    $id = $json.result.chain.tip_id
+    $genesis = $json.result.chain.genesis_id
+    $p2pSessions = $json.result.p2p.session_count
+    $p2pPeers = $json.result.p2p.peer_count
     if (-not $id -or $id -eq "none") { throw "health-check: $Name has no tip_id" }
     if ($genesis -ne $ExpectedGenesisId) {
         throw "health-check: $Name genesis_id=$genesis expected $ExpectedGenesisId"
     }
+    if ($MinP2pSessions -gt 0) {
+        if ($null -eq $p2pSessions) { throw "health-check: $Name returned no p2p.session_count" }
+        $sessionValue = [int64]$p2pSessions
+        if ($sessionValue -lt $MinP2pSessions) {
+            throw "health-check: FAIL $Name p2p sessions=$sessionValue min=$MinP2pSessions"
+        }
+    }
     $heightValue = if ($null -eq $height) { 0 } else { [int64]$height }
     $h = if ($null -eq $height) { "null" } else { "$height" }
-    Write-Host "${Name}: tip_height=$h tip_id=$id genesis_id=$genesis"
+    $sessionText = if ($null -eq $p2pSessions) { "null" } else { "$p2pSessions" }
+    $peerText = if ($null -eq $p2pPeers) { "null" } else { "$p2pPeers" }
+    Write-Host "${Name}: tip_height=$h tip_id=$id genesis_id=$genesis p2p_sessions=$sessionText p2p_peers=$peerText"
     return @{ Height = $heightValue; Id = $id }
 }
 function Invoke-ConvergenceCheck {
-    $hub = Query-Tip "hub" $HubRpc
+    $hub = Query-Status "hub" $HubRpc
     $refHeight = $hub.Height
     $refId = $hub.Id
     foreach ($v in 1, 2) {
@@ -68,14 +80,14 @@ function Invoke-ConvergenceCheck {
             Write-Host "health-check: skip v$v (no RPC in log)"
             continue
         }
-        $tip = Query-Tip "v$v" $m.Matches.Groups[1].Value
+        $tip = Query-Status "v$v" $m.Matches.Groups[1].Value
         if ($tip.Height -ne $refHeight -or $tip.Id -ne $refId) {
             throw "health-check: FAIL v$v diverged from hub"
         }
     }
     $ObserverRpc = $ports["OBSERVER_RPC"]
     if ($ObserverRpc) {
-        $obs = Query-Tip "observer" $ObserverRpc
+        $obs = Query-Status "observer" $ObserverRpc
         if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
             throw "health-check: FAIL observer diverged from hub"
         }
@@ -84,7 +96,7 @@ function Invoke-ConvergenceCheck {
         if (Test-Path $obsLog) {
             $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=(.+)" | Select-Object -First 1
             if ($m) {
-                $obs = Query-Tip "observer" $m.Matches.Groups[1].Value
+                $obs = Query-Status "observer" $m.Matches.Groups[1].Value
                 if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
                     throw "health-check: FAIL observer diverged from hub"
                 }
