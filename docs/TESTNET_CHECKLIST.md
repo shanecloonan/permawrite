@@ -68,6 +68,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add public-devnet health checks for live P2P session counts via `get_status`.
 - [x] Add public-devnet health checks that fail when expected voter or observer RPC endpoints are missing.
 - [x] Add CI/local-mirror syntax validation for public-devnet Bash and PowerShell helper scripts.
+- [x] Add block-sync unit coverage that unsolicited post-handshake `BlocksV1` batches reject skipped heights.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

@@ -390,11 +390,7 @@ pub fn serve_post_handshake_v1(
             BLOCKS_V1_TAG => {
                 if let Some(applier) = block_applier {
                     let blocks = BlocksV1::decode_payload(&payload)?;
-                    for wire in &blocks.block_wires {
-                        applier
-                            .apply_synced_block(wire)
-                            .map_err(PostHandshakeError::Apply)?;
-                    }
+                    apply_unsolicited_blocks_v1(applier, &blocks)?;
                 }
             }
             0x0b => {
@@ -500,6 +496,14 @@ pub enum PostHandshakeError {
     /// Block apply failed while handling an unprompted [`BlocksV1`].
     #[error("apply: {0}")]
     Apply(String),
+    /// A post-handshake [`BlocksV1`] batch was not internally contiguous.
+    #[error("non-sequential post-handshake block height: expected {expected}, got {got}")]
+    NonSequentialHeight {
+        /// Next height expected after the previous block in the batch.
+        expected: u32,
+        /// Height reported after applying the returned block.
+        got: u32,
+    },
     /// Light-follow decode failure.
     #[error("light-follow decode: {0}")]
     LightFollowDecode(#[from] crate::light_follow::LightFollowDecodeError),
@@ -509,6 +513,29 @@ pub enum PostHandshakeError {
     /// Peer requested light-follow but this node does not serve it.
     #[error("light-follow not available on this peer")]
     LightFollowUnavailable,
+}
+
+fn apply_unsolicited_blocks_v1(
+    applier: &dyn BlockSyncApplier,
+    blocks: &BlocksV1,
+) -> Result<(), PostHandshakeError> {
+    let mut previous_height: Option<u32> = None;
+    for wire in &blocks.block_wires {
+        let height = applier
+            .apply_synced_block(wire)
+            .map_err(PostHandshakeError::Apply)?;
+        if let Some(previous) = previous_height {
+            let expected = previous.saturating_add(1);
+            if height != expected {
+                return Err(PostHandshakeError::NonSequentialHeight {
+                    expected,
+                    got: height,
+                });
+            }
+        }
+        previous_height = Some(height);
+    }
+    Ok(())
 }
 
 /// Failure while pulling blocks from a peer.
@@ -732,6 +759,33 @@ mod tests {
             PullBlocksError::NonSequentialHeight { expected, got } => {
                 assert_eq!(expected, 1);
                 assert_eq!(got, 2);
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn unsolicited_blocks_v1_accepts_contiguous_batch() {
+        let blocks = BlocksV1 {
+            block_wires: vec![vec![9u8], vec![10u8], vec![11u8]],
+        };
+
+        apply_unsolicited_blocks_v1(&HeightByteApplier, &blocks).expect("contiguous batch");
+    }
+
+    #[test]
+    fn unsolicited_blocks_v1_rejects_skipped_batch_height() {
+        let blocks = BlocksV1 {
+            block_wires: vec![vec![9u8], vec![11u8]],
+        };
+
+        let err = apply_unsolicited_blocks_v1(&HeightByteApplier, &blocks)
+            .expect_err("skipped post-handshake height must abort");
+
+        match err {
+            PostHandshakeError::NonSequentialHeight { expected, got } => {
+                assert_eq!(expected, 10);
+                assert_eq!(got, 11);
             }
             other => panic!("unexpected error: {other:?}"),
         }
