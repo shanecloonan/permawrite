@@ -665,6 +665,24 @@ Use `-RpcApiKey <KEY>` or `--rpc-api-key <KEY>` for auth-enabled RPC. The key is
 
 The bundle writes `manifest.json` plus JSON command outputs such as `node-status.json`, `wallet-status.json`, `wallet-backup-info.json`, `uploads-list.json`, `uploads-status.json`, `operator-challenge.json`, `operator-pool.json`, `operator-fetch-chunk.json`, `operator-inbox-status.json`, and claim query results when identifiers are supplied. The helper is intentionally read-only/local-inspection only: it does **not** send funds, scan wallets, upload data, push chunks, assemble inbox artifacts, or submit proofs.
 
+### Recovery plans
+
+Before rebuilding wallet-local upload artifacts, generate a copy-ready recovery plan with backup warnings:
+
+```bash
+# Windows:
+powershell -File scripts/public-devnet-v1/recovery-plan.ps1 `
+  -Rpc 127.0.0.1:<RPC> -Wallet ./alice.json -CommitHash <COMMIT_HASH_HEX> `
+  -OutputPath ./restored.bin -Peer 127.0.0.1:18780 -DataDir C:\path\to\replica-data
+
+# Linux/macOS:
+bash scripts/public-devnet-v1/recovery-plan.sh --rpc 127.0.0.1:<RPC> --wallet ./alice.json \
+  --commit <COMMIT_HASH_HEX> --output ./restored.bin --peer 127.0.0.1:18780 \
+  --data-dir /path/to/replica-data
+```
+
+The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` → `operator assemble-inbox` → `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
+
 ### Permanence troubleshooting
 
 | Symptom | Likely cause | Recovery |
