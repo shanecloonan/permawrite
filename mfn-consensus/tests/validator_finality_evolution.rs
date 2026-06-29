@@ -2,11 +2,12 @@
 //!
 //! Covers pre-block finality quorum, pre-block `validator_root`, atomic
 //! liveness stats/stake updates, header body-root binding (bond, slashing,
-//! tx, storage_proof), unbond-settlement root evolution, equivocation during
+//! tx, storage_proof, claims, utxo, storage), unbond-settlement root evolution, equivocation during
 //! unbond delay, entry/exit churn caps and epoch reset, duplicate/invalid slash
 //! rejection, bond-op admission rejects (duplicate vrf, duplicate unbond,
 //! stake below minimum, same-block register-then-unbond, same-block duplicate
-//! vrf batch, zombie unbond, forged/unknown unbond), and rejection preserving
+//! vrf batch, zombie unbond, forged/unknown unbond, duplicate unbond after
+//! pending request, bond rejection treasury preservation), and rejection preserving
 //! caller state.
 //! Empty blocks only — no privacy txs, storage proofs, or coinbase.
 
@@ -847,6 +848,97 @@ fn storage_proof_root_mismatch_rejects_without_state_change() {
     assert_eq!(snapshot(&st), before);
 }
 
+/// Header `claims_root` must match the (empty) authorship-claims list.
+#[test]
+fn claims_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.claims_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::ClaimsRootMismatch)),
+                "expected claims_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered claims_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Header `utxo_root` must match the projected post-block accumulator.
+#[test]
+fn utxo_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    block.header.utxo_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::UtxoRootMismatch)),
+                "expected utxo_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered utxo_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
+/// Header `storage_root` must match newly-anchored commitments (empty ⇒ zero).
+#[test]
+fn storage_root_mismatch_rejects_without_state_change() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let before = snapshot(&st);
+
+    let mut block = seal_empty(
+        &fx,
+        &st,
+        1,
+        Vec::new(),
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    assert_eq!(block.header.storage_root, [0u8; 32]);
+    block.header.storage_root[0] ^= 0xff;
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageRootMismatch)),
+                "expected storage_root mismatch, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("tampered storage_root must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+}
+
 /// A validator who requested unbond remains slashable during the delay;
 /// equivocation evidence still zeroes stake and moves `validator_root`.
 #[test]
@@ -1674,4 +1766,105 @@ fn unbond_unknown_validator_rejects_without_state_change() {
         ApplyOutcome::Ok { .. } => panic!("unbond of unknown validator must reject"),
     }
     assert_eq!(snapshot(&st), before);
+}
+
+/// Failed bond ops must not credit treasury — register burn is all-or-nothing.
+#[test]
+fn bond_rejection_leaves_treasury_unchanged() {
+    let fx = boot_three_validators(64);
+    let st = fx.state.clone();
+    let treasury_before = st.treasury;
+    let attacker = bls_keygen_from_seed(&[240u8; 32]);
+    let victim = bls_keygen_from_seed(&[241u8; 32]);
+    let vrf = vrf_keygen_from_seed(&[242u8; 32]).expect("vrf");
+    let stake = st.bonding_params.min_validator_stake;
+    let bad_register = BondOp::Register {
+        stake,
+        vrf_pk: vrf.pk,
+        bls_pk: victim.pk,
+        payout: None,
+        sig: sign_register(stake, &vrf.pk, &victim.pk, None, &attacker.sk),
+    };
+    let block = seal_empty(
+        &fx,
+        &st,
+        1,
+        vec![bad_register],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::BondOpRejected { .. })),
+                "expected bond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("forged register must reject"),
+    }
+    assert_eq!(st.treasury, treasury_before);
+    assert_eq!(st.validators.len(), 3);
+}
+
+/// Second `Unbond` for a validator who already has a pending exit rejects.
+#[test]
+fn duplicate_unbond_after_pending_request_rejects_without_state_change() {
+    let fx = boot_three_validators_cfg(64, 4);
+    let mut st = fx.state.clone();
+    let idx = st.validators[1].index;
+    let unbond = BondOp::Unbond {
+        validator_index: idx,
+        sig: sign_unbond(idx, &fx.secrets[1].bls.sk),
+    };
+    st = apply_block(
+        &st,
+        &seal_empty(
+            &fx,
+            &st,
+            1,
+            vec![unbond],
+            Vec::new(),
+            &all_voter_positions(&st),
+        ),
+    )
+    .into_state()
+    .expect("first unbond request");
+    assert_eq!(st.pending_unbonds.len(), 1);
+
+    let before = snapshot(&st);
+    let treasury_before = st.treasury;
+    let block2 = seal_empty(
+        &fx,
+        &st,
+        2,
+        vec![BondOp::Unbond {
+            validator_index: idx,
+            sig: sign_unbond(idx, &fx.secrets[1].bls.sk),
+        }],
+        Vec::new(),
+        &all_voter_positions(&st),
+    );
+    match apply_block(&st, &block2) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::BondOpRejected {
+                            index: 0,
+                            message,
+                            ..
+                        } if message.contains("pending unbond")
+                    )
+                }),
+                "expected duplicate pending unbond rejection, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("second unbond while pending must reject"),
+    }
+    assert_eq!(snapshot(&st), before);
+    assert_eq!(st.treasury, treasury_before);
+    assert_eq!(st.pending_unbonds.len(), 1);
 }
