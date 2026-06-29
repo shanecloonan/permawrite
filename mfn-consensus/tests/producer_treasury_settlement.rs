@@ -1,4 +1,4 @@
-//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.13**).
+//! Producer revenue and treasury settlement invariants (**M5.7**–**M5.13**, **M5.18**).
 //!
 //! Locks the economics from [`docs/ECONOMICS.md`]: coinbase pays
 //! `emission(height) + producer fee share (+ storage rewards + PPB bonus)`;
@@ -144,6 +144,43 @@ fn treasury_after_equivocation_bond_liveness_block(
             .saturating_add(bond_burn),
         fee_sum,
         accepted_proofs,
+        params,
+    )
+}
+
+/// Settlement when storage payout includes a PPB integer bonus beyond the flat proof reward.
+fn treasury_after_settlement_with_ppb_bonus(
+    treasury: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let storage_reward = u128::from(params.storage_proof_reward) * accepted_proofs + ppb_bonus;
+    let mut pending = treasury.saturating_add(treasury_fee);
+    let from_treasury = pending.min(storage_reward);
+    pending -= from_treasury;
+    pending
+}
+
+/// Bond burn and liveness slash credit treasury before fee + PPB-augmented proof drain.
+fn treasury_after_bond_and_liveness_block_with_ppb_bonus(
+    treasury: u128,
+    bond_burn: u128,
+    liveness_credit: u128,
+    fee_sum: u128,
+    accepted_proofs: u128,
+    ppb_bonus: u128,
+    params: &EmissionParams,
+) -> u128 {
+    treasury_after_settlement_with_ppb_bonus(
+        treasury
+            .saturating_add(bond_burn)
+            .saturating_add(liveness_credit),
+        fee_sum,
+        accepted_proofs,
+        ppb_bonus,
         params,
     )
 }
@@ -1578,6 +1615,113 @@ fn equivocation_bond_liveness_fee_and_storage_proof_compose_in_treasury_closed_l
     );
     assert_eq!(st.validators[absentee_idx as usize].stake, 990_000);
     assert_eq!(st.validators.len(), 4);
+    assert_eq!(
+        st.validator_stats[absentee_idx as usize].liveness_slashes,
+        1
+    );
+}
+
+/// Bond, liveness slash, fee, and PPB-augmented storage proof compose in treasury ledger (**M5.18**).
+#[test]
+fn bond_liveness_fee_ppb_storage_proof_compose_in_treasury_closed_loop() {
+    let fixture = ValidatorFixture::liveness_absentee_three_validators();
+    let absentee_idx = 1u32;
+    let ep = EndowmentParams {
+        real_yield_ppb: 40_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let payload: Vec<u8> = vec![0u8; 1 << 20];
+    let built = build_storage_commitment(&payload, 1_000, Some(4096), ep.min_replication, None)
+        .expect("commitment");
+    let storage = StorageFixture { payload, built };
+    let initial = 50_000_000_000u64;
+    let (mut st, spend) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        Some(&storage),
+        ep,
+        true,
+    );
+    assert_eq!(st.treasury, 0);
+    st.validator_stats[absentee_idx as usize].consecutive_missed = 2;
+    st.treasury = 100_000_000;
+    let treasury_before = st.treasury;
+
+    let commit_hash = storage_commitment_hash(&storage.built.commit);
+    st.storage.get_mut(&commit_hash).unwrap().pending_yield_ppb = PPB - 1;
+
+    let bond = register_op(101);
+    let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
+    let liveness_forfeit = 10_000u128;
+    let fee = 9_000u64;
+    let (signed, _) = spend.sign_self_transfer(fee);
+    let slot = 1u32;
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_storage_proof(
+        &storage.built.commit,
+        &prev,
+        slot,
+        &storage.payload,
+        &storage.built.tree,
+    )
+    .expect("proof");
+    let accrual = accrue_proof_reward(AccrueArgs {
+        size_bytes: storage.built.commit.size_bytes,
+        replication: storage.built.commit.replication,
+        pending_ppb: PPB - 1,
+        last_proven_slot: 0,
+        current_slot: u64::from(slot),
+        params: &ep,
+    })
+    .expect("accrue");
+    assert!(
+        accrual.payout > 0,
+        "seeded PPB must cross integer payout boundary"
+    );
+    let bonus = storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, slot, &ep);
+    assert_eq!(bonus, accrual.payout);
+    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let coinbase = build_coinbase(1, cb, &fixture.payout).expect("coinbase");
+    let txs = vec![coinbase, signed.tx];
+    let voters = [0u32, 2];
+    let st = match apply_validator_block_with_voters(
+        &fixture,
+        &voters,
+        &st,
+        1,
+        txs,
+        vec![proof],
+        vec![bond],
+        Vec::new(),
+        slot,
+    ) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("bond+liveness+fee+ppb proof block: {errors:?}"),
+    };
+    let expected = treasury_after_bond_and_liveness_block_with_ppb_bonus(
+        treasury_before,
+        bond_stake,
+        liveness_forfeit,
+        u128::from(fee),
+        1,
+        accrual.payout,
+        &TEST_EMISSION,
+    );
+    assert_eq!(
+        st.treasury, expected,
+        "bond, liveness, fee, and PPB-augmented proof drain compose in treasury ledger"
+    );
+    let storage_reward_total = u128::from(TEST_EMISSION.storage_proof_reward) + accrual.payout;
+    let subsidy = u128::from(emission_at_height(1, &TEST_EMISSION));
+    let (_, producer_fee) = fee_split(u128::from(fee), TEST_EMISSION.fee_to_treasury_bps);
+    assert_eq!(
+        u128::from(cb),
+        subsidy + producer_fee + storage_reward_total,
+        "coinbase must include subsidy, producer fee share, flat proof reward, and PPB bonus"
+    );
+    assert_eq!(st.validators.len(), 4);
+    assert_eq!(st.validators[absentee_idx as usize].stake, 990_000);
     assert_eq!(
         st.validator_stats[absentee_idx as usize].liveness_slashes,
         1
