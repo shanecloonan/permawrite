@@ -137,7 +137,7 @@ pub struct StorageUploadPlan<'a, R: FnMut() -> f64> {
     pub replication: u8,
     /// Override the chunking granularity (must be a power of two).
     /// `None` ⇒ [`mfn_storage::DEFAULT_CHUNK_SIZE`] (256 KiB), which is
-    /// the byte-for-byte-canonical value with the TS reference and
+    /// the byte-for-byte-canonical value with the protocol and
     /// what every storage operator expects by default.
     pub chunk_size: Option<usize>,
     /// Explicit Pedersen blinding for the commitment's `endowment`

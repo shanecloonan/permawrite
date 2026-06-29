@@ -1,7 +1,6 @@
 //! Slashable evidence — fault attribution at the consensus layer.
 //!
-//! Port of `cloonan-group/lib/network/slashing.ts`.
-//!
+//! //!
 //! When a validator BLS-signs two conflicting messages at the same slot
 //! (e.g. votes for two different proposals at the same height) they are
 //! **provably Byzantine** and must lose their stake. This module defines
@@ -421,10 +420,10 @@ mod tests {
         assert_ne!(leaf, other);
     }
 
-    /// TS-parity golden vector for the M2.0.1 slashing-root commitment.
+    /// protocol golden vector for the M2.0.1 slashing-root commitment.
     ///
     /// Pinned to the same `bls_keygen_from_seed([1..=48])` convention
-    /// used by `BondOp::{Register, Unbond}` so a single TS smoke
+    /// used by `BondOp::{Register, Unbond}` so a single protocol smoke
     /// fixture can cover all three (`bond_root`-component + this).
     ///
     /// **Reference inputs:**
@@ -439,7 +438,7 @@ mod tests {
     ///   branch).
     /// - Root computed over `[e0, e1]` in emit order.
     #[test]
-    fn slashing_root_wire_matches_cloonan_ts_smoke_reference() {
+    fn slashing_root_wire_matches_protocol_golden_vector() {
         let mut seed = [0u8; 48];
         for (i, b) in seed.iter_mut().enumerate() {
             *b = (i as u8) + 1;

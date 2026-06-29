@@ -56,7 +56,7 @@
 //!   Σ_i (∏_j factor_{i,j}(x))·ring[i]  =  Σ_k x^k·G_k + z_d·H
 //! ```
 //!
-//! Mirrors `lib/network/oom.ts` byte-for-byte.
+//! Defines canonical Rust protocol behavior.
 
 // Bit-decomposition + polynomial-coefficient indexing is fundamental to
 // this protocol; indexed loops are *clearer* than iterator chains here.
@@ -148,7 +148,7 @@ fn fs_challenge(
     c: &[EdwardsPoint],
     g_k: &[EdwardsPoint],
 ) -> Scalar {
-    // Transcript framing — must match `oom.ts` byte-for-byte.
+    // Transcript framing is consensus-critical; keep it byte-stable.
     let mut parts: Vec<Vec<u8>> = Vec::new();
     // 4-byte big-endian ring length.
     parts.push((ring.len() as u32).to_be_bytes().to_vec());

@@ -1,6 +1,6 @@
 //! Block + chain-state machine.
 //!
-//! Port of `cloonan-group/lib/network/block.ts`. This module turns the
+//! This module turns the
 //! crate's other primitives — transactions, coinbase, emission, slashing,
 //! consensus finality — into an **actual chain** with a deterministic
 //! state-transition function.
@@ -17,7 +17,7 @@
 //!
 //! ## v0.1 scope
 //!
-//! This is the consensus-critical subset. The rest of the TS reference
+//! This is the consensus-critical subset. The rest of the protocol
 //! (storage proof verification, endowment-based per-tx burden, treasury
 //! drain → storage reward routing, storage proof reward bonuses) lives
 //! gated behind the future [`mfn-storage`](https://github.com/...)

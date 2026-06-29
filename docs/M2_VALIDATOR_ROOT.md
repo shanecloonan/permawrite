@@ -97,7 +97,7 @@ The check runs *before* finality verification, so a tampered `validator_root` is
 | 10 | `validator_root_moves_on_equivocation_slash` | `tests/integration.rs` |
 | 11 | `validator_root_moves_on_unbond_settlement` | `tests/integration.rs` |
 | 12 | `tampered_validator_root_in_signed_block_is_rejected` | `tests/integration.rs` |
-| 13 | `validator_root_wire_matches_cloonan_ts_smoke_reference` | `consensus.rs` unit (TS-parity golden vector) |
+| 13 | `validator_root_wire_matches_protocol_golden_vector` | `consensus.rs` unit (protocol golden vector) |
 
 (13 new tests; +13 vs. the post-M1.5 baseline.)
 
@@ -117,7 +117,7 @@ The combination makes the chain's validator history both **commit-bound** (heade
 
 ## Future work
 
-- **TS-side reference port.** Rust-side byte-parity vectors are pinned in `validator_root_wire_matches_cloonan_ts_smoke_reference` (covers both with-payout and no-payout leaf branches plus a two-validator root). The matching TS smoke fixture in `cloonan-group` will mirror the same hex once the port is wired. See [`docs/interop/TS_VALIDATOR_ROOT_GOLDEN_VECTORS.md`](./interop/TS_VALIDATOR_ROOT_GOLDEN_VECTORS.md).
+- **Protocol golden vector.** Rust-side vectors are pinned in `validator_root_wire_matches_protocol_golden_vector` (covers both with-payout and no-payout leaf branches plus a two-validator root). See [`docs/interop/VALIDATOR_ROOT_GOLDEN_VECTORS.md`](./interop/VALIDATOR_ROOT_GOLDEN_VECTORS.md).
 - **Light-client crate (`mfn-light`).** The header is now self-describing; the crate that *consumes* it has to wait until the node daemon (M2.1) is up and there's something to talk to.
 - **Validator-set sparse-Merkle proofs.** Currently `validator_set_root` is a balanced binary Merkle root; a future sparse variant could let a light client verify "validator at index `i` has stake `s`, bls_pk `K`" with a log-size proof.
 

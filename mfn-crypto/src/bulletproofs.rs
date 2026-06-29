@@ -35,7 +35,7 @@
 //!      Inner Product Argument (IPA) → O(log N).
 //! ```
 //!
-//! Mirrors `lib/network/bulletproofs.ts` byte-for-byte.
+//! Defines canonical Rust protocol behavior.
 
 #![allow(clippy::needless_range_loop)]
 

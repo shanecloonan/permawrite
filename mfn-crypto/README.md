@@ -103,7 +103,7 @@ Full type signatures are in [`src/lib.rs`](src/lib.rs).
 
 ## Test categories
 
-- Per-module unit tests proving correctness against the TypeScript reference (`cloonan-group/lib/network/primitives.ts`).
+- Per-module unit tests and protocol vectors proving deterministic behavior.
 - Cross-module integration tests (`tests/integration.rs`) — Pedersen-balanced rings, full transaction flows.
 - Property-style tests for codec round-trips and curve identities.
 - Determinism tests (same input → same output across runs).
@@ -135,4 +135,4 @@ All audited, all production-tested across major Rust crypto consumers.
 - [`docs/PRIVACY.md`](../docs/PRIVACY.md) — the math of every primitive in this crate
 - [`docs/ARCHITECTURE.md § Cryptographic primitives`](../docs/ARCHITECTURE.md#cryptographic-primitives) — the full primitive table
 - [`docs/GLOSSARY.md`](../docs/GLOSSARY.md) — definitions for every term
-- [`PORTING.md`](../PORTING.md) — TS → Rust porting status
+- [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) — Rust implementation status

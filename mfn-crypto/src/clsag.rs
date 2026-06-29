@@ -29,7 +29,7 @@
 //! In a real transaction, `Σ c_pseudo` across all inputs cancels with
 //! `Σ C_out + fee·H`, proving amounts balance without revealing any value.
 //!
-//! Mirrors `lib/network/clsag.ts` byte-for-byte.
+//! Defines canonical Rust protocol behavior.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -100,7 +100,7 @@ pub struct ClsagSignature {
 
 /// Encode the ring + pseudo-output + key images into a deterministic byte
 /// string used as the basis for the aggregation hashes and per-step
-/// challenges. Mirrors `encodeRing` in `clsag.ts`.
+/// challenges. Mirrors `encodeRing` in `the CLSAG codec`.
 fn encode_ring(
     ring: &ClsagRing,
     c_pseudo: &EdwardsPoint,

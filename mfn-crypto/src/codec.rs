@@ -1,6 +1,6 @@
 //! MFBN-1 canonical binary encoding.
 //!
-//! Mirrors `lib/network/codec.ts`. Big-endian, length-prefixed,
+//! MFBN-1 codec spec. Big-endian, length-prefixed,
 //! deterministic. Variable-length integers use LEB128 (7-bit groups,
 //! continuation bit on the MSB).
 //!
@@ -171,7 +171,7 @@ impl<'a> Reader<'a> {
         ]))
     }
 
-    /// Read a LEB128 varint. Capped at 70 bits to match the TS reader.
+    /// Read a LEB128 varint. Capped at 70 bits to match the canonical reader.
     pub fn varint(&mut self) -> Result<u64> {
         let mut result: u64 = 0;
         let mut shift: u32 = 0;

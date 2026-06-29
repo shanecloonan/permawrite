@@ -6,7 +6,7 @@
 //! - [`dhash`] / [`dhash64`] — domain-separated SHA-512 with MFBN-1 framing.
 //!
 //! Mirrors the `hashToScalar`, `hashToPoint`, `dhash`, `dhash64` functions in
-//! `lib/network/primitives.ts` and `lib/network/codec.ts`.
+//! `the MFBN-1 primitive spec` and `the MFBN-1 codec spec`.
 
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 use curve25519_dalek::scalar::Scalar;
@@ -63,7 +63,7 @@ pub fn hash_to_point(input: &[u8]) -> Result<EdwardsPoint> {
 ///
 /// Framing: each input (the domain tag included) is encoded as a varint-
 /// prefixed blob in MFBN-1, then SHA-512 is applied to the concatenation.
-/// This matches `dhash` in `codec.ts` byte-for-byte.
+/// This matches `dhash` in `the MFBN-1 codec` byte-for-byte.
 pub fn dhash(domain: Domain, inputs: &[&[u8]]) -> [u8; 32] {
     let mut w = Writer::new();
     w.blob(domain);
@@ -115,7 +115,7 @@ mod tests {
     fn hash_to_scalar_concat_safe() {
         // Without proper framing, ["ab", ""] and ["a", "b"] would collide.
         // Our hash_to_scalar concatenates without varint framing on purpose
-        // (matching primitives.ts), which means callers must use dhash for
+        // (matching the primitive spec), which means callers must use dhash for
         // domain-separated inputs. Document and test that this is by-design.
         let a = hash_to_scalar(&[b"ab", b""]);
         let b = hash_to_scalar(&[b"a", b"b"]);

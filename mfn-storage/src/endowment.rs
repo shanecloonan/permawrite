@@ -1,7 +1,7 @@
 //! Endowment math — turning "how big is this upload?" into "how many MFN
 //! base units must you escrow into the storage treasury right now?"
 //!
-//! Port of `cloonan-group/lib/network/endowment.ts`. The on-chain
+//! The on-chain
 //! implementation of the whitepaper's §3 formula:
 //!
 //! ```text

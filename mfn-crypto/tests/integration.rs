@@ -1,7 +1,7 @@
 //! End-to-end integration tests across all primitives.
 //!
 //! These mirror the most important round-trip checks from
-//! `scripts/smoke-network.ts` on the TS side: send → detect →
+//! `the network smoke flow` on the protocol side: send → detect →
 //! decrypt-amount → derive-spend-key → balance.
 
 use curve25519_dalek::edwards::EdwardsPoint;

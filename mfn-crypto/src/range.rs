@@ -27,7 +27,7 @@
 //! [`bulletproofs`](crate) module will provide an `O(log N)` drop-in
 //! replacement with identical semantics.
 //!
-//! Mirrors `lib/network/range.ts` byte-for-byte.
+//! Defines canonical Rust protocol behavior.
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -266,7 +266,7 @@ pub fn range_verify(c: &EdwardsPoint, proof: &RangeProof) -> bool {
  * ----------------------------------------------------------------------- */
 
 /// Encode a range proof to canonical bytes. Mirrors `encodeRangeProof` in
-/// `range.ts`.
+/// `the range codec`.
 #[must_use]
 pub fn encode_range_proof(p: &RangeProof) -> Vec<u8> {
     let mut w = Writer::new();

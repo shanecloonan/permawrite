@@ -6,7 +6,7 @@
 //!   that no party knows a non-trivial discrete-log relationship between `G`
 //!   and `H` — this is the binding security argument.
 //!
-//! Mirrors the `G` and `H` definitions in `lib/network/primitives.ts`.
+//! Mirrors the `G` and `H` definitions in `the MFBN-1 primitive spec`.
 
 use std::sync::OnceLock;
 

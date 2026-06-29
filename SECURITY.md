@@ -4,6 +4,8 @@
 
 Permawrite is **pre-network, pre-audit** software. The code in this repository implements consensus-critical cryptography but has not been independently reviewed. Treat any deployment as experimental.
 
+The reference daemon's JSON-RPC listener is a development/testnet control plane, not an audited public API. By default it binds to loopback; if you bind RPC to a LAN or public interface, set `--rpc-api-key` or `MFND_RPC_API_KEY`, place the port behind a firewall or TLS reverse proxy, and assume the node remains experimental. API-key enforcement protects `wallet-write` and `operator-admin` methods (`submit_tx`, `submit_storage_proof`, mempool/proof-pool clears, checkpoint save, and P2P light-follow proxy calls); public read methods remain unauthenticated.
+
 ## Reporting a vulnerability
 
 If you believe you have found a security vulnerability — in the cryptographic primitives, the encoding/decoding logic, the eventual consensus rules, or anywhere else in this repo — please disclose it **privately**.
@@ -31,11 +33,12 @@ You will receive an acknowledgement within **72 hours**. We aim to triage within
 - Memory-safety issues (despite `#![forbid(unsafe_code)]`, transitive dependencies may still introduce them).
 - Wire-format ambiguities or parser bugs.
 - Logic errors in the eventual consensus / state-transition function.
+- RPC authentication bypasses, unsafe defaults, malformed-request crashes, or exposure of operator-admin methods without the configured API key.
 
 ## What's out of scope (for now)
 
-- Bugs in the surrounding TypeScript reference implementation (those go to [`cloonan-group`](https://github.com/shanecloonan/cloonan-group)).
-- Performance / DoS issues that do not affect correctness.
+- Bugs in out-of-repo demos or clients should be reported in those projects.
+- Performance / DoS issues that do not affect correctness, except trivial RPC crashes or resource exhaustion that can take down an internet-facing testnet node.
 - Build-system issues unrelated to security.
 
 ## Coordinated disclosure

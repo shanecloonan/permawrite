@@ -123,7 +123,7 @@ hex             = "0.4"
 - Single-sig sign/verify round-trips.
 - Aggregate sign/verify across `N = 2, 5, 100, 1000` signers.
 - Bitmap correctness (sparse aggregates).
-- Cross-implementation parity with the TypeScript reference.
+- Cross-implementation parity with the protocol.
 - Wrong-message rejection.
 - Wrong-signer rejection.
 

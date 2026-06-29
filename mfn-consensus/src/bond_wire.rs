@@ -367,11 +367,10 @@ mod tests {
         assert_eq!(bond_merkle_root(&[]), [0u8; 32]);
     }
 
-    /// Wire + leaf for the deterministic Register reference vector used
-    /// by the TypeScript reference client in
-    /// `cloonan-group/scripts/smoke-bond.ts` (`GOLDEN_BOND_OP_*`).
+    /// Wire + leaf for the deterministic Register protocol vector
+    /// (`GOLDEN_BOND_OP_*`).
     ///
-    /// Construction (byte-identical across implementations):
+    /// Construction (byte-identical across runs):
     ///   - BLS keypair  = `bls_keygen_from_seed(&[1, 2, 3, ..., 48])`
     ///     (same seed as the Unbond vector)
     ///   - `stake`      = `1_000_000`
@@ -381,10 +380,10 @@ mod tests {
     ///
     /// BLS over BLS12-381 is `sig = sk · H(m)` with no randomness, so
     /// the wire is fully reproducible. Any drift here is a wire-format
-    /// mismatch with the TS reference and must be treated as
+    /// mismatch with the canonical bytes and must be treated as
     /// consensus-breaking.
     #[test]
-    fn bond_register_wire_matches_cloonan_ts_smoke_reference() {
+    fn bond_register_wire_matches_protocol_golden_vector() {
         use curve25519_dalek::scalar::Scalar;
 
         const WIRE_HEX: &str = "0000000000000f4240b862409fb5c4c4123df2abf7462b88f041ad36dd6864ce872fd5472be363c5b191cea2c39bbe275cc495b90b926c1e621df9d07624282c1ba157a12e97de284fb6327dc7a1165119d344721b382144ff00877cdf932aa770293b32e3412ba49c514f022108743153e9297d92d9fe3c9d08972c9fe41154b084d6c13c67e461add4015464f9be27c100f603555984c659d6c38d00e2cae23ae1c8d9f73a5cd23cd6297965fce9dbe9393e5dfb9e6b40d7e6";
@@ -509,21 +508,20 @@ mod tests {
         assert!(decode_bond_op(&bytes).is_err());
     }
 
-    /// Wire + leaf from the deterministic Unbond reference vector used by
-    /// the TypeScript reference client in
-    /// `cloonan-group/scripts/smoke-bond.ts` (`GOLDEN_UNBOND_OP_*`).
+    /// Wire + leaf from the deterministic Unbond protocol vector
+    /// (`GOLDEN_UNBOND_OP_*`).
     ///
-    /// Construction (byte-identical across implementations):
+    /// Construction (byte-identical across runs):
     ///   - BLS keypair = `bls_keygen_from_seed(&[1, 2, 3, ..., 48])`
     ///   - validator_index = 7
     ///   - sig = `sign_unbond(7, &bls.sk)`
     ///
     /// BLS signatures `sig = sk · H(m)` over BLS12-381 are deterministic
     /// (no nonce), so the wire bytes are reproducible without an RNG.
-    /// Any divergence here is a wire-format mismatch with the TS
-    /// reference and must be treated as a consensus-breaking change.
+    /// Any divergence here is a wire-format mismatch with the canonical
+    /// bytes and must be treated as a consensus-breaking change.
     #[test]
-    fn bond_unbond_wire_matches_cloonan_ts_smoke_reference() {
+    fn bond_unbond_wire_matches_protocol_golden_vector() {
         const WIRE_HEX: &str = "0100000007a23607ffd488bbf50edaa45790118204321064a895ba974faf132337b21cc0190d1bf3e7d82399b7b954f310860aa9fd06cf898bce3b2a7731f685345b52f2008ecb526ec415694e665599d8859d3068bef8a4a0a98ff0a1e873acf82fd4e1e0";
         const LEAF_HEX: &str = "6a51ca2c8e53443cfa9cdb096096097bcba3428098b628778cf55602207a5833";
 

@@ -6,8 +6,7 @@
 //! small constant per-block tail emission, plus an EIP-1559-style fee split
 //! that routes most of the priority fee to the storage treasury.
 //!
-//! Ported from `cloonan-group/lib/network/emission.ts`, byte-for-byte
-//! identical for the subset of behaviors this module covers (the TS module
+//! //! identical for the subset of behaviors this module covers (the protocol module
 //! includes inflation-rate display helpers we don't expose to consensus).
 //!
 //! ## Stream summary
@@ -56,7 +55,7 @@ pub struct EmissionParams {
     pub fee_to_treasury_bps: u16,
 }
 
-/// Defaults from the whitepaper / TS reference.
+/// Defaults from the whitepaper / protocol.
 ///
 /// `tail_emission = initial_reward >> 8 ≈ 0.195 MFN/block`, chosen one binary
 /// halving below the last subsidy era so the schedule is monotonically

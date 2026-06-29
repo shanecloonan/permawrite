@@ -1,11 +1,11 @@
 //! Storage commitment — the content-addressed binding a transaction output
 //! can carry to anchor a permanent data payload on-chain.
 //!
-//! Port of the struct + hasher from `cloonan-group/lib/network/storage.ts`.
+//! Canonical storage commitment struct and hasher.
 //! The actual SPoRA prover/verifier lives in [`crate::spora`]; this module
 //! is the wire-format truth.
 //!
-//! ## Wire format (must match the TS reference)
+//! ## Wire format (is canonical for the protocol)
 //!
 //! ```text
 //! data_root    [32]  Merkle root of chunk hashes
@@ -47,7 +47,7 @@ pub struct StorageCommitment {
 /// merkleize.
 ///
 /// Byte-for-byte compatible with `storageCommitmentHash` in
-/// `lib/network/storage.ts`.
+/// the Rust protocol.
 pub fn storage_commitment_hash(c: &StorageCommitment) -> [u8; 32] {
     let mut w = Writer::new();
     w.push(&c.data_root);

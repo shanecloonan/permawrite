@@ -4,14 +4,13 @@
 //! the ed25519 prime-order subgroup via the audited
 //! [`curve25519-dalek`](https://crates.io/crates/curve25519-dalek) crate.
 //!
-//! This is the **production-grade port** of `lib/network/primitives.ts` from
-//! the parent repo's TypeScript reference implementation. Every operation in
-//! this crate is intended to be byte-for-byte compatible with the TS version
-//! so the two implementations can validate each other.
+//! This crate owns the protocol's Rust cryptographic surface: canonical
+//! encodings, deterministic hash transcripts, and test-backed primitive behavior
+//! for MFBN-1.
 //!
 //! ## Modules
 //!
-//! - [`domain`] — domain-separation tags (mirrors `codec.ts` `DOMAIN`).
+//! - [`domain`] — MFBN-1 domain-separation tags.
 //! - [`codec`] — `Writer`/`Reader` MFBN-1 canonical binary encoding.
 //! - [`scalar`] — scalar helpers (little-endian, mod-L).
 //! - [`point`] — point helpers, generators `G` and `H`.

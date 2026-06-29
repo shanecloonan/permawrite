@@ -72,14 +72,16 @@ impl BlockScan {
     /// Flattened iterator over every owned output recovered in this
     /// block, in block-then-output order.
     pub fn iter_recovered(&self) -> impl Iterator<Item = &ScannedOutput> {
-        self.txs.iter().flat_map(|(_, ts)| ts.recovered.iter())
+        self.txs
+            .iter()
+            .flat_map(|(_, tx_scan)| tx_scan.recovered.iter())
     }
 
     /// Flattened set of key-image bytes spent in this block.
     pub fn spent_key_image_bytes(&self) -> HashSet<[u8; 32]> {
         self.txs
             .iter()
-            .flat_map(|(_, ts)| ts.spent_key_images.iter().copied())
+            .flat_map(|(_, tx_scan)| tx_scan.spent_key_images.iter().copied())
             .collect()
     }
 }
@@ -204,13 +206,13 @@ pub fn scan_block(
     let mut scan = BlockScan::default();
 
     for tx in &block.txs {
-        let ts = scan_transaction(tx, height, keys, owned_key_images);
+        let tx_scan = scan_transaction(tx, height, keys, owned_key_images);
         let tx_id = compute_tx_id(tx);
         scan.gross_received = scan
             .gross_received
-            .saturating_add(ts.recovered.iter().map(|o| o.value).sum::<u64>());
-        scan.matched_spent += ts.spent_key_images.len();
-        scan.txs.push((tx_id, ts));
+            .saturating_add(tx_scan.recovered.iter().map(|o| o.value).sum::<u64>());
+        scan.matched_spent += tx_scan.spent_key_images.len();
+        scan.txs.push((tx_id, tx_scan));
     }
 
     scan

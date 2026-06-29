@@ -1,6 +1,6 @@
 //! Slot-based PoS consensus (requires `bls` feature).
 //!
-//! Port of `cloonan-group/lib/network/consensus.ts`. Combines the
+//! Combines the
 //! privacy-friendly primitives we already have:
 //!
 //! - **VRF (ed25519)** — per-slot randomness from each validator's secret
@@ -824,10 +824,9 @@ mod tests {
         assert_ne!(r_one, r_two, "registering a validator must move the root");
     }
 
-    /// TS-parity golden vector for the M2.0 validator-set commitment.
+    /// protocol golden vector for the M2.0 validator-set commitment.
     ///
-    /// Pinned to deterministic seed inputs so the `cloonan-group`
-    /// reference can mirror byte-for-byte. The vector covers all three
+    /// Pinned to deterministic seed inputs. The vector covers all three
     /// public helpers: `validator_leaf_bytes`, `validator_leaf_hash`,
     /// and `validator_set_root` over a non-trivial set (one validator
     /// with payout, one without — exercises both branches of the
@@ -842,7 +841,7 @@ mod tests {
     ///   `bls_pk = bls_keygen_from_seed([102; 32]).pk`,
     ///   `payout.view_pub = 3 · G`, `payout.spend_pub = 5 · G`
     #[test]
-    fn validator_root_wire_matches_cloonan_ts_smoke_reference() {
+    fn validator_root_wire_matches_protocol_golden_vector() {
         use curve25519_dalek::scalar::Scalar;
         use mfn_crypto::point::generator_g;
 

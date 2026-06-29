@@ -98,13 +98,13 @@ pub fn scan_block_txs_json(
         let tx_bytes = decode_hex_payload(tx_hex)?;
         let tx = decode_transaction(&tx_bytes)
             .map_err(|e: TxDecodeError| WasmCoreError::InvalidHex(e.to_string()))?;
-        let ts = scan_transaction(&tx, height, &keys, &owned);
+        let tx_scan = scan_transaction(&tx, height, &keys, &owned);
         let tx_id = mfn_consensus::tx_id(&tx);
         scan.gross_received = scan
             .gross_received
-            .saturating_add(ts.recovered.iter().map(|o| o.value).sum::<u64>());
-        scan.matched_spent += ts.spent_key_images.len();
-        scan.txs.push((tx_id, ts));
+            .saturating_add(tx_scan.recovered.iter().map(|o| o.value).sum::<u64>());
+        scan.matched_spent += tx_scan.spent_key_images.len();
+        scan.txs.push((tx_id, tx_scan));
     }
     let json = block_scan_to_json(height, &scan);
     serde_json::to_string(&json).map_err(|e| WasmCoreError::InvalidHex(e.to_string()))
@@ -133,7 +133,7 @@ fn block_scan_to_json(height: u32, scan: &BlockScan) -> BlockScanJson {
         txs: scan
             .txs
             .iter()
-            .map(|(tx_id, ts)| tx_scan_to_json(*tx_id, ts))
+            .map(|(tx_id, tx_scan)| tx_scan_to_json(*tx_id, tx_scan))
             .collect(),
         gross_received: scan.gross_received,
         matched_spent: scan.matched_spent,

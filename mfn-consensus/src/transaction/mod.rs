@@ -1,9 +1,8 @@
 //! Confidential transaction — RingCT-style with stealth addressing and
 //! permanence binding.
 //!
-//! Port of `cloonan-group/lib/network/transaction.ts`. The shape and
-//! encoding are byte-for-byte identical so the TS reference and this Rust
-//! implementation produce equal `tx_id` values for the same input.
+//! The shape and
+//! encoding are byte-for-byte identical so Rust //! implementation produce equal `tx_id` values for the same input.
 //!
 //! ## Anatomy
 //!

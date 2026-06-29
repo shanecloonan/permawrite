@@ -1,7 +1,7 @@
 //! Schnorr signatures over ed25519.
 //!
 //! Mirrors the `schnorrKeygen`/`schnorrSign`/`schnorrVerify` API in
-//! `lib/network/primitives.ts`.
+//! `the MFBN-1 primitive spec`.
 //!
 //! ## Protocol
 //!

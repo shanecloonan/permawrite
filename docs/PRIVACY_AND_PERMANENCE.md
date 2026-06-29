@@ -28,4 +28,4 @@ That structure is deliberately complementary: the more the network is used as a 
 
 Freedom in the digital age is not a single feature toggle. It is the conjunction of **durable expression** and **private economic agency**. Building both into one coherent network is a step toward systems where people can speak with a verifiable record and transact without surrendering their lives to a permanent, searchable ledger—two requirements that belong together if open societies are to remain viable online.
 
-For protocol mechanics, start with [ARCHITECTURE.md](./ARCHITECTURE.md) and [OVERVIEW.md](./OVERVIEW.md). The byte-compatible TypeScript reference implementation lives in the companion [**cloonan-group**](https://github.com/shanecloonan/cloonan-group) repository under `lib/network/`.
+For protocol mechanics, start with [ARCHITECTURE.md](./ARCHITECTURE.md) and [OVERVIEW.md](./OVERVIEW.md).

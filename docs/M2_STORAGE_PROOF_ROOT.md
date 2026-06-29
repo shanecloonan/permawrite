@@ -113,7 +113,7 @@ The check runs *before* the storage-proof per-proof verification phase, so a tam
 | 4 | `storage_proof_merkle_root_changes_with_addition` | `spora.rs` unit |
 | 5 | `storage_proof_merkle_root_is_order_sensitive` | `spora.rs` unit |
 | 6 | `storage_proof_leaf_is_domain_separated` | `spora.rs` unit |
-| 7 | `storage_proof_root_wire_matches_cloonan_ts_smoke_reference` | `spora.rs` unit (TS-parity golden vector) |
+| 7 | `storage_proof_root_wire_matches_protocol_golden_vector` | `spora.rs` unit (protocol golden vector) |
 | 8 | `storage_proof_root_mismatch_is_rejected` | `block.rs` unit |
 | 9 | `storage_proof_flow_at_genesis_plus_block1` *(updated to thread storage_proofs through `build_unsealed_header` + `seal_block`)* | `tests/integration.rs` |
 | 10 | `tampered_storage_proof_root_in_signed_block_is_rejected` | `tests/integration.rs` |
@@ -136,7 +136,7 @@ This is the textbook end-state for "header binds every body element" — combine
 
 ## Future work
 
-- **TS-side reference port.** Rust-side byte-parity vectors are pinned in `storage_proof_root_wire_matches_cloonan_ts_smoke_reference` (covers both the 0-sibling boundary and a 2-sibling proof with mixed `right_side`). The matching TS smoke fixture in `cloonan-group` will mirror the same hex once the port is wired. See [`docs/interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`](./interop/TS_STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md).
+- **Protocol golden vector.** Rust-side vectors are pinned in `storage_proof_root_wire_matches_protocol_golden_vector` (covers both the 0-sibling boundary and a 2-sibling proof with mixed `right_side`). See [`docs/interop/STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md`](./interop/STORAGE_PROOF_ROOT_GOLDEN_VECTORS.md).
 - **Light-client crate (`mfn-light`).** Now unblocked at the protocol layer — every header is self-describing. Implementation waits for the node daemon (M2.1) to expose a header-only RPC.
 - **Storage-proof sparse-Merkle proofs.** A future sparse variant of `storage_proof_merkle_root` could let a light client verify "this specific commitment had a proof land in block X" with a log-size proof. Useful for SPoRA yield audits.
 
@@ -145,7 +145,7 @@ This is the textbook end-state for "header binds every body element" — combine
 ## Code map
 
 - [`mfn-crypto/src/domain.rs`](../mfn-crypto/src/domain.rs) — `STORAGE_PROOF_LEAF` domain tag.
-- [`mfn-storage/src/spora.rs`](../mfn-storage/src/spora.rs) — `storage_proof_leaf_hash`, `storage_proof_merkle_root` + unit tests + TS-parity vector.
+- [`mfn-storage/src/spora.rs`](../mfn-storage/src/spora.rs) — `storage_proof_leaf_hash`, `storage_proof_merkle_root` + unit tests + protocol golden vector.
 - [`mfn-storage/src/lib.rs`](../mfn-storage/src/lib.rs) — exports `storage_proof_leaf_hash`, `storage_proof_merkle_root`.
 - [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs) — `BlockHeader::storage_proof_root` field, header signing/serialization, `build_unsealed_header` commits the body root, `apply_block` Phase 1 check, `BlockError::StorageProofRootMismatch`.
 - [`mfn-consensus/tests/integration.rs`](../mfn-consensus/tests/integration.rs) — `tampered_storage_proof_root_in_signed_block_is_rejected` adversarial test + storage-proof-flow positive path.
