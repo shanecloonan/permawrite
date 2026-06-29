@@ -18,6 +18,7 @@ use crate::operator_cmd::{
     operator_artifacts, operator_assemble_inbox, operator_backfill, operator_challenge,
     operator_fetch_chunk, operator_inbox_status, operator_pool, operator_prove,
     operator_push_chunks, AssembleInboxParams, BackfillParams, InboxStatusParams, OperatorCmdError,
+    OperatorJsonParams,
 };
 use crate::rpc::{RpcClient, DEFAULT_RPC_ADDR};
 use crate::uploads_cmd::{
@@ -174,7 +175,8 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
         Cmd::Operator { sub } => match sub {
             OperatorSub::Challenge {
                 commitment_hash_hex,
-            } => operator_challenge(&mut client, &commitment_hash_hex)?,
+                params,
+            } => operator_challenge(&mut client, &commitment_hash_hex, params)?,
             OperatorSub::Prove {
                 commitment_hash_hex,
                 data_path,
@@ -191,7 +193,7 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     wallet.as_deref(),
                 )?
             }
-            OperatorSub::Pool => operator_pool(&mut client)?,
+            OperatorSub::Pool(params) => operator_pool(&mut client, params)?,
             OperatorSub::Artifacts(params) => {
                 let path = resolve_wallet_path(global_wallet_path.as_deref());
                 operator_artifacts(&path, params)?;
@@ -348,12 +350,13 @@ enum UploadsSub {
 enum OperatorSub {
     Challenge {
         commitment_hash_hex: String,
+        params: OperatorJsonParams,
     },
     Prove {
         commitment_hash_hex: String,
         data_path: Option<std::path::PathBuf>,
     },
-    Pool,
+    Pool(OperatorJsonParams),
     Artifacts(UploadsInventoryParams),
     FetchChunk {
         commitment_hash_hex: String,
@@ -482,8 +485,10 @@ fn usage() -> &'static str {
                          HTTP backfill chunks from peer(s), then export payload.bin (**M3.28**)\n\
                         options: --json\n\
        operator challenge COMMIT_HASH_HEX  next-block SPoRA challenge (get_storage_challenge)\n\
+                         options: --json\n\
        operator prove COMMIT_HASH_HEX [FILE]  build proof; omit FILE to use --wallet upload artifact\n\
        operator pool                      list pending proofs (get_proof_pool)\n\
+                         options: --json\n\
        operator artifacts                 list wallet-local upload artifacts (same as uploads local)\n\
                          options: --json\n\
        operator fetch-chunk HASH INDEX PEER  fetch chunk from peer HOST:PORT; verify with --wallet\n\
@@ -821,17 +826,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         )));
     };
     let sub = match *sub_name {
-        "challenge" => {
-            if rest.len() != 2 {
-                return Err(CliError::Usage(format!(
-                    "operator challenge requires COMMITMENT_HASH_HEX\n{}",
-                    usage()
-                )));
-            }
-            OperatorSub::Challenge {
-                commitment_hash_hex: rest[1].to_string(),
-            }
-        }
+        "challenge" => parse_operator_challenge_args(&rest[1..])?,
         "prove" => {
             if rest.len() < 2 || rest.len() > 3 {
                 return Err(CliError::Usage(format!(
@@ -845,15 +840,7 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
                 data_path: rest.get(2).map(|p| std::path::PathBuf::from(*p)),
             }
         }
-        "pool" => {
-            if rest.len() != 1 {
-                return Err(CliError::Usage(format!(
-                    "operator pool takes no arguments\n{}",
-                    usage()
-                )));
-            }
-            OperatorSub::Pool
-        }
+        "pool" => OperatorSub::Pool(parse_operator_json_args("operator pool", &rest[1..])?),
         "artifacts" => OperatorSub::Artifacts(parse_inventory_output_args(
             "operator artifacts",
             &rest[1..],
@@ -886,6 +873,55 @@ fn parse_operator_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
         }
     };
     Ok(Cmd::Operator { sub })
+}
+
+fn parse_operator_challenge_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
+    let mut commitment_hash_hex: Option<String> = None;
+    let mut json = false;
+    for a in rest {
+        if *a == "--json" {
+            json = true;
+            continue;
+        }
+        if a.starts_with('-') {
+            return Err(CliError::Usage(format!(
+                "unknown operator challenge option `{a}`\n{}",
+                usage()
+            )));
+        }
+        if commitment_hash_hex.is_some() {
+            return Err(CliError::Usage(format!(
+                "operator challenge accepts one COMMITMENT_HASH_HEX\n{}",
+                usage()
+            )));
+        }
+        commitment_hash_hex = Some((*a).to_string());
+    }
+    let Some(commitment_hash_hex) = commitment_hash_hex else {
+        return Err(CliError::Usage(format!(
+            "operator challenge requires COMMITMENT_HASH_HEX\n{}",
+            usage()
+        )));
+    };
+    Ok(OperatorSub::Challenge {
+        commitment_hash_hex,
+        params: OperatorJsonParams { json },
+    })
+}
+
+fn parse_operator_json_args(command: &str, rest: &[&str]) -> Result<OperatorJsonParams, CliError> {
+    let mut json = false;
+    for a in rest {
+        if *a == "--json" {
+            json = true;
+            continue;
+        }
+        return Err(CliError::Usage(format!(
+            "unexpected argument `{a}` for {command}\n{}",
+            usage()
+        )));
+    }
+    Ok(OperatorJsonParams { json })
 }
 
 fn parse_operator_backfill_args(rest: &[&str]) -> Result<OperatorSub, CliError> {
@@ -2517,6 +2553,42 @@ mod tests {
                 sub: OperatorSub::Artifacts(params),
             } => assert!(params.json),
             _ => panic!("expected operator artifacts"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_challenge_json() {
+        let h = "ab".repeat(32);
+        let p = parse_args(&[
+            "operator".into(),
+            "challenge".into(),
+            h.clone(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub:
+                    OperatorSub::Challenge {
+                        commitment_hash_hex,
+                        params,
+                    },
+            } => {
+                assert_eq!(commitment_hash_hex, h);
+                assert!(params.json);
+            }
+            _ => panic!("expected operator challenge"),
+        }
+    }
+
+    #[test]
+    fn parse_operator_pool_json() {
+        let p = parse_args(&["operator".into(), "pool".into(), "--json".into()]).unwrap();
+        match p.cmd {
+            Cmd::Operator {
+                sub: OperatorSub::Pool(params),
+            } => assert!(params.json),
+            _ => panic!("expected operator pool"),
         }
     }
 

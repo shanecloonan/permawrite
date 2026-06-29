@@ -460,7 +460,7 @@ Check status:
 
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC> uploads list --limit 20 --include-claims --json
-mfn-cli --rpc 127.0.0.1:<RPC> operator challenge <COMMIT_HASH_HEX>
+mfn-cli --rpc 127.0.0.1:<RPC> operator challenge <COMMIT_HASH_HEX> --json
 ```
 
 ### 2. Replicate chunk bytes
@@ -559,7 +559,7 @@ mfn-storage-operator run --once --wallet ./alice.json --rpc 127.0.0.1:<RPC>
 Inspect the node's proof mempool:
 
 ```bash
-mfn-cli --rpc 127.0.0.1:<RPC> operator pool
+mfn-cli --rpc 127.0.0.1:<RPC> operator pool --json
 ```
 
 After the proof is mined, `uploads list` should show a higher `last_proven_height`.
@@ -650,7 +650,7 @@ The demos store wallets and payloads under `scripts/public-devnet-v1/permanence-
 | `operator inbox-status` reports `inbox_complete=false` | The replica has only some chunks, or it has not caught up to the upload block yet | Wait for `mfn-cli --rpc <REPLICA_RPC> tip` to match the hub, rerun `operator push-chunks <COMMIT_HASH_HEX> <REPLICA_P2P>`, or use HTTP `operator backfill <COMMIT_HASH_HEX> <PEER_HTTP>` from a peer with a complete artifact. Add `--json` to capture `present_indices` and `missing_indices` in support tickets. |
 | `operator assemble-inbox` says chunks are missing | The node's `chunk-inbox/<commit>/<index>.bin` set is incomplete | Run `operator inbox-status --json` to see `missing_indices`, push chunks again from the original uploader, then retry `operator assemble-inbox ... replace --json` only after `inbox_complete=true`; the JSON output records the rebuilt `artifact_dir` and `payload_bytes`. |
 | `operator prove` fails with `data_root` or size mismatch | The local payload/artifact is not the bytes anchored on-chain | Rebuild the artifact from a known-good peer with `operator backfill --json` or `operator assemble-inbox --json`, then run `uploads retrieve <COMMIT_HASH_HEX> ./restored.bin` and compare the restored file hash against the uploader before proving. |
-| `operator prove` submits but `uploads list` still shows the old `last_proven_height` | The proof is queued but not mined yet, or the producer cannot read the challenged chunk | Check `mfn-cli --rpc <RPC> operator pool`; make sure the producer's data dir has the chunk inbox or artifact bytes, then mine/wait for the next block. Use `uploads list --json` before and after mining to capture the indexed `last_proven_height` row without parsing key/value output. |
+| `operator prove` submits but `uploads list` still shows the old `last_proven_height` | The proof is queued but not mined yet, or the producer cannot read the challenged chunk | Check `mfn-cli --rpc <RPC> operator pool --json`; make sure the producer's data dir has the chunk inbox or artifact bytes, then mine/wait for the next block. Use `operator challenge --json` and `uploads list --json` before and after mining to capture the challenge target and indexed `last_proven_height` row without parsing key/value output. |
 | RPC returns an authorization error for upload/prove/pool commands | The node was started with `--rpc-api-key` / `MFND_RPC_API_KEY` and the client did not send the same key | Retry with `mfn-cli --rpc <RPC> --rpc-api-key <KEY> ...` or set `MFN_RPC_API_KEY=<KEY>` in the operator shell. |
 | Health check reports divergent or stalled tips | Nodes are on different genesis files, cannot reach P2P peers, or the producer is not sealing slots | Confirm every node prints the same `mfnd_chain_genesis_id`, check `--p2p-dial` / manifest seeds and firewalls, then run `health-check` with `MFN_HEALTH_STALL_SAMPLES=2` and an interval longer than the slot duration. |
 

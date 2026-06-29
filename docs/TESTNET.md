@@ -187,6 +187,10 @@ mfn-cli --wallet ./wallet.json uploads retrieve <COMMIT_HASH_HEX> ./restored.bin
 # Restore from an HTTP chunk peer in one step (backfill + retrieve)
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> --wallet ./wallet.json \
   uploads fetch-http <COMMIT_HASH_HEX> ./restored.bin 127.0.0.1:18780 --json
+
+# Storage proof diagnostics
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> operator challenge <COMMIT_HASH_HEX> --json
+mfn-cli --rpc 127.0.0.1:<RPC_PORT> operator pool --json
 ```
 
 Raw one-liner (no CLI):

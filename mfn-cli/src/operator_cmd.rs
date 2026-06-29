@@ -15,6 +15,13 @@ use mfn_storage_operator::{
 use crate::rpc::RpcClient;
 use crate::uploads_cmd::UploadsInventoryParams;
 
+/// Output options for simple operator RPC diagnostics.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct OperatorJsonParams {
+    /// Print a single JSON object instead of key=value lines.
+    pub json: bool,
+}
+
 /// Output options for `operator inbox-status`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct InboxStatusParams {
@@ -55,8 +62,13 @@ pub enum OperatorCmdError {
 pub fn operator_challenge(
     client: &mut RpcClient,
     commitment_hash_hex: &str,
+    params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    if params.json {
+        print_pretty_json(&storage_challenge_json(&ch))?;
+        return Ok(());
+    }
     println!("commitment_hash={}", ch.commitment_hash);
     println!("data_root={}", ch.data_root);
     println!("size_bytes={}", ch.size_bytes);
@@ -437,13 +449,52 @@ pub fn operator_fetch_chunk(
 }
 
 /// List pending proofs in the node proof pool.
-pub fn operator_pool(client: &mut RpcClient) -> Result<(), OperatorCmdError> {
+pub fn operator_pool(
+    client: &mut RpcClient,
+    params: OperatorJsonParams,
+) -> Result<(), OperatorCmdError> {
     let pool = client.get_proof_pool()?;
+    if params.json {
+        print_pretty_json(&proof_pool_json(&pool))?;
+        return Ok(());
+    }
     println!("pool_len={}", pool.pool_len);
     for h in &pool.commit_hashes {
         println!("commit_hash={h}");
     }
     Ok(())
+}
+
+fn print_pretty_json(v: &serde_json::Value) -> Result<(), OperatorCmdError> {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(v).map_err(|e| OperatorCmdError::Usage(e.to_string()))?
+    );
+    Ok(())
+}
+
+fn storage_challenge_json(ch: &crate::rpc::StorageChallenge) -> serde_json::Value {
+    serde_json::json!({
+        "commitment_hash": &ch.commitment_hash,
+        "commitment_wire_hex": &ch.commitment_wire_hex,
+        "data_root": &ch.data_root,
+        "size_bytes": ch.size_bytes,
+        "replication": ch.replication,
+        "num_chunks": ch.num_chunks,
+        "chunk_size": ch.chunk_size,
+        "next_height": ch.next_height,
+        "next_slot": ch.next_slot,
+        "prev_block_id": &ch.prev_block_id,
+        "chunk_index": ch.chunk_index,
+    })
+}
+
+fn proof_pool_json(pool: &crate::rpc::ProofPoolSnapshot) -> serde_json::Value {
+    serde_json::json!({
+        "pool_len": pool.pool_len,
+        "proofs_returned": pool.commit_hashes.len(),
+        "commit_hashes": &pool.commit_hashes,
+    })
 }
 
 fn storage_challenge_for_operator(
@@ -487,6 +538,45 @@ mod tests {
     use super::*;
     use mfn_storage_operator::InboxChunkStatus;
     use std::path::PathBuf;
+
+    #[test]
+    fn storage_challenge_json_reports_spora_inputs() {
+        let challenge = crate::rpc::StorageChallenge {
+            commitment_hash: "11".repeat(32),
+            commitment_wire_hex: "aa".repeat(16),
+            data_root: "22".repeat(32),
+            size_bytes: 4096,
+            replication: 3,
+            num_chunks: 4,
+            chunk_size: 1024,
+            next_height: 7,
+            next_slot: 2,
+            prev_block_id: "33".repeat(32),
+            chunk_index: 1,
+        };
+
+        let value = storage_challenge_json(&challenge);
+
+        assert_eq!(value["commitment_hash"], "11".repeat(32));
+        assert_eq!(value["data_root"], "22".repeat(32));
+        assert_eq!(value["replication"], 3);
+        assert_eq!(value["num_chunks"], 4);
+        assert_eq!(value["chunk_index"], 1);
+    }
+
+    #[test]
+    fn proof_pool_json_reports_pending_commitments() {
+        let pool = crate::rpc::ProofPoolSnapshot {
+            pool_len: 2,
+            commit_hashes: vec!["11".repeat(32), "22".repeat(32)],
+        };
+
+        let value = proof_pool_json(&pool);
+
+        assert_eq!(value["pool_len"], 2);
+        assert_eq!(value["proofs_returned"], 2);
+        assert_eq!(value["commit_hashes"][1], "22".repeat(32));
+    }
 
     #[test]
     fn inbox_status_json_reports_missing_chunks() {
