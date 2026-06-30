@@ -4,10 +4,29 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+/// Hard cap for boot-time CLI + manifest seed dials.
+///
+/// This matches the saved-peer `max_outbound_peers` hard limit so a stale public
+/// manifest cannot spawn an unbounded number of outbound dial threads at startup.
+pub const MAX_BOOT_PEER_DIALS: usize = mfn_store::MAX_OUTBOUND_PEERS_LIMIT as usize;
+
 /// Subset of network manifest JSON read for `seed_nodes`.
 #[derive(Debug, Deserialize)]
 struct NetworkManifestSeeds {
     seed_nodes: Vec<String>,
+}
+
+/// Summary of boot-peer merge/capping before outbound dial threads are spawned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BootPeerDialMergeReport {
+    /// Unique, valid boot peers before applying [`MAX_BOOT_PEER_DIALS`].
+    pub configured: usize,
+    /// Boot peers retained for outbound dial attempts.
+    pub retained: usize,
+    /// Valid unique peers dropped by the hard cap.
+    pub dropped: usize,
+    /// Hard cap applied to the merged list.
+    pub cap: usize,
 }
 
 /// Append `addr` if not already present (preserve first-seen order).
@@ -91,14 +110,23 @@ pub fn seed_nodes_from_genesis_manifest(genesis_spec: &Path) -> Result<Vec<Strin
 pub fn merge_boot_peer_dials(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
-) -> Result<(), String> {
+) -> Result<BootPeerDialMergeReport, String> {
     *explicit = normalize_peer_addrs(std::mem::take(explicit), "explicit --p2p-dial")?;
     if let Some(g) = genesis_spec {
         for addr in seed_nodes_from_genesis_manifest(g)? {
             push_unique_peer_addr(explicit, addr);
         }
     }
-    Ok(())
+    let configured = explicit.len();
+    if explicit.len() > MAX_BOOT_PEER_DIALS {
+        explicit.truncate(MAX_BOOT_PEER_DIALS);
+    }
+    Ok(BootPeerDialMergeReport {
+        configured,
+        retained: explicit.len(),
+        dropped: configured.saturating_sub(explicit.len()),
+        cap: MAX_BOOT_PEER_DIALS,
+    })
 }
 
 #[cfg(test)]
@@ -193,6 +221,73 @@ mod tests {
         let mut explicit = vec![" 203.0.113.10:4001 ".into()];
         let err = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect_err("bad seed");
         assert!(err.contains("bad host"), "err={err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn merge_boot_peer_dials_caps_oversized_manifest_seed_list() {
+        let dir = std::env::temp_dir().join(format!(
+            "permawrite-p2p-boot-cap-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        let genesis = dir.join("net_c.json");
+        std::fs::write(&genesis, b"{}").expect("genesis stub");
+        let manifest = dir.join("net_c.manifest.json");
+        let seeds = (0..(MAX_BOOT_PEER_DIALS + 10))
+            .map(|idx| format!(r#""203.0.113.{idx}:4001""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        std::fs::write(&manifest, format!(r#"{{"seed_nodes":[{seeds}]}}"#))
+            .expect("write manifest");
+
+        let mut explicit = Vec::new();
+        let report = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
+        assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
+        assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 10);
+        assert_eq!(report.retained, MAX_BOOT_PEER_DIALS);
+        assert_eq!(report.dropped, 10);
+        assert_eq!(report.cap, MAX_BOOT_PEER_DIALS);
+        assert_eq!(explicit.first().unwrap(), "203.0.113.0:4001");
+        assert_eq!(
+            explicit.last().unwrap(),
+            &format!("203.0.113.{}:4001", MAX_BOOT_PEER_DIALS - 1)
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn merge_boot_peer_dials_preserves_explicit_priority_when_capped() {
+        let dir = std::env::temp_dir().join(format!(
+            "permawrite-p2p-boot-cap-explicit-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        let genesis = dir.join("net_d.json");
+        std::fs::write(&genesis, b"{}").expect("genesis stub");
+        let manifest = dir.join("net_d.manifest.json");
+        let seeds = (0..MAX_BOOT_PEER_DIALS)
+            .map(|idx| format!(r#""203.0.113.{idx}:4001""#))
+            .collect::<Vec<_>>()
+            .join(",");
+        std::fs::write(&manifest, format!(r#"{{"seed_nodes":[{seeds}]}}"#))
+            .expect("write manifest");
+
+        let mut explicit = vec!["198.51.100.10:4001".into(), "198.51.100.11:4001".into()];
+        let report = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
+        assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
+        assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 2);
+        assert_eq!(report.dropped, 2);
+        assert_eq!(&explicit[..2], ["198.51.100.10:4001", "198.51.100.11:4001"]);
+        assert!(!explicit.contains(&format!("203.0.113.{}:4001", MAX_BOOT_PEER_DIALS - 1)));
         std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -439,7 +439,20 @@ fn run(args: Vec<String>) -> Result<(), String> {
                     .filter(|s| !s.is_empty())
             });
             let mut p2p_dials = parsed.p2p_dials.clone();
-            crate::p2p_boot::merge_boot_peer_dials(&mut p2p_dials, parsed.genesis_toml.as_deref())?;
+            let boot_report = crate::p2p_boot::merge_boot_peer_dials(
+                &mut p2p_dials,
+                parsed.genesis_toml.as_deref(),
+            )?;
+            if boot_report.dropped > 0 {
+                println!(
+                    "mfnd_p2p_boot_dials_capped configured={} retained={} dropped={} cap={}",
+                    boot_report.configured,
+                    boot_report.retained,
+                    boot_report.dropped,
+                    boot_report.cap
+                );
+                std::io::stdout().flush().ok();
+            }
             if !p2p_dials.is_empty() {
                 println!("mfnd_p2p_boot_dials={}", p2p_dials.join(","));
                 std::io::stdout().flush().ok();
