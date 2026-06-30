@@ -33,7 +33,7 @@
 
 **block id** — `dhash(BLOCK_ID, block_header_bytes)`. The canonical identity of a block.
 
-**bond / unbond** — Transactions that lock or release validator stake. Currently *not implemented* — validator set is frozen at genesis. → [`ROADMAP.md`](./ROADMAP.md)
+**bond / unbond** — Validator stake operations. Bonding adds stake; unbonding starts an exit delay before stake settles out of the active set, preserving a slashing window for equivocation evidence. → [`CONSENSUS.md`](./CONSENSUS.md), [`ROADMAP.md`](./ROADMAP.md)
 
 **Bulletproofs** — Log-size, no-trusted-setup, zero-knowledge range proofs invented by Bünz et al. (2017). Permawrite uses them to prove every output's hidden amount is non-negative without revealing the amount. → [`PRIVACY.md § Range proofs`](./PRIVACY.md#range-proofs)
 
@@ -315,7 +315,7 @@
 
 ## U
 
-**unbond** — A transaction (planned, not yet implemented) that initiates a validator's exit from the active set. Subject to an unbond delay so equivocation slashing can still apply.
+**unbond** — A live validator bond operation that initiates exit from the active set. Pending unbonds settle only after the configured delay so equivocation slashing can still apply.
 
 **unsafe code** — Rust syntax (`unsafe { … }`) that disables some compiler safety checks. **Forbidden** at the crate level in every first-party crate via `#![forbid(unsafe_code)]`.
 
@@ -345,9 +345,9 @@
 
 ## W
 
-**wallet** — Software that manages keypairs, scans for incoming outputs, constructs signed transactions, and (optionally) drives storage uploads. Reference Rust wallet planned in `mfn-wallet`. → [`ROADMAP.md`](./ROADMAP.md)
+**wallet** — Software that manages keypairs, scans for incoming outputs, constructs signed transactions, and drives storage uploads and optional authorship claims. The reference Rust wallet is implemented in `mfn-wallet`; CLI/browser UX remains devnet-grade. → [`ROADMAP.md`](./ROADMAP.md)
 
-**WASM** — WebAssembly. Planned `mfn-wasm` bindings will let the same Rust primitives run in browsers. → [`ROADMAP.md`](./ROADMAP.md)
+**WASM** — WebAssembly. `mfn-wasm` provides active browser-facing bindings for wallet, scan, transfer, upload, and verification helpers; packaging remains devnet-grade. → [`ROADMAP.md`](./ROADMAP.md)
 
 **weak subjectivity** — The PoS-specific concept that nodes joining the chain for the first time must trust a recent checkpoint (because they can't distinguish histories where a majority of validators have been since-slashed). Long-range attack mitigation in future versions.
 

@@ -496,7 +496,7 @@ next.treasury -= from_treasury
 # (from_emission is added to the coinbase amount by the coinbase build step)
 ```
 
-This is the actual logic in [`mfn_consensus::block::apply_block`](../mfn-consensus/src/block.rs).
+This is the actual logic in [`mfn_consensus::block::apply_block`](../mfn-consensus/src/block/apply.rs).
 
 ---
 

@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-The workspace is **12 crates** as of **M7**, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
+The workspace is **14 crates** as of **M7**, all on the same green CI gate (fmt + clippy `-D warnings` + tests on Linux/macOS/Windows).
 
 | Layer | Crate | Status |
 |---|---|---|
@@ -858,7 +858,7 @@ See [`docs/M2_WALLET_UPLOAD.md`](./M2_WALLET_UPLOAD.md) for the full design note
 - **No file IO.** The codec is `&[u8] ↔ Vec<u8>`. M2.1.0 later added the first daemon-side file snapshot store (`mfn_node::ChainStore`); richer sled / RocksDB layouts remain future work.
 - **No incremental persistence.** Encoder produces a full snapshot per call. Block-log persistence is a future M2.x; this codec is the safety net that bounds replay cost in either case.
 - **No mfn-light consolidation.** `mfn-light::checkpoint` and `mfn-consensus::chain_checkpoint` duplicate four small sub-encoders (`encode_validator`, etc). Wire bytes match byte-for-byte; consolidation is a future micro-milestone.
-- **No `mfn-store` crate.** That naming is reserved for the future RocksDB/sled backend that consumes this codec.
+- **Historical note.** At M2.0.15 there was no `mfn-store` crate; persistence later moved into the live `mfn-store` workspace member with filesystem and `redb` backends. Richer RocksDB/sled-style layouts remain future work.
 
 ### What this unlocks
 
@@ -904,7 +904,7 @@ See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full desig
 
 - **No version bump.** `LIGHT_CHECKPOINT_VERSION` and `CHAIN_CHECKPOINT_VERSION` stay at `1`. The codec is the same; only its Rust-side organisation changed.
 - **No new wire fields.** Refactor only. Adding fields requires a version bump per the existing forward-compatibility plan.
-- **No `mfn-store` crate.** Still reserved for the future RocksDB / sled persistence backend.
+- **Historical note.** At M2.0.16 there was still no `mfn-store` crate; the live `mfn-store` crate now owns filesystem/`redb` persistence, while richer RocksDB/sled layouts remain future work.
 - **No mempool / network / RPC work.** Those are M2.1+ tier milestones.
 
 ### What this unlocks

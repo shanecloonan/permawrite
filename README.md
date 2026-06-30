@@ -29,7 +29,7 @@ These two halves aren't bolted together. They **share the economics**: the prior
 The full vision and the design rationale live in [**docs/OVERVIEW.md**](./docs/OVERVIEW.md). The whitepaper-grade technical spec lives in [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md).
 
 <p align="center">
-  <img src="./docs/img/architecture-stack.svg" alt="Permawrite crate dependency stack: mfn-crypto and mfn-bls form the primitive layer, mfn-storage builds storage proofs on top of mfn-crypto, mfn-consensus is the state machine, and mfn-runtime / mfn-store / mfn-rpc / mfn-net / mfn-node compose the daemon. mfn-wallet and mfn-wasm are the remaining planned consumer crates." width="100%">
+  <img src="./docs/img/architecture-stack.svg" alt="Permawrite crate dependency stack: mfn-crypto and mfn-bls form the primitive layer, mfn-storage builds storage proofs on top of mfn-crypto, mfn-consensus is the state machine, mfn-runtime / mfn-store / mfn-rpc / mfn-net / mfn-node compose the daemon, and mfn-wallet / mfn-cli / mfn-storage-operator / mfn-wasm are active devnet-grade client and operator crates." width="100%">
 </p>
 
 ---
@@ -82,6 +82,9 @@ Each crate has its own README with public API summary, test counts, and links in
 - [**`mfn-node`**](./mfn-node/README.md) — `mfnd` binary: RPC TCP loop + P2P threads
 - [**`mfn-light`**](./mfn-light/README.md) — light-client header-chain follower (built on `verify_header`)
 - [**`mfn-wallet`**](./mfn-wallet/README.md) — confidential wallet primitives: stealth scanning, owned-UTXO tracking, transfer-tx construction
+- [**`mfn-cli`**](./mfn-cli/README.md) — wallet/operator CLI over local files and `mfnd` RPC
+- [**`mfn-storage-operator`**](./mfn-storage-operator/README.md) — storage proof operator tooling
+- [**`mfn-wasm`**](./mfn-wasm/README.md) — browser-facing wallet, scan, transfer, upload, and verification bindings
 
 ---
 
@@ -193,10 +196,17 @@ permawrite/
 │   ├── README.md
 │   └── src/{commitment,spora,endowment}.rs
 │
-└── mfn-consensus/               ← state-transition function
-    ├── README.md
-    └── src/{block,transaction,coinbase,emission,
-              consensus,slashing,storage}.rs
+├── mfn-consensus/               ← state-transition function
+├── mfn-runtime/                 ← Chain, Mempool, producer helpers
+├── mfn-store/                   ← fs/redb persistence, replay, peer/proof pools
+├── mfn-rpc/                     ← JSON-RPC dispatch
+├── mfn-net/                     ← P2P frames, handshakes, gossip, sync
+├── mfn-node/                    ← mfnd daemon composition layer
+├── mfn-light/                   ← light-client verification/following
+├── mfn-wallet/                  ← stealth scanning, send/upload/claim flows
+├── mfn-cli/                     ← operator and wallet CLI
+├── mfn-storage-operator/        ← SPoRA operator daemon
+└── mfn-wasm/                    ← browser-facing WASM bindings
 ```
 
 ---
