@@ -54,6 +54,14 @@ enum CatchUpPeerAction {
     Dial,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ReconnectPeerEvent {
+    SkipSelf { peer: String },
+    SkipBootDial { peer: String },
+    CapReached { count: u32, cap: u32 },
+    Dial { peer: String },
+}
+
 fn catch_up_peer_action(
     peer_addr: &str,
     local_p2p_listen: Option<SocketAddr>,
@@ -67,6 +75,36 @@ fn catch_up_peer_action(
         return CatchUpPeerAction::CapReached;
     }
     CatchUpPeerAction::Dial
+}
+
+fn reconnect_peer_events(
+    peers: Vec<String>,
+    local_p2p_listen: Option<SocketAddr>,
+    skip_addrs: &[String],
+    cap: u32,
+) -> Vec<ReconnectPeerEvent> {
+    let mut events = Vec::new();
+    let mut spawned = 0u32;
+    for addr in peers {
+        if is_self_peer_addr(&addr, local_p2p_listen) {
+            events.push(ReconnectPeerEvent::SkipSelf { peer: addr });
+            continue;
+        }
+        if is_boot_dial_peer(&addr, skip_addrs) {
+            events.push(ReconnectPeerEvent::SkipBootDial { peer: addr });
+            continue;
+        }
+        if reconnect_cap_reached(spawned, cap) {
+            events.push(ReconnectPeerEvent::CapReached {
+                count: spawned,
+                cap,
+            });
+            break;
+        }
+        events.push(ReconnectPeerEvent::Dial { peer: addr });
+        spawned = spawned.saturating_add(1);
+    }
+    events
 }
 
 #[derive(Clone, Debug)]
@@ -895,41 +933,48 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
         skip_addrs,
     } = cfg;
     let mut spawned = 0u32;
-    for addr in peer_set.snapshot_available_peers() {
-        if is_self_peer_addr(&addr, local_p2p_listen) {
-            println!("mfnd_p2p_self_dial_skip peer={addr}");
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            continue;
+    let events = reconnect_peer_events(
+        peer_set.snapshot_available_peers(),
+        local_p2p_listen,
+        skip_addrs,
+        peer_set.max_outbound_peers(),
+    );
+    for event in events {
+        match event {
+            ReconnectPeerEvent::SkipSelf { peer } => {
+                println!("mfnd_p2p_self_dial_skip peer={peer}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+            }
+            ReconnectPeerEvent::SkipBootDial { peer } => {
+                println!("mfnd_p2p_reconnect_skip peer={peer} reason=boot_dial");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+            }
+            ReconnectPeerEvent::CapReached { count, cap } => {
+                println!("mfnd_p2p_reconnect_cap_reached count={count} cap={cap}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                break;
+            }
+            ReconnectPeerEvent::Dial { peer } => {
+                println!("mfnd_p2p_reconnect_start peer={peer}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                spawn_outbound_dial(OutboundP2pDial {
+                    addr: peer,
+                    genesis_id,
+                    tip_cell: Arc::clone(&tip_cell),
+                    hid_counter: Arc::clone(&hid_counter),
+                    hooks: P2pSessionHooks {
+                        gossip: gossip.clone(),
+                        block_sync: block_sync.clone(),
+                        block_applier: block_applier.clone(),
+                        light_follow: None,
+                        fanout_peers: fanout_hook.clone(),
+                        production: None,
+                    },
+                    local_p2p_listen,
+                })?;
+                spawned = spawned.saturating_add(1);
+            }
         }
-        if is_boot_dial_peer(&addr, skip_addrs) {
-            println!("mfnd_p2p_reconnect_skip peer={addr} reason=boot_dial");
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            continue;
-        }
-        let cap = peer_set.max_outbound_peers();
-        if reconnect_cap_reached(spawned, cap) {
-            println!("mfnd_p2p_reconnect_cap_reached count={spawned} cap={cap}");
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            break;
-        }
-        println!("mfnd_p2p_reconnect_start peer={addr}");
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-        spawn_outbound_dial(OutboundP2pDial {
-            addr,
-            genesis_id,
-            tip_cell: Arc::clone(&tip_cell),
-            hid_counter: Arc::clone(&hid_counter),
-            hooks: P2pSessionHooks {
-                gossip: gossip.clone(),
-                block_sync: block_sync.clone(),
-                block_applier: block_applier.clone(),
-                light_follow: None,
-                fanout_peers: fanout_hook.clone(),
-                production: None,
-            },
-            local_p2p_listen,
-        })?;
-        spawned = spawned.saturating_add(1);
     }
     if spawned > 0 {
         println!("mfnd_p2p_reconnect_spawned count={spawned}");
@@ -1054,6 +1099,34 @@ mod tests {
         assert!(!reconnect_cap_reached(7, 8));
         assert!(reconnect_cap_reached(8, 8));
         assert!(reconnect_cap_reached(9, 8));
+    }
+
+    #[test]
+    fn reconnect_peer_events_preserve_skip_and_cap_order() {
+        let local: SocketAddr = "127.0.0.1:19001".parse().unwrap();
+        let peers = vec![
+            "127.0.0.1:19001".to_string(),
+            "127.0.0.1:19002".to_string(),
+            "127.0.0.1:19003".to_string(),
+            "127.0.0.1:19004".to_string(),
+        ];
+        let skip_addrs = vec!["127.0.0.1:19002".to_string()];
+
+        assert_eq!(
+            reconnect_peer_events(peers, Some(local), &skip_addrs, 1),
+            vec![
+                ReconnectPeerEvent::SkipSelf {
+                    peer: "127.0.0.1:19001".to_string(),
+                },
+                ReconnectPeerEvent::SkipBootDial {
+                    peer: "127.0.0.1:19002".to_string(),
+                },
+                ReconnectPeerEvent::Dial {
+                    peer: "127.0.0.1:19003".to_string(),
+                },
+                ReconnectPeerEvent::CapReached { count: 1, cap: 1 },
+            ]
+        );
     }
 
     #[test]
@@ -1201,6 +1274,55 @@ mod tests {
             peer_set.snapshot_available_peers(),
             vec![stale_seed, healthy]
         );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn boot_dial_connect_quarantine_filters_reconnect_before_cap_accounting() {
+        let dir = temp_dir("boot_dial_reconnect_cap_quarantine");
+        let stale_seed = "203.0.113.10:19001".to_string();
+        let healthy_first = "203.0.113.11:19001".to_string();
+        let healthy_second = "203.0.113.12:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(stale_seed.clone());
+        peers.insert(healthy_first.clone());
+        peers.insert(healthy_second.clone());
+        save_peers(&dir, &peers, 1).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        let connect_failure = "connection timed out";
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+
+        assert_eq!(
+            reconnect_peer_events(
+                peer_set.snapshot_available_peers(),
+                None,
+                &[],
+                peer_set.max_outbound_peers(),
+            ),
+            vec![
+                ReconnectPeerEvent::Dial {
+                    peer: healthy_first,
+                },
+                ReconnectPeerEvent::CapReached { count: 1, cap: 1 },
+            ]
+        );
+
+        let (loaded, max_outbound) = mfn_store::load_peers(&dir).expect("load peers");
+        assert!(loaded.contains(&stale_seed));
+        assert!(loaded.contains(&healthy_second));
+        assert_eq!(max_outbound, 1);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

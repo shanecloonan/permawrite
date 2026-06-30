@@ -16,8 +16,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Boot-dial connect quarantine follow-up is observed in local work but not owned by Agent 2. | In progress outside this lane. | Land deterministic coverage that quarantined boot-dial connect failures suppress reconnect spawning before cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI watcher/sign-off helper for exact release commits. | Completed locally; local CI mirror passed. | Add a sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals. |
+| Agent 1 | Core protocol, consensus, networking, sync | Boot-time reconnect planning filters quarantined saved peers before outbound cap accounting. | In progress in clean Agent 1 worktree. | Add equivalent deterministic coverage for committee catch-up quarantine before cap accounting. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI watcher/sign-off helper for exact release commits. | Landed on `main`. | Add a sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -25,8 +25,22 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release evidence tooling, JSON schema/sample, support-bundle evidence validation, sign-off review, dry-run sign-off flow, artifact inventory, checksum helpers, inventory validation, archive layout guidance, and archive assembly dry-run helper are landed on `main`.
 - Agent 2: Release archive validation scripts now verify staged public files, checksum manifests, and obvious private filename exclusions before publication.
 - Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, and boot cap startup log coverage.
+- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, and boot-dial connect quarantine without durable peer deletion.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
+
+## Agent 1 Detailed Plan
+
+Current task:
+
+- [x] Add ordered reconnect event planning without changing public reconnect log strings.
+- [x] Add deterministic unit coverage that self-skips, boot-dial skips, dials, and cap-reached events preserve order.
+- [x] Add deterministic unit coverage that boot-dial connect quarantine filters stale saved peers before reconnect cap accounting.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
+- [ ] Regenerate `CODEBASE_STATS.md`, run targeted tests, run local CI mirror, commit, push, and check GitHub CI.
+
+Next Agent 1 task:
+
+- [ ] Add deterministic coverage that committee catch-up quarantine suppresses periodic catch-up spawning before cap accounting.
 
 ## Shared Release-Candidate Gates
 
