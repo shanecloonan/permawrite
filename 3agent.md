@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Periodic committee catch-up planning filters quarantined peers before cap accounting. | In progress in clean Agent 1 worktree. | Add deterministic coverage for gap-triggered catch-up quarantine before recovery dial cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Dependency-free release sign-off manifest validation. | In progress locally. | Add full JSON Schema validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Dependency-free JSON schema validation for published release artifacts. | In progress locally. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -28,6 +28,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release sign-off manifest scripts combine exact-commit CI, release evidence, archive validation, artifact inventory validation, and human approvals into one machine-readable decision record.
 - Agent 2: Release sign-off manifest schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release sign-off manifest validators enforce the published contract and fail `go` decisions unless all machine and human gates pass.
+- Agent 2: Release JSON schema validators enforce the repository's published release schemas without adding an unpinned third-party dependency.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, and saved-peer reconnect quarantine before cap accounting.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
@@ -62,11 +63,12 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add `release-signoff-manifest-validate.ps1` and `release-signoff-manifest-validate.sh`.
-- [x] Add CI coverage for accepting the sample manifest and rejecting a `go` manifest with failing CI.
+- [x] Add `release-json-schema-validate.ps1` and `release-json-schema-validate.sh`.
+- [x] Validate release evidence and sign-off manifest samples against their published schemas.
+- [x] Add CI coverage that rejects forbidden additional properties.
 - [x] Update release docs and checklist.
 - [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Add full JSON Schema validation for release artifacts if a schema validator dependency is pinned in the release toolchain.
+- [ ] Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain.

@@ -53,7 +53,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add a release-candidate sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals into one machine-readable decision record.
 - [x] Add release sign-off manifest schema/sample artifacts for dashboard ingestion and independent validator tooling.
 - [x] Add dependency-free sign-off manifest validation that enforces the published contract and `go` decision gates.
-- [ ] Add full JSON Schema validation for release artifacts if a schema validator dependency is pinned in the release toolchain.
+- [x] Add dependency-free JSON schema validation for the published release evidence and sign-off manifest schemas.
+- [ ] Add full third-party Draft 2020-12 validation for release artifacts if a schema validator dependency is pinned in the release toolchain.
 
 ## Agent 1 — Core Protocol, Consensus, Networking, Sync
 

@@ -145,6 +145,25 @@ if (
     print("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata", file=sys.stderr)
     sys.exit(1)
 PY
+bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json docs/release-evidence-v1.sample.json >/dev/null
+bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-signoff-manifest-v1.schema.json --json docs/release-signoff-manifest-v1.sample.json >/dev/null
+schema_validate_dir="$(mktemp -d)"
+python3 - "$schema_validate_dir/bad-evidence.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-evidence-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["unexpected_release_field"] = True
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/bad-evidence.json" >/dev/null 2>&1; then
+  echo "release-json-schema-validate.sh accepted an unexpected release evidence field" >&2
+  exit 1
+fi
+rm -rf "$schema_validate_dir"
 bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest docs/release-signoff-manifest-v1.sample.json >/dev/null
 signoff_validate_dir="$(mktemp -d)"
 python3 - "$signoff_validate_dir/bad-signoff.json" <<'PY'

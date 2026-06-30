@@ -199,6 +199,22 @@ powershell -File scripts/public-devnet-v1/release-evidence.ps1 -Json -OutputPath
 
 The evidence generator records the current branch, commit, dirty-tree state, `CODEBASE_STATS.md` timestamp, GitHub CI status when available, expected public-devnet `genesis_id`, optional health-check output, optional RPC status (`rpc.public_bind`, auth, in-flight limits, tip, P2P sessions), and sign-off fields. Markdown is for launch notes; JSON is for archiving, CI dashboards, or automation. JSON output uses the versioned [`release-evidence.v1` schema](../../docs/release-evidence-v1.schema.json); see the [sample artifact](../../docs/release-evidence-v1.sample.json) for dashboard ingestion. Unknown evidence remains `unknown` or unchecked; do not treat generated output as a pass unless every launch blocker is manually reviewed.
 
+Validate archived evidence JSON against the published schema:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `
+  -Schema .\docs\release-evidence-v1.schema.json `
+  -Json .\release-evidence.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-json-schema-validate.sh \
+  --schema ./docs/release-evidence-v1.schema.json \
+  --json ./release-evidence.json
+```
+
+The schema validator is dependency-free and intentionally scoped to the schema features used by Permawrite release artifacts: required fields, `additionalProperties`, `type`, `const`, `enum`, arrays, and local `$ref`. It is not a general-purpose Draft 2020-12 engine.
+
 Block release sign-off until GitHub CI is green for the exact commit:
 
 ```powershell
@@ -258,11 +274,19 @@ The manifest uses `schema_version=release-signoff-manifest.v1`; the schema is [`
 Validate the sign-off manifest before attaching it to launch notes or publishing the archive:
 
 ```powershell
+powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `
+  -Schema .\docs\release-signoff-manifest-v1.schema.json `
+  -Json .\release-signoff-manifest.json
+
 powershell -File scripts/public-devnet-v1/release-signoff-manifest-validate.ps1 `
   -Manifest .\release-signoff-manifest.json
 ```
 
 ```bash
+bash scripts/public-devnet-v1/release-json-schema-validate.sh \
+  --schema ./docs/release-signoff-manifest-v1.schema.json \
+  --json ./release-signoff-manifest.json
+
 bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh \
   --manifest ./release-signoff-manifest.json
 ```

@@ -110,6 +110,36 @@ if ($signoffSample.schema_version -ne "release-signoff-manifest.v1" -or $signoff
     [Console]::Error.WriteLine("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata")
     exit 1
 }
+powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-evidence-v1.schema.json -Json docs/release-evidence-v1.sample.json | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-signoff-manifest-v1.schema.json -Json docs/release-signoff-manifest-v1.sample.json | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $schemaValidateDir | Out-Null
+try {
+    $badEvidence = Join-Path $schemaValidateDir "bad-evidence.json"
+    $badEvidenceObject = Get-Content "docs/release-evidence-v1.sample.json" -Raw | ConvertFrom-Json
+    $badEvidenceObject | Add-Member -NotePropertyName "unexpected_release_field" -NotePropertyValue $true
+    $badEvidenceObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badEvidence -Encoding utf8
+    $badEvidenceStdout = Join-Path $schemaValidateDir "bad-evidence.out"
+    $badEvidenceStderr = Join-Path $schemaValidateDir "bad-evidence.err"
+    $badEvidenceProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-json-schema-validate.ps1",
+        "-Schema",
+        "docs/release-evidence-v1.schema.json",
+        "-Json",
+        $badEvidence
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badEvidenceStdout -RedirectStandardError $badEvidenceStderr
+    if ($badEvidenceProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted an unexpected release evidence field")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
+} finally {
+    Remove-Item -Recurse -Force $schemaValidateDir -ErrorAction SilentlyContinue
+}
 powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest-validate.ps1 -Manifest docs/release-signoff-manifest-v1.sample.json | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $signoffValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-signoff-validate-" + [System.Guid]::NewGuid().ToString("N"))
