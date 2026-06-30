@@ -2023,6 +2023,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.48** | Public-devnet stale-seed connect hardening: outbound P2P boot, reconnect, and catch-up dials use a bounded TCP connect timeout and deterministic fallback coverage for unavailable first seeds. | ✓ shipped |
 | **M2.4.49** | Public-devnet boot-peer dial pressure hardening: merged CLI/manifest seed lists are capped at the saved-peer hard limit and oversized manifests preserve explicit dial priority. | ✓ shipped |
 | **M2.4.50** | Public-devnet boot-peer cap log contract: startup log formatting for capped boot-peer lists is pinned by deterministic CLI unit coverage. | ✓ shipped |
+| **M2.4.51** | Public-devnet boot-dial connect quarantine: repeated transient connect failures quarantine stale public seeds without durably deleting them from `peers.json`. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

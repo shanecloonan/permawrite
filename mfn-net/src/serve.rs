@@ -835,6 +835,16 @@ mod tests {
     }
 
     #[test]
+    fn handshake_failure_label_preserves_connect_io_reason_for_scoring() {
+        let err = HelloHandshakeError::Io(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "connection timed out",
+        ));
+
+        assert_eq!(handshake_failure_label(&err), "connection timed out");
+    }
+
+    #[test]
     fn sync_failure_label_pins_no_progress_reason() {
         let err = PullBlocksError::NoProgress {
             requested_start: 12,

@@ -92,7 +92,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add deterministic failure-injection coverage or script support for stale/unavailable public seed nodes during LAN/VPS-style startup.
 - [x] Add deterministic coverage for bounded outbound P2P dial retries under repeated unavailable seed lists.
 - [x] Add deterministic coverage for public-devnet startup logs when oversized boot-peer lists are capped.
-- [ ] Add deterministic coverage for peer scoring/quarantine behavior after repeated boot-dial connect failures.
+- [x] Add deterministic coverage for peer scoring/quarantine behavior after repeated boot-dial connect failures.
+- [ ] Add deterministic coverage that boot-dial connect quarantine suppresses reconnect spawning before cap accounting.
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 

@@ -1159,4 +1159,48 @@ mod tests {
         assert_eq!(peer_set.snapshot_available_peers(), vec![flaky, healthy]);
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn boot_dial_connect_failures_quarantine_without_durable_drop() {
+        let dir = temp_dir("boot_dial_connect_quarantine");
+        let stale_seed = "203.0.113.10:19001".to_string();
+        let healthy = "203.0.113.11:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(stale_seed.clone());
+        peers.insert(healthy.clone());
+        save_peers(&dir, &peers, 4).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        let connect_failure = "connection timed out";
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+        peer_set.note_peer_failure(&stale_seed, connect_failure);
+
+        assert_eq!(peer_set.snapshot_available_peers(), vec![healthy.clone()]);
+        assert_eq!(peer_set.snapshot_peers_except(None), vec![healthy.clone()]);
+
+        let (loaded, max_outbound) = mfn_store::load_peers(&dir).expect("load peers");
+        assert!(
+            loaded.contains(&stale_seed),
+            "transient connect failures must not remove saved public seeds"
+        );
+        assert!(loaded.contains(&healthy));
+        assert_eq!(max_outbound, 4);
+
+        peer_set.note_peer_success(&stale_seed);
+        assert_eq!(
+            peer_set.snapshot_available_peers(),
+            vec![stale_seed, healthy]
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }
