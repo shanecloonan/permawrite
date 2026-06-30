@@ -18,6 +18,7 @@ WAIT_MINED_SECONDS=180
 WAIT_UPLOAD_SECONDS=180
 WAIT_PROOF_SECONDS=180
 BUNDLE_DIR=""
+EVIDENCE_DIR=""
 EVIDENCE_LOG=""
 NO_BUILD=0
 PLAN_ONLY=0
@@ -39,6 +40,7 @@ Options:
   --wait-upload-seconds N     wait for upload discovery (default: 180)
   --wait-proof-seconds N      optional proof-list wait window (default: 180; 0 disables)
   --bundle-dir DIR            support bundle output directory
+  --evidence-dir DIR          co-locate evidence log and support bundle under DIR
   --evidence-log FILE         write final PASS line for release-audit-packet (default: rehearsal dir)
   --no-build                  use existing release binaries
   --plan-only                 print the full rehearsal flow without requiring binaries or a faucet wallet
@@ -59,6 +61,7 @@ while [[ $# -gt 0 ]]; do
     --wait-upload-seconds) WAIT_UPLOAD_SECONDS="${2:-}"; shift 2 ;;
     --wait-proof-seconds) WAIT_PROOF_SECONDS="${2:-}"; shift 2 ;;
     --bundle-dir) BUNDLE_DIR="${2:-}"; shift 2 ;;
+    --evidence-dir) EVIDENCE_DIR="${2:-}"; shift 2 ;;
     --evidence-log) EVIDENCE_LOG="${2:-}"; shift 2 ;;
     --no-build) NO_BUILD=1; shift ;;
     --plan-only) PLAN_ONLY=1; shift ;;
@@ -88,8 +91,15 @@ validate_uint wait-proof-seconds "$WAIT_PROOF_SECONDS" 0
 
 UPLOADER_WALLET="$REHEARSAL_DIR/uploader.json"
 REPLICA_WALLET="$REHEARSAL_DIR/replica.json"
+if [[ -z "$BUNDLE_DIR" && -n "$EVIDENCE_DIR" ]]; then
+  BUNDLE_DIR="$EVIDENCE_DIR/support-bundle"
+fi
 if [[ -z "$EVIDENCE_LOG" ]]; then
-  EVIDENCE_LOG="$REHEARSAL_DIR/participant-rehearsal.log"
+  if [[ -n "$EVIDENCE_DIR" ]]; then
+    EVIDENCE_LOG="$EVIDENCE_DIR/participant-rehearsal.log"
+  else
+    EVIDENCE_LOG="$REHEARSAL_DIR/participant-rehearsal.log"
+  fi
 fi
 
 resolve_rpc() {
@@ -147,7 +157,9 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  uploader_wallet=$UPLOADER_WALLET"
   echo "  replica_wallet=$REPLICA_WALLET"
+  echo "  evidence_dir=${EVIDENCE_DIR:-<optional --evidence-dir DIR to co-locate release evidence>}"
   echo "  evidence_log=$EVIDENCE_LOG"
+  echo "  support_bundle=${BUNDLE_DIR:-<support-bundle helper default>}"
   echo "  chunk_listen=$CHUNK_LISTEN"
   echo "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
   echo "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"

@@ -51,7 +51,7 @@ Next:
 
 Current:
 
-- Improve participant rehearsal evidence handoff UX while live rehearsal/nightly promotion remains blocked by mesh lifetime.
+- Improve release-audit handoff for participant rehearsal evidence while live rehearsal/nightly promotion remains blocked by mesh lifetime.
 
 Done:
 
@@ -63,6 +63,7 @@ Done:
 - `release-audit-packet.ps1` / `release-audit-packet.sh` can now ingest archived participant rehearsal transcripts and support-bundle manifests, validating the PASS line, restored SHA-256 shape, read-only bundle, matching commitment, and core node/upload/proof captures.
 - Archived participant rehearsal evidence now binds the transcript's `support_bundle` reference to the provided bundle directory, with CI coverage proving mismatched evidence is rejected.
 - `participant-rehearsal.ps1` / `participant-rehearsal.sh` now write a default evidence log containing the final PASS line and print `evidence_log=<file>` so release-audit packets can ingest the exact rehearsal proof without relying on manual terminal copy/paste.
+- `participant-rehearsal.ps1` / `participant-rehearsal.sh` now accept `EvidenceDir` / `--evidence-dir` to co-locate `participant-rehearsal.log` and `support-bundle/` for release-audit packet ingestion, while preserving explicit path overrides.
 
 Next:
 
@@ -80,4 +81,4 @@ Next:
 ## Latest Coordination Note
 
 - Agent 1 promoted the M7.8 `chunk_p2p_auto_fanout_smoke` to run on Windows directly after a clean Windows ignored-smoke run and added deterministic post-handshake `ChunkV1` burst reader coverage.
-- Agent 3 improved participant rehearsal evidence handoff. Rehearsal helpers now write a default evidence log containing the final PASS line and print `evidence_log=<file>`; release audit packets can validate that log against the provided support bundle without relying on manual terminal copy/paste. Nightly promotion remains blocked pending the daemon-lifetime fix.
+- Agent 3 improved participant rehearsal release-audit handoff. Rehearsal helpers now accept `EvidenceDir` / `--evidence-dir` to co-locate the generated PASS evidence log and support bundle, so release audit packets can ingest both paths without manual terminal copy/paste or mismatched bundle selection. Nightly promotion remains blocked pending the daemon-lifetime fix.

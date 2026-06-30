@@ -936,7 +936,8 @@ powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly `
 
 # Windows real run:
 powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 `
-  -Rpc 127.0.0.1:<RPC> -FaucetWallet ./validator0-faucet.json
+  -Rpc 127.0.0.1:<RPC> -FaucetWallet ./validator0-faucet.json `
+  -EvidenceDir ./participant-evidence
 
 # Linux/macOS plan mode:
 bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:<RPC> \
@@ -944,10 +945,11 @@ bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0
 
 # Linux/macOS real run:
 bash scripts/public-devnet-v1/participant-rehearsal.sh --rpc 127.0.0.1:<RPC> \
-  --faucet-wallet ./validator0-faucet.json
+  --faucet-wallet ./validator0-faucet.json \
+  --evidence-dir ./participant-evidence
 ```
 
-The plan output should end with `outputs end with support_bundle=<dir> and evidence_log=<file>`; if it does not, stop and update the helper before inviting outside users. A passing real run ends with `participant-rehearsal: PASS commitment_hash=... restored_sha256=... restored_path=... support_bundle=...` and then `participant-rehearsal: evidence_log=...`. By default the evidence log is `participant-rehearsal.log` under the rehearsal directory; override it with `-EvidenceLog` / `--evidence-log` when staging a release packet. Archive the evidence log, the support bundle directory, and the helper logs as participant proof-of-success evidence.
+The plan output should end with `outputs end with support_bundle=<dir> and evidence_log=<file>`; if it does not, stop and update the helper before inviting outside users. A passing real run ends with `participant-rehearsal: PASS commitment_hash=... restored_sha256=... restored_path=... support_bundle=...` and then `participant-rehearsal: evidence_log=...`. Use `-EvidenceDir` / `--evidence-dir` when staging release evidence; it defaults the support bundle to `<evidence-dir>/support-bundle` and the evidence log to `<evidence-dir>/participant-rehearsal.log`, while explicit `-BundleDir` / `--bundle-dir` or `-EvidenceLog` / `--evidence-log` still override those paths. Archive the evidence log, the support bundle directory, and the helper logs as participant proof-of-success evidence.
 
 The rehearsal creates/reuses wallets under `scripts/public-devnet-v1/participant-rehearsal/`, funds the uploader wallet with `fund-wallet`, runs the HTTP permanence demo, verifies the restored SHA-256, submits a proof, and captures a read-only support bundle for the replica wallet and commitment. The support bundle intentionally omits transient `fetch-chunk` capture because the demo's temporary HTTP chunk server is stopped after restore. Use only operator-controlled public-devnet/test faucet wallets; never put real faucet seeds or production keys in this repo. A failed rehearsal is a launch blocker for outside-user invites unless the failure is clearly scoped, documented, and owned by the relevant agent in `docs/3agent.md`.
 

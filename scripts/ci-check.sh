@@ -46,8 +46,8 @@ if [[ "$p2p_plan" != *"restore_mode=p2p-inbox"* || "$p2p_plan" != *"support-bund
   printf '%s\n' "$p2p_plan" >&2
   exit 1
 fi
-rehearsal_plan="$(bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:18731 --faucet-wallet ./faucet.json)"
-if [[ "$rehearsal_plan" != *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* || "$rehearsal_plan" != *"public-devnet/test funds only"* || "$rehearsal_plan" != *"outputs end with support_bundle=<dir> and evidence_log=<file>"* || "$rehearsal_plan" != *"evidence_log="* ]]; then
+rehearsal_plan="$(bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:18731 --faucet-wallet ./faucet.json --evidence-dir ./participant-evidence)"
+if [[ "$rehearsal_plan" != *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* || "$rehearsal_plan" != *"public-devnet/test funds only"* || "$rehearsal_plan" != *"outputs end with support_bundle=<dir> and evidence_log=<file>"* || "$rehearsal_plan" != *"evidence_dir=./participant-evidence"* || "$rehearsal_plan" != *"evidence_log=./participant-evidence/participant-rehearsal.log"* || "$rehearsal_plan" != *"support_bundle=./participant-evidence/support-bundle"* ]]; then
   printf '%s\n' "$rehearsal_plan" >&2
   exit 1
 fi
@@ -82,8 +82,8 @@ pwsh -NoProfile -Command '
     $p2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
   }
-  $rehearsalPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -FaucetWallet ./faucet.json) -join "`n"
-  if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle" -or $rehearsalPlan -notmatch "public-devnet/test funds only" -or $rehearsalPlan -notmatch "outputs end with support_bundle=<dir> and evidence_log=<file>" -or $rehearsalPlan -notmatch "evidence_log=") {
+  $rehearsalPlan = (pwsh -NoProfile -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -FaucetWallet ./faucet.json -EvidenceDir ./participant-evidence) -join "`n"
+  if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle" -or $rehearsalPlan -notmatch "public-devnet/test funds only" -or $rehearsalPlan -notmatch "outputs end with support_bundle=<dir> and evidence_log=<file>" -or $rehearsalPlan -notmatch "evidence_dir=./participant-evidence" -or $rehearsalPlan -notmatch "evidence_log=.*participant-rehearsal.log" -or $rehearsalPlan -notmatch "support_bundle=.*support-bundle") {
     $rehearsalPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
   }

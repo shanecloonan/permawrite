@@ -12,6 +12,7 @@ param(
     [int]$WaitUploadSeconds = 180,
     [int]$WaitProofSeconds = 180,
     [string]$BundleDir = "",
+    [string]$EvidenceDir = "",
     [string]$EvidenceLog = "",
     [switch]$NoBuild,
     [switch]$PlanOnly
@@ -24,7 +25,8 @@ $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 $Root = if ($RehearsalDir) { $RehearsalDir } else { Join-Path $ScriptDir "participant-rehearsal" }
 $UploaderWallet = Join-Path $Root "uploader.json"
 $ReplicaWallet = Join-Path $Root "replica.json"
-$EvidenceLogPath = if ($EvidenceLog) { $EvidenceLog } else { Join-Path $Root "participant-rehearsal.log" }
+$EffectiveBundleDir = if ($BundleDir) { $BundleDir } elseif ($EvidenceDir) { Join-Path $EvidenceDir "support-bundle" } else { "" }
+$EvidenceLogPath = if ($EvidenceLog) { $EvidenceLog } elseif ($EvidenceDir) { Join-Path $EvidenceDir "participant-rehearsal.log" } else { Join-Path $Root "participant-rehearsal.log" }
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { return @{} }
@@ -85,7 +87,9 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  uploader_wallet=$UploaderWallet"
     Write-Host "  replica_wallet=$ReplicaWallet"
+    Write-Host "  evidence_dir=$(if ($EvidenceDir) { $EvidenceDir } else { '<optional -EvidenceDir DIR to co-locate release evidence>' })"
     Write-Host "  evidence_log=$EvidenceLogPath"
+    Write-Host "  support_bundle=$(if ($EffectiveBundleDir) { $EffectiveBundleDir } else { '<support-bundle helper default>' })"
     Write-Host "  chunk_listen=$ChunkListen"
     Write-Host "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
     Write-Host "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"
@@ -143,7 +147,7 @@ try {
         CommitHash = $commit
         NoBuild = $true
     }
-    if ($BundleDir) { $supportArgs["OutputDir"] = $BundleDir }
+    if ($EffectiveBundleDir) { $supportArgs["OutputDir"] = $EffectiveBundleDir }
     $supportOut = Invoke-ScriptChecked -Script $supportScript -ScriptArgs $supportArgs -Label "support-bundle"
     $bundle = Parse-TokenField $supportOut "output_dir"
 
