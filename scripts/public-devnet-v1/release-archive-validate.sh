@@ -115,6 +115,7 @@ test_directory_checksums() {
   local line parsed_hash parsed_name found
   while IFS= read -r line || [[ -n "$line" ]]; do
     line_number=$((line_number + 1))
+    line="${line#$'\xef\xbb\xbf'}"
     line="${line%$'\r'}"
     [[ -n "${line//[[:space:]]/}" ]] || continue
     if [[ ! "$line" =~ ^([0-9a-fA-F]{64})[[:space:]]+([^/\\]+)$ ]]; then
