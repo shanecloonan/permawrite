@@ -66,6 +66,26 @@ Archive rules:
 - [ ] If the support bundle is compressed, the uncompressed `manifest.json` is also copied to `support/manifest.json` for quick review.
 - [ ] Any redacted or omitted artifact is listed in this inventory as `not applicable: <reason and owner>`.
 
+Dry-run the public archive layout before publication:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
+  -OutputDir .\release-staging `
+  -ReleaseEvidenceMarkdown .\release-evidence.md `
+  -ReleaseEvidenceJson .\release-evidence.json `
+  -Inventory .\release-artifact-inventory.md
+```
+
+```bash
+bash scripts/public-devnet-v1/release-archive-dry-run.sh \
+  --output-dir ./release-staging \
+  --release-evidence-md ./release-evidence.md \
+  --release-evidence-json ./release-evidence.json \
+  --inventory ./release-artifact-inventory.md
+```
+
+Use `-PlanOnly` / `--plan-only` first when reviewing source paths. The helper stages only known public docs, network definition files, evidence files, optional reviewed binaries, and optional reviewed support-bundle artifacts; it refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. When given a support-bundle directory, it copies only `manifest.json` and writes a note instead of copying the directory wholesale. After staging, it writes `checksums.sha256` for artifact directories that contain direct files, including nested binary platform directories.
+
 ## Binary Artifacts
 
 - `mfnd`
@@ -182,14 +202,14 @@ Preferred helper output for inventory rows:
 powershell -File scripts/public-devnet-v1/artifact-checksums.ps1 `
   target/release/mfnd.exe `
   target/release/mfn-cli.exe `
-  scripts/public-devnet-v1/public_devnet_v1.json
+  mfn-node/testdata/public_devnet_v1.json
 ```
 
 ```bash
 bash scripts/public-devnet-v1/artifact-checksums.sh \
   target/release/mfnd \
   target/release/mfn-cli \
-  scripts/public-devnet-v1/public_devnet_v1.json
+  mfn-node/testdata/public_devnet_v1.json
 ```
 
 Windows:

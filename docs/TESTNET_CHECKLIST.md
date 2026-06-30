@@ -47,7 +47,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add a checksum helper that generates artifact inventory entries for release binaries and public-devnet files.
 - [x] Add artifact inventory validation that fails release sign-off when required checksums or reviewer fields are missing.
 - [x] Add release-candidate archive layout guidance for publishing inventory, checksums, evidence, and support bundles together.
-- [ ] Add release archive assembly dry-run guidance or helper that stages public artifacts without secrets.
+- [x] Add release archive assembly dry-run guidance or helper that stages public artifacts without secrets.
+- [ ] Add release archive manifest validation that verifies staged checksums and required public files before publication.
 
 ## Agent 1 — Core Protocol, Consensus, Networking, Sync
 

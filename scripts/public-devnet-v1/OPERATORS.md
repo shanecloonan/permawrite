@@ -209,6 +209,26 @@ Start by filling out the [release-candidate artifact inventory](../../docs/RELEA
 
 Publish artifacts using the archive layout in that template so binaries, genesis/manifest, evidence, support bundles, docs snapshots, and checksums live together under one immutable release-candidate directory. Do not include secrets or private operator files in the archive.
 
+Dry-run the archive layout before publication:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
+  -PlanOnly `
+  -ReleaseEvidenceMarkdown .\release-evidence.md `
+  -ReleaseEvidenceJson .\release-evidence.json `
+  -Inventory .\release-artifact-inventory.md
+```
+
+```bash
+bash scripts/public-devnet-v1/release-archive-dry-run.sh \
+  --plan-only \
+  --release-evidence-md ./release-evidence.md \
+  --release-evidence-json ./release-evidence.json \
+  --inventory ./release-artifact-inventory.md
+```
+
+The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
+
 Use `artifact-checksums.ps1` or `artifact-checksums.sh` to generate SHA-256 rows for inventory entries. Run it only on public release artifacts; never hash or publish private keys, wallet seeds, RPC API keys, or private operator files.
 
 Before sign-off, run `artifact-inventory-validate.ps1` or `artifact-inventory-validate.sh` on the filled inventory. The validator fails on missing artifact paths, checksums, reviewers, a missing final decision, or bare `not applicable` entries without a written reason.

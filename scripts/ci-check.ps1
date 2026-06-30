@@ -9,6 +9,13 @@ function Test-Command($Name) {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+foreach ($toolDir in @("C:\msys64\usr\bin", "C:\msys64\mingw64\bin")) {
+    if ((Test-Path -LiteralPath $toolDir -PathType Container) -and
+        -not (($env:Path -split [System.IO.Path]::PathSeparator) -contains $toolDir)) {
+        $env:Path = "$toolDir$([System.IO.Path]::PathSeparator)$env:Path"
+    }
+}
+
 $missingTools = @()
 function Add-MissingCommand($Name, $InstallHint) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -113,6 +120,39 @@ foreach ($required in @("| Path | SHA-256 | Bytes |", "release-evidence-v1.sampl
         [Console]::Error.WriteLine("artifact-checksums.ps1 output missing '$required'")
         exit 1
     }
+}
+$archivePlan = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -PlanOnly -ReleaseEvidenceJson docs/release-evidence-v1.sample.json
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not (($archivePlan -join "`n").Contains("release-archive-dry-run: PLAN OK"))) {
+    [Console]::Error.WriteLine("release-archive-dry-run.ps1 plan mode did not complete successfully")
+    exit 1
+}
+$archiveDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-archive-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+    $archiveRun = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -OutputDir $archiveDir -ReleaseEvidenceJson docs/release-evidence-v1.sample.json
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $archiveText = $archiveRun -join "`n"
+    if ($archiveText -notmatch "release-archive-dry-run: OK path=(?<path>.+)$") {
+        [Console]::Error.WriteLine("release-archive-dry-run.ps1 did not report an output path")
+        exit 1
+    }
+    $archiveRoot = $Matches.path.Trim()
+    foreach ($requiredPath in @(
+        "README.md",
+        "network/genesis.json",
+        "network/checksums.sha256",
+        "docs/SECURITY.md",
+        "docs/OPERATORS.md",
+        "evidence/release-evidence.json",
+        "evidence/checksums.sha256"
+    )) {
+        if (-not (Test-Path -LiteralPath (Join-Path $archiveRoot $requiredPath) -PathType Leaf)) {
+            [Console]::Error.WriteLine("release-archive-dry-run.ps1 missing staged artifact '$requiredPath'")
+            exit 1
+        }
+    }
+} finally {
+    Remove-Item -Recurse -Force $archiveDir -ErrorAction SilentlyContinue
 }
 $inventoryDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-inventory-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $inventoryDir | Out-Null

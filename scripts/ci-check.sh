@@ -148,6 +148,32 @@ for required in "| Path | SHA-256 | Bytes |" "release-evidence-v1.sample.json" "
     exit 1
   fi
 done
+archive_plan="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --plan-only --release-evidence-json docs/release-evidence-v1.sample.json)"
+if [[ "$archive_plan" != *"release-archive-dry-run: PLAN OK"* ]]; then
+  echo "release-archive-dry-run.sh plan mode did not complete successfully" >&2
+  exit 1
+fi
+archive_dir="$(mktemp -d)"
+archive_run="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --output-dir "$archive_dir" --release-evidence-json docs/release-evidence-v1.sample.json)"
+archive_root="$(printf '%s\n' "$archive_run" | awk -F'path=' '/release-archive-dry-run: OK path=/{print $2}' | tail -n 1)"
+if [[ -z "$archive_root" ]]; then
+  echo "release-archive-dry-run.sh did not report an output path" >&2
+  exit 1
+fi
+for required_path in \
+  README.md \
+  network/genesis.json \
+  network/checksums.sha256 \
+  docs/SECURITY.md \
+  docs/OPERATORS.md \
+  evidence/release-evidence.json \
+  evidence/checksums.sha256; do
+  if [[ ! -f "$archive_root/$required_path" ]]; then
+    echo "release-archive-dry-run.sh missing staged artifact '$required_path'" >&2
+    exit 1
+  fi
+done
+rm -rf "$archive_dir"
 inventory_dir="$(mktemp -d)"
 trap 'rm -rf "$inventory_dir"' EXIT
 cat > "$inventory_dir/valid.md" <<'EOF'
