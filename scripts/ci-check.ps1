@@ -110,6 +110,32 @@ if ($signoffSample.schema_version -ne "release-signoff-manifest.v1" -or $signoff
     [Console]::Error.WriteLine("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata")
     exit 1
 }
+powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest-validate.ps1 -Manifest docs/release-signoff-manifest-v1.sample.json | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$signoffValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-signoff-validate-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $signoffValidateDir | Out-Null
+try {
+    $badSignoff = Join-Path $signoffValidateDir "bad-signoff.json"
+    $badSignoffObject = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+    $badSignoffObject.gates.ci.conclusion = "failure"
+    $badSignoffObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badSignoff -Encoding utf8
+    $badSignoffStdout = Join-Path $signoffValidateDir "bad-signoff.out"
+    $badSignoffStderr = Join-Path $signoffValidateDir "bad-signoff.err"
+    $badSignoffProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest-validate.ps1",
+        "-Manifest",
+        $badSignoff
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badSignoffStdout -RedirectStandardError $badSignoffStderr
+    if ($badSignoffProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest-validate.ps1 accepted a go manifest with failing CI")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
+} finally {
+    Remove-Item -Recurse -Force $signoffValidateDir -ErrorAction SilentlyContinue
+}
 $ciWatchDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-ci-watch-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $ciWatchDir | Out-Null
 try {

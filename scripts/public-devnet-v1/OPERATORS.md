@@ -255,6 +255,20 @@ bash scripts/public-devnet-v1/release-signoff-manifest.sh \
 
 The manifest uses `schema_version=release-signoff-manifest.v1`; the schema is [`release-signoff-manifest-v1.schema.json`](../../docs/release-signoff-manifest-v1.schema.json), with a sample artifact in [`release-signoff-manifest-v1.sample.json`](../../docs/release-signoff-manifest-v1.sample.json). The helper refuses `go` when exact-commit CI is not green, release evidence is malformed or for a different commit, archive validation fails, the inventory fails validation, or required human approvals are missing. Use `no-go` to archive a failed release review without bypassing any gate.
 
+Validate the sign-off manifest before attaching it to launch notes or publishing the archive:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-signoff-manifest-validate.ps1 `
+  -Manifest .\release-signoff-manifest.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh \
+  --manifest ./release-signoff-manifest.json
+```
+
+The validator is dependency-free and mirrors the published schema's required fields. For `decision=go`, it also verifies green CI, passing archive and inventory gates, no manifest issues, and every required approval flag.
+
 ### Release sign-off bundle review
 
 Before advertising public endpoints, one reviewer who is not the release operator should inspect the final launch notes plus support bundle. This review is a human gate; schema validation only proves the files are shaped correctly, not that the network is safe.

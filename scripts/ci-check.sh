@@ -145,6 +145,24 @@ if (
     print("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata", file=sys.stderr)
     sys.exit(1)
 PY
+bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest docs/release-signoff-manifest-v1.sample.json >/dev/null
+signoff_validate_dir="$(mktemp -d)"
+python3 - "$signoff_validate_dir/bad-signoff.json" <<'PY'
+import json
+import sys
+
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+doc["gates"]["ci"]["conclusion"] = "failure"
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(doc, handle, indent=2)
+    handle.write("\n")
+PY
+if bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh --manifest "$signoff_validate_dir/bad-signoff.json" >/dev/null 2>&1; then
+  echo "release-signoff-manifest-validate.sh accepted a go manifest with failing CI" >&2
+  exit 1
+fi
+rm -rf "$signoff_validate_dir"
 ci_watch_dir="$(mktemp -d)"
 ci_watch_commit="0123456789abcdef0123456789abcdef01234567"
 cat > "$ci_watch_dir/success.json" <<EOF
