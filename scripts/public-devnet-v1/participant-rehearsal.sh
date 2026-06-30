@@ -18,6 +18,7 @@ WAIT_MINED_SECONDS=180
 WAIT_UPLOAD_SECONDS=180
 WAIT_PROOF_SECONDS=180
 BUNDLE_DIR=""
+EVIDENCE_LOG=""
 NO_BUILD=0
 PLAN_ONLY=0
 
@@ -38,6 +39,7 @@ Options:
   --wait-upload-seconds N     wait for upload discovery (default: 180)
   --wait-proof-seconds N      optional proof-list wait window (default: 180; 0 disables)
   --bundle-dir DIR            support bundle output directory
+  --evidence-log FILE         write final PASS line for release-audit-packet (default: rehearsal dir)
   --no-build                  use existing release binaries
   --plan-only                 print the full rehearsal flow without requiring binaries or a faucet wallet
 EOF
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --wait-upload-seconds) WAIT_UPLOAD_SECONDS="${2:-}"; shift 2 ;;
     --wait-proof-seconds) WAIT_PROOF_SECONDS="${2:-}"; shift 2 ;;
     --bundle-dir) BUNDLE_DIR="${2:-}"; shift 2 ;;
+    --evidence-log) EVIDENCE_LOG="${2:-}"; shift 2 ;;
     --no-build) NO_BUILD=1; shift ;;
     --plan-only) PLAN_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -85,6 +88,9 @@ validate_uint wait-proof-seconds "$WAIT_PROOF_SECONDS" 0
 
 UPLOADER_WALLET="$REHEARSAL_DIR/uploader.json"
 REPLICA_WALLET="$REHEARSAL_DIR/replica.json"
+if [[ -z "$EVIDENCE_LOG" ]]; then
+  EVIDENCE_LOG="$REHEARSAL_DIR/participant-rehearsal.log"
+fi
 
 resolve_rpc() {
   if [[ -n "$RPC" ]]; then
@@ -141,10 +147,11 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  uploader_wallet=$UPLOADER_WALLET"
   echo "  replica_wallet=$REPLICA_WALLET"
+  echo "  evidence_log=$EVIDENCE_LOG"
   echo "  chunk_listen=$CHUNK_LISTEN"
   echo "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
   echo "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"
-  echo "  next=rerun without --plan-only after choosing a funded operator faucet wallet; outputs end with support_bundle=<dir>"
+  echo "  next=rerun without --plan-only after choosing a funded operator faucet wallet; outputs end with support_bundle=<dir> and evidence_log=<file>"
   exit 0
 fi
 
@@ -187,4 +194,8 @@ SUPPORT_OUT="$(run_checked "support-bundle" bash "$SCRIPT_DIR/support-bundle.sh"
 printf '%s\n' "$SUPPORT_OUT"
 SUPPORT_BUNDLE="$(parse_token_field "$SUPPORT_OUT" output_dir)"
 
-echo "participant-rehearsal: PASS commitment_hash=$COMMIT_HASH restored_sha256=$RESTORED_SHA restored_path=$RESTORED_PATH support_bundle=$SUPPORT_BUNDLE"
+PASS_LINE="participant-rehearsal: PASS commitment_hash=$COMMIT_HASH restored_sha256=$RESTORED_SHA restored_path=$RESTORED_PATH support_bundle=$SUPPORT_BUNDLE"
+mkdir -p "$(dirname "$EVIDENCE_LOG")"
+printf '%s\n' "$PASS_LINE" > "$EVIDENCE_LOG"
+printf '%s\n' "$PASS_LINE"
+printf 'participant-rehearsal: evidence_log=%s\n' "$EVIDENCE_LOG"

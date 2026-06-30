@@ -174,6 +174,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [ ] Promote participant rehearsal smoke into an unattended slow/nightly harness once mesh runtime is stable enough for CI.
 - [x] Add release-audit packet ingestion for archived participant rehearsal transcripts and support-bundle evidence.
 - [x] Reject archived participant rehearsal evidence when the transcript names a different support bundle than the one under audit.
+- [x] Add participant rehearsal evidence-log output so release audit packets can ingest the exact PASS proof without manual transcript copy/paste.
 - [ ] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 
 ## Cross-Agent Notes

@@ -50,7 +50,7 @@ Next:
 
 Current:
 
-- Harden archived participant rehearsal evidence gates while live rehearsal/nightly promotion remains blocked by mesh lifetime.
+- Improve participant rehearsal evidence handoff UX while live rehearsal/nightly promotion remains blocked by mesh lifetime.
 
 Done:
 
@@ -61,6 +61,7 @@ Done:
 - Participant rehearsal plan mode now tells operators the next real-run action and the expected `support_bundle=<dir>` success output; `docs/TESTNET.md` and `OPERATORS.md` now define the final PASS line/support bundle as participant proof-of-success evidence.
 - `release-audit-packet.ps1` / `release-audit-packet.sh` can now ingest archived participant rehearsal transcripts and support-bundle manifests, validating the PASS line, restored SHA-256 shape, read-only bundle, matching commitment, and core node/upload/proof captures.
 - Archived participant rehearsal evidence now binds the transcript's `support_bundle` reference to the provided bundle directory, with CI coverage proving mismatched evidence is rejected.
+- `participant-rehearsal.ps1` / `participant-rehearsal.sh` now write a default evidence log containing the final PASS line and print `evidence_log=<file>` so release-audit packets can ingest the exact rehearsal proof without relying on manual terminal copy/paste.
 
 Next:
 
@@ -77,5 +78,5 @@ Next:
 
 ## Latest Coordination Note
 
-- Agent 3 hardened offline participant rehearsal evidence ingestion in release audit packets. Operators can now pass an archived rehearsal transcript plus support bundle; the audit packet validates the PASS line, restored SHA-256 shape, transcript-to-bundle match, read-only manifest, matching commitment, and required node/upload/proof captures without rerunning the flaky live smoke. Nightly promotion remains blocked pending the daemon-lifetime fix.
 - Agent 1 promoted the M7.8 `chunk_p2p_auto_fanout_smoke` to run on Windows directly after a clean Windows ignored-smoke run and added deterministic post-handshake `ChunkV1` burst reader coverage.
+- Agent 3 improved participant rehearsal evidence handoff. Rehearsal helpers now write a default evidence log containing the final PASS line and print `evidence_log=<file>`; release audit packets can validate that log against the provided support bundle without relying on manual terminal copy/paste. Nightly promotion remains blocked pending the daemon-lifetime fix.
