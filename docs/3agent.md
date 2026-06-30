@@ -27,7 +27,7 @@ Next:
 
 - Add deterministic coverage for bounded outbound P2P dial retries under repeated unavailable seed lists.
 - Review Agent 3's local-mesh evidence for any remaining P2P/process-lifetime issue before public-testnet invites.
-- Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
+- Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
 
@@ -82,3 +82,4 @@ Next:
 
 - Agent 1 promoted the M7.8 `chunk_p2p_auto_fanout_smoke` to run on Windows directly after a clean Windows ignored-smoke run and added deterministic post-handshake `ChunkV1` burst reader coverage.
 - Agent 3 improved participant rehearsal release-audit handoff. Rehearsal helpers now accept `EvidenceDir` / `--evidence-dir` to co-locate the generated PASS evidence log and support bundle, so release audit packets can ingest both paths without manual terminal copy/paste or mismatched bundle selection. Nightly promotion remains blocked pending the daemon-lifetime fix.
+- Agent 1 added opt-in observer kill/restart evidence to public-devnet soak scripts. `soak: RESTART` now records old/new observer PID/RPC and pre/post hub/observer heights after delayed catch-up.

@@ -115,7 +115,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 - [x] Stabilize Windows duplex P2P session chunk fanout so `chunk_p2p_auto_fanout_smoke` can run on Windows instead of being covered there by the participant rehearsal smoke.
-- [ ] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
+- [x] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
+- [ ] Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 

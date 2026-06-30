@@ -11,12 +11,16 @@ STALL_SAMPLES=2
 STALL_INTERVAL_SECONDS=35
 MIN_HEIGHT_DELTA=1
 NO_START=0
+RESTART_OBSERVER_ONCE=0
+RESTART_TIMEOUT_SECONDS=180
+P2P_LOG_TIMEOUT_SECONDS=60
 
 usage() {
   cat >&2 <<'USAGE'
 usage: soak.sh [--duration-minutes N] [--check-interval-seconds N]
                [--stall-samples N] [--stall-interval-seconds N]
-               [--min-height-delta N] [--no-start]
+               [--min-height-delta N] [--restart-observer-once]
+               [--restart-timeout-seconds N] [--no-start]
 USAGE
 }
 
@@ -50,6 +54,14 @@ while [[ $# -gt 0 ]]; do
       MIN_HEIGHT_DELTA="${2:?missing value for $1}"
       shift 2
       ;;
+    --restart-observer-once)
+      RESTART_OBSERVER_ONCE=1
+      shift
+      ;;
+    --restart-timeout-seconds)
+      RESTART_TIMEOUT_SECONDS="${2:?missing value for $1}"
+      shift 2
+      ;;
     --no-start)
       NO_START=1
       shift
@@ -71,10 +83,12 @@ require_uint_min check-interval-seconds "$CHECK_INTERVAL_SECONDS" 0
 require_uint_min stall-samples "$STALL_SAMPLES" 1
 require_uint_min stall-interval-seconds "$STALL_INTERVAL_SECONDS" 0
 require_uint_min min-height-delta "$MIN_HEIGHT_DELTA" 1
+require_uint_min restart-timeout-seconds "$RESTART_TIMEOUT_SECONDS" 1
 
 START_EPOCH=$(date +%s)
 STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SOAK_SAMPLES=()
+SOAK_RESTARTS=()
 LAST_FAILURE=""
 
 record_health_sample() {
@@ -105,6 +119,99 @@ record_health_sample() {
   SOAK_SAMPLES+=("iteration=$iteration final_height=$final_height final_tip_id=$final_id genesis_id=$genesis roles=${roles:-none}")
 }
 
+health_role_field() {
+  local output="$1" role="$2" field="$3"
+  printf '%s\n' "$output" | awk -v role="$role" -v field="$field" '
+    $1 == role {
+      for (i = 2; i <= NF; i++) {
+        split($i, kv, "=")
+        if (kv[1] == field) {
+          print kv[2]
+          exit
+        }
+      }
+    }
+  '
+}
+
+latest_log_value() {
+  local path="$1" prefix="$2"
+  if [[ ! -f "$path" ]]; then
+    return 0
+  fi
+  awk -v prefix="$prefix" 'index($0, prefix) == 1 { value = substr($0, length(prefix) + 1) } END { if (value != "") print value }' "$path"
+}
+
+restart_observer_probe() {
+  local restart_iteration="$1" pre_output="$2"
+  read_ports
+  local old_pid="${OBSERVER_PID:-}" old_rpc="${OBSERVER_RPC:-unknown}"
+  local pre_hub_height pre_observer_height marker new_pid observer_rpc restart_deadline health_status health_output post_hub_height post_observer_height restart_record
+  pre_hub_height="$(health_role_field "$pre_output" hub tip_height)"
+  pre_observer_height="$(health_role_field "$pre_output" observer tip_height)"
+  marker="iteration-${restart_iteration}-$(date +%s)"
+  echo "soak: restarting observer iteration=$restart_iteration old_pid=${old_pid:-unknown} old_rpc=$old_rpc marker=$marker"
+  if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+    kill "$old_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      if ! kill -0 "$old_pid" 2>/dev/null; then
+        break
+      fi
+      sleep 1
+    done
+    if kill -0 "$old_pid" 2>/dev/null; then
+      kill -9 "$old_pid" 2>/dev/null || true
+    fi
+  fi
+  if [[ -f "$LOG_DIR/observer.log" ]]; then
+    mv "$LOG_DIR/observer.log" "$LOG_DIR/observer.before-restart-$marker.log"
+  fi
+  if [[ -f "$LOG_DIR/observer.err.log" ]]; then
+    mv "$LOG_DIR/observer.err.log" "$LOG_DIR/observer.before-restart-$marker.err.log"
+  fi
+  export HUB_P2P="${HUB_P2P:?}"
+  "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>"$LOG_DIR/observer.err.log" &
+  new_pid=$!
+  echo "OBSERVER_PID=$new_pid" >>"$PORTS_FILE"
+  restart_deadline=$(( $(date +%s) + RESTART_TIMEOUT_SECONDS ))
+  observer_rpc=""
+  while (( $(date +%s) < restart_deadline )); do
+    if ! kill -0 "$new_pid" 2>/dev/null; then
+      LAST_FAILURE="iteration=$restart_iteration command=restart-observer pid=$new_pid exited_early"
+      exit 1
+    fi
+    observer_rpc="$(latest_log_value "$LOG_DIR/observer.log" "mfnd_serve_listening=")"
+    if [[ -n "$observer_rpc" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  if [[ -z "$observer_rpc" ]]; then
+    LAST_FAILURE="iteration=$restart_iteration command=restart-observer missing_observer_rpc timeout_seconds=$RESTART_TIMEOUT_SECONDS"
+    exit 1
+  fi
+  echo "OBSERVER_RPC=$observer_rpc" >>"$PORTS_FILE"
+  while (( $(date +%s) < restart_deadline )); do
+    health_status=0
+    health_output=$(MFN_HEALTH_STALL_SAMPLES=1 \
+      MFN_HEALTH_MIN_HEIGHT_DELTA="$MIN_HEIGHT_DELTA" \
+      "$SCRIPT_DIR/health-check.sh" 2>&1) || health_status=$?
+    if (( health_status == 0 )); then
+      post_hub_height="$(health_role_field "$health_output" hub tip_height)"
+      post_observer_height="$(health_role_field "$health_output" observer tip_height)"
+      printf '%s\n' "$health_output"
+      restart_record="iteration=$restart_iteration role=observer old_pid=${old_pid:-unknown} new_pid=$new_pid old_rpc=$old_rpc new_rpc=$observer_rpc pre_hub_height=${pre_hub_height:-unknown} pre_observer_height=${pre_observer_height:-unknown} post_hub_height=${post_hub_height:-unknown} post_observer_height=${post_observer_height:-unknown}"
+      SOAK_RESTARTS+=("$restart_record")
+      echo "soak: RESTART $restart_record"
+      return
+    fi
+    sleep 2
+  done
+  printf '%s\n' "$health_output"
+  LAST_FAILURE="iteration=$restart_iteration command=restart-observer catchup_timeout_seconds=$RESTART_TIMEOUT_SECONDS"
+  exit 1
+}
+
 print_soak_summary() {
   local status="$1"
   local ended_epoch ended_at elapsed
@@ -115,6 +222,10 @@ print_soak_summary() {
   local sample
   for sample in "${SOAK_SAMPLES[@]}"; do
     echo "soak: SAMPLE $sample"
+  done
+  local restart
+  for restart in "${SOAK_RESTARTS[@]}"; do
+    echo "soak: RESTART $restart"
   done
   if [[ -n "$LAST_FAILURE" ]]; then
     echo "soak: FAILURE $LAST_FAILURE"
@@ -166,6 +277,17 @@ assert_log_contains() {
 }
 
 assert_p2p_logs() {
+  local deadline
+  deadline=$(( $(date +%s) + P2P_LOG_TIMEOUT_SECONDS ))
+  while (( $(date +%s) < deadline )); do
+    if [[ -f "$LOG_DIR/v1.log" && -f "$LOG_DIR/v2.log" && -f "$LOG_DIR/observer.log" ]] &&
+      grep -qF "mfnd_p2p_dial_ok=" "$LOG_DIR/v1.log" &&
+      grep -qF "mfnd_p2p_dial_ok=" "$LOG_DIR/v2.log" &&
+      grep -qF "mfnd_p2p_dial_ok=" "$LOG_DIR/observer.log"; then
+      return
+    fi
+    sleep 1
+  done
   assert_log_contains v1 "$LOG_DIR/v1.log" "mfnd_p2p_dial_ok="
   assert_log_contains v2 "$LOG_DIR/v2.log" "mfnd_p2p_dial_ok="
   assert_log_contains observer "$LOG_DIR/observer.log" "mfnd_p2p_dial_ok="
@@ -180,6 +302,7 @@ fi
 
 deadline=$(( $(date +%s) + DURATION_MINUTES * 60 ))
 iteration=0
+observer_restart_done=0
 while (( $(date +%s) < deadline )); do
   iteration=$((iteration + 1))
   echo "soak: iteration=$iteration deadline_epoch=$deadline"
@@ -202,6 +325,10 @@ while (( $(date +%s) < deadline )); do
   fi
   printf '%s\n' "$health_output"
   record_health_sample "$iteration" "$health_output"
+  if (( RESTART_OBSERVER_ONCE == 1 && observer_restart_done == 0 )); then
+    restart_observer_probe "$iteration" "$health_output"
+    observer_restart_done=1
+  fi
 
   if (( $(date +%s) + CHECK_INTERVAL_SECONDS < deadline && CHECK_INTERVAL_SECONDS > 0 )); then
     sleep "$CHECK_INTERVAL_SECONDS"

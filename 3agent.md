@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Windows duplex P2P session chunk fanout runs the full auto-fanout smoke. | In progress in clean Agent 1 worktree. | Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart. |
+| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Pinned Draft 2020-12 release schema validation. | Completed locally; local CI mirror passed. | Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
@@ -33,24 +33,26 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release CI watcher now reports unauthenticated GitHub API rate limits as structured no-go JSON instead of crashing.
 - Agent 2: Release CI watcher fallback uses `GH_TOKEN` / `GITHUB_TOKEN` for authenticated API polling without leaking tokens into JSON output.
 - Agent 2: WASM package metadata is explicit where wasm-pack requires string fields, keeping the local CI mirror's wasm package build green.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, and durable gap recovery peer retention.
+- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, durable gap recovery peer retention, and Windows chunk auto-fanout promotion.
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
-- Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
+- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) is staged for push after rebase onto latest `main`.
+- Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
 
-Current task:
+Completed unit (M2.4.59):
 
-- [x] Remove the Windows-only ignore from `chunk_p2p_auto_fanout_smoke`.
-- [x] Add deterministic `mfn-net::block_sync` coverage that post-handshake chunk bursts are consumed through `GossipEndV1`.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator smoke references.
-- [x] Regenerate `CODEBASE_STATS.md`, run targeted tests, and run local CI mirror.
+- [x] Add opt-in observer restart probe to `soak.sh` and `soak.ps1`.
+- [x] Emit `soak: RESTART` evidence with old/new observer PID/RPC and pre/post hub/observer heights after catch-up.
+- [x] Wait for follower P2P dial logs before failing early soak iterations.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator soak guidance.
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
 
 Next Agent 1 task:
 
-- [ ] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
+- [ ] Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
 
 ## Shared Release-Candidate Gates
 

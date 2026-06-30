@@ -5,6 +5,8 @@ param(
     [int]$StallSamples = 2,
     [int]$StallIntervalSeconds = 35,
     [int]$MinHeightDelta = 1,
+    [switch]$RestartObserverOnce,
+    [int]$RestartTimeoutSeconds = 180,
     [switch]$NoStart
 )
 $ErrorActionPreference = "Stop"
@@ -14,6 +16,7 @@ if ($CheckIntervalSeconds -lt 0) { throw "CheckIntervalSeconds must be >= 0" }
 if ($StallSamples -lt 1) { throw "StallSamples must be >= 1" }
 if ($StallIntervalSeconds -lt 0) { throw "StallIntervalSeconds must be >= 0" }
 if ($MinHeightDelta -lt 1) { throw "MinHeightDelta must be >= 1" }
+if ($RestartTimeoutSeconds -lt 1) { throw "RestartTimeoutSeconds must be >= 1" }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
@@ -22,8 +25,10 @@ $StartAllScript = Join-Path $ScriptDir "start-all.ps1"
 $LogDir = Join-Path $ScriptDir "logs"
 $StartedAt = Get-Date
 $SoakSamples = New-Object System.Collections.Generic.List[string]
+$SoakRestarts = New-Object System.Collections.Generic.List[string]
 $LastFailure = $null
 $SummaryWritten = $false
+$P2pLogTimeoutSeconds = 60
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
@@ -50,9 +55,20 @@ function Assert-LogContains {
 }
 
 function Assert-P2pLogs {
-    Assert-LogContains "v1" (Join-Path $LogDir "v1.log") "mfnd_p2p_dial_ok="
-    Assert-LogContains "v2" (Join-Path $LogDir "v2.log") "mfnd_p2p_dial_ok="
-    Assert-LogContains "observer" (Join-Path $LogDir "observer.log") "mfnd_p2p_dial_ok="
+    $deadline = (Get-Date).AddSeconds($P2pLogTimeoutSeconds)
+    $v1Log = Join-Path $LogDir "v1.log"
+    $v2Log = Join-Path $LogDir "v2.log"
+    $observerLog = Join-Path $LogDir "observer.log"
+    while ((Get-Date) -lt $deadline) {
+        $v1Ready = (Test-Path $v1Log) -and (Select-String -Path $v1Log -Pattern "mfnd_p2p_dial_ok=" -SimpleMatch -Quiet)
+        $v2Ready = (Test-Path $v2Log) -and (Select-String -Path $v2Log -Pattern "mfnd_p2p_dial_ok=" -SimpleMatch -Quiet)
+        $observerReady = (Test-Path $observerLog) -and (Select-String -Path $observerLog -Pattern "mfnd_p2p_dial_ok=" -SimpleMatch -Quiet)
+        if ($v1Ready -and $v2Ready -and $observerReady) { return }
+        Start-Sleep -Seconds 1
+    }
+    Assert-LogContains "v1" $v1Log "mfnd_p2p_dial_ok="
+    Assert-LogContains "v2" $v2Log "mfnd_p2p_dial_ok="
+    Assert-LogContains "observer" $observerLog "mfnd_p2p_dial_ok="
 }
 function Add-SoakSample {
     param([int]$Iteration, [object[]]$HealthOutput)
@@ -76,6 +92,100 @@ function Add-SoakSample {
     $roleText = if ($roles.Count -gt 0) { $roles -join ";" } else { "none" }
     $script:SoakSamples.Add("iteration=$Iteration final_height=$finalHeight final_tip_id=$finalId genesis_id=$genesis roles=$roleText")
 }
+function Get-HealthRoleField {
+    param([object[]]$HealthOutput, [string]$Role, [string]$Field)
+    foreach ($item in $HealthOutput) {
+        $line = "$item"
+        if ($line -match "^$([Regex]::Escape($Role)):?\s+(.+)$") {
+            foreach ($part in $Matches[1].Split(" ")) {
+                $kv = $part.Split("=", 2)
+                if ($kv.Count -eq 2 -and $kv[0] -eq $Field) { return $kv[1] }
+            }
+        }
+    }
+    return "unknown"
+}
+function Get-LatestLogValue {
+    param([string]$Path, [string]$Prefix)
+    if (-not (Test-Path $Path)) { return $null }
+    $value = $null
+    Get-Content $Path -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.StartsWith($Prefix)) { $script:latestLogValue = $_.Substring($Prefix.Length).Trim() }
+    }
+    $value = $script:latestLogValue
+    Remove-Variable -Name latestLogValue -Scope Script -ErrorAction SilentlyContinue
+    return $value
+}
+function Set-ObserverPortLine {
+    param([string]$Key, [string]$Value)
+    Add-Content -Path $PortsFile -Value "$Key=$Value"
+}
+function Invoke-ObserverRestartProbe {
+    param([int]$Iteration, [object[]]$PreHealthOutput)
+    $ports = Read-PortsFile
+    $oldPid = $ports["OBSERVER_PID"]
+    $oldRpc = if ($ports["OBSERVER_RPC"]) { $ports["OBSERVER_RPC"] } else { "unknown" }
+    $hubP2p = $ports["HUB_P2P"]
+    if (-not $hubP2p) { throw "soak: HUB_P2P missing in $PortsFile" }
+    $preHubHeight = Get-HealthRoleField $PreHealthOutput "hub" "tip_height"
+    $preObserverHeight = Get-HealthRoleField $PreHealthOutput "observer" "tip_height"
+    $marker = "iteration-$Iteration-$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
+    Write-Host "soak: restarting observer iteration=$Iteration old_pid=$oldPid old_rpc=$oldRpc marker=$marker"
+    if ($oldPid) {
+        Get-Process -Id ([int]$oldPid) -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    $obsLog = Join-Path $LogDir "observer.log"
+    $obsErr = Join-Path $LogDir "observer.err.log"
+    if (Test-Path $obsLog) { Move-Item -Force $obsLog (Join-Path $LogDir "observer.before-restart-$marker.log") }
+    if (Test-Path $obsErr) { Move-Item -Force $obsErr (Join-Path $LogDir "observer.before-restart-$marker.err.log") }
+    $repoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+    $mfnd = if ($env:MFND) { $env:MFND } else { Join-Path $repoRoot "target\release\mfnd.exe" }
+    $genesis = Join-Path $repoRoot "mfn-node\testdata\public_devnet_v1.json"
+    $dataDir = Join-Path $repoRoot ".permawrite-devnet-v1\observer"
+    New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+    $newProc = Start-Process -FilePath $mfnd -ArgumentList @(
+        "--data-dir", $dataDir, "--genesis", $genesis, "--store", "fs",
+        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+        "--p2p-dial", $hubP2p, "serve"
+    ) -WorkingDirectory $repoRoot -RedirectStandardOutput $obsLog -RedirectStandardError $obsErr -PassThru
+    Set-ObserverPortLine "OBSERVER_PID" "$($newProc.Id)"
+    $deadline = (Get-Date).AddSeconds($RestartTimeoutSeconds)
+    $observerRpc = $null
+    while ((Get-Date) -lt $deadline) {
+        if (-not (Get-Process -Id $newProc.Id -ErrorAction SilentlyContinue)) {
+            $script:LastFailure = "iteration=$Iteration command=restart-observer pid=$($newProc.Id) exited_early"
+            throw $script:LastFailure
+        }
+        $observerRpc = Get-LatestLogValue $obsLog "mfnd_serve_listening="
+        if ($observerRpc) { break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $observerRpc) {
+        $script:LastFailure = "iteration=$Iteration command=restart-observer missing_observer_rpc timeout_seconds=$RestartTimeoutSeconds"
+        throw $script:LastFailure
+    }
+    Set-ObserverPortLine "OBSERVER_RPC" $observerRpc
+    while ((Get-Date) -lt $deadline) {
+        $oldSamples = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES")
+        try {
+            [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", "1", "Process")
+            $healthOutput = & $HealthScript 2>&1 6>&1
+            $healthOutput | ForEach-Object { Write-Host $_ }
+            $postHubHeight = Get-HealthRoleField $healthOutput "hub" "tip_height"
+            $postObserverHeight = Get-HealthRoleField $healthOutput "observer" "tip_height"
+            $record = "iteration=$Iteration role=observer old_pid=$oldPid new_pid=$($newProc.Id) old_rpc=$oldRpc new_rpc=$observerRpc pre_hub_height=$preHubHeight pre_observer_height=$preObserverHeight post_hub_height=$postHubHeight post_observer_height=$postObserverHeight"
+            $script:SoakRestarts.Add($record)
+            Write-Host "soak: RESTART $record"
+            return
+        } catch {
+            Start-Sleep -Seconds 2
+        } finally {
+            [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", $oldSamples, "Process")
+        }
+    }
+    $script:LastFailure = "iteration=$Iteration command=restart-observer catchup_timeout_seconds=$RestartTimeoutSeconds"
+    throw $script:LastFailure
+}
 function Write-SoakSummary {
     param([string]$Status)
     $endedAt = Get-Date
@@ -83,6 +193,9 @@ function Write-SoakSummary {
     Write-Host "soak: SUMMARY status=$Status started_at=$($StartedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")) ended_at=$($endedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")) elapsed_seconds=$elapsedSeconds duration_minutes=$DurationMinutes iterations=$iteration"
     foreach ($sample in $SoakSamples) {
         Write-Host "soak: SAMPLE $sample"
+    }
+    foreach ($restart in $SoakRestarts) {
+        Write-Host "soak: RESTART $restart"
     }
     if ($LastFailure) {
         Write-Host "soak: FAILURE $LastFailure"
@@ -108,6 +221,7 @@ if (-not $NoStart) {
 
 $deadline = (Get-Date).AddMinutes($DurationMinutes)
 $iteration = 0
+$observerRestartDone = $false
 while ((Get-Date) -lt $deadline) {
     $iteration += 1
     Write-Host "soak: iteration=$iteration deadline=$($deadline.ToString("o"))"
@@ -134,6 +248,10 @@ while ((Get-Date) -lt $deadline) {
             throw
         }
         Add-SoakSample $iteration $healthOutput
+        if ($RestartObserverOnce -and -not $observerRestartDone) {
+            Invoke-ObserverRestartProbe $iteration $healthOutput
+            $observerRestartDone = $true
+        }
     } finally {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", $oldSamples, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", $oldInterval, "Process")

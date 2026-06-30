@@ -458,9 +458,13 @@ Local soak:
 ```bash
 bash scripts/public-devnet-v1/soak.sh --duration-minutes 60
 powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 60
+bash scripts/public-devnet-v1/soak.sh --duration-minutes 60 --restart-observer-once
+powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 60 -RestartObserverOnce
 ```
 
-The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line and each `soak: SAMPLE` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, and per-role P2P peer/session counts.
+For restart/catch-up evidence, add `--restart-observer-once` or `-RestartObserverOnce`; the soak kills the observer once, restarts it against the same data dir and hub P2P endpoint, waits for it to catch up, and emits a `soak: RESTART` line with old/new PIDs, old/new RPCs, and pre/post hub/observer heights.
+
+The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line, each `soak: SAMPLE` line, and any `soak: RESTART` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, per-role P2P peer/session counts, and delayed catch-up after observer kill/restart.
 
 If a peer repeatedly fails outbound dials, fan-out, or catch-up, `mfnd` temporarily quarantines that address in memory and logs `mfnd_p2p_peer_quarantine peer=...`. Quarantine skips reconnect/catch-up/fan-out attempts for that process only; a later successful handshake or push clears the penalty, and a restart reloads the persisted `peers.json` normally. Repeated boot-dial connect failures therefore suppress stale public seeds transiently without deleting them; fix reachability or seed inventory if the quarantine repeats. The saved `max_outbound_peers` reconnect cap defaults to 8 and is clamped to 64 even if `peers.json` is hand-edited; quarantined peers are filtered before this cap is counted for saved-peer reconnect, committee catch-up sweeps, and gap-triggered recovery dials. If malformed, empty, or duplicate saved peers are ignored on load, `mfnd` logs `mfnd_peers_load_filtered raw=... kept=... filtered=...`.
 

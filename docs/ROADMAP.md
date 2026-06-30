@@ -2031,6 +2031,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.56** | Public-devnet catch-up score recovery: a successful gap-triggered peer exchange clears transient peer-scoring penalties and restores the peer to recovery selection. | ✓ shipped |
 | **M2.4.57** | Public-devnet catch-up durable-peer retention: repeated gap-triggered recovery failures quarantine saved peers transiently without deleting them from `peers.json`. | ✓ shipped |
 | **M2.4.58** | Public-devnet Windows chunk auto-fanout: the M7.8 two-node session fan-out smoke runs on Windows directly, with deterministic chunk-burst reader coverage. | ✓ shipped |
+| **M2.4.59** | Public-devnet observer restart soak evidence: local soak scripts can kill/restart the observer once, wait for delayed catch-up, and emit `soak: RESTART` evidence with pre/post heights and RPCs. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
