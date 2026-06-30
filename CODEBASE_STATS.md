@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-30T11:21:15.696Z
+**Generated (UTC):** 2026-06-30T11:21:24.866Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
