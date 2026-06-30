@@ -351,18 +351,43 @@ Decision: go
         [Console]::Error.WriteLine("release-signoff-manifest.ps1 did not emit a clean go manifest")
         exit 1
     }
+    $participantCommit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    $participantSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    $participantLog = Join-Path $archiveDir "participant-rehearsal.log"
+    $participantBundle = Join-Path $archiveDir "participant-support-bundle"
+    New-Item -ItemType Directory -Force -Path $participantBundle | Out-Null
+    "participant-rehearsal: PASS commitment_hash=$participantCommit restored_sha256=$participantSha restored_path=restored.bin support_bundle=$participantBundle" | Set-Content -LiteralPath $participantLog -Encoding utf8
+    @"
+{
+  "commit_hash": "$participantCommit",
+  "read_only": true,
+  "commands": [
+    {"name": "node-status", "exit_code": 0},
+    {"name": "uploads-list", "exit_code": 0},
+    {"name": "operator-pool", "exit_code": 0},
+    {"name": "operator-challenge", "exit_code": 0}
+  ]
+}
+"@ | Set-Content -LiteralPath (Join-Path $participantBundle "manifest.json") -Encoding utf8
     $auditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
         -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
         -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
         -ArchiveDir $archiveRoot `
         -Inventory $signoffInventory `
         -CiMockRuns $signoffCiSuccess `
+        -ParticipantRehearsalLog $participantLog `
+        -ParticipantSupportBundle $participantBundle `
         -AllowDryRun `
         -Json
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $auditObject = $auditJson | ConvertFrom-Json
     if ($auditObject.schema_version -ne "release-audit-packet.v1" -or $auditObject.decision -ne "go") {
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not emit a clean go packet")
+        exit 1
+    }
+    $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
+    if (-not $participantCheck -or $participantCheck.status -ne "pass" -or $participantCheck.message -notmatch "commitment_hash=") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant rehearsal evidence")
         exit 1
     }
     $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"

@@ -6,6 +6,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Inventory,
     [string]$Commit = "",
     [string]$CiMockRuns = "",
+    [string]$ParticipantRehearsalLog = "",
+    [string]$ParticipantSupportBundle = "",
     [string]$OutputPath = "",
     [switch]$AllowDryRun,
     [switch]$StrictStatsFreshness,
@@ -47,6 +49,52 @@ function Add-ToolCheck {
     Add-Check -Name $Name -Status $(if ($result.ExitCode -eq 0) { "pass" } else { "fail" }) -Message $message
 }
 
+function Add-ParticipantEvidenceCheck {
+    param([string]$LogPath, [string]$BundleDir)
+    if (-not $LogPath -and -not $BundleDir) { return }
+    if (-not $LogPath -or -not $BundleDir) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "provide both participant rehearsal log and support bundle directory"
+        return
+    }
+    if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "missing participant rehearsal log $LogPath"
+        return
+    }
+    if (-not (Test-Path -LiteralPath $BundleDir -PathType Container)) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "missing participant support bundle directory $BundleDir"
+        return
+    }
+    $logText = Get-Content -LiteralPath $LogPath -Raw
+    $passMatch = [regex]::Match($logText, "participant-rehearsal: PASS\s+commitment_hash=(?<commit>[0-9a-fA-F]+)\s+restored_sha256=(?<sha>[0-9a-fA-F]{64})\s+restored_path=(?<restored>\S+)\s+support_bundle=(?<bundle>\S+)")
+    if (-not $passMatch.Success) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "participant rehearsal log missing final PASS line with commitment_hash, restored_sha256, restored_path, and support_bundle"
+        return
+    }
+    $manifestPath = Join-Path $BundleDir "manifest.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "support bundle is missing manifest.json"
+        return
+    }
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $commitHash = $passMatch.Groups["commit"].Value.ToLowerInvariant()
+    if (-not $manifest.read_only) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "support bundle manifest is not marked read_only=true"
+        return
+    }
+    if (([string]$manifest.commit_hash).ToLowerInvariant() -ne $commitHash) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "support bundle commit_hash does not match participant rehearsal PASS line"
+        return
+    }
+    $commandNames = @($manifest.commands | ForEach-Object { [string]$_.name })
+    foreach ($required in @("node-status", "uploads-list", "operator-pool", "operator-challenge")) {
+        if ($commandNames -notcontains $required) {
+            Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "support bundle missing required capture $required"
+            return
+        }
+    }
+    Add-Check -Name "participant rehearsal evidence" -Status "pass" -Message "commitment_hash=$commitHash restored_sha256=$($passMatch.Groups["sha"].Value.ToLowerInvariant()) support_bundle=$BundleDir"
+}
+
 function Normalize-Stats {
     param([string]$Text)
     return ($Text -replace "(?m)^\*\*Generated \(UTC\):\*\* .+$", "**Generated (UTC):** <normalized>").Trim()
@@ -73,6 +121,7 @@ Add-ToolCheck -Name "artifact inventory" -FilePath "powershell" -ArgumentList @(
 $ciArgs = @("-NoProfile", "-File", (Join-Path $ScriptDir "release-ci-watch.ps1"), "-Commit", $Commit, "-Json")
 if ($CiMockRuns) { $ciArgs += @("-MockRuns", $CiMockRuns) }
 Add-ToolCheck -Name "exact commit CI" -FilePath "powershell" -ArgumentList $ciArgs
+Add-ParticipantEvidenceCheck -LogPath $ParticipantRehearsalLog -BundleDir $ParticipantSupportBundle
 
 $statsPath = Join-Path $RepoRoot "CODEBASE_STATS.md"
 if (-not (Test-Path -LiteralPath $statsPath -PathType Leaf)) {
@@ -106,6 +155,8 @@ $packet = [pscustomobject]@{
     signoff_manifest = $SignoffManifest
     archive_dir = $ArchiveDir
     inventory = $Inventory
+    participant_rehearsal_log = if ($ParticipantRehearsalLog) { $ParticipantRehearsalLog } else { $null }
+    participant_support_bundle = if ($ParticipantSupportBundle) { $ParticipantSupportBundle } else { $null }
     checks = $checkArray
 }
 

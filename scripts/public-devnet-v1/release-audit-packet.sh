@@ -8,6 +8,8 @@ archive_dir=""
 inventory=""
 commit=""
 ci_mock_runs=""
+participant_rehearsal_log=""
+participant_support_bundle=""
 output_path=""
 allow_dry_run=0
 strict_stats_freshness=0
@@ -20,6 +22,10 @@ usage: release-audit-packet.sh --release-evidence-json FILE --signoff-manifest F
 Options:
   --commit SHA                 Exact release commit. Defaults to release evidence commit or HEAD.
   --ci-mock-runs FILE          Mock GitHub run JSON for CI/offline tests.
+  --participant-rehearsal-log FILE
+                               Saved participant-rehearsal stdout/stderr transcript.
+  --participant-support-bundle DIR
+                               Support bundle directory named by the rehearsal PASS line.
   --output FILE                Write the audit packet to FILE.
   --allow-dry-run              Allow dry-run archive evidence/template artifacts.
   --strict-stats-freshness     Compare CODEBASE_STATS.md to codebase-stats --dry-run output.
@@ -35,6 +41,8 @@ while (($# > 0)); do
     --inventory) inventory="${2:?missing value for --inventory}"; shift 2 ;;
     --commit) commit="${2:?missing value for --commit}"; shift 2 ;;
     --ci-mock-runs) ci_mock_runs="${2:?missing value for --ci-mock-runs}"; shift 2 ;;
+    --participant-rehearsal-log) participant_rehearsal_log="${2:?missing value for --participant-rehearsal-log}"; shift 2 ;;
+    --participant-support-bundle) participant_support_bundle="${2:?missing value for --participant-support-bundle}"; shift 2 ;;
     --output) output_path="${2:?missing value for --output}"; shift 2 ;;
     --allow-dry-run) allow_dry_run=1; shift ;;
     --strict-stats-freshness) strict_stats_freshness=1; shift ;;
@@ -56,7 +64,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-python3 - "$REPO_ROOT" "$release_evidence_json" "$signoff_manifest" "$archive_dir" "$inventory" "$commit" "$ci_mock_runs" "$output_path" "$allow_dry_run" "$strict_stats_freshness" "$json_output" <<'PY'
+python3 - "$REPO_ROOT" "$release_evidence_json" "$signoff_manifest" "$archive_dir" "$inventory" "$commit" "$ci_mock_runs" "$participant_rehearsal_log" "$participant_support_bundle" "$output_path" "$allow_dry_run" "$strict_stats_freshness" "$json_output" <<'PY'
 import json
 import os
 import re
@@ -72,6 +80,8 @@ from datetime import datetime, timezone
     inventory,
     commit,
     ci_mock_runs,
+    participant_rehearsal_log,
+    participant_support_bundle,
     output_path,
     allow_dry_run,
     strict_stats_freshness,
@@ -103,6 +113,54 @@ def add_check(name, status, message):
 def add_tool_check(name, args):
     code, text = run_tool(args)
     add_check(name, "pass" if code == 0 else "fail", text)
+
+
+def resolve_path(path):
+    return path if os.path.isabs(path) else os.path.join(repo_root, path)
+
+
+def add_participant_evidence_check(log_path, bundle_dir):
+    if not log_path and not bundle_dir:
+        return
+    if not log_path or not bundle_dir:
+        add_check("participant rehearsal evidence", "fail", "provide both participant rehearsal log and support bundle directory")
+        return
+    full_log = resolve_path(log_path)
+    full_bundle = resolve_path(bundle_dir)
+    if not os.path.isfile(full_log):
+        add_check("participant rehearsal evidence", "fail", f"missing participant rehearsal log {log_path}")
+        return
+    if not os.path.isdir(full_bundle):
+        add_check("participant rehearsal evidence", "fail", f"missing participant support bundle directory {bundle_dir}")
+        return
+    with open(full_log, "r", encoding="utf-8", errors="replace") as handle:
+        log_text = handle.read()
+    match = re.search(
+        r"participant-rehearsal: PASS\s+commitment_hash=(?P<commit>[0-9a-fA-F]+)\s+restored_sha256=(?P<sha>[0-9a-fA-F]{64})\s+restored_path=(?P<restored>\S+)\s+support_bundle=(?P<bundle>\S+)",
+        log_text,
+    )
+    if not match:
+        add_check("participant rehearsal evidence", "fail", "participant rehearsal log missing final PASS line with commitment_hash, restored_sha256, restored_path, and support_bundle")
+        return
+    manifest_path = os.path.join(full_bundle, "manifest.json")
+    if not os.path.isfile(manifest_path):
+        add_check("participant rehearsal evidence", "fail", "support bundle is missing manifest.json")
+        return
+    with open(manifest_path, "r", encoding="utf-8-sig") as handle:
+        manifest = json.load(handle)
+    commit_hash = match.group("commit").lower()
+    if manifest.get("read_only") is not True:
+        add_check("participant rehearsal evidence", "fail", "support bundle manifest is not marked read_only=true")
+        return
+    if str(manifest.get("commit_hash") or "").lower() != commit_hash:
+        add_check("participant rehearsal evidence", "fail", "support bundle commit_hash does not match participant rehearsal PASS line")
+        return
+    command_names = {str(command.get("name")) for command in manifest.get("commands") or [] if isinstance(command, dict)}
+    for required in ("node-status", "uploads-list", "operator-pool", "operator-challenge"):
+        if required not in command_names:
+            add_check("participant rehearsal evidence", "fail", f"support bundle missing required capture {required}")
+            return
+    add_check("participant rehearsal evidence", "pass", f"commitment_hash={commit_hash} restored_sha256={match.group('sha').lower()} support_bundle={bundle_dir}")
 
 
 def git_head():
@@ -140,6 +198,7 @@ ci_args = ["bash", os.path.join(script_dir, "release-ci-watch.sh"), "--commit", 
 if ci_mock_runs:
     ci_args.extend(["--mock-runs", ci_mock_runs])
 add_tool_check("exact commit CI", ci_args)
+add_participant_evidence_check(participant_rehearsal_log, participant_support_bundle)
 
 stats_path = os.path.join(repo_root, "CODEBASE_STATS.md")
 if not os.path.isfile(stats_path):
@@ -173,6 +232,8 @@ packet = {
     "signoff_manifest": signoff_manifest,
     "archive_dir": archive_dir,
     "inventory": inventory,
+    "participant_rehearsal_log": participant_rehearsal_log or None,
+    "participant_support_bundle": participant_support_bundle or None,
     "checks": checks,
 }
 

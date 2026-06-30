@@ -169,7 +169,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add fail-fast local-mesh liveness diagnostics to permanence waits so participant rehearsal smoke reports dead recorded daemons instead of timing out on repeated RPC refused errors.
 - [x] Clarify participant rehearsal proof-of-success outputs, plan-mode next steps, and launch-blocker evidence for outside-user invites.
 - [ ] Promote participant rehearsal smoke into an unattended slow/nightly harness once mesh runtime is stable enough for CI.
-- [ ] Add release-audit packet ingestion for archived participant rehearsal support-bundle evidence once nightly/local smoke artifacts are stable.
+- [x] Add release-audit packet ingestion for archived participant rehearsal transcripts and support-bundle evidence.
+- [ ] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 
 ## Cross-Agent Notes
 

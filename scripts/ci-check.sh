@@ -322,12 +322,33 @@ if doc.get("schema_version") != "release-signoff-manifest.v1" or doc.get("decisi
     print("release-signoff-manifest.sh did not emit a clean go manifest", file=sys.stderr)
     sys.exit(1)
 PY
+participant_commit="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+participant_sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+participant_bundle="$archive_dir/participant-support-bundle"
+mkdir -p "$participant_bundle"
+cat > "$archive_dir/participant-rehearsal.log" <<EOF
+participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$participant_bundle
+EOF
+cat > "$participant_bundle/manifest.json" <<EOF
+{
+  "commit_hash": "$participant_commit",
+  "read_only": true,
+  "commands": [
+    {"name": "node-status", "exit_code": 0},
+    {"name": "uploads-list", "exit_code": 0},
+    {"name": "operator-pool", "exit_code": 0},
+    {"name": "operator-challenge", "exit_code": 0}
+  ]
+}
+EOF
 audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
   --release-evidence-json docs/release-evidence-v1.sample.json \
   --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
   --archive-dir "$archive_root" \
   --inventory "$archive_dir/signoff-inventory.md" \
   --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --participant-rehearsal-log "$archive_dir/participant-rehearsal.log" \
+  --participant-support-bundle "$participant_bundle" \
   --allow-dry-run \
   --json)"
 AUDIT_JSON="$audit_json" python3 - <<'PY'
@@ -338,6 +359,11 @@ import sys
 doc = json.loads(os.environ["AUDIT_JSON"])
 if doc.get("schema_version") != "release-audit-packet.v1" or doc.get("decision") != "go":
     print("release-audit-packet.sh did not emit a clean go packet", file=sys.stderr)
+    sys.exit(1)
+checks = {check.get("name"): check for check in doc.get("checks", [])}
+participant = checks.get("participant rehearsal evidence")
+if not participant or participant.get("status") != "pass" or "commitment_hash=" not in participant.get("message", ""):
+    print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
     sys.exit(1)
 PY
 cat > "$archive_dir/signoff-ci-failure.json" <<EOF
