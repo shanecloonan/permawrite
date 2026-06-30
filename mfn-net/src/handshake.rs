@@ -10,12 +10,18 @@
 //! Each side sends one length-prefixed [`HelloV1`] frame, then reads the peer's frame and
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
 
-use std::io::{Read, Write};
+use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
 /// Read/write timeout for P2P handshake framing on [`TcpStream`] (dial + `mfnd serve` accept path).
 pub const P2P_HANDSHAKE_IO_TIMEOUT: Duration = Duration::from_secs(30);
+/// TCP connect timeout for outbound P2P boot, reconnect, and catch-up dials.
+///
+/// Public seed nodes may be stale, firewalled, or offline. Keep each resolved
+/// address attempt bounded so one bad seed cannot inherit long OS SYN retry
+/// timing before the dial thread can report `mfnd_p2p_dial_abort`.
+pub const P2P_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 use super::frame::{
     read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError, GoodbyeV1,
@@ -110,11 +116,31 @@ pub fn tcp_connect_hello_v1_handshake<A: ToSocketAddrs>(
     addrs: A,
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
-    let mut stream = TcpStream::connect(addrs)?;
-    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let mut stream = tcp_connect_with_timeout(addrs)?;
+    set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     Ok(stream)
+}
+
+fn tcp_connect_with_timeout<A: ToSocketAddrs>(addrs: A) -> std::io::Result<TcpStream> {
+    let mut last_err = None;
+    for addr in addrs.to_socket_addrs()? {
+        match TcpStream::connect_timeout(&addr, P2P_CONNECT_TIMEOUT) {
+            Ok(stream) => return Ok(stream),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(last_err.unwrap_or_else(|| {
+        Error::new(
+            ErrorKind::InvalidInput,
+            "peer address resolved to no socket addresses",
+        )
+    }))
+}
+
+fn set_handshake_io_timeouts(stream: &TcpStream) {
+    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
 }
 
 /// After [`hello_v1_handshake`], **dialer** sends [`PingV1`] and reads [`PongV1`].
@@ -194,9 +220,8 @@ pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
     addrs: A,
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
-    let mut stream = TcpStream::connect(addrs)?;
-    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let mut stream = tcp_connect_with_timeout(addrs)?;
+    set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
     Ok(stream)
@@ -211,9 +236,8 @@ pub fn tcp_connect_peer_v1_handshake_with_tip_exchange<A: ToSocketAddrs>(
     genesis_id: &[u8; 32],
     local_tip: &ChainTipV1,
 ) -> Result<(TcpStream, ChainTipV1), HelloHandshakeError> {
-    let mut stream = TcpStream::connect(addrs)?;
-    let _ = stream.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-    let _ = stream.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+    let mut stream = tcp_connect_with_timeout(addrs)?;
+    set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
     let remote = exchange_chain_tip_v1_as_dialer(&mut stream, local_tip)?;
@@ -362,6 +386,34 @@ mod tests {
         );
 
         server.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn tcp_connect_with_timeout_tries_later_resolved_addr() {
+        let unused = {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.local_addr().unwrap()
+        };
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let live = listener.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (sock, _) = listener.accept().unwrap();
+            drop(sock);
+        });
+
+        let sock = tcp_connect_with_timeout(&[unused, live][..]).unwrap();
+        assert_eq!(sock.peer_addr().unwrap(), live);
+        drop(sock);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn tcp_connect_with_timeout_rejects_empty_resolution() {
+        let addrs: [std::net::SocketAddr; 0] = [];
+        let err = tcp_connect_with_timeout(&addrs[..]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(err.to_string().contains("no socket addresses"));
     }
 
     #[test]

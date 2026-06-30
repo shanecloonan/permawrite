@@ -58,7 +58,8 @@ pub use handshake::{
     exchange_goodbye_v1_as_dialer, exchange_goodbye_v1_as_listener, hello_v1_handshake,
     recv_chain_tip_v1, recv_hello, recv_hello_expect, recv_ping_send_pong, send_chain_tip_v1,
     send_hello, send_ping_recv_pong, tcp_connect_hello_v1_handshake, tcp_connect_peer_v1_handshake,
-    tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_HANDSHAKE_IO_TIMEOUT,
+    tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError, P2P_CONNECT_TIMEOUT,
+    P2P_HANDSHAKE_IO_TIMEOUT,
 };
 pub use light_follow::{
     light_follow_rows_quorum, recv_light_follow_v1, send_get_light_follow_v1, GetLightFollowV1,
