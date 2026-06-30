@@ -321,7 +321,7 @@ bash scripts/public-devnet-v1/release-audit-packet.sh \
   --output ./release-audit-packet.json
 ```
 
-The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). Validate it before publishing launch notes:
+The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. Validate the generated packet before publishing launch notes:
 
 ```powershell
 powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `

@@ -13,6 +13,8 @@
     "signoff_manifest",
     "archive_dir",
     "inventory",
+    "participant_rehearsal_log",
+    "participant_support_bundle",
     "checks"
   ],
   "properties": {
@@ -41,6 +43,14 @@
     },
     "inventory": {
       "type": "string"
+    },
+    "participant_rehearsal_log": {
+      "type": ["string", "null"],
+      "description": "Optional archived participant-rehearsal transcript validated by the audit packet."
+    },
+    "participant_support_bundle": {
+      "type": ["string", "null"],
+      "description": "Optional participant support-bundle directory validated against the rehearsal PASS line."
     },
     "checks": {
       "type": "array",

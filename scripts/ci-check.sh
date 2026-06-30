@@ -384,6 +384,8 @@ if not participant or participant.get("status") != "pass" or "commitment_hash=" 
     print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
     sys.exit(1)
 PY
+printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"
+bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
 cat > "$archive_dir/participant-rehearsal-bad-bundle.log" <<EOF
 participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$archive_dir/wrong-support-bundle
 EOF

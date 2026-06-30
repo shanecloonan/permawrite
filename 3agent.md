@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Windows duplex P2P session chunk fanout runs the full auto-fanout smoke. | In progress in clean Agent 1 worktree. | Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet schema/sample publication and CI validation. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Align audit packet schema with participant rehearsal evidence fields. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -35,6 +35,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: WASM package metadata is explicit where wasm-pack requires string fields, keeping the local CI mirror's wasm package build green.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, and durable gap recovery peer retention.
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
+- Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
 ## Agent 1 Detailed Plan
@@ -67,11 +68,11 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add `release-audit-packet-v1.schema.json` and `release-audit-packet-v1.sample.json`.
-- [x] Make local and GitHub CI validate the audit packet schema/sample and reject unexpected audit packet fields.
-- [x] Include audit packet schema/sample artifacts in release archive dry-run and validation flows.
-- [x] Update release docs, inventory guidance, and checklist.
-- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
+- [x] Add `participant_rehearsal_log` and `participant_support_bundle` to `release-audit-packet.v1` schema/sample.
+- [x] Make local and GitHub CI schema-validate generated audit packet JSON with participant evidence.
+- [x] Update coordination docs/checklist.
+- [x] Regenerate `CODEBASE_STATS.md`.
+- [x] Run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:

@@ -7,6 +7,8 @@
   "signoff_manifest": "release-signoff-manifest.json",
   "archive_dir": "release-staging/permawrite-public-devnet-rc1-0000000",
   "inventory": "release-artifact-inventory.md",
+  "participant_rehearsal_log": null,
+  "participant_support_bundle": null,
   "checks": [
     {
       "name": "release evidence schema",

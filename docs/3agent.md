@@ -33,12 +33,13 @@ Next:
 
 Current:
 
-- Keep release-candidate evidence, RPC safety posture, CI mirror, support bundles, and operator runbooks launch-ready.
+- Align the published `release-audit-packet.v1` schema with participant rehearsal evidence fields and CI-validate generated audit packets.
 
 Done:
 
 - RPC method classification, API-key enforcement for write/admin methods, request limits, connection caps, sanitized logs, release evidence schema, sign-off bundle checks, and launch go/no-go guidance.
 - Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication are landed on `main` or staged in the current Agent 2 unit.
+- `release-audit-packet.v1` schema now includes participant rehearsal evidence path fields, and CI validates generated audit packets with participant evidence.
 
 Next:
 

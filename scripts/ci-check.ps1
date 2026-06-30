@@ -413,6 +413,10 @@ Decision: go
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant rehearsal evidence")
         exit 1
     }
+    $auditGeneratedJson = Join-Path $archiveDir "release-audit-packet.generated.json"
+    $auditJson | Set-Content -LiteralPath $auditGeneratedJson -Encoding utf8
+    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $participantBadBundleLog = Join-Path $archiveDir "participant-rehearsal-bad-bundle.log"
     "participant-rehearsal: PASS commitment_hash=$participantCommit restored_sha256=$participantSha restored_path=restored.bin support_bundle=$(Join-Path $archiveDir "wrong-support-bundle")" | Set-Content -LiteralPath $participantBadBundleLog -Encoding utf8
     $participantBadStdout = Join-Path $archiveDir "participant-bad-bundle.out"
