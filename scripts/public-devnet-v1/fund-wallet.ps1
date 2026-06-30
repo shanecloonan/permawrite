@@ -44,8 +44,14 @@ function Resolve-Bin {
 }
 
 function Invoke-Checked {
-    param([string]$Exe, [string[]]$Args, [string]$Label)
-    $out = & $Exe @Args 2>&1
+    param([string]$Exe, [string[]]$CliArgs, [string]$Label)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = & $Exe @CliArgs 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
     $code = $LASTEXITCODE
     $text = ($out | Out-String).Trim()
     if ($code -ne 0) {
@@ -113,7 +119,7 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  recipient_wallet=$Recipient"
     Write-Host "  amount=$Amount fee=$Fee ring_size=$RingSize wait_mined_seconds=$WaitMinedSeconds"
-    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
+    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
     Write-Host "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
     exit 0
 }
@@ -140,6 +146,12 @@ try {
         throw "fund-wallet: recipient balance target overflow"
     }
     Write-Host "fund-wallet: recipient_starting_balance=$startingBalance target_balance=$targetBalance"
+    Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $FaucetWallet, "wallet", "scan") "faucet wallet scan" | Out-Null
+    $faucetBalance = Get-WalletBalance $MfnCli $RpcAddr $FaucetWallet "faucet"
+    Write-Host "fund-wallet: faucet_balance=$faucetBalance"
+    if ($faucetBalance -lt ($Amount + $Fee)) {
+        throw "fund-wallet: faucet balance $faucetBalance is below required $($Amount + $Fee); mine/scan the faucet wallet or choose a funded faucet"
+    }
 
     $addr = Invoke-Checked $MfnCli @("--wallet", $Recipient, "wallet", "address") "recipient wallet address"
     $view = Parse-Field $addr "view_pub_hex"

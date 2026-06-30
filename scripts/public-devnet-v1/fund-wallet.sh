@@ -215,7 +215,7 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  recipient_wallet=$RECIPIENT"
   echo "  amount=$AMOUNT fee=$FEE ring_size=$RING_SIZE wait_mined_seconds=$WAIT_MINED_SECONDS"
-  echo "  flow=create/reuse recipient wallet -> record starting balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
+  echo "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta"
   echo "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
   exit 0
 fi
@@ -243,6 +243,14 @@ if (( TARGET_BALANCE < STARTING_BALANCE )); then
   exit 1
 fi
 echo "fund-wallet: recipient_starting_balance=$STARTING_BALANCE target_balance=$TARGET_BALANCE"
+
+run_checked "faucet wallet scan" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet scan >/dev/null
+FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
+echo "fund-wallet: faucet_balance=$FAUCET_BALANCE"
+if (( FAUCET_BALANCE < AMOUNT + FEE )); then
+  echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( AMOUNT + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
+  exit 1
+fi
 
 ADDR_OUT="$(run_checked "recipient wallet address" "$MFN_CLI" --wallet "$RECIPIENT" wallet address)"
 VIEW_HEX="$(parse_field "$ADDR_OUT" view_pub_hex)"

@@ -14,9 +14,10 @@ $env:MFND = $Mfnd
 Get-Process mfnd -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 $hubLog = Join-Path $LogDir "v0.log"
+$hubErr = Join-Path $LogDir "v0.err.log"
 $hubProc = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "start-hub.ps1")
-) -WorkingDirectory $RepoRoot -RedirectStandardOutput $hubLog -RedirectStandardError $hubLog -PassThru
+) -WorkingDirectory $RepoRoot -RedirectStandardOutput $hubLog -RedirectStandardError $hubErr -PassThru
 "HUB_PID=$($hubProc.Id)" | Set-Content $PortsFile
 $HubP2p = $null
 $HubRpc = $null
@@ -39,21 +40,24 @@ Write-Host "Hub P2P=$HubP2p RPC=$HubRpc"
 Start-Sleep -Seconds 2
 $env:HUB_P2P = $HubP2p
 $v1Log = Join-Path $LogDir "v1.log"
+$v1Err = Join-Path $LogDir "v1.err.log"
 $v1Proc = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "start-voter.ps1"), "-Index", "1"
-) -WorkingDirectory $RepoRoot -RedirectStandardOutput $v1Log -RedirectStandardError $v1Log -PassThru
+) -WorkingDirectory $RepoRoot -RedirectStandardOutput $v1Log -RedirectStandardError $v1Err -PassThru
 "V1_PID=$($v1Proc.Id)" | Add-Content $PortsFile
 Start-Sleep -Seconds 2
 $v2Log = Join-Path $LogDir "v2.log"
+$v2Err = Join-Path $LogDir "v2.err.log"
 $v2Proc = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "start-voter.ps1"), "-Index", "2"
-) -WorkingDirectory $RepoRoot -RedirectStandardOutput $v2Log -RedirectStandardError $v2Log -PassThru
+) -WorkingDirectory $RepoRoot -RedirectStandardOutput $v2Log -RedirectStandardError $v2Err -PassThru
 "V2_PID=$($v2Proc.Id)" | Add-Content $PortsFile
 Start-Sleep -Seconds 2
 $obsLog = Join-Path $LogDir "observer.log"
+$obsErr = Join-Path $LogDir "observer.err.log"
 $obsProc = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "start-observer.ps1")
-) -WorkingDirectory $RepoRoot -RedirectStandardOutput $obsLog -RedirectStandardError $obsLog -PassThru
+) -WorkingDirectory $RepoRoot -RedirectStandardOutput $obsLog -RedirectStandardError $obsErr -PassThru
 "OBSERVER_PID=$($obsProc.Id)" | Add-Content $PortsFile
 $ObserverRpc = $null
 for ($i = 0; $i -lt 60; $i++) {

@@ -41,8 +41,14 @@ function Resolve-Rpc {
 }
 
 function Invoke-ScriptChecked {
-    param([string]$Script, [string[]]$Args, [string]$Label)
-    $out = & $Script @Args 2>&1
+    param([string]$Script, [hashtable]$ScriptArgs, [string]$Label)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = & $Script @ScriptArgs 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
     $code = $LASTEXITCODE
     $text = ($out | Out-String).Trim()
     if ($code -ne 0) {
@@ -99,42 +105,42 @@ try {
     }
 
     $fundScript = Join-Path $ScriptDir "fund-wallet.ps1"
-    $fundArgs = @(
-        "-Rpc", $RpcAddr,
-        "-FaucetWallet", $FaucetWallet,
-        "-RecipientWallet", $UploaderWallet,
-        "-Amount", "$Amount",
-        "-Fee", "$Fee",
-        "-RingSize", "$RingSize",
-        "-WaitMinedSeconds", "$WaitMinedSeconds",
-        "-NoBuild"
-    )
-    Invoke-ScriptChecked $fundScript $fundArgs "fund-wallet" | Out-Null
+    $fundArgs = @{
+        Rpc = $RpcAddr
+        FaucetWallet = $FaucetWallet
+        RecipientWallet = $UploaderWallet
+        Amount = $Amount
+        Fee = $Fee
+        RingSize = $RingSize
+        WaitMinedSeconds = $WaitMinedSeconds
+        NoBuild = $true
+    }
+    Invoke-ScriptChecked -Script $fundScript -ScriptArgs $fundArgs -Label "fund-wallet" | Out-Null
 
     $demoScript = Join-Path $ScriptDir "permanence-demo.ps1"
-    $demoArgs = @(
-        "-Rpc", $RpcAddr,
-        "-WalletDir", $Root,
-        "-ChunkListen", $ChunkListen,
-        "-WaitUploadSeconds", "$WaitUploadSeconds",
-        "-WaitProofSeconds", "$WaitProofSeconds",
-        "-NoBuild"
-    )
-    if ($PayloadPath) { $demoArgs += @("-PayloadPath", $PayloadPath) }
-    $demoOut = Invoke-ScriptChecked $demoScript $demoArgs "permanence-demo"
+    $demoArgs = @{
+        Rpc = $RpcAddr
+        WalletDir = $Root
+        ChunkListen = $ChunkListen
+        WaitUploadSeconds = $WaitUploadSeconds
+        WaitProofSeconds = $WaitProofSeconds
+        NoBuild = $true
+    }
+    if ($PayloadPath) { $demoArgs["PayloadPath"] = $PayloadPath }
+    $demoOut = Invoke-ScriptChecked -Script $demoScript -ScriptArgs $demoArgs -Label "permanence-demo"
     $commit = Parse-TokenField $demoOut "commitment_hash"
     $restoredSha = Parse-TokenField $demoOut "restored_sha256"
     $restoredPath = Parse-TokenField $demoOut "restored_path"
 
     $supportScript = Join-Path $ScriptDir "support-bundle.ps1"
-    $supportArgs = @(
-        "-Rpc", $RpcAddr,
-        "-Wallet", $ReplicaWallet,
-        "-CommitHash", $commit,
-        "-NoBuild"
-    )
-    if ($BundleDir) { $supportArgs += @("-OutputDir", $BundleDir) }
-    $supportOut = Invoke-ScriptChecked $supportScript $supportArgs "support-bundle"
+    $supportArgs = @{
+        Rpc = $RpcAddr
+        Wallet = $ReplicaWallet
+        CommitHash = $commit
+        NoBuild = $true
+    }
+    if ($BundleDir) { $supportArgs["OutputDir"] = $BundleDir }
+    $supportOut = Invoke-ScriptChecked -Script $supportScript -ScriptArgs $supportArgs -Label "support-bundle"
     $bundle = Parse-TokenField $supportOut "output_dir"
 
     Write-Host "participant-rehearsal: PASS commitment_hash=$commit restored_sha256=$restoredSha restored_path=$restoredPath support_bundle=$bundle"

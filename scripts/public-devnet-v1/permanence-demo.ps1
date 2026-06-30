@@ -52,8 +52,14 @@ function Resolve-Bin {
 }
 
 function Invoke-Checked {
-    param([string]$Exe, [string[]]$Args, [string]$Label)
-    $out = & $Exe @Args 2>&1
+    param([string]$Exe, [string[]]$CliArgs, [string]$Label)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = & $Exe @CliArgs 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
     $code = $LASTEXITCODE
     $text = ($out | Out-String).Trim()
     if ($code -ne 0) {

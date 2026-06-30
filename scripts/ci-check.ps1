@@ -59,6 +59,11 @@ if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discove
     $rehearsalPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$smokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
+if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
+    $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"
