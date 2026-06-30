@@ -89,7 +89,7 @@ Authenticated testnet RPC: pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY`
 
 Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the only recovery path for funds.
 
-`wallet address` prints `address=mf...` as the user-facing receive address. The `mf` address is only an encoding layer: it contains the existing compressed view/spend public keys plus a checksum. The command still prints `view_pub_hex` and `spend_pub_hex` for scripts and older raw-key flows.
+`wallet address` prints `address=mf...` as the testnet-facing receive address. The `mf` address is only an encoding layer: it contains the existing compressed view/spend public keys plus a checksum. The command still prints `view_pub_hex` and `spend_pub_hex` for scripts, older raw-key flows, and the planned mainnet privacy-oriented default. See [`docs/WALLET_ADDRESSES.md`](../docs/WALLET_ADDRESSES.md) for the testnet-vs-mainnet address-format policy.
 
 `wallet restore SEED_HEX [--key-derivation mfn_wallet_v1|payout_stealth_v1]` writes a wallet file from a 32-byte seed. Use the default `mfn_wallet_v1` for normal user wallets. Use `payout_stealth_v1` only for validator payout/faucet test wallets whose rewards are derived from validator BLS seed material. Pass global `--force` to overwrite an existing wallet file.
 
