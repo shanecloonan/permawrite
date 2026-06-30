@@ -443,14 +443,8 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 &mut p2p_dials,
                 parsed.genesis_toml.as_deref(),
             )?;
-            if boot_report.dropped > 0 {
-                println!(
-                    "mfnd_p2p_boot_dials_capped configured={} retained={} dropped={} cap={}",
-                    boot_report.configured,
-                    boot_report.retained,
-                    boot_report.dropped,
-                    boot_report.cap
-                );
+            if let Some(line) = boot_dials_capped_log_line(&boot_report) {
+                println!("{line}");
                 std::io::stdout().flush().ok();
             }
             if !p2p_dials.is_empty() {
@@ -498,6 +492,15 @@ fn hex32(id: &[u8; 32]) -> String {
         let _ = write!(s, "{b:02x}");
     }
     s
+}
+
+fn boot_dials_capped_log_line(report: &crate::p2p_boot::BootPeerDialMergeReport) -> Option<String> {
+    (report.dropped > 0).then(|| {
+        format!(
+            "mfnd_p2p_boot_dials_capped configured={} retained={} dropped={} cap={}",
+            report.configured, report.retained, report.dropped, report.cap
+        )
+    })
 }
 
 fn parse_args(args: &[String]) -> Result<Parsed, String> {
@@ -752,6 +755,31 @@ mod tests {
         assert!(text.contains("MFND_RPC_API_KEY"));
         assert!(text.contains("MFND_RPC_MAX_IN_FLIGHT"));
         assert!(text.contains("get_status"));
+    }
+
+    #[test]
+    fn boot_dials_capped_log_line_is_absent_without_dropped_peers() {
+        let report = crate::p2p_boot::BootPeerDialMergeReport {
+            configured: 4,
+            retained: 4,
+            dropped: 0,
+            cap: crate::p2p_boot::MAX_BOOT_PEER_DIALS,
+        };
+        assert_eq!(boot_dials_capped_log_line(&report), None);
+    }
+
+    #[test]
+    fn boot_dials_capped_log_line_pins_public_startup_contract() {
+        let report = crate::p2p_boot::BootPeerDialMergeReport {
+            configured: 70,
+            retained: 64,
+            dropped: 6,
+            cap: crate::p2p_boot::MAX_BOOT_PEER_DIALS,
+        };
+        assert_eq!(
+            boot_dials_capped_log_line(&report).as_deref(),
+            Some("mfnd_p2p_boot_dials_capped configured=70 retained=64 dropped=6 cap=64")
+        );
     }
 
     #[test]
