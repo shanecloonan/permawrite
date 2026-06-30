@@ -896,12 +896,18 @@ powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 -PlanOnly `
 powershell -File scripts/public-devnet-v1/participant-rehearsal.ps1 `
   -Rpc 127.0.0.1:<RPC> -FaucetWallet ./validator0-faucet.json
 
+# Linux/macOS plan mode:
+bash scripts/public-devnet-v1/participant-rehearsal.sh --plan-only --rpc 127.0.0.1:<RPC> \
+  --faucet-wallet ./validator0-faucet.json
+
 # Linux/macOS real run:
 bash scripts/public-devnet-v1/participant-rehearsal.sh --rpc 127.0.0.1:<RPC> \
   --faucet-wallet ./validator0-faucet.json
 ```
 
-The rehearsal creates/reuses wallets under `scripts/public-devnet-v1/participant-rehearsal/`, funds the uploader wallet with `fund-wallet`, runs the HTTP permanence demo, verifies the restored SHA-256, submits a proof, and captures a read-only support bundle for the replica wallet and commitment. The support bundle intentionally omits transient `fetch-chunk` capture because the demo's temporary HTTP chunk server is stopped after restore. Use only operator-controlled public-devnet/test faucet wallets; never put real faucet seeds or production keys in this repo.
+The plan output should end with `outputs end with support_bundle=<dir>`; if it does not, stop and update the helper before inviting outside users. A passing real run ends with `participant-rehearsal: PASS commitment_hash=... restored_sha256=... restored_path=... support_bundle=...`. Archive that final line, the support bundle directory, and the helper logs as participant proof-of-success evidence.
+
+The rehearsal creates/reuses wallets under `scripts/public-devnet-v1/participant-rehearsal/`, funds the uploader wallet with `fund-wallet`, runs the HTTP permanence demo, verifies the restored SHA-256, submits a proof, and captures a read-only support bundle for the replica wallet and commitment. The support bundle intentionally omits transient `fetch-chunk` capture because the demo's temporary HTTP chunk server is stopped after restore. Use only operator-controlled public-devnet/test faucet wallets; never put real faucet seeds or production keys in this repo. A failed rehearsal is a launch blocker for outside-user invites unless the failure is clearly scoped, documented, and owned by the relevant agent in `docs/3agent.md`.
 
 For a local preflight that proves the same flow against the bundled public-devnet helper mesh, use the smoke wrapper:
 

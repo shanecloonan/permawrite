@@ -144,6 +144,7 @@ if (( PLAN_ONLY )); then
   echo "  chunk_listen=$CHUNK_LISTEN"
   echo "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
   echo "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"
+  echo "  next=rerun without --plan-only after choosing a funded operator faucet wallet; outputs end with support_bundle=<dir>"
   exit 0
 fi
 

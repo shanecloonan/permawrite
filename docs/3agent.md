@@ -48,7 +48,7 @@ Next:
 
 Current:
 
-- Keep participant rehearsal smoke honest while the Windows local mesh daemon-lifetime blocker is investigated.
+- Continue outside-user participant UX audit with emphasis on proof-of-success evidence and release-readiness handoff.
 
 Done:
 
@@ -56,11 +56,13 @@ Done:
 - Public-devnet rehearsal liveness and first-run decoy work is implemented, including slot advancement, synthetic genesis decoys, retrying transient funding/list RPC failures, avoiding dialable-peer pollution from inbound ephemeral source ports, non-mutating proposal mempool selection, wider pending-proposal rebroadcast windows, and robust PowerShell stream/token capture.
 - A clean Windows `participant-rehearsal-smoke.ps1` run passed end-to-end with wallet funding, upload discovery, HTTP restore, SHA-256 verification, proof submission, and support-bundle capture.
 - `permanence-demo.ps1` / `permanence-demo.sh` now fail fast with recorded local-mesh PID status and log paths when upload-list polling sees RPC connection-refused errors after the helper mesh dies.
+- Participant rehearsal plan mode now tells operators the next real-run action and the expected `support_bundle=<dir>` success output; `docs/TESTNET.md` and `OPERATORS.md` now define the final PASS line/support bundle as participant proof-of-success evidence.
 
 Next:
 
 - Continue participant UX audit of `docs/TESTNET.md` and `OPERATORS.md` from an outside-user perspective.
 - Do not promote participant rehearsal smoke into nightly/ignored CI until the Windows daemon-lifetime blocker is fixed or the harness is scoped to a platform where it is proven stable.
+- Add release-audit packet ingestion for archived participant rehearsal support-bundle evidence once nightly/local smoke artifacts are stable.
 - Hand Agent 1 the current evidence: during a 5s-slot smoke, funding passed, height reached 3, upload-list polling continued for many successful RPC calls, then recorded hub/voters/observer exited without panic before the upload indexed.
 
 ## Cross-Agent Blockers
@@ -71,4 +73,4 @@ Next:
 
 ## Latest Coordination Note
 
-- Agent 3 attempted to promote the participant rehearsal smoke into the slow/nightly harness, but the Windows local mesh still failed under unattended conditions after funding succeeded. The unit was narrowed to fail-fast liveness diagnostics in the permanence wait loop so future smoke runs report dead recorded PIDs and log paths instead of timing out on repeated RPC refused errors. Nightly promotion remains blocked pending the daemon-lifetime fix.
+- Agent 3 clarified participant rehearsal proof-of-success UX after the failed nightly-promotion attempt. Plan mode now points operators to the real run and expected support-bundle output, while `docs/TESTNET.md` / `OPERATORS.md` make the `participant-rehearsal: PASS ... support_bundle=<dir>` line and bundle archive required evidence for outside-user invites. Nightly promotion remains blocked pending the daemon-lifetime fix.

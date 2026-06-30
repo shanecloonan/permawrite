@@ -86,6 +86,7 @@ if ($PlanOnly) {
     Write-Host "  chunk_listen=$ChunkListen"
     Write-Host "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
     Write-Host "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"
+    Write-Host "  next=rerun without -PlanOnly after choosing a funded operator faucet wallet; outputs end with support_bundle=<dir>"
     exit 0
 }
 
