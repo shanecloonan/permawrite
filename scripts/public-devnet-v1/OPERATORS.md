@@ -253,7 +253,7 @@ bash scripts/public-devnet-v1/release-signoff-manifest.sh \
   --output ./release-signoff-manifest.json
 ```
 
-The manifest uses `schema_version=release-signoff-manifest.v1` and refuses `go` when exact-commit CI is not green, release evidence is malformed or for a different commit, archive validation fails, the inventory fails validation, or required human approvals are missing. Use `no-go` to archive a failed release review without bypassing any gate.
+The manifest uses `schema_version=release-signoff-manifest.v1`; the schema is [`release-signoff-manifest-v1.schema.json`](../../docs/release-signoff-manifest-v1.schema.json), with a sample artifact in [`release-signoff-manifest-v1.sample.json`](../../docs/release-signoff-manifest-v1.sample.json). The helper refuses `go` when exact-commit CI is not green, release evidence is malformed or for a different commit, archive validation fails, the inventory fails validation, or required human approvals are missing. Use `no-go` to archive a failed release review without bypassing any gate.
 
 ### Release sign-off bundle review
 

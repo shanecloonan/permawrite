@@ -42,6 +42,7 @@ permawrite-public-devnet-<rc>-<commit>/
     release-evidence.md
     release-evidence.json
     release-evidence-v1.schema.json
+    release-signoff-manifest-v1.schema.json
     release-signoff-review.md
     release-signoff-manifest.json
     release-artifact-inventory.md
@@ -180,6 +181,10 @@ The validator checks required public files, rejects obvious private file names, 
   - SHA-256:
   - `schema_version`:
   - `decision`:
+  - Reviewer:
+- Sign-off manifest schema: `release-signoff-manifest-v1.schema.json`
+  - Path or URL:
+  - SHA-256:
   - Reviewer:
 
 ## Operational Evidence

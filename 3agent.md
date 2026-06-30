@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Boot-time reconnect planning filters quarantined saved peers before outbound cap accounting. | In progress in clean Agent 1 worktree. | Add equivalent deterministic coverage for committee catch-up quarantine before cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release-candidate sign-off manifest for exact release decisions. | Completed locally; local CI mirror passed. | Add schema/sample artifacts for dashboard ingestion and independent validator tooling. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release sign-off manifest schema/sample artifacts. | In progress locally. | Add schema-validator enforcement once the release toolchain carries a validator dependency. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -26,6 +26,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release archive validation scripts now verify staged public files, checksum manifests, and obvious private filename exclusions before publication.
 - Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
 - Agent 2: Release sign-off manifest scripts combine exact-commit CI, release evidence, archive validation, artifact inventory validation, and human approvals into one machine-readable decision record.
+- Agent 2: Release sign-off manifest schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, and boot-dial connect quarantine without durable peer deletion.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
@@ -60,12 +61,12 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add `release-signoff-manifest.ps1` and `release-signoff-manifest.sh`.
-- [x] Add CI coverage for successful and failing `go` decisions.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
-- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
-- [ ] Commit, push, and check GitHub CI.
+- [x] Add `release-signoff-manifest-v1.schema.json` and `release-signoff-manifest-v1.sample.json`.
+- [x] Include the schema/sample artifacts in release archive dry-runs and validation.
+- [x] Add CI checks for schema/sample parseability and required metadata.
+- [x] Update release docs and checklist.
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Add release sign-off manifest schema/sample artifacts for dashboard ingestion and independent validator tooling.
+- [ ] Add sign-off manifest validation against the published JSON schema when a schema validator dependency is available in the release toolchain.

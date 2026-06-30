@@ -167,6 +167,8 @@ copy_public_file "docs/PUBLIC_DEVNET_THREAT_MODEL.md" "$archive_root/docs/PUBLIC
 copy_public_file "scripts/public-devnet-v1/OPERATORS.md" "$archive_root/docs/OPERATORS.md"
 copy_public_file "docs/release-evidence-v1.schema.json" "$archive_root/evidence/release-evidence-v1.schema.json"
 copy_public_file "docs/release-evidence-v1.sample.json" "$archive_root/evidence/release-evidence-v1.sample.json"
+copy_public_file "docs/release-signoff-manifest-v1.schema.json" "$archive_root/evidence/release-signoff-manifest-v1.schema.json"
+copy_public_file "docs/release-signoff-manifest-v1.sample.json" "$archive_root/evidence/release-signoff-manifest-v1.sample.json"
 
 if [[ -n "$inventory" ]]; then
   copy_public_file "$inventory" "$archive_root/evidence/release-artifact-inventory.md"

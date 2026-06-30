@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permawrite.dev/schemas/release-signoff-manifest-v1.schema.json",
+  "title": "Permawrite Release Sign-Off Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_utc",
+    "decision",
+    "commit",
+    "release_evidence",
+    "gates",
+    "approvals",
+    "issues"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "release-signoff-manifest.v1"
+    },
+    "generated_utc": {
+      "type": "string",
+      "description": "UTC timestamp when the sign-off manifest was generated."
+    },
+    "decision": {
+      "enum": ["go", "no-go"]
+    },
+    "commit": {
+      "type": "string",
+      "description": "Exact release commit bound to the sign-off decision."
+    },
+    "release_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "schema_version", "commit"],
+      "properties": {
+        "path": { "type": "string" },
+        "schema_version": { "const": "release-evidence.v1" },
+        "commit": { "type": "string" }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ci", "archive_validation", "artifact_inventory"],
+      "properties": {
+        "ci": {
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "required": ["commit", "workflow", "branch", "status", "conclusion", "url", "source", "message"],
+          "properties": {
+            "commit": { "type": "string" },
+            "workflow": { "type": "string" },
+            "branch": { "type": "string" },
+            "status": { "type": "string" },
+            "conclusion": { "type": "string" },
+            "url": { "type": "string" },
+            "source": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        },
+        "archive_validation": {
+          "$ref": "#/$defs/gate_result"
+        },
+        "artifact_inventory": {
+          "$ref": "#/$defs/gate_result"
+        }
+      }
+    },
+    "approvals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operator",
+        "reviewer",
+        "threat_model_reviewed",
+        "residual_risks_have_named_owners",
+        "rpc_exposure_approved",
+        "backups_and_restore_rehearsed",
+        "halt_rollback_authority_agreed",
+        "notes"
+      ],
+      "properties": {
+        "operator": { "type": "string" },
+        "reviewer": { "type": "string" },
+        "threat_model_reviewed": { "type": "boolean" },
+        "residual_risks_have_named_owners": { "type": "boolean" },
+        "rpc_exposure_approved": { "type": "boolean" },
+        "backups_and_restore_rehearsed": { "type": "boolean" },
+        "halt_rollback_authority_agreed": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "gate_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "path", "message"],
+      "properties": {
+        "status": { "enum": ["pass", "fail", "not provided"] },
+        "path": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": "release-signoff-manifest.v1",
+  "generated_utc": "2026-06-29T00:00:00Z",
+  "decision": "go",
+  "commit": "0000000000000000000000000000000000000000",
+  "release_evidence": {
+    "path": "release-evidence.json",
+    "schema_version": "release-evidence.v1",
+    "commit": "0000000000000000000000000000000000000000"
+  },
+  "gates": {
+    "ci": {
+      "commit": "0000000000000000000000000000000000000000",
+      "workflow": "CI",
+      "branch": "main",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/shanecloonan/permawrite/actions/runs/0",
+      "source": "mock",
+      "message": "success"
+    },
+    "archive_validation": {
+      "status": "pass",
+      "path": "release-staging/permawrite-public-devnet-rc1-0000000",
+      "message": "release-archive-validate: OK"
+    },
+    "artifact_inventory": {
+      "status": "pass",
+      "path": "release-artifact-inventory.md",
+      "message": "artifact-inventory-validate: OK"
+    }
+  },
+  "approvals": {
+    "operator": "name or handle",
+    "reviewer": "independent reviewer",
+    "threat_model_reviewed": true,
+    "residual_risks_have_named_owners": true,
+    "rpc_exposure_approved": true,
+    "backups_and_restore_rehearsed": true,
+    "halt_rollback_authority_agreed": true,
+    "notes": "sample only; not a real launch decision"
+  },
+  "issues": []
+}

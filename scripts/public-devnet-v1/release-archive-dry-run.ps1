@@ -94,7 +94,9 @@ $entries = @(
     @{ Source = "docs/PUBLIC_DEVNET_THREAT_MODEL.md"; Destination = "docs/PUBLIC_DEVNET_THREAT_MODEL.md" },
     @{ Source = "scripts/public-devnet-v1/OPERATORS.md"; Destination = "docs/OPERATORS.md" },
     @{ Source = "docs/release-evidence-v1.schema.json"; Destination = "evidence/release-evidence-v1.schema.json" },
-    @{ Source = "docs/release-evidence-v1.sample.json"; Destination = "evidence/release-evidence-v1.sample.json" }
+    @{ Source = "docs/release-evidence-v1.sample.json"; Destination = "evidence/release-evidence-v1.sample.json" },
+    @{ Source = "docs/release-signoff-manifest-v1.schema.json"; Destination = "evidence/release-signoff-manifest-v1.schema.json" },
+    @{ Source = "docs/release-signoff-manifest-v1.sample.json"; Destination = "evidence/release-signoff-manifest-v1.sample.json" }
 )
 
 if ($Inventory) {

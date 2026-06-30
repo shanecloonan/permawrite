@@ -127,9 +127,23 @@ if doc.get("operator_signoff", {}).get("operator") != "ci-smoke":
 if doc.get("schema_version") != "release-evidence.v1":
     print("release-evidence.sh JSON output has unexpected schema_version", file=sys.stderr)
     sys.exit(1)
-for path in ("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json"):
+for path in (
+    "docs/release-evidence-v1.schema.json",
+    "docs/release-evidence-v1.sample.json",
+    "docs/release-signoff-manifest-v1.schema.json",
+    "docs/release-signoff-manifest-v1.sample.json",
+):
     with open(path, "r", encoding="utf-8") as handle:
         json.load(handle)
+with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+    signoff = json.load(handle)
+if (
+    signoff.get("schema_version") != "release-signoff-manifest.v1"
+    or signoff.get("release_evidence", {}).get("schema_version") != "release-evidence.v1"
+    or signoff.get("gates", {}).get("ci", {}).get("conclusion") != "success"
+):
+    print("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata", file=sys.stderr)
+    sys.exit(1)
 PY
 ci_watch_dir="$(mktemp -d)"
 ci_watch_commit="0123456789abcdef0123456789abcdef01234567"

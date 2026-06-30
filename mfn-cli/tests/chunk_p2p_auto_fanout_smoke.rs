@@ -4,7 +4,7 @@
 use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -173,6 +173,41 @@ fn wait_for_local_inbox_complete(data_dir: &Path, commitment_hash: &str, num_chu
     }
 }
 
+fn assemble_inbox_with_transport_retry(
+    rpc: &str,
+    wallet: &Path,
+    commitment_hash: &str,
+    data_dir: &Path,
+) -> Output {
+    let mut last_out = None;
+    for _ in 0..5 {
+        let out = mfn_cli()
+            .args(["--rpc", rpc, "--wallet"])
+            .arg(wallet)
+            .args([
+                "operator",
+                "assemble-inbox",
+                commitment_hash,
+                data_dir.to_str().expect("utf8"),
+            ])
+            .output()
+            .expect("assemble-inbox");
+        if out.status.success() {
+            return out;
+        }
+        let stderr = String::from_utf8_lossy(&out.stderr).to_ascii_lowercase();
+        let transient_transport = stderr.contains("forcibly closed")
+            || stderr.contains("connection reset")
+            || stderr.contains("connection refused");
+        last_out = Some(out);
+        if !transient_transport {
+            break;
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+    last_out.expect("assemble-inbox attempted")
+}
+
 fn mfnd_step(dir: &Path, spec: &Path, blocks: &str) {
     let out = mfnd()
         .args(["--data-dir"])
@@ -334,17 +369,12 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
 
     wait_for_local_inbox_complete(&replica_dir, &commitment_hash, num_chunks);
 
-    let assemble_out = mfn_cli()
-        .args(["--rpc", &replica_rpc, "--wallet"])
-        .arg(&replica_wallet)
-        .args([
-            "operator",
-            "assemble-inbox",
-            &commitment_hash,
-            replica_dir.to_str().expect("utf8"),
-        ])
-        .output()
-        .expect("assemble-inbox");
+    let assemble_out = assemble_inbox_with_transport_retry(
+        &replica_rpc,
+        &replica_wallet,
+        &commitment_hash,
+        &replica_dir,
+    );
     assert!(
         assemble_out.status.success(),
         "assemble-inbox stderr={}",

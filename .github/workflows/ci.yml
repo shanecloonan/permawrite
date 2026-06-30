@@ -95,9 +95,23 @@ jobs:
           if doc.get("operator_signoff", {}).get("operator") != "ci-smoke":
               print("release-evidence.sh JSON output did not preserve operator sign-off metadata", file=sys.stderr)
               sys.exit(1)
-          for path in ("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json"):
+          for path in (
+              "docs/release-evidence-v1.schema.json",
+              "docs/release-evidence-v1.sample.json",
+              "docs/release-signoff-manifest-v1.schema.json",
+              "docs/release-signoff-manifest-v1.sample.json",
+          ):
               with open(path, "r", encoding="utf-8") as handle:
                   json.load(handle)
+          with open("docs/release-signoff-manifest-v1.sample.json", "r", encoding="utf-8") as handle:
+              signoff = json.load(handle)
+          if (
+              signoff.get("schema_version") != "release-signoff-manifest.v1"
+              or signoff.get("release_evidence", {}).get("schema_version") != "release-evidence.v1"
+              or signoff.get("gates", {}).get("ci", {}).get("conclusion") != "success"
+          ):
+              print("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata", file=sys.stderr)
+              sys.exit(1)
           PY
           ci_watch_dir="$(mktemp -d)"
           ci_watch_commit="0123456789abcdef0123456789abcdef01234567"
@@ -313,8 +327,18 @@ jobs:
             Write-Error "release-evidence.ps1 JSON output did not preserve operator sign-off metadata"
             exit 1
           }
-          foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
+          foreach ($jsonPath in @(
+            "docs/release-evidence-v1.schema.json",
+            "docs/release-evidence-v1.sample.json",
+            "docs/release-signoff-manifest-v1.schema.json",
+            "docs/release-signoff-manifest-v1.sample.json"
+          )) {
             Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
+          }
+          $signoffSample = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+          if ($signoffSample.schema_version -ne "release-signoff-manifest.v1" -or $signoffSample.release_evidence.schema_version -ne "release-evidence.v1" -or $signoffSample.gates.ci.conclusion -ne "success") {
+            Write-Error "release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata"
+            exit 1
           }
           $ciWatchDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-ci-watch-" + [System.Guid]::NewGuid().ToString("N"))
           New-Item -ItemType Directory -Force -Path $ciWatchDir | Out-Null

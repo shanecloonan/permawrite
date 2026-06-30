@@ -97,8 +97,18 @@ if ($evidenceObject.operator_signoff.operator -ne "ci-smoke") {
     [Console]::Error.WriteLine("release-evidence.ps1 JSON output did not preserve operator sign-off metadata")
     exit 1
 }
-foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
+foreach ($jsonPath in @(
+    "docs/release-evidence-v1.schema.json",
+    "docs/release-evidence-v1.sample.json",
+    "docs/release-signoff-manifest-v1.schema.json",
+    "docs/release-signoff-manifest-v1.sample.json"
+)) {
     Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
+}
+$signoffSample = Get-Content "docs/release-signoff-manifest-v1.sample.json" -Raw | ConvertFrom-Json
+if ($signoffSample.schema_version -ne "release-signoff-manifest.v1" -or $signoffSample.release_evidence.schema_version -ne "release-evidence.v1" -or $signoffSample.gates.ci.conclusion -ne "success") {
+    [Console]::Error.WriteLine("release-signoff-manifest-v1.sample.json has unexpected gate or schema metadata")
+    exit 1
 }
 $ciWatchDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-ci-watch-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $ciWatchDir | Out-Null
