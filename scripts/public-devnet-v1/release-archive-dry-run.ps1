@@ -97,7 +97,9 @@ $entries = @(
     @{ Source = "docs/release-evidence-v1.schema.json"; Destination = "evidence/release-evidence-v1.schema.json" },
     @{ Source = "docs/release-evidence-v1.sample.json"; Destination = "evidence/release-evidence-v1.sample.json" },
     @{ Source = "docs/release-signoff-manifest-v1.schema.json"; Destination = "evidence/release-signoff-manifest-v1.schema.json" },
-    @{ Source = "docs/release-signoff-manifest-v1.sample.json"; Destination = "evidence/release-signoff-manifest-v1.sample.json" }
+    @{ Source = "docs/release-signoff-manifest-v1.sample.json"; Destination = "evidence/release-signoff-manifest-v1.sample.json" },
+    @{ Source = "docs/release-audit-packet-v1.schema.json"; Destination = "evidence/release-audit-packet-v1.schema.json" },
+    @{ Source = "docs/release-audit-packet-v1.sample.json"; Destination = "evidence/release-audit-packet-v1.sample.json" }
 )
 
 if ($Inventory) {

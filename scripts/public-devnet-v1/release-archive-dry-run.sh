@@ -175,6 +175,8 @@ copy_public_file "docs/release-evidence-v1.schema.json" "$archive_root/evidence/
 copy_public_file "docs/release-evidence-v1.sample.json" "$archive_root/evidence/release-evidence-v1.sample.json"
 copy_public_file "docs/release-signoff-manifest-v1.schema.json" "$archive_root/evidence/release-signoff-manifest-v1.schema.json"
 copy_public_file "docs/release-signoff-manifest-v1.sample.json" "$archive_root/evidence/release-signoff-manifest-v1.sample.json"
+copy_public_file "docs/release-audit-packet-v1.schema.json" "$archive_root/evidence/release-audit-packet-v1.schema.json"
+copy_public_file "docs/release-audit-packet-v1.sample.json" "$archive_root/evidence/release-audit-packet-v1.sample.json"
 
 if [[ -n "$inventory" ]]; then
   copy_public_file "$inventory" "$archive_root/evidence/release-artifact-inventory.md"

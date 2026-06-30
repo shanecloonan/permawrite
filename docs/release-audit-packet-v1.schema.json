@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://permawrite.dev/schemas/release-audit-packet-v1.schema.json",
+  "title": "Permawrite Release Audit Packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_utc",
+    "commit",
+    "decision",
+    "release_evidence_json",
+    "signoff_manifest",
+    "archive_dir",
+    "inventory",
+    "checks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "release-audit-packet.v1"
+    },
+    "generated_utc": {
+      "type": "string",
+      "description": "UTC timestamp when the audit packet was generated."
+    },
+    "commit": {
+      "type": "string",
+      "description": "Exact release commit bound to the audit packet."
+    },
+    "decision": {
+      "enum": ["go", "no-go"]
+    },
+    "release_evidence_json": {
+      "type": "string"
+    },
+    "signoff_manifest": {
+      "type": "string"
+    },
+    "archive_dir": {
+      "type": "string"
+    },
+    "inventory": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/check_result"
+      }
+    }
+  },
+  "$defs": {
+    "check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "message"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "enum": ["pass", "fail"]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

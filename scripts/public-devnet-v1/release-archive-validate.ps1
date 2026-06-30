@@ -101,7 +101,8 @@ foreach ($required in @(
     "docs/PUBLIC_DEVNET_THREAT_MODEL.md",
     "docs/OPERATORS.md",
     "evidence/release-evidence-v1.schema.json",
-    "evidence/release-signoff-manifest-v1.schema.json"
+    "evidence/release-signoff-manifest-v1.schema.json",
+    "evidence/release-audit-packet-v1.schema.json"
 )) {
     Require-File $required
 }
@@ -109,6 +110,7 @@ foreach ($required in @(
 if ($AllowDryRun) {
     Require-File "evidence/release-evidence-v1.sample.json"
     Require-File "evidence/release-signoff-manifest-v1.sample.json"
+    Require-File "evidence/release-audit-packet-v1.sample.json"
     if (-not ((Test-Path -LiteralPath (Join-Path $archiveRoot "evidence/release-artifact-inventory.md") -PathType Leaf) -or (Test-Path -LiteralPath (Join-Path $archiveRoot "evidence/release-artifact-inventory-template.md") -PathType Leaf))) {
         Add-Issue "missing dry-run inventory artifact: evidence/release-artifact-inventory.md or evidence/release-artifact-inventory-template.md"
     }

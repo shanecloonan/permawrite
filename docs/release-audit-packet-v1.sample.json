@@ -1,0 +1,47 @@
+{
+  "schema_version": "release-audit-packet.v1",
+  "generated_utc": "2026-06-30T00:00:00Z",
+  "commit": "0000000000000000000000000000000000000000",
+  "decision": "go",
+  "release_evidence_json": "release-evidence.json",
+  "signoff_manifest": "release-signoff-manifest.json",
+  "archive_dir": "release-staging/permawrite-public-devnet-rc1-0000000",
+  "inventory": "release-artifact-inventory.md",
+  "checks": [
+    {
+      "name": "release evidence schema",
+      "status": "pass",
+      "message": "release-json-schema-validate: OK"
+    },
+    {
+      "name": "signoff manifest schema",
+      "status": "pass",
+      "message": "release-json-schema-validate: OK"
+    },
+    {
+      "name": "signoff manifest gates",
+      "status": "pass",
+      "message": "release-signoff-manifest-validate: OK"
+    },
+    {
+      "name": "release archive",
+      "status": "pass",
+      "message": "release-archive-validate: OK"
+    },
+    {
+      "name": "artifact inventory",
+      "status": "pass",
+      "message": "artifact-inventory-validate: OK"
+    },
+    {
+      "name": "exact commit CI",
+      "status": "pass",
+      "message": "success"
+    },
+    {
+      "name": "codebase stats",
+      "status": "pass",
+      "message": "CODEBASE_STATS.md generated at 2026-06-30T00:00:00.000Z"
+    }
+  ]
+}

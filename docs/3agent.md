@@ -38,10 +38,11 @@ Current:
 Done:
 
 - RPC method classification, API-key enforcement for write/admin methods, request limits, connection caps, sanitized logs, release evidence schema, sign-off bundle checks, and launch go/no-go guidance.
+- Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication are landed on `main` or staged in the current Agent 2 unit.
 
 Next:
 
-- Add release archive assembly dry-run guidance or helper that stages public artifacts without secrets.
+- Add full third-party Draft 2020-12 validation for release artifacts if a schema validator dependency is pinned in the release toolchain.
 - Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
 
 ## Agent 3: Wallet, Storage, Faucet/Test Funding, Onboarding, Recovery, Permanence UX

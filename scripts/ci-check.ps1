@@ -101,7 +101,9 @@ foreach ($jsonPath in @(
     "docs/release-evidence-v1.schema.json",
     "docs/release-evidence-v1.sample.json",
     "docs/release-signoff-manifest-v1.schema.json",
-    "docs/release-signoff-manifest-v1.sample.json"
+    "docs/release-signoff-manifest-v1.sample.json",
+    "docs/release-audit-packet-v1.schema.json",
+    "docs/release-audit-packet-v1.sample.json"
 )) {
     Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
 }
@@ -113,6 +115,8 @@ if ($signoffSample.schema_version -ne "release-signoff-manifest.v1" -or $signoff
 powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-evidence-v1.schema.json -Json docs/release-evidence-v1.sample.json | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-signoff-manifest-v1.schema.json -Json docs/release-signoff-manifest-v1.sample.json | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json docs/release-audit-packet-v1.sample.json | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $schemaValidateDir | Out-Null
@@ -134,6 +138,25 @@ try {
     ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badEvidenceStdout -RedirectStandardError $badEvidenceStderr
     if ($badEvidenceProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted an unexpected release evidence field")
+        exit 1
+    }
+    $badAudit = Join-Path $schemaValidateDir "bad-audit.json"
+    $badAuditObject = Get-Content "docs/release-audit-packet-v1.sample.json" -Raw | ConvertFrom-Json
+    $badAuditObject | Add-Member -NotePropertyName "unexpected_audit_field" -NotePropertyValue $true
+    $badAuditObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badAudit -Encoding utf8
+    $badAuditStdout = Join-Path $schemaValidateDir "bad-audit.out"
+    $badAuditStderr = Join-Path $schemaValidateDir "bad-audit.err"
+    $badAuditProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-json-schema-validate.ps1",
+        "-Schema",
+        "docs/release-audit-packet-v1.schema.json",
+        "-Json",
+        $badAudit
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStdout -RedirectStandardError $badAuditStderr
+    if ($badAuditProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted an unexpected release audit packet field")
         exit 1
     }
     $global:LASTEXITCODE = 0

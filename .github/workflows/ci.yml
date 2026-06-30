@@ -101,6 +101,8 @@ jobs:
               "docs/release-evidence-v1.sample.json",
               "docs/release-signoff-manifest-v1.schema.json",
               "docs/release-signoff-manifest-v1.sample.json",
+              "docs/release-audit-packet-v1.schema.json",
+              "docs/release-audit-packet-v1.sample.json",
           ):
               with open(path, "r", encoding="utf-8") as handle:
                   json.load(handle)
@@ -116,6 +118,7 @@ jobs:
           PY
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json docs/release-evidence-v1.sample.json >/dev/null
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-signoff-manifest-v1.schema.json --json docs/release-signoff-manifest-v1.sample.json >/dev/null
+          bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json docs/release-audit-packet-v1.sample.json >/dev/null
           schema_validate_dir="$(mktemp -d)"
           python3 - "$schema_validate_dir/bad-evidence.json" <<'PY'
           import json
@@ -130,6 +133,21 @@ jobs:
           PY
           if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json "$schema_validate_dir/bad-evidence.json" >/dev/null 2>&1; then
             echo "release-json-schema-validate.sh accepted an unexpected release evidence field" >&2
+            exit 1
+          fi
+          python3 - "$schema_validate_dir/bad-audit.json" <<'PY'
+          import json
+          import sys
+
+          with open("docs/release-audit-packet-v1.sample.json", "r", encoding="utf-8") as handle:
+              doc = json.load(handle)
+          doc["unexpected_audit_field"] = True
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump(doc, handle, indent=2)
+              handle.write("\n")
+          PY
+          if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$schema_validate_dir/bad-audit.json" >/dev/null 2>&1; then
+            echo "release-json-schema-validate.sh accepted an unexpected release audit packet field" >&2
             exit 1
           fi
           rm -rf "$schema_validate_dir"
@@ -468,7 +486,9 @@ jobs:
             "docs/release-evidence-v1.schema.json",
             "docs/release-evidence-v1.sample.json",
             "docs/release-signoff-manifest-v1.schema.json",
-            "docs/release-signoff-manifest-v1.sample.json"
+            "docs/release-signoff-manifest-v1.sample.json",
+            "docs/release-audit-packet-v1.schema.json",
+            "docs/release-audit-packet-v1.sample.json"
           )) {
             Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
           }
@@ -480,6 +500,8 @@ jobs:
           powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-evidence-v1.schema.json -Json docs/release-evidence-v1.sample.json | Out-Null
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-signoff-manifest-v1.schema.json -Json docs/release-signoff-manifest-v1.sample.json | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json docs/release-audit-packet-v1.sample.json | Out-Null
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
           New-Item -ItemType Directory -Force -Path $schemaValidateDir | Out-Null
@@ -501,6 +523,25 @@ jobs:
             ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badEvidenceStdout -RedirectStandardError $badEvidenceStderr
             if ($badEvidenceProcess.ExitCode -eq 0) {
               Write-Error "release-json-schema-validate.ps1 accepted an unexpected release evidence field"
+              exit 1
+            }
+            $badAudit = Join-Path $schemaValidateDir "bad-audit.json"
+            $badAuditObject = Get-Content "docs/release-audit-packet-v1.sample.json" -Raw | ConvertFrom-Json
+            $badAuditObject | Add-Member -NotePropertyName "unexpected_audit_field" -NotePropertyValue $true
+            $badAuditObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $badAudit -Encoding utf8
+            $badAuditStdout = Join-Path $schemaValidateDir "bad-audit.out"
+            $badAuditStderr = Join-Path $schemaValidateDir "bad-audit.err"
+            $badAuditProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+              "-NoProfile",
+              "-File",
+              "scripts/public-devnet-v1/release-json-schema-validate.ps1",
+              "-Schema",
+              "docs/release-audit-packet-v1.schema.json",
+              "-Json",
+              $badAudit
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStdout -RedirectStandardError $badAuditStderr
+            if ($badAuditProcess.ExitCode -eq 0) {
+              Write-Error "release-json-schema-validate.ps1 accepted an unexpected release audit packet field"
               exit 1
             }
             $global:LASTEXITCODE = 0

@@ -173,13 +173,15 @@ for required in \
   docs/PUBLIC_DEVNET_THREAT_MODEL.md \
   docs/OPERATORS.md \
   evidence/release-evidence-v1.schema.json \
-  evidence/release-signoff-manifest-v1.schema.json; do
+  evidence/release-signoff-manifest-v1.schema.json \
+  evidence/release-audit-packet-v1.schema.json; do
   require_file "$required"
 done
 
 if ((allow_dry_run)); then
   require_file "evidence/release-evidence-v1.sample.json"
   require_file "evidence/release-signoff-manifest-v1.sample.json"
+  require_file "evidence/release-audit-packet-v1.sample.json"
   if [[ ! -f "$archive_root/evidence/release-artifact-inventory.md" && ! -f "$archive_root/evidence/release-artifact-inventory-template.md" ]]; then
     add_issue "missing dry-run inventory artifact: evidence/release-artifact-inventory.md or evidence/release-artifact-inventory-template.md"
   fi

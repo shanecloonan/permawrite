@@ -321,7 +321,21 @@ bash scripts/public-devnet-v1/release-audit-packet.sh \
   --output ./release-audit-packet.json
 ```
 
-The audit packet uses `schema_version=release-audit-packet.v1` and returns `decision=no-go` unless release evidence schema validation, sign-off manifest schema and gate validation, archive validation, artifact inventory validation, exact-commit CI, and `CODEBASE_STATS.md` presence all pass. If participant rehearsal evidence is supplied, the packet also verifies that the transcript has a final `participant-rehearsal: PASS ... support_bundle=...` line, the restored SHA-256 is 64 hex characters, the PASS line's `support_bundle` reference identifies the provided bundle directory, the support bundle has `manifest.json`, the manifest is `read_only=true`, the manifest commitment matches the PASS line, and the bundle contains the core `node-status`, `uploads-list`, `operator-pool`, and `operator-challenge` captures. Use `-StrictStatsFreshness` / `--strict-stats-freshness` only from a clean release tree, because untracked private files can legitimately change dry-run stats.
+The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). Validate it before publishing launch notes:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `
+  -Schema .\docs\release-audit-packet-v1.schema.json `
+  -Json .\release-audit-packet.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-json-schema-validate.sh \
+  --schema ./docs/release-audit-packet-v1.schema.json \
+  --json ./release-audit-packet.json
+```
+
+The audit packet returns `decision=no-go` unless release evidence schema validation, sign-off manifest schema and gate validation, archive validation, artifact inventory validation, exact-commit CI, and `CODEBASE_STATS.md` presence all pass. If participant rehearsal evidence is supplied, the packet also verifies that the transcript has a final `participant-rehearsal: PASS ... support_bundle=...` line, the restored SHA-256 is 64 hex characters, the PASS line's `support_bundle` reference identifies the provided bundle directory, the support bundle has `manifest.json`, the manifest is `read_only=true`, the manifest commitment matches the PASS line, and the bundle contains the core `node-status`, `uploads-list`, `operator-pool`, and `operator-challenge` captures. Use `-StrictStatsFreshness` / `--strict-stats-freshness` only from a clean release tree, because untracked private files can legitimately change dry-run stats.
 
 ### Release sign-off bundle review
 
