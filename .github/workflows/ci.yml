@@ -99,6 +99,25 @@ jobs:
               with open(path, "r", encoding="utf-8") as handle:
                   json.load(handle)
           PY
+          ci_watch_dir="$(mktemp -d)"
+          ci_watch_commit="0123456789abcdef0123456789abcdef01234567"
+          cat > "$ci_watch_dir/success.json" <<EOF
+          [
+            {"headSha":"$ci_watch_commit","status":"completed","conclusion":"success","url":"https://example.invalid/success"},
+            {"headSha":"ffffffffffffffffffffffffffffffffffffffff","status":"completed","conclusion":"success","url":"https://example.invalid/wrong"}
+          ]
+          EOF
+          bash scripts/public-devnet-v1/release-ci-watch.sh --commit "$ci_watch_commit" --mock-runs "$ci_watch_dir/success.json" >/dev/null
+          cat > "$ci_watch_dir/failure.json" <<EOF
+          [
+            {"headSha":"$ci_watch_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/failure"}
+          ]
+          EOF
+          if bash scripts/public-devnet-v1/release-ci-watch.sh --commit "$ci_watch_commit" --mock-runs "$ci_watch_dir/failure.json" >/dev/null 2>&1; then
+            echo "release-ci-watch.sh accepted failing CI for the exact commit" >&2
+            exit 1
+          fi
+          rm -rf "$ci_watch_dir"
           support_plan="$(bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:18731 --release-evidence docs/release-evidence-v1.sample.json --plan-only)"
           if [[ "$support_plan" != *"valid release-evidence.v1"* ]]; then
             echo "support-bundle.sh did not validate release-evidence.v1 in plan mode" >&2
@@ -235,6 +254,45 @@ jobs:
           }
           foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
             Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
+          }
+          $ciWatchDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-ci-watch-" + [System.Guid]::NewGuid().ToString("N"))
+          New-Item -ItemType Directory -Force -Path $ciWatchDir | Out-Null
+          try {
+            $ciWatchCommit = "0123456789abcdef0123456789abcdef01234567"
+            $ciWatchSuccess = Join-Path $ciWatchDir "success.json"
+            @"
+          [
+            {"headSha":"$ciWatchCommit","status":"completed","conclusion":"success","url":"https://example.invalid/success"},
+            {"headSha":"ffffffffffffffffffffffffffffffffffffffff","status":"completed","conclusion":"success","url":"https://example.invalid/wrong"}
+          ]
+          "@ | Set-Content -LiteralPath $ciWatchSuccess -Encoding utf8
+            powershell -NoProfile -File scripts/public-devnet-v1/release-ci-watch.ps1 -Commit $ciWatchCommit -MockRuns $ciWatchSuccess | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+            $ciWatchFailure = Join-Path $ciWatchDir "failure.json"
+            @"
+          [
+            {"headSha":"$ciWatchCommit","status":"completed","conclusion":"failure","url":"https://example.invalid/failure"}
+          ]
+          "@ | Set-Content -LiteralPath $ciWatchFailure -Encoding utf8
+            $ciWatchFailureStdout = Join-Path $ciWatchDir "failure.out"
+            $ciWatchFailureStderr = Join-Path $ciWatchDir "failure.err"
+            $ciWatchFailureProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+              "-NoProfile",
+              "-File",
+              "scripts/public-devnet-v1/release-ci-watch.ps1",
+              "-Commit",
+              $ciWatchCommit,
+              "-MockRuns",
+              $ciWatchFailure
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $ciWatchFailureStdout -RedirectStandardError $ciWatchFailureStderr
+            if ($ciWatchFailureProcess.ExitCode -eq 0) {
+              Write-Error "release-ci-watch.ps1 accepted failing CI for the exact commit"
+              exit 1
+            }
+            $global:LASTEXITCODE = 0
+          } finally {
+            Remove-Item -Recurse -Force $ciWatchDir -ErrorAction SilentlyContinue
           }
           $supportPlan = powershell -NoProfile -File scripts/public-devnet-v1/support-bundle.ps1 -Rpc "127.0.0.1:18731" -ReleaseEvidence docs/release-evidence-v1.sample.json -PlanOnly
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

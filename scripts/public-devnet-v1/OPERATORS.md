@@ -143,7 +143,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Release-candidate evidence was generated and attached to the launch notes: `release-evidence.ps1` or `release-evidence.sh`.
 - [ ] The local CI mirror passed on the release host or equivalent clean machine: `scripts/ci-check.ps1` on Windows or `scripts/ci-check.sh` on Linux/macOS.
 - [ ] Ignored/nightly smoke coverage passed for public-devnet release candidates: `scripts/ci-ignored.ps1` or `scripts/ci-ignored.sh`.
-- [ ] GitHub CI is green for the exact commit that will be published.
+- [ ] GitHub CI is green for the exact commit that will be published, verified with `release-ci-watch.ps1` or `release-ci-watch.sh`.
 - [ ] `SECURITY.md` still states the software is pre-audit and does not imply production-grade security.
 - [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner.
 - [ ] The published genesis JSON and manifest are byte-identical across operators, and every node prints the expected `mfnd_chain_genesis_id=`.
@@ -198,6 +198,24 @@ powershell -File scripts/public-devnet-v1/release-evidence.ps1 -Json -OutputPath
 ```
 
 The evidence generator records the current branch, commit, dirty-tree state, `CODEBASE_STATS.md` timestamp, GitHub CI status when available, expected public-devnet `genesis_id`, optional health-check output, optional RPC status (`rpc.public_bind`, auth, in-flight limits, tip, P2P sessions), and sign-off fields. Markdown is for launch notes; JSON is for archiving, CI dashboards, or automation. JSON output uses the versioned [`release-evidence.v1` schema](../../docs/release-evidence-v1.schema.json); see the [sample artifact](../../docs/release-evidence-v1.sample.json) for dashboard ingestion. Unknown evidence remains `unknown` or unchecked; do not treat generated output as a pass unless every launch blocker is manually reviewed.
+
+Block release sign-off until GitHub CI is green for the exact commit:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-ci-watch.ps1 `
+  -Commit <release_commit_sha> `
+  -Wait `
+  -TimeoutSeconds 1800
+```
+
+```bash
+bash scripts/public-devnet-v1/release-ci-watch.sh \
+  --commit <release_commit_sha> \
+  --wait \
+  --timeout-seconds 1800
+```
+
+The watcher exits successfully only when the matching `CI` workflow run is `completed` with `conclusion=success`. Missing, queued, in-progress without `--wait`, failed, cancelled, skipped, timed-out, or unknown runs are no-go results. It uses authenticated `gh` when available and otherwise falls back to GitHub's public Actions API for public repositories.
 
 When collecting launch support diagnostics, pass the generated JSON evidence to `support-bundle` so the bundle validates the `release-evidence.v1` contract, copies the evidence as `release-evidence.json`, and records a validation summary in `manifest.json`.
 

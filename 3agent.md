@@ -17,13 +17,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Boot-dial connect quarantine follow-up is observed in local work but not owned by Agent 2. | In progress outside this lane. | Land deterministic coverage that quarantined boot-dial connect failures suppress reconnect spawning before cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release archive manifest validation for staged public artifacts. | Completed locally; local CI mirror passed. | Add GitHub CI watcher/sign-off helper that blocks release approval until the exact pushed commit is green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI watcher/sign-off helper for exact release commits. | Completed locally; local CI mirror passed. | Add a sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
 
 - Agent 2: Release evidence tooling, JSON schema/sample, support-bundle evidence validation, sign-off review, dry-run sign-off flow, artifact inventory, checksum helpers, inventory validation, archive layout guidance, and archive assembly dry-run helper are landed on `main`.
 - Agent 2: Release archive validation scripts now verify staged public files, checksum manifests, and obvious private filename exclusions before publication.
+- Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, and boot cap startup log coverage.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
@@ -44,13 +45,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 Current task:
 
-- [x] Create shared `3agent.md` coordination file.
-- [x] Add release archive validation scripts for staged public artifacts.
-- [x] Add CI coverage that validates dry-run archive output and rejects corrupted checksums.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/TESTNET.md`, `docs/RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
-- [x] Regenerate `CODEBASE_STATS.md` and run the local CI mirror.
+- [x] Add `release-ci-watch.ps1` and `release-ci-watch.sh`.
+- [x] Add mock-run CI coverage for successful and failing exact-commit workflow results.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
+- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Add release-candidate GitHub CI watcher guidance or helper that blocks sign-off until the exact pushed commit is green.
+- [ ] Add a release-candidate sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals into one machine-readable decision record.

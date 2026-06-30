@@ -131,6 +131,25 @@ for path in ("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.s
     with open(path, "r", encoding="utf-8") as handle:
         json.load(handle)
 PY
+ci_watch_dir="$(mktemp -d)"
+ci_watch_commit="0123456789abcdef0123456789abcdef01234567"
+cat > "$ci_watch_dir/success.json" <<EOF
+[
+  {"headSha":"$ci_watch_commit","status":"completed","conclusion":"success","url":"https://example.invalid/success"},
+  {"headSha":"ffffffffffffffffffffffffffffffffffffffff","status":"completed","conclusion":"success","url":"https://example.invalid/wrong"}
+]
+EOF
+bash scripts/public-devnet-v1/release-ci-watch.sh --commit "$ci_watch_commit" --mock-runs "$ci_watch_dir/success.json" >/dev/null
+cat > "$ci_watch_dir/failure.json" <<EOF
+[
+  {"headSha":"$ci_watch_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/failure"}
+]
+EOF
+if bash scripts/public-devnet-v1/release-ci-watch.sh --commit "$ci_watch_commit" --mock-runs "$ci_watch_dir/failure.json" >/dev/null 2>&1; then
+  echo "release-ci-watch.sh accepted failing CI for the exact commit" >&2
+  exit 1
+fi
+rm -rf "$ci_watch_dir"
 support_plan="$(bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:18731 --release-evidence docs/release-evidence-v1.sample.json --plan-only)"
 if [[ "$support_plan" != *"valid release-evidence.v1"* ]]; then
   echo "support-bundle.sh did not validate release-evidence.v1 in plan mode" >&2

@@ -100,6 +100,45 @@ if ($evidenceObject.operator_signoff.operator -ne "ci-smoke") {
 foreach ($jsonPath in @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json")) {
     Get-Content $jsonPath -Raw | ConvertFrom-Json | Out-Null
 }
+$ciWatchDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-ci-watch-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $ciWatchDir | Out-Null
+try {
+    $ciWatchCommit = "0123456789abcdef0123456789abcdef01234567"
+    $ciWatchSuccess = Join-Path $ciWatchDir "success.json"
+    @"
+[
+  {"headSha":"$ciWatchCommit","status":"completed","conclusion":"success","url":"https://example.invalid/success"},
+  {"headSha":"ffffffffffffffffffffffffffffffffffffffff","status":"completed","conclusion":"success","url":"https://example.invalid/wrong"}
+]
+"@ | Set-Content -LiteralPath $ciWatchSuccess -Encoding utf8
+    powershell -NoProfile -File scripts/public-devnet-v1/release-ci-watch.ps1 -Commit $ciWatchCommit -MockRuns $ciWatchSuccess | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $ciWatchFailure = Join-Path $ciWatchDir "failure.json"
+    @"
+[
+  {"headSha":"$ciWatchCommit","status":"completed","conclusion":"failure","url":"https://example.invalid/failure"}
+]
+"@ | Set-Content -LiteralPath $ciWatchFailure -Encoding utf8
+    $ciWatchFailureStdout = Join-Path $ciWatchDir "failure.out"
+    $ciWatchFailureStderr = Join-Path $ciWatchDir "failure.err"
+    $ciWatchFailureProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-ci-watch.ps1",
+        "-Commit",
+        $ciWatchCommit,
+        "-MockRuns",
+        $ciWatchFailure
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $ciWatchFailureStdout -RedirectStandardError $ciWatchFailureStderr
+    if ($ciWatchFailureProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 accepted failing CI for the exact commit")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
+} finally {
+    Remove-Item -Recurse -Force $ciWatchDir -ErrorAction SilentlyContinue
+}
 $supportPlan = powershell -NoProfile -File scripts/public-devnet-v1/support-bundle.ps1 -Rpc "127.0.0.1:18731" -ReleaseEvidence docs/release-evidence-v1.sample.json -PlanOnly
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if (-not (($supportPlan -join "`n").Contains("valid release-evidence.v1"))) {
