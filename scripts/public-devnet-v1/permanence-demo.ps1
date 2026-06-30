@@ -35,6 +35,38 @@ function Read-PortsFile {
     return $ports
 }
 
+function Get-RecordedMeshProcessStatus {
+    $ports = Read-PortsFile
+    $keys = @("HUB_PID", "V1_PID", "V2_PID", "OBSERVER_PID")
+    $rows = @()
+    foreach ($key in $keys) {
+        if (-not $ports[$key]) { continue }
+        $pidValue = 0
+        if (-not [int]::TryParse($ports[$key], [ref]$pidValue)) {
+            $rows += "$key=$($ports[$key]):invalid"
+            continue
+        }
+        $proc = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+        if ($proc) {
+            $rows += "${key}=${pidValue}:running:$($proc.ProcessName)"
+        } else {
+            $rows += "${key}=${pidValue}:not_running"
+        }
+    }
+    return $rows
+}
+
+function Assert-LocalMeshStillAlive {
+    param([string]$LastError)
+    if ($LastError -notmatch "actively refused|os error 10061|Connection refused") { return }
+    $status = @(Get-RecordedMeshProcessStatus)
+    if ($status.Count -eq 0) { return }
+    $hubDead = $status | Where-Object { $_ -like "HUB_PID=*:not_running" }
+    if ($hubDead) {
+        throw "permanence-demo: local helper mesh RPC is refusing connections and recorded hub daemon is not running; process_status=$($status -join ', '); logs=$LogDir"
+    }
+}
+
 function Resolve-Rpc {
     if ($Rpc) { return $Rpc }
     $ports = Read-PortsFile
@@ -90,6 +122,7 @@ function Wait-UploadsListContains {
         } catch {
             $lastError = $_.Exception.Message
             Write-Host "permanence-demo: uploads_list_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
+            Assert-LocalMeshStillAlive $lastError
         }
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)

@@ -163,6 +163,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Harden participant rehearsal smoke to wait for spendable faucet rewards before funding users.
 - [x] Fix public-devnet rehearsal liveness and first-run decoys so fresh faucet funding can build privacy rings.
 - [x] Stabilize the Windows participant rehearsal smoke real run so funding, upload discovery, HTTP restore, SHA-256 verification, proof submission, and support-bundle capture pass end-to-end from a clean local mesh.
+- [x] Add fail-fast local-mesh liveness diagnostics to permanence waits so participant rehearsal smoke reports dead recorded daemons instead of timing out on repeated RPC refused errors.
 - [ ] Promote participant rehearsal smoke into an unattended slow/nightly harness once mesh runtime is stable enough for CI.
 
 ## Cross-Agent Notes

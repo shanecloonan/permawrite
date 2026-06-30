@@ -201,6 +201,37 @@ PY
   fi
 }
 
+recorded_mesh_process_status() {
+  [[ -f "$PORTS_FILE" ]] || return 0
+  # shellcheck source=/dev/null
+  source "$PORTS_FILE"
+  local key value rows=()
+  for key in HUB_PID V1_PID V2_PID OBSERVER_PID; do
+    value="${!key:-}"
+    [[ -n "$value" ]] || continue
+    if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+      rows+=("$key=$value:invalid")
+    elif kill -0 "$value" 2>/dev/null; then
+      rows+=("$key=$value:running")
+    else
+      rows+=("$key=$value:not_running")
+    fi
+  done
+  (IFS=', '; printf '%s\n' "${rows[*]:-}")
+}
+
+assert_local_mesh_still_alive() {
+  local last_error="$1"
+  [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* || "$last_error" == *"os error 10061"* ]] || return 0
+  local status
+  status="$(recorded_mesh_process_status)"
+  [[ -n "$status" ]] || return 0
+  if [[ "$status" == *"HUB_PID="*":not_running"* ]]; then
+    echo "permanence-demo: local helper mesh RPC is refusing connections and recorded hub daemon is not running; process_status=$status; logs=$LOG_DIR" >&2
+    exit 1
+  fi
+}
+
 python_cmd() {
   if command -v python3 >/dev/null 2>&1; then
     printf '%s\n' python3
@@ -221,6 +252,7 @@ wait_uploads_list_contains() {
     if ! out="$("$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50 2>&1)"; then
       last_error="uploads list failed: $out"
       echo "permanence-demo: uploads_list_wait retry_after_error=${last_error//$'\n'/ }"
+      assert_local_mesh_still_alive "$last_error"
       sleep 5
       continue
     fi
