@@ -634,9 +634,9 @@ See [`docs/M2_BLOCK_CODEC.md`](./M2_BLOCK_CODEC.md) for the full design note.
 ### What this unlocks
 
 - **`mfn-cli wallet`** — the next milestone wraps `Wallet` + a `ChainConfig` (or a `LightChainConfig`) into a command-line binary. `mfn-cli wallet new / scan / balance / send` becomes the canonical way to interact with a running testnet node.
-- **Single-node demo with a real user.** Once the CLI ships, a single machine running `mfn-node` + `mfn-cli wallet` is a working *node + wallet* pair — the first time the chain is end-to-end useful to a human operator.
-- **Mempool design pressure.** Having a real wallet that emits canonical `TransactionWire`s forces the next milestone (mempool admit + relay) to handle a concrete tx supply, not a hypothetical one.
-- **WASM browser wallet.** Pure-Rust + IO-free means `wasm-pack build --target web` Just Works once we add a `wasm` feature flag — likely a follow-up milestone bundled with the first browser-wallet PoC.
+- **Single-node demo with a real user.** The shipped `mfn-cli wallet` surface now makes a single machine running `mfnd serve` + wallet commands a working *node + wallet* pair.
+- **Mempool design pressure.** Having a real wallet that emits canonical `TransactionWire`s forced later mempool admit + relay milestones to handle a concrete tx supply, not a hypothetical one.
+- **WASM browser wallet bindings.** The shipped `mfn-wasm` crate now exposes browser-facing wallet address, storage preview/upload, scan, transfer, and light-verification helpers behind `wasm-keys` / `wasm-full`.
 
 See [`docs/M2_WALLET.md`](./M2_WALLET.md) for the full design note.
 

@@ -160,13 +160,13 @@ Any output that **decrypts** but does **not** Pedersen-open is dropped. The test
 
 > Dev-dependencies (`mfn-node`, `mfn-light`, `mfn-bls`) are needed for the integration tests; they live in `[dev-dependencies]` so the regular build closure stays slim.
 
-## What's deferred to later milestones
+## Downstream Surfaces And Remaining Wallet Work
 
-- **Persistent storage** — the wallet keeps its UTXO map in memory. M2.0.15 candidate: a `WalletStore` trait + RocksDB / sled adapter so wallets survive restarts.
-- **CLI / desktop binary** — `mfn-cli wallet send / receive / upload / balance` consumes this crate.
-- **WASM bindings** — the crate is pure-Rust + IO-free, so `wasm-pack build --target web` should work today; we'll add a `[features] wasm` story when we ship the first browser wallet.
+- **Persistent storage** — `mfn-cli` persists wallet files, scan/cache state, trusted light summaries, pending spends, and upload artifacts around this crate's pure wallet logic.
+- **CLI / desktop binary** — `mfn-cli wallet` consumes this crate for address display, scan/balance, send, upload, claim, backup, and light-client flows.
+- **WASM bindings** — `mfn-wasm` consumes this crate for browser-facing wallet address, storage preview/upload, scan, transfer, and light-verification helpers.
 - **Knapsack coin selection** — current path is greedy largest-first (privacy-conservative). A Knapsack-style selector that prefers same-age inputs would improve plausible deniability when spending older holdings.
-- **Storage chunk serving** — `art.built.tree` is the SPoRA prover-side artifact, but the wallet doesn't currently store / serve chunks over the wire to storage operators. That belongs in a future `mfn-storage-operator` daemon (M2.1.x).
+- **Subaddresses / richer account UX** — Monero-style sub-account derivation remains future work for receiving multiple parallel streams from one wallet seed.
 
 ## Roadmap line
 
