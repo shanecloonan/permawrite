@@ -235,7 +235,7 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 
 Integration coverage lives in:
 
-- `mfn-cli/tests/chunk_p2p_auto_fanout_smoke.rs` — solo hub `--produce` + **M7.5** session chunk fan-out (**M7.8**).
+- `mfn-cli/tests/chunk_p2p_auto_fanout_smoke.rs` — solo hub `--produce` + **M7.5** session chunk fan-out (**M7.8**), including Windows direct execution.
 - `mfn-cli/tests/chunk_p2p_three_validator_produce_smoke.rs` — three-validator hub upload + manual `push-chunks` (**M7.7**) or auto fan-out (**M7.9**, `--ignored`).
 - `mfn-node/tests/three_validator_produce_smoke.rs` — three-process harness, hub + two voters, shared tip through **height 2** (**M2.3.25**).
 - `mfn-node/tests/three_validator_all_produce_smoke.rs` — three `--produce` validators on `devnet_three_validators_produce.json` (`expected_proposers_per_slot: 1.5`), shared canonical tip (**M2.3.26**).
@@ -247,7 +247,7 @@ Integration coverage lives in:
 - `.github/workflows/ci.yml::public-devnet scripts` plus `scripts/ci-check.{sh,ps1}` — parse-check Bash and PowerShell public-devnet helpers, assert recovery walkthrough and participant rehearsal plan modes, and smoke-check release-evidence Markdown/JSON output before operator-script regressions can land.
 - `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers, stable block-sync abort labels used for transient peer scoring/quarantine, and exact catch-up handshake/sync failure labels passed into peer scoring.
 - `mfn-net::handshake` unit tests — outbound TCP connect attempts are bounded by `P2P_CONNECT_TIMEOUT`, try later resolved addresses after an unavailable first address, and reject empty address resolutions deterministically.
-- `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, no-progress empty-response rejection, exact response-size rejection before apply, response-count encode/decode capping, interleaved production/gossip frame skipping, bounded abort after too many non-`BlocksV1` frames, and unsolicited post-handshake `BlocksV1` batch contiguity checks.
+- `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, no-progress empty-response rejection, exact response-size rejection before apply, response-count encode/decode capping, interleaved production/gossip frame skipping, bounded abort after too many non-`BlocksV1` frames, unsolicited post-handshake `BlocksV1` batch contiguity checks, and post-handshake `ChunkV1` burst handling through `GossipEndV1`.
 - `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.
 - `mfn-node::p2p_light_follow_fetch` unit tests — outbound P2P light-follow rejects responses with more rows than requested or non-contiguous row heights before JSON/quorum use, and long JSON page ranges are capped to the wire request window.
 - `mfn-net::serve` unit tests — gap-triggered catch-up peer selection skips the node's own P2P listen address, dedupes recovery peers, caps recovery dials after self-skip/quarantine-filtered peer selection before spawning, and feeds stable recovery failure labels into peer scoring.

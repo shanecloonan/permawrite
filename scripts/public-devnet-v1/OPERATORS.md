@@ -1014,12 +1014,13 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 | `mfn-cli` `chunk_p2p_smoke` | push → inbox → assemble → prove (single node) |
 | `mfn-cli` `chunk_p2p_two_node_smoke` | hub mines, replica sync + push, matching payload |
 | `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
+| `mfn-cli` `chunk_p2p_auto_fanout_smoke` | hub mines, replica dials, M7.5 session fan-out fills the replica inbox without `push-chunks` (runs on Windows) |
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
 | `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |
 | `participant-rehearsal.{ps1,sh}` plan validation | Full outside-user rehearsal advertises faucet funding, permanence restore/prove, SHA-256 verification, and support-bundle capture |
 | `participant-rehearsal-smoke.{ps1,sh}` plan validation | Local real-run smoke advertises start-all, default test-faucet restore/check, faucet balance wait, custom faucet safety, rehearsal execution, and mesh cleanup |
 
 ```bash
-cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke
+cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke --test chunk_p2p_auto_fanout_smoke
 cargo test -p mfn-storage-operator --release --test chunk_http_smoke
 ```

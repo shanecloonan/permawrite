@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Repeated gap-triggered recovery failures cannot durably delete saved peers. | In progress in clean Agent 1 worktree. | Stabilize Windows duplex P2P session chunk fanout so the full auto-fanout smoke can run on Windows. |
+| Agent 1 | Core protocol, consensus, networking, sync | Windows duplex P2P session chunk fanout runs the full auto-fanout smoke. | In progress in clean Agent 1 worktree. | Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Authenticated release CI polling and wasm-pack CI mirror compatibility. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
@@ -33,21 +33,21 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release CI watcher now reports unauthenticated GitHub API rate limits as structured no-go JSON instead of crashing.
 - Agent 2: Release CI watcher fallback uses `GH_TOKEN` / `GITHUB_TOKEN` for authenticated API polling without leaking tokens into JSON output.
 - Agent 2: WASM package metadata is explicit where wasm-pack requires string fields, keeping the local CI mirror's wasm package build green.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, and gap recovery success clearing transient peer penalties.
+- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, and durable gap recovery peer retention.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
 ## Agent 1 Detailed Plan
 
 Current task:
 
-- [x] Add deterministic `mfn-node::p2p_fanout` coverage that repeated gap recovery failures quarantine without durable deletion.
-- [x] Prove the saved `peers.json` set and max outbound cap survive repeated gap recovery failure labels.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, and `docs/TESTNET.md`.
+- [x] Remove the Windows-only ignore from `chunk_p2p_auto_fanout_smoke`.
+- [x] Add deterministic `mfn-net::block_sync` coverage that post-handshake chunk bursts are consumed through `GossipEndV1`.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator smoke references.
 - [x] Regenerate `CODEBASE_STATS.md`, run targeted tests, and run local CI mirror.
 
 Next Agent 1 task:
 
-- [ ] Stabilize Windows duplex P2P session chunk fanout so the full auto-fanout smoke can run on Windows.
+- [ ] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
 
 ## Shared Release-Candidate Gates
 

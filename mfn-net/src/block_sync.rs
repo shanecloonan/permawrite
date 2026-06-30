@@ -500,7 +500,11 @@ fn recv_gossip_v1_from_first<R: Read>(
     if first_tag == 0x08 {
         return Ok(stats);
     }
-    recv_gossip_v1(r, handler)
+    let rest = recv_gossip_v1(r, handler)?;
+    stats.tx_frames = stats.tx_frames.saturating_add(rest.tx_frames);
+    stats.block_frames = stats.block_frames.saturating_add(rest.block_frames);
+    stats.chunk_frames = stats.chunk_frames.saturating_add(rest.chunk_frames);
+    Ok(stats)
 }
 
 /// Failure while serving the post-handshake session.
@@ -670,6 +674,35 @@ mod tests {
         writes: Vec<u8>,
     }
 
+    #[derive(Default)]
+    struct RecordingGossip {
+        chunks: Vec<([u8; 32], u32, Vec<u8>)>,
+    }
+
+    impl GossipHandler for std::sync::Mutex<RecordingGossip> {
+        fn on_tx_v1(&self, _tx_wire: &[u8]) -> String {
+            "ignored:tx_v1".into()
+        }
+
+        fn on_block_v1(&self, _block_wire: &[u8]) -> String {
+            "ignored:block_v1".into()
+        }
+
+        fn on_chunk_v1(
+            &self,
+            commit_hash: &[u8; 32],
+            chunk_index: u32,
+            chunk_bytes: &[u8],
+        ) -> String {
+            self.lock().expect("recording gossip lock").chunks.push((
+                *commit_hash,
+                chunk_index,
+                chunk_bytes.to_vec(),
+            ));
+            "stored:chunk_v1".into()
+        }
+    }
+
     impl ScriptedStream {
         fn new(reads: Vec<u8>) -> Self {
             Self {
@@ -762,6 +795,33 @@ mod tests {
         let mut cursor = Cursor::new(buf);
         let back = recv_blocks_v1(&mut cursor).expect("blocks after vote");
         assert_eq!(back.block_wires, wires[..1]);
+    }
+
+    #[test]
+    fn recv_gossip_v1_from_first_accepts_chunk_burst() {
+        use crate::gossip::{send_chunk_v1, send_gossip_end_v1};
+
+        let commit_hash = [0x42u8; 32];
+        let first_chunk = vec![1u8, 2, 3];
+        let second_chunk = vec![4u8, 5, 6, 7];
+        let first = crate::chunk_v1::ChunkV1::encode_payload(&commit_hash, 0, &first_chunk);
+        let mut rest = Vec::new();
+        send_chunk_v1(&mut rest, &commit_hash, 1, &second_chunk).expect("second chunk");
+        send_gossip_end_v1(&mut rest).expect("gossip end");
+        let mut cursor = Cursor::new(rest);
+        let gossip = std::sync::Mutex::new(RecordingGossip::default());
+
+        let stats = recv_gossip_v1_from_first(&mut cursor, &first, CHUNK_V1_TAG, &gossip)
+            .expect("chunk burst");
+
+        assert_eq!(stats.chunk_frames, 2);
+        assert_eq!(
+            gossip.lock().expect("recording gossip lock").chunks,
+            vec![
+                (commit_hash, 0, first_chunk),
+                (commit_hash, 1, second_chunk),
+            ]
+        );
     }
 
     #[test]

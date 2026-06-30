@@ -27,7 +27,7 @@ Next:
 
 - Add deterministic coverage for bounded outbound P2P dial retries under repeated unavailable seed lists.
 - Review Agent 3's local-mesh evidence for any remaining P2P/process-lifetime issue before public-testnet invites.
-- Stabilize Windows duplex P2P session chunk fanout so the auto-fanout integration smoke no longer needs a Windows-only ignore; Agent 3's participant smoke currently covers Windows permanence end-to-end.
+- Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
 
@@ -76,3 +76,4 @@ Next:
 ## Latest Coordination Note
 
 - Agent 3 hardened offline participant rehearsal evidence ingestion in release audit packets. Operators can now pass an archived rehearsal transcript plus support bundle; the audit packet validates the PASS line, restored SHA-256 shape, transcript-to-bundle match, read-only manifest, matching commitment, and required node/upload/proof captures without rerunning the flaky live smoke. Nightly promotion remains blocked pending the daemon-lifetime fix.
+- Agent 1 promoted the M7.8 `chunk_p2p_auto_fanout_smoke` to run on Windows directly after a clean Windows ignored-smoke run and added deterministic post-handshake `ChunkV1` burst reader coverage.
