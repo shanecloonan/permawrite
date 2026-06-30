@@ -87,6 +87,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add block-sync unit coverage that catch-up rejects responses larger than the requested batch before apply.
 - [x] Add block-sync unit coverage that catch-up rejects empty `BlocksV1` replies from higher-tip peers as no-progress failures.
 - [x] Add serve unit coverage for stable sync-failure peer-scoring labels.
+- [x] Add release-candidate soak evidence summaries with per-sample heights, genesis id, P2P peer counts, and session counts.
+- [ ] Add deterministic failure-injection coverage or script support for stale/unavailable public seed nodes during LAN/VPS-style startup.
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 

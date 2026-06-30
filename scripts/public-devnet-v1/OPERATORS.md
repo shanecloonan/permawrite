@@ -262,7 +262,7 @@ bash scripts/public-devnet-v1/soak.sh --duration-minutes 60
 powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 60
 ```
 
-The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check.
+The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line and each `soak: SAMPLE` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, and per-role P2P peer/session counts.
 
 If a peer repeatedly fails outbound dials, fan-out, or catch-up, `mfnd` temporarily quarantines that address in memory and logs `mfnd_p2p_peer_quarantine peer=...`. Quarantine skips reconnect/catch-up/fan-out attempts for that process only; a later successful handshake or push clears the penalty, and a restart reloads the persisted `peers.json` normally. The saved `max_outbound_peers` reconnect cap defaults to 8 and is clamped to 64 even if `peers.json` is hand-edited. If malformed, empty, or duplicate saved peers are ignored on load, `mfnd` logs `mfnd_peers_load_filtered raw=... kept=... filtered=...`.
 

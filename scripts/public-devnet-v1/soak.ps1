@@ -20,6 +20,10 @@ $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 $HealthScript = Join-Path $ScriptDir "health-check.ps1"
 $StartAllScript = Join-Path $ScriptDir "start-all.ps1"
 $LogDir = Join-Path $ScriptDir "logs"
+$StartedAt = Get-Date
+$SoakSamples = New-Object System.Collections.Generic.List[string]
+$LastFailure = $null
+$SummaryWritten = $false
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
@@ -50,6 +54,50 @@ function Assert-P2pLogs {
     Assert-LogContains "v2" (Join-Path $LogDir "v2.log") "mfnd_p2p_dial_ok="
     Assert-LogContains "observer" (Join-Path $LogDir "observer.log") "mfnd_p2p_dial_ok="
 }
+function Add-SoakSample {
+    param([int]$Iteration, [object[]]$HealthOutput)
+    $roles = New-Object System.Collections.Generic.List[string]
+    $genesis = "unknown"
+    $finalHeight = "unknown"
+    $finalId = "unknown"
+    foreach ($item in $HealthOutput) {
+        $line = "$item"
+        if ($line -match "^(hub|v1|v2|observer):?\s+tip_height=([^ ]+)\s+tip_id=([^ ]+)\s+genesis_id=([^ ]+)\s+p2p_sessions=([^ ]+)\s+p2p_peers=([^ ]+)") {
+            $role = $Matches[1]
+            $roles.Add("${role}:height=$($Matches[2]),sessions=$($Matches[5]),peers=$($Matches[6])")
+            if ($genesis -eq "unknown") { $genesis = $Matches[4] }
+            continue
+        }
+        if ($line -match "^health-check: PASS shared tip height=([0-9]+) id=([^ ]+)") {
+            $finalHeight = $Matches[1]
+            $finalId = $Matches[2]
+        }
+    }
+    $roleText = if ($roles.Count -gt 0) { $roles -join ";" } else { "none" }
+    $script:SoakSamples.Add("iteration=$Iteration final_height=$finalHeight final_tip_id=$finalId genesis_id=$genesis roles=$roleText")
+}
+function Write-SoakSummary {
+    param([string]$Status)
+    $endedAt = Get-Date
+    $elapsedSeconds = [int][Math]::Floor(($endedAt - $StartedAt).TotalSeconds)
+    Write-Host "soak: SUMMARY status=$Status started_at=$($StartedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")) ended_at=$($endedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")) elapsed_seconds=$elapsedSeconds duration_minutes=$DurationMinutes iterations=$iteration"
+    foreach ($sample in $SoakSamples) {
+        Write-Host "soak: SAMPLE $sample"
+    }
+    if ($LastFailure) {
+        Write-Host "soak: FAILURE $LastFailure"
+    }
+    $script:SummaryWritten = $true
+}
+trap {
+    if (-not $script:LastFailure) {
+        $script:LastFailure = "error=$($_.Exception.Message)"
+    }
+    if (-not $script:SummaryWritten) {
+        Write-SoakSummary "FAIL"
+    }
+    break
+}
 
 if (-not $NoStart) {
     Write-Host "soak: starting public-devnet-v1 mesh"
@@ -76,7 +124,16 @@ while ((Get-Date) -lt $deadline) {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", "$StallSamples", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "$StallIntervalSeconds", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "$MinHeightDelta", "Process")
-        & $HealthScript
+        $healthOutput = @()
+        try {
+            $healthOutput = & $HealthScript 2>&1 6>&1
+            $healthOutput | ForEach-Object { Write-Host $_ }
+        } catch {
+            $healthOutput | ForEach-Object { Write-Host $_ }
+            $script:LastFailure = "iteration=$iteration command=health-check error=$($_.Exception.Message)"
+            throw
+        }
+        Add-SoakSample $iteration $healthOutput
     } finally {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", $oldSamples, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", $oldInterval, "Process")
@@ -88,4 +145,4 @@ while ((Get-Date) -lt $deadline) {
     }
 }
 
-Write-Host "soak: PASS duration_minutes=$DurationMinutes iterations=$iteration"
+Write-SoakSummary "PASS"

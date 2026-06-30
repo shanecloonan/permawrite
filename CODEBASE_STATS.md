@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-30T00:36:05.760Z
+**Generated (UTC):** 2026-06-30T00:44:27.701Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 337 |
-| Total lines (all scanned source-like files) | 112,387 |
-| Non-empty lines | 100,981 |
-| UTF-8 bytes (source-like) | 4,542,957 |
+| Total lines (all scanned source-like files) | 112,458 |
+| Non-empty lines | 101,048 |
+| UTF-8 bytes (source-like) | 4,546,546 |
 | Paths visited (before binary/huge skip) | 373 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,11 +25,11 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 14,529 | 13,433 |
-| `docs` | 43 | 11,914 | 8,618 |
+| `docs` | 43 | 11,917 | 8,621 |
 | `mfn-node` | 34 | 10,760 | 9,949 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
-| `scripts` | 25 | 4,325 | 3,757 |
+| `scripts` | 25 | 4,393 | 3,821 |
 | `mfn-runtime` | 14 | 4,323 | 4,001 |
 | `mfn-net` | 11 | 4,217 | 3,849 |
 | `mfn-rpc` | 4 | 3,996 | 3,798 |
@@ -48,8 +48,8 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
 | `.rs` | 212 | 90,116 | 83,525 | 3,273,658 |
-| `.md` | 56 | 14,364 | 10,233 | 985,618 |
-| `.sh` | 23 | 3,195 | 2,918 | 110,135 |
+| `.md` | 56 | 14,367 | 10,236 | 986,568 |
+| `.sh` | 23 | 3,263 | 2,982 | 112,774 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
 | `.svg` | 4 | 655 | 581 | 42,304 |
@@ -66,7 +66,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | 3,015 | `mfn-cli/src/cli.rs` |
 | 2,784 | `mfn-consensus/tests/apply_block_proptest.rs` |
 | 2,409 | `mfn-node/tests/mfnd_smoke.rs` |
-| 2,322 | `docs/ROADMAP.md` |
+| 2,323 | `docs/ROADMAP.md` |
 | 2,290 | `mfn-consensus/tests/block_apply.rs` |
 | 1,975 | `mfn-consensus/tests/emission_simulation.rs` |
 | 1,975 | `mfn-consensus/tests/producer_treasury_settlement.rs` |
