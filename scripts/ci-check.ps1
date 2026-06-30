@@ -202,6 +202,28 @@ try {
         exit 1
     }
     $global:LASTEXITCODE = 0
+    $ciWatchRateLimitedStdout = Join-Path $ciWatchDir "rate-limited.out"
+    $ciWatchRateLimitedStderr = Join-Path $ciWatchDir "rate-limited.err"
+    $ciWatchRateLimitedProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-ci-watch.ps1",
+        "-Commit",
+        $ciWatchCommit,
+        "-MockApiErrorStatus",
+        "403",
+        "-Json"
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $ciWatchRateLimitedStdout -RedirectStandardError $ciWatchRateLimitedStderr
+    if ($ciWatchRateLimitedProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 accepted rate-limited GitHub API as green")
+        exit 1
+    }
+    $rateLimitedObject = Get-Content -LiteralPath $ciWatchRateLimitedStdout -Raw | ConvertFrom-Json
+    if ($rateLimitedObject.status -ne "rate_limited") {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 did not emit structured rate_limited JSON")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
 } finally {
     Remove-Item -Recurse -Force $ciWatchDir -ErrorAction SilentlyContinue
 }

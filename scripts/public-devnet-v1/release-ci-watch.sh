@@ -6,6 +6,8 @@ commit=""
 workflow="CI"
 branch="main"
 mock_runs=""
+mock_api_error_status="0"
+mock_api_error_message=""
 wait_for_ci=0
 timeout_seconds=600
 interval_seconds=15
@@ -20,6 +22,10 @@ Options:
   --workflow NAME       GitHub Actions workflow name or file. Defaults to CI.
   --branch NAME         Branch to query. Defaults to main.
   --mock-runs FILE      Read GitHub run JSON from a file instead of network/gh.
+  --mock-api-error-status N
+                         Simulate a GitHub API error for CI coverage.
+  --mock-api-error-message TEXT
+                         Message to use with --mock-api-error-status.
   --wait                Poll until success, terminal failure, or timeout.
   --timeout-seconds N   Poll timeout when --wait is set. Defaults to 600.
   --interval-seconds N  Poll interval when --wait is set. Defaults to 15.
@@ -43,6 +49,14 @@ while (($# > 0)); do
       ;;
     --mock-runs)
       mock_runs="${2:?missing value for --mock-runs}"
+      shift 2
+      ;;
+    --mock-api-error-status)
+      mock_api_error_status="${2:?missing value for --mock-api-error-status}"
+      shift 2
+      ;;
+    --mock-api-error-message)
+      mock_api_error_message="${2:?missing value for --mock-api-error-message}"
       shift 2
       ;;
     --wait)
@@ -79,7 +93,7 @@ if [[ -z "$commit" ]]; then
   commit="$(cd "$REPO_ROOT" && git rev-parse HEAD)"
 fi
 
-python3 - "$REPO_ROOT" "$commit" "$workflow" "$branch" "$mock_runs" "$wait_for_ci" "$timeout_seconds" "$interval_seconds" "$json_output" <<'PY'
+python3 - "$REPO_ROOT" "$commit" "$workflow" "$branch" "$mock_runs" "$mock_api_error_status" "$mock_api_error_message" "$wait_for_ci" "$timeout_seconds" "$interval_seconds" "$json_output" <<'PY'
 import json
 import os
 import subprocess
@@ -87,12 +101,14 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 
-repo_root, commit, workflow, branch, mock_runs, wait_for_ci, timeout_s, interval_s, json_output = sys.argv[1:]
+repo_root, commit, workflow, branch, mock_runs, mock_api_error_status, mock_api_error_message, wait_for_ci, timeout_s, interval_s, json_output = sys.argv[1:]
 wait_for_ci = wait_for_ci == "1"
 timeout_s = int(timeout_s)
 interval_s = max(1, int(interval_s))
 json_output = json_output == "1"
+mock_api_error_status = int(mock_api_error_status)
 
 
 def git_text(*args):
@@ -132,6 +148,9 @@ def load_runs():
     if mock_runs:
         with open(mock_runs, "r", encoding="utf-8-sig") as handle:
             return normalize_runs(json.load(handle)), "mock"
+    if mock_api_error_status:
+        message = mock_api_error_message or "mock GitHub API error"
+        raise RuntimeError(f"GitHub API error status={mock_api_error_status} message={message}")
     try:
         gh = subprocess.check_output(
             [
@@ -161,8 +180,16 @@ def load_runs():
     branch_q = urllib.parse.quote(branch, safe="")
     url = f"https://api.github.com/repos/{slug}/actions/workflows/{workflow_path}/runs?branch={branch_q}&per_page=20"
     req = urllib.request.Request(url, headers={"User-Agent": "permawrite-release-ci-watch"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return normalize_runs(json.load(resp)), "github-api"
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return normalize_runs(json.load(resp)), "github-api"
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        raise RuntimeError(f"GitHub API error status={exc.code} message={body or exc.reason}") from exc
 
 
 def run_head(run):
@@ -198,10 +225,16 @@ def emit(status, conclusion, url, source, message, code):
 
 
 deadline = time.time() + timeout_s
-last_source = "unknown"
+last_source = "mock" if mock_runs else "github-api"
 while True:
-    runs, source = load_runs()
-    last_source = source
+    try:
+        runs, source = load_runs()
+        last_source = source
+    except Exception as exc:
+        message = str(exc)
+        if "rate limit" in message.lower() or "status=403" in message or " 403" in message:
+            emit("rate_limited", "", "", last_source, f"GitHub API rate limited while checking CI for commit {commit}; authenticate gh or set GH_TOKEN, then rerun release-ci-watch", 1)
+        emit("api_error", "", "", last_source, f"GitHub CI status could not be checked for commit {commit}: {message}", 1)
     run = next((candidate for candidate in runs if run_head(candidate) == commit), None)
     if run:
         status = run.get("status") or "unknown"

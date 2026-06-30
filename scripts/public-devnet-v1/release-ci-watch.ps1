@@ -4,6 +4,8 @@ param(
     [string]$Workflow = "CI",
     [string]$Branch = "main",
     [string]$MockRuns = "",
+    [int]$MockApiErrorStatus = 0,
+    [string]$MockApiErrorMessage = "",
     [switch]$Wait,
     [int]$TimeoutSeconds = 600,
     [int]$IntervalSeconds = 15,
@@ -57,6 +59,10 @@ function Get-WorkflowQueryName {
 function Get-Runs {
     if ($MockRuns) {
         return ConvertTo-RunList (Get-Content -LiteralPath $MockRuns -Raw | ConvertFrom-Json)
+    }
+    if ($MockApiErrorStatus -ne 0) {
+        $mockMessage = if ($MockApiErrorMessage) { $MockApiErrorMessage } else { "mock GitHub API error" }
+        throw "GitHub API error status=$MockApiErrorStatus message=$mockMessage"
     }
 
     if (Get-Command gh -ErrorAction SilentlyContinue) {
@@ -134,7 +140,15 @@ $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 $source = if ($MockRuns) { "mock" } elseif (Get-Command gh -ErrorAction SilentlyContinue) { "gh-or-github-api" } else { "github-api" }
 
 while ($true) {
-    $run = Find-CommitRun (Get-Runs) $Commit
+    try {
+        $run = Find-CommitRun (Get-Runs) $Commit
+    } catch {
+        $message = $_.Exception.Message
+        if ($message -match "(?i)rate limit|status=403|403") {
+            Emit-Result -State "rate_limited" -Conclusion "" -Url "" -Source $source -Message "GitHub API rate limited while checking CI for commit $Commit; authenticate gh or set GH_TOKEN, then rerun release-ci-watch" -ExitCode 1
+        }
+        Emit-Result -State "api_error" -Conclusion "" -Url "" -Source $source -Message "GitHub CI status could not be checked for commit ${Commit}: $message" -ExitCode 1
+    }
     if ($run) {
         $status = [string](Get-RunValue $run @("status"))
         $conclusion = [string](Get-RunValue $run @("conclusion"))

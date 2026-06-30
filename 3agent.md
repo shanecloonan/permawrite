@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Gap-triggered catch-up success clears transient peer-scoring penalties. | In progress in clean Agent 1 worktree. | Add deterministic coverage that repeated gap-triggered recovery failures cannot durably delete saved peers. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Final release audit packet helper for machine-readable go/no-go evidence. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Structured release CI watcher handling for GitHub API rate limits and unauthenticated fallback failures. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -30,6 +30,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release sign-off manifest validators enforce the published contract and fail `go` decisions unless all machine and human gates pass.
 - Agent 2: Release JSON schema validators enforce the repository's published release schemas without adding an unpinned third-party dependency.
 - Agent 2: Final release audit packet helpers aggregate CI, evidence schema, sign-off, archive, inventory, and stats checks into one operator-facing go/no-go report.
+- Agent 2: Release CI watcher now reports unauthenticated GitHub API rate limits as structured no-go JSON instead of crashing.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, and stable gap recovery peer-scoring labels.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
@@ -63,9 +64,8 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add `release-audit-packet.ps1` and `release-audit-packet.sh`.
-- [x] Aggregate release evidence schema validation, sign-off validation, archive validation, artifact inventory validation, exact-commit CI, and `CODEBASE_STATS.md` presence into one report.
-- [x] Add CI coverage for a clean audit packet using the existing release archive/sign-off fixture.
+- [x] Convert GitHub API failures in `release-ci-watch.ps1` and `release-ci-watch.sh` into structured `rate_limited` / `api_error` no-go results.
+- [x] Add CI mocks proving rate-limited API responses emit valid JSON and fail closed.
 - [x] Update release docs and checklist.
 - [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.

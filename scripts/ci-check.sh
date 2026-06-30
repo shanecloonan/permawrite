@@ -200,6 +200,24 @@ if bash scripts/public-devnet-v1/release-ci-watch.sh --commit "$ci_watch_commit"
   echo "release-ci-watch.sh accepted failing CI for the exact commit" >&2
   exit 1
 fi
+bash scripts/public-devnet-v1/release-ci-watch.sh \
+  --commit "$ci_watch_commit" \
+  --mock-api-error-status 403 \
+  --mock-api-error-message "API rate limit exceeded" \
+  --json > "$ci_watch_dir/rate-limited.json" 2>/dev/null && {
+  echo "release-ci-watch.sh accepted rate-limited GitHub API as green" >&2
+  exit 1
+}
+python3 - "$ci_watch_dir/rate-limited.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    doc = json.load(handle)
+if doc.get("status") != "rate_limited":
+    print("release-ci-watch.sh did not emit structured rate_limited JSON", file=sys.stderr)
+    sys.exit(1)
+PY
 rm -rf "$ci_watch_dir"
 support_plan="$(bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:18731 --release-evidence docs/release-evidence-v1.sample.json --plan-only)"
 if [[ "$support_plan" != *"valid release-evidence.v1"* ]]; then

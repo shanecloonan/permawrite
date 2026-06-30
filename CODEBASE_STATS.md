@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-30T09:42:36.090Z
+**Generated (UTC):** 2026-06-30T09:57:30.751Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 349 |
-| Total lines (all scanned source-like files) | 116,315 |
-| Non-empty lines | 104,518 |
-| UTF-8 bytes (source-like) | 4,678,855 |
+| Total lines (all scanned source-like files) | 116,407 |
+| Non-empty lines | 104,608 |
+| UTF-8 bytes (source-like) | 4,683,775 |
 | Paths visited (before binary/huge skip) | 391 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,10 +25,10 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 14,702 | 13,593 |
-| `docs` | 46 | 12,240 | 8,905 |
+| `docs` | 46 | 12,241 | 8,906 |
 | `mfn-node` | 34 | 11,376 | 10,534 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
-| `scripts` | 32 | 6,241 | 5,441 |
+| `scripts` | 32 | 6,292 | 5,491 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-net` | 11 | 4,507 | 4,113 |
 | `mfn-runtime` | 14 | 4,394 | 4,065 |
@@ -40,7 +40,7 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `mfn-wasm` | 11 | 2,070 | 1,873 |
 | `mfn-storage` | 6 | 2,005 | 1,821 |
 | `mfn-bls` | 4 | 865 | 757 |
-| `.github` | 2 | 821 | 789 |
+| `.github` | 2 | 861 | 828 |
 | `(root)` | 6 | 798 | 567 |
 
 ## Lines of code by file extension
@@ -48,10 +48,10 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
 | `.rs` | 212 | 91,346 | 84,657 | 3,310,315 |
-| `.md` | 59 | 14,732 | 10,521 | 993,763 |
-| `.sh` | 30 | 4,955 | 4,476 | 172,625 |
+| `.md` | 59 | 14,733 | 10,522 | 994,311 |
+| `.sh` | 30 | 5,006 | 4,526 | 174,987 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
-| `.yml` | 2 | 821 | 789 | 43,222 |
+| `.yml` | 2 | 861 | 828 | 45,232 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
 | `.svg` | 4 | 655 | 581 | 42,237 |
 | `.json` | 15 | 595 | 580 | 17,845 |
