@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Gap-triggered catch-up planning filters quarantined peers before recovery dial cap accounting. | In progress in clean Agent 1 worktree. | Add deterministic coverage that gap-triggered recovery dial failures feed peer scoring labels. |
+| Agent 1 | Core protocol, consensus, networking, sync | Gap-triggered recovery dial failures feed stable peer-scoring labels. | In progress in clean Agent 1 worktree. | Add deterministic coverage that gap-triggered catch-up success clears peer scoring penalties. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Dependency-free JSON schema validation for published release artifacts. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
@@ -29,22 +29,22 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release sign-off manifest schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release sign-off manifest validators enforce the published contract and fail `go` decisions unless all machine and human gates pass.
 - Agent 2: Release JSON schema validators enforce the repository's published release schemas without adding an unpinned third-party dependency.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, and committee catch-up quarantine before cap accounting.
+- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, and gap-triggered recovery cap accounting.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
 ## Agent 1 Detailed Plan
 
 Current task:
 
-- [x] Add cap-aware gap-triggered catch-up event planning without changing self-skip behavior.
-- [x] Add deterministic `mfn-net::serve` coverage for gap self-skips, recovery dials, and cap-reached events.
-- [x] Add deterministic `mfn-node::p2p_fanout` coverage that gap recovery peer sources filter quarantined peers.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
-- [x] Regenerate `CODEBASE_STATS.md`, run targeted tests, and run the local CI mirror.
+- [x] Factor catch-up handshake/sync peer-scoring label helpers for deterministic testing.
+- [x] Add deterministic `mfn-net::serve` coverage that catch-up handshake failures feed exact peer-scoring labels.
+- [x] Add deterministic `mfn-net::serve` coverage that gap recovery sync failures feed exact peer-scoring labels.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, and `docs/TESTNET.md`.
+- [x] Regenerate `CODEBASE_STATS.md`, run targeted tests, and run local CI mirror.
 
 Next Agent 1 task:
 
-- [ ] Add deterministic coverage that gap-triggered recovery dial failures feed peer scoring labels.
+- [ ] Add deterministic coverage that gap-triggered catch-up success clears peer scoring penalties.
 
 ## Shared Release-Candidate Gates
 

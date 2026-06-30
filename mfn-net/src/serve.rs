@@ -109,6 +109,30 @@ fn sync_failure_label(err: &PullBlocksError) -> String {
     }
 }
 
+fn note_handshake_failure_for_scoring(
+    fanout_peers: Option<&FanoutPeerSetHook>,
+    peer: &str,
+    err: &HelloHandshakeError,
+) -> String {
+    let reason = handshake_failure_label(err);
+    if let Some(ps) = fanout_peers {
+        ps.note_peer_failure(peer, &reason);
+    }
+    reason
+}
+
+fn note_sync_failure_for_scoring(
+    fanout_peers: Option<&FanoutPeerSetHook>,
+    peer: &str,
+    err: &PullBlocksError,
+) -> String {
+    let reason = sync_failure_label(err);
+    if let Some(ps) = fanout_peers {
+        ps.note_peer_failure(peer, &reason);
+    }
+    reason
+}
+
 fn log_gossip_tx(hid: u64, peer: &str, outcome: &str, tx_id_hex: &str) {
     println!("mfnd_p2p_tx_admit hid={hid} peer={peer} outcome={outcome} tx_id={tx_id_hex}");
     let _ = std::io::stdout().flush();
@@ -182,10 +206,7 @@ fn maybe_pull_blocks_if_behind(
     match pull_blocks_to_tip(sock, local.height, remote.height, applier.as_ref()) {
         Ok(stats) => log_sync_end(hid, peer, &stats),
         Err(e) => {
-            let reason = sync_failure_label(&e);
-            if let Some(ps) = fanout_peers {
-                ps.note_peer_failure(peer, &reason);
-            }
+            let _ = note_sync_failure_for_scoring(fanout_peers, peer, &e);
             log_sync_abort(hid, peer, &e);
         }
     }
@@ -742,10 +763,11 @@ pub fn spawn_catch_up_dial(
                     );
                 }
                 Err(e) => {
-                    let reason = handshake_failure_label(&e);
-                    if let Some(ps) = &fanout_peers {
-                        ps.note_peer_failure(addr.as_str(), &reason);
-                    }
+                    let reason = note_handshake_failure_for_scoring(
+                        fanout_peers.as_ref(),
+                        addr.as_str(),
+                        &e,
+                    );
                     eprintln!("mfnd_p2p_catchup_dial_abort peer={addr} reason={reason}");
                 }
             }
@@ -850,10 +872,11 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
                     }
                 }
                 Err(e) => {
-                    let reason = handshake_failure_label(&e);
-                    if let Some(ps) = &fanout_peers {
-                        ps.note_peer_failure(addr.as_str(), &reason);
-                    }
+                    let reason = note_handshake_failure_for_scoring(
+                        fanout_peers.as_ref(),
+                        addr.as_str(),
+                        &e,
+                    );
                     eprintln!("mfnd_p2p_dial_abort peer={addr} reason={reason}");
                 }
             }
@@ -865,6 +888,31 @@ pub fn spawn_outbound_dial(cfg: OutboundP2pDial) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::FanoutPeerSet;
+
+    #[derive(Default)]
+    struct RecordingFanoutPeerSet {
+        failures: Mutex<Vec<(String, String)>>,
+    }
+
+    impl RecordingFanoutPeerSet {
+        fn failures(&self) -> Vec<(String, String)> {
+            self.failures.lock().expect("failures lock").clone()
+        }
+    }
+
+    impl FanoutPeerSet for RecordingFanoutPeerSet {
+        fn register_peer(&self, _peer_addr: &str) {}
+
+        fn note_peer_failure(&self, peer_addr: &str, reason: &str) {
+            self.failures
+                .lock()
+                .expect("failures lock")
+                .push((peer_addr.to_string(), reason.to_string()));
+        }
+
+        fn fanout_fresh_tx(&self, _tx_wire: &[u8], _except_peer: Option<&str>) {}
+    }
 
     #[test]
     fn handshake_failure_label_pins_genesis_mismatch_reason() {
@@ -918,6 +966,54 @@ mod tests {
                 got: 6
             }),
             "sync_non_sequential_height expected=4 got=6"
+        );
+    }
+
+    #[test]
+    fn catch_up_handshake_failure_feeds_peer_scoring_label() {
+        let fanout = Arc::new(RecordingFanoutPeerSet::default());
+        let hook: FanoutPeerSetHook = fanout.clone();
+        let err = HelloHandshakeError::Io(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "connection refused",
+        ));
+
+        let reason = note_handshake_failure_for_scoring(Some(&hook), "203.0.113.10:19001", &err);
+
+        assert_eq!(reason, "connection refused");
+        assert_eq!(
+            fanout.failures(),
+            vec![(
+                "203.0.113.10:19001".to_string(),
+                "connection refused".to_string(),
+            )]
+        );
+    }
+
+    #[test]
+    fn gap_catch_up_sync_failure_feeds_peer_scoring_label() {
+        let fanout = Arc::new(RecordingFanoutPeerSet::default());
+        let hook: FanoutPeerSetHook = fanout.clone();
+        let err = PullBlocksError::NoProgress {
+            requested_start: 12,
+            requested: 8,
+            local_height: 11,
+            remote_height: 30,
+        };
+
+        let reason = note_sync_failure_for_scoring(Some(&hook), "203.0.113.11:19001", &err);
+
+        assert_eq!(
+            reason,
+            "sync_no_progress start=12 requested=8 local_height=11 remote_height=30"
+        );
+        assert_eq!(
+            fanout.failures(),
+            vec![(
+                "203.0.113.11:19001".to_string(),
+                "sync_no_progress start=12 requested=8 local_height=11 remote_height=30"
+                    .to_string(),
+            )]
         );
     }
 
