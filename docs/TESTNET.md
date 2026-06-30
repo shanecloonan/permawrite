@@ -24,9 +24,9 @@ Concrete Linux/Windows firewall baselines, SSH forwarding, and TLS reverse-proxy
 | `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` |
 | Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3, plus synthetic test decoys so first-run wallets can form privacy rings). |
 | Chain identity | `genesis_id` **`454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
-| Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` — OS assigns). |
+| Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` â€” OS assigns). |
 
-On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=…` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
+On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=â€¦` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
 
 ---
 
@@ -49,7 +49,7 @@ Operator onboarding and seed-node list: [`scripts/public-devnet-v1/OPERATORS.md`
 
 Before publishing seed nodes or inviting outside operators, complete the [launch go/no-go checklist](../scripts/public-devnet-v1/OPERATORS.md#launch-gono-go-checklist). Treat any unchecked critical item as a launch blocker.
 
-For release candidates, generate an evidence record with [`release-evidence.sh`](../scripts/public-devnet-v1/release-evidence.sh) or [`release-evidence.ps1`](../scripts/public-devnet-v1/release-evidence.ps1) and attach it to launch notes. Use `--json` / `-Json` when archiving the same evidence for CI dashboards or automation. JSON output carries `schema_version=release-evidence.v1`; the schema is [`release-evidence-v1.schema.json`](release-evidence-v1.schema.json), with a sample artifact in [`release-evidence-v1.sample.json`](release-evidence-v1.sample.json). Validate archived JSON with `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`; the validator is dependency-free and scoped to the schema features used by Permawrite's published release schemas. The generated record captures the commit, dirty-tree state, `CODEBASE_STATS.md` timestamp, CI status when available, optional health-check output, optional RPC posture, and operator sign-off fields; unknown fields still require manual review. Before launch, complete the [release sign-off bundle review](../scripts/public-devnet-v1/OPERATORS.md#release-sign-off-bundle-review), fill out the [artifact inventory template](RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md), dry-run the public archive layout with `release-archive-dry-run.ps1` / `release-archive-dry-run.sh`, validate the staged archive with `release-archive-validate.ps1` / `release-archive-validate.sh`, block sign-off until `release-ci-watch.ps1` / `release-ci-watch.sh` confirms GitHub CI is green for the exact commit, and emit then validate a `release-signoff-manifest.v1` record with `release-signoff-manifest.ps1` / `release-signoff-manifest.sh`, `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`, and `release-signoff-manifest-validate.ps1` / `release-signoff-manifest-validate.sh`. CI watcher API errors and unauthenticated GitHub API rate limits are structured no-go results; authenticate `gh` or set `GH_TOKEN` before release polling. Finish by generating and schema-validating `release-audit-packet.v1` with `release-audit-packet.ps1` / `release-audit-packet.sh` and `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`; it aggregates evidence schema, sign-off, archive, inventory, CI, and stats checks into one final go/no-go artifact. The sign-off manifest schema is [`release-signoff-manifest-v1.schema.json`](release-signoff-manifest-v1.schema.json), with a sample artifact in [`release-signoff-manifest-v1.sample.json`](release-signoff-manifest-v1.sample.json). The audit packet schema is [`release-audit-packet-v1.schema.json`](release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](release-audit-packet-v1.sample.json).
+For release candidates, generate an evidence record with [`release-evidence.sh`](../scripts/public-devnet-v1/release-evidence.sh) or [`release-evidence.ps1`](../scripts/public-devnet-v1/release-evidence.ps1) and attach it to launch notes. Use `--json` / `-Json` when archiving the same evidence for CI dashboards or automation. JSON output carries `schema_version=release-evidence.v1`; the schema is [`release-evidence-v1.schema.json`](release-evidence-v1.schema.json), with a sample artifact in [`release-evidence-v1.sample.json`](release-evidence-v1.sample.json). Validate archived JSON with `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`; the validator is dependency-free and scoped to the schema features used by Permawrite's published release schemas. For release-candidate publication, also install `scripts/public-devnet-v1/requirements-release-schema.txt` and run `release-json-schema-draft202012.ps1` / `release-json-schema-draft202012.sh`, which require pinned `jsonschema==4.17.3` and perform full Draft 2020-12 validation. The generated record captures the commit, dirty-tree state, `CODEBASE_STATS.md` timestamp, CI status when available, optional health-check output, optional RPC posture, and operator sign-off fields; unknown fields still require manual review. Before launch, complete the [release sign-off bundle review](../scripts/public-devnet-v1/OPERATORS.md#release-sign-off-bundle-review), fill out the [artifact inventory template](RELEASE_ARTIFACT_INVENTORY_TEMPLATE.md), dry-run the public archive layout with `release-archive-dry-run.ps1` / `release-archive-dry-run.sh`, validate the staged archive with `release-archive-validate.ps1` / `release-archive-validate.sh`, block sign-off until `release-ci-watch.ps1` / `release-ci-watch.sh` confirms GitHub CI is green for the exact commit, and emit then validate a `release-signoff-manifest.v1` record with `release-signoff-manifest.ps1` / `release-signoff-manifest.sh`, `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`, `release-json-schema-draft202012.ps1` / `release-json-schema-draft202012.sh`, and `release-signoff-manifest-validate.ps1` / `release-signoff-manifest-validate.sh`. CI watcher API errors and unauthenticated GitHub API rate limits are structured no-go results; authenticate `gh` or set `GH_TOKEN` before release polling. Finish by generating and schema-validating `release-audit-packet.v1` with `release-audit-packet.ps1` / `release-audit-packet.sh`, `release-json-schema-validate.ps1` / `release-json-schema-validate.sh`, and `release-json-schema-draft202012.ps1` / `release-json-schema-draft202012.sh`; it aggregates evidence schema, sign-off, archive, inventory, CI, and stats checks into one final go/no-go artifact. The sign-off manifest schema is [`release-signoff-manifest-v1.schema.json`](release-signoff-manifest-v1.schema.json), with a sample artifact in [`release-signoff-manifest-v1.sample.json`](release-signoff-manifest-v1.sample.json). The audit packet schema is [`release-audit-packet-v1.schema.json`](release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](release-audit-packet-v1.sample.json).
 
 Operational recovery: before joining a shared network, read the [backup, upgrade, rollback, and key-rotation runbook](../scripts/public-devnet-v1/OPERATORS.md#backups-upgrades-rollback-and-key-rotation). Current devnet validator keys are genesis-bound test keys; there is no live hot-swap for validator VRF/BLS seeds on an already-published genesis.
 
@@ -106,7 +106,7 @@ The public helper mesh runs one hub producer plus two committee voters. `mfnd` a
 Set these in the shell that starts each `mfnd serve` process:
 
 ```text
-MFND_VALIDATOR_INDEX=0   # 0, 1, or 2 — must match genesis row
+MFND_VALIDATOR_INDEX=0   # 0, 1, or 2 â€” must match genesis row
 MFND_VRF_SEED_HEX=<32-byte hex from genesis validators[].vrf_seed_hex>
 MFND_BLS_SEED_HEX=<32-byte hex from genesis validators[].bls_seed_hex>
 ```
@@ -125,7 +125,7 @@ export MFND=target/release/mfnd
 export GENESIS=mfn-node/testdata/public_devnet_v1.json
 ```
 
-**Validator 0 (hub)** — note RPC/P2P lines on stdout:
+**Validator 0 (hub)** â€” note RPC/P2P lines on stdout:
 
 ```bash
 mkdir -p /tmp/mfn-v0
@@ -151,7 +151,7 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
   --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --committee-vote
 ```
 
-**Validator 2** — same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.
+**Validator 2** â€” same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.
 
 ---
 
@@ -159,7 +159,7 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
 
 Each node prints `mfnd_serve_listening=127.0.0.1:PORT`.
 
-**M3.0 / M3.1 — `mfn-cli`** (after `cargo build -p mfn-cli --release`):
+**M3.0 / M3.1 â€” `mfn-cli`** (after `cargo build -p mfn-cli --release`):
 
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> tip
@@ -220,7 +220,7 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 ## P2P mesh tips
 
 - **Boot dial:** At least one `--p2p-dial` to a peer already on the chain (usually the hub). Repeat `--p2p-dial` for multiple seeds (**M2.4.4**).
-- **Manifest seeds:** With `--genesis path/to/public_devnet_v1.json`, `mfnd` also merges `seed_nodes` from the sibling `public_devnet_v1.manifest.json` with explicit CLI dials (trimmed, deduped, and validated as `HOST:PORT` before dialing). Operators append public `host:port` values to that list; stdout prints `mfnd_p2p_boot_dials=…` when any boot peer is configured. The merged list is capped at 64 peers, preserving explicit `--p2p-dial` entries before manifest seeds; oversized lists log `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`.
+- **Manifest seeds:** With `--genesis path/to/public_devnet_v1.json`, `mfnd` also merges `seed_nodes` from the sibling `public_devnet_v1.manifest.json` with explicit CLI dials (trimmed, deduped, and validated as `HOST:PORT` before dialing). Operators append public `host:port` values to that list; stdout prints `mfnd_p2p_boot_dials=â€¦` when any boot peer is configured. The merged list is capped at 64 peers, preserving explicit `--p2p-dial` entries before manifest seeds; oversized lists log `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`.
 - **Self-dial skip:** If the node's own resolved P2P listen address appears in CLI dials, manifest seeds, or saved peers, `mfnd` skips that outbound connection and logs `mfnd_p2p_self_dial_skip peer=...`.
 - **Stale/unavailable seeds:** Outbound P2P boot, saved-peer reconnect, and catch-up dials bound each resolved TCP connect attempt to 5s before trying the next resolved address or logging `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort`. Treat repeated aborts for public seeds as stale seed inventory, firewall, or reachability issues rather than consensus failures.
 - **Persistent peers:** Successful handshakes append to `peers.json` under `--data-dir`; restart reconnects automatically (**M2.3.22**, **M2.4.2** block-sync on reconnect). Saved-peer reconnect skips addresses already dialed at boot and logs `mfnd_p2p_reconnect_skip peer=... reason=boot_dial`; it also skips the node's own P2P listen address. `max_outbound_peers` defaults to 8 and is clamped to a hard maximum of 64 on load/save so a bad peer file cannot cause an unbounded reconnect storm; quarantined saved peers are filtered before this cap is counted, and if the cap stops additional reconnects, `mfnd` logs `mfnd_p2p_reconnect_cap_reached count=... cap=...`. Malformed, empty, or duplicate saved peers are filtered on load; `mfnd` logs `mfnd_peers_load_filtered raw=... kept=... filtered=...` when that happens.
@@ -235,27 +235,27 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 
 Integration coverage lives in:
 
-- `mfn-cli/tests/chunk_p2p_auto_fanout_smoke.rs` — solo hub `--produce` + **M7.5** session chunk fan-out (**M7.8**), including Windows direct execution.
-- `mfn-cli/tests/chunk_p2p_three_validator_produce_smoke.rs` — three-validator hub upload + manual `push-chunks` (**M7.7**) or auto fan-out (**M7.9**, `--ignored`).
-- `mfn-node/tests/three_validator_produce_smoke.rs` — three-process harness, hub + two voters, shared tip through **height 2** (**M2.3.25**).
-- `mfn-node/tests/three_validator_all_produce_smoke.rs` — three `--produce` validators on `devnet_three_validators_produce.json` (`expected_proposers_per_slot: 1.5`), shared canonical tip (**M2.3.26**).
-- `mfn-node/tests/mfnd_smoke.rs::mfnd_p2p_restart_reconnect_catches_up_from_saved_peer` — ignored restart safety smoke: saved peer reconnect catches up from disk after missing blocks.
-- `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_replays_redb_block_log_without_checkpoint` — default-store restart replay smoke: `serve` reconstructs the synced tip from `redb` block logs without a fresh checkpoint.
-- `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer` — outbound mismatch smoke: foreign-genesis peers produce structured abort logs and are not written to `peers.json`.
-- `mfn-rpc::dispatch` unit tests — `get_status` exposes public-safe P2P health fields (`configured`, `listen_addr`, `peer_count`, `session_count`, `max_outbound_peers`) for operator checks.
-- `scripts/public-devnet-v1/health-check.{sh,ps1}` syntax checks — default public-devnet health requires hub, both voters, and observer RPC endpoints to be discoverable; set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
-- `.github/workflows/ci.yml::public-devnet scripts` plus `scripts/ci-check.{sh,ps1}` — parse-check Bash and PowerShell public-devnet helpers, assert recovery walkthrough and participant rehearsal plan modes, and smoke-check release-evidence Markdown/JSON output before operator-script regressions can land.
-- `mfn-net::serve` unit tests — pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers, stable block-sync abort labels used for transient peer scoring/quarantine, and exact catch-up handshake/sync failure labels passed into peer scoring.
-- `mfn-net::handshake` unit tests — outbound TCP connect attempts are bounded by `P2P_CONNECT_TIMEOUT`, try later resolved addresses after an unavailable first address, and reject empty address resolutions deterministically.
-- `mfn-net::block_sync` unit tests — sequential catch-up, skipped-height rejection, large-gap request capping, no-progress empty-response rejection, exact response-size rejection before apply, response-count encode/decode capping, interleaved production/gossip frame skipping, bounded abort after too many non-`BlocksV1` frames, unsolicited post-handshake `BlocksV1` batch contiguity checks, and post-handshake `ChunkV1` burst handling through `GossipEndV1`.
-- `mfn-net::light_follow` unit tests — light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.
-- `mfn-node::p2p_light_follow_fetch` unit tests — outbound P2P light-follow rejects responses with more rows than requested or non-contiguous row heights before JSON/quorum use, and long JSON page ranges are capped to the wire request window.
-- `mfn-net::serve` unit tests — gap-triggered catch-up peer selection skips the node's own P2P listen address, dedupes recovery peers, caps recovery dials after self-skip/quarantine-filtered peer selection before spawning, and feeds stable recovery failure labels into peer scoring.
-- `mfn-node::p2p_block_sync` unit tests — block-sync and light-follow provider responses stop at the largest prefix that fits `MAX_FRAME_PAYLOAD_LEN`.
-- `mfn-node::mfnd_cli` / `mfn-node::p2p_boot` / `mfn-node::p2p_fanout` unit tests — manifest/CLI boot-peer validation for malformed ports, whitespace, duplicate seeds, bracketed IPv6, oversized manifest capping with explicit-dial priority, capped-list startup log formatting, self-dial detection, boot-dial reconnect skip classification, reconnect cap classification, boot-time reconnect event ordering, quarantined reconnect filtering before cap accounting, committee catch-up event ordering, quarantined committee catch-up filtering before cap accounting, gap catch-up boot-peer quarantine filtering, gap catch-up success clearing peer-scoring penalties, repeated gap catch-up failure retention in `peers.json`, peer-set quarantine filtering and expiry, boot-dial connect-failure quarantine without durable peer deletion, and durable foreign-genesis `peers.json` cleanup.
-- `mfn-store::peers_persist` unit tests — `peers.json` save/load sorting, malformed/duplicate peer filtering reports, and bounded reconnect fan-out caps.
-- `mfn-store::replay` and `mfn-node::p2p_gossip` unit tests — adversarial replay/gossip coverage for forked prefixes, height gaps, stale blocks, and next-height fork rejection.
-- `mfn-node/tests/multi_validator_producer.rs` — in-process proposal/vote/quorum.
+- `mfn-cli/tests/chunk_p2p_auto_fanout_smoke.rs` â€” solo hub `--produce` + **M7.5** session chunk fan-out (**M7.8**), including Windows direct execution.
+- `mfn-cli/tests/chunk_p2p_three_validator_produce_smoke.rs` â€” three-validator hub upload + manual `push-chunks` (**M7.7**) or auto fan-out (**M7.9**, `--ignored`).
+- `mfn-node/tests/three_validator_produce_smoke.rs` â€” three-process harness, hub + two voters, shared tip through **height 2** (**M2.3.25**).
+- `mfn-node/tests/three_validator_all_produce_smoke.rs` â€” three `--produce` validators on `devnet_three_validators_produce.json` (`expected_proposers_per_slot: 1.5`), shared canonical tip (**M2.3.26**).
+- `mfn-node/tests/mfnd_smoke.rs::mfnd_p2p_restart_reconnect_catches_up_from_saved_peer` â€” ignored restart safety smoke: saved peer reconnect catches up from disk after missing blocks.
+- `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_replays_redb_block_log_without_checkpoint` â€” default-store restart replay smoke: `serve` reconstructs the synced tip from `redb` block logs without a fresh checkpoint.
+- `mfn-node/tests/mfnd_smoke.rs::mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer` â€” outbound mismatch smoke: foreign-genesis peers produce structured abort logs and are not written to `peers.json`.
+- `mfn-rpc::dispatch` unit tests â€” `get_status` exposes public-safe P2P health fields (`configured`, `listen_addr`, `peer_count`, `session_count`, `max_outbound_peers`) for operator checks.
+- `scripts/public-devnet-v1/health-check.{sh,ps1}` syntax checks â€” default public-devnet health requires hub, both voters, and observer RPC endpoints to be discoverable; set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
+- `.github/workflows/ci.yml::public-devnet scripts` plus `scripts/ci-check.{sh,ps1}` â€” parse-check Bash and PowerShell public-devnet helpers, assert recovery walkthrough and participant rehearsal plan modes, and smoke-check release-evidence Markdown/JSON output before operator-script regressions can land.
+- `mfn-net::serve` unit tests â€” pin the outbound `genesis_mismatch expected=... got=...` failure-label contract used by `mfnd` to remove durable foreign peers, stable block-sync abort labels used for transient peer scoring/quarantine, and exact catch-up handshake/sync failure labels passed into peer scoring.
+- `mfn-net::handshake` unit tests â€” outbound TCP connect attempts are bounded by `P2P_CONNECT_TIMEOUT`, try later resolved addresses after an unavailable first address, and reject empty address resolutions deterministically.
+- `mfn-net::block_sync` unit tests â€” sequential catch-up, skipped-height rejection, large-gap request capping, no-progress empty-response rejection, exact response-size rejection before apply, response-count encode/decode capping, interleaved production/gossip frame skipping, bounded abort after too many non-`BlocksV1` frames, unsolicited post-handshake `BlocksV1` batch contiguity checks, and post-handshake `ChunkV1` burst handling through `GossipEndV1`.
+- `mfn-net::light_follow` unit tests â€” light-follow P2P response row-count encode/decode caps plus bounded interleaved production/gossip frame skipping before `LightFollowV1` replies.
+- `mfn-node::p2p_light_follow_fetch` unit tests â€” outbound P2P light-follow rejects responses with more rows than requested or non-contiguous row heights before JSON/quorum use, and long JSON page ranges are capped to the wire request window.
+- `mfn-net::serve` unit tests â€” gap-triggered catch-up peer selection skips the node's own P2P listen address, dedupes recovery peers, caps recovery dials after self-skip/quarantine-filtered peer selection before spawning, and feeds stable recovery failure labels into peer scoring.
+- `mfn-node::p2p_block_sync` unit tests â€” block-sync and light-follow provider responses stop at the largest prefix that fits `MAX_FRAME_PAYLOAD_LEN`.
+- `mfn-node::mfnd_cli` / `mfn-node::p2p_boot` / `mfn-node::p2p_fanout` unit tests â€” manifest/CLI boot-peer validation for malformed ports, whitespace, duplicate seeds, bracketed IPv6, oversized manifest capping with explicit-dial priority, capped-list startup log formatting, self-dial detection, boot-dial reconnect skip classification, reconnect cap classification, boot-time reconnect event ordering, quarantined reconnect filtering before cap accounting, committee catch-up event ordering, quarantined committee catch-up filtering before cap accounting, gap catch-up boot-peer quarantine filtering, gap catch-up success clearing peer-scoring penalties, repeated gap catch-up failure retention in `peers.json`, peer-set quarantine filtering and expiry, boot-dial connect-failure quarantine without durable peer deletion, and durable foreign-genesis `peers.json` cleanup.
+- `mfn-store::peers_persist` unit tests â€” `peers.json` save/load sorting, malformed/duplicate peer filtering reports, and bounded reconnect fan-out caps.
+- `mfn-store::replay` and `mfn-node::p2p_gossip` unit tests â€” adversarial replay/gossip coverage for forked prefixes, height gaps, stale blocks, and next-height fork rejection.
+- `mfn-node/tests/multi_validator_producer.rs` â€” in-process proposal/vote/quorum.
 
 Run locally:
 

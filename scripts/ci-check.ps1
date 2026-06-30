@@ -26,6 +26,7 @@ function Add-MissingCommand($Name, $InstallHint) {
 Add-MissingCommand cargo "Install Rust from https://rustup.rs/ and reopen the shell."
 Add-MissingCommand rustup "Install Rust from https://rustup.rs/ and reopen the shell."
 Add-MissingCommand bash "Install Git Bash, MSYS2, or WSL and reopen the shell."
+Add-MissingCommand python "Install Python 3 and ensure python is on PATH."
 Add-MissingCommand wasm-pack "Install with: cargo install wasm-pack --locked"
 Add-MissingCommand cargo-audit "Install with: cargo install cargo-audit --locked"
 $isWindowsHost = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
@@ -38,6 +39,23 @@ if ($missingTools.Count -gt 0) {
 }
 
 Write-Host "==> public-devnet scripts"
+$schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-release-schema-venv"
+Remove-Item -Recurse -Force $schemaVenv -ErrorAction SilentlyContinue
+python -m venv $schemaVenv
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$schemaPythonCandidates = @(
+    (Join-Path $schemaVenv "Scripts\python.exe"),
+    (Join-Path $schemaVenv "bin\python.exe"),
+    (Join-Path $schemaVenv "bin\python")
+)
+$schemaPython = $schemaPythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+if (-not $schemaPython) {
+    [Console]::Error.WriteLine("release schema validator venv did not contain a Python executable")
+    exit 1
+}
+& $schemaPython -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $schemaPython
 Get-ChildItem scripts -Filter *.ps1 -Recurse | ForEach-Object {
     $tokens = $null
     $errors = $null
@@ -118,6 +136,14 @@ powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validat
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json docs/release-audit-packet-v1.sample.json | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+foreach ($strictPair in @(
+    @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json"),
+    @("docs/release-signoff-manifest-v1.schema.json", "docs/release-signoff-manifest-v1.sample.json"),
+    @("docs/release-audit-packet-v1.schema.json", "docs/release-audit-packet-v1.sample.json")
+)) {
+    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema $strictPair[0] -Json $strictPair[1] | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
 $schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $schemaValidateDir | Out-Null
 try {
@@ -157,6 +183,21 @@ try {
     ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStdout -RedirectStandardError $badAuditStderr
     if ($badAuditProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-json-schema-validate.ps1 accepted an unexpected release audit packet field")
+        exit 1
+    }
+    $badAuditStrictStdout = Join-Path $schemaValidateDir "bad-audit-strict.out"
+    $badAuditStrictStderr = Join-Path $schemaValidateDir "bad-audit-strict.err"
+    $badAuditStrictProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-json-schema-draft202012.ps1",
+        "-Schema",
+        "docs/release-audit-packet-v1.schema.json",
+        "-Json",
+        $badAudit
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStrictStdout -RedirectStandardError $badAuditStrictStderr
+    if ($badAuditStrictProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-json-schema-draft202012.ps1 accepted an unexpected release audit packet field")
         exit 1
     }
     $global:LASTEXITCODE = 0
@@ -416,6 +457,8 @@ Decision: go
     $auditGeneratedJson = Join-Path $archiveDir "release-audit-packet.generated.json"
     $auditJson | Set-Content -LiteralPath $auditGeneratedJson -Encoding utf8
     powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $participantBadBundleLog = Join-Path $archiveDir "participant-rehearsal-bad-bundle.log"
     "participant-rehearsal: PASS commitment_hash=$participantCommit restored_sha256=$participantSha restored_path=restored.bin support_bundle=$(Join-Path $archiveDir "wrong-support-bundle")" | Set-Content -LiteralPath $participantBadBundleLog -Encoding utf8

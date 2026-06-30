@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Windows duplex P2P session chunk fanout runs the full auto-fanout smoke. | In progress in clean Agent 1 worktree. | Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Align audit packet schema with participant rehearsal evidence fields. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Pinned Draft 2020-12 release schema validation. | Completed locally; local CI mirror passed. | Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -36,6 +36,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, and durable gap recovery peer retention.
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
+- Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
 ## Agent 1 Detailed Plan
@@ -68,13 +69,13 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add `participant_rehearsal_log` and `participant_support_bundle` to `release-audit-packet.v1` schema/sample.
-- [x] Make local and GitHub CI schema-validate generated audit packet JSON with participant evidence.
-- [x] Update coordination docs/checklist.
-- [x] Regenerate `CODEBASE_STATS.md`.
-- [x] Run local CI mirror.
+- [x] Add pinned `scripts/public-devnet-v1/requirements-release-schema.txt` with `jsonschema==4.17.3`.
+- [x] Add strict Draft 2020-12 validator wrappers for PowerShell and Bash release workflows.
+- [x] Make local and GitHub CI run strict validation on published samples, generated audit packets, and a negative audit-packet fixture.
+- [x] Update release docs and checklists.
+- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain.
+- [ ] Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence.

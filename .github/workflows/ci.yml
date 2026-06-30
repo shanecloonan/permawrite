@@ -57,6 +57,12 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          schema_venv="$(mktemp -d)"
+          trap 'rm -rf "$schema_venv"' EXIT
+          python3 -m venv "$schema_venv"
+          schema_python="$schema_venv/bin/python"
+          "$schema_python" -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+          export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
           evidence_md="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --skip-ci-lookup)"
           for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "## RPC Posture" "## Operator Sign-Off"; do
             if [[ "$evidence_md" != *"$required"* ]]; then
@@ -120,6 +126,13 @@ jobs:
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json docs/release-evidence-v1.sample.json >/dev/null
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-signoff-manifest-v1.schema.json --json docs/release-signoff-manifest-v1.sample.json >/dev/null
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json docs/release-audit-packet-v1.sample.json >/dev/null
+          for strict_pair in \
+            "docs/release-evidence-v1.schema.json docs/release-evidence-v1.sample.json" \
+            "docs/release-signoff-manifest-v1.schema.json docs/release-signoff-manifest-v1.sample.json" \
+            "docs/release-audit-packet-v1.schema.json docs/release-audit-packet-v1.sample.json"; do
+            set -- $strict_pair
+            bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema "$1" --json "$2" >/dev/null
+          done
           schema_validate_dir="$(mktemp -d)"
           python3 - "$schema_validate_dir/bad-evidence.json" <<'PY'
           import json
@@ -149,6 +162,10 @@ jobs:
           PY
           if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$schema_validate_dir/bad-audit.json" >/dev/null 2>&1; then
             echo "release-json-schema-validate.sh accepted an unexpected release audit packet field" >&2
+            exit 1
+          fi
+          if bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema docs/release-audit-packet-v1.schema.json --json "$schema_validate_dir/bad-audit.json" >/dev/null 2>&1; then
+            echo "release-json-schema-draft202012.sh accepted an unexpected release audit packet field" >&2
             exit 1
           fi
           rm -rf "$schema_validate_dir"
@@ -349,6 +366,7 @@ jobs:
           PY
           printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"
           bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
+          bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
           cat > "$archive_dir/participant-rehearsal-bad-bundle.log" <<EOF
           participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$archive_dir/wrong-support-bundle
           EOF
@@ -459,6 +477,23 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-release-schema-venv"
+          Remove-Item -Recurse -Force $schemaVenv -ErrorAction SilentlyContinue
+          python -m venv $schemaVenv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $schemaPythonCandidates = @(
+            (Join-Path $schemaVenv "Scripts\python.exe"),
+            (Join-Path $schemaVenv "bin\python.exe"),
+            (Join-Path $schemaVenv "bin\python")
+          )
+          $schemaPython = $schemaPythonCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $schemaPython) {
+            Write-Error "release schema validator venv did not contain a Python executable"
+            exit 1
+          }
+          & $schemaPython -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $schemaPython
           $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $evidenceText = $evidenceMarkdown -join "`n"
@@ -506,6 +541,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json docs/release-audit-packet-v1.sample.json | Out-Null
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($strictPair in @(
+            @("docs/release-evidence-v1.schema.json", "docs/release-evidence-v1.sample.json"),
+            @("docs/release-signoff-manifest-v1.schema.json", "docs/release-signoff-manifest-v1.sample.json"),
+            @("docs/release-audit-packet-v1.schema.json", "docs/release-audit-packet-v1.sample.json")
+          )) {
+            powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema $strictPair[0] -Json $strictPair[1] | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           $schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
           New-Item -ItemType Directory -Force -Path $schemaValidateDir | Out-Null
           try {
@@ -545,6 +588,21 @@ jobs:
             ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStdout -RedirectStandardError $badAuditStderr
             if ($badAuditProcess.ExitCode -eq 0) {
               Write-Error "release-json-schema-validate.ps1 accepted an unexpected release audit packet field"
+              exit 1
+            }
+            $badAuditStrictStdout = Join-Path $schemaValidateDir "bad-audit-strict.out"
+            $badAuditStrictStderr = Join-Path $schemaValidateDir "bad-audit-strict.err"
+            $badAuditStrictProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+              "-NoProfile",
+              "-File",
+              "scripts/public-devnet-v1/release-json-schema-draft202012.ps1",
+              "-Schema",
+              "docs/release-audit-packet-v1.schema.json",
+              "-Json",
+              $badAudit
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStrictStdout -RedirectStandardError $badAuditStrictStderr
+            if ($badAuditStrictProcess.ExitCode -eq 0) {
+              Write-Error "release-json-schema-draft202012.ps1 accepted an unexpected release audit packet field"
               exit 1
             }
             $global:LASTEXITCODE = 0
@@ -795,6 +853,8 @@ jobs:
             $auditGeneratedJson = Join-Path $archiveDir "release-audit-packet.generated.json"
             $auditJson | Set-Content -LiteralPath $auditGeneratedJson -Encoding utf8
             powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
             @"

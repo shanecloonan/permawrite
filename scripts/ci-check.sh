@@ -27,6 +27,12 @@ if ((${#missing_tools[@]} > 0)); then
 fi
 
 echo "==> public-devnet scripts"
+schema_venv="$(mktemp -d)"
+trap 'rm -rf "$schema_venv"' EXIT
+python3 -m venv "$schema_venv"
+schema_python="$schema_venv/bin/python"
+"$schema_python" -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
 done
@@ -150,6 +156,13 @@ PY
 bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-evidence-v1.schema.json --json docs/release-evidence-v1.sample.json >/dev/null
 bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-signoff-manifest-v1.schema.json --json docs/release-signoff-manifest-v1.sample.json >/dev/null
 bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json docs/release-audit-packet-v1.sample.json >/dev/null
+for strict_pair in \
+  "docs/release-evidence-v1.schema.json docs/release-evidence-v1.sample.json" \
+  "docs/release-signoff-manifest-v1.schema.json docs/release-signoff-manifest-v1.sample.json" \
+  "docs/release-audit-packet-v1.schema.json docs/release-audit-packet-v1.sample.json"; do
+  set -- $strict_pair
+  bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema "$1" --json "$2" >/dev/null
+done
 schema_validate_dir="$(mktemp -d)"
 python3 - "$schema_validate_dir/bad-evidence.json" <<'PY'
 import json
@@ -179,6 +192,10 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 if bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$schema_validate_dir/bad-audit.json" >/dev/null 2>&1; then
   echo "release-json-schema-validate.sh accepted an unexpected release audit packet field" >&2
+  exit 1
+fi
+if bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema docs/release-audit-packet-v1.schema.json --json "$schema_validate_dir/bad-audit.json" >/dev/null 2>&1; then
+  echo "release-json-schema-draft202012.sh accepted an unexpected release audit packet field" >&2
   exit 1
 fi
 rm -rf "$schema_validate_dir"
@@ -386,6 +403,7 @@ if not participant or participant.get("status") != "pass" or "commitment_hash=" 
 PY
 printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"
 bash scripts/public-devnet-v1/release-json-schema-validate.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
+bash scripts/public-devnet-v1/release-json-schema-draft202012.sh --schema docs/release-audit-packet-v1.schema.json --json "$archive_dir/release-audit-packet.generated.json" >/dev/null
 cat > "$archive_dir/participant-rehearsal-bad-bundle.log" <<EOF
 participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$archive_dir/wrong-support-bundle
 EOF
