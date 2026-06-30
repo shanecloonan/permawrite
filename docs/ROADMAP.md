@@ -2029,6 +2029,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.54** | Public-devnet gap catch-up quarantine accounting: gap-triggered recovery dials use quarantine-filtered peer sources, cap recovery fan-out, and preserve self-skip/cap log ordering. | ✓ shipped |
 | **M2.4.55** | Public-devnet catch-up scoring labels: gap-triggered recovery handshake and sync failures feed stable peer-scoring labels before quarantine decisions. | ✓ shipped |
 | **M2.4.56** | Public-devnet catch-up score recovery: a successful gap-triggered peer exchange clears transient peer-scoring penalties and restores the peer to recovery selection. | ✓ shipped |
+| **M2.4.57** | Public-devnet catch-up durable-peer retention: repeated gap-triggered recovery failures quarantine saved peers transiently without deleting them from `peers.json`. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
