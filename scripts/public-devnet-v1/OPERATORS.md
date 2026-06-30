@@ -229,6 +229,20 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
 
 The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
 
+Validate the staged archive before sign-off:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-archive-validate.ps1 `
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit>
+```
+
+```bash
+bash scripts/public-devnet-v1/release-archive-validate.sh \
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit>
+```
+
+The validator checks required public files, verifies staged `checksums.sha256` manifests against the actual bytes, and rejects obvious private file names. Use `-AllowDryRun` / `--allow-dry-run` only for rehearsal archives with template/sample evidence; do not use it for final publication sign-off.
+
 Use `artifact-checksums.ps1` or `artifact-checksums.sh` to generate SHA-256 rows for inventory entries. Run it only on public release artifacts; never hash or publish private keys, wallet seeds, RPC API keys, or private operator files.
 
 Before sign-off, run `artifact-inventory-validate.ps1` or `artifact-inventory-validate.sh` on the filled inventory. The validator fails on missing artifact paths, checksums, reviewers, a missing final decision, or bare `not applicable` entries without a written reason.

@@ -217,8 +217,6 @@ This archive was assembled by \`release-archive-dry-run.sh\` from public release
 Do not add wallet seeds, validator private seeds, RPC API keys, private \`peers.json\`, host credentials, or private operator notes to this directory.
 EOF
 
-for dir in binaries network evidence support docs; do
-  write_tree_checksums "$archive_root/$dir"
-done
+write_tree_checksums "$archive_root"
 
 echo "release-archive-dry-run: OK path=$archive_root"

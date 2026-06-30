@@ -134,6 +134,12 @@ jobs:
               exit 1
             fi
           done
+          bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null
+          printf '\ncorrupt\n' >> "$archive_root/network/genesis.json"
+          if bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null 2>&1; then
+            echo "release-archive-validate.sh accepted a corrupted checksum" >&2
+            exit 1
+          fi
           rm -rf "$archive_dir"
           inventory_dir="$(mktemp -d)"
           trap 'rm -rf "$inventory_dir"' EXIT
@@ -273,6 +279,24 @@ jobs:
                 exit 1
               }
             }
+            powershell -NoProfile -File scripts/public-devnet-v1/release-archive-validate.ps1 -ArchiveDir $archiveRoot -AllowDryRun | Out-Null
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Add-Content -LiteralPath (Join-Path $archiveRoot "network/genesis.json") -Value "corrupt"
+            $archiveValidateStdout = Join-Path $archiveDir "archive-validate.out"
+            $archiveValidateStderr = Join-Path $archiveDir "archive-validate.err"
+            $archiveValidateProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+              "-NoProfile",
+              "-File",
+              "scripts/public-devnet-v1/release-archive-validate.ps1",
+              "-ArchiveDir",
+              $archiveRoot,
+              "-AllowDryRun"
+            ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $archiveValidateStdout -RedirectStandardError $archiveValidateStderr
+            if ($archiveValidateProcess.ExitCode -eq 0) {
+              Write-Error "release-archive-validate.ps1 accepted a corrupted checksum"
+              exit 1
+            }
+            $global:LASTEXITCODE = 0
           } finally {
             Remove-Item -Recurse -Force $archiveDir -ErrorAction SilentlyContinue
           }

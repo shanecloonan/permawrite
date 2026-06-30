@@ -86,6 +86,20 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
 
 Use `-PlanOnly` / `--plan-only` first when reviewing source paths. The helper stages only known public docs, network definition files, evidence files, optional reviewed binaries, and optional reviewed support-bundle artifacts; it refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. When given a support-bundle directory, it copies only `manifest.json` and writes a note instead of copying the directory wholesale. After staging, it writes `checksums.sha256` for artifact directories that contain direct files, including nested binary platform directories.
 
+Validate the staged archive before publication:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-archive-validate.ps1 `
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit>
+```
+
+```bash
+bash scripts/public-devnet-v1/release-archive-validate.sh \
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit>
+```
+
+The validator checks required public files, rejects obvious private file names, and verifies every `checksums.sha256` entry against staged bytes. Use `-AllowDryRun` / `--allow-dry-run` only for rehearsal archives that intentionally contain the template inventory or sample release evidence instead of final reviewed artifacts.
+
 ## Binary Artifacts
 
 - `mfnd`

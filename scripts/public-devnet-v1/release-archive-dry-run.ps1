@@ -156,9 +156,7 @@ This archive was assembled by ``release-archive-dry-run.ps1`` from public releas
 Do not add wallet seeds, validator private seeds, RPC API keys, private ``peers.json``, host credentials, or private operator notes to this directory.
 "@
     Set-Content -LiteralPath (Join-Path $ArchiveRoot "README.md") -Value $readme -Encoding utf8
-    foreach ($dir in @("binaries", "network", "evidence", "support", "docs")) {
-        Write-TreeChecksums -Directory (Join-Path $ArchiveRoot $dir)
-    }
+    Write-TreeChecksums -Directory $ArchiveRoot
     Write-Output "release-archive-dry-run: OK path=$ArchiveRoot"
 } else {
     Write-Output "release-archive-dry-run: PLAN OK"

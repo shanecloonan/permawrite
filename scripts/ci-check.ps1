@@ -151,6 +151,25 @@ try {
             exit 1
         }
     }
+    powershell -NoProfile -File scripts/public-devnet-v1/release-archive-validate.ps1 -ArchiveDir $archiveRoot -AllowDryRun | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    Add-Content -LiteralPath (Join-Path $archiveRoot "network/genesis.json") -Value "corrupt"
+    $archiveValidateStdout = Join-Path $archiveDir "archive-validate.out"
+    $archiveValidateStderr = Join-Path $archiveDir "archive-validate.err"
+    $archiveValidateProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-archive-validate.ps1",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-AllowDryRun"
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $archiveValidateStdout -RedirectStandardError $archiveValidateStderr
+    if ($archiveValidateProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-archive-validate.ps1 accepted a corrupted checksum")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
 } finally {
     Remove-Item -Recurse -Force $archiveDir -ErrorAction SilentlyContinue
 }

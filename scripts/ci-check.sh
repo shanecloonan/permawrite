@@ -173,6 +173,12 @@ for required_path in \
     exit 1
   fi
 done
+bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null
+printf '\ncorrupt\n' >> "$archive_root/network/genesis.json"
+if bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null 2>&1; then
+  echo "release-archive-validate.sh accepted a corrupted checksum" >&2
+  exit 1
+fi
 rm -rf "$archive_dir"
 inventory_dir="$(mktemp -d)"
 trap 'rm -rf "$inventory_dir"' EXIT
