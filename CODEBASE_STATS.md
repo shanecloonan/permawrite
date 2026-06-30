@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-30T06:03:04.503Z
+**Generated (UTC):** 2026-06-30T06:16:51.164Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 346 |
-| Total lines (all scanned source-like files) | 115,168 |
-| Non-empty lines | 103,489 |
-| UTF-8 bytes (source-like) | 4,649,295 |
+| Total lines (all scanned source-like files) | 115,169 |
+| Non-empty lines | 103,490 |
+| UTF-8 bytes (source-like) | 4,649,327 |
 | Paths visited (before binary/huge skip) | 388 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -41,14 +41,14 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `mfn-storage` | 6 | 2,005 | 1,821 |
 | `mfn-bls` | 4 | 865 | 757 |
 | `.github` | 2 | 789 | 758 |
-| `(root)` | 6 | 787 | 556 |
+| `(root)` | 6 | 788 | 557 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
 | `.rs` | 212 | 90,620 | 83,987 | 3,280,832 |
-| `.md` | 57 | 14,641 | 10,455 | 1,007,161 |
+| `.md` | 57 | 14,642 | 10,456 | 1,007,193 |
 | `.sh` | 29 | 4,659 | 4,216 | 160,957 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
 | `.yml` | 2 | 789 | 758 | 41,543 |

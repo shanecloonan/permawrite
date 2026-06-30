@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Periodic committee catch-up planning filters quarantined peers before cap accounting. | In progress in clean Agent 1 worktree. | Add deterministic coverage for gap-triggered catch-up quarantine before recovery dial cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Dependency-free JSON schema validation for published release artifacts. | In progress locally. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Dependency-free JSON schema validation for published release artifacts. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -67,7 +67,8 @@ Current task:
 - [x] Validate release evidence and sign-off manifest samples against their published schemas.
 - [x] Add CI coverage that rejects forbidden additional properties.
 - [x] Update release docs and checklist.
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
+- [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
