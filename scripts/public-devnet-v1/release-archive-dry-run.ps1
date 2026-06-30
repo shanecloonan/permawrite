@@ -7,6 +7,7 @@ param(
     [string]$ReleaseEvidenceJson,
     [string]$SupportBundle,
     [string]$SignoffReview,
+    [string]$SignoffManifest,
     [string]$Inventory
 )
 $ErrorActionPreference = "Stop"
@@ -109,6 +110,9 @@ if ($ReleaseEvidenceJson) {
 }
 if ($SignoffReview) {
     $entries += @{ Source = $SignoffReview; Destination = "evidence/release-signoff-review.md" }
+}
+if ($SignoffManifest) {
+    $entries += @{ Source = $SignoffManifest; Destination = "evidence/release-signoff-manifest.json" }
 }
 
 if ($IncludeBinaries) {

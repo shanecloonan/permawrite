@@ -193,6 +193,67 @@ for required_path in \
   fi
 done
 bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null
+signoff_commit="0000000000000000000000000000000000000000"
+cat > "$archive_dir/signoff-ci-success.json" <<EOF
+[
+  {"headSha":"$signoff_commit","status":"completed","conclusion":"success","url":"https://example.invalid/signoff-success"}
+]
+EOF
+cat > "$archive_dir/signoff-inventory.md" <<'EOF'
+# Inventory
+
+- Path or URL: ./artifact
+- SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+- Reviewer: ci-smoke
+
+Decision: go
+EOF
+signoff_json="$(bash scripts/public-devnet-v1/release-signoff-manifest.sh \
+  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --decision go \
+  --operator ci-smoke \
+  --reviewer ci-reviewer \
+  --allow-dry-run \
+  --threat-model-reviewed \
+  --residual-risks-have-owners \
+  --rpc-exposure-approved \
+  --backups-restore-rehearsed \
+  --halt-rollback-authority-agreed)"
+SIGNOFF_JSON="$signoff_json" python3 - <<'PY'
+import json
+import os
+import sys
+
+doc = json.loads(os.environ["SIGNOFF_JSON"])
+if doc.get("schema_version") != "release-signoff-manifest.v1" or doc.get("decision") != "go" or doc.get("issues"):
+    print("release-signoff-manifest.sh did not emit a clean go manifest", file=sys.stderr)
+    sys.exit(1)
+PY
+cat > "$archive_dir/signoff-ci-failure.json" <<EOF
+[
+  {"headSha":"$signoff_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/signoff-failure"}
+]
+EOF
+if bash scripts/public-devnet-v1/release-signoff-manifest.sh \
+  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-failure.json" \
+  --decision go \
+  --operator ci-smoke \
+  --reviewer ci-reviewer \
+  --allow-dry-run \
+  --threat-model-reviewed \
+  --residual-risks-have-owners \
+  --rpc-exposure-approved \
+  --backups-restore-rehearsed \
+  --halt-rollback-authority-agreed >/dev/null 2>&1; then
+  echo "release-signoff-manifest.sh accepted failing CI for a go decision" >&2
+  exit 1
+fi
 printf '\ncorrupt\n' >> "$archive_root/network/genesis.json"
 if bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null 2>&1; then
   echo "release-archive-validate.sh accepted a corrupted checksum" >&2

@@ -186,6 +186,7 @@ else
     evidence/release-evidence.json \
     evidence/release-artifact-inventory.md \
     evidence/release-signoff-review.md \
+    evidence/release-signoff-manifest.json \
     support/manifest.json; do
     require_file "$required"
   done

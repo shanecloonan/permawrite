@@ -50,7 +50,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add release archive assembly dry-run guidance or helper that stages public artifacts without secrets.
 - [x] Add release archive manifest validation that verifies staged checksums and required public files before publication.
 - [x] Add release-candidate GitHub CI watcher guidance or helper that blocks sign-off until the exact pushed commit is green.
-- [ ] Add a release-candidate sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals into one machine-readable decision record.
+- [x] Add a release-candidate sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals into one machine-readable decision record.
+- [ ] Add release sign-off manifest schema/sample artifacts for dashboard ingestion and independent validator tooling.
 
 ## Agent 1 — Core Protocol, Consensus, Networking, Sync
 

@@ -219,6 +219,42 @@ The watcher exits successfully only when the matching `CI` workflow run is `comp
 
 When collecting launch support diagnostics, pass the generated JSON evidence to `support-bundle` so the bundle validates the `release-evidence.v1` contract, copies the evidence as `release-evidence.json`, and records a validation summary in `manifest.json`.
 
+After CI, evidence, inventory, and archive validation pass, write the machine-readable release sign-off manifest:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-signoff-manifest.ps1 `
+  -ReleaseEvidenceJson .\release-evidence.json `
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit> `
+  -Inventory .\release-artifact-inventory.md `
+  -Decision go `
+  -Operator "name or handle" `
+  -Reviewer "independent reviewer" `
+  -ThreatModelReviewed `
+  -ResidualRisksHaveOwners `
+  -RpcExposureApproved `
+  -BackupsRestoreRehearsed `
+  -HaltRollbackAuthorityAgreed `
+  -OutputPath .\release-signoff-manifest.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-signoff-manifest.sh \
+  --release-evidence-json ./release-evidence.json \
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit> \
+  --inventory ./release-artifact-inventory.md \
+  --decision go \
+  --operator "name or handle" \
+  --reviewer "independent reviewer" \
+  --threat-model-reviewed \
+  --residual-risks-have-owners \
+  --rpc-exposure-approved \
+  --backups-restore-rehearsed \
+  --halt-rollback-authority-agreed \
+  --output ./release-signoff-manifest.json
+```
+
+The manifest uses `schema_version=release-signoff-manifest.v1` and refuses `go` when exact-commit CI is not green, release evidence is malformed or for a different commit, archive validation fails, the inventory fails validation, or required human approvals are missing. Use `no-go` to archive a failed release review without bypassing any gate.
+
 ### Release sign-off bundle review
 
 Before advertising public endpoints, one reviewer who is not the release operator should inspect the final launch notes plus support bundle. This review is a human gate; schema validation only proves the files are shaped correctly, not that the network is safe.
@@ -234,6 +270,7 @@ powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
   -PlanOnly `
   -ReleaseEvidenceMarkdown .\release-evidence.md `
   -ReleaseEvidenceJson .\release-evidence.json `
+  -SignoffManifest .\release-signoff-manifest.json `
   -Inventory .\release-artifact-inventory.md
 ```
 
@@ -242,6 +279,7 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
   --plan-only \
   --release-evidence-md ./release-evidence.md \
   --release-evidence-json ./release-evidence.json \
+  --signoff-manifest ./release-signoff-manifest.json \
   --inventory ./release-artifact-inventory.md
 ```
 

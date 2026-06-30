@@ -193,6 +193,82 @@ try {
     powershell -NoProfile -File scripts/public-devnet-v1/release-archive-validate.ps1 -ArchiveDir $archiveRoot -AllowDryRun | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    $signoffCommit = "0000000000000000000000000000000000000000"
+    $signoffCiSuccess = Join-Path $archiveDir "signoff-ci-success.json"
+    @"
+[
+  {"headSha":"$signoffCommit","status":"completed","conclusion":"success","url":"https://example.invalid/signoff-success"}
+]
+"@ | Set-Content -LiteralPath $signoffCiSuccess -Encoding utf8
+    $signoffInventory = Join-Path $archiveDir "signoff-inventory.md"
+    @'
+# Inventory
+
+- Path or URL: ./artifact
+- SHA-256: 0000000000000000000000000000000000000000000000000000000000000000
+- Reviewer: ci-smoke
+
+Decision: go
+'@ | Set-Content -LiteralPath $signoffInventory -Encoding utf8
+    $signoffJson = powershell -NoProfile -File scripts/public-devnet-v1/release-signoff-manifest.ps1 `
+        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -ArchiveDir $archiveRoot `
+        -Inventory $signoffInventory `
+        -CiMockRuns $signoffCiSuccess `
+        -Decision go `
+        -Operator ci-smoke `
+        -Reviewer ci-reviewer `
+        -AllowDryRun `
+        -ThreatModelReviewed `
+        -ResidualRisksHaveOwners `
+        -RpcExposureApproved `
+        -BackupsRestoreRehearsed `
+        -HaltRollbackAuthorityAgreed
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $signoffObject = $signoffJson | ConvertFrom-Json
+    if ($signoffObject.schema_version -ne "release-signoff-manifest.v1" -or $signoffObject.decision -ne "go" -or $signoffObject.issues.Count -ne 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest.ps1 did not emit a clean go manifest")
+        exit 1
+    }
+    $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
+    @"
+[
+  {"headSha":"$signoffCommit","status":"completed","conclusion":"failure","url":"https://example.invalid/signoff-failure"}
+]
+"@ | Set-Content -LiteralPath $signoffCiFailure -Encoding utf8
+    $signoffFailureStdout = Join-Path $archiveDir "signoff-failure.out"
+    $signoffFailureStderr = Join-Path $archiveDir "signoff-failure.err"
+    $signoffFailureProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-signoff-manifest.ps1",
+        "-ReleaseEvidenceJson",
+        "docs/release-evidence-v1.sample.json",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-Inventory",
+        $signoffInventory,
+        "-CiMockRuns",
+        $signoffCiFailure,
+        "-Decision",
+        "go",
+        "-Operator",
+        "ci-smoke",
+        "-Reviewer",
+        "ci-reviewer",
+        "-AllowDryRun",
+        "-ThreatModelReviewed",
+        "-ResidualRisksHaveOwners",
+        "-RpcExposureApproved",
+        "-BackupsRestoreRehearsed",
+        "-HaltRollbackAuthorityAgreed"
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $signoffFailureStdout -RedirectStandardError $signoffFailureStderr
+    if ($signoffFailureProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-signoff-manifest.ps1 accepted failing CI for a go decision")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
+
     Add-Content -LiteralPath (Join-Path $archiveRoot "network/genesis.json") -Value "corrupt"
     $archiveValidateStdout = Join-Path $archiveDir "archive-validate.out"
     $archiveValidateStderr = Join-Path $archiveDir "archive-validate.err"

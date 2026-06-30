@@ -43,6 +43,7 @@ permawrite-public-devnet-<rc>-<commit>/
     release-evidence.json
     release-evidence-v1.schema.json
     release-signoff-review.md
+    release-signoff-manifest.json
     release-artifact-inventory.md
     checksums.sha256
   support/
@@ -73,6 +74,7 @@ powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
   -OutputDir .\release-staging `
   -ReleaseEvidenceMarkdown .\release-evidence.md `
   -ReleaseEvidenceJson .\release-evidence.json `
+  -SignoffManifest .\release-signoff-manifest.json `
   -Inventory .\release-artifact-inventory.md
 ```
 
@@ -81,6 +83,7 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
   --output-dir ./release-staging \
   --release-evidence-md ./release-evidence.md \
   --release-evidence-json ./release-evidence.json \
+  --signoff-manifest ./release-signoff-manifest.json \
   --inventory ./release-artifact-inventory.md
 ```
 
@@ -171,6 +174,12 @@ The validator checks required public files, rejects obvious private file names, 
 - Sign-off review output
   - Path or URL:
   - SHA-256:
+  - Reviewer:
+- Sign-off manifest: `release-signoff-manifest.json`
+  - Path or URL:
+  - SHA-256:
+  - `schema_version`:
+  - `decision`:
   - Reviewer:
 
 ## Operational Evidence

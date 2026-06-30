@@ -13,6 +13,7 @@ release_evidence_md=""
 release_evidence_json=""
 support_bundle=""
 signoff_review=""
+signoff_manifest=""
 inventory=""
 
 usage() {
@@ -27,6 +28,7 @@ Options:
   --release-evidence-json FILE  Stage a reviewed JSON evidence record.
   --support-bundle PATH         Stage a reviewed support bundle archive, or only manifest.json from a directory.
   --signoff-review FILE         Stage release-signoff-review output.
+  --signoff-manifest FILE       Stage release-signoff-manifest output.
   --inventory FILE              Stage a filled release artifact inventory.
 EOF
 }
@@ -59,6 +61,10 @@ while (($# > 0)); do
       ;;
     --signoff-review)
       signoff_review="${2:?missing value for --signoff-review}"
+      shift 2
+      ;;
+    --signoff-manifest)
+      signoff_manifest="${2:?missing value for --signoff-manifest}"
       shift 2
       ;;
     --inventory)
@@ -170,6 +176,7 @@ fi
 [[ -n "$release_evidence_md" ]] && copy_public_file "$release_evidence_md" "$archive_root/evidence/release-evidence.md"
 [[ -n "$release_evidence_json" ]] && copy_public_file "$release_evidence_json" "$archive_root/evidence/release-evidence.json"
 [[ -n "$signoff_review" ]] && copy_public_file "$signoff_review" "$archive_root/evidence/release-signoff-review.md"
+[[ -n "$signoff_manifest" ]] && copy_public_file "$signoff_manifest" "$archive_root/evidence/release-signoff-manifest.json"
 
 if ((include_binaries)); then
   for binary in mfnd mfn-cli mfn-storage-operator; do
