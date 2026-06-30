@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Repeated gap-triggered recovery failures cannot durably delete saved peers. | In progress in clean Agent 1 worktree. | Stabilize Windows duplex P2P session chunk fanout so the full auto-fanout smoke can run on Windows. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Authenticated release CI polling and wasm-pack CI mirror compatibility. | In progress locally. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Authenticated release CI polling and wasm-pack CI mirror compatibility. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
