@@ -81,7 +81,7 @@ Minimal participant path:
 
 A participant rehearsal is not considered successful until the final line says `participant-rehearsal: PASS ... support_bundle=<dir>`. Archive that final line and support-bundle directory with launch evidence; a timeout, daemon-death diagnostic, hash mismatch, missing proof, or missing support bundle is still a public-invite blocker.
 
-When building release-candidate launch evidence, pass the archived participant rehearsal transcript and support-bundle directory to `release-audit-packet.ps1` / `release-audit-packet.sh`. The audit packet validates the PASS line, restored SHA-256 shape, support-bundle `manifest.json`, read-only marker, matching commitment hash, and core node/upload/proof captures without rerunning the live rehearsal.
+When building release-candidate launch evidence, pass the archived participant rehearsal transcript and support-bundle directory to `release-audit-packet.ps1` / `release-audit-packet.sh`. The audit packet validates the PASS line, restored SHA-256 shape, the transcript's `support_bundle` reference against the provided bundle directory, support-bundle `manifest.json`, read-only marker, matching commitment hash, and core node/upload/proof captures without rerunning the live rehearsal.
 
 Before rebuilding release binaries or running CI after a local mesh, stop recorded devnet PIDs with `powershell -File scripts/public-devnet-v1/stop-all.ps1 -DryRun` then `powershell -File scripts/public-devnet-v1/stop-all.ps1`, or `bash scripts/public-devnet-v1/stop-all.sh --dry-run` then `bash scripts/public-devnet-v1/stop-all.sh`. Use `-AllMfnd` / `--all-mfnd` only when stale `mfnd` processes still hold release binaries.
 

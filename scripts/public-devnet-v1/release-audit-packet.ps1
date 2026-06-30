@@ -49,6 +49,19 @@ function Add-ToolCheck {
     Add-Check -Name $Name -Status $(if ($result.ExitCode -eq 0) { "pass" } else { "fail" }) -Message $message
 }
 
+function Test-SameBundleReference {
+    param([string]$ReportedBundle, [string]$ProvidedBundle)
+    $reported = $ReportedBundle.Trim().Trim('"')
+    $providedResolved = (Resolve-Path -LiteralPath $ProvidedBundle).Path
+    if (Test-Path -LiteralPath $reported) {
+        $reportedResolved = (Resolve-Path -LiteralPath $reported).Path
+        return [StringComparer]::OrdinalIgnoreCase.Equals($reportedResolved, $providedResolved)
+    }
+    $reportedLeaf = Split-Path -Leaf $reported
+    $providedLeaf = Split-Path -Leaf $providedResolved
+    return $reportedLeaf -and [StringComparer]::OrdinalIgnoreCase.Equals($reportedLeaf, $providedLeaf)
+}
+
 function Add-ParticipantEvidenceCheck {
     param([string]$LogPath, [string]$BundleDir)
     if (-not $LogPath -and -not $BundleDir) { return }
@@ -68,6 +81,10 @@ function Add-ParticipantEvidenceCheck {
     $passMatch = [regex]::Match($logText, "participant-rehearsal: PASS\s+commitment_hash=(?<commit>[0-9a-fA-F]+)\s+restored_sha256=(?<sha>[0-9a-fA-F]{64})\s+restored_path=(?<restored>\S+)\s+support_bundle=(?<bundle>\S+)")
     if (-not $passMatch.Success) {
         Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "participant rehearsal log missing final PASS line with commitment_hash, restored_sha256, restored_path, and support_bundle"
+        return
+    }
+    if (-not (Test-SameBundleReference -ReportedBundle $passMatch.Groups["bundle"].Value -ProvidedBundle $BundleDir)) {
+        Add-Check -Name "participant rehearsal evidence" -Status "fail" -Message "participant rehearsal PASS support_bundle does not match provided support bundle directory"
         return
     }
     $manifestPath = Join-Path $BundleDir "manifest.json"

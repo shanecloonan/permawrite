@@ -366,6 +366,22 @@ if not participant or participant.get("status") != "pass" or "commitment_hash=" 
     print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
     sys.exit(1)
 PY
+cat > "$archive_dir/participant-rehearsal-bad-bundle.log" <<EOF
+participant-rehearsal: PASS commitment_hash=$participant_commit restored_sha256=$participant_sha restored_path=restored.bin support_bundle=$archive_dir/wrong-support-bundle
+EOF
+if bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --participant-rehearsal-log "$archive_dir/participant-rehearsal-bad-bundle.log" \
+  --participant-support-bundle "$participant_bundle" \
+  --allow-dry-run \
+  --json >/dev/null 2>&1; then
+  echo "release-audit-packet.sh accepted mismatched participant support bundle evidence" >&2
+  exit 1
+fi
 cat > "$archive_dir/signoff-ci-failure.json" <<EOF
 [
   {"headSha":"$signoff_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/signoff-failure"}

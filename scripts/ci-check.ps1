@@ -390,6 +390,36 @@ Decision: go
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant rehearsal evidence")
         exit 1
     }
+    $participantBadBundleLog = Join-Path $archiveDir "participant-rehearsal-bad-bundle.log"
+    "participant-rehearsal: PASS commitment_hash=$participantCommit restored_sha256=$participantSha restored_path=restored.bin support_bundle=$(Join-Path $archiveDir "wrong-support-bundle")" | Set-Content -LiteralPath $participantBadBundleLog -Encoding utf8
+    $participantBadStdout = Join-Path $archiveDir "participant-bad-bundle.out"
+    $participantBadStderr = Join-Path $archiveDir "participant-bad-bundle.err"
+    $participantBadProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-File",
+        "scripts/public-devnet-v1/release-audit-packet.ps1",
+        "-ReleaseEvidenceJson",
+        "docs/release-evidence-v1.sample.json",
+        "-SignoffManifest",
+        "docs/release-signoff-manifest-v1.sample.json",
+        "-ArchiveDir",
+        $archiveRoot,
+        "-Inventory",
+        $signoffInventory,
+        "-CiMockRuns",
+        $signoffCiSuccess,
+        "-ParticipantRehearsalLog",
+        $participantBadBundleLog,
+        "-ParticipantSupportBundle",
+        $participantBundle,
+        "-AllowDryRun",
+        "-Json"
+    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $participantBadStdout -RedirectStandardError $participantBadStderr
+    if ($participantBadProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 accepted mismatched participant support bundle evidence")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
     $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
     @"
 [

@@ -119,6 +119,15 @@ def resolve_path(path):
     return path if os.path.isabs(path) else os.path.join(repo_root, path)
 
 
+def same_bundle_reference(reported_bundle, provided_bundle):
+    reported = reported_bundle.strip().strip('"')
+    provided_abs = os.path.abspath(resolve_path(provided_bundle))
+    reported_abs = os.path.abspath(resolve_path(reported))
+    if os.path.exists(reported_abs):
+        return reported_abs == provided_abs
+    return os.path.basename(reported.rstrip("/\\")) == os.path.basename(provided_abs.rstrip("/\\"))
+
+
 def add_participant_evidence_check(log_path, bundle_dir):
     if not log_path and not bundle_dir:
         return
@@ -141,6 +150,9 @@ def add_participant_evidence_check(log_path, bundle_dir):
     )
     if not match:
         add_check("participant rehearsal evidence", "fail", "participant rehearsal log missing final PASS line with commitment_hash, restored_sha256, restored_path, and support_bundle")
+        return
+    if not same_bundle_reference(match.group("bundle"), bundle_dir):
+        add_check("participant rehearsal evidence", "fail", "participant rehearsal PASS support_bundle does not match provided support bundle directory")
         return
     manifest_path = os.path.join(full_bundle, "manifest.json")
     if not os.path.isfile(manifest_path):

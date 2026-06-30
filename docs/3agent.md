@@ -48,7 +48,7 @@ Next:
 
 Current:
 
-- Continue participant evidence maturity while live rehearsal/nightly promotion remains blocked by mesh lifetime.
+- Harden archived participant rehearsal evidence gates while live rehearsal/nightly promotion remains blocked by mesh lifetime.
 
 Done:
 
@@ -58,6 +58,7 @@ Done:
 - `permanence-demo.ps1` / `permanence-demo.sh` now fail fast with recorded local-mesh PID status and log paths when upload-list polling sees RPC connection-refused errors after the helper mesh dies.
 - Participant rehearsal plan mode now tells operators the next real-run action and the expected `support_bundle=<dir>` success output; `docs/TESTNET.md` and `OPERATORS.md` now define the final PASS line/support bundle as participant proof-of-success evidence.
 - `release-audit-packet.ps1` / `release-audit-packet.sh` can now ingest archived participant rehearsal transcripts and support-bundle manifests, validating the PASS line, restored SHA-256 shape, read-only bundle, matching commitment, and core node/upload/proof captures.
+- Archived participant rehearsal evidence now binds the transcript's `support_bundle` reference to the provided bundle directory, with CI coverage proving mismatched evidence is rejected.
 
 Next:
 
@@ -74,4 +75,4 @@ Next:
 
 ## Latest Coordination Note
 
-- Agent 3 added offline participant rehearsal evidence ingestion to release audit packets. Operators can now pass an archived rehearsal transcript plus support bundle; the audit packet validates the PASS line, restored SHA-256 shape, read-only manifest, matching commitment, and required node/upload/proof captures without rerunning the flaky live smoke. Nightly promotion remains blocked pending the daemon-lifetime fix.
+- Agent 3 hardened offline participant rehearsal evidence ingestion in release audit packets. Operators can now pass an archived rehearsal transcript plus support bundle; the audit packet validates the PASS line, restored SHA-256 shape, transcript-to-bundle match, read-only manifest, matching commitment, and required node/upload/proof captures without rerunning the flaky live smoke. Nightly promotion remains blocked pending the daemon-lifetime fix.
