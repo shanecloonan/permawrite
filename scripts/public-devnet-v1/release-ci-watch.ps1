@@ -56,6 +56,22 @@ function Get-WorkflowQueryName {
     return $Name
 }
 
+function Get-GitHubToken {
+    if ($env:GH_TOKEN) { return $env:GH_TOKEN }
+    if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
+    return ""
+}
+
+function Get-SourceName {
+    if ($MockRuns) { return "mock" }
+    $token = Get-GitHubToken
+    $apiSource = if ($token) { "github-api-auth" } else { "github-api" }
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        return "gh-or-$apiSource"
+    }
+    return $apiSource
+}
+
 function Get-Runs {
     if ($MockRuns) {
         return ConvertTo-RunList (Get-Content -LiteralPath $MockRuns -Raw | ConvertFrom-Json)
@@ -88,7 +104,14 @@ function Get-Runs {
     $workflowQuery = [System.Uri]::EscapeDataString((Get-WorkflowQueryName $Workflow))
     $branchQuery = [System.Uri]::EscapeDataString($Branch)
     $uri = "https://api.github.com/repos/$slug/actions/workflows/$workflowQuery/runs?branch=$branchQuery&per_page=20"
-    $response = Invoke-RestMethod -Uri $uri -Headers @{ "User-Agent" = "permawrite-release-ci-watch" }
+    $headers = @{ "User-Agent" = "permawrite-release-ci-watch" }
+    $token = Get-GitHubToken
+    if ($token) {
+        $headers["Authorization"] = "Bearer $token"
+        $headers["Accept"] = "application/vnd.github+json"
+        $headers["X-GitHub-Api-Version"] = "2022-11-28"
+    }
+    $response = Invoke-RestMethod -Uri $uri -Headers $headers
     return ConvertTo-RunList $response
 }
 
@@ -137,7 +160,7 @@ if (-not $Commit) {
 }
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-$source = if ($MockRuns) { "mock" } elseif (Get-Command gh -ErrorAction SilentlyContinue) { "gh-or-github-api" } else { "github-api" }
+$source = Get-SourceName
 
 while ($true) {
     try {

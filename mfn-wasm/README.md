@@ -32,7 +32,7 @@ With `wasm-full`, additional exports include:
 ## Build
 
 ```bash
-wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
+wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
 ```
 
 The CI mirror checks the `wasm32-unknown-unknown` build path and the `wasm-pack` package build. Treat these bindings as devnet-grade and pre-audit, matching the rest of the repository.

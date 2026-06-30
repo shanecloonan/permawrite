@@ -31,6 +31,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add reverse-proxy TLS and firewall examples for Linux and Windows operators.
 - [x] Add backup, upgrade, rollback, and key-rotation runbooks.
 - [x] Confirm CI mirror catches fmt, clippy, tests, audit, and ignored/nightly smoke gaps before every push.
+- [x] Keep the CI mirror's wasm-pack package build compatible with `mfn-wasm` package metadata and full-feature demo exports.
 - [x] Add a public-testnet launch go/no-go checklist for release candidates and outside-operator invites.
 - [x] Require `rpc.public_bind` / `rpc.listen_addr` verification in the launch go/no-go checklist.
 - [x] Reconcile top-level status docs so `README.md` and `IMPLEMENTATION_STATUS.md` distinguish controlled public devnet, internet-facing release candidate gates, and incentivized/adversarial testnet readiness without implying audit-grade safety.
@@ -51,6 +52,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add release archive manifest validation that verifies staged checksums and required public files before publication.
 - [x] Add release-candidate GitHub CI watcher guidance or helper that blocks sign-off until the exact pushed commit is green.
 - [x] Make release-candidate GitHub CI watcher failures from unauthenticated API rate limits structured no-go results instead of raw tool crashes.
+- [x] Make release-candidate GitHub CI watcher fallback use `GH_TOKEN` / `GITHUB_TOKEN` without leaking tokens into JSON output.
 - [x] Add a release-candidate sign-off manifest that combines CI watcher, archive validation, release evidence, and human approvals into one machine-readable decision record.
 - [x] Add release sign-off manifest schema/sample artifacts for dashboard ingestion and independent validator tooling.
 - [x] Add dependency-free sign-off manifest validation that enforces the published contract and `go` decision gates.

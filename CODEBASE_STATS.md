@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-06-30T10:17:03.360Z
+**Generated (UTC):** 2026-06-30T10:40:56.658Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -10,10 +10,10 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 
 | Metric | Value |
 | --- | ---: |
-| Source-like files scanned | 349 |
-| Total lines (all scanned source-like files) | 116,459 |
-| Non-empty lines | 104,652 |
-| UTF-8 bytes (source-like) | 4,698,083 |
+| Source-like files scanned | 350 |
+| Total lines (all scanned source-like files) | 116,611 |
+| Non-empty lines | 104,782 |
+| UTF-8 bytes (source-like) | 4,695,140 |
 | Paths visited (before binary/huge skip) | 392 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -25,10 +25,10 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | --- | ---: | ---: | ---: |
 | `mfn-consensus` | 67 | 28,714 | 26,860 |
 | `mfn-cli` | 29 | 14,702 | 13,593 |
-| `docs` | 46 | 12,248 | 8,912 |
+| `docs` | 47 | 12,285 | 8,936 |
 | `mfn-node` | 34 | 11,413 | 10,566 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
-| `scripts` | 32 | 6,299 | 5,496 |
+| `scripts` | 32 | 6,355 | 5,544 |
 | `mfn-wallet` | 15 | 4,933 | 4,524 |
 | `mfn-net` | 11 | 4,507 | 4,113 |
 | `mfn-runtime` | 14 | 4,394 | 4,065 |
@@ -39,23 +39,23 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 | `mfn-store` | 13 | 2,159 | 1,875 |
 | `mfn-wasm` | 11 | 2,070 | 1,873 |
 | `mfn-storage` | 6 | 2,005 | 1,821 |
+| `.github` | 2 | 916 | 882 |
 | `mfn-bls` | 4 | 865 | 757 |
-| `.github` | 2 | 862 | 829 |
-| `(root)` | 6 | 798 | 567 |
+| `(root)` | 6 | 803 | 572 |
 
 ## Lines of code by file extension
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 91,383 | 84,689 | 3,321,968 |
-| `.md` | 59 | 14,746 | 10,532 | 996,380 |
-| `.sh` | 30 | 5,007 | 4,527 | 175,251 |
+| `.rs` | 212 | 91,383 | 84,689 | 3,311,709 |
+| `.md` | 60 | 14,788 | 10,561 | 999,248 |
+| `.sh` | 30 | 5,063 | 4,575 | 177,174 |
 | `.js` | 7 | 1,980 | 1,856 | 64,098 |
-| `.yml` | 2 | 862 | 829 | 45,420 |
+| `.yml` | 2 | 916 | 882 | 48,060 |
 | `.mjs` | 5 | 706 | 616 | 19,916 |
-| `.svg` | 4 | 655 | 581 | 42,371 |
+| `.svg` | 4 | 655 | 581 | 42,237 |
 | `.json` | 15 | 595 | 580 | 17,845 |
-| `.toml` | 15 | 525 | 442 | 14,834 |
+| `.toml` | 15 | 525 | 442 | 14,853 |
 
 ## Largest source files (by line count)
 

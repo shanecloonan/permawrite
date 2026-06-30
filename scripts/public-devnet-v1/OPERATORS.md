@@ -231,7 +231,7 @@ bash scripts/public-devnet-v1/release-ci-watch.sh \
   --timeout-seconds 1800
 ```
 
-The watcher exits successfully only when the matching `CI` workflow run is `completed` with `conclusion=success`. Missing, queued, in-progress without `--wait`, failed, cancelled, skipped, timed-out, unknown runs, GitHub API errors, and unauthenticated API rate limits are no-go results. It uses authenticated `gh` when available and otherwise falls back to GitHub's public Actions API for public repositories. For release sign-off, prefer `gh auth login` or a `GH_TOKEN` environment variable so long polling is not dependent on the low unauthenticated public API limit.
+The watcher exits successfully only when the matching `CI` workflow run is `completed` with `conclusion=success`. Missing, queued, in-progress without `--wait`, failed, cancelled, skipped, timed-out, unknown runs, GitHub API errors, and unauthenticated API rate limits are no-go results. It uses authenticated `gh` when available, otherwise falls back to GitHub's Actions API with `GH_TOKEN` / `GITHUB_TOKEN` when set, then to the public unauthenticated API for public repositories. For release sign-off, prefer `gh auth login` or a token environment variable so long polling is not dependent on the low unauthenticated public API limit.
 
 When collecting launch support diagnostics, pass the generated JSON evidence to `support-bundle` so the bundle validates the `release-evidence.v1` contract, copies the evidence as `release-evidence.json`, and records a validation summary in `manifest.json`.
 

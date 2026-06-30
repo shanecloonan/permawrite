@@ -224,6 +224,39 @@ try {
         exit 1
     }
     $global:LASTEXITCODE = 0
+    $ciWatchAuthStdout = Join-Path $ciWatchDir "auth-api.out"
+    $ciWatchAuthStderr = Join-Path $ciWatchDir "auth-api.err"
+    $previousGhToken = $env:GH_TOKEN
+    try {
+        $env:GH_TOKEN = "ci-watch-test-token"
+        $ciWatchAuthProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+            "-NoProfile",
+            "-File",
+            "scripts/public-devnet-v1/release-ci-watch.ps1",
+            "-Commit",
+            $ciWatchCommit,
+            "-MockApiErrorStatus",
+            "500",
+            "-Json"
+        ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $ciWatchAuthStdout -RedirectStandardError $ciWatchAuthStderr
+    } finally {
+        $env:GH_TOKEN = $previousGhToken
+    }
+    if ($ciWatchAuthProcess.ExitCode -eq 0) {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 accepted mocked GitHub API failure as green")
+        exit 1
+    }
+    $authText = Get-Content -LiteralPath $ciWatchAuthStdout -Raw
+    $authObject = $authText | ConvertFrom-Json
+    if ($authObject.status -ne "api_error" -or $authObject.source -notmatch "auth") {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 did not report authenticated API fallback source")
+        exit 1
+    }
+    if ($authText.Contains("ci-watch-test-token")) {
+        [Console]::Error.WriteLine("release-ci-watch.ps1 leaked GH_TOKEN in JSON output")
+        exit 1
+    }
+    $global:LASTEXITCODE = 0
 } finally {
     Remove-Item -Recurse -Force $ciWatchDir -ErrorAction SilentlyContinue
 }
@@ -459,7 +492,7 @@ cargo build -p mfn-wasm --target wasm32-unknown-unknown --release --features was
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 cargo test -p mfn-wasm --release --features wasm-full
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
+wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> cargo audit"

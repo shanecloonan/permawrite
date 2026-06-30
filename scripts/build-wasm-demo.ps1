@@ -8,9 +8,10 @@ if (-not (Get-Command wasm-pack -ErrorAction SilentlyContinue)) {
 
 rustup target add wasm32-unknown-unknown 2>$null
 
-wasm-pack build mfn-wasm `
+wasm-pack --log-level warn build mfn-wasm `
     --target web `
     --out-dir demo/web/pkg `
-    --release
+    --release `
+    --features wasm-full
 
 Write-Host "WASM demo built -> demo/web/pkg/"

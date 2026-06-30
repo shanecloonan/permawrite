@@ -18,7 +18,7 @@ Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explici
 
 ## Inspect GitHub failures (no copy-paste)
 
-Requires [GitHub CLI](https://cli.github.com/) and `gh auth login`.
+Requires [GitHub CLI](https://cli.github.com/) and `gh auth login` for direct `gh run` inspection. Exact-commit release polling can also use `GH_TOKEN` / `GITHUB_TOKEN` through `release-ci-watch.ps1` or `release-ci-watch.sh`.
 
 ```bash
 gh run list --workflow CI --limit 5

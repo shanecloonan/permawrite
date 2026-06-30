@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Repeated gap-triggered recovery failures cannot durably delete saved peers. | In progress in clean Agent 1 worktree. | Stabilize Windows duplex P2P session chunk fanout so the full auto-fanout smoke can run on Windows. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Structured release CI watcher handling for GitHub API rate limits and unauthenticated fallback failures. | Completed locally; local CI mirror passed. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Authenticated release CI polling and wasm-pack CI mirror compatibility. | In progress locally. | Add full third-party Draft 2020-12 validation if a validator dependency is pinned in the release toolchain. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -31,6 +31,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release JSON schema validators enforce the repository's published release schemas without adding an unpinned third-party dependency.
 - Agent 2: Final release audit packet helpers aggregate CI, evidence schema, sign-off, archive, inventory, and stats checks into one operator-facing go/no-go report.
 - Agent 2: Release CI watcher now reports unauthenticated GitHub API rate limits as structured no-go JSON instead of crashing.
+- Agent 2: Release CI watcher fallback uses `GH_TOKEN` / `GITHUB_TOKEN` for authenticated API polling without leaking tokens into JSON output.
+- Agent 2: WASM package metadata is explicit where wasm-pack requires string fields, keeping the local CI mirror's wasm package build green.
 - Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, and gap recovery success clearing transient peer penalties.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
@@ -65,7 +67,9 @@ Next Agent 1 task:
 Current task:
 
 - [x] Convert GitHub API failures in `release-ci-watch.ps1` and `release-ci-watch.sh` into structured `rate_limited` / `api_error` no-go results.
-- [x] Add CI mocks proving rate-limited API responses emit valid JSON and fail closed.
+- [x] Add `GH_TOKEN` / `GITHUB_TOKEN` headers to PowerShell and Bash release CI watcher API fallback.
+- [x] Add CI mocks proving rate-limited and authenticated API-error responses emit valid JSON, fail closed, and do not serialize tokens.
+- [x] Fix `mfn-wasm` package metadata for wasm-pack and align WASM demo build helpers with the full CI feature set.
 - [x] Update release docs and checklist.
 - [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.

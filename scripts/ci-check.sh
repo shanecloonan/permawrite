@@ -218,6 +218,27 @@ if doc.get("status") != "rate_limited":
     print("release-ci-watch.sh did not emit structured rate_limited JSON", file=sys.stderr)
     sys.exit(1)
 PY
+GH_TOKEN="ci-watch-test-token" bash scripts/public-devnet-v1/release-ci-watch.sh \
+  --commit "$ci_watch_commit" \
+  --mock-api-error-status 500 \
+  --json > "$ci_watch_dir/auth-api.json" 2>/dev/null && {
+  echo "release-ci-watch.sh accepted mocked GitHub API failure as green" >&2
+  exit 1
+}
+python3 - "$ci_watch_dir/auth-api.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    text = handle.read()
+doc = json.loads(text)
+if doc.get("status") != "api_error" or "auth" not in doc.get("source", ""):
+    print("release-ci-watch.sh did not report authenticated API fallback source", file=sys.stderr)
+    sys.exit(1)
+if "ci-watch-test-token" in text:
+    print("release-ci-watch.sh leaked GH_TOKEN in JSON output", file=sys.stderr)
+    sys.exit(1)
+PY
 rm -rf "$ci_watch_dir"
 support_plan="$(bash scripts/public-devnet-v1/support-bundle.sh --rpc 127.0.0.1:18731 --release-evidence docs/release-evidence-v1.sample.json --plan-only)"
 if [[ "$support_plan" != *"valid release-evidence.v1"* ]]; then
@@ -390,7 +411,7 @@ echo "==> wasm32 build"
 rustup target add wasm32-unknown-unknown
 cargo build -p mfn-wasm --target wasm32-unknown-unknown --release --features wasm-full
 cargo test -p mfn-wasm --release --features wasm-full
-wasm-pack build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
+wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
 
 echo "==> cargo audit"
 cargo audit

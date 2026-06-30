@@ -30,6 +30,10 @@ Options:
   --timeout-seconds N   Poll timeout when --wait is set. Defaults to 600.
   --interval-seconds N  Poll interval when --wait is set. Defaults to 15.
   --json                Print machine-readable result JSON.
+
+Environment:
+  GH_TOKEN / GITHUB_TOKEN
+                       Used for authenticated GitHub API fallback after gh.
 EOF
 }
 
@@ -144,6 +148,31 @@ def normalize_runs(raw):
     return []
 
 
+def github_token():
+    return os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+
+
+def which(name):
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = os.path.join(directory, name)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+        if os.name == "nt":
+            exe = candidate + ".exe"
+            if os.path.isfile(exe) and os.access(exe, os.X_OK):
+                return exe
+    return ""
+
+
+def source_name():
+    if mock_runs:
+        return "mock"
+    api_source = "github-api-auth" if github_token() else "github-api"
+    if which("gh"):
+        return f"gh-or-{api_source}"
+    return api_source
+
+
 def load_runs():
     if mock_runs:
         with open(mock_runs, "r", encoding="utf-8-sig") as handle:
@@ -179,7 +208,13 @@ def load_runs():
     workflow_path = urllib.parse.quote(workflow_query_name(workflow), safe="")
     branch_q = urllib.parse.quote(branch, safe="")
     url = f"https://api.github.com/repos/{slug}/actions/workflows/{workflow_path}/runs?branch={branch_q}&per_page=20"
-    req = urllib.request.Request(url, headers={"User-Agent": "permawrite-release-ci-watch"})
+    headers = {"User-Agent": "permawrite-release-ci-watch"}
+    token = github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+        headers["Accept"] = "application/vnd.github+json"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             return normalize_runs(json.load(resp)), "github-api"
@@ -225,7 +260,7 @@ def emit(status, conclusion, url, source, message, code):
 
 
 deadline = time.time() + timeout_s
-last_source = "mock" if mock_runs else "github-api"
+last_source = source_name()
 while True:
     try:
         runs, source = load_runs()
