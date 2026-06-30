@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Boot-time reconnect planning filters quarantined saved peers before outbound cap accounting. | In progress in clean Agent 1 worktree. | Add equivalent deterministic coverage for committee catch-up quarantine before cap accounting. |
+| Agent 1 | Core protocol, consensus, networking, sync | Periodic committee catch-up planning filters quarantined peers before cap accounting. | In progress in clean Agent 1 worktree. | Add deterministic coverage for gap-triggered catch-up quarantine before recovery dial cap accounting. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release sign-off manifest schema/sample artifacts. | In progress locally. | Add schema-validator enforcement once the release toolchain carries a validator dependency. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
@@ -27,22 +27,22 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
 - Agent 2: Release sign-off manifest scripts combine exact-commit CI, release evidence, archive validation, artifact inventory validation, and human approvals into one machine-readable decision record.
 - Agent 2: Release sign-off manifest schema/sample artifacts are published for dashboards and independent validator tooling.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, and boot-dial connect quarantine without durable peer deletion.
+- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, and saved-peer reconnect quarantine before cap accounting.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke and faucet reward wait hardening.
 
 ## Agent 1 Detailed Plan
 
 Current task:
 
-- [x] Add ordered reconnect event planning without changing public reconnect log strings.
-- [x] Add deterministic unit coverage that self-skips, boot-dial skips, dials, and cap-reached events preserve order.
-- [x] Add deterministic unit coverage that boot-dial connect quarantine filters stale saved peers before reconnect cap accounting.
+- [x] Add ordered committee catch-up event planning without changing public catch-up log strings.
+- [x] Add deterministic unit coverage that self-skips, catch-up dials, and cap-reached events preserve order.
+- [x] Add deterministic unit coverage that quarantined peers are filtered before committee catch-up cap accounting.
 - [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
 - [ ] Regenerate `CODEBASE_STATS.md`, run targeted tests, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 1 task:
 
-- [ ] Add deterministic coverage that committee catch-up quarantine suppresses periodic catch-up spawning before cap accounting.
+- [ ] Add deterministic coverage that gap-triggered catch-up quarantine suppresses recovery dials before cap accounting.
 
 ## Shared Release-Candidate Gates
 

@@ -55,6 +55,13 @@ enum CatchUpPeerAction {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+enum CatchUpPeerEvent {
+    SkipSelf { peer: String },
+    CapReached { count: u32, cap: u32 },
+    Dial { peer: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum ReconnectPeerEvent {
     SkipSelf { peer: String },
     SkipBootDial { peer: String },
@@ -75,6 +82,34 @@ fn catch_up_peer_action(
         return CatchUpPeerAction::CapReached;
     }
     CatchUpPeerAction::Dial
+}
+
+fn catch_up_peer_events(
+    peers: Vec<String>,
+    local_p2p_listen: Option<SocketAddr>,
+    cap: u32,
+) -> Vec<CatchUpPeerEvent> {
+    let mut events = Vec::new();
+    let mut attempted = 0u32;
+    for addr in peers {
+        match catch_up_peer_action(&addr, local_p2p_listen, attempted, cap) {
+            CatchUpPeerAction::SkipSelf => {
+                events.push(CatchUpPeerEvent::SkipSelf { peer: addr });
+            }
+            CatchUpPeerAction::CapReached => {
+                events.push(CatchUpPeerEvent::CapReached {
+                    count: attempted,
+                    cap,
+                });
+                break;
+            }
+            CatchUpPeerAction::Dial => {
+                events.push(CatchUpPeerEvent::Dial { peer: addr });
+                attempted = attempted.saturating_add(1);
+            }
+        }
+    }
+    events
 }
 
 fn reconnect_peer_events(
@@ -885,32 +920,34 @@ pub fn spawn_committee_catch_up_loop(cfg: CommitteeCatchUpLoop) -> Result<(), St
     thread::Builder::new()
         .name("mfnd-committee-catchup".into())
         .spawn(move || loop {
-            let mut attempted = 0u32;
-            for addr in peer_set.snapshot_available_peers() {
-                let cap = peer_set.max_outbound_peers();
-                match catch_up_peer_action(&addr, local_p2p_listen, attempted, cap) {
-                    CatchUpPeerAction::SkipSelf => {
-                        println!("mfnd_p2p_self_dial_skip peer={addr}");
+            let events = catch_up_peer_events(
+                peer_set.snapshot_available_peers(),
+                local_p2p_listen,
+                peer_set.max_outbound_peers(),
+            );
+            for event in events {
+                match event {
+                    CatchUpPeerEvent::SkipSelf { peer } => {
+                        println!("mfnd_p2p_self_dial_skip peer={peer}");
                         let _ = std::io::Write::flush(&mut std::io::stdout());
-                        continue;
                     }
-                    CatchUpPeerAction::CapReached => {
-                        println!("mfnd_p2p_catchup_cap_reached count={attempted} cap={cap}");
+                    CatchUpPeerEvent::CapReached { count, cap } => {
+                        println!("mfnd_p2p_catchup_cap_reached count={count} cap={cap}");
                         let _ = std::io::Write::flush(&mut std::io::stdout());
                         break;
                     }
-                    CatchUpPeerAction::Dial => {}
+                    CatchUpPeerEvent::Dial { peer } => {
+                        let _ = spawn_catch_up_dial(
+                            peer,
+                            genesis_id,
+                            Arc::clone(&tip_cell),
+                            Arc::clone(&hid_counter),
+                            Some(Arc::clone(&block_sync)),
+                            Arc::clone(&block_applier),
+                            Some(Arc::clone(&peer_set) as Arc<dyn FanoutPeerSet>),
+                        );
+                    }
                 }
-                let _ = spawn_catch_up_dial(
-                    addr,
-                    genesis_id,
-                    Arc::clone(&tip_cell),
-                    Arc::clone(&hid_counter),
-                    Some(Arc::clone(&block_sync)),
-                    Arc::clone(&block_applier),
-                    Some(Arc::clone(&peer_set) as Arc<dyn FanoutPeerSet>),
-                );
-                attempted = attempted.saturating_add(1);
             }
             thread::sleep(Duration::from_millis(interval_ms));
         })
@@ -1154,6 +1191,29 @@ mod tests {
     }
 
     #[test]
+    fn catch_up_peer_events_preserve_self_skip_and_cap_order() {
+        let local: SocketAddr = "127.0.0.1:19001".parse().unwrap();
+        let peers = vec![
+            "127.0.0.1:19001".to_string(),
+            "127.0.0.1:19002".to_string(),
+            "127.0.0.1:19003".to_string(),
+        ];
+
+        assert_eq!(
+            catch_up_peer_events(peers, Some(local), 1),
+            vec![
+                CatchUpPeerEvent::SkipSelf {
+                    peer: "127.0.0.1:19001".to_string(),
+                },
+                CatchUpPeerEvent::Dial {
+                    peer: "127.0.0.1:19002".to_string(),
+                },
+                CatchUpPeerEvent::CapReached { count: 1, cap: 1 },
+            ]
+        );
+    }
+
+    #[test]
     fn genesis_mismatch_is_durable_peer_drop_reason() {
         assert!(should_drop_persistent_peer_on_failure(
             "genesis_mismatch expected=00 got=11"
@@ -1316,6 +1376,55 @@ mod tests {
                     peer: healthy_first,
                 },
                 ReconnectPeerEvent::CapReached { count: 1, cap: 1 },
+            ]
+        );
+
+        let (loaded, max_outbound) = mfn_store::load_peers(&dir).expect("load peers");
+        assert!(loaded.contains(&stale_seed));
+        assert!(loaded.contains(&healthy_second));
+        assert_eq!(max_outbound, 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn quarantine_filters_committee_catch_up_before_cap_accounting() {
+        let dir = temp_dir("committee_catchup_cap_quarantine");
+        let stale_seed = "203.0.113.10:19001".to_string();
+        let healthy_first = "203.0.113.11:19001".to_string();
+        let healthy_second = "203.0.113.12:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(stale_seed.clone());
+        peers.insert(healthy_first.clone());
+        peers.insert(healthy_second.clone());
+        save_peers(&dir, &peers, 1).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        let catch_up_failure =
+            "sync_no_progress start=1 requested=8 local_height=0 remote_height=9";
+        peer_set.note_peer_failure(&stale_seed, catch_up_failure);
+        peer_set.note_peer_failure(&stale_seed, catch_up_failure);
+        peer_set.note_peer_failure(&stale_seed, catch_up_failure);
+
+        assert_eq!(
+            catch_up_peer_events(
+                peer_set.snapshot_available_peers(),
+                None,
+                peer_set.max_outbound_peers(),
+            ),
+            vec![
+                CatchUpPeerEvent::Dial {
+                    peer: healthy_first,
+                },
+                CatchUpPeerEvent::CapReached { count: 1, cap: 1 },
             ]
         );
 
