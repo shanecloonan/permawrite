@@ -322,6 +322,13 @@ struct GapCatchUpOnGap {
     local_p2p_listen: Option<SocketAddr>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum GapCatchUpPeerEvent {
+    SkipSelf { peer: String },
+    CapReached { count: u32, cap: u32 },
+    Dial { peer: String },
+}
+
 fn is_self_peer_addr(peer_addr: &str, local_p2p_listen: Option<SocketAddr>) -> bool {
     let Some(local) = local_p2p_listen else {
         return false;
@@ -356,6 +363,33 @@ fn gap_catch_up_peer_addrs(
     (addrs, skipped_self)
 }
 
+fn gap_catch_up_peer_events(
+    inbound_peer: &str,
+    boot_peer_addrs: Vec<String>,
+    local_p2p_listen: Option<SocketAddr>,
+    cap: u32,
+) -> Vec<GapCatchUpPeerEvent> {
+    let (addrs, skipped_self) =
+        gap_catch_up_peer_addrs(inbound_peer, boot_peer_addrs, local_p2p_listen);
+    let mut events = Vec::new();
+    for peer in skipped_self {
+        events.push(GapCatchUpPeerEvent::SkipSelf { peer });
+    }
+    let mut spawned = 0u32;
+    for peer in addrs {
+        if spawned >= cap {
+            events.push(GapCatchUpPeerEvent::CapReached {
+                count: spawned,
+                cap,
+            });
+            break;
+        }
+        events.push(GapCatchUpPeerEvent::Dial { peer });
+        spawned = spawned.saturating_add(1);
+    }
+    events
+}
+
 impl GossipHandler for InboundGossip {
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
         let label = self.inner.on_tx_v1(tx_wire);
@@ -380,25 +414,35 @@ impl GossipHandler for InboundGossip {
         } else if label.starts_with("rejected:gap:") {
             log_gossip_block(self.hid, &self.peer, "gap", None);
             if let Some(cfg) = &self.gap_catch_up {
-                let (addrs, skipped_self) = gap_catch_up_peer_addrs(
+                let events = gap_catch_up_peer_events(
                     &self.peer,
                     cfg.fanout_peers.boot_peer_addrs(),
                     cfg.local_p2p_listen,
+                    cfg.fanout_peers.max_outbound_peers(),
                 );
-                for addr in skipped_self {
-                    println!("mfnd_p2p_self_dial_skip peer={addr}");
-                    let _ = std::io::stdout().flush();
-                }
-                for addr in addrs {
-                    let _ = spawn_catch_up_dial(
-                        addr,
-                        cfg.genesis_id,
-                        Arc::clone(&cfg.tip_cell),
-                        Arc::clone(&cfg.hid_counter),
-                        cfg.block_sync.clone(),
-                        Arc::clone(&cfg.block_applier),
-                        Some(Arc::clone(&cfg.fanout_peers)),
-                    );
+                for event in events {
+                    match event {
+                        GapCatchUpPeerEvent::SkipSelf { peer } => {
+                            println!("mfnd_p2p_self_dial_skip peer={peer}");
+                            let _ = std::io::stdout().flush();
+                        }
+                        GapCatchUpPeerEvent::CapReached { count, cap } => {
+                            println!("mfnd_p2p_gap_catchup_cap_reached count={count} cap={cap}");
+                            let _ = std::io::stdout().flush();
+                            break;
+                        }
+                        GapCatchUpPeerEvent::Dial { peer } => {
+                            let _ = spawn_catch_up_dial(
+                                peer,
+                                cfg.genesis_id,
+                                Arc::clone(&cfg.tip_cell),
+                                Arc::clone(&cfg.hid_counter),
+                                cfg.block_sync.clone(),
+                                Arc::clone(&cfg.block_applier),
+                                Some(Arc::clone(&cfg.fanout_peers)),
+                            );
+                        }
+                    }
                 }
             }
         } else if let Some(reason) = label.strip_prefix("rejected:") {
@@ -908,5 +952,56 @@ mod tests {
 
         assert_eq!(addrs, vec!["127.0.0.1:19002", "127.0.0.1:19003"]);
         assert_eq!(skipped, vec![" 127.0.0.1:19001 "]);
+    }
+
+    #[test]
+    fn gap_catch_up_peer_events_preserve_self_skip_and_cap_order() {
+        let local = "127.0.0.1:19001".parse::<SocketAddr>().unwrap();
+
+        assert_eq!(
+            gap_catch_up_peer_events(
+                "127.0.0.1:19001",
+                vec![
+                    "127.0.0.1:19002".to_string(),
+                    "127.0.0.1:19003".to_string(),
+                    "127.0.0.1:19004".to_string(),
+                ],
+                Some(local),
+                2,
+            ),
+            vec![
+                GapCatchUpPeerEvent::SkipSelf {
+                    peer: "127.0.0.1:19001".to_string(),
+                },
+                GapCatchUpPeerEvent::Dial {
+                    peer: "127.0.0.1:19002".to_string(),
+                },
+                GapCatchUpPeerEvent::Dial {
+                    peer: "127.0.0.1:19003".to_string(),
+                },
+                GapCatchUpPeerEvent::CapReached { count: 2, cap: 2 },
+            ]
+        );
+    }
+
+    #[test]
+    fn gap_catch_up_peer_events_cap_after_quarantine_filtered_inputs() {
+        assert_eq!(
+            gap_catch_up_peer_events(
+                "203.0.113.11:19001",
+                vec![
+                    "203.0.113.12:19001".to_string(),
+                    "203.0.113.13:19001".to_string(),
+                ],
+                None,
+                1,
+            ),
+            vec![
+                GapCatchUpPeerEvent::Dial {
+                    peer: "203.0.113.11:19001".to_string(),
+                },
+                GapCatchUpPeerEvent::CapReached { count: 1, cap: 1 },
+            ]
+        );
     }
 }

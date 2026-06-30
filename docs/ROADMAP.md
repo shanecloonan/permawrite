@@ -2026,6 +2026,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.51** | Public-devnet boot-dial connect quarantine: repeated transient connect failures quarantine stale public seeds without durably deleting them from `peers.json`. | ✓ shipped |
 | **M2.4.52** | Public-devnet reconnect quarantine accounting: boot-time reconnect planning filters quarantined seeds before outbound cap accounting and preserves existing skip/cap log ordering. | ✓ shipped |
 | **M2.4.53** | Public-devnet committee catch-up quarantine accounting: periodic catch-up planning filters quarantined peers before cap accounting and preserves self-skip/cap log ordering. | ✓ shipped |
+| **M2.4.54** | Public-devnet gap catch-up quarantine accounting: gap-triggered recovery dials use quarantine-filtered peer sources, cap recovery fan-out, and preserve self-skip/cap log ordering. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

@@ -101,7 +101,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add deterministic coverage for peer scoring/quarantine behavior after repeated boot-dial connect failures.
 - [x] Add deterministic coverage that boot-dial connect quarantine suppresses reconnect spawning before cap accounting.
 - [x] Add deterministic coverage that committee catch-up quarantine suppresses periodic catch-up spawning before cap accounting.
-- [ ] Add deterministic coverage that gap-triggered catch-up quarantine suppresses recovery dials before cap accounting.
+- [x] Add deterministic coverage that gap-triggered catch-up quarantine suppresses recovery dials before cap accounting.
+- [ ] Add deterministic coverage that gap-triggered catch-up failure labels feed peer scoring for recovery dial failures.
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 

@@ -50,6 +50,10 @@ pub trait FanoutPeerSet: Send + Sync {
     fn boot_peer_addrs(&self) -> Vec<String> {
         Vec::new()
     }
+    /// Maximum outbound peer dials this peer set should spawn in one recovery sweep.
+    fn max_outbound_peers(&self) -> u32 {
+        8
+    }
 }
 
 /// Apply gossip payloads to chain/mempool (implemented in `mfn-node`).

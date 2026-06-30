@@ -859,6 +859,10 @@ impl FanoutPeerSet for P2pPeerSet {
     fn boot_peer_addrs(&self) -> Vec<String> {
         self.snapshot_available_peers()
     }
+
+    fn max_outbound_peers(&self) -> u32 {
+        P2pPeerSet::max_outbound_peers(self)
+    }
 }
 
 /// Boot-time reconnect of peers from `peers.json` (**M2.3.22**).
@@ -1432,6 +1436,44 @@ mod tests {
         assert!(loaded.contains(&stale_seed));
         assert!(loaded.contains(&healthy_second));
         assert_eq!(max_outbound, 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn gap_catch_up_boot_peer_addrs_filter_quarantined_peers() {
+        let dir = temp_dir("gap_catchup_boot_peer_quarantine");
+        let stale_seed = "203.0.113.10:19001".to_string();
+        let healthy = "203.0.113.11:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(stale_seed.clone());
+        peers.insert(healthy.clone());
+        save_peers(&dir, &peers, 4).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        let gap_recovery_failure =
+            "sync_no_progress start=1 requested=8 local_height=0 remote_height=9";
+        peer_set.note_peer_failure(&stale_seed, gap_recovery_failure);
+        peer_set.note_peer_failure(&stale_seed, gap_recovery_failure);
+        peer_set.note_peer_failure(&stale_seed, gap_recovery_failure);
+
+        assert_eq!(
+            FanoutPeerSet::boot_peer_addrs(peer_set.as_ref()),
+            vec![healthy]
+        );
+        assert_eq!(FanoutPeerSet::max_outbound_peers(peer_set.as_ref()), 4);
+
+        let (loaded, max_outbound) = mfn_store::load_peers(&dir).expect("load peers");
+        assert!(loaded.contains(&stale_seed));
+        assert_eq!(max_outbound, 4);
         std::fs::remove_dir_all(&dir).ok();
     }
 }
