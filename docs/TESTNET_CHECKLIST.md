@@ -106,6 +106,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [ ] Add deterministic coverage that gap-triggered catch-up success clears peer scoring penalties.
 - [x] Add light-follow P2P fetch unit coverage that oversized or skipped-height row batches are rejected.
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
+- [ ] Stabilize Windows duplex P2P session chunk fanout so `chunk_p2p_auto_fanout_smoke` can run on Windows instead of being covered there by the participant rehearsal smoke.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 
@@ -158,6 +159,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add a full participant rehearsal that funds a wallet, uploads, restores, hash-verifies, proves, and captures a support bundle.
 - [x] Add real-run rehearsal smoke coverage against the local public-devnet harness.
 - [x] Harden participant rehearsal smoke to wait for spendable faucet rewards before funding users.
+- [x] Fix public-devnet rehearsal liveness and first-run decoys so fresh faucet funding can build privacy rings.
+- [x] Stabilize the Windows participant rehearsal smoke real run so funding, upload discovery, HTTP restore, SHA-256 verification, proof submission, and support-bundle capture pass end-to-end from a clean local mesh.
 - [ ] Promote participant rehearsal smoke into an unattended slow/nightly harness once mesh runtime is stable enough for CI.
 
 ## Cross-Agent Notes

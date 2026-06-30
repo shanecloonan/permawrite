@@ -22,8 +22,8 @@ Concrete Linux/Windows firewall baselines, SSH forwarding, and TLS reverse-proxy
 |------|--------|
 | Rust stable | Same toolchain as CI (`rust-toolchain.toml` in repo root). |
 | `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` |
-| Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3). |
-| Chain identity | `genesis_id` **`7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
+| Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3, plus synthetic test decoys so first-run wallets can form privacy rings). |
+| Chain identity | `genesis_id` **`454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
 | Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` — OS assigns). |
 
 On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=…` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
@@ -70,7 +70,7 @@ Minimal participant path:
 
 1. Run a preflight: `powershell -File scripts/public-devnet-v1/preflight.ps1` on Windows or `bash scripts/public-devnet-v1/preflight.sh` on Linux/macOS. Use `-Strict` / `--strict` before CI or push preparation.
 2. Build release binaries: `cargo build -p mfn-node --release --bin mfnd`, `cargo build -p mfn-cli --release --bin mfn-cli`, and for storage operators `cargo build -p mfn-storage-operator --release --bin mfn-storage-operator`.
-3. Start or connect to a node whose stdout `mfnd_chain_genesis_id=` equals `7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df`.
+3. Start or connect to a node whose stdout `mfnd_chain_genesis_id=` equals `454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`.
 4. Keep RPC on loopback or behind a tunnel. If the node uses `--rpc-api-key`, pass `mfn-cli --rpc-api-key <KEY>` or set `MFN_RPC_API_KEY=<KEY>`.
 5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning; use `wallet scan --json` or `wallet balance --json` when you need a seed-free support record of the rescan result.
 6. Create a test wallet with `mfn-cli --wallet ./alice.json wallet new`, or restore a known test-only seed with `mfn-cli --wallet ./alice.json wallet restore <SEED_HEX>`. Back up the wallet file and never reuse devnet keys for real funds.
@@ -93,7 +93,7 @@ Wallet recovery and permanence recovery are separate. The wallet JSON contains t
 | **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. |
 | **Observer** | `serve` (no produce flags) | Syncs blocks/txs, exposes JSON-RPC; no validator env required. |
 
-CI uses one hub + two committee voters so only the proposer seals (avoids forked tips under `expected_proposers_per_slot: 10` in the local harness spec). The hub does **not** run the committee catch-up dial loop (**M2.3.29**); voters do. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean). The **public devnet** spec sets `expected_proposers_per_slot: 1.5` so operators can later run three `--produce` nodes with natural slot skipping; the commands below match the proven hub + voter topology.
+The public helper mesh runs one hub producer plus two committee voters. `mfnd` advances the producer slot timer independently from block height, so an ineligible hub skips a slot instead of retrying the same VRF seed forever. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean). The **public devnet** spec sets `expected_proposers_per_slot: 1.5`, so natural slot skipping is expected while the mesh still advances.
 
 ---
 

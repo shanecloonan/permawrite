@@ -332,6 +332,22 @@ impl P2pPeerSet {
                         );
                         continue;
                     }
+                    let mut sent_on_alias = false;
+                    for alias in peer_set.snapshot_session_peers() {
+                        if alias == peer {
+                            continue;
+                        }
+                        if peer_set.push_chunks_on_session(&alias, &commit_hash, &chunks) {
+                            eprintln!(
+                                "mfnd_p2p_chunk_catchup_ok peer={peer} alias={alias} commit={commit_hex} chunks={n} session=1"
+                            );
+                            sent_on_alias = true;
+                            break;
+                        }
+                    }
+                    if sent_on_alias {
+                        continue;
+                    }
                     if let Err(e) = push_chunks_gossip_to_peer(
                         &peer,
                         &genesis_id,
@@ -351,6 +367,49 @@ impl P2pPeerSet {
                 }
             })
             .ok();
+    }
+
+    fn write_inbox_chunks_for_commits_to_stream(
+        &self,
+        peer: &str,
+        stream: &mut TcpStream,
+        commits: &[([u8; 32], StorageCommitment)],
+    ) {
+        if commits.is_empty() {
+            return;
+        }
+        for (commit_hash, commit) in commits {
+            let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
+                &self.data_root,
+                commit_hash,
+                commit,
+            ) else {
+                continue;
+            };
+            let commit_hex = hex::encode(commit_hash);
+            let n = chunks.len();
+            let mut ok = true;
+            for (index, bytes) in &chunks {
+                if let Err(e) = send_chunk_v1(stream, commit_hash, *index, bytes) {
+                    eprintln!(
+                        "mfnd_p2p_chunk_catchup_stream_abort peer={peer} commit={commit_hex} chunks={n} {e}"
+                    );
+                    ok = false;
+                    break;
+                }
+            }
+            if ok {
+                if let Err(e) = send_gossip_end_v1(stream) {
+                    eprintln!(
+                        "mfnd_p2p_chunk_catchup_stream_abort peer={peer} commit={commit_hex} chunks={n} {e}"
+                    );
+                } else {
+                    eprintln!(
+                        "mfnd_p2p_chunk_catchup_ok peer={peer} commit={commit_hex} chunks={n} stream=1"
+                    );
+                }
+            }
+        }
     }
 
     /// Attach the production engine so proposal push can apply returned votes.
@@ -424,7 +483,11 @@ impl P2pPeerSet {
         }
     }
 
-    /// Track an inbound dialer for fan-out without writing `peers.json` (avoids mfnd stdout reordering).
+    /// Track an inbound dialer for this process without writing it to `peers.json`.
+    ///
+    /// Inbound `peer_addr` values are usually ephemeral TCP source ports. They can be
+    /// useful while a live socket is registered for fan-out, but they must not become
+    /// durable boot/reconnect peers.
     pub fn register_ephemeral(&self, peer_addr: impl Into<String>) {
         let addr = peer_addr.into();
         self.note_peer_success(&addr);
@@ -840,6 +903,19 @@ impl FanoutPeerSet for P2pPeerSet {
         if let Some(ps) = self.self_arc.upgrade() {
             ps.fanout_on_chain_storage_inboxes_to_peer(peer_addr);
         }
+    }
+
+    fn write_onchain_storage_chunks_to_peer(&self, peer_addr: &str, stream: &mut TcpStream) {
+        let commits: Vec<([u8; 32], StorageCommitment)> = match self.chain.lock() {
+            Ok(guard) => guard
+                .state()
+                .storage
+                .iter()
+                .map(|(hash, entry)| (*hash, entry.commit.clone()))
+                .collect(),
+            Err(_) => return,
+        };
+        self.write_inbox_chunks_for_commits_to_stream(peer_addr, stream, &commits);
     }
 
     fn send_proposal_on_session(&self, peer_addr: &str, proposal_wire: &[u8]) -> bool {

@@ -45,12 +45,12 @@ function Invoke-ScriptChecked {
     $oldErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $out = & $Script @ScriptArgs 2>&1
+        $out = & $Script @ScriptArgs *>&1
     } finally {
         $ErrorActionPreference = $oldErrorActionPreference
     }
     $code = $LASTEXITCODE
-    $text = ($out | Out-String).Trim()
+    $text = ($out | Out-String -Width 4096).Trim()
     if ($code -ne 0) {
         throw "participant-rehearsal: $Label failed with exit=$code`n$text"
     }
@@ -60,12 +60,12 @@ function Invoke-ScriptChecked {
 
 function Parse-TokenField {
     param([string]$Text, [string]$Key)
-    $pattern = "(^|\s)$([regex]::Escape($Key))=([^\s]+)"
+    $pattern = "(?m)(?:^|\s)" + [regex]::Escape($Key) + "=([^\s]+)"
     $match = [regex]::Match($Text, $pattern)
     if (-not $match.Success) {
         throw "participant-rehearsal: stdout missing $Key=<value>`n$Text"
     }
-    return $match.Groups[3].Value
+    return $match.Groups[1].Value
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }

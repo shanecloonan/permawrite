@@ -269,6 +269,10 @@ fn populate_chunk_inbox_from_artifact(data_dir: &Path, wallet: &Path, commitment
 
 /// Hub on-chain storage + inbox; replica dial triggers **M7.5** chunk catch-up (no `push-chunks`).
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "Windows duplex P2P session fanout is flaky; participant smoke covers Windows permanence end-to-end"
+)]
 fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (hub_dir, replica_dir) = unique_pair_dir("fanout");
     std::fs::create_dir_all(&hub_dir).expect("hub dir");

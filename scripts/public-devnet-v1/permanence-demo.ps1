@@ -24,6 +24,7 @@ $UploaderWallet = Join-Path $DemoRoot "uploader.json"
 $ReplicaWallet = Join-Path $DemoRoot "replica.json"
 $RestoredPath = Join-Path $DemoRoot "restored.bin"
 $ChunkLog = Join-Path $LogDir "permanence-demo-chunks.log"
+$ChunkErrLog = Join-Path $LogDir "permanence-demo-chunks.err.log"
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { return @{} }
@@ -80,12 +81,20 @@ function Parse-Field {
 function Wait-UploadsListContains {
     param([string]$MfnCli, [string]$RpcAddr, [string]$CommitHash, [int]$TimeoutSeconds)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = ""
     do {
-        $out = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list"
-        if ($out -like "*$CommitHash*") { return $out }
+        try {
+            $out = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list"
+            if ($out -like "*$CommitHash*") { return $out }
+            $lastError = ""
+        } catch {
+            $lastError = $_.Exception.Message
+            Write-Host "permanence-demo: uploads_list_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
+        }
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)
-    throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s"
+    $suffix = if ($lastError) { "; last_error=$lastError" } else { "" }
+    throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s$suffix"
 }
 
 function Ensure-SamplePayload {
@@ -155,14 +164,16 @@ try {
     Write-Host "permanence-demo: discover=ok commitment_hash=$commit"
 
     if (Test-Path $ChunkLog) { Remove-Item -Force $ChunkLog }
+    if (Test-Path $ChunkErrLog) { Remove-Item -Force $ChunkErrLog }
     $chunkProc = Start-Process -FilePath $StorageOperator -ArgumentList @(
         "serve-chunks", "--wallet", $UploaderWallet, "--listen", $ChunkListen
-    ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $ChunkLog -RedirectStandardError $ChunkLog -PassThru
+    ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $ChunkLog -RedirectStandardError $ChunkErrLog -PassThru
     try {
         Start-Sleep -Seconds 1
         if ($chunkProc.HasExited) {
             $log = if (Test-Path $ChunkLog) { Get-Content $ChunkLog -Raw } else { "" }
-            throw "permanence-demo: chunk server exited early`n$log"
+            $errLog = if (Test-Path $ChunkErrLog) { Get-Content $ChunkErrLog -Raw } else { "" }
+            throw "permanence-demo: chunk server exited early`nstdout:`n$log`nstderr:`n$errLog"
         }
 
         if (Test-Path $RestoredPath) { Remove-Item -Force $RestoredPath }
@@ -190,9 +201,16 @@ try {
 
     if ($WaitProofSeconds -gt 0) {
         $deadline = (Get-Date).AddSeconds($WaitProofSeconds)
+        $lastProofListError = ""
         do {
-            $afterProof = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list after proof"
-            if ($afterProof -like "*$commit*" -and $afterProof -like "*last_proven_height=*") { break }
+            try {
+                $afterProof = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list after proof"
+                if ($afterProof -like "*$commit*" -and $afterProof -like "*last_proven_height=*") { break }
+                $lastProofListError = ""
+            } catch {
+                $lastProofListError = $_.Exception.Message
+                Write-Host "permanence-demo: uploads_list_after_proof_wait retry_after_error=$($lastProofListError -replace "`r?`n", " ")"
+            }
             Start-Sleep -Seconds 5
         } while ((Get-Date) -lt $deadline)
     }

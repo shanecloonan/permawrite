@@ -111,7 +111,7 @@ try {
     New-Item -ItemType Directory -Force -Path $SmokeRoot | Out-Null
     if (-not $NoStart) {
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
-        powershell -NoProfile -File (Join-Path $ScriptDir "start-all.ps1")
+        . (Join-Path $ScriptDir "start-all.ps1")
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
     }
@@ -131,6 +131,10 @@ try {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
     Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
+    if (Test-Path $RunDir) {
+        Remove-Item -Recurse -Force $RunDir
+        Write-Host "participant-rehearsal-smoke: cleared rehearsal_dir=$RunDir"
+    }
 
     powershell -NoProfile -File (Join-Path $ScriptDir "participant-rehearsal.ps1") `
         -Rpc $RpcAddr `
@@ -144,7 +148,7 @@ try {
     Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir"
 } finally {
     if ($startedMesh -and -not $NoStop) {
-        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1")
+        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
     }
     Pop-Location
 }

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Build mfnd, start hub + two voters on loopback; write ports file (M2.4.3).
+# Build mfnd, start hub + two committee voters on loopback; write ports file (M2.4.3).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/config.env"
+REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
@@ -15,6 +17,8 @@ fi
 export MFND
 pkill -f "mfnd.*public-devnet-v1" 2>/dev/null || true
 sleep 1
+rm -rf "$REPO_ROOT/$DATA_ROOT"
+echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
 "$SCRIPT_DIR/start-hub.sh" >"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!

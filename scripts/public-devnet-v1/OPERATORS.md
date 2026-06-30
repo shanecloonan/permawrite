@@ -2,9 +2,9 @@
 
 Join the **public-devnet-v1** network only if your node's `genesis_id` matches the manifest:
 
-`7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df`
+`454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`
 
-Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/testdata/public_devnet_v1.json).
+Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/testdata/public_devnet_v1.json). It includes deterministic synthetic test decoys so fresh devnet wallets can build initial privacy rings before organic transaction volume exists.
 
 ## Seed nodes
 

@@ -192,16 +192,34 @@ wait_recipient_balance() {
     return
   fi
   local deadline=$(( $(date +%s) + timeout_seconds ))
+  local last_error=""
   while (( $(date +%s) <= deadline )); do
-    local balance
-    balance="$(get_wallet_balance "$mfn_cli" "$rpc_addr" "$wallet_path" recipient)"
+    local balance scan_out balance_out
+    if ! scan_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet scan 2>&1)"; then
+      last_error="recipient wallet scan failed: $scan_out"
+      echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
+      sleep 5
+      continue
+    fi
+    if ! balance_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"; then
+      last_error="recipient wallet balance failed: $balance_out"
+      echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
+      sleep 5
+      continue
+    fi
+    balance="$(parse_field "$balance_out" balance)"
     if (( balance >= target_balance )); then
       echo "fund-wallet: recipient_balance=$balance"
       return
     fi
+    last_error=""
     sleep 5
   done
-  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s; mine or wait for a producer block, then run wallet balance" >&2
+  local suffix=""
+  if [[ -n "$last_error" ]]; then
+    suffix="; last_error=$last_error"
+  fi
+  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s; mine or wait for a producer block, then run wallet scan and wallet balance$suffix" >&2
   exit 1
 }
 

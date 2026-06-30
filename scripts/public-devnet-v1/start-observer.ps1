@@ -12,4 +12,4 @@ Remove-Item Env:MFND_VRF_SEED_HEX -ErrorAction SilentlyContinue
 Remove-Item Env:MFND_BLS_SEED_HEX -ErrorAction SilentlyContinue
 & $Mfnd --data-dir $DataDir --genesis $Genesis --store fs `
     --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 `
-    --p2p-dial $env:HUB_P2P --slot-duration-ms 30000 serve
+    --p2p-dial $env:HUB_P2P serve

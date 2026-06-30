@@ -24,6 +24,7 @@ use crate::p2p_chunk_fanout::new_storage_commits_in_block;
 use crate::p2p_fanout::P2pPeerSet;
 
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
+const PENDING_PROPOSAL_REBROADCAST_LIMIT: u8 = 12;
 
 /// Local validator keys + slot timer for `mfnd serve --produce`.
 #[derive(Clone)]
@@ -40,6 +41,7 @@ struct PendingProposal {
     proposal: BlockProposal,
     votes: Vec<CommitteeVote>,
     indices: BTreeSet<usize>,
+    rebroadcasts: u8,
 }
 
 /// Dependencies for [`ProductionEngine::new`].
@@ -73,6 +75,7 @@ pub struct ProductionEngine {
     local: ProduceConfig,
     peers: Arc<P2pPeerSet>,
     pending: Mutex<Option<PendingProposal>>,
+    next_slot: Mutex<u32>,
 }
 
 impl ProductionEngine {
@@ -88,6 +91,7 @@ impl ProductionEngine {
             local: deps.local,
             peers: deps.peers,
             pending: Mutex::new(None),
+            next_slot: Mutex::new(0),
         })
     }
 
@@ -117,6 +121,38 @@ impl ProductionEngine {
             .sum()
     }
 
+    fn reserve_next_slot(&self, height: u32) -> Result<u32, String> {
+        let mut guard = self
+            .next_slot
+            .lock()
+            .map_err(|_| "slot cursor mutex poisoned".to_string())?;
+        let slot = guard.saturating_add(1).max(height);
+        *guard = slot;
+        Ok(slot)
+    }
+
+    fn clear_pending_at_or_below_tip(&self, tip_height: u32) {
+        if let Ok(mut guard) = self.pending.lock() {
+            if guard
+                .as_ref()
+                .is_some_and(|p| p.proposal.ctx.height <= tip_height)
+            {
+                *guard = None;
+            }
+        }
+    }
+
+    fn clear_pending_below_height(&self, height: u32) {
+        if let Ok(mut guard) = self.pending.lock() {
+            if guard
+                .as_ref()
+                .is_some_and(|p| p.proposal.ctx.height < height)
+            {
+                *guard = None;
+            }
+        }
+    }
+
     fn block_inputs_for_next(
         &self,
         chain: &Chain,
@@ -129,10 +165,10 @@ impl ProductionEngine {
         let height = tip
             .checked_add(1)
             .ok_or_else(|| "tip height overflow".to_string())?;
-        let slot = height;
-        let timestamp = self.genesis_timestamp.saturating_add(u64::from(height));
+        let slot = self.reserve_next_slot(height)?;
+        let timestamp = self.genesis_timestamp.saturating_add(u64::from(slot));
         let emission_params = chain.state().emission_params;
-        let drained = pool.drain(MFND_MEMPOOL_DRAIN_MAX);
+        let drained = pool.select_for_block(MFND_MEMPOOL_DRAIN_MAX);
         let mut fee_sum: u128 = 0;
         for t in &drained {
             fee_sum = fee_sum.saturating_add(u128::from(t.fee));
@@ -353,6 +389,7 @@ impl ProductionEngine {
             return format!("rejected:proposal:{e}");
         }
         drop(chain);
+        self.clear_pending_below_height(proposal.ctx.height);
         {
             let mut guard = match self.pending.lock() {
                 Ok(g) => g,
@@ -366,6 +403,7 @@ impl ProductionEngine {
                                 proposal: proposal.clone(),
                                 votes: Vec::new(),
                                 indices: BTreeSet::new(),
+                                rebroadcasts: 0,
                             });
                         }
                     }
@@ -376,11 +414,13 @@ impl ProductionEngine {
                     proposal: proposal.clone(),
                     votes: Vec::new(),
                     indices: BTreeSet::new(),
+                    rebroadcasts: 0,
                 });
             }
         }
-        let wire = encode_block_proposal(&proposal);
-        self.peers.fanout_proposal(&wire, None);
+        // The original producer owns proposal fan-out and bounded rebroadcast.
+        // Committee voters keep a local pending proposal only to vote; re-gossiping
+        // from every voter can keep stale proposals alive after catch-up advances.
         if let Some(vote) = self.try_vote_locally(&proposal) {
             let _ = self.ingest_vote(proposal.header_hash, vote);
             let vote_wire = encode_committee_vote(&proposal.header_hash, &vote);
@@ -394,6 +434,7 @@ impl ProductionEngine {
         self.verify_proposal(proposal, &chain)
             .map_err(|e| format!("proposal:{e}"))?;
         drop(chain);
+        self.clear_pending_below_height(proposal.ctx.height);
 
         let mut guard = self
             .pending
@@ -409,14 +450,22 @@ impl ProductionEngine {
             proposal: proposal.clone(),
             votes: Vec::new(),
             indices: BTreeSet::new(),
+            rebroadcasts: 0,
         });
         Ok(())
     }
 
     /// One slot tick: try to propose when locally eligible.
     pub fn on_slot_tick(&self) {
-        if let Ok(guard) = self.pending.lock() {
-            if let Some(pending) = guard.as_ref() {
+        let tip_height = self
+            .chain
+            .lock()
+            .ok()
+            .and_then(|chain| chain.tip_height())
+            .unwrap_or(0);
+        self.clear_pending_at_or_below_tip(tip_height);
+        if let Ok(mut guard) = self.pending.lock() {
+            if let Some(pending) = guard.as_mut() {
                 let chain = match self.chain.lock() {
                     Ok(g) => g,
                     Err(_) => return,
@@ -428,6 +477,17 @@ impl ProductionEngine {
                 if !self.quorum_reached(signing, total_stake, params.quorum_stake_bps) {
                     let wire = encode_block_proposal(&pending.proposal);
                     self.peers.fanout_proposal(&wire, None);
+                    pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
+                    if pending.rebroadcasts >= PENDING_PROPOSAL_REBROADCAST_LIMIT {
+                        println!(
+                            "mfnd_producer_pending_released height={} slot={} votes={}",
+                            pending.proposal.ctx.height,
+                            pending.proposal.ctx.slot,
+                            pending.votes.len()
+                        );
+                        let _ = std::io::Write::flush(&mut std::io::stdout());
+                        *guard = None;
+                    }
                 }
                 return;
             }

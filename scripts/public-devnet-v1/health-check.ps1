@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
-$ExpectedGenesisId = "7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df"
+$ExpectedGenesisId = "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
 if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
 $ports = @{}
 Get-Content $PortsFile | ForEach-Object {

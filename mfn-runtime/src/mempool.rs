@@ -655,12 +655,33 @@ impl Mempool {
         })
     }
 
+    /// Select up to `max` entries, highest-fee-first, without mutating the
+    /// pool. Ties are broken by `tx_id` (lexicographic) for byte-deterministic
+    /// block bodies.
+    ///
+    /// Producers use this when building a proposal because a proposal can fail
+    /// to reach quorum. Entries must remain available until a block actually
+    /// lands and [`Mempool::remove_mined`] evicts the mined key images.
+    pub fn select_for_block(&self, max: usize) -> Vec<TransactionWire> {
+        if max == 0 || self.by_tx_id.is_empty() {
+            return Vec::new();
+        }
+        let mut sorted: Vec<&MempoolEntry> = self.by_tx_id.values().collect();
+        sorted.sort_by(|a, b| b.fee.cmp(&a.fee).then_with(|| a.tx_id.cmp(&b.tx_id)));
+        sorted
+            .into_iter()
+            .take(max)
+            .map(|entry| entry.tx.clone())
+            .collect()
+    }
+
     /// Drain up to `max` entries, highest-fee-first, returning their
     /// underlying [`TransactionWire`]s. Ties are broken by `tx_id`
     /// (lexicographic) for byte-deterministic block bodies.
     ///
-    /// Drained entries are removed from the pool. To peek without
-    /// draining, iterate via [`Mempool::iter`] and sort externally.
+    /// Drained entries are removed from the pool. Producers should use
+    /// [`Mempool::select_for_block`] and wait for [`Mempool::remove_mined`]
+    /// after a block lands.
     pub fn drain(&mut self, max: usize) -> Vec<TransactionWire> {
         if max == 0 || self.by_tx_id.is_empty() {
             return Vec::new();
@@ -1459,6 +1480,43 @@ mod tests {
         let fees: Vec<u64> = drained.iter().map(|t| t.fee).collect();
         assert_eq!(fees, vec![500, 300, 100]);
         assert_eq!(pool.len(), 0);
+    }
+
+    #[test]
+    fn select_for_block_orders_without_draining() {
+        let (_, inp1, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let tx1 = signed_tx(inp1.clone(), 100);
+        let (_, inp2, _, _) = build_genesis_with_spendable_input(4, 1_000);
+        let tx2 = signed_tx(inp2.clone(), 500);
+
+        let mut all_outputs: Vec<GenesisOutput> = Vec::new();
+        for inp in [&inp1, &inp2] {
+            for (p, c) in inp.ring.p.iter().zip(inp.ring.c.iter()) {
+                all_outputs.push(GenesisOutput {
+                    one_time_addr: *p,
+                    amount: *c,
+                });
+            }
+        }
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: all_outputs,
+            initial_storage: Vec::new(),
+            validators: Vec::<Validator>::new(),
+            params: ConsensusParams::default(),
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+        let mut pool = Mempool::new(MempoolConfig::default());
+        pool.admit(tx1, chain.state()).expect("tx1");
+        pool.admit(tx2, chain.state()).expect("tx2");
+
+        let selected = pool.select_for_block(2);
+        let fees: Vec<u64> = selected.iter().map(|t| t.fee).collect();
+        assert_eq!(fees, vec![500, 100]);
+        assert_eq!(pool.len(), 2, "proposal selection must not evict txs");
     }
 
     #[test]

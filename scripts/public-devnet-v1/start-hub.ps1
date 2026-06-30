@@ -4,7 +4,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $Config = @{
     GENESIS_SPEC = "mfn-node/testdata/public_devnet_v1.json"
-    SLOT_MS      = 30000
+    SLOT_MS      = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 30000 }
     DATA_ROOT    = ".permawrite-devnet-v1"
 }
 $Mfnd = if ($env:MFND) { $env:MFND } else { Join-Path $RepoRoot "target\release\mfnd.exe" }

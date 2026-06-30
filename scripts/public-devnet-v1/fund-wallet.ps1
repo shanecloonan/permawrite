@@ -90,15 +90,24 @@ function Wait-RecipientBalance {
     param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [UInt64]$StartingBalance, [UInt64]$MinimumBalance, [int]$TimeoutSeconds)
     if ($TimeoutSeconds -le 0) { return }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = ""
     do {
-        $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath "recipient"
-        if ($balance -ge $MinimumBalance) {
-            Write-Host "fund-wallet: recipient_balance=$balance"
-            return
+        try {
+            Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "scan") "recipient wallet scan" | Out-Null
+            $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath "recipient"
+            if ($balance -ge $MinimumBalance) {
+                Write-Host "fund-wallet: recipient_balance=$balance"
+                return
+            }
+            $lastError = ""
+        } catch {
+            $lastError = $_.Exception.Message
+            Write-Host "fund-wallet: recipient_balance_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
         }
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)
-    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s; mine or wait for a producer block, then run wallet balance"
+    $suffix = if ($lastError) { "; last_error=$lastError" } else { "" }
+    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s; mine or wait for a producer block, then run wallet scan and wallet balance$suffix"
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }

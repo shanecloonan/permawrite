@@ -1,7 +1,7 @@
 {
   "network_id": "public-devnet-v1",
   "genesis_spec": "public_devnet_v1.json",
-  "genesis_id": "7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df",
+  "genesis_id": "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005",
   "slot_duration_ms": 30000,
   "quorum_stake_bps": 6666,
   "validator_count": 3,

@@ -2146,6 +2146,7 @@ The pattern is deliberate: every milestone consumes what the previous one shippe
 | **M3.44** | Participant rehearsal: compose faucet funding, permanence upload/restore/prove, SHA-256 verification, and support-bundle capture into one outside-user script. | ✓ shipped |
 | **M3.45** | Participant rehearsal smoke: start/reuse the local public-devnet helper mesh, restore/check the default test faucet without overwriting custom faucet wallets, run the full rehearsal when funded, and clean up the mesh. | ✓ shipped |
 | **M3.46** | Faucet-ready rehearsal smoke: rescan/wait for local public-devnet faucet rewards before attempting participant funding. | ✓ shipped |
+| **M3.47** | Rehearsal-ready public devnet: advancing hub producer slots and synthetic genesis decoys unblock fresh faucet funding rings. | ✓ shipped |
 | **M6** | `mfn-storage-operator` daemon: `run` loop proves all wallet upload artifacts via `submit_storage_proof`. | ✓ shipped |
 | **M6.1** | Integration smoke: `wallet upload` → `operator prove` / `mfn-storage-operator run --once` → mined proof + `uploads status` matched. | ✓ shipped |
 | **M6.2** | `mfn-storage-operator serve-chunks`: HTTP `GET /chunk/{commit_hex}/{index}` from wallet upload artifacts. | ✓ shipped |

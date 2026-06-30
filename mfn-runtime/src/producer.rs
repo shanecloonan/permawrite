@@ -187,7 +187,7 @@ pub fn build_proposal(
         &inputs.bond_ops,
         &inputs.slashings,
         &inputs.storage_proofs,
-        inputs.height,
+        inputs.slot,
         inputs.timestamp,
     );
     let header_hash = header_signing_hash(&unsealed);
@@ -472,6 +472,19 @@ mod tests {
             matches!(err, ProducerError::NotSlotEligible { .. }),
             "expected NotSlotEligible, got {err:?}"
         );
+    }
+
+    #[test]
+    fn build_proposal_header_slot_tracks_input_slot() {
+        let (chain, producer, secrets, params) = single_validator_chain();
+        let mut inputs = coinbase_inputs(&producer, 1);
+        inputs.slot = 7;
+
+        let proposal =
+            build_proposal(chain.state(), &producer, &secrets, params, inputs).expect("propose");
+
+        assert_eq!(proposal.ctx.slot, 7);
+        assert_eq!(proposal.unsealed_header.slot, 7);
     }
 
     /// The staged API (`build_proposal` → `vote_on_proposal` →

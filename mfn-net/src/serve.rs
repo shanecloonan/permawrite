@@ -677,7 +677,10 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
                 Ok(remote) => match exchange_goodbye_v1_as_listener(&mut sock) {
                     Ok(()) => {
                         let peer_s = peer.to_string();
-                        // Register before logging so a concurrent `--produce` seal cannot miss fan-out.
+                        // Inbound peer addresses are ephemeral source ports for one-shot catch-up,
+                        // proposal, vote, and tx pushes. Keep the live socket as a transient session
+                        // so on-chain storage chunks can fan out to a replica that dials us, but do
+                        // not add the source port to the persistent dialable peer set.
                         if let Some(ps) = &fanout_peers {
                             ps.register_ephemeral_peer(&peer_s);
                             if let Ok(clone) = sock.try_clone() {

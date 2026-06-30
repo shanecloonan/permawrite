@@ -215,15 +215,26 @@ python_cmd() {
 wait_uploads_list_contains() {
   local mfn_cli="$1" rpc_addr="$2" commit_hash="$3" timeout_seconds="$4"
   local deadline=$(( $(date +%s) + timeout_seconds ))
+  local last_error=""
   while (( $(date +%s) <= deadline )); do
     local out
-    out="$(run_checked "uploads list" "$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50)"
+    if ! out="$("$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50 2>&1)"; then
+      last_error="uploads list failed: $out"
+      echo "permanence-demo: uploads_list_wait retry_after_error=${last_error//$'\n'/ }"
+      sleep 5
+      continue
+    fi
     if [[ "$out" == *"$commit_hash"* ]]; then
       return
     fi
+    last_error=""
     sleep 5
   done
-  echo "permanence-demo: commitment $commit_hash was not indexed within ${timeout_seconds}s" >&2
+  local suffix=""
+  if [[ -n "$last_error" ]]; then
+    suffix="; last_error=$last_error"
+  fi
+  echo "permanence-demo: commitment $commit_hash was not indexed within ${timeout_seconds}s$suffix" >&2
   exit 1
 }
 
@@ -232,7 +243,11 @@ wait_uploads_list_proven() {
   local deadline=$(( $(date +%s) + timeout_seconds ))
   while (( $(date +%s) <= deadline )); do
     local out
-    out="$(run_checked "uploads list after proof" "$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50)"
+    if ! out="$("$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50 2>&1)"; then
+      echo "permanence-demo: uploads_list_after_proof_wait retry_after_error=${out//$'\n'/ }"
+      sleep 5
+      continue
+    fi
     if [[ "$out" == *"$commit_hash"* && "$out" == *"last_proven_height="* ]]; then
       return
     fi

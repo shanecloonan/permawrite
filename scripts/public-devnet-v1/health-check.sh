@@ -3,7 +3,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
-EXPECTED_GENESIS_ID="7fef4492dba32d7ba652cceb5465cae86d6630a9e0a4855adf3acdc5f6b2a2df"
+EXPECTED_GENESIS_ID="454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
 if [[ ! -f "$PORTS_FILE" ]]; then
   echo "missing $PORTS_FILE — run start-all.sh first" >&2
   exit 1

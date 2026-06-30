@@ -354,6 +354,7 @@ pub fn serve_post_handshake_v1(
     block_applier: Option<&dyn BlockSyncApplier>,
     light_follow: Option<&dyn LightFollowProvider>,
 ) -> Result<Option<GossipRecvStats>, PostHandshakeError> {
+    let mut advertised_peer: Option<String> = None;
     loop {
         let payload = match read_frame(stream) {
             Ok(p) => p,
@@ -377,7 +378,15 @@ pub fn serve_post_handshake_v1(
                     .flush()
                     .map_err(|e| PostHandshakeError::Write(FrameWriteError::Io(e)))?;
                 if let Some(ps) = fanout_peers {
-                    ps.fanout_onchain_storage_chunks_to_peer(peer);
+                    let chunk_peer = advertised_peer.as_deref().unwrap_or(peer);
+                    match stream.try_clone() {
+                        Ok(clone) => ps.register_session(chunk_peer, clone),
+                        Err(e) => {
+                            eprintln!("mfnd_p2p_session_clone_abort peer={chunk_peer} {e}")
+                        }
+                    }
+                    ps.write_onchain_storage_chunks_to_peer(chunk_peer, stream);
+                    ps.fanout_onchain_storage_chunks_to_peer(chunk_peer);
                 }
             }
             GET_LIGHT_FOLLOW_V1_TAG => {
@@ -411,10 +420,23 @@ pub fn serve_post_handshake_v1(
                 if let Some(ps) = fanout_peers {
                     ps.register_peer(addr);
                     match stream.try_clone() {
-                        Ok(clone) => ps.register_session(addr, clone),
+                        Ok(clone) => {
+                            if addr != peer {
+                                ps.register_session(peer, clone);
+                                match stream.try_clone() {
+                                    Ok(addr_clone) => ps.register_session(addr, addr_clone),
+                                    Err(e) => {
+                                        eprintln!("mfnd_p2p_session_clone_abort peer={addr} {e}");
+                                    }
+                                }
+                            } else {
+                                ps.register_session(addr, clone);
+                            }
+                        }
                         Err(e) => eprintln!("mfnd_p2p_session_clone_abort peer={addr} {e}"),
                     }
                 }
+                advertised_peer = Some(addr.to_string());
             }
             PROPOSAL_V1_TAG => {
                 if let Some(h) = production {

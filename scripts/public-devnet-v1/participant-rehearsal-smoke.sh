@@ -199,7 +199,7 @@ mkdir -p "$SMOKE_ROOT"
 STARTED_MESH=0
 cleanup() {
   if (( STARTED_MESH == 1 && NO_STOP == 0 )); then
-    bash "$SCRIPT_DIR/stop-all.sh" || true
+    bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd || true
   fi
 }
 trap cleanup EXIT
@@ -226,6 +226,10 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
   exit 1
 fi
 wait_faucet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" "$WAIT_FAUCET_SECONDS"
+if [[ -d "$REHEARSAL_DIR" ]]; then
+  rm -rf "$REHEARSAL_DIR"
+  echo "participant-rehearsal-smoke: cleared rehearsal_dir=$REHEARSAL_DIR"
+fi
 
 bash "$SCRIPT_DIR/participant-rehearsal.sh" \
   --rpc "$RPC_ADDR" \

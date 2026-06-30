@@ -11,6 +11,7 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $Mfnd = if ($env:MFND) { $env:MFND } else { Join-Path $RepoRoot "target\release\mfnd.exe" }
 $Genesis = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.json"
 $DataDir = if ($env:DATA_DIR) { $env:DATA_DIR } else { Join-Path $RepoRoot ".permawrite-devnet-v1\v$Index" }
+$SlotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 30000 }
 New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
 $env:MFND_VALIDATOR_INDEX = $Index
 if ($Index -eq "1") {
@@ -22,4 +23,4 @@ if ($Index -eq "1") {
 }
 & $Mfnd --data-dir $DataDir --genesis $Genesis --store fs `
     --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 `
-    --p2p-dial $env:HUB_P2P --slot-duration-ms 30000 serve --committee-vote
+    --p2p-dial $env:HUB_P2P --slot-duration-ms $SlotMs serve --committee-vote

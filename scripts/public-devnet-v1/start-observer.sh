@@ -17,4 +17,4 @@ mkdir -p "$DATA_DIR"
 unset MFND_VALIDATOR_INDEX MFND_VRF_SEED_HEX MFND_BLS_SEED_HEX
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
   --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
-  --p2p-dial "$HUB_P2P" --slot-duration-ms 30000 serve
+  --p2p-dial "$HUB_P2P" serve
