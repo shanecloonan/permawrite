@@ -296,6 +296,20 @@ Decision: go
         [Console]::Error.WriteLine("release-signoff-manifest.ps1 did not emit a clean go manifest")
         exit 1
     }
+    $auditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
+        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
+        -ArchiveDir $archiveRoot `
+        -Inventory $signoffInventory `
+        -CiMockRuns $signoffCiSuccess `
+        -AllowDryRun `
+        -Json
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $auditObject = $auditJson | ConvertFrom-Json
+    if ($auditObject.schema_version -ne "release-audit-packet.v1" -or $auditObject.decision -ne "go") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not emit a clean go packet")
+        exit 1
+    }
     $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
     @"
 [

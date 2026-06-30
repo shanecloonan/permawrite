@@ -293,6 +293,32 @@ bash scripts/public-devnet-v1/release-signoff-manifest-validate.sh \
 
 The validator is dependency-free and mirrors the published schema's required fields. For `decision=go`, it also verifies green CI, passing archive and inventory gates, no manifest issues, and every required approval flag.
 
+After all individual gates pass, generate a final audit packet. This is the operator-facing summary to attach to launch notes before publishing endpoints:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-audit-packet.ps1 `
+  -ReleaseEvidenceJson .\release-evidence.json `
+  -SignoffManifest .\release-signoff-manifest.json `
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit> `
+  -Inventory .\release-artifact-inventory.md `
+  -Commit <release_commit_sha> `
+  -Json `
+  -OutputPath .\release-audit-packet.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json ./release-evidence.json \
+  --signoff-manifest ./release-signoff-manifest.json \
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit> \
+  --inventory ./release-artifact-inventory.md \
+  --commit <release_commit_sha> \
+  --json \
+  --output ./release-audit-packet.json
+```
+
+The audit packet uses `schema_version=release-audit-packet.v1` and returns `decision=no-go` unless release evidence schema validation, sign-off manifest schema and gate validation, archive validation, artifact inventory validation, exact-commit CI, and `CODEBASE_STATS.md` presence all pass. Use `-StrictStatsFreshness` / `--strict-stats-freshness` only from a clean release tree, because untracked private files can legitimately change dry-run stats.
+
 ### Release sign-off bundle review
 
 Before advertising public endpoints, one reviewer who is not the release operator should inspect the final launch notes plus support bundle. This review is a human gate; schema validation only proves the files are shaped correctly, not that the network is safe.
@@ -309,6 +335,7 @@ powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
   -ReleaseEvidenceMarkdown .\release-evidence.md `
   -ReleaseEvidenceJson .\release-evidence.json `
   -SignoffManifest .\release-signoff-manifest.json `
+  -AuditPacket .\release-audit-packet.json `
   -Inventory .\release-artifact-inventory.md
 ```
 
@@ -318,6 +345,7 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
   --release-evidence-md ./release-evidence.md \
   --release-evidence-json ./release-evidence.json \
   --signoff-manifest ./release-signoff-manifest.json \
+  --audit-packet ./release-audit-packet.json \
   --inventory ./release-artifact-inventory.md
 ```
 

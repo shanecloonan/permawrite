@@ -119,6 +119,7 @@ if ($AllowDryRun) {
         "evidence/release-artifact-inventory.md",
         "evidence/release-signoff-review.md",
         "evidence/release-signoff-manifest.json",
+        "evidence/release-audit-packet.json",
         "support/manifest.json"
     )) {
         Require-File $required

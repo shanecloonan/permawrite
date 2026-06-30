@@ -283,6 +283,24 @@ if doc.get("schema_version") != "release-signoff-manifest.v1" or doc.get("decisi
     print("release-signoff-manifest.sh did not emit a clean go manifest", file=sys.stderr)
     sys.exit(1)
 PY
+audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --allow-dry-run \
+  --json)"
+AUDIT_JSON="$audit_json" python3 - <<'PY'
+import json
+import os
+import sys
+
+doc = json.loads(os.environ["AUDIT_JSON"])
+if doc.get("schema_version") != "release-audit-packet.v1" or doc.get("decision") != "go":
+    print("release-audit-packet.sh did not emit a clean go packet", file=sys.stderr)
+    sys.exit(1)
+PY
 cat > "$archive_dir/signoff-ci-failure.json" <<EOF
 [
   {"headSha":"$signoff_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/signoff-failure"}

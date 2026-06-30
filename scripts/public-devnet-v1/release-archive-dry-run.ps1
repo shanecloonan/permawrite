@@ -8,6 +8,7 @@ param(
     [string]$SupportBundle,
     [string]$SignoffReview,
     [string]$SignoffManifest,
+    [string]$AuditPacket,
     [string]$Inventory
 )
 $ErrorActionPreference = "Stop"
@@ -115,6 +116,9 @@ if ($SignoffReview) {
 }
 if ($SignoffManifest) {
     $entries += @{ Source = $SignoffManifest; Destination = "evidence/release-signoff-manifest.json" }
+}
+if ($AuditPacket) {
+    $entries += @{ Source = $AuditPacket; Destination = "evidence/release-audit-packet.json" }
 }
 
 if ($IncludeBinaries) {
