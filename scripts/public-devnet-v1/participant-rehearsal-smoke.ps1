@@ -4,6 +4,7 @@ param(
     [string]$FaucetWallet = "",
     [string]$RehearsalDir = "",
     [int]$WaitAfterStartSeconds = 30,
+    [int]$WaitFaucetSeconds = 240,
     [int]$WaitMinedSeconds = 240,
     [int]$WaitUploadSeconds = 240,
     [int]$WaitProofSeconds = 240,
@@ -47,7 +48,46 @@ function Resolve-MfnCli {
     return $path
 }
 
+function Get-WalletBalance {
+    param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath)
+    & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet scan | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $balanceOut = & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet balance
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $balanceText = ($balanceOut | Out-String)
+    if ($balanceText -notmatch "(^|\s)balance=(\d+)") {
+        throw "participant-rehearsal-smoke: faucet wallet balance output missing balance=<value>`n$balanceText"
+    }
+    return [UInt64]$Matches[2]
+}
+
+function Get-TipHeightText {
+    param([string]$MfnCli, [string]$RpcAddr)
+    $tipOut = & $MfnCli --rpc $RpcAddr tip 2>$null
+    if ($LASTEXITCODE -ne 0) { return "unknown" }
+    $tipText = ($tipOut | Out-String)
+    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
+    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+    return "unknown"
+}
+
+function Wait-FaucetBalance {
+    param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [int]$TimeoutSeconds)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath
+        $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+        Write-Host "participant-rehearsal-smoke: faucet_balance=$balance hub_tip_height=$tipHeight"
+        if ($balance -gt 0) { return $balance }
+        if ($TimeoutSeconds -le 0) { break }
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $deadline)
+    $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+    throw "participant-rehearsal-smoke: faucet wallet has zero spendable balance after ${TimeoutSeconds}s (hub_tip_height=$tipHeight); wait for producer rewards, fund the faucet on this devnet, or rerun with -FaucetWallet pointing at a funded operator wallet"
+}
+
 if ($WaitAfterStartSeconds -lt 0) { throw "WaitAfterStartSeconds must be >= 0" }
+if ($WaitFaucetSeconds -lt 0) { throw "WaitFaucetSeconds must be >= 0" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
 if ($WaitUploadSeconds -lt 1) { throw "WaitUploadSeconds must be >= 1" }
 if ($WaitProofSeconds -lt 0) { throw "WaitProofSeconds must be >= 0" }
@@ -59,7 +99,8 @@ if ($PlanOnly) {
     Write-Host "  smoke_dir=$SmokeRoot"
     Write-Host "  faucet_wallet=$Faucet"
     Write-Host "  rehearsal_dir=$RunDir"
-    Write-Host "  flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh"
+    Write-Host "  wait_faucet_seconds=$WaitFaucetSeconds"
+    Write-Host "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
     Write-Host "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
     exit 0
 }
@@ -89,19 +130,7 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
-    & $MfnCli --rpc $RpcAddr --wallet $Faucet wallet scan | Out-Null
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $balanceOut = & $MfnCli --rpc $RpcAddr --wallet $Faucet wallet balance
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $balanceText = ($balanceOut | Out-String)
-    if ($balanceText -notmatch "(^|\s)balance=(\d+)") {
-        throw "participant-rehearsal-smoke: faucet wallet balance output missing balance=<value>`n$balanceText"
-    }
-    $faucetBalance = [UInt64]$Matches[2]
-    Write-Host "participant-rehearsal-smoke: faucet_balance=$faucetBalance"
-    if ($faucetBalance -eq 0) {
-        throw "participant-rehearsal-smoke: faucet wallet has zero spendable balance after scan; fund the faucet on this devnet or rerun with -FaucetWallet pointing at a funded operator wallet"
-    }
+    Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
 
     powershell -NoProfile -File (Join-Path $ScriptDir "participant-rehearsal.ps1") `
         -Rpc $RpcAddr `

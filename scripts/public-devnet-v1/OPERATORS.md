@@ -759,7 +759,7 @@ bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only
 bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh
 ```
 
-The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, scans/checks the faucet balance, runs `participant-rehearsal` only when the faucet has spendable balance, and stops the mesh it started. Pass `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
+The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, rescans until the faucet has spendable balance, runs `participant-rehearsal`, and stops the mesh it started. Each faucet wait line includes `hub_tip_height`; if it stays at `0`, diagnose producer/committee liveness before debugging wallet funding. Pass `-WaitFaucetSeconds` / `--wait-faucet-seconds` to tune the faucet reward window, `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
 
 ### Support bundles
 
@@ -851,7 +851,7 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
 | `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |
 | `participant-rehearsal.{ps1,sh}` plan validation | Full outside-user rehearsal advertises faucet funding, permanence restore/prove, SHA-256 verification, and support-bundle capture |
-| `participant-rehearsal-smoke.{ps1,sh}` plan validation | Local real-run smoke advertises start-all, default test-faucet restore/check, custom faucet safety, rehearsal execution, and mesh cleanup |
+| `participant-rehearsal-smoke.{ps1,sh}` plan validation | Local real-run smoke advertises start-all, default test-faucet restore/check, faucet balance wait, custom faucet safety, rehearsal execution, and mesh cleanup |
 
 ```bash
 cargo test -p mfn-cli --release --test chunk_p2p_smoke --test chunk_p2p_two_node_smoke --test chunk_p2p_three_node_smoke

@@ -49,7 +49,7 @@ jobs:
           [[ "$rehearsal_plan" == *"flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"* ]] || { echo "$rehearsal_plan"; exit 1; }
           [[ "$rehearsal_plan" == *"public-devnet/test funds only"* ]] || { echo "$rehearsal_plan"; exit 1; }
           smoke_plan="$(bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only --rpc 127.0.0.1:18731)"
-          [[ "$smoke_plan" == *"flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh"* ]] || { echo "$smoke_plan"; exit 1; }
+          [[ "$smoke_plan" == *"flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"* ]] || { echo "$smoke_plan"; exit 1; }
           [[ "$smoke_plan" == *"custom faucet wallets are never overwritten"* ]] || { echo "$smoke_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
@@ -174,7 +174,7 @@ jobs:
             exit 1
           }
           $smokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
-          if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
+          if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
             $smokePlan
             exit 1
           }

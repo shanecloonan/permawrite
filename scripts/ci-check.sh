@@ -46,7 +46,7 @@ if [[ "$rehearsal_plan" != *"flow=fund-wallet -> permanence-demo upload/discover
   exit 1
 fi
 smoke_plan="$(bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only --rpc 127.0.0.1:18731)"
-if [[ "$smoke_plan" != *"flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh"* || "$smoke_plan" != *"custom faucet wallets are never overwritten"* ]]; then
+if [[ "$smoke_plan" != *"flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"* || "$smoke_plan" != *"custom faucet wallets are never overwritten"* ]]; then
   printf '%s\n' "$smoke_plan" >&2
   exit 1
 fi
@@ -82,7 +82,7 @@ pwsh -NoProfile -Command '
     exit 1
   }
   $smokePlan = (pwsh -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
-  if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
+  if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
     $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
   }
