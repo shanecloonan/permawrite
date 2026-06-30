@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Boot-time reconnect planning filters quarantined saved peers before outbound cap accounting. | In progress in clean Agent 1 worktree. | Add equivalent deterministic coverage for committee catch-up quarantine before cap accounting. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release-candidate sign-off manifest for exact release decisions. | In progress locally. | Add schema/sample artifacts for dashboard ingestion and independent validator tooling. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release-candidate sign-off manifest for exact release decisions. | Completed locally; local CI mirror passed. | Add schema/sample artifacts for dashboard ingestion and independent validator tooling. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -63,7 +63,7 @@ Current task:
 - [x] Add `release-signoff-manifest.ps1` and `release-signoff-manifest.sh`.
 - [x] Add CI coverage for successful and failing `go` decisions.
 - [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/TESTNET.md`, and `scripts/public-devnet-v1/OPERATORS.md`.
-- [ ] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
+- [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:
