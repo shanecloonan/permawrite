@@ -60,9 +60,18 @@ function Get-Runs {
     }
 
     if (Get-Command gh -ErrorAction SilentlyContinue) {
-        $ghJson = & gh run list --workflow $Workflow --branch $Branch --limit 20 --json databaseId,headSha,status,conclusion,url 2>$null
-        if ($LASTEXITCODE -eq 0 -and $ghJson) {
-            return ConvertTo-RunList ($ghJson | ConvertFrom-Json)
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $ghJson = & gh run list --workflow $Workflow --branch $Branch --limit 20 --json databaseId,headSha,status,conclusion,url 2>$null
+            $ghExitCode = $LASTEXITCODE
+            if ($ghExitCode -eq 0 -and $ghJson) {
+                return ConvertTo-RunList ($ghJson | ConvertFrom-Json)
+            }
+        } catch {
+            # Unauthenticated gh should not block the public GitHub API fallback.
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
         }
     }
 
@@ -129,7 +138,7 @@ while ($true) {
     if ($run) {
         $status = [string](Get-RunValue $run @("status"))
         $conclusion = [string](Get-RunValue $run @("conclusion"))
-        $url = [string](Get-RunValue $run @("url", "html_url"))
+        $url = [string](Get-RunValue $run @("html_url", "url"))
         if ($status -eq "completed" -and $conclusion -eq "success") {
             Emit-Result -State $status -Conclusion $conclusion -Url $url -Source $source -Message "success" -ExitCode 0
         }

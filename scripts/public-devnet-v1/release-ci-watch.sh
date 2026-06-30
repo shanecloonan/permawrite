@@ -170,7 +170,7 @@ def run_head(run):
 
 
 def run_url(run):
-    return run.get("url") or run.get("html_url") or ""
+    return run.get("html_url") or run.get("url") or ""
 
 
 def emit(status, conclusion, url, source, message, code):
