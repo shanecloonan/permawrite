@@ -9,4 +9,4 @@ Blocking TCP P2P: length-prefixed frames, versioned handshakes, and post-goodbye
 - **`gossip`** — `recv_gossip_v1` / `send_tx_v1` with a pluggable `GossipHandler`; [`FanoutPeerSet`] + [`push_tx_gossip_to_peer`] for outbound mempool fan-out (**M2.3.20**) plus local peer success/failure scoring hooks.
 - **`serve`** — `mfnd serve` accept/dial threads and stdout harness lines (`mfnd_p2p_*`).
 
-Admission and chain apply live in `mfn-node::p2p_gossip`. Block-log queries live in `mfn-node::p2p_block_sync`.
+`mfn-net` owns the wire protocol, frame codecs, handshake loops, and hook traits. The daemon bridges those hooks to live runtime/store state in `mfn-node::p2p_gossip` (tx/block/chunk admission and chain apply) and `mfn-node::p2p_block_sync` (validated block-log and light-follow queries).

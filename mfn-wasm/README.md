@@ -1,0 +1,38 @@
+# `mfn-wasm`
+
+WebAssembly bindings for Permawrite wallet, storage, transfer, scan, and light-verification primitives. The crate exposes the same Rust implementation used by `mfn-wallet` and `mfn-cli` through `wasm-bindgen` so browser demos and future web wallets do not fork protocol logic.
+
+Network IO stays outside this crate. JavaScript is expected to fetch JSON-RPC data from `mfnd serve`; `mfn-wasm` handles deterministic cryptography, wallet derivation, transaction/upload construction, block scanning, and light-client verification.
+
+## Features
+
+- `wasm-keys` (default): wallet address derivation, claiming pubkey derivation, and storage-upload preview helpers.
+- `wasm-full`: transfer construction, block/transaction scanning, storage-upload construction, BLS header verification, light-chain checkpoint/evolution helpers, quorum checks, and weak-subjectivity summary helpers.
+
+## Public Bindings
+
+Core exports include:
+
+- `wasm_wallet_address_from_seed_hex`
+- `wasm_claim_pubkey_from_seed_hex`
+- `wasm_storage_upload_preview`
+
+With `wasm-full`, additional exports include:
+
+- `wasm_build_transfer_json`
+- `wasm_build_storage_upload`
+- `wasm_scan_block_hex`
+- `wasm_scan_block_txs_hex`
+- `wasm_scan_transaction_hex`
+- `wasm_verify_header_hex`
+- `wasm_light_chain_verify_header`
+- `wasm_light_chain_apply_evolution`
+- `wasm_light_follow_quorum_json`
+
+## Build
+
+```bash
+wasm-pack build mfn-wasm --target web --release -- --features wasm-full
+```
+
+The CI mirror checks the `wasm32-unknown-unknown` build path. Treat these bindings as devnet-grade and pre-audit, matching the rest of the repository.

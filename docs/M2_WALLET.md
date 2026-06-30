@@ -13,7 +13,7 @@
 
 Up through M2.0.10 the Permawrite stack was provably correct but **unusable**: a `Chain` could apply blocks, a `LightChain` could verify headers + bodies, and the wire codec could round-trip every byte, but no piece of the system could answer the question a human cares about — *"how much money do I have, and how do I send some to someone else?"*
 
-M2.0.11 ships that piece. `mfn-wallet` is the first crate built **for end users**: it consumes the canonical block format, produces canonical transactions, and round-trips through full-node + light-node verification without any IO of its own. The same crate backs a desktop wallet, a future mobile wallet, the planned `mfn-cli wallet` binary, and (eventually) a WASM build that runs in a browser.
+M2.0.11 ships that piece. `mfn-wallet` is the first crate built **for end users**: it consumes the canonical block format, produces canonical transactions, and round-trips through full-node + light-node verification without any IO of its own. The same crate now backs the `mfn-cli wallet` command surface and the `mfn-wasm` browser bindings, while remaining portable enough for desktop and future mobile wallets.
 
 ## Goals
 
