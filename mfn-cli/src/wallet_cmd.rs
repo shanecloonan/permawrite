@@ -15,6 +15,7 @@ use mfn_storage_operator::upload_artifact_store::{
 };
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
+use sha2::{Digest, Sha512};
 
 use crate::rpc::RpcClient;
 use crate::wallet_store::{
@@ -41,6 +42,15 @@ pub const MAX_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
 
 /// Default fee for standalone authorship claim txs when `--fee` is omitted.
 pub const DEFAULT_CLAIM_FEE: u64 = DEFAULT_TRANSFER_FEE;
+
+/// Human-facing wallet address prefix. The encoded payload still contains the
+/// unmodified view/spend public keys used by the cryptography.
+pub const WALLET_ADDRESS_PREFIX: &str = "mf";
+const WALLET_ADDRESS_PAYLOAD_BYTES: usize = 64;
+const WALLET_ADDRESS_CHECKSUM_BYTES: usize = 4;
+const WALLET_ADDRESS_HEX_LEN: usize =
+    (WALLET_ADDRESS_PAYLOAD_BYTES + WALLET_ADDRESS_CHECKSUM_BYTES) * 2;
+const WALLET_ADDRESS_CHECKSUM_DOMAIN: &[u8] = b"permawrite-mf-address-v1";
 
 /// Wallet command errors.
 #[derive(Debug, thiserror::Error)]
@@ -998,11 +1008,65 @@ fn fetch_chain_state(client: &mut RpcClient) -> Result<ChainState, WalletCmdErro
     Ok(cp.state)
 }
 
-fn parse_recipient(view_hex: &str, spend_hex: &str) -> Result<Recipient, WalletCmdError> {
+fn parse_recipient(view_or_address: &str, spend_hex: &str) -> Result<Recipient, WalletCmdError> {
+    if spend_hex.trim().is_empty() {
+        let (view_hex, spend_hex) = decode_wallet_address_to_hex(view_or_address)?;
+        return Ok(Recipient {
+            view_pub: parse_compressed_point(&view_hex, "address.view_pub")?,
+            spend_pub: parse_compressed_point(&spend_hex, "address.spend_pub")?,
+        });
+    }
     Ok(Recipient {
-        view_pub: parse_compressed_point(view_hex, "view_pub")?,
+        view_pub: parse_compressed_point(view_or_address, "view_pub")?,
         spend_pub: parse_compressed_point(spend_hex, "spend_pub")?,
     })
+}
+
+pub(crate) fn encode_wallet_address_hex(view_pub: [u8; 32], spend_pub: [u8; 32]) -> String {
+    let mut payload = [0u8; WALLET_ADDRESS_PAYLOAD_BYTES];
+    payload[..32].copy_from_slice(&view_pub);
+    payload[32..].copy_from_slice(&spend_pub);
+    let checksum = wallet_address_checksum(&payload);
+    let mut wire = [0u8; WALLET_ADDRESS_PAYLOAD_BYTES + WALLET_ADDRESS_CHECKSUM_BYTES];
+    wire[..WALLET_ADDRESS_PAYLOAD_BYTES].copy_from_slice(&payload);
+    wire[WALLET_ADDRESS_PAYLOAD_BYTES..].copy_from_slice(&checksum);
+    format!("{WALLET_ADDRESS_PREFIX}{}", hex::encode(wire))
+}
+
+pub(crate) fn decode_wallet_address_to_hex(
+    address: &str,
+) -> Result<(String, String), WalletCmdError> {
+    let raw = address.trim();
+    let Some(encoded) = raw.strip_prefix(WALLET_ADDRESS_PREFIX) else {
+        return Err(WalletCmdError::Usage(format!(
+            "address must start with `{WALLET_ADDRESS_PREFIX}`"
+        )));
+    };
+    if encoded.len() != WALLET_ADDRESS_HEX_LEN {
+        return Err(WalletCmdError::Usage(format!(
+            "address payload must be {WALLET_ADDRESS_HEX_LEN} hex characters after `{WALLET_ADDRESS_PREFIX}` (got {})",
+            encoded.len()
+        )));
+    }
+    let wire = hex::decode(encoded)
+        .map_err(|e| WalletCmdError::Usage(format!("address hex decode: {e}")))?;
+    let payload = &wire[..WALLET_ADDRESS_PAYLOAD_BYTES];
+    let checksum = &wire[WALLET_ADDRESS_PAYLOAD_BYTES..];
+    if wallet_address_checksum(payload) != checksum {
+        return Err(WalletCmdError::Usage("address checksum mismatch".into()));
+    }
+    Ok((hex::encode(&payload[..32]), hex::encode(&payload[32..])))
+}
+
+fn wallet_address_checksum(payload: &[u8]) -> [u8; WALLET_ADDRESS_CHECKSUM_BYTES] {
+    let mut h = Sha512::new();
+    h.update(WALLET_ADDRESS_CHECKSUM_DOMAIN);
+    h.update(WALLET_ADDRESS_PREFIX.as_bytes());
+    h.update(payload);
+    let digest = h.finalize();
+    let mut out = [0u8; WALLET_ADDRESS_CHECKSUM_BYTES];
+    out.copy_from_slice(&digest[..WALLET_ADDRESS_CHECKSUM_BYTES]);
+    out
 }
 
 fn parse_hash32(hex_str: &str, field: &str) -> Result<[u8; 32], WalletCmdError> {
@@ -1139,14 +1203,12 @@ fn key_derivation_label(d: KeyDerivation) -> &'static str {
 fn print_address_lines(file: &WalletFile) -> Result<(), WalletCmdError> {
     let wallet = file.to_wallet()?;
     let keys = wallet.keys();
-    println!(
-        "view_pub_hex={}",
-        hex::encode(keys.view_pub().compress().to_bytes())
-    );
-    println!(
-        "spend_pub_hex={}",
-        hex::encode(keys.spend_pub().compress().to_bytes())
-    );
+    let view_pub = keys.view_pub().compress().to_bytes();
+    let spend_pub = keys.spend_pub().compress().to_bytes();
+    println!("address={}", encode_wallet_address_hex(view_pub, spend_pub));
+    println!("address_prefix={WALLET_ADDRESS_PREFIX}");
+    println!("view_pub_hex={}", hex::encode(view_pub));
+    println!("spend_pub_hex={}", hex::encode(spend_pub));
     println!(
         "key_derivation={}",
         key_derivation_label(file.key_derivation)
@@ -1198,6 +1260,29 @@ mod tests {
             [0xabu8; 32]
         );
         assert!(parse_restore_seed_hex("abcd").is_err());
+    }
+
+    #[test]
+    fn wallet_address_round_trips_view_and_spend_keys() {
+        let view = [0x11u8; 32];
+        let spend = [0x22u8; 32];
+        let address = encode_wallet_address_hex(view, spend);
+
+        assert!(address.starts_with(WALLET_ADDRESS_PREFIX));
+        let (view_hex, spend_hex) = decode_wallet_address_to_hex(&address).expect("decode");
+        assert_eq!(view_hex, "11".repeat(32));
+        assert_eq!(spend_hex, "22".repeat(32));
+    }
+
+    #[test]
+    fn wallet_address_rejects_bad_checksum() {
+        let view = [0x11u8; 32];
+        let spend = [0x22u8; 32];
+        let mut address = encode_wallet_address_hex(view, spend);
+        let last = address.pop().expect("address char");
+        address.push(if last == '0' { '1' } else { '0' });
+
+        assert!(decode_wallet_address_to_hex(&address).is_err());
     }
 
     #[test]

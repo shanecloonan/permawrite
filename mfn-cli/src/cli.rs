@@ -26,10 +26,11 @@ use crate::uploads_cmd::{
     UploadsFetchHttpParams, UploadsInventoryParams, UploadsListParams,
 };
 use crate::wallet_cmd::{
-    resolve_wallet_path, wallet_address, wallet_backup_info, wallet_balance, wallet_claim,
-    wallet_new, wallet_restore, wallet_scan, wallet_send, wallet_status, wallet_upload,
-    BackupInfoParams, ClaimParams, SendParams, UploadParams, WalletCmdError, WalletScanParams,
-    WalletStatusParams, DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE, DEFAULT_TRANSFER_FEE,
+    decode_wallet_address_to_hex, resolve_wallet_path, wallet_address, wallet_backup_info,
+    wallet_balance, wallet_claim, wallet_new, wallet_restore, wallet_scan, wallet_send,
+    wallet_status, wallet_upload, BackupInfoParams, ClaimParams, SendParams, UploadParams,
+    WalletCmdError, WalletScanParams, WalletStatusParams, DEFAULT_CLAIM_FEE, DEFAULT_RING_SIZE,
+    DEFAULT_TRANSFER_FEE, WALLET_ADDRESS_PREFIX,
 };
 use crate::wallet_store::KeyDerivation;
 
@@ -462,7 +463,8 @@ fn usage() -> &'static str {
                          options: --json\n\
        wallet backup-info  print wallet/artifact backup inventory (no seed output)\n\
                          options: --json\n\
-       wallet send VIEW_HEX SPEND_HEX AMOUNT  build CLSAG transfer and submit_tx\n\
+wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx\n\
+wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
                          options: --fee N --ring-size N --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
                          options: --replication N --fee N --anchor-value N --ring-size N\n\
@@ -1766,18 +1768,34 @@ fn parse_wallet_send_args(rest: &[&str]) -> Result<SendParams, CliError> {
         positional.push(a);
         i += 1;
     }
-    if positional.len() != 3 {
+    if positional.len() != 2 && positional.len() != 3 {
         return Err(CliError::Usage(format!(
-            "wallet send requires VIEW_HEX SPEND_HEX AMOUNT\n{}",
+            "wallet send requires ADDRESS AMOUNT or VIEW_HEX SPEND_HEX AMOUNT\n{}",
             usage()
         )));
     }
-    let amount: u64 = positional[2]
+    let (to_view_hex, to_spend_hex, amount_raw) = if positional.len() == 2 {
+        if !positional[0].starts_with(WALLET_ADDRESS_PREFIX) {
+            return Err(CliError::Usage(format!(
+                "wallet send ADDRESS form requires an `{WALLET_ADDRESS_PREFIX}`-prefixed address"
+            )));
+        }
+        let (view, spend) = decode_wallet_address_to_hex(positional[0])
+            .map_err(|e| CliError::Usage(e.to_string()))?;
+        (view, spend, positional[1])
+    } else {
+        (
+            positional[0].to_string(),
+            positional[1].to_string(),
+            positional[2],
+        )
+    };
+    let amount: u64 = amount_raw
         .parse()
         .map_err(|_| CliError::Usage("AMOUNT must be a non-negative integer".into()))?;
     Ok(SendParams {
-        to_view_hex: positional[0].to_string(),
-        to_spend_hex: positional[1].to_string(),
+        to_view_hex,
+        to_spend_hex,
         amount,
         fee,
         ring_size,
@@ -2177,6 +2195,35 @@ mod tests {
             } => {
                 assert_eq!(params.to_view_hex, view);
                 assert_eq!(params.to_spend_hex, spend);
+                assert_eq!(params.amount, 1000);
+                assert_eq!(params.fee, 10);
+                assert!(params.json);
+            }
+            _ => panic!("expected wallet send"),
+        }
+    }
+
+    #[test]
+    fn parse_wallet_send_accepts_prefixed_address() {
+        let address = crate::wallet_cmd::encode_wallet_address_hex([0x11; 32], [0x22; 32]);
+        let p = parse_args(&[
+            "wallet".into(),
+            "send".into(),
+            address,
+            "1000".into(),
+            "--fee".into(),
+            "10".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::Send(params),
+                ..
+            } => {
+                assert_eq!(params.to_view_hex, "11".repeat(32));
+                assert_eq!(params.to_spend_hex, "22".repeat(32));
                 assert_eq!(params.amount, 1000);
                 assert_eq!(params.fee, 10);
                 assert!(params.json);

@@ -44,6 +44,10 @@ mfn-cli wallet status --json
 mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
+mfn-cli --rpc 127.0.0.1:<PORT> wallet send mf<ADDRESS_PAYLOAD_HEX> <AMOUNT> \
+  --fee 10000 --ring-size 8 --json
+
+# Legacy raw-key send form
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
   --fee 10000 --ring-size 8 --json
 
@@ -84,6 +88,8 @@ Authenticated testnet RPC: pass `--rpc-api-key KEY` or set `MFN_RPC_API_KEY=KEY`
 `mfn-cli status` prints the `get_status` snapshot. Operators should check `rpc.auth_enabled`, `rpc.listen_addr`, `rpc.public_bind`, `rpc.max_in_flight`, `rpc.current_in_flight`, `rpc.max_request_line_bytes`, and `rpc.io_timeout_ms` when validating public-devnet RPC exposure and capacity settings.
 
 Default wallet file: `wallet.json` (override with `--wallet PATH`). The file stores a 32-byte `seed_hex`, key-derivation tag, pending spends, scan cache, and optional light-client checkpoint. **Back it up** — it is the only recovery path for funds.
+
+`wallet address` prints `address=mf...` as the user-facing receive address. The `mf` address is only an encoding layer: it contains the existing compressed view/spend public keys plus a checksum. The command still prints `view_pub_hex` and `spend_pub_hex` for scripts and older raw-key flows.
 
 `wallet restore SEED_HEX [--key-derivation mfn_wallet_v1|payout_stealth_v1]` writes a wallet file from a 32-byte seed. Use the default `mfn_wallet_v1` for normal user wallets. Use `payout_stealth_v1` only for validator payout/faucet test wallets whose rewards are derived from validator BLS seed material. Pass global `--force` to overwrite an existing wallet file.
 
