@@ -235,7 +235,7 @@ See the full design note in [`docs/M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF
 ### What shipped
 
 - **New workspace member `mfn-node`** ([`mfn-node/`](../mfn-node/) — Cargo.toml, lib.rs, README, src/, tests/).
-- **`Chain` driver** in [`mfn-node::chain`](../mfn-node/src/chain.rs):
+- **`Chain` driver** in [`mfn-node::chain`](../mfn-runtime/src/chain.rs):
   - Owns a [`ChainState`]; applies blocks sequentially through `apply_block`.
   - Public read-only accessors: `tip_height`, `tip_id`, `genesis_id`, `validators`, `total_stake`, `treasury`, `state`.
   - Cheap diagnostic snapshot via [`ChainStats`].
@@ -286,7 +286,7 @@ Each will be its own commit. The user-stated principle ("commit and push periodi
 
 ### What shipped
 
-- **`mfn-node::producer` module** ([`mfn-node/src/producer.rs`](../mfn-node/src/producer.rs)).
+- **`mfn-node::producer` module** ([`mfn-runtime/src/producer.rs`](../mfn-runtime/src/producer.rs)).
 - **Three-stage protocol** mirroring the actual consensus flow:
   1. [`producer::build_proposal`] — slot-eligible producer builds an unsealed header committing every body element, runs the VRF + ed25519 producer proof, returns a [`BlockProposal`].
   2. [`producer::vote_on_proposal`] — any committee member BLS-signs the proposal's `header_hash` via `cast_vote`, returns a `CommitteeVote`.
@@ -327,7 +327,7 @@ Building the API as three stages from day one means the P2P layer can be a pure 
 
 ### What shipped
 
-- **`mfn_consensus::header_verify` module** ([`mfn-consensus/src/header_verify.rs`](../mfn-consensus/src/header_verify.rs)).
+- **`mfn_consensus::header_verify` module** ([`mfn-consensus/src/header_verify/`](../mfn-consensus/src/header_verify/)).
 - **`verify_header(header, trusted_validators, params)`** — single-hop pure-function header verification. No IO, no async, no clock, no state mutation. Returns a typed `Result<HeaderCheck, HeaderVerifyError>`.
 - **Five checks, in order:**
   1. `trusted_validators` is non-empty → otherwise `EmptyTrustedSet`.
@@ -669,7 +669,7 @@ See [`docs/M2_WALLET.md`](./M2_WALLET.md) for the full design note.
 
 ### Test matrix
 
-**Unit (15 tests in `mfn-node/src/mempool.rs`):**
+**Unit (15 tests in `mfn-runtime/src/mempool.rs`):**
 
 - `admit_happy_path_fresh` — plain admission of a wallet-signed tx.
 - `admit_rejects_coinbase_shaped_tx` — `NoInputs` for `inputs.is_empty()`.
@@ -921,7 +921,7 @@ See [`docs/M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md) for the full desig
 
 ### What shipped
 
-- **`mfn-node/src/store.rs`** — a stdlib-only filesystem checkpoint store over `Chain::encode_checkpoint` and `Chain::from_checkpoint_bytes`.
+- **`mfn-store/src/fs.rs`** — a stdlib-only filesystem checkpoint store over `Chain::encode_checkpoint` and `Chain::from_checkpoint_bytes`.
 - **`ChainStore`** — directory-owned, single-writer store with:
   - `ChainStore::new(root)` — configure a store directory without touching disk.
   - `load(cfg)` — read `chain.checkpoint` if present, restore it against the caller's `ChainConfig`, and return `Ok(None)` if no snapshot exists.
@@ -1205,9 +1205,9 @@ Workspace **+5 tests** vs the M2.1.6.1 line count: **606 → 611** passing.
 
 ### What shipped
 
-- **`parse_and_dispatch_serve`** — central dispatcher used by the TCP loop (since **M2.1.10**: takes [`ChainStore`] + in-memory [`Chain`](../mfn-node/src/chain.rs) + [`Mempool`](../mfn-node/src/mempool.rs)); returns a single [`serde_json::Value`] with `jsonrpc`, `id`, and `result` or `error`.
+- **`parse_and_dispatch_serve`** — central dispatcher used by the TCP loop (since **M2.1.10**: takes [`ChainStore`] + in-memory [`Chain`](../mfn-runtime/src/chain.rs) + [`Mempool`](../mfn-runtime/src/mempool.rs)); returns a single [`serde_json::Value`] with `jsonrpc`, `id`, and `result` or `error`.
 - **Request rules** — `method` must be a JSON string. Optional `jsonrpc`; when present it must be `"2.0"`. Omitted `id` is treated as `null` and echoed (the server **always** emits one response line per connection).
-- **Error codes** — `-32700` parse error; `-32600` invalid request; `-32601` method not found; `-32602` invalid params (bad hex, `decode_transaction`, missing `tx_hex`, wrong param types); `-32603` reserved for internal failures; **`-32001`** mempool `admit` refusal (message carries `AdmitError` display string prefixed with `mempool admit:`; see [`mempool.rs`](../mfn-node/src/mempool.rs)).
+- **Error codes** — `-32700` parse error; `-32600` invalid request; `-32601` method not found; `-32602` invalid params (bad hex, `decode_transaction`, missing `tx_hex`, wrong param types); `-32603` reserved for internal failures; **`-32001`** mempool `admit` refusal (message carries `AdmitError` display string prefixed with `mempool admit:`; see [`mempool.rs`](../mfn-runtime/src/mempool.rs)).
 - **`mfnd_smoke`** — assertions upgraded to parse JSON-RPC; **`mfnd_serve_get_tip_jsonrpc_echoes_id`** locks `id` round-trip; coinbase-shaped wire asserts **`-32001`**.
 - **Unit tests** (`mfnd_serve::tests`) — eight cases covering empty body, malformed JSON, bad `jsonrpc`, unknown method, `get_tip` success, `id` echo, missing `tx_hex`, non-string `method`.
 
@@ -1242,11 +1242,11 @@ Workspace **+6 tests** vs the M2.1.8 line count: **620 → 626** passing.
 
 ## Milestone M2.1.9 — `read_block_log_validated` (✓ shipped)
 
-**Why it was next.** `read_block_log` returns bytes blindly; a corrupted or truncated `chain.blocks` next to a valid checkpoint would only fail later during wallet replay. Validating **count + height + `prev_hash` + terminal `block_id`** against the loaded [`Chain`](../mfn-node/src/chain.rs) catches mixed directories and operator mistakes early.
+**Why it was next.** `read_block_log` returns bytes blindly; a corrupted or truncated `chain.blocks` next to a valid checkpoint would only fail later during wallet replay. Validating **count + height + `prev_hash` + terminal `block_id`** against the loaded [`Chain`](../mfn-runtime/src/chain.rs) catches mixed directories and operator mistakes early.
 
 ### What shipped
 
-- **[`ChainStore::read_block_log_validated`](../mfn-node/src/store.rs)** — requires `log.len() == tip_height`, heights `1..=tip`, `prev_hash` chain from `genesis_id` to `tip_id`.
+- **[`ChainStore::read_block_log_validated`](../mfn-store/src/fs.rs)** — requires `log.len() == tip_height`, heights `1..=tip`, `prev_hash` chain from `genesis_id` to `tip_id`.
 - **`store` unit tests** — empty log at genesis; count mismatch after appending a genesis-shaped row.
 - **`mfnd_smoke`** — **`mfnd_step_block_log_passes_validated_read`** after one real `step`.
 
@@ -1277,7 +1277,7 @@ Workspace **+6 tests** vs the M2.1.9 line count: **629 → 635** passing.
 
 ## Milestone M2.1.11 — `serve` `get_block_header` (✓ shipped)
 
-**Why it was next.** Light clients and tools often need linkage + `block_id` without paying for full `encode_block` bodies. Returning canonical [`block_header_bytes`](../mfn-consensus/src/block.rs) plus hex [`block_id`](../mfn-consensus/src/block.rs) reuses the same validated `chain.blocks` slice as **`get_block`**.
+**Why it was next.** Light clients and tools often need linkage + `block_id` without paying for full `encode_block` bodies. Returning canonical [`block_header_bytes`](../mfn-consensus/src/block/header.rs) plus hex [`block_id`](../mfn-consensus/src/block/header.rs) reuses the same validated `chain.blocks` slice as **`get_block`**.
 
 ### What shipped
 
@@ -1332,7 +1332,7 @@ Workspace **+8 tests** vs the M2.1.12 line count: **644 → 652** passing.
 
 ### What shipped
 
-- **`remove_mempool_tx`** in [`mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — same **`tx_id`** `params` as **`get_mempool_tx`**; calls [`Mempool::evict`](../mfn-node/src/mempool.rs); success always returns `removed` + `pool_len` (no error when the id is absent).
+- **`remove_mempool_tx`** in [`mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — same **`tx_id`** `params` as **`get_mempool_tx`**; calls [`Mempool::evict`](../mfn-runtime/src/mempool.rs); success always returns `removed` + `pool_len` (no error when the id is absent).
 - **Eight new `mfnd_serve` unit tests** + **`remove_mempool_tx`** + empty **`get_mempool`** folded into **`mfnd_serve_get_mempool_lists_tx_after_submit`** (`mfnd_smoke`).
 
 Workspace **+8 tests** vs the M2.1.13 line count: **652 → 660** passing.
@@ -1345,7 +1345,7 @@ Workspace **+8 tests** vs the M2.1.13 line count: **652 → 660** passing.
 
 ## Milestone M2.1.15 — `serve` `clear_mempool` (✓ shipped)
 
-**Why it was next.** Operators and long-lived local tests sometimes need to wipe the entire pending set at once rather than evicting tx by tx; the pool already exposes [`Mempool::clear`](../mfn-node/src/mempool.rs).
+**Why it was next.** Operators and long-lived local tests sometimes need to wipe the entire pending set at once rather than evicting tx by tx; the pool already exposes [`Mempool::clear`](../mfn-runtime/src/mempool.rs).
 
 ### What shipped
 
@@ -1362,11 +1362,11 @@ Workspace **+5 tests** vs the M2.1.14 line count: **660 → 665** passing.
 
 ## Milestone M2.1.16 — `serve` `get_checkpoint` (✓ shipped)
 
-**Why it was next.** Wallets and light tooling need the same canonical checkpoint bytes `mfnd save` would write, without shelling out to `save` or re-reading `chain.checkpoint` from disk while the daemon holds the authoritative in-memory [`Chain`](../mfn-node/src/chain.rs).
+**Why it was next.** Wallets and light tooling need the same canonical checkpoint bytes `mfnd save` would write, without shelling out to `save` or re-reading `chain.checkpoint` from disk while the daemon holds the authoritative in-memory [`Chain`](../mfn-runtime/src/chain.rs).
 
 ### What shipped
 
-- **`get_checkpoint`** in [`mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — same empty-only `params` rule as **`get_mempool`**; calls [`Chain::encode_checkpoint`](../mfn-node/src/chain.rs); success returns **`checkpoint_hex`** (lowercase hex) and **`byte_len`**.
+- **`get_checkpoint`** in [`mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs) — same empty-only `params` rule as **`get_mempool`**; calls [`Chain::encode_checkpoint`](../mfn-runtime/src/chain.rs); success returns **`checkpoint_hex`** (lowercase hex) and **`byte_len`**.
 - **Four new `mfnd_serve` unit tests** + **`mfnd_serve_get_checkpoint_round_trips_over_tcp_after_step`** in `mfnd_smoke`.
 
 Workspace **+5 tests** vs the M2.1.15 line count: **665 → 670** passing.
@@ -1379,7 +1379,7 @@ Workspace **+5 tests** vs the M2.1.15 line count: **665 → 670** passing.
 
 ## Milestone M2.1.17 — `serve` `save_checkpoint` (✓ shipped)
 
-**Why it was next.** Long-lived **`serve`** processes need the same durable snapshot path as **`mfnd save`** without exiting; [`ChainStore::save`](../mfn-node/src/store.rs) already implements atomic rotation.
+**Why it was next.** Long-lived **`serve`** processes need the same durable snapshot path as **`mfnd save`** without exiting; [`ChainStore::save`](../mfn-store/src/fs.rs) already implements atomic rotation.
 
 ### What shipped
 
@@ -1413,7 +1413,7 @@ Workspace **+5 tests** vs the M2.1.17 line count: **675 → 680** passing.
 
 ## Milestone M2.2.8 — `mfnd serve` authorship discovery RPCs (✓ shipped)
 
-**Why it was next.** [`ChainState`](../mfn-consensus/src/block.rs) already indexes **`claims`** (by `data_root`) and **`storage`** (by commitment hash); wallets and explorers need the same read-only projections over **`serve`** without new persistence.
+**Why it was next.** [`ChainState`](../mfn-consensus/src/block/state.rs) already indexes **`claims`** (by `data_root`) and **`storage`** (by commitment hash); wallets and explorers need the same read-only projections over **`serve`** without new persistence.
 
 ### What shipped
 
@@ -1539,7 +1539,7 @@ See [`docs/AUTHORSHIP.md`](./AUTHORSHIP.md) for the full normative spec includin
 
 ### What shipped
 
-- **[`mfn-node/src/network.rs`](../mfn-node/src/network.rs)** — public [`NetworkConfig`](../mfn-node/src/network.rs) (`listen_addr`, `max_outbound_peers`) with [`Default`]; module docs spell the integration boundary ([`Chain`](../mfn-node/src/chain.rs), [`Mempool`](../mfn-node/src/mempool.rs), no fork-choice in this slice).
+- **[`mfn-net/src/lib.rs`](../mfn-net/src/lib.rs)** — public [`NetworkConfig`](../mfn-net/src/lib.rs) (`listen_addr`, `max_outbound_peers`) with [`Default`]; module docs spell the integration boundary ([`Chain`](../mfn-runtime/src/chain.rs), [`Mempool`](../mfn-runtime/src/mempool.rs), no fork-choice in this slice).
 - **One unit test** (defaults).
 - **[`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)**, **[`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)** tree, **[`mfn-node/README.md`](../mfn-node/README.md)** module table — `network` is no longer listed under the obsolete “M2.2 = P2P” label in the crate README’s planned table.
 
@@ -1639,11 +1639,11 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ## Milestone M2.3.7 — P2P handshake TCP I/O timeouts on dials (✓ shipped)
 
-**Why it was next.** `mfnd serve --p2p-listen` applied **30s** read/write timeouts on accepted P2P sockets, but [`tcp_connect_peer_v1_handshake`](../mfn-node/src/network/handshake.rs) (and [`tcp_connect_hello_v1_handshake`](../mfn-node/src/network/handshake.rs)) left outbound [`TcpStream`]s at OS defaults, so a stuck remote could block `--p2p-dial` threads without bound.
+**Why it was next.** `mfnd serve --p2p-listen` applied **30s** read/write timeouts on accepted P2P sockets, but [`tcp_connect_peer_v1_handshake`](../mfn-net/src/handshake.rs) (and [`tcp_connect_hello_v1_handshake`](../mfn-net/src/handshake.rs)) left outbound [`TcpStream`]s at OS defaults, so a stuck remote could block `--p2p-dial` threads without bound.
 
 ### What shipped
 
-- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — public **`P2P_HANDSHAKE_IO_TIMEOUT`** (**30s**); set immediately after **`TcpStream::connect`** in both TCP dial helpers.
+- **[`mfn-net/src/handshake.rs`](../mfn-net/src/handshake.rs)** — public **`P2P_HANDSHAKE_IO_TIMEOUT`** (**30s**); set immediately after **`TcpStream::connect`** in both TCP dial helpers.
 - **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — P2P accept thread uses the same constant (replaces a local `Duration::from_secs(30)`).
 
 ### Tests
@@ -1658,8 +1658,8 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ### What shipped
 
-- **[`mfn-node/src/network/frame.rs`](../mfn-node/src/network/frame.rs)** — **`ChainTipV1`** (tag **0x04**, **37** bytes on the wire: big-endian **`height`** + **32-byte `tip_id`**), decode errors for bad tags/lengths.
-- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — symmetric **`send_chain_tip_v1` / `recv_chain_tip_v1`**, **`exchange_chain_tip_v1_as_dialer` / `exchange_chain_tip_v1_as_listener`**, and **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (hello + ping/pong + dialer-side tip exchange, with **M2.3.7** I/O timeouts; **M2.3.10** later appended [`GoodbyeV1`](../mfn-node/src/network/frame.rs) to this helper — see **M2.3.10**). **`tcp_connect_peer_v1_handshake`** remains for callers that only need ping/pong.
+- **[`mfn-net/src/frame.rs`](../mfn-net/src/frame.rs)** — **`ChainTipV1`** (tag **0x04**, **37** bytes on the wire: big-endian **`height`** + **32-byte `tip_id`**), decode errors for bad tags/lengths.
+- **[`mfn-net/src/handshake.rs`](../mfn-net/src/handshake.rs)** — symmetric **`send_chain_tip_v1` / `recv_chain_tip_v1`**, **`exchange_chain_tip_v1_as_dialer` / `exchange_chain_tip_v1_as_listener`**, and **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (hello + ping/pong + dialer-side tip exchange, with **M2.3.7** I/O timeouts; **M2.3.10** later appended [`GoodbyeV1`](../mfn-net/src/frame.rs) to this helper — see **M2.3.10**). **`tcp_connect_peer_v1_handshake`** remains for callers that only need ping/pong.
 - **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — When **`--p2p-listen`** or **`--p2p-dial`** is set, a shared tip snapshot (**`height`**, **`tip_id`**) is updated after each successful JSON-RPC **`handle_client`**; the P2P accept path runs the listener tip exchange after pong; **`--p2p-dial`** uses the full handshake helper with tip exchange.
 
 ### Tests
@@ -1668,17 +1668,17 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 - **`network::handshake::tests::tcp_peer_v1_handshake_with_tip_exchange_round_trip`**
 - **`tests::mfnd_smoke::mfnd_serve_p2p_hello_handshake_over_tcp`** (asserts tip exchange against a live **`mfnd serve --p2p-listen`**)
 
-**Compatibility note.** **`mfnd serve --p2p-listen`** now expects the tip exchange after pong; a client that stops after ping/pong will hit **30s** read/write timeouts on both sides until the listener gives up on the missing tip frame. **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (**M2.3.8** + **M2.3.10**) also expects a [`GoodbyeV1`](../mfn-node/src/network/frame.rs) exchange immediately after tips; a client that stops after the tip frames but never sends goodbye hits the same **30s** timeouts and never receives **`mfnd_p2p_peer_tip`** on the listener.
+**Compatibility note.** **`mfnd serve --p2p-listen`** now expects the tip exchange after pong; a client that stops after ping/pong will hit **30s** read/write timeouts on both sides until the listener gives up on the missing tip frame. **`tcp_connect_peer_v1_handshake_with_tip_exchange`** (**M2.3.8** + **M2.3.10**) also expects a [`GoodbyeV1`](../mfn-net/src/frame.rs) exchange immediately after tips; a client that stops after the tip frames but never sends goodbye hits the same **30s** timeouts and never receives **`mfnd_p2p_peer_tip`** on the listener.
 
 ---
 
 ## Milestone M2.3.9 — P2P peer tip on stdout (`mfnd_p2p_peer_tip`) (✓ shipped)
 
-**Why it was next.** **M2.3.8** exchanges [`ChainTipV1`](../mfn-node/src/network/frame.rs) on the wire, but operators and integration tests had no stable, parse-friendly record of what the **remote** claimed after a successful handshake.
+**Why it was next.** **M2.3.8** exchanges [`ChainTipV1`](../mfn-net/src/frame.rs) on the wire, but operators and integration tests had no stable, parse-friendly record of what the **remote** claimed after a successful handshake.
 
 ### What shipped
 
-- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — After each successful tip exchange, prints one stdout line: **`mfnd_p2p_peer_tip hid=<u64> peer=<display> height=<u32> tip_id=<64 lower-hex>`** (same line shape for inbound accepts and for **`--p2p-dial`** success, immediately after **`mfnd_p2p_dial_ok=…`**; **`hid`** is **M2.3.13** — monotonic per process; on **`--p2p-listen`**, **M2.3.15** reserves **`hid` immediately after `accept`**, so a failed inbound session may skip this stdout line while still consuming the next id). (Listener path: **M2.3.10** requires a successful [`GoodbyeV1`](../mfn-node/src/network/frame.rs) exchange after the tip before this line is emitted.)
+- **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — After each successful tip exchange, prints one stdout line: **`mfnd_p2p_peer_tip hid=<u64> peer=<display> height=<u32> tip_id=<64 lower-hex>`** (same line shape for inbound accepts and for **`--p2p-dial`** success, immediately after **`mfnd_p2p_dial_ok=…`**; **`hid`** is **M2.3.13** — monotonic per process; on **`--p2p-listen`**, **M2.3.15** reserves **`hid` immediately after `accept`**, so a failed inbound session may skip this stdout line while still consuming the next id). (Listener path: **M2.3.10** requires a successful [`GoodbyeV1`](../mfn-net/src/frame.rs) exchange after the tip before this line is emitted.)
 
 ### Tests
 
@@ -1689,12 +1689,12 @@ Workspace **+1 test** vs the M2.2.10 line count: **694 → 695** passing.
 
 ## Milestone M2.3.10 — P2P `GoodbyeV1` after chain tip (✓ shipped)
 
-**Why it was next.** Tip exchange (**M2.3.8**) left the session with no explicit “handshake complete” marker. A one-byte [`GoodbyeV1`](../mfn-node/src/network/frame.rs) frame (tag **0x05**, same framing as [`PingV1`](../mfn-node/src/network/frame.rs)) after tips gives both sides a clear full-duplex shutdown point before the TCP connection drops.
+**Why it was next.** Tip exchange (**M2.3.8**) left the session with no explicit “handshake complete” marker. A one-byte [`GoodbyeV1`](../mfn-net/src/frame.rs) frame (tag **0x05**, same framing as [`PingV1`](../mfn-net/src/frame.rs)) after tips gives both sides a clear full-duplex shutdown point before the TCP connection drops.
 
 ### What shipped
 
-- **[`mfn-node/src/network/frame.rs`](../mfn-node/src/network/frame.rs)** — **`GoodbyeV1`** + **`GoodbyeV1DecodeError`**; unit tests **`goodbye_v1_round_trip`**, **`goodbye_v1_decode_rejects_unknown_tag`**.
-- **[`mfn-node/src/network/handshake.rs`](../mfn-node/src/network/handshake.rs)** — **`exchange_goodbye_v1_as_dialer`** / **`exchange_goodbye_v1_as_listener`** (dialer sends first, mirroring [`ChainTipV1`](../mfn-node/src/network/frame.rs)); **`tcp_connect_peer_v1_handshake_with_tip_exchange`** now ends with this exchange; **`HelloHandshakeError::Goodbye`**.
+- **[`mfn-net/src/frame.rs`](../mfn-net/src/frame.rs)** — **`GoodbyeV1`** + **`GoodbyeV1DecodeError`**; unit tests **`goodbye_v1_round_trip`**, **`goodbye_v1_decode_rejects_unknown_tag`**.
+- **[`mfn-net/src/handshake.rs`](../mfn-net/src/handshake.rs)** — **`exchange_goodbye_v1_as_dialer`** / **`exchange_goodbye_v1_as_listener`** (dialer sends first, mirroring [`ChainTipV1`](../mfn-net/src/frame.rs)); **`tcp_connect_peer_v1_handshake_with_tip_exchange`** now ends with this exchange; **`HelloHandshakeError::Goodbye`**.
 - **[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)** — P2P accept path runs the listener goodbye exchange before emitting **`mfnd_p2p_peer_tip`**.
 
 ### Tests

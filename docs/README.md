@@ -23,7 +23,8 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
-- ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, and architectural weaknesses (no invented problems).
+- 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
+- ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).
 
 ### Want to know what's next?
 
@@ -44,14 +45,15 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Storage permanence | OVERVIEW § Permanence half | STORAGE § Endowment | code: `mfn-storage/src/endowment.rs` |
 | SPoRA proofs | OVERVIEW § SPoRA | STORAGE § SPoRA | code: `mfn-storage/src/spora.rs` |
 | Endowment formula | OVERVIEW § Endowment | ECONOMICS § Permanence equation | code: `mfn-storage/src/endowment.rs` |
-| PoS + leader election | OVERVIEW (implicit) | CONSENSUS § Leader election | code: `mfn-consensus/src/consensus.rs` |
+| PoS + leader election | OVERVIEW (implicit) | CONSENSUS § Leader election | code: `mfn-consensus/src/consensus/engine.rs` |
 | BLS finality | OVERVIEW (implicit) | CONSENSUS § Committee finality | code: `mfn-bls/src/sig.rs` |
 | Equivocation slashing | (covered) | CONSENSUS § Equivocation | code: `mfn-consensus/src/slashing.rs` |
-| Liveness slashing | (covered) | CONSENSUS § Liveness | code: `mfn-consensus/src/block.rs` |
-| Counterfeit-input attack | OVERVIEW § Why this is hard | PRIVACY § Counterfeit-input | code: `mfn-consensus/src/block.rs` (apply_block) |
+| Liveness slashing | (covered) | CONSENSUS § Liveness | code: `mfn-consensus/src/validator_evolution/liveness.rs` |
+| Counterfeit-input attack | OVERVIEW § Why this is hard | PRIVACY § Counterfeit-input | code: `mfn-consensus/src/block/apply.rs` |
 | Fee/treasury split | OVERVIEW § How they fuse | ECONOMICS § Fee economics | code: `mfn-consensus/src/emission.rs` |
 | Emission curve | (covered) | ECONOMICS § Emission curve | code: `mfn-consensus/src/emission.rs` |
 | Supply schedule | (covered) | SUPPLY_CURVE | code: `mfn-consensus/src/emission.rs` |
+| Trust assumptions & threat model | — | SECURITY_CONSIDERATIONS (full document) | — |
 | Known weaknesses & open risks | — | PROBLEMS (full document) | — |
 
 ## Where to file questions

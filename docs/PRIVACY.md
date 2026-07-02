@@ -315,8 +315,8 @@ Two attack vectors closed:
 2. **Real `P` with substituted `C`.** `P` exists but the commitment provided in the ring doesn't match the real one → `RingMemberCommitMismatch`.
 
 Both are tested:
-- [`ring_member_not_in_utxo_set_rejected`](../mfn-consensus/src/block.rs)
-- [`ring_member_with_wrong_commit_rejected`](../mfn-consensus/src/block.rs)
+- [`ring_member_not_in_utxo_set_rejected`](../mfn-consensus/tests/block_apply.rs)
+- [`ring_member_with_wrong_commit_rejected`](../mfn-consensus/tests/block_apply.rs)
 - The full chain integration test `chain_genesis_block1_block2_with_slashing` was rewritten to use **real genesis-anchored decoys**, confirming honest operation.
 
 ### Why it was missed (and why the fix is the right one)

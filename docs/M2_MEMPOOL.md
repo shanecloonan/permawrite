@@ -86,7 +86,7 @@ The eight gates, in order:
 2. **Reject storage-anchoring txs** (`outputs[i].storage.is_some()`). The wallet (M2.0.11) doesn't build these and the `apply_block`-level storage gates require cross-tx state we defer to a follow-up milestone.
 3. **Local min-fee policy** (`tx.fee < config.min_fee`). Operator-tunable. Consensus enforces no minimum.
 4. **`verify_transaction`** — CLSAG signatures, range proofs, balance equation, within-tx key-image uniqueness, version. This is the heaviest check; runs once per admit.
-5. **Ring-membership chain guard** — for every input, every `(P, C)` ring member must be present in `state.utxo` *and* its on-chain `commit` must equal the `C` column the spender provided. Identical to the check at `mfn-consensus/src/block.rs:1333-1392`.
+5. **Ring-membership chain guard** — for every input, every `(P, C)` ring member must be present in `state.utxo` *and* its on-chain `commit` must equal the `C` column the spender provided. Identical to the ring-membership guard in `mfn-consensus/src/block/apply.rs`.
 6. **Cross-chain double-spend** — every key image must be absent from `state.spent_key_images`.
 7. **Mempool RBF** — if any key image already maps to an existing pool entry, the new fee must **strictly exceed** the *maximum* existing-conflicting fee. Conservative-dominating semantics: replacing N entries requires beating all of them.
 8. **Size-cap eviction** — if the projected pool size would exceed `max_entries`, find the lowest-fee non-conflicting entry. If the incoming tx pays strictly more, evict the victim; otherwise reject.
@@ -151,7 +151,7 @@ P2P relay (future) will want to know whether to forward the new tx as "new" or "
 
 ## Test matrix
 
-**Unit tests (`mfn-node/src/mempool.rs` — 15 tests):**
+**Unit tests (`mfn-runtime/src/mempool.rs` — 15 tests):**
 
 | Test                                                | Asserts                                                                |
 |-----------------------------------------------------|------------------------------------------------------------------------|
@@ -194,7 +194,7 @@ P2P relay (future) will want to know whether to forward the new tx as "new" or "
 
 ## What ships in this commit
 
-- `mfn-node/src/mempool.rs` (~700 lines, 15 unit tests).
+- `mfn-runtime/src/mempool.rs` (~700 lines, 15 unit tests).
 - `mfn-node/tests/mempool_integration.rs` (3 integration tests).
 - `mfn-node/src/lib.rs` — wires the module into the public API.
 - `mfn-node/Cargo.toml` — adds `curve25519-dalek`, `mfn-light`, `mfn-wallet` as dev-dependencies (cycle through dev-deps only is fine).

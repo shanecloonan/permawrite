@@ -3,7 +3,7 @@
 > **Status:** ✓ Shipped. Tests at M2.0.9 close: 440 passing (workspace), 1 ignored.
 > Code:
 > - `mfn-crypto/src/domain.rs` — new `LIGHT_CHECKPOINT` domain tag.
-> - `mfn-consensus/src/block.rs` — `decode_block_header`, `HeaderDecodeError`.
+> - `mfn-consensus/src/block/header.rs` — `decode_block_header`, `HeaderDecodeError`.
 > - `mfn-light/src/checkpoint.rs` (new module) — `LightCheckpointError`,
 >   `LIGHT_CHECKPOINT_MAGIC`, `LIGHT_CHECKPOINT_VERSION`,
 >   `CheckpointParts`, `encode_checkpoint_bytes`, `decode_checkpoint_bytes`.

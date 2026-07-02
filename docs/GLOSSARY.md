@@ -251,7 +251,7 @@
 
 **range proof** — A zero-knowledge proof that a hidden amount is in a non-negative range `[0, 2^N − 1]`. Permawrite uses Bulletproofs (N = 64). → [`PRIVACY.md § Range proofs`](./PRIVACY.md#range-proofs)
 
-**rejection sampling** — A technique for sampling a uniform distribution mod N from a uniformly random source: keep re-drawing until the sample falls below the largest multiple of N that fits in the source's range. Used in `challenge_index_from_seed` to avoid modulo bias.
+**rejection sampling** — A technique for sampling a uniform distribution mod N from a uniformly random source: keep re-drawing until the sample falls below the largest multiple of N that fits in the source's range. Permawrite's SPoRA challenge derivation does **not** use it — `chunk_index_for_challenge` reduces a 64-bit digest prefix with a plain modulo, leaving a negligible ≈ `num_chunks / 2⁶⁴` bias (see [`STORAGE.md § 3`](./STORAGE.md#3-spora--deterministic-challenges)).
 
 **replication** — The number of distinct storage operators required to independently hold a stored file. Enforced in `[min_replication, max_replication]`. Default min = 3, max = 32.
 
@@ -381,13 +381,14 @@
 
 These come up in test output and CI logs. Glossed for grep-ability.
 
-- `BadChunkSize` — SPoRA proof's chunk is the wrong length.
-- `BadMerkleProof` — SPoRA proof's Merkle authentication path doesn't connect to `data_root`.
+- `CommitHashMismatch` — SPoRA proof's `commit_hash` doesn't match the recomputed commitment hash.
+- `MerkleInvalid` — SPoRA proof's Merkle authentication path doesn't connect to `data_root`.
+- `WrongChunkIndex` — SPoRA proof answered a different chunk than the per-block challenge demanded.
 - `DuplicateStorageProof` — Same commit hash proven twice in one block.
 - `EmissionBackstop` — Logic path indicator (not an error): treasury was insufficient, emission covered shortfall.
 - `EndowmentMathFailed` — `required_endowment` overflowed or saw a degenerate parameter.
 - `GenesisHeightNotZero` — Tried to apply a non-zero-height block as genesis.
-- `RealYieldNotAboveInflation` — `r ≤ i` violation in endowment params.
+- `RealYieldNotAboveInflation` — `r ≤ i` violation in endowment params (only enforced when `r > 0`; `r = 0` selects the deflation-funded mode).
 - `RingMemberCommitMismatch` — Ring member's `(P, C)` exists with `P` but different `C`.
 - `RingMemberNotInUtxoSet` — Ring member's `P` not found in the chain's UTXO set.
 - `StorageProofInvalid` — Generic catchall — verify the inner `StorageProofCheck` for the specific reason.

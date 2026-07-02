@@ -26,7 +26,7 @@ That's the operative question for every off-the-shelf consumer of the chain:
 
 ### Module
 
-[`mfn_consensus::header_verify`](../mfn-consensus/src/header_verify.rs) — a new module added to `mfn-consensus`. Re-exported at the crate root as:
+[`mfn_consensus::header_verify`](../mfn-consensus/src/header_verify/) — a new module added to `mfn-consensus`. Re-exported at the crate root as:
 
 ```rust
 pub use mfn_consensus::{verify_header, HeaderCheck, HeaderVerifyError};

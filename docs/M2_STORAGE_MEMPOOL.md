@@ -74,7 +74,7 @@ These are checks `apply_block` *also* doesn't run; surfacing them in the mempool
 
 ## Test matrix
 
-### Unit tests in `mfn-node/src/mempool.rs` (+8 new)
+### Unit tests in `mfn-runtime/src/mempool.rs` (+8 new)
 
 | Test                                                              | Asserts |
 |-------------------------------------------------------------------|---------|
@@ -111,7 +111,7 @@ These are checks `apply_block` *also* doesn't run; surfacing them in the mempool
 
 ## What ships in this commit
 
-- `mfn-node/src/mempool.rs` — step (6) implementation (~80 lines), four new typed errors, 8 new unit tests, replaced placeholder test.
+- `mfn-runtime/src/mempool.rs` — step (6) implementation (~80 lines), four new typed errors, 8 new unit tests, replaced placeholder test.
 - `mfn-node/tests/mempool_integration.rs` — 3 new integration tests, new genesis helper.
 - `docs/M2_STORAGE_MEMPOOL.md` — this document.
 - `docs/ROADMAP.md` — milestone status.

@@ -197,7 +197,7 @@ Demo sync uses `get_light_follow` instead of per-block `get_block_evolution`. Pe
 
 Demo: optional **Quorum RPC URLs** field fetches the same height range from multiple `mfnd serve` bases before sync; `permawrite-light-trusted-summary:<seed>` stores the summary after each successful evolution step.
 
-P2P wire: [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) for byte-identical [`LightFollowRow`] batches between peers.
+P2P wire: [`light_follow_rows_quorum`](../mfn-net/src/light_follow.rs) for byte-identical [`LightFollowRow`] batches between peers.
 
 ## P2P light-follow (M4.15)
 
@@ -214,7 +214,7 @@ Requires the RPC node to reach the peer (same machine loopback or routable P2P p
 
 | RPC / relay | Role |
 |-------------|------|
-| `get_light_follow_quorum_p2p` | Parallel dial of `params.peers` (≥2); [`light_follow_rows_quorum`](../../mfn-net/src/light_follow.rs) on wire rows |
+| `get_light_follow_quorum_p2p` | Parallel dial of `params.peers` (≥2); [`light_follow_rows_quorum`](../mfn-net/src/light_follow.rs) on wire rows |
 | `demo/proxy/light-relay.mjs` | HTTP `POST /light-follow` → quorum RPC on `RELAY_RPC` (can differ from wallet scan node) |
 
 Demo: with one relay URL + ≥2 P2P peers (M4.16), sync quorum-checks relay vs local `get_light_follow`. With **≥2 relay URLs** (M4.17), each relay is queried independently in the browser (wallet RPC does not dial P2P).

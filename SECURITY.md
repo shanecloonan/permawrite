@@ -10,6 +10,8 @@ The RPC server has devnet DoS guards: bounded in-flight accepted connections, pe
 
 For release-candidate risk review, see the [public-devnet threat model](docs/PUBLIC_DEVNET_THREAT_MODEL.md). It covers RPC, P2P, wallet seeds, storage artifacts, genesis/manifest, validator keys, DoS, data loss, and operator mistakes.
 
+For the **protocol-level** trust assumptions and threat model — what a finality quorum does and does not prove, exact header-signing coverage, BLS rogue-key/proof-of-possession posture, VRF interop deviations, and the consensus determinism surface — see [docs/SECURITY_CONSIDERATIONS.md](docs/SECURITY_CONSIDERATIONS.md). The honest inventory of economic and architectural weaknesses lives in [docs/PROBLEMS.md](docs/PROBLEMS.md).
+
 ## Reporting a vulnerability
 
 If you believe you have found a security vulnerability — in the cryptographic primitives, the encoding/decoding logic, the eventual consensus rules, or anywhere else in this repo — please disclose it **privately**.

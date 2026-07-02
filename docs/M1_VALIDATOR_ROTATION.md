@@ -4,7 +4,7 @@
 
 ## Problem statement
 
-Today `ChainState::validators` is cloned from [`GenesisConfig`](../mfn-consensus/src/block.rs) at `apply_genesis` and only **mutated in-place** for slashing (stake set to zero). There is no path to:
+Today `ChainState::validators` is cloned from [`GenesisConfig`](../mfn-consensus/src/block/) at `apply_genesis` and only **mutated in-place** for slashing (stake set to zero). There is no path to:
 
 - onboard a new validator with economic stake,
 - schedule stake exit without breaking the evidence window for equivocation,
@@ -32,7 +32,7 @@ Churn counters reset at epoch boundaries: “how many validators **entered** thi
 
 ## Chain state extensions (shipped)
 
-The following fields were added to [`ChainState`](../mfn-consensus/src/block.rs) as part of M1:
+The following fields were added to [`ChainState`](../mfn-consensus/src/block/) as part of M1:
 
 | Field | Purpose |
 | --- | --- |
@@ -87,11 +87,11 @@ pub enum BondOp {
 
 ### Atomicity guarantee
 
-Bond ops are simulated against the *pre-bond* view of the chain via [`simulate_bond_ops`](../mfn-consensus/src/block.rs). Any failure (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, …) rolls back the **entire** bond-op set for the block. The block-level commitment is `bond_root = merkle_root_or_zero({bond_op_leaf_hash(op) for op in block.bond_ops})`; a partial prefix is never committed.
+Bond ops are simulated against the *pre-bond* view of the chain via [`simulate_bond_ops`](../mfn-consensus/src/block/). Any failure (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, …) rolls back the **entire** bond-op set for the block. The block-level commitment is `bond_root = merkle_root_or_zero({bond_op_leaf_hash(op) for op in block.bond_ops})`; a partial prefix is never committed.
 
 ## Slashed stake disposition (shipped)
 
-**Treasury credit** (not burn). Implemented in [`apply_block`](../mfn-consensus/src/block.rs) — both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) credit the lost amount to [`ChainState::treasury`](../mfn-consensus/src/block.rs) using saturating `u128` arithmetic. The protocol treats the treasury as the chain's permanence-funding pool; slashes therefore directly subsidize the storage operators a malicious validator was undermining.
+**Treasury credit** (not burn). Implemented in [`apply_block`](../mfn-consensus/src/block/) — both equivocation slashing (full stake forfeit) and liveness slashing (multiplicative forfeit) credit the lost amount to [`ChainState::treasury`](../mfn-consensus/src/block/) using saturating `u128` arithmetic. The protocol treats the treasury as the chain's permanence-funding pool; slashes therefore directly subsidize the storage operators a malicious validator was undermining.
 
 ## Bond funding (M1 economic model)
 
@@ -171,7 +171,7 @@ These are explicit, not bugs:
 | --- | --- |
 | Defaults + pure checks | [`mfn-consensus/src/bonding.rs`](../mfn-consensus/src/bonding.rs) |
 | Wire encode/decode + BLS-signed authorization (both arms) | [`mfn-consensus/src/bond_wire.rs`](../mfn-consensus/src/bond_wire.rs) |
-| State transition (`apply_block` + bond-op phase + settlement phase) | [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs) |
+| State transition (`apply_block` + bond-op phase + settlement phase) | [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block/) |
 | Domain separation tags (`REGISTER_OP_SIG`, `UNBOND_OP_SIG`, `BOND_OP_LEAF`) | [`mfn-crypto/src/domain.rs`](../mfn-crypto/src/domain.rs) |
 | Integration tests (`unbond_lifecycle` module) | [`mfn-consensus/tests/integration.rs`](../mfn-consensus/tests/integration.rs) |
 | protocol smoke vector | [`docs/interop/BOND_GOLDEN_VECTORS.md`](./interop/BOND_GOLDEN_VECTORS.md) |

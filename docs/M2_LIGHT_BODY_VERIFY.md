@@ -31,7 +31,7 @@ pub enum BodyVerifyError {
 }
 ```
 
-Re-derives the four header-bound body roots from `block.<field>` and matches each against the corresponding field of `block.header`. Pure, stateless, allocation-cheap. Lives in the same module as `verify_header` ([`mfn-consensus::header_verify`](../mfn-consensus/src/header_verify.rs)) because they're the two halves of the same "light-client verification primitives" surface.
+Re-derives the four header-bound body roots from `block.<field>` and matches each against the corresponding field of `block.header`. Pure, stateless, allocation-cheap. Lives in the same module as `verify_header` ([`mfn-consensus::header_verify`](../mfn-consensus/src/header_verify/)) because they're the two halves of the same "light-client verification primitives" surface.
 
 | # | Check | Failure → |
 |---|---|---|

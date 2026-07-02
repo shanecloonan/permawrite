@@ -202,7 +202,7 @@ Chain checkpoints **v3** persist the flat `claims` map. **v2** checkpoints decod
 |------|------|
 | Crypto / wire | [`mfn_crypto::authorship`](../mfn-crypto/src/authorship.rs) |
 | Parse `extra` | [`mfn_consensus::extra_codec`](../mfn-consensus/src/extra_codec.rs) |
-| Verify + index | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block`](../mfn-consensus/src/block.rs) |
+| Verify + index | [`mfn_consensus::claims`](../mfn-consensus/src/claims.rs), [`apply_block`](../mfn-consensus/src/block/apply.rs) |
 | Wallet | [`ClaimingIdentity`](../mfn-wallet/src/claiming.rs), [`Wallet::publish_claim_tx`](../mfn-wallet/src/wallet.rs), [`StorageUploadPlan::authorship_claims`](../mfn-wallet/src/upload.rs) |
 | RPC | [`mfnd_serve`](../mfn-node/src/mfnd_serve.rs) |
 

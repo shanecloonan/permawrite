@@ -47,7 +47,7 @@ pub fn validator_leaf_hash(v: &Validator) -> [u8; 32];
 pub fn validator_set_root(validators: &[Validator]) -> [u8; 32];
 ```
 
-All in [`mfn-consensus::consensus`](../mfn-consensus/src/consensus.rs).
+All in [`mfn-consensus::consensus`](../mfn-consensus/src/consensus/types.rs).
 
 ### Header field
 
@@ -126,8 +126,8 @@ The combination makes the chain's validator history both **commit-bound** (heade
 ## Code map
 
 - [`mfn-crypto/src/domain.rs`](../mfn-crypto/src/domain.rs) — `VALIDATOR_LEAF` domain tag.
-- [`mfn-consensus/src/consensus.rs`](../mfn-consensus/src/consensus.rs) — `validator_leaf_bytes`, `validator_leaf_hash`, `validator_set_root` + unit tests.
-- [`mfn-consensus/src/block.rs`](../mfn-consensus/src/block.rs) — `BlockHeader::validator_root` field, header signing/serialization, `build_unsealed_header` commits the pre-block root, `apply_block` Phase 1 check, `BlockError::ValidatorRootMismatch`.
+- [`mfn-consensus/src/consensus/types.rs`](../mfn-consensus/src/consensus/types.rs) — `validator_leaf_bytes`, `validator_leaf_hash`, `validator_set_root` + unit tests.
+- [`mfn-consensus/src/block/`](../mfn-consensus/src/block/) — `BlockHeader::validator_root` field, header signing/serialization (header.rs), `build_unsealed_header` commits the pre-block root (builder.rs), `apply_block` Phase 1 check (apply.rs), `BlockError::ValidatorRootMismatch` (error.rs).
 - [`mfn-consensus/src/lib.rs`](../mfn-consensus/src/lib.rs) — exports `validator_leaf_bytes`, `validator_leaf_hash`, `validator_set_root`.
 - [`mfn-consensus/tests/integration.rs`](../mfn-consensus/tests/integration.rs) — multi-block invariants & adversarial tamper test.
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) — header shape + Phase 1 description.

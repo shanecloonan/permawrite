@@ -57,6 +57,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**docs/AUTHORSHIP.md**](./docs/AUTHORSHIP.md) — optional Schnorr-signed claims on `data_root` (anonymous-by-default uploads; separate publishing identity; `MFCL` / `MFEX` wire; header `claims_root`; **`mfnd serve`** discovery **M2.2.8** + derived views **M2.2.10**)
 - [**docs/CONSENSUS.md**](./docs/CONSENSUS.md) — the consensus engine: slot-based PoS, stake-weighted VRF leader election, BLS12-381 committee finality, equivocation slashing, liveness slashing
 - [**docs/ECONOMICS.md**](./docs/ECONOMICS.md) — hybrid emission, two-sided fee split, treasury settlement, the `E₀ = C₀·(1+i)/(r−i)` permanence derivation
+- [**docs/SECURITY_CONSIDERATIONS.md**](./docs/SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what a finality quorum does/doesn't prove, exact header-signing coverage, BLS rogue-key/proof-of-possession, VRF interop, the determinism surface
 
 ### 🛠 I want to build / contribute
 
@@ -64,7 +65,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**CODEBASE_STATS.md**](./CODEBASE_STATS.md) — auto-generated line counts / file breakdown (regenerate via `node scripts/codebase-stats.mjs`)
 - [**IMPLEMENTATION_STATUS.md**](./IMPLEMENTATION_STATUS.md) — Rust implementation status and module map
 - [**docs/TESTNET.md**](./docs/TESTNET.md) — controlled public-devnet runbook, health checks, launch gates, and recovery guidance
-- [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — release-candidate threat model and residual-risk checklist
+- [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — release-candidate threat model and residual-risk checklist (deployment/ops; the protocol-crypto counterpart is [docs/SECURITY_CONSIDERATIONS.md](./docs/SECURITY_CONSIDERATIONS.md))
 - [**SECURITY.md**](./SECURITY.md) — pre-audit security posture and vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
 
