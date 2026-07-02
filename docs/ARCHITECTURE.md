@@ -208,15 +208,28 @@ The endowment is **amount-private** by default — the commitment hides how much
 ### Transaction (regular, RingCT-style)
 
 ```rust
+// mfn-consensus/src/transaction/wire.rs
 struct TransactionWire {
-    version:        u32,
-    inputs:         Vec<TxInputWire>,    // each carries a CLSAG ring + key image
-    outputs:        Vec<TxOutputWire>,   // stealth one-time addrs + commits + range proofs
-    fee:            u64,
-    storage_commit: Option<StorageCommitment>,  // optional permanent-storage payload
-    // ... encrypted amount blobs, ephemeral pubkey, etc.
+    version: u32,
+    r_pub:   EdwardsPoint,       // tx-level ephemeral public key R = r·G
+    inputs:  Vec<TxInputWire>,   // each: { ring: ClsagRing, c_pseudo, sig: ClsagSignature }
+    outputs: Vec<TxOutputWire>,  // see below
+    fee:     u64,                // public — claimed by the block producer
+    extra:   Vec<u8>,            // opaque, preimage-committed (authorship claims live here)
+}
+
+struct TxOutputWire {
+    one_time_addr: EdwardsPoint,             // stealth one-time address
+    amount:        EdwardsPoint,             // Pedersen commitment to the hidden amount
+    range_proof:   BulletproofRange,         // proof.v == amount
+    enc_amount:    [u8; ENC_AMOUNT_BYTES],   // encrypted (value, blinding) for the recipient
+    storage:       Option<StorageCommitment>,// permanence binding is PER-OUTPUT, not per-tx
 }
 ```
+
+Note the storage payload rides on an **output** (`TxOutputWire::storage`), not
+on the transaction: one tx can anchor several independent commitments, and
+`apply_block` walks `tx.outputs[*].storage` when registering new anchors.
 
 ### Coinbase
 
@@ -249,10 +262,30 @@ struct BlockHeader {
     slashing_root:      [u8; 32],   // M2.0.1 — merkle over slashings (zero sentinel if empty)
     validator_root:     [u8; 32],   // M2.0 — merkle over *pre-block* validator set
     storage_proof_root: [u8; 32],   // M2.0.2 — merkle over block.storage_proofs (zero sentinel if empty)
+    claims_root:        [u8; 32],   // M2.2 — merkle over authorship-claim leaves (zero sentinel if empty)
     producer_proof:     Vec<u8>,    // MFBN-encoded FinalityProof
     utxo_root:          [u8; 32],   // accumulator root *after* this block applies
 }
 ```
+
+#### What the quorum signs vs. what the block id commits
+
+Two canonical encodings of the header exist and they do **not** cover the same
+fields ([`mfn-consensus/src/block/header.rs`](../mfn-consensus/src/block/header.rs)):
+
+- **`header_signing_bytes`** — what the producer and committee BLS-sign. Covers
+  every field above **except `producer_proof`** (it *contains* the signatures)
+  **and except `utxo_root`**.
+- **`block_header_bytes`** — the `block_id` preimage. Covers everything,
+  including `producer_proof` and `utxo_root`.
+
+`utxo_root` is therefore bound by the quorum only *transitively*: it is inside
+`block_id`, which becomes the next header's `prev_hash`, which is inside the
+next header's signing bytes. Full nodes are unaffected (they recompute the root
+in `apply_block` Phase 9); light clients should treat the **tip** block's
+`utxo_root` as provisional for one confirmation. Whether `utxo_root` should
+join the signing bytes is an open hard-fork question — see
+[`SECURITY_CONSIDERATIONS.md § 3`](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
 
 #### `storage_proof_root` (M2.0.2)
 
@@ -373,7 +406,7 @@ The block's lifecycle once it reaches a node:
   <img src="./img/apply-block-phases.svg" alt="The ten phases of apply_block in sequence: linkage, body Merkle roots, finality proof, transactions, equivocation slashing, SPoRA storage proofs, liveness evolution, bond rotation, treasury settlement and coinbase verification, and post-mutation storage and UTXO root checks. Any phase failure rejects the entire block." width="100%">
 </p>
 
-> **Header ingress vs `apply_block`.** Structural header checks (`version`, monotonic `timestamp`, etc.) run when a node decodes or verifies a header via [`verify_header`](../mfn-consensus/src/header_verify.rs) before the block is applied. Inside `apply_block`, Phase 0 only enforces **height** and **`prev_hash`** linkage against the current `ChainState`.
+> **Header ingress vs `apply_block`.** Structural header checks (`version`, monotonic `timestamp`, etc.) run when a node decodes or verifies a header via [`verify_header`](../mfn-consensus/src/header_verify/header.rs) before the block is applied. Inside `apply_block`, Phase 0 only enforces **height** and **`prev_hash`** linkage against the current `ChainState`.
 
 ### Phase 0 — Linkage
 
@@ -427,7 +460,7 @@ For each tx position `ti`:
 
 ### Phase 4 — Equivocation slashing
 
-Via [`validator_evolution::apply_equivocation_slashings`](../mfn-consensus/src/validator_evolution.rs): for each `SlashEvidence` in `block.slashings`, verify conflicting BLS-signed headers at the same slot, zero the offender's stake, and credit forfeited stake to `next.treasury`.
+Via [`validator_evolution::apply_equivocation_slashings`](../mfn-consensus/src/validator_evolution/): for each `SlashEvidence` in `block.slashings`, verify conflicting BLS-signed headers at the same slot, zero the offender's stake, and credit forfeited stake to `next.treasury`.
 
 ### Phase 5 — Storage proofs (per-block SPoRA audit)
 
@@ -459,7 +492,7 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
 
 ### Phase 7 — Bond operations + unbond settlement (M1)
 
-[`validator_evolution::apply_bond_ops_evolution`](../mfn-consensus/src/validator_evolution.rs) runs **atomically** over `block.bond_ops`. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rejects the whole block so the binding `bond_root` commitment stays intact.
+[`validator_evolution::apply_bond_ops_evolution`](../mfn-consensus/src/validator_evolution/) runs **atomically** over `block.bond_ops`. Any rejection (bad signature, churn-cap exhaustion, unknown validator, vrf-key collision, duplicate unbond, …) rejects the whole block so the binding `bond_root` commitment stays intact.
 
 - `BondOp::Register { stake, vrf_pk, bls_pk, payout, sig }`:
   - Stake validated by `bonding::validate_stake` (≥ `min_validator_stake`).
@@ -475,7 +508,7 @@ Walk the captured finality bitmap. For each validator `i` (skipping zero-stake v
   - Insert `PendingUnbond { validator_index, unlock_height = height + unbond_delay_blocks, stake_at_request, request_height }` into `next.pending_unbonds`.
   - **The validator stays live and slashable** for the duration of the delay.
 
-Immediately after bond ops, [`apply_unbond_settlements`](../mfn-consensus/src/validator_evolution.rs) walks `pending_unbonds` in ascending `validator_index` order. For each entry with `unlock_height ≤ height`, zero the validator's stake and remove the pending row. Bonded MFN **stays in `next.treasury`** (one-way permanence contribution). Settlement runs after equivocation slashing in this block, so a validator who unbonds and then equivocates inside the delay is still fully forfeited.
+Immediately after bond ops, [`apply_unbond_settlements`](../mfn-consensus/src/validator_evolution/) walks `pending_unbonds` in ascending `validator_index` order. For each entry with `unlock_height ≤ height`, zero the validator's stake and remove the pending row. Bonded MFN **stays in `next.treasury`** (one-way permanence contribution). Settlement runs after equivocation slashing in this block, so a validator who unbonds and then equivocates inside the delay is still fully forfeited.
 
 ### Phase 8 — Treasury settlement + coinbase
 
@@ -512,9 +545,9 @@ Naively, you'd ask storage operators to publish "I still have file F" attestatio
 ### Chunk hashes + Merkle tree
 
 ```
-chunk_hash_i = dhash(CHUNK_HASH, chunk_bytes_i)
+chunk_hash_i = dhash(MERKLE_LEAF, chunk_bytes_i)
 data_root   = merkle_root_or_zero({chunk_hash_0, …, chunk_hash_{n-1}})
-              (using MERKLE_LEAF for the leaf wrap and MERKLE_NODE for internal nodes)
+              (leaves arrive pre-tagged with MERKLE_LEAF; internal nodes use MERKLE_NODE)
 ```
 
 ### Challenge derivation
@@ -522,14 +555,13 @@ data_root   = merkle_root_or_zero({chunk_hash_0, …, chunk_hash_{n-1}})
 Deterministic from the *previous* block id + this block's slot + the commitment hash:
 
 ```
-chunk_index_for_challenge(prev_id, slot, commit_hash, num_chunks)
-  = challenge_index_from_seed(
-      dhash(STORAGE_COMMIT, [prev_id, slot.to_be_bytes(), commit_hash]),
-      num_chunks
-    )
+digest = dhash(CHUNK_HASH, prev_id ‖ slot (u32, BE) ‖ commit_hash)
+chunk_index_for_challenge = (first 8 bytes of digest, as big-endian u64) mod num_chunks
 ```
 
-`challenge_index_from_seed` interprets the seed as a big-endian `u128` and reduces modulo `num_chunks` using rejection sampling to avoid bias.
+The reduction is a plain `u64 % num_chunks` — no rejection sampling. The
+resulting modulo bias is ≈ `num_chunks / 2⁶⁴`, negligible for any realistic
+chunk count (see [`STORAGE.md § 3`](./STORAGE.md#3-spora--deterministic-challenges)).
 
 Predictability properties:
 - Every node — including the operator — can compute the answer the moment a new block lands.
@@ -541,8 +573,8 @@ Predictability properties:
 ```rust
 struct StorageProof {
     commit_hash: [u8; 32],
-    chunk:       Vec<u8>,        // the 256 KiB (or partial-final) chunk bytes
-    proof:       Vec<[u8; 32]>,  // Merkle authentication path
+    chunk:       Vec<u8>,      // the 256 KiB (or partial-final) chunk bytes
+    proof:       MerkleProof,  // { siblings: Vec<[u8; 32]>, right_side: Vec<bool>, index: usize }
 }
 ```
 
@@ -560,7 +592,7 @@ with:
 - `C₀ = cost_per_byte_year_ppb × size_bytes × replication / PPB` (first-year storage cost, in base units)
 - `i = inflation_ppb / PPB` (annual storage-cost inflation)
 - `r = real_yield_ppb / PPB` (annual real yield)
-- **Non-degeneracy:** `r > i` is the precondition enforced by `validate_endowment_params`.
+- **Non-degeneracy (two modes):** when `r > 0`, `validate_endowment_params` enforces `r > i`; when `r = 0` (the **default**, deflation-funded mode), the formula becomes `E₀ = C₀ · (1 + i) / d` with `inflation_ppb` re-read as the assumed annual deflation rate `d` — see [`ECONOMICS.md § 1`](./ECONOMICS.md#1-the-permanence-equation-derived).
 
 In Rust (`mfn_storage::endowment::required_endowment`), all arithmetic is `u128` integer with ceiling division to avoid float drift and accidental under-funding.
 
@@ -680,8 +712,16 @@ For full economic analysis, parameter calibration, and sensitivity studies, see 
 
 ### Known limitations (honest list)
 
+> The full protocol-level trust-assumption and residual-risk analysis lives in
+> [`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md); the economic
+> and architectural inventory lives in [`PROBLEMS.md`](./PROBLEMS.md).
+
+- **A finality quorum attests producer eligibility + header bytes, not state-transition validity.** The reference `cast_vote` verifies the producer proof, not `apply_block`; there are no fraud/validity proofs yet. Full nodes re-execute every block; light clients inherit the honest-quorum assumption. See [`SECURITY_CONSIDERATIONS.md § 2`](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
+- **`utxo_root` is not in the header-signing bytes.** It is bound via `block_id` → next `prev_hash` (one-confirmation delay for light clients); adding it to the signing bytes is an open hard-fork question. See [`SECURITY_CONSIDERATIONS.md § 3`](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
+- **Genesis validators bypass BLS proof-of-possession.** Rogue-key defense comes from the `BondOp::Register` signature; genesis keys are installed unverified (trusted setup). Genesis-assembly tooling must verify possession out-of-band. See [`SECURITY_CONSIDERATIONS.md § 4`](./SECURITY_CONSIDERATIONS.md#4-bls-aggregation-and-rogue-key-resistance).
+- **One `f64` remains on the consensus verification path** (`eligibility_threshold`'s Q30 conversion). Safe at the default `F = 1.5`; integer fixed-point encoding is the planned fix. See [`SECURITY_CONSIDERATIONS.md § 6`](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
 - **Validator rotation shipped in M1; full header-binds-body commitment family shipped in M2.0.x; light-header + light-body verification + validator-set-evolution + header codec + light/full-node checkpoint serialization primitives shipped in M2.0.5 / M2.0.7 / M2.0.8 / M2.0.9 / M2.0.15 / M2.0.16.** Bond / unbond / delayed settlement / per-epoch churn caps / slash-to-treasury / BLS-authenticated bond ops / per-block `validator_root` (M2.0) / `slashing_root` (M2.0.1) / `storage_proof_root` (M2.0.2) / `verify_header` (M2.0.5) / `verify_block_body` (M2.0.7) / shared `validator_evolution` helpers (M2.0.8) / round-trippable `BlockHeader` codec + `LightChain` checkpoint (M2.0.9) / deterministic `ChainState` checkpoint (M2.0.15) / shared checkpoint sub-encoders (M2.0.16) are all live. The block header now binds every body element, pure-function light verifiers exist to prove both halves stateless-ly, shared evolution + shared checkpoint-codec modules guarantee byte-for-byte parity where the light client and full node overlap, and both a `LightChain` and full-node `ChainState` can be snapshotted deterministically. See [`M1_VALIDATOR_ROTATION.md`](./M1_VALIDATOR_ROTATION.md), [`M2_VALIDATOR_ROOT.md`](./M2_VALIDATOR_ROOT.md), [`M2_STORAGE_PROOF_ROOT.md`](./M2_STORAGE_PROOF_ROOT.md), [`M2_LIGHT_HEADER_VERIFY.md`](./M2_LIGHT_HEADER_VERIFY.md), [`M2_LIGHT_BODY_VERIFY.md`](./M2_LIGHT_BODY_VERIFY.md), [`M2_LIGHT_VALIDATOR_EVOLUTION.md`](./M2_LIGHT_VALIDATOR_EVOLUTION.md), [`M2_LIGHT_CHECKPOINT.md`](./M2_LIGHT_CHECKPOINT.md), and [`M2_CHAIN_CHECKPOINT.md`](./M2_CHAIN_CHECKPOINT.md).
-- **Light client follows a chain across arbitrary rotations and survives restarts.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify.rs) M2.0.7) plus the shared evolution module ([`validator_evolution`](../mfn-consensus/src/validator_evolution.rs) M2.0.8) plus the chain-following driver ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7 + M2.0.8) plus the checkpoint codec ([`mfn-light::checkpoint`](../mfn-light/src/checkpoint.rs), M2.0.9 + M2.0.16) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance — no evolution) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + validator-set evolution + tip advance), and can be saved/restored byte-deterministically via `encode_checkpoint` / `decode_checkpoint` (integrity-tagged under the dedicated `MFBN-1/light-checkpoint` domain). State byte-for-byte preserved on any failure, typed errors distinguishing forged headers / body-tampered pairs / invalid bond ops / corrupted checkpoints. The light client now follows the chain indefinitely AND survives restarts. The P2P/daemon layer is the next slice.
+- **Light client follows a chain across arbitrary rotations and survives restarts.** The cryptographic primitives ([`verify_header`](../mfn-consensus/src/header_verify/header.rs) M2.0.5, [`verify_block_body`](../mfn-consensus/src/header_verify/body.rs) M2.0.7) plus the shared evolution module ([`validator_evolution`](../mfn-consensus/src/validator_evolution/) M2.0.8) plus the chain-following driver ([`mfn-light`](../mfn-light), M2.0.6 + M2.0.7 + M2.0.8) plus the checkpoint codec ([`mfn-light::checkpoint`](../mfn-light/src/checkpoint.rs), M2.0.9 + M2.0.16) are live. A `LightChain` bootstraps from a `GenesisConfig` and applies either headers via `apply_header(&BlockHeader)` (linkage + verify_header + tip advance — no evolution) or full blocks via `apply_block(&Block)` (linkage + verify_header + verify_block_body + validator-set evolution + tip advance), and can be saved/restored byte-deterministically via `encode_checkpoint` / `decode_checkpoint` (integrity-tagged under the dedicated `MFBN-1/light-checkpoint` domain). State byte-for-byte preserved on any failure, typed errors distinguishing forged headers / body-tampered pairs / invalid bond ops / corrupted checkpoints. The light client now follows the chain indefinitely AND survives restarts. The P2P/daemon layer is the next slice.
 - **No KZG-based UTXO accumulator yet.** Currently we have a sparse-Merkle accumulator (`utxo_tree`, depth 32). KZG would enable smaller log-size membership witnesses; ranked as low-priority.
 - **Decoy realism = Monero's heuristic.** Gamma-distributed age sampling is what Monero ships and has known statistical weaknesses in some adversarial contexts. Tier 3 of the roadmap moves to OoM-over-the-whole-UTXO-set, which strictly dominates.
 
@@ -725,7 +765,8 @@ mfn-crypto/         ed25519 primitives + ZK    (154 tests)
 ├── encrypted_amount.rs   RingCT-style encrypted-amount blobs
 ├── lsag.rs         LSAG ring signatures
 ├── clsag.rs        CLSAG ring signatures (production)
-├── vrf.rs          ECVRF (RFC 9381) over ed25519
+├── vrf.rs          ECVRF (RFC 9381-style; try-and-increment hash-to-point,
+│                   not Elligator2 — see SECURITY_CONSIDERATIONS.md § 5)
 ├── range.rs        O(N) Maxwell-style range proofs
 ├── bulletproofs.rs Log-size range proofs
 ├── oom.rs          Groth–Kohlweiss one-out-of-many (log-size ring)
@@ -746,19 +787,19 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
-├── transaction.rs  RingCT-style tx wire + verify + M2.0.10 full tx codec
+├── transaction/    RingCT-style tx wire + verify + M2.0.10 full tx codec
 ├── coinbase.rs     Deterministic coinbase
-├── consensus.rs    Slot model, VRF leader election, BLS committee finality,
-│                   M2.0 validator-set merkle commitment
+├── consensus/      Slot model, VRF leader election, BLS committee finality
+│                   (engine.rs), M2.0 validator-set merkle commitment (types.rs)
 ├── slashing.rs     Equivocation evidence + verification,
 │                   M2.0.1 slashing-evidence merkle commitment
 ├── storage.rs      Re-exports mfn-storage commitment types
-├── header_verify.rs M2.0.5 pure-function light-header verifier
+├── header_verify/  M2.0.5 pure-function light-header verifier (header.rs)
 │                   (validator_root + producer-proof + BLS aggregate)
-│                   + M2.0.7 verify_block_body — re-derives tx_root /
+│                   + M2.0.7 verify_block_body (body.rs) — re-derives tx_root /
 │                   bond_root / slashing_root / storage_proof_root from
 │                   a delivered &Block and matches the header
-├── validator_evolution.rs M2.0.8 pure helpers for per-block validator-set
+├── validator_evolution/ M2.0.8 pure helpers for per-block validator-set
 │                   evolution: apply_equivocation_slashings,
 │                   apply_liveness_evolution, apply_bond_ops_evolution,
 │                   apply_unbond_settlements. Single source of truth used by
@@ -769,10 +810,10 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
 │                   Validator / ValidatorStats / PendingUnbond /
 │                   ConsensusParams / BondingParams encode+decode,
 │                   CheckpointReadError, and check_validator_assignment.
-│                   Both chain_checkpoint.rs and mfn-light/checkpoint.rs
+│                   Both chain_checkpoint/ and mfn-light/checkpoint.rs
 │                   import this module so checkpoint v1 sub-fields cannot
 │                   drift while the on-disk / over-wire bytes stay unchanged.
-├── chain_checkpoint.rs M2.0.15 deterministic byte codec for the full-node
+├── chain_checkpoint/ M2.0.15 deterministic byte codec for the full-node
 │                   ChainCheckpoint { genesis_id, state }: magic "MFCC"
 │                   + u32 version + payload (every ChainState field,
 │                   hash-maps sorted by key for cross-platform determinism,
@@ -787,8 +828,14 @@ mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integra
                     Each validator-set mutation is a single call into validator_evolution.
                     M2.0.9 decode_block_header; M2.0.10 encode_block / decode_block.
 
-mfn-node/           Node-side glue             (175 tests)
-├── chain.rs        Chain driver: owns ChainState, applies blocks through
+mfn-node/           Reference daemon (mfnd) composition layer
+│                   ⚠ Post-M2.3.17 decomposition: the in-process runtime
+│                   (Chain, Mempool, producer, genesis loaders) lives in
+│                   mfn-runtime/, persistence in mfn-store/, JSON-RPC dispatch
+│                   in mfn-rpc/, and the P2P stack in mfn-net/. The entries
+│                   below note their current crate.
+├── chain.rs (→ mfn-runtime/src/chain.rs)
+│                   Chain driver: owns ChainState, applies blocks through
 │                   apply_block, exposes read-only accessors and typed errors.
 │                   M2.0.15: Chain::checkpoint() / Chain::encode_checkpoint() /
 │                   Chain::from_checkpoint(cfg, ck) / Chain::from_checkpoint_bytes(cfg, &[u8])
@@ -798,12 +845,14 @@ mfn-node/           Node-side glue             (175 tests)
 │                   mismatch with ChainError::GenesisMismatch { expected,
 │                   got }. Bad bytes surface as
 │                   ChainError::CheckpointDecode(ChainCheckpointError).
-├── producer.rs     Block-production helpers: three-stage protocol
+├── producer.rs (→ mfn-runtime/src/producer.rs)
+│                   Block-production helpers: three-stage protocol
 │                   (build_proposal → vote_on_proposal → seal_proposal) plus a
 │                   produce_solo_block one-call helper for the single-validator
 │                   case. The shape future P2P / RPC / mempool integration
 │                   consumes.
-├── mempool.rs      M2.0.12 + M2.0.13 in-memory transaction pool. Mempool::admit
+├── mempool.rs (→ mfn-runtime/src/mempool.rs)
+                    M2.0.12 + M2.0.13 in-memory transaction pool. Mempool::admit
                     replicates every per-tx gate apply_block runs — both the
                     PRIVACY gates (verify_transaction + ring-membership chain
                     guard with commit match + key-image dedup against
@@ -825,10 +874,13 @@ mfn-node/           Node-side glue             (175 tests)
                     StorageReplicationTooHigh, EndowmentMathFailed,
                     UploadUnderfunded. AdmitOutcome distinguishes Fresh /
                     ReplacedByFee / EvictedLowest for future P2P-relay use.
-├── mfn-net         M2.3.0–M2.3.16: P2P framing, handshake, post-goodbye `TxV1` / `BlockV1` gossip (`mfn-node` re-exports as `network`)
-│                   listener + dialer (no sockets / wire yet).
-├── demo_genesis.rs M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
-├── genesis_spec.rs M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
+├── (→ mfn-net/)    M2.3.0–M2.3.16: P2P framing (frame.rs), handshake
+│                   (handshake.rs), post-goodbye `TxV1` / `BlockV1` gossip
+│                   (gossip.rs), serve/dial loops (serve.rs).
+├── demo_genesis.rs (→ mfn-runtime/src/demo_genesis.rs)
+│                   M2.1.1 built-in empty-validator genesis when mfnd has no --genesis.
+├── genesis_spec.rs (→ mfn-runtime/src/genesis_spec.rs)
+│                   M2.1.2 JSON genesis spec loader (version 1) for mfnd --genesis.
 ├── mfnd_serve.rs   M2.1.6 + M2.1.8 + M2.1.10 + M2.1.11 + M2.1.12 + M2.1.13 + M2.1.14 + M2.1.15 + M2.1.16 + M2.1.17 + M2.1.18 + M2.2.8 + M2.2.10 blocking TCP serve: one-line JSON request/response;
 │                   get_tip + submit_tx (hex tx bytes) into Mempool::admit;
 │                   get_block (validated chain.blocks → block_hex);
@@ -845,7 +897,8 @@ mfn-node/           Node-side glue             (175 tests)
 │                   list_recent_uploads (paged storage entries, optional claims join);
 │                   list_recent_claims + list_data_roots_with_claims (M2.2.10 derived discovery);
 │                   JSON-RPC 2.0 envelope on every response line.
-├── store.rs        M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`;
+├── store.rs (→ mfn-store/src/fs.rs; redb backend in mfn-store/src/redb_store.rs)
+│                   M2.1.0 filesystem checkpoint store (+ M2.1.1 `has_any_checkpoint`;
 │                   M2.1.7 `chain.blocks` append log + `read_block_log`).
 │                   ChainStore::save writes Chain::encode_checkpoint() bytes through
 │                   chain.checkpoint.tmp, rotates the previous primary to

@@ -530,7 +530,12 @@ Re-derives the four header-bound body roots that are pure functions of the block
 
 Each variant carries the value the *header* claimed (`expected`) and the value the verifier recomputed from the delivered body (`got`) — useful for peer scoring and log diagnostics.
 
-`storage_root` and `utxo_root` are *not* covered: both are state-dependent (the former requires cross-block dedup of storage commitments; the latter the cumulative UTXO accumulator). A forged block can't smuggle a fake value for either past `verify_header` — the BLS aggregate signs `header_signing_hash` which includes both — so a stateless verifier loses nothing material by skipping their re-derivation. `validator_root` is the trust anchor of `verify_header` itself.
+`storage_root` and `utxo_root` are *not* covered: both are state-dependent (the former requires cross-block dedup of storage commitments; the latter the cumulative UTXO accumulator). Their bindings differ, and the difference matters:
+
+- **`storage_root`** *is* part of `header_signing_bytes`, so the BLS aggregate directly attests the value the quorum saw (though not that it is state-correct — see below).
+- **`utxo_root`** is **not** part of `header_signing_bytes`. It is committed only by `block_header_bytes` → `block_id`, so the quorum binds it *transitively, one block later*, when the next header's `prev_hash` (which is inside the next signing hash) chains over it. A light client should treat the **tip** block's `utxo_root` as provisional until one confirmation.
+
+Either way, a stateless verifier cannot check state-correctness of these two roots — only full nodes re-deriving them in `apply_block` can — so `verify_block_body` skipping their re-derivation loses nothing *for a stateless verifier*. `validator_root` is the trust anchor of `verify_header` itself. Full analysis: [`SECURITY_CONSIDERATIONS.md § 3`](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
 
 In `mfn-light`, the full-block analogue of `apply_header` is `apply_block(&Block)` — five steps in order: height monotonicity → prev_hash linkage → `verify_header` → `verify_block_body` → tip advance. State is byte-for-byte untouched on any failure. Header verification runs **before** body verification so the diagnostic distinction is clean: `HeaderVerify` = forged header; `BodyMismatch` = right header, wrong body.
 
