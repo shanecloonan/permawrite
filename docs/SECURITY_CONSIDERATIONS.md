@@ -261,6 +261,21 @@ Full treatment: [`PRIVACY.md`](./PRIVACY.md). The residual risks in one place:
 5. **Key separation is a wallet obligation.** Authorship-claim keys
    ([`AUTHORSHIP.md`](./AUTHORSHIP.md)) are intentionally public identities and
    must never be derived from, or correlated with, stealth view/spend keys.
+6. **Ring size is not consensus-enforced.** Consensus verifies CLSAG validity
+   and ring-member existence but imposes **no minimum or uniform ring size**;
+   any ring of length ≥ 1 (including a unit ring with no decoys) is structurally
+   valid. Anonymity-set size is therefore a wallet-policy property, not a
+   protocol guarantee — strictly weaker than Monero's mandatory uniform ring
+   size. Full analysis in [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law).
+
+**Mitigation now in place — key-image subgroup validity.** ed25519's cofactor
+means a decompressed point can carry a low-order (torsion) component.
+[`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) rejects any
+CLSAG key image that is the identity point or is not a prime-order-subgroup
+member (`!is_torsion_free()`), before it can enter the double-spend set. Honest
+images `I = x·H_p(P)` are torsion-free by construction (`H_p` clears the
+cofactor), so no honest spend is affected; this closes the classic
+key-image-malleability / small-subgroup double-spend footgun (Monero parity).
 
 ---
 
@@ -288,6 +303,13 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
    subsidy is minted ([`apply_block` Phase 8](../mfn-consensus/src/block/apply.rs)).
    Acceptable for the dev/test mode this configuration is documented for;
    listed so nobody repurposes the mode expecting producer revenue.
+6. **Storage rewards accrue to the block producer, not the proving operator.**
+   `StorageProof` has no operator payout field; per-proof rewards are folded
+   into the producer's coinbase (`apply_block` settlement). A non-producing
+   storage operator earns nothing on-chain for proving data, and a producer can
+   bank a relayed proof. This undercuts the permanence incentive and storage
+   decentralization until an operator-direct payout path ships. Full analysis
+   in [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data).
 
 ---
 
@@ -303,6 +325,9 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
 | 6 | Privacy | Decoy statistics, fee/timing/graph metadata, storage-size fingerprints | Gamma calibration; wallet-layer policy | Tier 3 removes decoy class; metadata remains |
 | 7 | Permanence | No operator bonds; latency race; access ≠ replication | Endowment pricing, replication floor at upload | Open (see PROBLEMS §§ 1, 5, 6) |
 | 8 | Genesis | Entire initial state is unauthenticated | Social/operational verification of genesis artifacts | Inherent; document + tooling checks |
+| 9 | Storage incentive | SPoRA reward paid to producer, not proving operator | None yet (operator must also produce) | Open — operator-direct payout is a wire/consensus milestone (PROBLEMS § 17) |
+| 10 | Privacy enforcement | No consensus min/uniform ring size; under-mixing possible | Wallet-default ring size only | Open — consensus `min_ring_size` is a params-encoding milestone (PROBLEMS § 18) |
+| 11 | Key-image malleability | Torsion/small-order key images | **Closed:** `verify_transaction` rejects non-prime-order & identity images | Closed (Monero parity) |
 
 ---
 

@@ -16,9 +16,20 @@ A regular Permawrite transaction hides:
 The chain still verifies:
 
 - Inputs balance outputs + fees (Pedersen sum).
-- No double-spend (key images are unique).
+- No double-spend (key images are unique **and** are valid prime-order-subgroup
+  points — the chain rejects identity and torsion/small-order key images so a
+  spend cannot be re-encoded into a distinct-looking image; see § 3).
 - No money minted out of thin air (range proofs prove non-negativity).
 - Inputs are real on-chain UTXOs (chain-level ring-membership check).
+
+> **Ring size is a wallet obligation, not a consensus rule.** The chain does
+> **not** enforce a minimum or uniform ring size; it only checks CLSAG validity
+> and ring-member existence. A ring of size 1 (no decoys) is structurally valid.
+> The reference wallet chooses the anonymity-set size (CLI default 8), so
+> under-mixing is possible if a wallet is buggy, malicious, or coerced, and
+> heterogeneous ring sizes can themselves leak information. This is weaker than
+> Monero's mandatory uniform ring size and is tracked as a consensus milestone
+> in [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law).
 
 What's **not** hidden:
 
@@ -206,6 +217,17 @@ I = x · hash_to_point(P_π)
 
 `I` is deterministic in `x` — the same key produces the same image every time. This is what enables single-spend enforcement without revealing the key: the chain records every `I` it's seen; a second appearance is rejected.
 
+**Key-image validity (consensus).** Because ed25519 has cofactor 8, a
+decompressed point can carry a low-order (torsion) component, and an adversary
+could otherwise present `I` and `I + T` (for a small-order `T`) as two distinct
+"images" of the same spend — a double-spend vector. `hash_to_point` clears the
+cofactor, so an honest image `I = x·H_p(P_π)` is always a prime-order-subgroup
+member. [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs)
+enforces this: it rejects any key image that is the identity point or that is
+not torsion-free (`!is_torsion_free()`) before it can enter the double-spend
+set. No honest spend is affected; this matches Monero's key-image validity
+rule.
+
 ### Aggregated challenge
 
 CLSAG's compactness trick is that it bundles the spend-key signature and the commitment-balancing signature into one ring traversal. Define aggregated weights:
@@ -387,9 +409,13 @@ The tradeoff is verification time. A naive `O(N)` verifier becomes painful when 
 
 Permawrite ships in tiers. Each tier monotonically strengthens privacy without breaking earlier tiers.
 
+The ring sizes in this table are **reference-wallet policy targets**, not
+consensus-enforced bounds (see the note under [§ What "privacy" means here](#what-privacy-means-here)
+and [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law)):
+
 | Tier | Status | Ring construction | Range proof | Decoy quality |
 |---|---|---|---|---|
-| **Tier 1** | ✓ Live | CLSAG, fixed ring size 16 | Bulletproofs (log-size) | Gamma age-distributed |
+| **Tier 1** | ✓ Live | CLSAG, wallet ring size (CLI default 8; target 16) | Bulletproofs (log-size) | Gamma age-distributed |
 | **Tier 2** | □ Near-term | CLSAG, ring size 32–64 | Bulletproof+ (smaller transcripts) | Gamma + transaction-graph metadata mitigations |
 | **Tier 3** | □ Mid-term | OoM over entire UTXO accumulator | Bulletproof+ | N/A (all UTXOs are "decoys") |
 | **Tier 4** | □ Long-term | Recursive SNARK proves all rings in a block | Same SNARK proves all ranges | N/A |

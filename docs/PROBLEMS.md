@@ -2,7 +2,7 @@
 
 This document is an honest inventory of real limitations, incentive misalignments, and architectural tensions in the Permawrite protocol and implementation. It does **not** invent problems for balance. Where the design appears sound under its stated assumptions, that is noted.
 
-The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16, with full analysis in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)).
+The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16, with full analysis in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)). Items 17–18 (added in a follow-up audit) are two high-severity, vision-critical gaps: storage rewards are paid to the block producer rather than the proving operator, and there is no consensus-enforced ring size.
 
 ## Economic and Incentive Problems
 
@@ -170,6 +170,93 @@ and the emission subsidy is never minted. Harmless for the mode's intended
 use, but it is an undocumented value sink and a trap for anyone repurposing
 legacy mode with real value. (Also: fee-split accounting in this mode does not
 match the ECONOMICS.md money-flow diagram, which assumes a producer exists.)
+
+### 17. Storage rewards are paid to the block producer, not to the operator that proved the data
+
+This is the most important incentive gap relative to the project's thesis
+("storage operators are paid to keep data alive forever"), and it was
+previously mis-described by the economics illustration.
+
+In the implementation, a [`StorageProof`](../mfn-storage/src/spora.rs) carries
+only `{ commit_hash, chunk, proof }` — **there is no operator identity or
+payout address**. In [`apply_block`](../mfn-consensus/src/block/apply.rs)'s
+settlement phase, the reward for every accepted proof (`storage_proof_reward`
+per proof, plus any PPB endowment-yield bonus) is summed into
+`storage_reward_total` and folded into `expected_reward = subsidy +
+producer_fee + storage_reward_total`, which is the amount the **producer's
+coinbase** must pay. Operators submit proofs through the runtime proof pool /
+`submit_storage_proof` RPC; the current block producer drains that pool,
+includes the proofs, and collects the reward.
+
+Consequences:
+
+- A storage operator that is **not** the current block producer receives
+  **nothing** on-chain for holding and proving data. Its only realized income
+  requires also winning VRF leader election and producing the block that
+  carries its own proof.
+- Because the submitted proof already contains the chunk bytes, a producer can
+  bank a proof relayed by an operator and keep the reward, contributing
+  nothing to storage itself.
+- This concentrates all permanence income in the validator/producer set,
+  which is in tension with "maximally decentralized" storage.
+
+Note the internal documentation tension this entry resolves:
+[`STORAGE.md § 5`/`§ 7`](./STORAGE.md#5-per-slot-payout-to-operators) already
+state the reward is "paid via the producer's coinbase," while
+[`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics) and the
+`money-flow` illustration previously depicted a **distinct** storage-operator
+wallet being paid directly by the treasury. The code is the source of truth:
+the operator-direct payment path does not exist yet.
+
+**Deferred fix (its own milestone; wire-format + consensus change).** Add an
+operator stealth payout address to `StorageProof`, extend the proof codec and
+`storage_proof_leaf_hash` (new golden vectors), and in `apply_block` settlement
+emit per-proof payout outputs to each proof's operator (or a dedicated
+payout-tx class) drained from the treasury/backstop on the same accounting
+footing as today's storage rewards — instead of crediting the producer
+coinbase. Until then, the honest reading of the design is that a storage
+operator must also run as a producer to be compensated. Tracked in
+[`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-questions) and
+[`ROADMAP.md`](./ROADMAP.md).
+
+### 18. No consensus-enforced minimum or uniform ring size (privacy is wallet policy, not protocol law)
+
+This is the single largest deviation from "Monero-level privacy."
+
+Consensus verification
+([`verify_transaction`](../mfn-consensus/src/transaction/verify.rs),
+[`apply_block`](../mfn-consensus/src/block/apply.rs)) checks CLSAG validity,
+that `|ring.p| == |ring.c|`, that every ring member is a real UTXO with a
+matching commitment, and key-image validity — but it does **not** enforce any
+lower bound on ring size. A transaction with a ring of size 1 (i.e. **no
+decoys at all**, a fully deanonymized input) is structurally valid and would be
+accepted. Ring size is chosen entirely by the wallet (the CLI default is
+`DEFAULT_RING_SIZE = 8`; the wallet builder only requires `ring_size >= 2`).
+
+Why this matters for the privacy goal:
+
+- **Under-mixing is possible.** Nothing at the protocol level stops a buggy,
+  malicious, or coerced wallet from publishing spends with tiny (or unit) rings
+  that reveal the true input.
+- **Heterogeneous ring sizes are a fingerprint and shrink the herd.** Monero
+  deliberately mandates a single, uniform, fixed ring size (currently 16) for
+  *every* transaction precisely so that ring size cannot be used to cluster
+  wallets and so that no output is ever under-mixed. Permawrite enforcing
+  nothing means the anonymity set is only as strong as each wallet's private
+  choice, and the diversity of choices itself leaks information.
+
+The `PRIVACY.md` "Tier 1 · fixed ring size 16" language describes the reference
+wallet's intended policy, **not** a consensus rule.
+
+**Deferred fix (consensus + params-encoding change; its own milestone).** Add
+`min_ring_size` (and optionally a `uniform_ring_size`) to
+[`ConsensusParams`](../mfn-consensus/src/block/state.rs) — extending the
+checkpoint codec and its golden vectors — and enforce
+`ring.len() >= min_ring_size` (equality if uniform) in `verify_transaction`.
+Raise the wallet/CLI defaults to the mandated size (16, Monero parity), make it
+non-configurable downward, and migrate the many tests/vectors that build
+smaller rings. Interim guidance: reference wallets should default to a uniform
+ring size of at least 16.
 
 ## Areas That Appear Relatively Sound (Under Stated Assumptions)
 

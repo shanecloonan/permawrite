@@ -5,7 +5,7 @@ For intuition first, see [`OVERVIEW.md`](./OVERVIEW.md).
 ---
 
 <p align="center">
-  <img src="./img/money-flow.svg" alt="The Permawrite money flow: emission mints into the coinbase paid to the producer; transaction fees split 90/10 between treasury and producer; the treasury drains every block to pay storage operators via SPoRA proofs; emission acts only as a backstop when the treasury runs short. Producer and operator income re-enters circulation as users pay more fees, closing the loop." width="100%">
+  <img src="./img/money-flow.svg" alt="The Permawrite money flow, numbered as a loop: (1) emission mints fresh MFN into the coinbase; (2) the coinbase pays the producer; (3-4) MFN circulates and is spent in privacy transactions; (5) each fee splits 90 percent to the storage treasury and 10 percent to the producer; (6) uploads must fund the treasury with the required endowment; (7) each block a SPoRA proof is verified; (8) the treasury drains to fund the storage reward, which is settled into the producer coinbase, with emission as a backstop when the treasury is short; the loop then returns to step 2." width="100%">
 </p>
 
 ## Three flows
@@ -376,9 +376,25 @@ Permawrite's treasury-funded storage rewards mean there's always a non-fee reven
 
 ## 7. Storage-operator economics
 
-A storage operator earns by:
+> **Implementation reality (read this first).** In the current build the
+> per-proof reward is **not** paid to a distinct storage-operator wallet. A
+> [`StorageProof`](../mfn-storage/src/spora.rs) carries no operator identity or
+> payout address, and [`apply_block`](../mfn-consensus/src/block/apply.rs) folds
+> the total storage reward into the **block producer's coinbase** (`subsidy +
+> producer_fee + storage_reward_total`). An operator therefore realizes SPoRA
+> income only when it *also* produces the block that carries its proof; a
+> non-producing operator earns nothing on-chain, and a producer can include a
+> relayed proof and keep the reward. This is a known, high-severity incentive
+> gap — see [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)
+> — with an operator-direct payout milestone tracked in [§ 10](#10-open-economic-questions).
+> The endowment/yield *math* below is correct; only the *recipient* of the
+> reward differs from the idealized description until that milestone ships.
 
-1. **Capturing the SPoRA challenge race.** The first operator to publish a valid proof for the deterministic challenge wins the per-proof yield.
+Under the intended (not-yet-implemented) operator-direct payout, a storage
+operator earns by:
+
+1. **Capturing the SPoRA challenge race.** The first valid proof for the
+   deterministic challenge that a producer includes wins the per-proof yield.
 2. **Holding popular files.** Files with larger endowments yield more per slot.
 
 ### Expected revenue per file
@@ -422,40 +438,42 @@ In practice, operators specialize: some hold "hot" recent uploads; some hold col
                                      │
                   fresh MFN per block ▼
                             ┌──────────────────┐
-                            │     COINBASE     │
+                            │     COINBASE     │  = subsidy + producer_fee + storage_reward_total
                             └────────┬─────────┘
-                                     │
-       producer's payout (subsidy + producer_share_of_fees)
                                      │
                                      ▼
                               PRODUCER WALLET ─── eventually circulates ───┐
-                                                                            │
-                                                                            ▼
-                                                                       PRIVACY TX
-                                                                            │
-                                                                       pays fee
-                                                                            │
-                                                  ┌─────────────────────────┼───────────┐
-                                                  │                         │           │
-                                       producer_share (10%)        treasury_share (90%) │
-                                                  │                         │           │
-                                                  ▼                         ▼           │
-                                          PRODUCER WALLET            TREASURY (drains for storage rewards)
-                                                                            │           │
-                                                                            ▼           │
-                                                                  STORAGE-OPERATOR WALLET
-                                                                            │           │
-                                                                            └───── circulates ─────────┐
-                                                                                                       ▼
-                                                                                                  (loop back to PRIVACY TX)
-                                                                            (if treasury empty)
-                                                                                     │
-                                                                              EMISSION BACKSTOP
-                                                                                     │
-                                                                              fresh MFN minted
+                                 ▲                                          │
+      storage_reward_total       │                                         ▼
+      (drained from treasury,    │                                    PRIVACY TX
+       emission backstop if      │                                         │
+       short) is paid INTO       │                                    pays fee
+       the producer coinbase     │                                         │
+                                 │        ┌────────────────────────────────┼───────────┐
+                                 │        │                                │            │
+                                 │  producer_share (10%)          treasury_share (90%)  │
+                                 │        │                                │            │
+                                 │        ▼                                ▼            │
+                                 │  PRODUCER WALLET                     TREASURY         │
+                                 │                                    (drains per block  │
+                                 └────────────────────────────────────  for storage ────┘
+                                        SPoRA proofs settle             rewards)
+                                        into producer coinbase                │
+                                                                    (if treasury empty)
+                                                                              │
+                                                                       EMISSION BACKSTOP
+                                                                              │
+                                                                       fresh MFN minted
 ```
 
-Two issuance pipes: the subsidy curve (main) and the emission backstop (rare). Three sinks: producer compensation, storage-operator compensation, and held savings.
+Two issuance pipes: the subsidy curve (main) and the emission backstop (rare).
+**Note the recipient:** today the storage reward is settled into the *producer*
+coinbase (there is no separate storage-operator payout wire yet — see
+[§ 7](#7-storage-operator-economics) and
+[`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)).
+The sinks are therefore producer compensation (which currently absorbs the
+storage-reward stream) and held savings; a dedicated operator sink arrives with
+the operator-direct payout milestone.
 
 The economy is **closed** in the sense that no value leaves the chain. It's **open** in the sense that fresh tokens can enter (subsidy + backstop) and old tokens can be effectively burned (no formal mechanism, but indefinite holding has the same balance-sheet effect).
 
@@ -532,6 +550,14 @@ A future milestone may restore an explicit settlement payout — either via an a
 
 These are deliberately not yet hard-coded:
 
+0. **Operator-direct payout (highest priority).** Today storage operators have
+   **no direct on-chain payout channel** — accepted-proof rewards go to the
+   block producer's coinbase (see [§ 7](#7-storage-operator-economics) and
+   [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)).
+   Shipping an operator payout address in `StorageProof` plus per-proof
+   settlement outputs (drained from the treasury/backstop like today's reward)
+   is the change that makes "operators are paid to keep data forever" literally
+   true rather than true-only-when-the-operator-is-the-producer.
 1. **Operator bonding.** Should operators stake MFN as a slashable bond to qualify as a "premium" replica? Tradeoff: more skin in the game (better SLA) vs. higher operator friction (less open participation).
 2. **Replication-dependent yield curves.** Today, a `replication=3` file pays its operators flat-rate. Should `replication=10` files pay each operator less (since redundancy is higher) or more (since operators are committing more)? Currently flat-rate per slot.
 3. **Long-tail decay.** Should very-rarely-proven commitments (e.g., proved 1× per year) eventually expire, freeing their pinned bytes? Today: no — *true* permanence. But this means dead bytes accumulate forever. May need a "stale eviction with refund" mechanism.

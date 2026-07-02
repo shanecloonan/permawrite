@@ -442,6 +442,14 @@ committed — over-payment buys privacy headroom, not extra yield. `apply_block`
 calls this whenever it verifies a SPoRA proof, takes `payout`, and adds it to
 the block's storage-reward total (paid via the producer's coinbase).
 
+> **Who actually receives this reward?** The block **producer**, not
+> (necessarily) the operator that proved the data. `StorageProof` has no
+> operator payout field, so a non-producing operator earns nothing on-chain for
+> a proof it submits. This is a known, high-severity incentive gap — see
+> [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)
+> and [`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics) — with an
+> operator-direct payout milestone tracked in the roadmap.
+
 ---
 
 ## 6. Treasury settlement
