@@ -2,7 +2,7 @@
 
 This document is an honest inventory of real limitations, incentive misalignments, and architectural tensions in the Permawrite protocol and implementation. It does **not** invent problems for balance. Where the design appears sound under its stated assumptions, that is noted.
 
-The focus is on **economics/incentives** (the harder and more fundamental category) and **architectural viability**.
+The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16, with full analysis in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)).
 
 ## Economic and Incentive Problems
 
@@ -86,6 +86,90 @@ Header + body verification for light clients is elegant and powerful, but a ligh
 - Correctness of the various domain-separated Merkle roots.
 
 Long-range attacks are heavily constrained compared to naive PoS, but the mitigations are economic/cryptographic hybrids rather than pure cryptographic finality.
+
+## Protocol / Security-Model Problems
+
+These were surfaced by a source-level audit of the consensus and crypto crates
+(2026-07). Each is verified against the referenced code, not inferred from
+docs. Deeper analysis of every item lives in
+[SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md).
+
+### 11. Committee finality does not attest state-transition validity
+
+The reference voting path (`cast_vote` → `verify_producer_proof` in
+`mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF
+eligibility and BLS header signature — it does **not** run `apply_block`. A
+finality quorum therefore proves "≥ 2/3 stake signed these header bytes," not
+"this block's transactions, coinbase, and state roots are valid."
+
+Full nodes are unaffected (they re-execute `apply_block` and reject invalid
+blocks regardless of signatures). But light clients — the entire
+`verify_header` / `verify_block_body` stack — get state-validity assurance only
+from the honest-quorum assumption. There are **no fraud proofs or validity
+proofs**. Until a Tier-4 proof-aggregation milestone, light-client state
+guarantees are strictly weaker than the docs' framing of "cryptographic
+confidence" suggests. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
+
+### 12. `utxo_root` is not covered by the finality signature
+
+`header_signing_bytes` (`mfn-consensus/src/block/header.rs`) commits every
+header root **except `utxo_root`**, which appears only in `block_header_bytes`
+(the `block_id` preimage). The committee's BLS aggregate therefore does not
+directly attest the post-block UTXO accumulator root; it is bound only
+transitively, one block later, via `block_id` → next header's `prev_hash`.
+
+Impact is bounded — full nodes recompute the root, and the tip inherits quorum
+binding after one confirmation — but (a) prior doc claims that the BLS
+aggregate covers `utxo_root` were wrong (fixed in the same change as this
+entry), and (b) any future feature that consumes the **tip** accumulator root
+(Tier-3 OoM membership proofs, light-client-backed deposits) must treat it as
+provisional for one block. Whether to add `utxo_root` to the signing bytes is
+an open hard-fork question. See [SECURITY_CONSIDERATIONS.md § 3](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
+
+### 13. Genesis validators bypass BLS proof-of-possession
+
+Same-message BLS aggregation is rogue-key-attackable without a
+proof-of-possession. Registered validators get PoP for free: the
+`BondOp::Register` signature is verified under the registering `bls_pk` over a
+payload that includes that key (`verify_register_sig`,
+`mfn-consensus/src/bond_wire.rs`). Genesis validators, however, are installed
+directly by `apply_genesis` with **no PoP check** — safe only because genesis
+is trusted setup. Any genesis assembled from third-party key submissions (a
+public-testnet ceremony) must verify possession out-of-band, or a rogue key
+could poison the initial committee. Genesis tooling should enforce this;
+today nothing does. See [SECURITY_CONSIDERATIONS.md § 4](./SECURITY_CONSIDERATIONS.md#4-bls-aggregation-and-rogue-key-resistance).
+
+### 14. One `f64` survives on the consensus verification path
+
+`eligibility_threshold` (`mfn-consensus/src/consensus/engine.rs`) converts the
+`f64` parameter `expected_proposers_per_slot` to fixed-point with a floating
+multiply-and-round on every `verify_finality_proof` call. The default
+`F = 1.5` is exactly representable, so default chains cannot diverge — but the
+workspace's own invariant is "no floating point in consensus paths," and a
+chain configured with a non-exactly-representable `F` would be trusting
+cross-platform IEEE-754 conformance for consensus. The clean fix (integer
+fixed-point parameter, e.g. Q30) changes `ConsensusParams` encoding and is
+deferred. See [SECURITY_CONSIDERATIONS.md § 6](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
+
+### 15. The VRF is RFC 9381-style, not RFC 9381-conformant
+
+`mfn-crypto/src/vrf.rs` substitutes the protocol's try-and-increment
+`hash_to_point` for the RFC-mandated Elligator2 hash-to-curve. Security is
+equivalent; **interop is not** — off-the-shelf RFC 9381 verifiers reject
+Permawrite proofs. External tooling must implement the MFBN-1 variant, or the
+chain must hard-fork to strict Elligator2 before claiming conformance. Docs
+that previously said "RFC 9381" without the caveat have been corrected. See
+[SECURITY_CONSIDERATIONS.md § 5](./SECURITY_CONSIDERATIONS.md#5-vrf-near-rfc-9381-not-rfc-9381).
+
+### 16. Legacy (validator-less) mode silently drops the producer fee share
+
+When `state.validators` is empty (dev/test "legacy mode"), no coinbase is
+allowed, so in `apply_block`'s settlement phase the treasury share of fees is
+credited but the producer share (default 10%) is computed and paid to no one,
+and the emission subsidy is never minted. Harmless for the mode's intended
+use, but it is an undocumented value sink and a trap for anyone repurposing
+legacy mode with real value. (Also: fee-split accounting in this mode does not
+match the ECONOMICS.md money-flow diagram, which assumes a producer exists.)
 
 ## Areas That Appear Relatively Sound (Under Stated Assumptions)
 
