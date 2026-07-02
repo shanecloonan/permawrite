@@ -45,13 +45,13 @@ We do **not** assume:
 
 ### Slot seed
 
-For each slot `S` with previous block id `prev_id`:
+For each candidate block at height `H`, slot `S`, with previous block id `prev_id`:
 
 ```text
-slot_seed = dhash(CONSENSUS_SLOT, [prev_id, S.to_be_bytes()])
+slot_seed = dhash(CONSENSUS_SLOT, prev_id ‖ H (u32, BE) ‖ S (u32, BE))
 ```
 
-[`slot_seed`](../mfn-consensus/src/consensus.rs). This seed is the input to every validator's VRF for slot `S`.
+[`slot_seed`](../mfn-consensus/src/consensus/engine.rs). Including `prev_id` makes seeds unique per fork; including the `(height, slot)` pair keeps distinct attempts within a fork from colliding. This seed is the input to every validator's VRF for slot `S`.
 
 ---
 
@@ -71,16 +71,36 @@ where `k = expected_proposers_per_slot` (default `1.5`).
 
 The fractional `1.5` means the protocol expects ~1.5 eligible producers per slot on average, providing **liveness slack** — if the slot's primary eligible producer is offline, secondaries can take over.
 
-In code:
+In code ([`eligibility_threshold`](../mfn-consensus/src/consensus/engine.rs)):
 
 ```rust
-pub fn eligibility_threshold(stake: u64, total_stake: u64, expected_per_slot: f64) -> u64 {
-    let ratio = (stake as f64 / total_stake as f64) * expected_per_slot;
-    (ratio.clamp(0.0, 1.0) * (u64::MAX as f64)) as u64
+pub fn eligibility_threshold(
+    stake: u64,
+    total_stake: u64,
+    expected_proposers_per_slot: f64,
+) -> u64 {
+    if total_stake == 0 {
+        return 0;
+    }
+    // F is rounded once to Q30 fixed-point; everything after is integer.
+    let factor: u64 = (expected_proposers_per_slot * f64::from(1u32 << 30)).round() as u64;
+    // (factor · stake · 2^34) / total_stake  ==  F · (stake/total) · 2^64,
+    // saturating at u64::MAX (validator with > 100%/F of stake is always eligible).
+    let num: u128 = (factor as u128) * (stake as u128);
+    let scaled: u128 = num << 34;
+    let result: u128 = scaled / (total_stake as u128);
+    result.min(u64::MAX as u128) as u64
 }
 ```
 
-> **Determinism note.** The use of `f64` here is for documentation; the production verification path uses integer arithmetic to avoid cross-platform float drift. See [`is_eligible`](../mfn-consensus/src/consensus.rs).
+> **Determinism note.** This function runs inside `verify_finality_proof`, so it
+> **is** a consensus path — and the first line performs one `f64`
+> multiply-and-round to convert `F` into Q30 fixed-point. The default `F = 1.5`
+> is exactly representable in IEEE-754, so default-parameter chains cannot
+> diverge; a non-exactly-representable `F` would lean on cross-platform IEEE-754
+> conformance. This is the one known exception to the "integer math only in
+> consensus paths" invariant. Full analysis + the planned integer-parameter fix:
+> [`SECURITY_CONSIDERATIONS.md § 6`](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
 
 ### VRF (Verifiable Random Function)
 
@@ -90,7 +110,7 @@ Each validator computes:
 (proof, output) = VRF_PROVE(secret_vrf_key, slot_seed)
 ```
 
-Module: [`mfn_crypto::vrf`](../mfn-crypto/src/vrf.rs). This is an **ECVRF over ed25519** implementation following the RFC 9381 IETF-Algorand variant.
+Module: [`mfn_crypto::vrf`](../mfn-crypto/src/vrf.rs). This is an **ECVRF over ed25519** implementation closely following the RFC 9381 IETF-Algorand variant, **with one deliberate deviation**: hash-to-curve uses the protocol's try-and-increment `hash_to_point` (cofactor cleared via multiply-by-8) instead of the RFC-mandated Elligator2. Security is equivalent, but off-the-shelf RFC 9381 verifiers will reject Permawrite proofs — see [`SECURITY_CONSIDERATIONS.md § 5`](./SECURITY_CONSIDERATIONS.md#5-vrf-near-rfc-9381-not-rfc-9381).
 
 Properties:
 
@@ -101,21 +121,17 @@ Properties:
 ### Eligibility check
 
 ```rust
-pub fn is_eligible(
-    vrf_output: &[u8; 32],
-    stake: u64,
-    total_stake: u64,
-    expected_per_slot: f64,
-) -> bool {
-    let threshold = eligibility_threshold(stake, total_stake, expected_per_slot);
-    let output_u64 = vrf_output_as_u64(vrf_output);
-    output_u64 < threshold
+/// Check eligibility from a 32-byte VRF output.
+pub fn is_eligible(beta: &[u8; 32], threshold: u64) -> bool {
+    vrf_output_as_u64(beta) < threshold
 }
 ```
 
+The caller derives `threshold` via `eligibility_threshold(stake, total_stake, expected_proposers_per_slot)` and `beta` from the validator's VRF output over the slot seed.
+
 ### Tie-breaking
 
-If multiple validators are eligible for the same slot, the protocol picks the one with the **lowest VRF output** ([`pick_winner`](../mfn-consensus/src/consensus.rs)). This is deterministic and unambiguous.
+If multiple validators are eligible for the same slot, the protocol picks the one with the **lowest VRF output** ([`pick_winner`](../mfn-consensus/src/consensus/engine.rs)). This is deterministic and unambiguous.
 
 ### Why VRF sortition (and not round-robin)
 
@@ -173,26 +189,36 @@ Default `quorum_stake_bps = 6667` (= 2/3 + 1bp). Standard PoS finality threshold
 
 ### `FinalityProof` wire format
 
-The producer packs the aggregate + bitmap into a [`FinalityProof`](../mfn-consensus/src/consensus.rs):
+The producer packs the aggregate + bitmap into a [`FinalityProof`](../mfn-consensus/src/consensus/engine.rs):
 
 ```rust
+pub struct ProducerProof {
+    pub validator_index: u32,          // index of the producing validator
+    pub beta:            [u8; 32],     // VRF output β
+    pub vrf_proof:       VrfProof,     // VRF proof π over the slot seed
+    pub producer_sig:    BlsSignature, // producer's BLS sig over the header signing hash
+}
+
 pub struct FinalityProof {
-    pub committee_aggregate: CommitteeAggregate {
-        pub agg_sig: BlsSignature,
-        pub bitmap:  Vec<u8>,
-    },
-    pub producer: ProducerProof {
-        pub vrf_proof: VrfProof,
-        pub schnorr_sig: SchnorrSignature,
-    },
+    pub producer:      ProducerProof,
+    pub finality:      CommitteeAggregate, // { msg, bitmap, agg_sig }
+    pub signing_stake: u64,                // cached stake-weight that signed
 }
 ```
 
-The `producer_proof` field of the block header carries the MFBN-encoded `FinalityProof`. Verification (see [`verify_finality_proof`](../mfn-consensus/src/consensus.rs)) checks:
+The `producer_proof` field of the block header carries the MFBN-encoded `FinalityProof`. Verification (see [`verify_finality_proof`](../mfn-consensus/src/consensus/engine.rs)) checks:
 
-1. The producer's VRF + Schnorr sig — verifies the producer was eligible for the slot.
-2. The committee aggregate — pairing equation passes.
-3. Stake threshold — signer stake ≥ quorum.
+1. The producer exists in the validator set, their VRF proof verifies over the slot seed, `beta` is below the stake-weighted eligibility threshold, and their **BLS** `producer_sig` verifies over the header signing hash.
+2. The committee aggregate — its `msg` equals the header signing hash and the pairing equation passes against the bitmap-selected pubkeys.
+3. Stake accounting — the bitmap's stake sum equals the claimed `signing_stake`, and `signing_stake` ≥ quorum.
+
+> **What finality does — and does not — prove.** A quorum signature attests
+> producer eligibility and the exact header bytes. It does **not** attest that
+> the block's state transition is valid: the reference `cast_vote` helper
+> verifies the producer proof, not `apply_block`. Full nodes re-execute
+> `apply_block` regardless of signatures; light clients inherit only the
+> honest-quorum assumption. See
+> [`SECURITY_CONSIDERATIONS.md § 2`](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
 
 ---
 
@@ -206,25 +232,30 @@ The `producer_proof` field of the block header carries the MFBN-encoded `Finalit
 
 ```rust
 pub struct SlashEvidence {
-    pub header_a: BlockHeader,
-    pub header_b: BlockHeader,
-    pub sig_a:    BlsSignature,
-    pub sig_b:    BlsSignature,
-    pub validator_index: u32,
+    pub height:        u32,          // block height at which equivocation occurred
+    pub slot:          u32,          // slot number
+    pub voter_index:   u32,          // index of the offending validator
+    pub header_hash_a: [u8; 32],     // hash of the first header signed
+    pub sig_a:         BlsSignature, // signature over header_hash_a
+    pub header_hash_b: [u8; 32],     // hash of the second header (must differ)
+    pub sig_b:         BlsSignature, // signature over header_hash_b
 }
 ```
 
+Evidence carries header **hashes**, not full headers — the BLS votes are signatures over `header_signing_hash`, so the two hashes plus the two signatures are sufficient to prove the conflict.
+
 ### Canonicalization
 
-The two headers are sorted so the evidence is deterministic regardless of which observer found them first. [`canonicalize`](../mfn-consensus/src/slashing.rs) orders by `block_id(header)` lexicographically.
+The two `(hash, sig)` pairs are sorted so the evidence is deterministic regardless of which observer found them first. [`canonicalize`](../mfn-consensus/src/slashing.rs) orders the pairs by header hash lexicographically (`header_hash_a < header_hash_b` after canonicalization).
 
 ### Verification
 
-[`verify_evidence`](../mfn-consensus/src/slashing.rs) returns `EvidenceCheck` ∈ {`Valid`, `InvalidSignature`, `SameHeader`, `DifferentSlotOrHeight`, …}.
+[`verify_evidence`](../mfn-consensus/src/slashing.rs) returns `EvidenceCheck` ∈ {`Valid`, `IndexOutOfRange`, `HeadersIdentical`, `AlreadySlashed`, `SigAInvalid`, `SigBInvalid`}.
 
-- Both BLS sigs must verify under the validator's `bls_public_key`.
-- The two headers must share `(height, slot)` but have distinct `block_id`s.
-- If both checks pass: evidence is valid.
+- `voter_index` must reference a validator in the canonical set with non-zero stake.
+- The two header hashes must be distinct (identical hashes ⇒ no equivocation).
+- Both BLS sigs must verify against their respective header hashes under the validator's `bls_pk`.
+- If every check passes: evidence is valid and the validator is slashable.
 
 ### Slashing action
 
@@ -259,7 +290,7 @@ We chose multiplicative because:
 
 ### Tracking
 
-Per-validator stats in [`ValidatorStats`](../mfn-consensus/src/block.rs):
+Per-validator stats in [`ValidatorStats`](../mfn-consensus/src/block/state.rs):
 
 ```rust
 pub struct ValidatorStats {
@@ -305,16 +336,19 @@ The threshold of 32 is long enough to absorb a transient network blip (a couple 
 
 ### Test coverage
 
-Block-level unit tests in `mfn-consensus/src/block.rs`:
+Apply-level tests in `mfn-consensus/tests/block_apply.rs`:
 
-- `liveness_validator_signing_resets_counter`
-- `liveness_validator_missing_increments_counter`
-- `liveness_slashing_triggers_at_threshold`
-- `liveness_slashes_compound_multiplicatively`
-- `liveness_short_transient_outage_forgiven`
-- `liveness_skipped_for_zero_stake_validators`
-- `liveness_handles_short_bitmap`
-- `liveness_slash_caps_at_stake_floor`
+- `liveness_signed_resets_counter_and_credits`
+- `liveness_unset_increments_counter`
+- `liveness_threshold_triggers_slash_and_reset`
+- `liveness_compounds_multiplicatively`
+- `liveness_signed_clears_pending_counter`
+- `liveness_zero_stake_validator_skipped`
+- `liveness_bitmap_too_short_treated_as_missing`
+- `liveness_slash_caps_at_full_stake_loss`
+- `liveness_slash_credits_treasury`
+
+Pure-helper unit tests in `mfn-consensus/src/validator_evolution/tests.rs` (`liveness_clears_consecutive_missed_on_signed_bit`, `liveness_skips_zero_stake_validators`, `liveness_resizes_stats_when_misaligned`), plus validator-mode coverage in `mfn-consensus/tests/validator_finality_evolution/liveness.rs`.
 
 Integration test in `mfn-consensus/tests/integration.rs`:
 
@@ -329,29 +363,29 @@ Integration test in `mfn-consensus/tests/integration.rs`:
 ### `Validator` shape
 
 ```rust
+// mfn-consensus/src/consensus/types.rs
 pub struct Validator {
-    pub index:               u32,            // monotonic, never reused
-    pub vrf_public_key:      EdwardsPoint,
-    pub bls_public_key:      BlsPublicKey,
-    pub schnorr_public_key:  EdwardsPoint,
-    pub stake:               u64,
-    pub payout:              Option<ValidatorPayout>,
+    pub index:  u32,                     // monotonic, never reused
+    pub vrf_pk: EdwardsPoint,            // ed25519 VRF public key (leader lottery)
+    pub bls_pk: BlsPublicKey,            // BLS12-381 voting public key (finality)
+    pub stake:  u64,                     // effective stake weight
+    pub payout: Option<ValidatorPayout>, // optional stealth payout destination
 }
 
+// mfn-consensus/src/consensus/engine.rs (held only by the validator's process)
 pub struct ValidatorSecrets {
-    pub vrf_secret:     Scalar,
-    pub bls_secret:     BlsSecretKey,
-    pub schnorr_secret: Scalar,
+    pub index: u32,
+    pub vrf:   VrfKeypair,
+    pub bls:   BlsKeypair,
 }
 ```
 
-Three keypairs per validator:
+Two keypairs per validator:
 
-- **VRF keypair** — for leader election.
-- **BLS keypair** — for finality voting **and** for authorizing the validator's own `BondOp::Unbond`.
-- **Schnorr keypair** — for producer claim (signing the VRF proof in their `ProducerProof`).
+- **VRF keypair** (ed25519) — for leader election.
+- **BLS keypair** (BLS12-381) — for finality voting, for the producer's own header signature (`ProducerProof::producer_sig`), **and** for authorizing the validator's own `BondOp::Register` / `BondOp::Unbond`.
 
-Why three? Different roles, different schemes. VRF and BLS use different curves; Schnorr lets us bind the VRF proof to the producer's stable identity. Keeping them separate keeps the security reductions clean.
+Different roles, different curves: the VRF needs an ed25519 group with a hash-to-point; finality needs pairing-based aggregation. The producer's identity is bound to the block by their BLS signature over the header signing hash (there is no separate Schnorr producer key), and the VRF proof itself is verifiable only under the producer's registered `vrf_pk` — so eligibility and authorship are each anchored to on-chain keys.
 
 ### `Validator` index = identity
 
@@ -451,7 +485,7 @@ For the full design note + test matrix, see [`docs/M2_STORAGE_PROOF_ROOT.md`](./
 
 ### Light-header verification (M2.0.5)
 
-With every block-body element now header-bound (M2.0 / M2.0.1 / M2.0.2), the natural payoff is a *light* verifier: a function that given only a `BlockHeader` and a trusted pre-block validator set, returns whether a real quorum of that set signed the header. That's [`verify_header`](../mfn-consensus/src/header_verify.rs) — the first piece of `mfn-light`.
+With every block-body element now header-bound (M2.0 / M2.0.1 / M2.0.2), the natural payoff is a *light* verifier: a function that given only a `BlockHeader` and a trusted pre-block validator set, returns whether a real quorum of that set signed the header. That's [`verify_header`](../mfn-consensus/src/header_verify/header.rs) — the first piece of `mfn-light`.
 
 ```rust
 pub fn verify_header(
@@ -504,7 +538,7 @@ For the full design note + test matrix (8 unit tests in `mfn-consensus`, 7 unit 
 
 ### Light-client validator-set evolution (M2.0.8)
 
-M2.0.5 + M2.0.7 give a light client cryptographic confidence in a single `(header, body)` pair. **M2.0.8** lets the light client follow the chain across arbitrary **rotations** — `BondOp::Register` adds, equivocation slashings zero, unbond settlements zero, liveness slashings reduce — by mirroring `apply_block`'s validator-set transition byte-for-byte via a **shared pure-helper module**: [`mfn-consensus::validator_evolution`](../mfn-consensus/src/validator_evolution.rs).
+M2.0.5 + M2.0.7 give a light client cryptographic confidence in a single `(header, body)` pair. **M2.0.8** lets the light client follow the chain across arbitrary **rotations** — `BondOp::Register` adds, equivocation slashings zero, unbond settlements zero, liveness slashings reduce — by mirroring `apply_block`'s validator-set transition byte-for-byte via a **shared pure-helper module**: [`mfn-consensus::validator_evolution`](../mfn-consensus/src/validator_evolution/).
 
 Architecturally:
 
@@ -631,7 +665,7 @@ Genesis block is unique:
 - `storage_root` is the Merkle root over `cfg.initial_storage` (any storage pre-anchored at chain start).
 - `utxo_root` is the accumulator root after `cfg.initial_outputs` are appended.
 
-Genesis is **trusted setup**. It's the one point in chain history where the rules don't apply — the chain hasn't started yet. [`build_genesis`](../mfn-consensus/src/block.rs) constructs it; [`apply_genesis`](../mfn-consensus/src/block.rs) initializes `ChainState` from it.
+Genesis is **trusted setup**. It's the one point in chain history where the rules don't apply — the chain hasn't started yet. [`build_genesis`](../mfn-consensus/src/block/genesis.rs) constructs it; [`apply_genesis`](../mfn-consensus/src/block/genesis.rs) initializes `ChainState` from it.
 
 After genesis, every subsequent block must satisfy the full `apply_block` rule set.
 
@@ -662,7 +696,7 @@ All frozen at genesis. Changing any of these is a hard fork.
 | Multiplicative liveness slashing | Additive / outright eviction | Smooth incentive curve; no cliff. |
 | Outright equivocation slashing | Multiplicative | Equivocation is unambiguously malicious; no benefit-of-the-doubt warranted. |
 | Single-finalized chain | Probabilistic finality (PoW-style) | Deterministic permanence guarantees rest on deterministic finality. |
-| Frozen-at-genesis validator set (v0.1) | Live rotation from day one | Simpler audit surface; rotation in v0.2 with the bond/unbond machinery. |
+| Frozen set at launch, rotation added as M1 | Live rotation from day one | Simpler audit surface first; the bond/unbond/churn-cap machinery shipped as M1 and rotation is **now live** (see § 6). |
 
 ---
 
@@ -670,21 +704,28 @@ All frozen at genesis. Changing any of these is a hard fork.
 
 ```rust
 // Building blocks
-let seed: [u8; 32] = slot_seed(&prev_block_id, slot);
-let threshold: u64 = eligibility_threshold(stake, total_stake, expected_per_slot);
-let eligible = is_eligible(&vrf_output, stake, total_stake, expected_per_slot);
+let ctx = SlotContext { height, slot, prev_hash };
+let seed: [u8; 32] = slot_seed(&ctx);
+let threshold: u64 = eligibility_threshold(stake, total_stake, expected_proposers_per_slot);
+let eligible: bool = is_eligible(&beta, threshold);
 
-// Producing a block
-let ctx = SlotContext { slot, prev_id, /* … */ };
-let maybe_proof: Option<ProducerProof> = try_produce_slot(&secrets, &ctx, /* … */);
+// Producing a block (None ⇒ not eligible this slot)
+let maybe_proof: Option<ProducerProof> = try_produce_slot(
+    &ctx, &secrets, &validator, total_stake, expected_proposers_per_slot, &header_hash,
+)?;
 
-// Voting
-let vote: CommitteeVote = cast_vote(&secrets, &header_signing_hash, validator_index);
+// Voting (re-verifies the producer proof before signing)
+let vote: CommitteeVote = cast_vote(
+    &header_hash, &voter_secrets, &ctx, &producer_proof, &producer_validator,
+    total_stake, expected_proposers_per_slot,
+)?;
 
 // Finalizing
-let agg: CommitteeAggregate = finalize(&validators, &votes)?;
-let proof: FinalityProof = FinalityProof { committee_aggregate: agg, producer: producer_proof };
-let check: ConsensusCheck = verify_finality_proof(&proof, &validators, &header_signing_hash);
+let agg: CommitteeAggregate = finalize(&header_hash, &votes, validators.len())?;
+let proof = FinalityProof { producer: producer_proof, finality: agg, signing_stake };
+let check: ConsensusCheck = verify_finality_proof(
+    &ctx, &proof, &validators, expected_proposers_per_slot, quorum_stake_bps, &header_hash,
+);
 
 // Slashing
 let check: EvidenceCheck = verify_evidence(&evidence, &validators);
