@@ -66,7 +66,7 @@
     <circle cx="340" cy="212" r="5" class="accent-live"/>
     <text x="355" y="217" font-size="17" font-weight="700" class="text-strong">mfn-node</text>
     <text x="340" y="244" font-size="13" class="text-muted">Chain driver, mempool, mfnd step/serve,</text>
-    <text x="340" y="262" font-size="13" class="text-muted">producer helpers (P2P scaffold).</text>
+    <text x="340" y="262" font-size="13" class="text-muted">producer helpers (P2P handshake/gossip/sync live).</text>
   </g>
   <g>
     <rect x="600" y="190" width="260" height="86" rx="12" class="panel-fill stroke-dark" stroke-width="2"/>
@@ -95,7 +95,7 @@
     <rect x="80" y="352" width="6" height="112" class="accent-consensus" rx="3"/>
     <circle cx="110" cy="378" r="6" class="accent-live"/>
     <text x="126" y="384" font-size="22" font-weight="700" class="text-strong">mfn-consensus</text>
-    <text x="290" y="384" font-size="14" font-weight="600" class="accent-consensus">206 tests &#183; apply_block</text>
+    <text x="290" y="384" font-size="14" font-weight="600" class="accent-consensus">state transition &#183; apply_block</text>
     <text x="110" y="416" font-size="14" class="text-muted">Header/body roots &#183; Finality &#183; CLSAG ring guard &#183; Authorship claims (MFCL) &#183; Bond rotation</text>
     <text x="110" y="438" font-size="14" class="text-muted">Storage endowment &#183; SPoRA proofs &#183; Treasury settlement &#183; Liveness + equivocation slashing</text>
   </g>
@@ -114,7 +114,7 @@
     <rect x="80" y="548" width="6" height="148" class="accent-bls" rx="3"/>
     <circle cx="110" cy="574" r="6" class="accent-live"/>
     <text x="126" y="580" font-size="20" font-weight="700" class="text-strong">mfn-bls</text>
-    <text x="110" y="608" font-size="13" font-weight="600" class="accent-bls">16 tests &#183; BLS12-381</text>
+    <text x="110" y="608" font-size="13" font-weight="600" class="accent-bls">BLS12-381 &#183; committee finality</text>
     <text x="110" y="634" font-size="13" class="text-muted">Aggregate signatures (G1 keys, G2 sigs).</text>
     <text x="110" y="654" font-size="13" class="text-muted">Committee finality in one pairing.</text>
     <text x="110" y="674" font-size="13" class="text-muted">Same variant as ETH2 / Filecoin.</text>
@@ -125,7 +125,7 @@
     <rect x="440" y="548" width="6" height="148" class="accent-storage" rx="3"/>
     <circle cx="470" cy="574" r="6" class="accent-live"/>
     <text x="486" y="580" font-size="20" font-weight="700" class="text-strong">mfn-storage</text>
-    <text x="470" y="608" font-size="13" font-weight="600" class="accent-storage">44 tests &#183; SPoRA &#183; E&#8320;</text>
+    <text x="470" y="608" font-size="13" font-weight="600" class="accent-storage">SPoRA proofs &#183; E&#8320; endowment</text>
     <text x="470" y="634" font-size="13" class="text-muted">Chunking, Merkle, challenge derivation.</text>
     <text x="470" y="654" font-size="13" class="text-muted">Endowment formula + PPB accumulator.</text>
     <text x="470" y="674" font-size="13" class="text-muted">Per-block storage proof verifier.</text>
@@ -136,7 +136,7 @@
     <rect x="800" y="548" width="6" height="148" class="accent-crypto" rx="3"/>
     <circle cx="830" cy="574" r="6" class="accent-live"/>
     <text x="846" y="580" font-size="20" font-weight="700" class="text-strong">mfn-crypto</text>
-    <text x="830" y="608" font-size="13" font-weight="600" class="accent-crypto">154 tests &#183; ed25519 + ZK</text>
+    <text x="830" y="608" font-size="13" font-weight="600" class="accent-crypto">ed25519 + ZK primitives</text>
     <text x="830" y="634" font-size="13" class="text-muted">CLSAG, Pedersen, Bulletproofs, OoM,</text>
     <text x="830" y="654" font-size="13" class="text-muted">stealth, VRF, gamma decoys, UTXO tree.</text>
     <text x="830" y="674" font-size="13" class="text-muted">MFBN-1 codec + domain registry.</text>
