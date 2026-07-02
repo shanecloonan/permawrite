@@ -99,12 +99,40 @@ pub fn verify_transaction(tx: &TransactionWire) -> VerifyResult {
     };
     let msg = tx_preimage(&stub);
 
-    // CLSAG verifications + within-tx key-image uniqueness.
+    // CLSAG verifications + key-image validity + within-tx key-image uniqueness.
+    //
+    // ---- Key-image subgroup validity (consensus-critical) ----
+    //
+    // The double-spend gate keys on the compressed bytes of each key
+    // image. ed25519 has cofactor 8, so a decompressed point may carry a
+    // low-order (torsion) component. A key image that is not a member of
+    // the prime-order subgroup is malformed: an honest image is
+    // `I = x·H_p(P)` where `H_p` clears the cofactor (`mul_by_cofactor`),
+    // so every honest image is torsion-free by construction. Admitting a
+    // non-subgroup image would let an adversary present multiple distinct
+    // encodings of "the same" spend (`I` and `I + T` for a torsion point
+    // `T`) and is the classic key-image-malleability footgun Monero closes
+    // by rejecting non-prime-order key images. We reject:
+    //
+    //   * the identity point (a degenerate all-zero image), and
+    //   * any image outside the prime-order subgroup (`!is_torsion_free()`).
+    //
+    // No honest transaction is affected; only malformed/malicious images
+    // are rejected. `verify_transaction` is the single ingress point shared
+    // by the mempool and `apply_block`, so this guards both.
     let mut seen_ki: Vec<[u8; 32]> = Vec::with_capacity(tx.inputs.len());
     let mut key_images: Vec<EdwardsPoint> = Vec::with_capacity(tx.inputs.len());
     for (i, inp) in tx.inputs.iter().enumerate() {
         if !clsag_verify(&msg, &inp.ring, &inp.c_pseudo, &inp.sig) {
             errors.push(format!("input {i}: CLSAG signature invalid"));
+        }
+        if inp.sig.key_image == EdwardsPoint::identity() {
+            errors.push(format!("input {i}: key image is identity (degenerate)"));
+            continue;
+        }
+        if !inp.sig.key_image.is_torsion_free() {
+            errors.push(format!("input {i}: key image not in prime-order subgroup"));
+            continue;
         }
         let ki_bytes = inp.sig.key_image.compress().to_bytes();
         if seen_ki.iter().any(|prev| prev == &ki_bytes) {

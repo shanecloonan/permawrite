@@ -191,6 +191,82 @@ fn key_image_repeated_within_tx_rejected() {
 }
 
 #[test]
+fn key_image_not_in_prime_subgroup_rejected() {
+    // A valid signed tx whose key image is perturbed by a non-identity
+    // order-8 torsion point is no longer a prime-order-subgroup member and
+    // must be rejected by the consensus key-image validity check. This is
+    // the key-image-malleability guard (Monero parity).
+    let inputs = vec![make_input(100_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
+    let mut tx = signed.tx;
+
+    // EIGHT_TORSION[0] is the identity; [1] is a non-identity order-8 point.
+    let torsion = curve25519_dalek::constants::EIGHT_TORSION[1];
+    assert!(!torsion.is_torsion_free(), "sanity: [1] is a torsion point");
+    tx.inputs[0].sig.key_image += torsion;
+
+    let res = verify_transaction(&tx);
+    assert!(!res.ok);
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e.contains("not in prime-order subgroup")),
+        "expected prime-order-subgroup rejection, got: {:?}",
+        res.errors
+    );
+}
+
+#[test]
+fn key_image_identity_rejected() {
+    // A degenerate all-zero (identity) key image is rejected outright.
+    let inputs = vec![make_input(100_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 99_500,
+        storage: None,
+    }];
+    let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
+    let mut tx = signed.tx;
+    tx.inputs[0].sig.key_image = EdwardsPoint::identity();
+
+    let res = verify_transaction(&tx);
+    assert!(!res.ok);
+    assert!(
+        res.errors.iter().any(|e| e.contains("identity")),
+        "expected identity rejection, got: {:?}",
+        res.errors
+    );
+}
+
+#[test]
+fn honest_key_image_still_accepted() {
+    // Guard against over-rejection: an honestly-signed tx (key image
+    // `x·H_p(P)`, torsion-free by cofactor clearing) must still verify.
+    let inputs = vec![make_input(250_000, 8)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 249_500,
+        storage: None,
+    }];
+    let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
+    assert!(
+        signed.tx.inputs[0].sig.key_image.is_torsion_free(),
+        "honest key image must be a prime-order-subgroup member"
+    );
+    let res = verify_transaction(&signed.tx);
+    assert!(res.ok, "honest tx must verify: {:?}", res.errors);
+    assert_eq!(res.key_images.len(), 1);
+}
+
+#[test]
 fn unbalanced_inputs_rejected_at_sign() {
     let inputs = vec![make_input(1_000, 4)];
     let (_w, r) = recipient();
