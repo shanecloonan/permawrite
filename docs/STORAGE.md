@@ -71,10 +71,10 @@ A file's `num_chunks = ceil(size_bytes / chunk_size)`. The final chunk may be sh
 ### Chunk hashes
 
 ```text
-chunk_hash_i = dhash(CHUNK_HASH, [chunk_bytes_i])
+chunk_hash_i = dhash(MERKLE_LEAF, chunk_bytes_i)
 ```
 
-[`mfn_storage::spora::chunk_hash`](../mfn-storage/src/spora.rs). Domain tag: `MFBN-1/chunk-hash`.
+[`mfn_storage::spora::chunk_hash`](../mfn-storage/src/spora.rs). Domain tag: `MFBN-1/merkle-leaf` — the leaf domain, so a chunk's bytes can never collide with an interior node hash (which uses `MFBN-1/merkle-node`). The separate `MFBN-1/chunk-hash` domain is used by the [challenge derivation](#3-spora--deterministic-challenges), not here.
 
 ### The data root
 
@@ -86,9 +86,9 @@ data_root = merkle_root_or_zero(
 )
 ```
 
-Using the binary Merkle tree from [`mfn_crypto::merkle`](../mfn-crypto/src/merkle.rs):
+Using the binary Merkle tree from [`mfn_crypto::merkle`](../mfn-crypto/src/merkle.rs) (which operates on pre-hashed leaves — it does not re-hash them):
 
-- Leaves are wrapped with `dhash(MERKLE_LEAF, leaf_bytes)` to prevent leaf-vs-node ambiguity attacks.
+- Leaves arrive already domain-tagged: `chunk_hash` = `dhash(MERKLE_LEAF, chunk)`, preventing leaf-vs-node ambiguity attacks.
 - Internal nodes are `dhash(MERKLE_NODE, [left, right])`.
 - Odd-count levels duplicate the last node up the tree (Bitcoin-style).
 - Empty leaf set → `[0u8; 32]` sentinel.
@@ -161,21 +161,21 @@ max_replication: 32  // DoS protection: prevents pinning tiny data at absurd rep
 [`chunk_index_for_challenge`](../mfn-storage/src/spora.rs):
 
 ```text
-seed = dhash(STORAGE_COMMIT, [prev_block_id, slot.to_be_bytes(), commit_hash])
-chunk_index = challenge_index_from_seed(seed, num_chunks)
+digest      = dhash(CHUNK_HASH, prev_block_id ‖ slot (u32, BE) ‖ commit_hash)
+chunk_index = (first 8 bytes of digest, as big-endian u64)  mod  num_chunks
 ```
 
-`challenge_index_from_seed` interprets the seed as a big-endian `u128` and reduces modulo `num_chunks` **using rejection sampling** to eliminate modulo bias:
+(`num_chunks == 0` degenerates to index `0`; commitments always have ≥ 1 chunk
+in practice.) A separate helper, [`challenge_index_from_seed`](../mfn-storage/src/spora.rs),
+serves arbitrary-seed callers: `SHA-512(commit_hash ‖ seed)`, first 8 bytes as a
+big-endian `u64`, reduced mod `num_chunks`.
 
-```text
-let max_uniform = (u128::MAX / num_chunks) * num_chunks;
-loop {
-    if seed_as_u128 < max_uniform {
-        return (seed_as_u128 % num_chunks) as u32;
-    }
-    // re-hash and try again (extremely rare path)
-}
-```
+> **Modulo-bias note.** The reduction is a plain `u64 % num_chunks` — there is
+> **no rejection sampling**. The resulting bias is ≈ `num_chunks / 2⁶⁴`, i.e.
+> immeasurably small for any realistic chunk count (a 1 TiB file at 256 KiB
+> chunks has `num_chunks = 2²²`, bias ≈ 2⁻⁴²). Stated explicitly so nobody
+> assumes perfect uniformity; see
+> [`SECURITY_CONSIDERATIONS.md § 8`](./SECURITY_CONSIDERATIONS.md#8-permanence-caveats-protocol-level-summary).
 
 ### Properties
 
@@ -183,7 +183,7 @@ loop {
 |---|---|
 | **Public computability** | Every node, including the operator, can derive the answer the moment a new block lands. No oracle, no off-chain coordination. |
 | **Unpredictability for future blocks** | Operators cannot precompute future challenges because `prev_block_id` of block N+1 depends on block N being finalized. |
-| **No bias toward any chunk** | Rejection sampling guarantees a uniform draw. |
+| **No meaningful bias toward any chunk** | Uniform up to a ≈ `num_chunks / 2⁶⁴` modulo bias (see note above). |
 | **Per-commitment specific** | Different commitments get independent challenges; an operator can't reuse one proof for another. |
 
 ### Wire-format StorageProof
@@ -191,15 +191,18 @@ loop {
 ```rust
 pub struct StorageProof {
     pub commit_hash: [u8; 32],
-    pub chunk:       Vec<u8>,        // 256 KiB (or partial-final) raw bytes
-    pub proof:       Vec<[u8; 32]>,  // Merkle authentication path
+    pub chunk:       Vec<u8>,      // 256 KiB (or partial-final) raw bytes
+    pub proof:       MerkleProof,  // { siblings: Vec<[u8; 32]>, right_side: Vec<bool>, index: usize }
 }
 ```
 
 Encoding ([`encode_storage_proof`](../mfn-storage/src/spora.rs)):
 
 ```text
-[commit_hash (32 B)] [varint(chunk.len()) ‖ chunk_bytes] [varint(proof.len()) ‖ proof[0] … proof[k-1]]
+commit_hash (32 B)
+‖ varint(chunk.len()) ‖ chunk_bytes
+‖ varint(proof.index)
+‖ varint(siblings.len()) ‖ [ sibling_i (32 B) ‖ side_i (u8: 0 = left, 1 = right) ]*
 ```
 
 ### Verification
@@ -208,19 +211,22 @@ Encoding ([`encode_storage_proof`](../mfn-storage/src/spora.rs)):
 
 ```rust
 pub enum StorageProofCheck {
-    Ok,
-    UnknownCommit,
-    WrongChunkIndex { expected: u32, got: u32 },
-    BadMerkleProof,
-    BadChunkSize,
+    Valid,
+    CommitHashMismatch,                          // proof targets a different commitment
+    WrongChunkIndex { expected: u32, got: u32 }, // answered the wrong challenge
+    MerkleInvalid,                               // path doesn't open under data_root
 }
 ```
 
+(The "unknown commitment" case is handled one level up: `apply_block` rejects a
+proof whose `commit_hash` has no `StorageEntry` with
+`BlockError::StorageProofUnknownCommit` before the verifier is even called.)
+
 The verifier:
 
-1. Recomputes the expected challenge index `expected_idx = chunk_index_for_challenge(prev_id, slot, commit_hash, commit.num_chunks)`.
-2. Verifies the supplied Merkle proof connects `dhash(CHUNK_HASH, proof.chunk)` to `commit.data_root` *at position `expected_idx`*.
-3. If the proof says it's at a different index, returns `WrongChunkIndex`.
+1. Recomputes `storage_commitment_hash(commit)` and requires it to equal `proof.commit_hash` (`CommitHashMismatch` otherwise).
+2. Recomputes the expected challenge index `expected_idx = chunk_index_for_challenge(prev_id, slot, commit_hash, commit.num_chunks)`; if `proof.proof.index` differs, returns `WrongChunkIndex`.
+3. Verifies the supplied Merkle proof connects `chunk_hash(proof.chunk)` (= `dhash(MERKLE_LEAF, chunk)`) to `commit.data_root` *at that position* (`MerkleInvalid` otherwise).
 
 The "at position N" check is critical — without it, an honest-looking proof at the wrong position could trick the verifier. The Merkle tree's `verify_merkle_proof` in [`mfn_crypto::merkle`](../mfn-crypto/src/merkle.rs) takes the expected leaf index and validates the proof's directional bits accordingly.
 
@@ -282,7 +288,8 @@ PPB gives 9 decimal places of precision without floating point. Determinism-safe
 
 ### Implementation
 
-[`required_endowment`](../mfn-storage/src/endowment.rs):
+[`required_endowment`](../mfn-storage/src/endowment.rs) (abridged — the mode
+selection is the important part):
 
 ```rust
 pub fn required_endowment(
@@ -290,25 +297,35 @@ pub fn required_endowment(
     replication: u8,
     params: &EndowmentParams,
 ) -> Result<u128, EndowmentError> {
-    let c0_ppb: u128 = u128::from(params.cost_per_byte_year_ppb)
-        .checked_mul(u128::from(size_bytes))
-        .ok_or(EndowmentError::Overflow)?
-        .checked_mul(u128::from(replication))
+    validate_endowment_params(params)?; // r = 0 OK; r > 0 must beat inflation
+    // … replication-range check; size · repl == 0 ⇒ Ok(0) …
+
+    let cost = u128::from(params.cost_per_byte_year_ppb);
+    let inflation = u128::from(params.inflation_ppb);
+    let real_yield = u128::from(params.real_yield_ppb);
+
+    // Effective spread for the denominator:
+    // - r > 0  → (r − i)   (yield-bearing mode; validation guaranteed r > i)
+    // - r == 0 → d (= i)   (deflation-funded mode: inflation_ppb re-read as d)
+    let spread = if real_yield == 0 {
+        inflation
+    } else {
+        real_yield - inflation
+    };
+
+    // E₀ = ceil( cost · size · repl · (PPB + i)  /  (PPB · spread) )
+    let numerator = cost
+        .checked_mul(size_repl)
+        .and_then(|x| x.checked_mul(PPB + inflation))
         .ok_or(EndowmentError::Overflow)?;
-
-    // numerator   = C₀ × PPB × (PPB + i)
-    // denominator = PPB × (r − i)
-    let r = u128::from(params.real_yield_ppb);
-    let i = u128::from(params.inflation_ppb);
-    if r <= i { return Err(EndowmentError::RealYieldNotAboveInflation); }
-
-    let num = c0_ppb.checked_mul(PPB + i).ok_or(EndowmentError::Overflow)?;
-    let den = PPB.checked_mul(r - i).ok_or(EndowmentError::Overflow)?;
-
-    Ok(ceil_div(num, den))
+    let denominator = PPB.checked_mul(spread).ok_or(EndowmentError::Overflow)?;
+    Ok(ceil_div(numerator, denominator))
 }
 ```
 
+- **Two modes, one formula.** `validate_endowment_params` accepts `r = 0`
+  unconditionally (deflation-funded default) and enforces `r > i` only when
+  `r > 0` — there is no unconditional `r > i` gate.
 - `u128` arithmetic throughout — the worst-case numerator for realistic params is ≈ 6×10²⁴, comfortably within `u128`'s 3.4×10³⁸ ceiling.
 - `checked_mul` returns `Err` on overflow instead of panicking.
 - `ceil_div` ensures we never *under-fund*, even by 1 base unit.
@@ -391,25 +408,39 @@ This is configured in `EndowmentParams::proof_reward_window_slots`.
 ### `accrue_proof_reward` in code
 
 ```rust
-pub fn accrue_proof_reward(args: AccrueArgs) -> AccrueResult {
-    let elapsed = args.slot_now
-        .saturating_sub(args.last_proven_slot)
+pub struct AccrueArgs<'a> {
+    pub size_bytes:       u64,   // size of the upload
+    pub replication:      u8,    // declared replication factor
+    pub pending_ppb:      u128,  // per-commitment PPB accumulator carried across proofs
+    pub last_proven_slot: u64,   // slot of the previous accepted proof
+    pub current_slot:     u64,   // this block's slot
+    pub params:           &'a EndowmentParams,
+}
+
+pub fn accrue_proof_reward(args: AccrueArgs<'_>) -> Result<AccrueResult, EndowmentError> {
+    // rewind guard: current_slot < last_proven_slot ⇒ credit 0, keep accumulator
+    let required_e = required_endowment(args.size_bytes, args.replication, args.params)?;
+    let credited = (args.current_slot - args.last_proven_slot)
         .min(args.params.proof_reward_window_slots);
 
-    let new_yield_ppb = args.pending_yield_ppb
-        + (args.per_slot_payout_ppb as u128 * elapsed as u128);
+    // total_ppb = credited · E₀ · real_yield_ppb / slots_per_year   (checked u128)
+    let incoming_ppb = u128::from(credited)
+        .checked_mul(required_e)
+        .and_then(|x| x.checked_mul(u128::from(args.params.real_yield_ppb)))
+        .ok_or(EndowmentError::Overflow)?
+        / u128::from(args.params.slots_per_year);
 
-    let payout_base_units = new_yield_ppb / PPB;
-    let leftover_ppb      = new_yield_ppb % PPB;
-
-    AccrueResult {
-        payout_base_units,
-        new_pending_yield_ppb: leftover_ppb,
-    }
+    let total_ppb = args.pending_ppb.checked_add(incoming_ppb).ok_or(EndowmentError::Overflow)?;
+    let payout = total_ppb / PPB;                        // whole base units flushed
+    Ok(AccrueResult { payout, new_pending_ppb: total_ppb - payout * PPB, credited_slots: credited })
 }
 ```
 
-`apply_block` calls this whenever it verifies a SPoRA proof, takes the `payout_base_units`, and pays them to the proof submitter.
+Note the per-slot rate is derived from the **protocol-required** endowment
+(`required_endowment`), not from whatever amount the uploader actually
+committed — over-payment buys privacy headroom, not extra yield. `apply_block`
+calls this whenever it verifies a SPoRA proof, takes `payout`, and adds it to
+the block's storage-reward total (paid via the producer's coinbase).
 
 ---
 
@@ -543,32 +574,37 @@ This is the actual logic in [`mfn_consensus::block::apply_block`](../mfn-consens
 ```rust
 // Build a commitment from data
 let built: BuiltCommitment = build_storage_commitment(
-    data: &[u8],
-    replication: u8,
-    endowment_amount: u64,
-    endowment_blinding: &Scalar,
+    data,               // &[u8]
+    endowment_amount,   // u64 — base units locked (computed via required_endowment)
+    chunk_size,         // Option<usize> — None ⇒ DEFAULT_CHUNK_SIZE (256 KiB)
+    replication,        // u8
+    blinding,           // Option<Scalar> — None ⇒ fresh random Pedersen blinding
 )?;
+// built.commit : StorageCommitment (goes on-chain)
+// built.tree   : MerkleTree        (prover keeps, to answer audits)
+// built.blinding : Scalar          (prover keeps, to open the endowment)
 
-// Generate a proof
+// Generate a proof for the current block context
 let proof: StorageProof = build_storage_proof(
     &built.commit,
-    &built.chunks,
+    &prev_block_id,     // &[u8; 32]
+    slot,               // u32
+    data,               // &[u8] — the full file bytes
     &built.tree,
-    prev_block_id: &[u8; 32],
-    slot: u64,
 )?;
 
 // Verify a proof
 let check: StorageProofCheck = verify_storage_proof(
     &commit,
-    prev_block_id: &[u8; 32],
-    slot: u64,
+    &prev_block_id,     // &[u8; 32]
+    slot,               // u32
     &proof,
 );
 
 // Endowment math
 let required: u128 = required_endowment(size_bytes, replication, &params)?;
-let per_slot_ppb: u128 = payout_per_slot_ppb(endowment, &params)?;
+let per_slot: u128 = payout_per_slot(endowment, params.slots_per_year, &params)?;
+let max_bytes: u128 = max_bytes_for_endowment(budget, replication, &params)?;
 ```
 
 For full type signatures see [`mfn-storage/README.md`](../mfn-storage/README.md).
