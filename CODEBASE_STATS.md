@@ -2,7 +2,7 @@
 
 Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and config-like text; `target/`, `.git`, and common binary formats are excluded).
 
-**Generated (UTC):** 2026-07-02T04:46:11.323Z
+**Generated (UTC):** 2026-07-02T05:35:50.910Z
 
 **Regenerate:** `node scripts/codebase-stats.mjs`
 
@@ -11,9 +11,9 @@ Auto-generated snapshot of this repository (Rust sources, docs, diagrams, and co
 | Metric | Value |
 | --- | ---: |
 | Source-like files scanned | 354 |
-| Total lines (all scanned source-like files) | 117,815 |
-| Non-empty lines | 105,855 |
-| UTF-8 bytes (source-like) | 4,666,130 |
+| Total lines (all scanned source-like files) | 118,128 |
+| Non-empty lines | 106,143 |
+| UTF-8 bytes (source-like) | 4,686,162 |
 | Paths visited (before binary/huge skip) | 399 |
 | Skipped (binary / non-UTF8 / over 4 MiB) | 1 |
 
@@ -23,9 +23,9 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Directory | Files | Lines | Non-empty lines |
 | --- | ---: | ---: | ---: |
-| `mfn-consensus` | 67 | 28,714 | 26,860 |
+| `mfn-consensus` | 67 | 28,818 | 26,958 |
 | `mfn-cli` | 29 | 14,698 | 13,589 |
-| `docs` | 50 | 12,988 | 9,540 |
+| `docs` | 50 | 13,197 | 9,730 |
 | `mfn-node` | 34 | 11,413 | 10,566 |
 | `mfn-crypto` | 23 | 7,291 | 6,564 |
 | `scripts` | 33 | 6,618 | 5,785 |
@@ -47,14 +47,14 @@ The first path segment (crate name, `docs`, etc.). Only source-like extensions a
 
 | Extension | Files | Lines | Non-empty lines | Bytes |
 | --- | ---: | ---: | ---: | ---: |
-| `.rs` | 212 | 91,439 | 84,737 | 3,232,751 |
-| `.md` | 61 | 15,410 | 11,077 | 1,031,712 |
+| `.rs` | 212 | 91,543 | 84,835 | 3,236,945 |
+| `.md` | 61 | 15,582 | 11,229 | 1,043,805 |
 | `.sh` | 31 | 5,281 | 4,779 | 184,035 |
 | `.js` | 7 | 1,980 | 1,856 | 62,125 |
 | `.yml` | 2 | 1,093 | 1,058 | 59,631 |
 | `.json` | 17 | 726 | 709 | 20,598 |
 | `.mjs` | 5 | 706 | 616 | 19,215 |
-| `.svg` | 4 | 655 | 581 | 41,720 |
+| `.svg` | 4 | 692 | 619 | 45,465 |
 | `.toml` | 15 | 525 | 442 | 14,343 |
 
 ## Largest source files (by line count)
