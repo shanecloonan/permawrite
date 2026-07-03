@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.70** soak lock + ports snapshot recovery. | **In progress** — fix ports-file race; re-run 30s-slot soak. | Archive 30s-slot evidence → hand off release-evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.69** 30s-slot soak evidence. | **In progress** — M2.4.70 lock shipped; 35min 30s-slot soak running. | Archive evidence past height 10. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release evidence + CI monitor. | Generate `release-evidence` for soak-green commit; monitor Actions. | Archive validation packet. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Nightly smoke confirmation. | M2.4.68 observer PASS archived; nightly job live (M2.4.67). | Confirm first Linux nightly green. |
 
