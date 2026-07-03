@@ -5,9 +5,8 @@ edition = "2021"
 rust-version = "1.75"
 license = "MIT OR Apache-2.0"
 # wasm-pack 0.15 fails when the generated package.json has an array-valued
-# `collaborators` field; omit it for this internal web package.
+# `collaborators` field or object-valued `repository`; omit for this internal package.
 authors = []
-repository = "https://github.com/shanecloonan/permawrite"
 description = "Permawrite — WebAssembly bindings for wallet and storage primitives (browser wallets, demos)."
 
 [lib]

@@ -16,30 +16,30 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.80** validate script fix. | **Done locally** — UTF-8 `.sh`/`.ps1` rewrites + python3 byte check; ci-check PASS. | Linux Soak Audit after CI green. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.80** CI monitor + release evidence. | **In progress** — push + watch GitHub CI. | Release-evidence for first green CI commit. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation after green CI. | Confirm Nightly green + Linux evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.81** CI re-run + Linux soak. | **In progress** — `workflow_dispatch` on CI; push to re-trigger green run. | Dispatch **Linux Soak Audit** after CI green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.81** release evidence. | **In progress** — `release-evidence-2497668` + RC audit decision=go. | Confirm GitHub CI green on `2497668`/`M2.4.81` push. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation after green CI. | Confirm Nightly green + archived Linux evidence. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.80** — rewrite `validate-workflow-encoding.{sh,ps1}` as UTF-8; python3 BOM/null-byte check (fixes GNU grep false positive + UTF-16 corruption on Windows).
-- Agent 1: **M2.4.79** — UTF-8 workflow guard; CI queue cleanup **success** (`b581e78`).
+- Agent 1: **M2.4.80** — validate-workflow-encoding python3 fix; public-devnet scripts **success** on GitHub before CI cancel (`2497668`).
+- Agent 2: **M2.4.80** — RC audit dry-run decision=go for validate fix commit.
+- Agent 1: **M2.4.79** — UTF-8 workflow guard; CI queue cleanup success.
 - Agent 2: **M2.4.79** — `release-evidence-b581e78` + RC audit decision=go.
-- Agent 1: **M2.4.78** — RC validation auto-dispatch Nightly.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.79)
+### Done (M2.4.64–M2.4.80)
 
 - [x] Windows 30s-slot soak PASS height 38 + RESTART.
 - [x] CI queue cleanup + RC validation + workflow UTF-8 guard.
 - [x] Linux Soak Audit workflow.
+- [x] M2.4.80 validate script fix (`2497668`) — public-devnet scripts green on GitHub.
 
-### In Progress (M2.4.80)
+### In Progress (M2.4.81)
 
-- [x] Fix `validate-workflow-encoding.sh` — UTF-8 rewrite + python3 byte check (replaces broken UTF-16 file and grep false positive).
-- [x] Local CI mirror PASS (`scripts/ci-check.ps1`).
-- [ ] Green GitHub CI on latest push.
+- [x] Add `workflow_dispatch` to CI for manual re-run without empty commits.
+- [ ] Green **full** GitHub CI (2497668 run cancelled during tests; re-trigger via push).
 - [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** dispatch).
 
 ### Next
@@ -51,22 +51,23 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 - [x] Windows observer rehearsal PASS + `-ArchiveEvidence`.
 - [x] Nightly jobs `--archive-evidence` on Linux.
-- [ ] First green **Nightly** via RC validation when CI passes.
+- [ ] First green **Nightly** via RC validation when full CI passes.
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-b581e78` + RC audit decision=go.
-- [ ] Verify GitHub CI green on M2.4.80 commit (after push).
+- [x] `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T152900Z.json` decision=go.
+- [ ] Verify GitHub CI green on exact RC commit after M2.4.81 push.
 - [ ] Operator human sign-off.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **in flight** (M2.4.80 validate fix pushed).
-- Local CI mirror passed — **yes** (M2.4.79).
+- Exact commit has green GitHub CI — **2497668 validate fix proven**; full matrix re-run pending.
+- Local CI mirror — **pending** full `ci-check` before M2.4.81 push.
 - Nightly after green CI — **pending** RC validation trigger.
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- None critical; M2.4.80 validate fix landed locally. Await first green CI, then auto Nightly.
+- GitHub API rate limit (unauthenticated) — use Actions UI or `GH_TOKEN` for dispatch/monitoring.
+- Linux Soak Audit + Nightly require GitHub Actions (~35–90 min each).

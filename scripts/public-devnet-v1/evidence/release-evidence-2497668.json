@@ -1,0 +1,46 @@
+{
+    "schema_version": "release-evidence.v1",
+    "generated_utc": "2026-07-03T15:28:33.2365532Z",
+    "commit": {
+        "branch": "",
+        "head": "24976687a00366f97635c7522471887a1a58aae3",
+        "working_tree": "clean",
+        "codebase_stats_generated_utc": "2026-07-03T14:05:32.095Z"
+    },
+    "ci": {
+        "status": "unknown",
+        "conclusion": "",
+        "source": "skipped",
+        "url": ""
+    },
+    "chain": {
+        "expected_genesis_id": "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+    },
+    "health": {
+        "status": "not run",
+        "output": ""
+    },
+    "rpc": {
+        "endpoint": "not provided",
+        "genesis_id": "unknown",
+        "tip_height": "unknown",
+        "tip_id": "unknown",
+        "listen_addr": "unknown",
+        "public_bind": "unknown",
+        "auth_enabled": "unknown",
+        "current_in_flight": "unknown",
+        "max_in_flight": "unknown",
+        "p2p_session_count": "unknown",
+        "p2p_peer_count": "unknown",
+        "note": "no RPC endpoint provided"
+    },
+    "operator_signoff": {
+        "operator": "agent-m281",
+        "threat_model_reviewed": false,
+        "residual_risks_have_named_owners": false,
+        "rpc_exposure_approved": false,
+        "backups_and_restore_rehearsed": false,
+        "halt_rollback_authority_agreed": false,
+        "notes": ""
+    }
+}

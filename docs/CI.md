@@ -2,6 +2,8 @@
 
 GitHub Actions workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 
+Manual re-run: **Actions → CI → Run workflow** on `main` (requires `workflow_dispatch`, M2.4.81).
+
 ## Run the same checks locally
 
 ```bash
