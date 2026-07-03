@@ -900,7 +900,7 @@ mod tests {
     #[test]
     fn uploads_retrieve_writes_payload_and_requires_replace() {
         let wallet = temp_wallet("retrieve");
-        let output = wallet.with_file_name("retrieved.bin");
+        let output = wallet.with_extension("retrieved.bin");
         let payload: Vec<u8> = (0u32..2048).map(|i| (i % 251) as u8).collect();
         let built = build_storage_commitment(
             &payload,

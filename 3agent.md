@@ -16,9 +16,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Live observer restart soak evidence (`soak: RESTART`) after M2.4.61 mesh stability fix. | M2.4.61 landing; local CI next. | Archive passing Windows soak evidence; hand mesh stability to Agent 3 nightly promotion. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; support Agent 1 mesh verification. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Blocked on mesh soak stability. | Promote participant rehearsal smoke into unattended slow/nightly coverage once Agent 1 soak is green. |
+| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet hub liveness integration smoke (`75eb64d`). | Complete on `main`; GitHub CI run #445 in progress. | Hand mesh stability evidence to Agent 3. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; review Agent 3 rehearsal harness fixes. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Rehearsal smoke harness + permanence indexing on live mesh. | In progress — fund-wallet PASS after build-before-start fix; permanence index wait still flaky at height stall. | Fix permanence-demo index wait / mesh tip diagnostics; capture evidence fixture. |
 
 ## Recently Completed
 
