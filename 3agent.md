@@ -87,7 +87,7 @@ Completed unit (participant smoke CI policy):
 - [x] Add `release-participant-smoke-policy-check` helpers (Python + Bash + PowerShell).
 - [x] Wire policy check and negative fixture into local `ci-check` mirrors and GitHub CI.
 - [x] Document CI policy in `docs/CI.md`, `OPERATORS.md`, and `docs/TESTNET_CHECKLIST.md`.
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 

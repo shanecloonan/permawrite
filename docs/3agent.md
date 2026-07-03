@@ -31,7 +31,7 @@ Next:
 
 Current:
 
-- Participant smoke/nightly CI policy guard completed locally; waiting for full CI mirror, commit, push, and GitHub CI.
+- Pick next release-readiness gate from `docs/TESTNET_CHECKLIST.md`.
 
 Done:
 
