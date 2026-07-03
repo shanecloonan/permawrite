@@ -16,7 +16,11 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
+<<<<<<< HEAD
 - Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
+=======
+- Restart-soak helpers for observer kill/restart catch-up are landed on `main`.
+>>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 
 Done:
 
@@ -31,7 +35,11 @@ Next:
 
 Current:
 
+<<<<<<< HEAD
 - Offline wheelhouse helpers and operator guidance for air-gapped strict schema validation are in rebase; waiting for commit, push, and GitHub CI.
+=======
+- Offline wheelhouse helpers and operator guidance for air-gapped strict schema validation are landed on `main`.
+>>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 
 Done:
 
