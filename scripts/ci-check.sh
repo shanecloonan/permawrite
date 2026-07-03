@@ -26,6 +26,8 @@ if ((${#missing_tools[@]} > 0)); then
   exit 127
 fi
 
+echo "==> workflow YAML encoding (UTF-8)"
+bash scripts/validate-workflow-encoding.sh
 echo "==> public-devnet scripts"
 schema_venv="$(mktemp -d)"
 trap 'rm -rf "$schema_venv"' EXIT

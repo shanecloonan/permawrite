@@ -16,39 +16,40 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.78** RC validation automation. | **In progress** — `rc-validation-after-ci.yml` + Linux soak dispatch path. | Archive Linux soak artifact after workflow. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.78** CI monitor `d6298d4`. | **In progress** — queue cleanup green; CI running. | Release-evidence for green commit. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly archive evidence. | **In progress** — bash `--archive-evidence` + Nightly job update. | Confirm Nightly green on exact CI commit. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.79** workflow UTF-8 guard. | **In progress** — fix UTF-16 regression + `validate-workflow-encoding` in CI mirror. | Linux Soak Audit dispatch after CI green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.79** CI monitor. | **In progress** — `2342b75` CI running; cleanup failed (UTF-16). | Release-evidence for first green CI commit. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation fires after green CI. | Confirm Nightly green + archived Linux evidence. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.77** — CI queue cleanup UTF-8 fix; stale runs cancelled (`d6298d4`).
-- Agent 1: **M2.4.76** — upload transport retry, dispatch REST fallback, observer evidence UTF-8.
+- Agent 1: **M2.4.78** — `rc-validation-after-ci.yml`, bash `--archive-evidence`, Nightly wiring (`794d98c`).
+- Agent 1: **M2.4.77** — CI queue cleanup UTF-8 fix (`d6298d4`).
 - Agent 1: **M2.4.70** — Windows 30s-slot soak PASS height 38 + RESTART.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.77)
+### Done (M2.4.64–M2.4.78)
 
 - [x] Windows 30s-slot soak PASS + soak lock + archive evidence.
-- [x] CI queue cleanup cancels stale runs (UTF-8 workflow fix).
+- [x] CI queue cleanup + RC validation auto-dispatch Nightly.
 - [x] Linux Soak Audit workflow.
 
-### In Progress (M2.4.78)
+### In Progress (M2.4.79)
 
-- [ ] `rc-validation-after-ci.yml` auto-dispatch Nightly on green CI push.
-- [ ] Linux `--archive-evidence` parity on `participant-rehearsal-smoke.sh` + Nightly jobs.
+- [x] Rewrite `ci-queue-cleanup.yml` as UTF-8 (regression in `2342b75` re-introduced UTF-16).
+- [x] `.gitattributes` + `validate-workflow-encoding.{ps1,sh}` in local CI mirror.
+- [ ] Green GitHub CI on latest push.
 
 ### Next
 
-- [ ] Manual **Linux Soak Audit** dispatch once CI green (`dispatch-rc-workflows.ps1 -LinuxSoakAudit`).
+- [ ] Manual **Linux Soak Audit** dispatch once CI green.
 - [ ] Commit archived Linux 30s-slot soak evidence from workflow artifact.
 
 ## Agent 3 Detailed Plan
 
-- [x] Windows observer rehearsal PASS + `-ArchiveEvidence` (UTF-8 no BOM).
-- [ ] Nightly jobs archive Linux rehearsal evidence (`--archive-evidence`).
-- [ ] First green **Nightly** triggered by RC validation workflow on green CI commit.
+- [x] Windows observer rehearsal PASS + `-ArchiveEvidence`.
+- [x] Nightly jobs use `--archive-evidence` on Linux.
+- [ ] First green **Nightly** via RC validation on green CI commit.
 
 ## Agent 2 Detailed Plan
 
@@ -59,7 +60,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ## Shared Release-Candidate Gates
 
 - Exact commit has green GitHub CI.
-- Local CI mirror passed.
+- Local CI mirror passed (includes workflow UTF-8 check).
 - Nightly + ci-ignored smoke coverage for release candidates.
 - `release-evidence.md` / `.json` for exact commit.
 - RC audit dry-run packet archived (`decision=go`).
@@ -68,4 +69,5 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Cross-Agent Blockers
 
-- Linux 30s-slot soak still requires manual workflow dispatch (90min job; not auto on every CI green).
+- `2342b75` accidentally re-committed `ci-queue-cleanup.yml` as UTF-16 — **M2.4.79** fixes + prevents recurrence.
+- Linux 30s-slot soak requires manual workflow dispatch (90min job).

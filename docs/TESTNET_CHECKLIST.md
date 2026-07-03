@@ -101,6 +101,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add public-devnet health checks for live P2P session counts via `get_status`.
 - [x] Add public-devnet health checks that fail when expected voter or observer RPC endpoints are missing.
 - [x] Add CI/local-mirror syntax validation for public-devnet Bash and PowerShell helper scripts.
+- [x] Reject UTF-16 GitHub Actions workflow YAML in CI mirror and GitHub CI scripts job (**M2.4.79**).
 - [x] Add block-sync unit coverage that unsolicited post-handshake `BlocksV1` batches reject skipped heights.
 - [x] Add block-sync unit coverage that catch-up rejects responses larger than the requested batch before apply.
 - [x] Add block-sync unit coverage that catch-up rejects empty `BlocksV1` replies from higher-tip peers as no-progress failures.
