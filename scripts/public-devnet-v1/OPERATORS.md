@@ -375,6 +375,16 @@ Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehears
 powershell -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1
 ```
 
+Dispatch **Nightly** and **Linux Soak Audit** on GitHub Actions (requires `gh auth login`):
+
+```powershell
+powershell -File scripts/public-devnet-v1/dispatch-rc-workflows.ps1 -All
+```
+
+```bash
+bash scripts/public-devnet-v1/dispatch-rc-workflows.sh --all
+```
+
 Output: `scripts/public-devnet-v1/evidence/rc-audit-dry-run-<commit>-<timestamp>.json`.
 
 Validate the generated packet before publishing launch notes:
