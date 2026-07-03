@@ -231,6 +231,36 @@ bash scripts/public-devnet-v1/release-json-schema-draft202012.sh \
 
 The strict wrapper requires the pinned `jsonschema==4.17.3` dependency and fails closed if a different version is installed. Install with `--require-hashes`; a package hash mismatch is a release-toolchain failure.
 
+### Offline wheelhouse for air-gapped release hosts
+
+Release sign-off hosts without PyPI access should build a local wheelhouse on a connected machine, copy it with the release archive, and install from disk:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-schema-wheelhouse.ps1 `
+  -Output .\wheelhouse-release-schema
+# Copy wheelhouse-release-schema/ to the air-gapped host, then:
+$env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = "python"
+powershell -File scripts/public-devnet-v1/release-schema-install-offline.ps1 `
+  -Wheelhouse .\wheelhouse-release-schema
+powershell -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 `
+  -Schema .\docs\release-evidence-v1.schema.json `
+  -Json .\release-evidence.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-schema-wheelhouse.sh \
+  --output ./wheelhouse-release-schema
+# Copy wheelhouse-release-schema/ to the air-gapped host, then:
+export PERMAWRITE_RELEASE_SCHEMA_PYTHON=python3
+bash scripts/public-devnet-v1/release-schema-install-offline.sh \
+  --wheelhouse ./wheelhouse-release-schema
+bash scripts/public-devnet-v1/release-json-schema-draft202012.sh \
+  --schema ./docs/release-evidence-v1.schema.json \
+  --json ./release-evidence.json
+```
+
+Re-run `release-schema-wheelhouse` whenever `requirements-release-schema.txt` changes. Archive the wheelhouse directory alongside release binaries and checksum manifests; do not commit wheels to git.
+
 Block release sign-off until GitHub CI is green for the exact commit:
 
 ```powershell

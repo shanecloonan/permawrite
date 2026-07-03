@@ -62,7 +62,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Keep the `release-audit-packet.v1` schema aligned with participant rehearsal evidence fields and validate generated audit packets in CI.
 - [x] Add pinned third-party Draft 2020-12 validation for release artifacts with `jsonschema==4.17.3`.
 - [x] Add checksum/hash-pinned Python dependency installation for release tooling before treating third-party validation as reproducible enough for release sign-off.
-- [ ] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
+- [x] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
 
 ## Agent 1 - Core Protocol, Consensus, Networking, Sync
 
@@ -117,7 +117,6 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add light-follow P2P fetch unit coverage that long JSON page ranges are capped to the wire request window.
 - [x] Stabilize Windows duplex P2P session chunk fanout so `chunk_p2p_auto_fanout_smoke` can run on Windows instead of being covered there by the participant rehearsal smoke.
 - [x] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
-- [ ] Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 

@@ -27,6 +27,7 @@ Thumbs.db
 .permawrite-devnet-v1/
 scripts/public-devnet-v1/logs/
 scripts/public-devnet-v1/devnet-ports.env
+scripts/public-devnet-v1/wheelhouse-release-schema/
 
 # Transient commit-message scratch files (used when crafting multi-line
 # commit messages on Powershell, which lacks HEREDOC support for git commit -m)
