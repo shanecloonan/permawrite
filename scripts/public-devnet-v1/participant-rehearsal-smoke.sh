@@ -390,7 +390,11 @@ if (( NO_START == 0 )); then
     unset MFN_DEVNET_NO_OBSERVER
   fi
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
-  bash "$SCRIPT_DIR/start-all.sh"
+  if (( NO_BUILD )); then
+    bash "$SCRIPT_DIR/start-all.sh" --no-build
+  else
+    bash "$SCRIPT_DIR/start-all.sh"
+  fi
   STARTED_MESH=1
   if (( WAIT_AFTER_START_SECONDS > 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"

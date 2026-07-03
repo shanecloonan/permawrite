@@ -4,21 +4,22 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** M2.4.84 Nightly GitHub runner hardening (timeouts, pre-build, log artifacts).
-- **Done:** Local ci-check PASS; clippy PASS on mfn-node.
-- **Next:** Green CI + Nightly re-run; Linux Soak Audit dispatch.
+- **Doing:** Watch Nightly #47 on `648ae0d` (run 28680468122).
+- **Done:** CI success on `648ae0d`; RC Validation auto-dispatch success.
+- **Next:** Linux Soak Audit after Nightly green.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Waiting:** M2.4.84 CI green; regenerate release-evidence.
-- **Done:** `release-evidence-5384ae2` + RC audit decision=go.
+- **Doing:** Archive `release-evidence-648ae0d` + RC audit decision=go.
+- **Done:** `release-evidence-5384ae2` chain.
+- **Next:** Operator sign-off after Nightly + Linux soak.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Blocked:** Nightly #46 failed (~2m, all jobs).
-- **Next:** First green Nightly (ignored + both rehearsal jobs) after M2.4.84.
+- **Doing:** Nightly all 3 jobs in progress on `648ae0d`.
+- **Next:** Archive Linux rehearsal evidence from workflow artifacts.
 
 ## Cross-Agent Blockers
 
-- Nightly failure likely runner startup timeouts — M2.4.84 fix in flight.
 - Linux Soak Audit still manual (~35 min).
+- Do not push commits that re-dispatch/cancel Nightly while #47 runs.

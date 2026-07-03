@@ -1,0 +1,59 @@
+﻿{
+    "schema_version":  "release-audit-packet.v1",
+    "generated_utc":  "2026-07-03T19:46:46.6276929Z",
+    "commit":  "648ae0db8022c1f807921b6f5b6e3c673e0a59ef",
+    "decision":  "go",
+    "release_evidence_json":  "scripts/public-devnet-v1/evidence/release-evidence-648ae0d.json",
+    "signoff_manifest":  "docs/release-signoff-manifest-v1.sample.json",
+    "archive_dir":  "C:\\Users\\shane\\AppData\\Local\\Temp\\permawrite-rc-audit-dry-run-648ae0d\\permawrite-public-devnet-dry-run-648ae0d",
+    "inventory":  "C:\\Users\\shane\\AppData\\Local\\Temp\\permawrite-rc-audit-dry-run-648ae0d\\permawrite-public-devnet-dry-run-648ae0d\\evidence\\release-artifact-inventory.md",
+    "participant_rehearsal_log":  "C:\\Users\\shane\\Downloads\\permawrite-main\\scripts\\public-devnet-v1\\fixtures\\participant-rehearsal-evidence-v1\\participant-rehearsal.log",
+    "participant_support_bundle":  "C:\\Users\\shane\\Downloads\\permawrite-main\\scripts\\public-devnet-v1\\fixtures\\participant-rehearsal-evidence-v1\\support-bundle",
+    "checks":  [
+                   {
+                       "name":  "release evidence schema",
+                       "status":  "pass",
+                       "message":  "release-json-schema-validate: OK"
+                   },
+                   {
+                       "name":  "signoff manifest schema",
+                       "status":  "pass",
+                       "message":  "release-json-schema-validate: OK"
+                   },
+                   {
+                       "name":  "signoff manifest gates",
+                       "status":  "pass",
+                       "message":  "release-signoff-manifest-validate: OK"
+                   },
+                   {
+                       "name":  "release archive",
+                       "status":  "pass",
+                       "message":  "release-archive-validate: OK"
+                   },
+                   {
+                       "name":  "artifact inventory",
+                       "status":  "pass",
+                       "message":  "artifact-inventory-validate: OK"
+                   },
+                   {
+                       "name":  "exact commit CI",
+                       "status":  "pass",
+                       "message":  "{\r\n    \"commit\":  \"648ae0db8022c1f807921b6f5b6e3c673e0a59ef\",\r\n    \"workflow\":  \"CI\",\r\n    \"branch\":  \"main\",\r\n    \"status\":  \"completed\",\r\n    \"conclusion\":  \"success\",\r\n    \"url\":  \"https://github.com/shanecloonan/permawrite/actions/runs/rc-dry-run\",\r\n    \"source\":  \"mock\",\r\n    \"message\":  \"success\"\r\n}"
+                   },
+                   {
+                       "name":  "participant smoke CI policy",
+                       "status":  "pass",
+                       "message":  "release-participant-smoke-policy-check: OK"
+                   },
+                   {
+                       "name":  "participant rehearsal evidence",
+                       "status":  "pass",
+                       "message":  "commitment_hash=14009d1272fc981a83ff107788815b5e2e724e5dafef123f2a103dafb7df8161 restored_sha256=d67c656e01756650d77717b0839985a056ec28ffe174601d690fc407a2ceffca support_bundle=C:\\Users\\shane\\Downloads\\permawrite-main\\scripts\\public-devnet-v1\\fixtures\\participant-rehearsal-evidence-v1\\support-bundle"
+                   },
+                   {
+                       "name":  "codebase stats",
+                       "status":  "pass",
+                       "message":  "CODEBASE_STATS.md generated at 2026-07-03T14:05:32.095Z"
+                   }
+               ]
+}

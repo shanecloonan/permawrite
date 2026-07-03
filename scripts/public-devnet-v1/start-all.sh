@@ -10,11 +10,40 @@ REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
-echo "Building mfnd..."
-cargo build -p mfn-node --release --bin mfnd --manifest-path "$REPO_ROOT/Cargo.toml"
+
+NO_BUILD=0
+if [[ "${MFN_DEVNET_SKIP_BUILD:-}" == "1" ]]; then
+  NO_BUILD=1
+fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-build) NO_BUILD=1; shift ;;
+    -h|--help)
+      echo "usage: start-all.sh [--no-build]" >&2
+      exit 0
+      ;;
+    *)
+      echo "start-all: unknown argument $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
 MFND="$REPO_ROOT/target/release/mfnd"
 if [[ ! -x "$MFND" ]]; then
   MFND="$REPO_ROOT/target/release/mfnd.exe"
+fi
+if (( NO_BUILD == 0 )); then
+  echo "Building mfnd..."
+  cargo build -p mfn-node --release --bin mfnd --manifest-path "$REPO_ROOT/Cargo.toml"
+  if [[ ! -x "$MFND" ]]; then
+    MFND="$REPO_ROOT/target/release/mfnd.exe"
+  fi
+elif [[ ! -x "$MFND" ]]; then
+  echo "start-all: missing mfnd at target/release/mfnd; omit --no-build or build first" >&2
+  exit 1
+else
+  echo "start-all: using existing mfnd ($MFND)"
 fi
 export MFND
 if [[ "${MFN_SOAK_BOOTSTRAP:-}" == "1" ]]; then
