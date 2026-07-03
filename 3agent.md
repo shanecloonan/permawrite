@@ -17,31 +17,34 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.82** preserve current-commit CI in queue cleanup. | **In progress** — fix race that cancelled every CI run. | Wait for full green CI; then Linux Soak Audit. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.82** CI green gate. | **Waiting** — prior runs cancelled by follow-up pushes. | Release-evidence for first fully green commit. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation only fires on CI success. | Confirm Nightly green + Linux soak evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.83** RC validation nightly dispatch ref. | **In progress** — fix `ref: sha` → branch name. | Linux Soak Audit after Nightly green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.82** release evidence. | **Done** — `release-evidence-e6e8d86` + RC audit decision=go; CI **success** run 28670552593. | Confirm Nightly dispatch after M2.4.83. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.83** Nightly dispatch. | **Blocked** — RC Validation #12 failed (`No ref found for sha`). | Confirm Nightly green once dispatch fixed. |
 
 ## Recently Completed
 
+- Agent 1: **M2.4.82** — CI Queue Cleanup preserves `context.sha`; first **full green CI** on `e6e8d86` (run 28670552593).
+- Agent 2: **M2.4.82** — `release-evidence-e6e8d86` + RC audit dry-run decision=go.
 - Agent 1: **M2.4.81** — CI `workflow_dispatch`; wasm-pack repository metadata fix; release-evidence-2497668.
 - Agent 1: **M2.4.80** — validate-workflow-encoding python3 fix.
 - Agent 2: **M2.4.81** — RC audit dry-run decision=go for 2497668.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.81)
+### Done (M2.4.64–M2.4.82)
 
 - [x] Windows 30s-slot soak PASS height 38 + RESTART.
 - [x] CI queue cleanup + RC validation + workflow UTF-8 guard.
 - [x] Linux Soak Audit workflow.
 - [x] M2.4.80 validate script fix; public-devnet scripts green on GitHub.
 - [x] M2.4.81 workflow_dispatch + wasm-pack fix.
+- [x] M2.4.82 queue cleanup preserves current-commit CI; **full green CI** on `e6e8d86`.
 
-### In Progress (M2.4.82)
+### In Progress (M2.4.83)
 
-- [x] CI Queue Cleanup preserves CI runs for `context.sha` (stop cancelling the commit under test).
-- [x] RC Validation After CI also accepts `workflow_dispatch` CI success.
-- [ ] Green **full** GitHub CI on M2.4.82 commit (no follow-up pushes until done).
+- [x] Fix RC Validation nightly dispatch — use branch ref not commit SHA.
+- [ ] Green GitHub CI on M2.4.83 push (workflow-only; hold line after push).
+- [ ] Nightly auto-dispatch via fixed RC Validation.
 - [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** dispatch).
 
 ### Next
@@ -57,21 +60,19 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-2497668` + RC audit decision=go.
-- [ ] Verify GitHub CI green on exact M2.4.82 commit.
-- [ ] Regenerate release-evidence for that green commit.
+- [x] `release-evidence-e6e8d86` + RC audit decision=go (CI success run 28670552593).
+- [ ] Verify Nightly dispatch after M2.4.83 RC validation fix.
 - [ ] Operator human sign-off.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **blocked by cancel-in-progress from rapid pushes**; M2.4.82 holds the line.
-- Local CI mirror — validate scripts PASS; full mirror not required for workflow-only change.
-- Nightly after green CI — **pending** RC validation trigger.
+- Exact commit has green GitHub CI — **yes** (`e6e8d86`, run 28670552593).
+- Local CI mirror — validate scripts PASS; full mirror before protocol changes.
+- Nightly after green CI — **RC Validation #12 failed** (sha ref); M2.4.83 fix in flight.
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Rapid follow-up pushes cancelled CI on `2497668`, `e14df80`, `02a660e` before the test matrix finished.
-- M2.4.82 must land and then **no further pushes** until CI is green.
-- Linux Soak Audit + Nightly require GitHub Actions (~35–90 min each); need `GH_TOKEN` or Actions UI for manual dispatch.
+- RC Validation nightly dispatch used commit SHA as `ref` — GitHub requires branch/tag (**M2.4.83** fix).
+- After M2.4.83 lands: optionally run **RC Validation After CI** via `workflow_dispatch` with `ci_head_sha=e6e8d86` to fire Nightly without waiting for another full CI matrix.
