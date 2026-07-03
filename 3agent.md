@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | In progress locally. | Run CI mirror, commit, push, verify GitHub CI. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed locally; CI mirror passed. | Continue cross-agent release gates; support Agent 1 mesh liveness. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -99,4 +99,4 @@ Completed unit (audit-packet policy integration):
 - [x] Add participant smoke CI policy check to `release-audit-packet` helpers.
 - [x] Stage policy helpers in `release-archive-dry-run` and require them in archive validation.
 - [x] Extend CI archive/audit-packet smoke and update operator/docs samples.
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.

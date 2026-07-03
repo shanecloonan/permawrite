@@ -31,7 +31,7 @@ Next:
 
 Current:
 
-- Release audit packet + archive policy toolchain integration in progress locally.
+- Continue cross-agent release gates; support Agent 1 mesh liveness blockers as needed.
 
 Done:
 
