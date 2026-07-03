@@ -3,11 +3,15 @@ param(
     [string]$Rpc = "",
     [string]$FaucetWallet = "",
     [string]$RehearsalDir = "",
-    [int]$WaitAfterStartSeconds = 30,
+    [int]$WaitAfterStartSeconds = -1,
     [int]$WaitFaucetSeconds = 240,
     [int]$WaitMinedSeconds = 240,
     [int]$WaitUploadSeconds = 360,
     [int]$WaitProofSeconds = 240,
+    [int]$MinHubHeight = 0,
+    [int]$WaitMinHubHeightSeconds = 180,
+    [int]$WaitObserverCatchUpSeconds = 180,
+    [switch]$WithObserver,
     [switch]$NoStart,
     [switch]$NoStop,
     [switch]$NoBuild,
@@ -86,11 +90,81 @@ function Wait-FaucetBalance {
     throw "participant-rehearsal-smoke: faucet wallet has zero spendable balance after ${TimeoutSeconds}s (hub_tip_height=$tipHeight); wait for producer rewards, fund the faucet on this devnet, or rerun with -FaucetWallet pointing at a funded operator wallet"
 }
 
-if ($WaitAfterStartSeconds -lt 0) { throw "WaitAfterStartSeconds must be >= 0" }
+function Get-LatestObserverRpc {
+    $ports = Read-PortsFile
+    $rpc = $ports["OBSERVER_RPC"]
+    $obsLog = Join-Path $ScriptDir "logs\observer.log"
+    if (Test-Path $obsLog) {
+        $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=(.+)" | Select-Object -Last 1
+        if ($m) {
+            $logRpc = $m.Matches.Groups[1].Value.Trim()
+            if ($logRpc) { return $logRpc }
+        }
+    }
+    return $rpc
+}
+
+function Assert-MeshHeights {
+    param([string]$MfnCli, [string]$HubRpc)
+    $hubHeight = Get-TipHeightText $MfnCli $HubRpc
+    if ($hubHeight -notmatch '^\d+$') {
+        throw "participant-rehearsal-smoke: hub tip_height unreadable after rehearsal: $hubHeight"
+    }
+    Write-Host "participant-rehearsal-smoke: post_rehearsal hub_tip_height=$hubHeight"
+    if ($MinHubHeight -gt 0 -and [int]$hubHeight -lt $MinHubHeight) {
+        throw "participant-rehearsal-smoke: hub tip_height=$hubHeight below required MinHubHeight=$MinHubHeight"
+    }
+    if (-not $WithObserver) { return }
+    $catchupDeadline = (Get-Date).AddSeconds($WaitObserverCatchUpSeconds)
+    do {
+        $hubHeight = Get-TipHeightText $MfnCli $HubRpc
+        $observerRpc = Get-LatestObserverRpc
+        if (-not $observerRpc) {
+            throw "participant-rehearsal-smoke: -WithObserver but OBSERVER_RPC missing from $PortsFile and logs"
+        }
+        $observerHeight = Get-TipHeightText $MfnCli $observerRpc
+        if ($observerHeight -notmatch '^\d+$') {
+            throw "participant-rehearsal-smoke: observer tip_height unreadable: $observerHeight"
+        }
+        if ([int]$observerHeight -ge [int]$hubHeight) {
+            Write-Host "participant-rehearsal-smoke: post_rehearsal observer_tip_height=$observerHeight observer_rpc=$observerRpc"
+            return
+        }
+        Write-Host "participant-rehearsal-smoke: observer_catchup_wait hub_tip_height=$hubHeight observer_tip_height=$observerHeight observer_rpc=$observerRpc"
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $catchupDeadline)
+    throw "participant-rehearsal-smoke: observer tip_height=$observerHeight lagged hub tip_height=$hubHeight after ${WaitObserverCatchUpSeconds}s"
+}
+
+function Wait-MinHubHeight {
+    param([string]$MfnCli, [string]$HubRpc, [int]$Target, [int]$TimeoutSeconds)
+    if ($Target -le 0) { return }
+    $height = Get-TipHeightText $MfnCli $HubRpc
+    if ($height -match '^\d+$' -and [int]$height -ge $Target) {
+        Write-Host "participant-rehearsal-smoke: min_hub_height already satisfied hub_tip_height=$height target=$Target"
+        return
+    }
+    if ($TimeoutSeconds -le 0) { return }
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $height = Get-TipHeightText $MfnCli $HubRpc
+        Write-Host "participant-rehearsal-smoke: min_hub_height_wait hub_tip_height=$height target=$Target"
+        if ($height -match '^\d+$' -and [int]$height -ge $Target) { return }
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $deadline)
+    throw "participant-rehearsal-smoke: hub tip_height=$height below min_hub_height=$Target after ${TimeoutSeconds}s"
+}
+
+if ($WaitAfterStartSeconds -lt 0) {
+    $WaitAfterStartSeconds = if ($WithObserver) { 45 } else { 30 }
+}
 if ($WaitFaucetSeconds -lt 0) { throw "WaitFaucetSeconds must be >= 0" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
 if ($WaitUploadSeconds -lt 1) { throw "WaitUploadSeconds must be >= 1" }
 if ($WaitProofSeconds -lt 0) { throw "WaitProofSeconds must be >= 0" }
+if ($MinHubHeight -lt 0) { throw "MinHubHeight must be >= 0" }
+if ($WaitMinHubHeightSeconds -lt 0) { throw "WaitMinHubHeightSeconds must be >= 0" }
+if ($WaitObserverCatchUpSeconds -lt 0) { throw "WaitObserverCatchUpSeconds must be >= 0" }
 
 if ($PlanOnly) {
     $planRpc = try { Resolve-Rpc } catch { if ($NoStart) { "<existing HUB_RPC or -Rpc required>" } else { "<start-all.ps1 will write HUB_RPC>" } }
@@ -100,6 +174,11 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$Faucet"
     Write-Host "  rehearsal_dir=$RunDir"
     Write-Host "  wait_faucet_seconds=$WaitFaucetSeconds"
+    Write-Host "  wait_after_start_seconds=$WaitAfterStartSeconds"
+    Write-Host "  with_observer=$($WithObserver.IsPresent)"
+    Write-Host "  min_hub_height=$MinHubHeight"
+    Write-Host "  wait_min_hub_height_seconds=$WaitMinHubHeightSeconds"
+    Write-Host "  wait_observer_catchup_seconds=$WaitObserverCatchUpSeconds"
     Write-Host "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
     Write-Host "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
     exit 0
@@ -117,7 +196,11 @@ try {
     }
     if (-not $NoStart) {
         if (-not $env:SLOT_MS) { $env:SLOT_MS = "10000" }
-        $env:MFN_DEVNET_NO_OBSERVER = "1"
+        if ($WithObserver) {
+            Remove-Item Env:MFN_DEVNET_NO_OBSERVER -ErrorAction SilentlyContinue
+        } else {
+            $env:MFN_DEVNET_NO_OBSERVER = "1"
+        }
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile
         . (Join-Path $ScriptDir "start-all.ps1")
         $startedMesh = $true
@@ -147,7 +230,10 @@ try {
         -WaitProofSeconds $WaitProofSeconds `
         -NoBuild
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir"
+    Wait-MinHubHeight $MfnCli $RpcAddr $MinHubHeight $WaitMinHubHeightSeconds
+    Assert-MeshHeights $MfnCli $RpcAddr
+    $finalHubHeight = Get-TipHeightText $MfnCli $RpcAddr
+    Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir with_observer=$($WithObserver.IsPresent) hub_tip_height=$finalHubHeight min_hub_height=$MinHubHeight"
 } finally {
     if ($startedMesh -and -not $NoStop) {
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile

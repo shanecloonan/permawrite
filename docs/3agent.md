@@ -18,44 +18,37 @@ See also the root [`3agent.md`](../3agent.md) board for the latest cross-agent h
 
 Current:
 
-- **M2.4.67** Agent 3 nightly promotion shipped; monitor first Linux nightly rehearsal smoke.
-
-Done (M2.4.66):
-
-- Mutex + merge-from-disk `Set-DevnetPort`; `stop-all` no longer deletes ports by default.
-- Windows `soak.ps1 -RestartObserverOnce` SUMMARY PASS (611s, 5 iterations, height 28, observer restart catch-up).
-- Evidence: `scripts/public-devnet-v1/evidence/soak-restart-windows-20260703T120117Z.txt`.
+- **M2.4.68 shipped** — observer rehearsal PASS archived; next: 30s-slot hub audit.
 
 Next:
 
-- 30s-slot long-run hub lifetime audit.
-- Rehearsal PASS past height 5 with observer enabled.
+- 30s-slot long-run hub daemon lifetime audit.
+- Monitor Linux nightly rehearsal smoke.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
 Current:
 
-- Monitor GitHub CI on M2.4.67 commit; first nightly participant-rehearsal-smoke run.
+- Monitor GitHub CI on M2.4.68; first nightly participant-rehearsal-smoke run.
 
 Next:
 
-- Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.
+- Release-readiness gates from `docs/TESTNET_CHECKLIST.md`.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
 Current:
 
-- **M2.4.67 shipped** — nightly + ci-ignored real-run `participant-rehearsal-smoke`; evidence fixture `fixtures/participant-rehearsal-evidence-v1`.
+- **M2.4.68 shipped** — `-WithObserver -MinHubHeight 5` Windows PASS + archived evidence.
 
 Done:
 
-- Participant rehearsal smoke PASS on M2.4.64 (`20260703T113642Z` bundle).
+- M2.4.67 nightly promotion; M2.4.64 rehearsal PASS.
 
 Next:
 
 - Confirm Linux nightly rehearsal smoke green.
-- Rehearsal PASS past height 5 with observer enabled.
 
 ## Cross-Agent Blockers
 
-- None. Await first green nightly `participant-rehearsal-smoke` job for release-candidate sign-off evidence.
+- Local `gh` unauthenticated — use Actions UI or `gh auth login` to monitor CI/nightly.

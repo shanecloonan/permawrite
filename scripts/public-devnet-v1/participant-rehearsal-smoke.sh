@@ -9,7 +9,7 @@ PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 RPC=""
 SMOKE_ROOT="$SCRIPT_DIR/participant-rehearsal-smoke"
 FAUCET_WALLET=""
-WAIT_AFTER_START_SECONDS=30
+WAIT_AFTER_START_SECONDS=-1
 WAIT_FAUCET_SECONDS=240
 WAIT_MINED_SECONDS=240
 WAIT_UPLOAD_SECONDS=360
@@ -18,6 +18,10 @@ NO_START=0
 NO_STOP=0
 NO_BUILD=0
 PLAN_ONLY=0
+WITH_OBSERVER=0
+MIN_HUB_HEIGHT=0
+WAIT_MIN_HUB_HEIGHT_SECONDS=180
+WAIT_OBSERVER_CATCHUP_SECONDS=180
 TEST_FAUCET_SEED="6565656565656565656565656565656565656565656565656565656565656565"
 USE_BUNDLED_TEST_FAUCET=1
 
@@ -34,6 +38,10 @@ Options:
   --wait-mined-seconds N      wait for funding balance delta (default: 240)
   --wait-upload-seconds N     wait for upload discovery (default: 240)
   --wait-proof-seconds N      proof-list wait window (default: 240; 0 disables)
+  --with-observer             start full mesh including non-validator observer (default: skip observer)
+  --min-hub-height N          fail unless hub tip_height >= N after rehearsal (default: 0)
+  --wait-min-hub-height-seconds N poll for min hub height after rehearsal (default: 180; 0 checks once)
+  --wait-observer-catchup-seconds N poll for observer tip >= hub after rehearsal (default: 180)
   --no-start                  use an already-started mesh
   --no-stop                   leave mesh running after this script started it
   --no-build                  use existing release binaries
@@ -51,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     --wait-mined-seconds) WAIT_MINED_SECONDS="${2:-}"; shift 2 ;;
     --wait-upload-seconds) WAIT_UPLOAD_SECONDS="${2:-}"; shift 2 ;;
     --wait-proof-seconds) WAIT_PROOF_SECONDS="${2:-}"; shift 2 ;;
+    --with-observer) WITH_OBSERVER=1; shift ;;
+    --min-hub-height) MIN_HUB_HEIGHT="${2:-}"; shift 2 ;;
+    --wait-min-hub-height-seconds) WAIT_MIN_HUB_HEIGHT_SECONDS="${2:-}"; shift 2 ;;
+    --wait-observer-catchup-seconds) WAIT_OBSERVER_CATCHUP_SECONDS="${2:-}"; shift 2 ;;
     --no-start) NO_START=1; shift ;;
     --no-stop) NO_STOP=1; shift ;;
     --no-build) NO_BUILD=1; shift ;;
@@ -66,17 +78,28 @@ done
 
 validate_uint() {
   local name="$1" value="$2" min="$3"
-  if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value < min )); then
+  if [[ ! "$value" =~ ^-?[0-9]+$ ]] || (( value < min )); then
     echo "participant-rehearsal-smoke: $name must be an integer >= $min" >&2
     exit 1
   fi
 }
+
+if (( WAIT_AFTER_START_SECONDS < 0 )); then
+  if (( WITH_OBSERVER )); then
+    WAIT_AFTER_START_SECONDS=45
+  else
+    WAIT_AFTER_START_SECONDS=30
+  fi
+fi
 
 validate_uint wait-after-start-seconds "$WAIT_AFTER_START_SECONDS" 0
 validate_uint wait-faucet-seconds "$WAIT_FAUCET_SECONDS" 0
 validate_uint wait-mined-seconds "$WAIT_MINED_SECONDS" 0
 validate_uint wait-upload-seconds "$WAIT_UPLOAD_SECONDS" 1
 validate_uint wait-proof-seconds "$WAIT_PROOF_SECONDS" 0
+validate_uint min-hub-height "$MIN_HUB_HEIGHT" 0
+validate_uint wait-min-hub-height-seconds "$WAIT_MIN_HUB_HEIGHT_SECONDS" 0
+validate_uint wait-observer-catchup-seconds "$WAIT_OBSERVER_CATCHUP_SECONDS" 0
 
 if [[ -z "$FAUCET_WALLET" ]]; then
   FAUCET_WALLET="$SMOKE_ROOT/validator0-faucet.json"
@@ -177,6 +200,99 @@ wait_faucet_balance() {
   done
 }
 
+latest_observer_rpc() {
+  local observer_rpc="" obs_log="$SCRIPT_DIR/logs/observer.log"
+  if [[ -f "$PORTS_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$PORTS_FILE"
+    observer_rpc="${OBSERVER_RPC:-}"
+  fi
+  if [[ -f "$obs_log" ]]; then
+    local log_rpc
+    log_rpc="$(grep -E 'mfnd_serve_listening=' "$obs_log" | tail -n1 | sed 's/.*=//')"
+    if [[ -n "$log_rpc" ]]; then
+      printf '%s\n' "$log_rpc"
+      return
+    fi
+  fi
+  if [[ -n "$observer_rpc" ]]; then
+    printf '%s\n' "$observer_rpc"
+    return
+  fi
+  return 1
+}
+
+assert_mesh_heights() {
+  local mfn_cli="$1" hub_rpc="$2"
+  local hub_height observer_height observer_rpc deadline
+  hub_height="$(tip_height_text "$mfn_cli" "$hub_rpc")"
+  if [[ ! "$hub_height" =~ ^[0-9]+$ ]]; then
+    echo "participant-rehearsal-smoke: hub tip_height unreadable after rehearsal: $hub_height" >&2
+    exit 1
+  fi
+  echo "participant-rehearsal-smoke: post_rehearsal hub_tip_height=$hub_height"
+  if (( MIN_HUB_HEIGHT > 0 && hub_height < MIN_HUB_HEIGHT )); then
+    echo "participant-rehearsal-smoke: hub tip_height=$hub_height below required min_hub_height=$MIN_HUB_HEIGHT" >&2
+    exit 1
+  fi
+  if (( WITH_OBSERVER == 0 )); then
+    return
+  fi
+  deadline=$(( $(date +%s) + WAIT_OBSERVER_CATCHUP_SECONDS ))
+  while :; do
+    hub_height="$(tip_height_text "$mfn_cli" "$hub_rpc")"
+    observer_rpc="$(latest_observer_rpc || true)"
+    if [[ -z "$observer_rpc" ]]; then
+      echo "participant-rehearsal-smoke: WITH_OBSERVER but OBSERVER_RPC missing from $PORTS_FILE and logs" >&2
+      exit 1
+    fi
+    observer_height="$(tip_height_text "$mfn_cli" "$observer_rpc")"
+    if [[ ! "$observer_height" =~ ^[0-9]+$ ]]; then
+      echo "participant-rehearsal-smoke: observer tip_height unreadable: $observer_height" >&2
+      exit 1
+    fi
+    if (( observer_height >= hub_height )); then
+      echo "participant-rehearsal-smoke: post_rehearsal observer_tip_height=$observer_height observer_rpc=$observer_rpc"
+      return
+    fi
+    echo "participant-rehearsal-smoke: observer_catchup_wait hub_tip_height=$hub_height observer_tip_height=$observer_height observer_rpc=$observer_rpc"
+    if (( $(date +%s) >= deadline )); then
+      echo "participant-rehearsal-smoke: observer tip_height=$observer_height lagged hub tip_height=$hub_height after ${WAIT_OBSERVER_CATCHUP_SECONDS}s" >&2
+      exit 1
+    fi
+    sleep 5
+  done
+}
+
+wait_for_min_hub_height() {
+  local mfn_cli="$1" hub_rpc="$2" target="$3" timeout_seconds="$4"
+  local deadline height
+  if (( target <= 0 )); then
+    return
+  fi
+  height="$(tip_height_text "$mfn_cli" "$hub_rpc")"
+  if [[ "$height" =~ ^[0-9]+$ ]] && (( height >= target )); then
+    echo "participant-rehearsal-smoke: min_hub_height already satisfied hub_tip_height=$height target=$target"
+    return
+  fi
+  if (( timeout_seconds <= 0 )); then
+    return
+  fi
+  deadline=$(( $(date +%s) + timeout_seconds ))
+  while :; do
+    height="$(tip_height_text "$mfn_cli" "$hub_rpc")"
+    echo "participant-rehearsal-smoke: min_hub_height_wait hub_tip_height=$height target=$target"
+    if [[ "$height" =~ ^[0-9]+$ ]] && (( height >= target )); then
+      return
+    fi
+    if (( $(date +%s) >= deadline )); then
+      echo "participant-rehearsal-smoke: hub tip_height=$height below min_hub_height=$target after ${timeout_seconds}s" >&2
+      exit 1
+    fi
+    sleep 5
+  done
+}
+
 if (( PLAN_ONLY )); then
   if (( NO_START )); then
     PLAN_RPC="$(resolve_rpc 2>/dev/null || printf '<existing HUB_RPC or --rpc required>')"
@@ -189,6 +305,11 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$FAUCET_WALLET"
   echo "  rehearsal_dir=$REHEARSAL_DIR"
   echo "  wait_faucet_seconds=$WAIT_FAUCET_SECONDS"
+  echo "  wait_after_start_seconds=$WAIT_AFTER_START_SECONDS"
+  echo "  with_observer=$WITH_OBSERVER"
+  echo "  min_hub_height=$MIN_HUB_HEIGHT"
+  echo "  wait_min_hub_height_seconds=$WAIT_MIN_HUB_HEIGHT_SECONDS"
+  echo "  wait_observer_catchup_seconds=$WAIT_OBSERVER_CATCHUP_SECONDS"
   echo "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
   echo "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
   exit 0
@@ -213,7 +334,11 @@ if (( NO_START == 0 )); then
   if [[ -z "${SLOT_MS:-}" ]]; then
     export SLOT_MS=10000
   fi
-  export MFN_DEVNET_NO_OBSERVER=1
+  if (( WITH_OBSERVER == 0 )); then
+    export MFN_DEVNET_NO_OBSERVER=1
+  else
+    unset MFN_DEVNET_NO_OBSERVER
+  fi
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
   bash "$SCRIPT_DIR/start-all.sh"
   STARTED_MESH=1
@@ -245,4 +370,7 @@ bash "$SCRIPT_DIR/participant-rehearsal.sh" \
   --wait-proof-seconds "$WAIT_PROOF_SECONDS" \
   --no-build
 
-echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR"
+wait_for_min_hub_height "$MFN_CLI" "$RPC_ADDR" "$MIN_HUB_HEIGHT" "$WAIT_MIN_HUB_HEIGHT_SECONDS"
+assert_mesh_heights "$MFN_CLI" "$RPC_ADDR"
+
+echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR with_observer=$WITH_OBSERVER hub_tip_height=$(tip_height_text "$MFN_CLI" "$RPC_ADDR") min_hub_height=$MIN_HUB_HEIGHT"

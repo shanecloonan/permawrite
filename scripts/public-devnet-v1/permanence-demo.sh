@@ -10,6 +10,7 @@ DEMO_ROOT="$SCRIPT_DIR/permanence-demo"
 PAYLOAD_PATH=""
 CHUNK_LISTEN="127.0.0.1:18780"
 WAIT_UPLOAD_SECONDS=180
+WAIT_FETCH_SECONDS=120
 WAIT_PROOF_SECONDS=180
 RPC=""
 NO_BUILD=0
@@ -288,6 +289,32 @@ wait_uploads_list_contains() {
   exit 1
 }
 
+wait_fetch_http_ok() {
+  local mfn_cli="$1" rpc_addr="$2" replica_wallet="$3" commit_hash="$4" restored_path="$5" chunk_listen="$6" timeout_seconds="$7"
+  local deadline=$(( $(date +%s) + timeout_seconds ))
+  local last_error=""
+  while (( $(date +%s) <= deadline )); do
+    rm -f "$restored_path"
+    local out
+    if out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$replica_wallet" uploads fetch-http "$commit_hash" "$restored_path" "$chunk_listen" 2>&1)"; then
+      if [[ "$out" == *"fetch_http=ok"* ]]; then
+        printf '%s\n' "$out"
+        return
+      fi
+      last_error="fetch-http missing ok: $out"
+    else
+      last_error="$out"
+    fi
+    if [[ "$last_error" != *"404"* && "$last_error" != *"not found"* ]]; then
+      assert_local_mesh_still_alive "$last_error"
+    fi
+    echo "permanence-demo: fetch_http_wait retry_after_error=${last_error//$'\n'/ }"
+    sleep 5
+  done
+  echo "permanence-demo: fetch-http for $commit_hash failed within ${timeout_seconds}s; last_error=$last_error" >&2
+  exit 1
+}
+
 tip_height_text() {
   local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
   if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
@@ -373,7 +400,7 @@ cleanup_chunk_server() {
   fi
 }
 trap cleanup_chunk_server EXIT
-sleep 1
+sleep 2
 if ! kill -0 "$CHUNK_PID" 2>/dev/null; then
   echo "permanence-demo: chunk server exited early" >&2
   if [[ -f "$CHUNK_LOG" ]]; then
@@ -383,7 +410,7 @@ if ! kill -0 "$CHUNK_PID" 2>/dev/null; then
 fi
 
 rm -f "$RESTORED_PATH"
-RESTORE_OUT="$(run_checked "uploads fetch-http" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$REPLICA_WALLET" uploads fetch-http "$COMMIT_HASH" "$RESTORED_PATH" "$CHUNK_LISTEN")"
+RESTORE_OUT="$(wait_fetch_http_ok "$MFN_CLI" "$RPC_ADDR" "$REPLICA_WALLET" "$COMMIT_HASH" "$RESTORED_PATH" "$CHUNK_LISTEN" "$WAIT_FETCH_SECONDS")"
 if [[ "$RESTORE_OUT" != *"fetch_http=ok"* ]]; then
   echo "permanence-demo: fetch-http did not report ok" >&2
   echo "$RESTORE_OUT" >&2

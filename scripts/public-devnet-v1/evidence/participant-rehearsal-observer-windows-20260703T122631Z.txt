@@ -1,0 +1,23 @@
+# Participant rehearsal smoke — observer enabled (Windows)
+# Generated: 2026-07-03T12:26:31Z (first M2.4.68 attempt)
+# Commit: 04bab14 (M2.4.67 on main; observer flags local only until M2.4.68 lands)
+# Command: participant-rehearsal-smoke.ps1 -WithObserver -MinHubHeight 5 -NoBuild
+# Result: participant-rehearsal PASS; smoke failed min_hub_height gate (hub=4, required=5)
+# Follow-up: added Wait-MinHubHeightSeconds poll before assert (M2.4.68)
+
+SUMMARY: REHEARSAL_PASS MIN_HEIGHT_FAIL
+
+Hub P2P=127.0.0.1:53826 RPC=127.0.0.1:53827
+Observer RPC=127.0.0.1:53835
+
+participant-rehearsal-smoke: faucet_balance=10000000000 hub_tip_height=2
+fund-wallet: PASS hub_tip_height=3 recipient_balance=1000000
+permanence-demo: PASS commitment_hash=8f66de2767b54674ae0a4410db99f7365e01fbb78b81d29d1135dc73b739cf3d restored_sha256=d67c656e01756650d77717b0839985a056ec28ffe174601d690fc407a2ceffca
+support-bundle: output_dir=scripts/public-devnet-v1/support-bundle/20260703T122631Z
+participant-rehearsal: PASS commitment_hash=8f66de2767b54674ae0a4410db99f7365e01fbb78b81d29d1135dc73b739cf3d support_bundle=20260703T122631Z
+participant-rehearsal-smoke: post_rehearsal hub_tip_height=4
+participant-rehearsal-smoke: hub tip_height=4 below required MinHubHeight=5
+
+Notes:
+- Full fund/upload/restore/prove/support-bundle path succeeded with observer in mesh.
+- Min-height gate fired before post-rehearsal block wait was implemented.

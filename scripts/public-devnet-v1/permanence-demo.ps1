@@ -5,6 +5,7 @@ param(
     [string]$PayloadPath = "",
     [string]$ChunkListen = "127.0.0.1:18780",
     [int]$WaitUploadSeconds = 180,
+    [int]$WaitFetchSeconds = 120,
     [int]$WaitProofSeconds = 180,
     [switch]$NoBuild,
     [switch]$PlanOnly
@@ -160,6 +161,39 @@ function Wait-UploadsListContains {
     throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s (hub_tip_height=$tipHeight)$suffix"
 }
 
+function Wait-FetchHttpOk {
+    param(
+        [string]$MfnCli,
+        [string]$RpcAddr,
+        [string]$ReplicaWallet,
+        [string]$Commit,
+        [string]$RestoredPath,
+        [string]$ChunkListen,
+        [int]$TimeoutSeconds
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = ""
+    do {
+        try {
+            if (Test-Path $RestoredPath) { Remove-Item -Force $RestoredPath }
+            $restore = Invoke-Checked $MfnCli @(
+                "--rpc", $RpcAddr, "--wallet", $ReplicaWallet,
+                "uploads", "fetch-http", $Commit, $RestoredPath, $ChunkListen
+            ) "uploads fetch-http"
+            if ($restore -like "*fetch_http=ok*") { return $restore }
+            throw "permanence-demo: fetch-http did not report ok`n$restore"
+        } catch {
+            $lastError = $_.Exception.Message
+            if ($lastError -notmatch "404|HTTP 404|not found") {
+                Assert-LocalMeshStillAlive $lastError
+            }
+            Write-Host "permanence-demo: fetch_http_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
+        }
+        Start-Sleep -Seconds 5
+    } while ((Get-Date) -lt $deadline)
+    throw "permanence-demo: fetch-http for $Commit failed within ${TimeoutSeconds}s; last_error=$lastError"
+}
+
 function Ensure-SamplePayload {
     if ($PayloadPath) { return $PayloadPath }
     $path = Join-Path $DemoRoot "payload.bin"
@@ -232,7 +266,7 @@ try {
         "serve-chunks", "--wallet", $UploaderWallet, "--listen", $ChunkListen
     ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $ChunkLog -RedirectStandardError $ChunkErrLog -PassThru
     try {
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds 2
         if ($chunkProc.HasExited) {
             $log = if (Test-Path $ChunkLog) { Get-Content $ChunkLog -Raw } else { "" }
             $errLog = if (Test-Path $ChunkErrLog) { Get-Content $ChunkErrLog -Raw } else { "" }
@@ -240,10 +274,7 @@ try {
         }
 
         if (Test-Path $RestoredPath) { Remove-Item -Force $RestoredPath }
-        $restore = Invoke-Checked $MfnCli @(
-            "--rpc", $RpcAddr, "--wallet", $ReplicaWallet,
-            "uploads", "fetch-http", $commit, $RestoredPath, $ChunkListen
-        ) "uploads fetch-http"
+        $restore = Wait-FetchHttpOk $MfnCli $RpcAddr $ReplicaWallet $commit $RestoredPath $ChunkListen $WaitFetchSeconds
         if ($restore -notlike "*fetch_http=ok*") { throw "permanence-demo: fetch-http did not report ok`n$restore" }
 
         $proof = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $ReplicaWallet, "operator", "prove", $commit) "operator prove"

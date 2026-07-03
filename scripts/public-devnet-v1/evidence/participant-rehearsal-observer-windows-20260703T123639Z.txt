@@ -1,0 +1,20 @@
+# Participant rehearsal smoke — observer enabled, min hub height 5 (Windows)
+# Generated: 2026-07-03T12:36:39Z
+# Command: participant-rehearsal-smoke.ps1 -WithObserver -MinHubHeight 5 -NoBuild
+# Duration: ~123s
+
+SUMMARY: PASS
+
+Hub RPC=127.0.0.1:54861
+Observer RPC=127.0.0.1:54871
+
+participant-rehearsal: PASS commitment_hash=ccabfab4952cb416786e15457e6c503ac8dd274fdd76f8a98a42630d33d9e0ef restored_sha256=d67c656e01756650d77717b0839985a056ec28ffe174601d690fc407a2ceffca
+support-bundle: scripts/public-devnet-v1/support-bundle/20260703T123639Z
+participant-rehearsal-smoke: min_hub_height_wait hub_tip_height=5 target=5
+participant-rehearsal-smoke: post_rehearsal hub_tip_height=5
+participant-rehearsal-smoke: post_rehearsal observer_tip_height=5 observer_rpc=127.0.0.1:54871
+participant-rehearsal-smoke: PASS with_observer=True hub_tip_height=5 min_hub_height=5
+
+Notes:
+- Full mesh: hub + 2 committee voters + observer (no MFN_DEVNET_NO_OBSERVER).
+- Observer catch-up from height 4 to 5 verified before PASS.
