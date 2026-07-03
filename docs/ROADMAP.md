@@ -2048,7 +2048,9 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.73** | Linux `soak.sh` success-criteria parity + bash soak lock; `release-rc-audit-dry-run.ps1` RC audit packet (decision=go); `ci-ignored` observer smoke mirror. | ✓ shipped |
 | **M2.4.74** | GitHub Actions `linux-soak-audit.yml` (workflow_dispatch Linux 30s soak + evidence artifact); release-evidence + RC audit for `9536efb`. | ✓ shipped |
 | **M2.4.75** | CI `concurrency` cancel-in-progress; `dispatch-rc-workflows` helpers; release-evidence + RC audit for `7b3ff02`. | ✓ shipped |
+| **M2.4.76** | CI queue cleanup workflow; rehearsal `-ArchiveEvidence`; observer PASS re-archived; `release-evidence-ad18d94`; chunk P2P upload retry. | ✓ shipped |
 | **M2.4.76** | `ci-queue-cleanup.yml` stale CI cancel; P2P upload transport retry; rehearsal `-ArchiveEvidence` UTF-8; dispatch REST fallback. | ✓ shipped |
+| **M2.4.77** | Fix `ci-queue-cleanup.yml` UTF-8 encoding; trigger cleanup on every `main` push. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
