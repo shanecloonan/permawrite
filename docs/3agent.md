@@ -16,11 +16,7 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
-<<<<<<< HEAD
 - Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
-=======
-- Restart-soak helpers for observer kill/restart catch-up are landed on `main`.
->>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 
 Done:
 
@@ -35,11 +31,7 @@ Next:
 
 Current:
 
-<<<<<<< HEAD
-- Offline wheelhouse helpers and operator guidance for air-gapped strict schema validation are in rebase; waiting for commit, push, and GitHub CI.
-=======
-- Offline wheelhouse helpers and operator guidance for air-gapped strict schema validation are landed on `main`.
->>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
+- Verify GitHub CI on `main` after hash-pinned schema installs and offline wheelhouse helpers land.
 
 Done:
 
@@ -47,6 +39,7 @@ Done:
 - Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication.
 - Pinned `jsonschema==4.17.3` Draft 2020-12 validator wrappers in local and GitHub CI.
 - Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes`.
+- Offline wheelhouse/install helpers and operator guidance for air-gapped strict schema validation.
 
 Next:
 

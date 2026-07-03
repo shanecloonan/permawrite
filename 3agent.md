@@ -16,13 +16,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-<<<<<<< HEAD
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Offline wheelhouse guidance for air-gapped strict schema validation. | Completed locally; local CI mirror pending. | Wire wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts. |
-=======
-| Agent 1 | Core protocol, consensus, networking, sync | Restart/sync soak evidence for observer kill and catch-up. | Landed on `main`. | Promote restart-soak into release-candidate evidence bundles and longer multi-kill soak windows. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Offline wheelhouse guidance for air-gapped strict schema validation. | Landed on `main`. | Wire wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts. |
->>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -42,7 +37,6 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
-- Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
 - Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
@@ -52,17 +46,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 Completed unit (M2.4.59):
 
-<<<<<<< HEAD
 - [x] Add opt-in observer restart probe to `soak.sh` and `soak.ps1`.
 - [x] Emit `soak: RESTART` evidence with old/new observer PID/RPC and pre/post hub/observer heights after catch-up.
 - [x] Wait for follower P2P dial logs before failing early soak iterations.
 - [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator soak guidance.
 - [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
-=======
-- [x] Add `restart-soak.sh` / `restart-soak.ps1` that kill the observer, wait for hub advancement, restart, and verify catch-up.
-- [x] Document restart-soak in `docs/TESTNET.md` and mark the checklist item complete.
-- [x] Commit, push, and check GitHub CI.
->>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 
 Next Agent 1 task:
 
@@ -87,11 +75,7 @@ Current task:
 
 - [x] Add `release-schema-wheelhouse` and `release-schema-install-offline` helpers for Bash and PowerShell.
 - [x] Document offline wheelhouse workflow in `OPERATORS.md` and mark the checklist item complete.
-<<<<<<< HEAD
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
-=======
 - [x] Commit, push, and check GitHub CI.
->>>>>>> 2fa255e (docs: mark wheelhouse and restart-soak landed on main)
 
 Next Agent 2 task:
 
