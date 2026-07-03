@@ -2036,7 +2036,8 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.61** | Restore M2.3.29: `--produce` nodes skip periodic committee catch-up dials; helper mesh returns to hub `--produce` + committee voters with bounded hub slot scan. | ✓ shipped |
 | **M2.4.62** | Mesh stability: seal pending proposals on producer slot tick when quorum arrives between ticks; exclude ephemeral inbound peers from committee catch-up/reconnect/`peers.json`; two-phase soak warmup; observer periodic catch-up; durable-only proposal/vote fan-out; immediate proposal fan-out on adopt; participant smoke skips observer (`MFN_DEVNET_NO_OBSERVER=1`). | ✓ shipped |
 | **M2.4.63** | P2P session lifecycle: unregister live sessions when post-handshake loops end (`mfnd_p2p_session_unregister`) so hub session counts do not grow without bound under catch-up churn. | ✓ shipped |
-| **M2.4.63** | Hub accept-loop hardening (remaining): bounded async inbound post-handshake workers; skip committee catch-up when already synced to durable peers; hub lifetime under sustained catch-up past height 5. | in progress |
+| **M2.4.64** | Mesh stability: synchronous proposal fan-out with inline vote ingest; skip committee catch-up when all durable peers have live sessions; bounded inbound P2P handler pool (cap 48); health-check hub-only warmup; soak observer restart + convergence retries. | in progress |
+| **M2.4.63** | Hub lifetime under sustained catch-up past height 5 (remaining soak/rehearsal evidence). | in progress |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

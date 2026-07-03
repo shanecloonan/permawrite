@@ -25,6 +25,9 @@ use crate::p2p_fanout::P2pPeerSet;
 
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
 const PENDING_PROPOSAL_REBROADCAST_LIMIT: u8 = 12;
+/// When at least one committee vote is already collected, keep rebroadcasting longer so
+/// async fan-out replies and second-voter signatures can arrive before slot advance.
+const PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT: u8 = 60;
 /// When the local validator is not VRF-eligible, advance slot numbers within one wall-clock
 /// tick before waiting for the next `--slot-duration-ms` interval. Public-devnet validator 0
 /// is known ineligible at slot 1; without this scan the hub can stall at genesis for many slots.
@@ -433,7 +436,7 @@ impl ProductionEngine {
         // waiting for the next tick lets pending advance slots before votes arrive.
         if proposal.producer_proof.validator_index == self.local.validator.index {
             let wire = encode_block_proposal(&proposal);
-            self.peers.fanout_proposal(&wire, None);
+            self.peers.fanout_proposal_sync(&wire, None);
         }
         // The original producer owns proposal fan-out and bounded rebroadcast.
         // Committee voters keep a local pending proposal only to vote; re-gossiping
@@ -511,9 +514,14 @@ impl ProductionEngine {
                     return;
                 }
                 let wire = encode_block_proposal(&pending.proposal);
-                self.peers.fanout_proposal(&wire, None);
+                self.peers.fanout_proposal_sync(&wire, None);
                 pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
-                if pending.rebroadcasts >= PENDING_PROPOSAL_REBROADCAST_LIMIT {
+                let release_limit = if pending.votes.is_empty() {
+                    PENDING_PROPOSAL_REBROADCAST_LIMIT
+                } else {
+                    PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT
+                };
+                if pending.rebroadcasts >= release_limit {
                     println!(
                         "mfnd_producer_pending_released height={} slot={} votes={}",
                         pending.proposal.ctx.height,

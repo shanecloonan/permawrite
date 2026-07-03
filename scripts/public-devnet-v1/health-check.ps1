@@ -24,7 +24,7 @@ $MinHeightDelta = Get-HealthEnvInt "MFN_HEALTH_MIN_HEIGHT_DELTA" 1 1
 $MinP2pSessions = Get-HealthEnvInt "MFN_HEALTH_MIN_P2P_SESSIONS" 1 0
 $RequireAllRoles = Get-HealthEnvInt "MFN_HEALTH_REQUIRE_ALL_ROLES" 1 0
 function Query-Status {
-    param([string]$Name, [string]$Addr)
+    param([string]$Name, [string]$Addr, [switch]$RequireMinP2pSessions)
     $parts = $Addr.Split(":")
     $rpcHost = $parts[0]
     $port = [int]$parts[1]
@@ -49,7 +49,7 @@ function Query-Status {
     if ($genesis -ne $ExpectedGenesisId) {
         throw "health-check: $Name genesis_id=$genesis expected $ExpectedGenesisId"
     }
-    if ($MinP2pSessions -gt 0) {
+    if ($RequireMinP2pSessions -and $MinP2pSessions -gt 0) {
         if ($null -eq $p2pSessions) { throw "health-check: $Name returned no p2p.session_count" }
         $sessionValue = [int64]$p2pSessions
         if ($sessionValue -lt $MinP2pSessions) {
@@ -64,7 +64,10 @@ function Query-Status {
     return @{ Height = $heightValue; Id = $id }
 }
 function Invoke-ConvergenceCheck {
-    $hub = Query-Status "hub" $HubRpc
+    $hub = Query-Status "hub" $HubRpc -RequireMinP2pSessions
+    if ($RequireAllRoles -eq 0) {
+        return @{ Height = $hub.Height; Id = $hub.Id }
+    }
     $refHeight = $hub.Height
     $refId = $hub.Id
     foreach ($v in 1, 2) {

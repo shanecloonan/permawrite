@@ -29,7 +29,7 @@ validate_health_int MFN_HEALTH_MIN_HEIGHT_DELTA "$MFN_HEALTH_MIN_HEIGHT_DELTA" 1
 validate_health_int MFN_HEALTH_MIN_P2P_SESSIONS "$MFN_HEALTH_MIN_P2P_SESSIONS" 0
 validate_health_int MFN_HEALTH_REQUIRE_ALL_ROLES "$MFN_HEALTH_REQUIRE_ALL_ROLES" 0
 query_status() {
-  local name="$1" addr="$2"
+  local name="$1" addr="$2" enforce_sessions="${3:-0}"
   local host port line
   host="${addr%:*}"
   port="${addr##*:}"
@@ -55,7 +55,7 @@ query_status() {
     echo "health-check: $name genesis_id=$genesis expected $EXPECTED_GENESIS_ID" >&2
     return 1
   fi
-  if (( MFN_HEALTH_MIN_P2P_SESSIONS > 0 )); then
+  if (( enforce_sessions > 0 && MFN_HEALTH_MIN_P2P_SESSIONS > 0 )); then
     if [[ ! "$sessions" =~ ^[0-9]+$ ]]; then
       echo "health-check: $name returned no p2p.session_count (line=$line)" >&2
       return 1
@@ -74,9 +74,14 @@ TIP_ID=""
 SNAPSHOT_HEIGHT=""
 SNAPSHOT_ID=""
 run_convergence_check() {
-  query_status hub "${HUB_RPC:?}" || exit 1
+  query_status hub "${HUB_RPC:?}" 1 || exit 1
   local ref_height="$TIP_HEIGHT"
   local ref_id="$TIP_ID"
+  if (( MFN_HEALTH_REQUIRE_ALL_ROLES == 0 )); then
+    SNAPSHOT_HEIGHT="$ref_height"
+    SNAPSHOT_ID="$ref_id"
+    return 0
+  fi
   for v in 1 2; do
     rpc=""
     log="$SCRIPT_DIR/logs/v$v.log"

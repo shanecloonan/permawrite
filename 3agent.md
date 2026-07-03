@@ -16,16 +16,15 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | M2.4.63 soak evidence + ports file hardening. | Session unregister shipped (`619cacf`); atomic ports fix + soak running. | `soak: RESTART` PASS → Agent 3 rehearsal promotion. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI on latest `main`. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | Harness hardened (`MFN_DEVNET_NO_OBSERVER`); blocked on Agent 1 soak. | Re-run `participant-rehearsal-smoke` after soak green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.64** mesh stability: sync proposal fan-out, catch-up idle skip, bounded inbound workers. | Code complete locally; CI mirror running; soak + rehearsal next. | `soak: RESTART` PASS → Agent 3 rehearsal promotion. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor latest `main` after M2.4.64 push. | Archive validation on green CI. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | Blocked on Agent 1 soak/rehearsal green after M2.4.64. | Re-run `participant-rehearsal-smoke` after M2.4.64 lands. |
 
 ## Recently Completed
 
-- Agent 1: M2.4.63 — unregister P2P sessions on post-handshake exit (`mfnd_p2p_session_unregister`, `619cacf`).
-- Agent 1: M2.4.62 — durable catch-up peers, production/tx fan-out split, producer seal-on-quorum slot tick, immediate proposal fan-out on adopt, observer catch-up gated on `--p2p-dial`, two-phase soak warmup, soak `SLOT_MS`/stall auto-tuning (`edff97b` / `9520243` / `cc3d2d3`).
-- Agent 1: M2.4.61 — restored M2.3.29; hub `--produce` + committee voters; bounded hub slot scan.
-- Agent 1: M2.4.60 — soak converged warmup, manifest multi-producer sortition bounds.
+- Agent 1: M2.4.63 — slower catch-up intervals; atomic `devnet-ports.env`; session unregister (`619cacf` / `d46d87c`).
+- Agent 1: M2.4.63 — unregister P2P sessions on post-handshake exit (`mfnd_p2p_session_unregister`).
+- Agent 1: M2.4.62 — durable catch-up peers, production/tx fan-out split, producer seal-on-quorum slot tick, immediate proposal fan-out on adopt, observer catch-up gated on `--p2p-dial`, two-phase soak warmup.
 - Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy.
 - Agent 3: Participant rehearsal smoke, permanence index wait hardening, evidence-dir handoff.
 
@@ -39,14 +38,25 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] Observer catch-up only when `--p2p-dial` is set.
 - [x] Participant rehearsal skips observer via `MFN_DEVNET_NO_OBSERVER=1`.
 
-### In progress (M2.4.63)
+### Done (M2.4.63)
 
-- [x] `unregister_session` on post-handshake loop exit (`SessionUnregisterGuard` in `mfn-net`) — `619cacf`.
-- [x] Atomic `devnet-ports.env` writes via `ports-env-lib.ps1` (uncommitted).
+- [x] `unregister_session` on post-handshake loop exit (`SessionUnregisterGuard` in `mfn-net`).
+- [x] Atomic `devnet-ports.env` writes via `ports-env-lib.ps1`.
 - [x] Unit test `unregister_session_drops_live_session_count`.
-- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` evidence.
+- [x] Slower committee/observer catch-up intervals (full slot duration, min 5s / 15s).
 
-### Next (after soak green)
+### In progress (M2.4.64)
+
+- [x] **`fanout_proposal_sync`** — producer adopt + slot-tick rebroadcast apply votes inline (no async race).
+- [x] Extended pending release when votes > 0 (`PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT = 60`).
+- [x] **`periodic_catch_up_idle`** — skip committee catch-up dials when all durable peers have live sessions.
+- [x] Bounded inbound P2P worker threads (cap 48) so accept loop never blocks on post-handshake.
+- [x] Unit test `periodic_catch_up_idle_when_all_durable_peers_have_sessions`.
+- [ ] Local CI mirror green.
+- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` evidence.
+- [ ] Participant rehearsal smoke PASS past height 5.
+
+### Next (after soak + rehearsal green)
 
 - [ ] Agent 3: promote participant rehearsal smoke to slow/nightly CI.
 - [ ] Long-run hub daemon lifetime audit under 30s-slot public devnet config.
@@ -72,4 +82,5 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (next unchecked Agent 2 item).
+- [ ] Monitor GitHub CI on M2.4.64 commit.
+- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.

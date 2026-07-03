@@ -627,6 +627,68 @@ impl P2pPeerSet {
         }
     }
 
+    /// True when every durable peer has a live session (skip redundant catch-up dials).
+    #[must_use]
+    pub fn periodic_catch_up_idle(&self) -> bool {
+        let local = self.local_tip();
+        if local.height == 0 {
+            return false;
+        }
+        let durable = self.snapshot_durable_available_peers();
+        if durable.is_empty() {
+            return false;
+        }
+        let sessions: BTreeSet<String> = self.snapshot_session_peers().into_iter().collect();
+        durable.iter().all(|p| sessions.contains(p))
+    }
+
+    fn push_proposal_collect_votes_on_peers(
+        self: &Arc<Self>,
+        peers: &[String],
+        proposal_wire: &[u8],
+        production: Option<ProductionHook>,
+    ) {
+        let genesis_id = self.genesis_id;
+        let local = self.local_tip();
+        for peer in peers {
+            let vote_body = if let Some(vote) =
+                self.push_proposal_collect_vote_on_session(peer, proposal_wire)
+            {
+                Some(vote)
+            } else {
+                match push_proposal_v1_to_peer(peer, &genesis_id, &local, proposal_wire) {
+                    Ok(vote) => vote,
+                    Err(e) => {
+                        self.note_peer_failure(peer, &e.to_string());
+                        None
+                    }
+                }
+            };
+            if let Some(vote_body) = vote_body {
+                self.note_peer_success(peer);
+                if let Some(h) = production.as_ref() {
+                    let label = h.on_vote_v1(&vote_body);
+                    println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                }
+            }
+        }
+    }
+
+    /// Push `proposal_wire` synchronously and ingest inline vote replies (**M2.4.64**).
+    pub fn fanout_proposal_sync(self: &Arc<Self>, proposal_wire: &[u8], except_peer: Option<&str>) {
+        let peers = self.snapshot_production_fanout_peers_except(except_peer);
+        if peers.is_empty() {
+            return;
+        }
+        let _guard = match self.fanout_lock.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        let production = self.production_hook();
+        self.push_proposal_collect_votes_on_peers(&peers, proposal_wire, production);
+    }
+
     /// Push `proposal_wire` to every registered peer except `except_peer` (**M2.3.23**).
     pub fn fanout_proposal(self: &Arc<Self>, proposal_wire: &[u8], except_peer: Option<&str>) {
         let peers = self.snapshot_production_fanout_peers_except(except_peer);
@@ -634,11 +696,9 @@ impl P2pPeerSet {
             return;
         }
         let wire = proposal_wire.to_vec();
-        let genesis_id = self.genesis_id;
-        let local = self.local_tip();
-        let production = self.production_hook();
         let lock = Arc::clone(&self.fanout_lock);
         let peer_set = Arc::clone(self);
+        let production = self.production_hook();
         thread::Builder::new()
             .name("mfnd-p2p-proposal-fanout".into())
             .spawn(move || {
@@ -646,29 +706,7 @@ impl P2pPeerSet {
                     Ok(g) => g,
                     Err(_) => return,
                 };
-                for peer in peers {
-                    let vote_body = if let Some(vote) =
-                        peer_set.push_proposal_collect_vote_on_session(&peer, &wire)
-                    {
-                        Some(vote)
-                    } else {
-                        match push_proposal_v1_to_peer(&peer, &genesis_id, &local, &wire) {
-                            Ok(vote) => vote,
-                            Err(e) => {
-                                peer_set.note_peer_failure(&peer, &e.to_string());
-                                None
-                            }
-                        }
-                    };
-                    if let Some(vote_body) = vote_body {
-                        peer_set.note_peer_success(&peer);
-                        if let Some(h) = production.as_ref() {
-                            let label = h.on_vote_v1(&vote_body);
-                            println!("mfnd_p2p_proposal_vote_push peer={peer} {label}");
-                            let _ = std::io::Write::flush(&mut std::io::stdout());
-                        }
-                    }
-                }
+                peer_set.push_proposal_collect_votes_on_peers(&peers, &wire, production);
             })
             .ok();
     }
@@ -1057,6 +1095,10 @@ pub fn spawn_committee_catch_up_loop(cfg: CommitteeCatchUpLoop) -> Result<(), St
     thread::Builder::new()
         .name("mfnd-committee-catchup".into())
         .spawn(move || loop {
+            if peer_set.periodic_catch_up_idle() {
+                thread::sleep(Duration::from_millis(interval_ms));
+                continue;
+            }
             let events = catch_up_peer_events(
                 peer_set.snapshot_durable_available_peers(),
                 local_p2p_listen,
@@ -1641,6 +1683,47 @@ mod tests {
         assert_eq!(peer_set.snapshot_session_peers(), vec![peer_key.clone()]);
         peer_set.unregister_session(&peer_key);
         assert!(peer_set.snapshot_session_peers().is_empty());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn periodic_catch_up_idle_when_all_durable_peers_have_sessions() {
+        use std::net::{TcpListener, TcpStream};
+
+        let dir = temp_dir("catch_up_idle");
+        let peer_a = "203.0.113.30:19001".to_string();
+        let peer_b = "203.0.113.31:19001".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(peer_a.clone());
+        peers.insert(peer_b.clone());
+        save_peers(&dir, &peers, 4).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((1, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        assert!(!peer_set.periodic_catch_up_idle());
+
+        let listener_a = TcpListener::bind("127.0.0.1:0").expect("bind a");
+        let addr_a = listener_a.local_addr().expect("local a");
+        peer_set.register_session(&peer_a, TcpStream::connect(addr_a).expect("connect a"));
+        let _ = listener_a.accept().expect("accept a");
+
+        assert!(!peer_set.periodic_catch_up_idle());
+
+        let listener_b = TcpListener::bind("127.0.0.1:0").expect("bind b");
+        let addr_b = listener_b.local_addr().expect("local b");
+        peer_set.register_session(&peer_b, TcpStream::connect(addr_b).expect("connect b"));
+        let _ = listener_b.accept().expect("accept b");
+
+        assert!(peer_set.periodic_catch_up_idle());
 
         std::fs::remove_dir_all(&dir).ok();
     }

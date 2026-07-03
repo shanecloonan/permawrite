@@ -187,6 +187,21 @@ function Set-ObserverPortLine {
     $ports = Read-DevnetPortsFile -Path $PortsFile
     Set-DevnetPort -Path $PortsFile -Ports $ports -Key $Key -Value $Value
 }
+function Rotate-ObserverLogFile {
+    param([string]$Source, [string]$Dest, [int]$MaxWaitSeconds = 15)
+    if (-not (Test-Path $Source)) { return }
+    $deadline = (Get-Date).AddSeconds($MaxWaitSeconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            Move-Item -Force $Source $Dest -ErrorAction Stop
+            return
+        } catch {
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    Copy-Item -Force $Source $Dest
+    Clear-Content $Source
+}
 function Invoke-ObserverRestartProbe {
     param([int]$Iteration, [object[]]$PreHealthOutput)
     $ports = Read-PortsFile
@@ -199,12 +214,20 @@ function Invoke-ObserverRestartProbe {
     $marker = "iteration-$Iteration-$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
     Write-Host "soak: restarting observer iteration=$Iteration old_pid=$oldPid old_rpc=$oldRpc marker=$marker"
     if ($oldPid) {
-        Get-Process -Id ([int]$oldPid) -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        $oldProc = Get-Process -Id ([int]$oldPid) -ErrorAction SilentlyContinue
+        if ($oldProc) {
+            Stop-Process -Id ([int]$oldPid) -Force -ErrorAction SilentlyContinue
+            $waitDeadline = (Get-Date).AddSeconds(15)
+            while ((Get-Date) -lt $waitDeadline) {
+                if (-not (Get-Process -Id ([int]$oldPid) -ErrorAction SilentlyContinue)) { break }
+                Start-Sleep -Milliseconds 250
+            }
+        }
     }
     $obsLog = Join-Path $LogDir "observer.log"
     $obsErr = Join-Path $LogDir "observer.err.log"
-    if (Test-Path $obsLog) { Move-Item -Force $obsLog (Join-Path $LogDir "observer.before-restart-$marker.log") }
-    if (Test-Path $obsErr) { Move-Item -Force $obsErr (Join-Path $LogDir "observer.before-restart-$marker.err.log") }
+    Rotate-ObserverLogFile $obsLog (Join-Path $LogDir "observer.before-restart-$marker.log")
+    Rotate-ObserverLogFile $obsErr (Join-Path $LogDir "observer.before-restart-$marker.err.log")
     $repoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
     $mfnd = if ($env:MFND) { $env:MFND } else { Join-Path $repoRoot "target\release\mfnd.exe" }
     $genesis = Join-Path $repoRoot "mfn-node\testdata\public_devnet_v1.json"
@@ -328,14 +351,27 @@ while ((Get-Date) -lt $deadline) {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "$StallIntervalSeconds", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "$MinHeightDelta", "Process")
         $healthOutput = @()
-        try {
-            $healthOutput = & $HealthScript 2>&1 6>&1
-            $healthOutput | ForEach-Object { Write-Host $_ }
-        } catch {
-            $healthOutput | ForEach-Object { Write-Host $_ }
-            $script:LastFailure = "iteration=$iteration command=health-check error=$($_.Exception.Message)"
-            throw
+        $healthDeadline = (Get-Date).AddSeconds([Math]::Max(60, $StallIntervalSeconds))
+        while ((Get-Date) -lt $healthDeadline) {
+            try {
+                $healthOutput = & $HealthScript 2>&1 6>&1
+                break
+            } catch {
+                $msg = "$($_.Exception.Message)"
+                if ($msg -match "diverged|unreachable|p2p sessions=") {
+                    Start-Sleep -Seconds 5
+                    continue
+                }
+                $healthOutput | ForEach-Object { Write-Host $_ }
+                $script:LastFailure = "iteration=$iteration command=health-check error=$msg"
+                throw
+            }
         }
+        if ($healthOutput.Count -eq 0) {
+            $script:LastFailure = "iteration=$iteration command=health-check convergence_timeout"
+            throw $script:LastFailure
+        }
+        $healthOutput | ForEach-Object { Write-Host $_ }
         Add-SoakSample $iteration $healthOutput
         if ($RestartObserverOnce -and -not $observerRestartDone) {
             Invoke-ObserverRestartProbe $iteration $healthOutput

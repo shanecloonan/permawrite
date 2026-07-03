@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::io::Write;
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
@@ -18,6 +18,37 @@ use crate::{
     ChainTipV1, GossipHandler, GossipRecvStats, HelloHandshakeError, PullBlocksError,
     PullBlocksStats, P2P_GOSSIP_IO_TIMEOUT, P2P_HANDSHAKE_IO_TIMEOUT,
 };
+
+/// Maximum concurrent inbound P2P session handlers (handshake + post-handshake).
+const P2P_MAX_INBOUND_HANDLERS: usize = 48;
+
+fn try_acquire_inbound_handler_slot(in_flight: &AtomicUsize) -> bool {
+    loop {
+        let current = in_flight.load(AtomicOrdering::Acquire);
+        if current >= P2P_MAX_INBOUND_HANDLERS {
+            return false;
+        }
+        if in_flight
+            .compare_exchange_weak(
+                current,
+                current + 1,
+                AtomicOrdering::AcqRel,
+                AtomicOrdering::Acquire,
+            )
+            .is_ok()
+        {
+            return true;
+        }
+    }
+}
+
+struct InboundHandlerSlot<'a>(&'a AtomicUsize);
+
+impl Drop for InboundHandlerSlot<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, AtomicOrdering::AcqRel);
+    }
+}
 
 /// Shared gossip admission hook for inbound P2P sessions (**M2.3.16**).
 pub type GossipHook = Arc<dyn GossipHandler>;
@@ -683,78 +714,104 @@ pub fn spawn_inbound_handshake_loop(cfg: InboundP2pLoop) -> Result<(), String> {
             },
     } = cfg;
     let local_p2p_listen = listener.local_addr().ok();
+    let inbound_in_flight = Arc::new(AtomicUsize::new(0));
     thread::Builder::new()
         .name("mfnd-p2p".into())
         .spawn(move || loop {
-            let (mut sock, peer) = match listener.accept() {
+            let (sock, peer) = match listener.accept() {
                 Ok(x) => x,
                 Err(e) => {
                     eprintln!("mfnd p2p: accept: {e}");
                     continue;
                 }
             };
+            if !try_acquire_inbound_handler_slot(&inbound_in_flight) {
+                eprintln!(
+                    "mfnd_p2p_inbound_cap_reached peer={peer} cap={P2P_MAX_INBOUND_HANDLERS}"
+                );
+                drop(sock);
+                continue;
+            }
             let hid = hid_counter.fetch_add(1, AtomicOrdering::Relaxed);
-            let t0 = Instant::now();
-            let _ = sock.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-            let _ = sock.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
-            if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
-                eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=hello {e}");
-                continue;
-            }
-            if let Err(e) = recv_ping_send_pong(&mut sock) {
-                eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=ping_pong {e}");
-                continue;
-            }
-            let local = local_chain_tip(&tip_cell, block_sync.as_ref());
-            match exchange_chain_tip_v1_as_listener(&mut sock, &local) {
-                Ok(remote) => match exchange_goodbye_v1_as_listener(&mut sock) {
-                    Ok(()) => {
-                        let peer_s = peer.to_string();
-                        // Inbound peer addresses are ephemeral source ports for one-shot catch-up,
-                        // proposal, vote, and tx pushes. Keep the live socket as a transient session
-                        // so on-chain storage chunks can fan out to a replica that dials us, but do
-                        // not add the source port to the persistent dialable peer set.
-                        if let Some(ps) = &fanout_peers {
-                            ps.register_ephemeral_peer(&peer_s);
-                            if let Ok(clone) = sock.try_clone() {
-                                ps.register_session(&peer_s, clone);
-                                ps.on_session_registered(&peer_s);
+            let slot_counter = Arc::clone(&inbound_in_flight);
+            let tip_cell = Arc::clone(&tip_cell);
+            let hid_counter = Arc::clone(&hid_counter);
+            let gossip = gossip.clone();
+            let block_sync = block_sync.clone();
+            let block_applier = block_applier.clone();
+            let light_follow = light_follow.clone();
+            let fanout_peers = fanout_peers.clone();
+            let production = production.clone();
+            let local_p2p_listen = local_p2p_listen;
+            thread::Builder::new()
+                .name(format!("mfnd-p2p-in-{hid}"))
+                .spawn(move || {
+                    let _slot = InboundHandlerSlot(&slot_counter);
+                    let mut sock = sock;
+                    let t0 = Instant::now();
+                    let _ = sock.set_read_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+                    let _ = sock.set_write_timeout(Some(P2P_HANDSHAKE_IO_TIMEOUT));
+                    if let Err(e) = hello_v1_handshake(&mut sock, &genesis_id) {
+                        eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=hello {e}");
+                        return;
+                    }
+                    if let Err(e) = recv_ping_send_pong(&mut sock) {
+                        eprintln!(
+                            "mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=ping_pong {e}"
+                        );
+                        return;
+                    }
+                    let local = local_chain_tip(&tip_cell, block_sync.as_ref());
+                    match exchange_chain_tip_v1_as_listener(&mut sock, &local) {
+                        Ok(remote) => match exchange_goodbye_v1_as_listener(&mut sock) {
+                            Ok(()) => {
+                                let peer_s = peer.to_string();
+                                if let Some(ps) = &fanout_peers {
+                                    ps.register_ephemeral_peer(&peer_s);
+                                    if let Ok(clone) = sock.try_clone() {
+                                        ps.register_session(&peer_s, clone);
+                                        ps.on_session_registered(&peer_s);
+                                    }
+                                }
+                                log_peer_tip(hid, &peer_s, &remote);
+                                log_height_cmp(hid, &peer_s, local.height, &remote);
+                                log_handshake_ms(hid, &peer_s, t0.elapsed());
+                                if gossip.is_some() || production.is_some() {
+                                    if let Some(h) = &gossip {
+                                        recv_post_handshake(
+                                            &mut sock,
+                                            hid,
+                                            &peer_s,
+                                            &tip_cell,
+                                            &hid_counter,
+                                            genesis_id,
+                                            &remote,
+                                            h,
+                                            block_sync.as_ref(),
+                                            block_applier.as_ref(),
+                                            light_follow.as_ref(),
+                                            fanout_peers.as_ref(),
+                                            production.as_ref(),
+                                            local_p2p_listen,
+                                        );
+                                    }
+                                }
                             }
-                        }
-                        log_peer_tip(hid, &peer_s, &remote);
-                        log_height_cmp(hid, &peer_s, local.height, &remote);
-                        log_handshake_ms(hid, &peer_s, t0.elapsed());
-                        // Inbound peers may dial to send proposals/votes; do not start a height
-                        // pull on this socket before reading their frames.
-                        if gossip.is_some() || production.is_some() {
-                            if let Some(h) = &gossip {
-                                recv_post_handshake(
-                                    &mut sock,
-                                    hid,
-                                    &peer_s,
-                                    &tip_cell,
-                                    &hid_counter,
-                                    genesis_id,
-                                    &remote,
-                                    h,
-                                    block_sync.as_ref(),
-                                    block_applier.as_ref(),
-                                    light_follow.as_ref(),
-                                    fanout_peers.as_ref(),
-                                    production.as_ref(),
-                                    local_p2p_listen,
+                            Err(e) => {
+                                eprintln!(
+                                    "mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=goodbye {e}"
                                 );
                             }
+                        },
+                        Err(e) => {
+                            eprintln!(
+                                "mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=tip {e}"
+                            );
                         }
                     }
-                    Err(e) => {
-                        eprintln!(
-                            "mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=goodbye {e}"
-                        );
-                    }
-                },
-                Err(e) => eprintln!("mfnd_p2p_handshake_abort hid={hid} peer={peer} stage=tip {e}"),
-            }
+                })
+                .map_err(|e| eprintln!("mfnd serve: spawn inbound p2p handler: {e}"))
+                .ok();
         })
         .map_err(|e| format!("mfnd serve: spawn p2p thread: {e}"))?;
     Ok(())
