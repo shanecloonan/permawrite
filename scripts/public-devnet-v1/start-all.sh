@@ -50,6 +50,9 @@ echo "Starting voter 2..."
 "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
+if [[ "${MFN_DEVNET_NO_OBSERVER:-}" == "1" ]]; then
+  echo "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
+else
 echo "Starting observer..."
 "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
@@ -66,6 +69,7 @@ if [[ -n "$OBSERVER_RPC" ]]; then
   echo "Observer RPC=$OBSERVER_RPC"
 else
   echo "Observer RPC not ready within 60s; health-check may skip observer (see $LOG_DIR/observer.log)" >&2
+fi
 fi
 echo "Logs: $LOG_DIR  Ports: $PORTS_FILE"
 echo "Run health-check.sh when a slot has sealed."

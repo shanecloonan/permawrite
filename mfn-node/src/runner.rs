@@ -429,6 +429,12 @@ impl ProductionEngine {
                 });
             }
         }
+        // Fan out immediately so committee voters can reply on the same slot tick;
+        // waiting for the next tick lets pending advance slots before votes arrive.
+        if proposal.producer_proof.validator_index == self.local.validator.index {
+            let wire = encode_block_proposal(&proposal);
+            self.peers.fanout_proposal(&wire, None);
+        }
         // The original producer owns proposal fan-out and bounded rebroadcast.
         // Committee voters keep a local pending proposal only to vote; re-gossiping
         // from every voter can keep stale proposals alive after catch-up advances.

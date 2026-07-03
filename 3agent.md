@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability. | Landed on `main` (`cc3d2d3`); local CI green. | Windows `soak: RESTART` evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability (durable peers, observer sync, soak harness). | Committing — local CI mirror running. | Windows full `soak: RESTART` PASS. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI on `cc3d2d3`. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Live participant rehearsal evidence fixture. | Harness hardened on `main`; full smoke still flaky when hub RPC dies under observer load. | Re-run `participant-rehearsal-smoke` on `cc3d2d3`; archive evidence fixture. |
 
@@ -25,7 +25,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 1: M2.4.61 — restored M2.3.29 (`--produce` skips committee catch-up); helper mesh back to hub `--produce` + committee voters; hub bounded slot scan handles `F=1.5` genesis.
 - Agent 1: M2.4.60 — soak converged warmup (`soak: WARMUP`), manifest multi-producer sortition bounds, P2P dial readiness timeouts.
 - Agent 1: M2.4.59 — observer restart soak evidence (`soak: RESTART`).
-- Agent 1: M2.4.62 — producer seals quorum pending on slot tick; same-producer slot advance wins `reconcile_pending` so committee votes track live proposals.
+- Agent 1: M2.4.62 — durable catch-up peers, producer seal-on-quorum slot tick, observer catch-up + inbound ahead-tip pull, two-phase soak warmup, soak SLOT_MS/stall auto-tuning.
 - Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy, wheelhouse/offline validation.
 - Agent 3: Participant rehearsal smoke, faucet reward wait hardening, evidence-dir release-audit handoff.
 
@@ -45,8 +45,9 @@ Completed unit (M2.4.62):
 - [x] Seal pending proposals with quorum on producer slot tick when vote ingest did not apply the block.
 - [x] Exclude ephemeral inbound peers from committee catch-up / reconnect / `peers.json` persist (`durable_peers` set).
 - [x] Two-phase soak warmup: hub-only health (`MFN_HEALTH_REQUIRE_ALL_ROLES=0`) then full mesh convergence.
-- [ ] Unit test `ephemeral_peers_are_excluded_from_committee_catch_up` green.
-- [ ] Live `soak.ps1 -RestartObserverOnce` evidence (`soak: RESTART`).
+- [x] Unit test `ephemeral_peers_are_excluded_from_committee_catch_up` green.
+- [x] Two-phase soak warmup passes (`soak: WARMUP phase=hub_produced` / `phase=converged`).
+- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` (RPC refused / stall tuning on 30s-slot Windows host).
 - [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, check GitHub CI.
 
 Next Agent 1 task:

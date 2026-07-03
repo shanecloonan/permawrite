@@ -128,7 +128,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Seal pending proposals with quorum on producer slot tick when vote ingest did not apply the block (**M2.4.62**).
 - [x] Accept same-producer higher-slot proposals in `reconcile_pending` so committee votes track live hub proposals after pending release (**M2.4.62**).
 - [x] Two-phase soak warmup: hub-only health then full mesh convergence (**M2.4.62**).
-- [x] Observer periodic catch-up + inbound post-handshake pull when remote tip is ahead (**M2.4.62**).
+- [x] Observer periodic catch-up gated on `--p2p-dial` (listen-only smokes unaffected).
 - [ ] Capture passing Windows `soak: RESTART` evidence after M2.4.62 mesh stability fixes.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding

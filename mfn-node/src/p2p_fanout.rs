@@ -461,6 +461,7 @@ impl P2pPeerSet {
             .unwrap_or_default()
     }
 
+    #[allow(dead_code)] // exercised by unit tests in this module
     fn snapshot_available_peers(&self) -> Vec<String> {
         let peers = self.snapshot_peers();
         let Ok(mut quarantine) = self.quarantine.lock() else {
@@ -505,15 +506,12 @@ impl P2pPeerSet {
 
     /// Track an inbound dialer for this process without writing it to `peers.json`.
     ///
-    /// Inbound `peer_addr` values are usually ephemeral TCP source ports. They can be
-    /// useful while a live socket is registered for fan-out, but they must not become
-    /// durable boot/reconnect peers.
+    /// Inbound `peer_addr` values are usually ephemeral TCP source ports. They may hold
+    /// a live session for tx/chunk fan-out, but must not pollute production fan-out or
+    /// durable boot/reconnect peer sets.
     pub fn register_ephemeral(&self, peer_addr: impl Into<String>) {
         let addr = peer_addr.into();
         self.note_peer_success(&addr);
-        if let Ok(mut g) = self.peers.lock() {
-            g.insert(addr);
-        }
     }
 
     /// Clear transient score state after any successful peer exchange.
@@ -585,7 +583,36 @@ impl P2pPeerSet {
     }
 
     fn snapshot_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
-        self.snapshot_available_peers()
+        self.snapshot_tx_fanout_peers_except(except_peer)
+    }
+
+    /// Durable committee/boot peers for proposal and vote fan-out.
+    fn snapshot_production_fanout_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
+        let durable = self.snapshot_durable_available_peers();
+        let peers = if durable.is_empty() {
+            // Before P2P advertise registers committee listen addrs, fan out on live sessions.
+            self.snapshot_session_peers()
+        } else {
+            durable
+        };
+        peers
+            .into_iter()
+            .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
+            .collect()
+    }
+
+    /// Durable peers plus any live inbound session keys for tx/chunk gossip.
+    fn snapshot_tx_fanout_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
+        let mut peers: BTreeSet<String> = self
+            .snapshot_durable_available_peers()
+            .into_iter()
+            .collect();
+        if let Ok(sessions) = self.sessions.lock() {
+            for peer in sessions.keys() {
+                peers.insert(peer.clone());
+            }
+        }
+        peers
             .into_iter()
             .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
             .collect()
@@ -602,7 +629,7 @@ impl P2pPeerSet {
 
     /// Push `proposal_wire` to every registered peer except `except_peer` (**M2.3.23**).
     pub fn fanout_proposal(self: &Arc<Self>, proposal_wire: &[u8], except_peer: Option<&str>) {
-        let peers = self.snapshot_peers_except(except_peer);
+        let peers = self.snapshot_production_fanout_peers_except(except_peer);
         if peers.is_empty() {
             return;
         }
@@ -662,7 +689,7 @@ impl P2pPeerSet {
 
     /// Push `vote_wire` to every registered peer except `except_peer` (**M2.3.23**).
     pub fn fanout_vote(&self, vote_wire: &[u8], except_peer: Option<&str>) {
-        let peers = self.snapshot_peers_except(except_peer);
+        let peers = self.snapshot_production_fanout_peers_except(except_peer);
         if peers.is_empty() {
             return;
         }
@@ -1556,7 +1583,10 @@ mod tests {
         );
 
         peer_set.register_ephemeral(&ephemeral);
-        assert!(peer_set.snapshot_available_peers().contains(&ephemeral));
+        assert!(!peer_set.snapshot_available_peers().contains(&ephemeral));
+        assert!(!peer_set
+            .snapshot_production_fanout_peers_except(None)
+            .contains(&ephemeral));
         assert!(!peer_set
             .snapshot_durable_available_peers()
             .contains(&ephemeral));

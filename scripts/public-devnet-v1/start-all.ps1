@@ -139,6 +139,9 @@ $v2Proc = Start-MfndRole `
     -BlsSeedHex "8787878787878787878787878787878787878787878787878787878787878787"
 Write-PortsLine "V2_PID=$($v2Proc.Id)"
 Start-Sleep -Seconds 2
+if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
+    Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
+} else {
 $obsLog = Join-Path $LogDir "observer.log"
 $obsErr = Join-Path $LogDir "observer.err.log"
 $obsDataDir = Join-Path $DataRoot "observer"
@@ -168,6 +171,7 @@ if ($ObserverRpc) {
     Write-Host "Observer RPC=$ObserverRpc"
 } else {
     Write-Host "Observer RPC not ready within 60s; health-check may skip observer (see $obsLog)"
+}
 }
 Write-Host "Started jobs. Logs: $LogDir  Ports: $PortsFile"
 Write-Host "After ~30s run: .\health-check.ps1"

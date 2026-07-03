@@ -686,7 +686,7 @@ pub(crate) fn run_serve(
         } else {
             None
         };
-        if !produce && !committee_vote {
+        if !produce && !committee_vote && !p2p_dials.is_empty() {
             println!("mfnd_observer_catchup_start");
             std::io::stdout()
                 .flush()

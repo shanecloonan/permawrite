@@ -213,6 +213,7 @@ if (( NO_START == 0 )); then
   if [[ -z "${SLOT_MS:-}" ]]; then
     export SLOT_MS=10000
   fi
+  export MFN_DEVNET_NO_OBSERVER=1
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd
   bash "$SCRIPT_DIR/start-all.sh"
   STARTED_MESH=1

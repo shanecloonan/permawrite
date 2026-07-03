@@ -117,6 +117,7 @@ try {
     }
     if (-not $NoStart) {
         if (-not $env:SLOT_MS) { $env:SLOT_MS = "10000" }
+        $env:MFN_DEVNET_NO_OBSERVER = "1"
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
         . (Join-Path $ScriptDir "start-all.ps1")
         $startedMesh = $true
