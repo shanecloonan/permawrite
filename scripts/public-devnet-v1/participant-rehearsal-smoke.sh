@@ -90,9 +90,9 @@ validate_uint() {
 if (( WAIT_AFTER_START_SECONDS < 0 )); then
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     if (( WITH_OBSERVER )); then
-      WAIT_AFTER_START_SECONDS=75
+      WAIT_AFTER_START_SECONDS=90
     else
-      WAIT_AFTER_START_SECONDS=60
+      WAIT_AFTER_START_SECONDS=75
     fi
   elif (( WITH_OBSERVER )); then
     WAIT_AFTER_START_SECONDS=45

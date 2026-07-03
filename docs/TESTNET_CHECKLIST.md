@@ -209,7 +209,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Capture passing Windows 30s-slot (`SLOT_MS=30000`) soak evidence with hub lifetime past height 10 (**M2.4.70**, `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`, final height 38).
 - [x] Soak success criteria and graceful deadline exit for production-slot audits (**M2.4.71**, `-MinFinalHeight`, convergence retries, archive on finish).
 - [x] Release-candidate evidence JSON/MD for M2.4.70 commit (**M2.4.72**, `evidence/release-evidence-ebe1e48.*`).
-- [ ] Confirm first green Linux nightly for observer-enabled participant rehearsal smoke (**M2.4.84** CI-aware runner timeouts + rehearsal pre-build after Nightly #46 failed; auto-dispatch via RC Validation on green CI).
+- [ ] Confirm first green Linux nightly for observer-enabled participant rehearsal smoke (**M2.4.86** hub poll 300s + log dump on failure; M2.4.85 `--no-build`/`SLOT_MS` landed on `052e507`; Nightly #48 rehearsal still fail ~3m).
 - [x] Linux `soak.sh` success criteria, soak lock, and archive parity with PowerShell (**M2.4.73**).
 - [x] RC audit dry-run with M2.4.70 soak evidence archived (`release-rc-audit-dry-run.ps1`, decision=go) (**M2.4.73**).
 - [ ] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74**, run **Linux Soak Audit** workflow; Windows evidence archived).

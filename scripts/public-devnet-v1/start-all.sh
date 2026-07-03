@@ -63,7 +63,7 @@ HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_POLL_MAX=120
+  HUB_POLL_MAX=300
 fi
 for _ in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
@@ -74,7 +74,8 @@ for _ in $(seq 1 "$HUB_POLL_MAX"); do
   sleep 1
 done
 if [[ -z "$HUB_P2P" ]]; then
-  echo "hub failed to print P2P listen; see $LOG_DIR/v0.log" >&2
+  echo "hub failed to print P2P listen within ${HUB_POLL_MAX}s; tail $LOG_DIR/v0.log:" >&2
+  tail -n 100 "$LOG_DIR/v0.log" 2>/dev/null >&2 || echo "(no v0.log)" >&2
   exit 1
 fi
 echo "HUB_P2P=$HUB_P2P" >>"$PORTS_FILE"
@@ -99,7 +100,7 @@ echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
 OBSERVER_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  OBSERVER_POLL_MAX=120
+  OBSERVER_POLL_MAX=300
 fi
 for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
@@ -112,7 +113,8 @@ if [[ -n "$OBSERVER_RPC" ]]; then
   echo "OBSERVER_RPC=$OBSERVER_RPC" >>"$PORTS_FILE"
   echo "Observer RPC=$OBSERVER_RPC"
 else
-  echo "Observer RPC not ready within 60s; health-check may skip observer (see $LOG_DIR/observer.log)" >&2
+  echo "Observer RPC not ready within ${OBSERVER_POLL_MAX}s; tail $LOG_DIR/observer.log:" >&2
+  tail -n 100 "$LOG_DIR/observer.log" 2>/dev/null >&2 || echo "(no observer.log)" >&2
 fi
 fi
 echo "Logs: $LOG_DIR  Ports: $PORTS_FILE"

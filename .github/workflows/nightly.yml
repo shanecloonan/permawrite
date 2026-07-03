@@ -79,6 +79,16 @@ jobs:
           SLOT_MS: 10000
           MFN_DEVNET_NO_OBSERVER: 1
         run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --archive-evidence
+      - name: Dump devnet logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== devnet-ports.env ==="
+          cat scripts/public-devnet-v1/devnet-ports.env 2>/dev/null || true
+          echo "=== logs/v0.log (tail) ==="
+          tail -n 200 scripts/public-devnet-v1/logs/v0.log 2>/dev/null || echo "(no v0.log)"
+          echo "=== logs/observer.log (tail) ==="
+          tail -n 100 scripts/public-devnet-v1/logs/observer.log 2>/dev/null || true
       - name: Upload rehearsal logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -126,6 +136,16 @@ jobs:
         env:
           SLOT_MS: 10000
         run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 300 --archive-evidence
+      - name: Dump devnet logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "=== devnet-ports.env ==="
+          cat scripts/public-devnet-v1/devnet-ports.env 2>/dev/null || true
+          echo "=== logs/v0.log (tail) ==="
+          tail -n 200 scripts/public-devnet-v1/logs/v0.log 2>/dev/null || echo "(no v0.log)"
+          echo "=== logs/observer.log (tail) ==="
+          tail -n 200 scripts/public-devnet-v1/logs/observer.log 2>/dev/null || echo "(no observer.log)"
       - name: Upload rehearsal logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

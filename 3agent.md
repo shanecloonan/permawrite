@@ -17,61 +17,64 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.85** pushed (`26a2d07`). | **Watching** — CI in flight; hold pushes ~70 min. | Nightly green after RC auto-dispatch. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.85** release evidence. | **Done** — `648ae0d` + `26a2d07` evidence committed. | Operator sign-off after Nightly + soak. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.85** full Nightly green. | **Watching** — ignored PASS on `648ae0d`; rehearsal fix in `26a2d07`. | Confirm all 3 Nightly jobs green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.86** hub poll + log dump for Nightly rehearsal. | **In progress** — ci-check running; push after green. | Monitor Nightly #49 after RC auto-dispatch. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.86** release evidence. | **Pending** — `052e507` evidence generated locally; commit with M2.4.86. | Operator sign-off after Nightly + soak. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.86** full Nightly green. | **Blocked** — rehearsal jobs fail ~3m (hub poll timeout suspected). | Confirm all 3 Nightly jobs green. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.84** — CI **success** on `648ae0d`; RC Validation **success**; Nightly ignored integration **PASS** (#47).
-- Agent 1: **M2.4.84** — CI-aware timeouts + sortition smoke fix + nightly pre-build.
+- Agent 1: **M2.4.85** — `start-all --no-build`, preserve `SLOT_MS`; CI green on `052e507` (run 28682779428).
+- Agent 1: **M2.4.84** — CI-aware timeouts + sortition smoke fix + nightly pre-build; Nightly ignored **PASS** (#47–#48).
 - Agent 2: **M2.4.83** — full green CI chain on `5384ae2` + auto Nightly dispatch.
 - Agent 3: Windows participant + observer rehearsal PASS (local).
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.84)
+### Done (M2.4.64–M2.4.85)
 
 - [x] Windows 30s-slot soak PASS height 38 + RESTART.
-- [x] Green GitHub CI on `648ae0d` (run 28677784928).
+- [x] Green GitHub CI on `052e507` (run 28682779428).
 - [x] RC Validation auto-dispatch verified.
-- [x] Nightly ignored P2P/produce smokes **PASS** on GitHub (#47).
+- [x] Nightly ignored P2P/produce smokes **PASS** on GitHub (#47–#48).
+- [x] M2.4.85: `start-all --no-build`; preserve caller `SLOT_MS` in `config.env`.
 
-### In Progress (M2.4.85)
+### In Progress (M2.4.86)
 
-- [x] Diagnose rehearsal failure: `start-all.sh` rebuilds mfnd despite smoke `--no-build`; `config.env` overwrote Nightly `SLOT_MS=10000`.
-- [x] Add `start-all.sh --no-build`; wire from `participant-rehearsal-smoke.sh`.
-- [x] Preserve caller `SLOT_MS` in `config.env` (`: "${SLOT_MS:=30000}"`).
-- [x] Local CI mirror PASS + push (`26a2d07`).
-- [ ] Green CI on `26a2d07` (~70 min).
-- [ ] Green Nightly (rehearsal + observer jobs).
-- [ ] Linux 30s-slot soak evidence.
+- [x] Diagnose rehearsal failure timing (~3m): hub `mfnd_p2p_listening` poll likely exceeds 120s on GitHub runners.
+- [x] Increase `HUB_POLL_MAX` / `OBSERVER_POLL_MAX` to **300s** on `GITHUB_ACTIONS`.
+- [x] Tail `v0.log` / `observer.log` to stderr on hub/observer startup failure.
+- [x] Add Nightly workflow step to dump devnet logs on rehearsal failure (visible in Actions UI).
+- [x] Increase post-start wait on CI (75s no-observer, 90s with-observer).
+- [ ] Local CI mirror PASS.
+- [ ] Push → green CI (~70 min) → Nightly #49 via RC Validation.
 
 ### Next
 
+- [ ] First full green Nightly (rehearsal + observer jobs).
+- [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** workflow, ~35 min).
 - [ ] Archive Linux soak artifact.
 - [ ] Operator sign-off on release inventory.
 
 ## Agent 3 Detailed Plan
 
-- [x] Nightly ignored integration green on GitHub (`648ae0d`).
-- [ ] First full green **Nightly** (rehearsal jobs pending M2.4.85).
+- [x] Nightly ignored integration green on GitHub (`052e507`).
+- [ ] First full green **Nightly** (rehearsal jobs — M2.4.86 hub poll fix).
 
 ## Agent 2 Detailed Plan
 
 - [x] `release-evidence-648ae0d` + RC audit committed (`26a2d07`).
-- [ ] `release-evidence-26a2d07` after CI green.
+- [ ] `release-evidence-052e507` + M2.4.86 evidence after push.
 - [ ] Operator human sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **PASS** (`648ae0d`).
-- Nightly ignored suite — **PASS** (#47); rehearsal jobs — **fail** (M2.4.85 fix).
+- Exact commit has green GitHub CI — **PASS** (`052e507`).
+- Nightly ignored suite — **PASS** (#48); rehearsal jobs — **fail** (hub poll timeout; M2.4.86 fix).
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Rehearsal Nightly jobs need `start-all --no-build` when binaries pre-built (M2.4.85).
+- Rehearsal Nightly jobs: hub startup exceeds 120s poll on GitHub runners (M2.4.86).
 - Linux Soak Audit manual dispatch (~35 min).
-- Hold pushes until M2.4.85 ci-check green; then ~70 min CI before next Nightly auto-dispatch.
+- Hold pushes until M2.4.86 ci-check green; then ~70 min CI before next Nightly auto-dispatch.
