@@ -15,6 +15,7 @@ GENESIS="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.json"
 DATA_DIR="${DATA_DIR:-$REPO_ROOT/.permawrite-devnet-v1/observer}"
 mkdir -p "$DATA_DIR"
 unset MFND_VALIDATOR_INDEX MFND_VRF_SEED_HEX MFND_BLS_SEED_HEX
+SLOT_MS="${SLOT_MS:-30000}"
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
   --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
-  --p2p-dial "$HUB_P2P" serve
+  --p2p-dial "$HUB_P2P" --slot-duration-ms "$SLOT_MS" serve

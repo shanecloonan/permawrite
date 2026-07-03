@@ -6,7 +6,7 @@ param(
     [int]$WaitAfterStartSeconds = 30,
     [int]$WaitFaucetSeconds = 240,
     [int]$WaitMinedSeconds = 240,
-    [int]$WaitUploadSeconds = 240,
+    [int]$WaitUploadSeconds = 360,
     [int]$WaitProofSeconds = 240,
     [switch]$NoStart,
     [switch]$NoStop,
@@ -116,6 +116,7 @@ try {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     if (-not $NoStart) {
+        if (-not $env:SLOT_MS) { $env:SLOT_MS = "10000" }
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
         . (Join-Path $ScriptDir "start-all.ps1")
         $startedMesh = $true

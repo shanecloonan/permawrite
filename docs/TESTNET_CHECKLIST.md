@@ -124,6 +124,12 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add integration smoke that public-devnet hub reaches height >= 1 within one slot duration after mesh start.
 - [x] Harden public-devnet local-mesh liveness: soak converged warmup, manifest multi-producer sortition bounds, and helper-mesh role documentation.
 - [x] Restore M2.3.29 on `--produce` nodes: skip periodic committee catch-up dials; helper mesh uses hub `--produce` + committee voters with bounded hub slot scan.
+- [x] Exclude ephemeral inbound peers from committee catch-up, boot reconnect, and `peers.json` persistence (**M2.4.62**).
+- [x] Seal pending proposals with quorum on producer slot tick when vote ingest did not apply the block (**M2.4.62**).
+- [x] Accept same-producer higher-slot proposals in `reconcile_pending` so committee votes track live hub proposals after pending release (**M2.4.62**).
+- [x] Two-phase soak warmup: hub-only health then full mesh convergence (**M2.4.62**).
+- [x] Observer periodic catch-up + inbound post-handshake pull when remote tip is ahead (**M2.4.62**).
+- [ ] Capture passing Windows `soak: RESTART` evidence after M2.4.62 mesh stability fixes.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 
@@ -179,6 +185,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Fix public-devnet rehearsal liveness and first-run decoys so fresh faucet funding can build privacy rings.
 - [x] Stabilize the Windows participant rehearsal smoke real run so funding, upload discovery, HTTP restore, SHA-256 verification, proof submission, and support-bundle capture pass end-to-end from a clean local mesh.
 - [x] Add fail-fast local-mesh liveness diagnostics to permanence waits so participant rehearsal smoke reports dead recorded daemons instead of timing out on repeated RPC refused errors.
+- [x] Log `hub_tip_height` during permanence upload-index waits and fail fast when the hub tip stalls for 120s.
+- [x] Build `mfn-cli` / `mfn-storage-operator` before starting the mesh in participant rehearsal smoke; use 10s smoke slots and longer upload waits.
 - [x] Clarify participant rehearsal proof-of-success outputs, plan-mode next steps, and launch-blocker evidence for outside-user invites.
 - [ ] Promote participant rehearsal smoke into an unattended slow/nightly harness once mesh runtime is stable enough for CI.
 - [x] Add release-audit packet ingestion for archived participant rehearsal transcripts and support-bundle evidence.

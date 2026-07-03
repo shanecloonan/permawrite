@@ -361,6 +361,9 @@ impl ProductionEngine {
 
     /// When two validators propose the same height, keep the smallest-`beta` proof
     /// (same rule as [`pick_winner`]) so all nodes converge on one pending block.
+    /// When the same producer advances to a later slot after releasing a timed-out
+    /// pending proposal, always accept the newer slot so committee votes track the
+    /// live hub proposal instead of stale header hashes.
     fn reconcile_pending(
         existing: &PendingProposal,
         incoming: &BlockProposal,
@@ -376,6 +379,10 @@ impl ProductionEngine {
         }
         let a: &ProducerProof = &existing.proposal.producer_proof;
         let b: &ProducerProof = &incoming.producer_proof;
+        if a.validator_index == b.validator_index && incoming.ctx.slot > existing.proposal.ctx.slot
+        {
+            return Ok(());
+        }
         let candidates = [a.clone(), b.clone()];
         let winner = pick_winner(&candidates).expect("two candidates");
         if winner.validator_index == a.validator_index && winner.beta == a.beta {
@@ -478,20 +485,37 @@ impl ProductionEngine {
                 let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
                 let params = self.params(&chain);
                 let signing = self.signing_stake(&pending.votes, validators);
-                if !self.quorum_reached(signing, total_stake, params.quorum_stake_bps) {
-                    let wire = encode_block_proposal(&pending.proposal);
-                    self.peers.fanout_proposal(&wire, None);
-                    pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
-                    if pending.rebroadcasts >= PENDING_PROPOSAL_REBROADCAST_LIMIT {
-                        println!(
-                            "mfnd_producer_pending_released height={} slot={} votes={}",
-                            pending.proposal.ctx.height,
-                            pending.proposal.ctx.slot,
-                            pending.votes.len()
-                        );
-                        let _ = std::io::Write::flush(&mut std::io::stdout());
+                if self.quorum_reached(signing, total_stake, params.quorum_stake_bps) {
+                    if pending.proposal.producer_proof.validator_index == self.local.validator.index
+                    {
+                        let proposal = pending.proposal.clone();
+                        let votes = pending.votes.clone();
+                        let validators_len = validators.len();
                         *guard = None;
+                        drop(chain);
+                        drop(guard);
+                        match self.seal_and_apply(proposal, votes, validators_len, signing) {
+                            Ok(()) => return,
+                            Err(e) => {
+                                eprintln!("mfnd_producer_seal_tick_abort {e}");
+                                return;
+                            }
+                        }
                     }
+                    return;
+                }
+                let wire = encode_block_proposal(&pending.proposal);
+                self.peers.fanout_proposal(&wire, None);
+                pending.rebroadcasts = pending.rebroadcasts.saturating_add(1);
+                if pending.rebroadcasts >= PENDING_PROPOSAL_REBROADCAST_LIMIT {
+                    println!(
+                        "mfnd_producer_pending_released height={} slot={} votes={}",
+                        pending.proposal.ctx.height,
+                        pending.proposal.ctx.slot,
+                        pending.votes.len()
+                    );
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                    *guard = None;
                 }
                 return;
             }

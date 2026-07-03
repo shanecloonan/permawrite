@@ -12,7 +12,7 @@ FAUCET_WALLET=""
 WAIT_AFTER_START_SECONDS=30
 WAIT_FAUCET_SECONDS=240
 WAIT_MINED_SECONDS=240
-WAIT_UPLOAD_SECONDS=240
+WAIT_UPLOAD_SECONDS=360
 WAIT_PROOF_SECONDS=240
 NO_START=0
 NO_STOP=0
@@ -210,6 +210,9 @@ if (( ! NO_BUILD )); then
 fi
 
 if (( NO_START == 0 )); then
+  if [[ -z "${SLOT_MS:-}" ]]; then
+    export SLOT_MS=10000
+  fi
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd
   bash "$SCRIPT_DIR/start-all.sh"
   STARTED_MESH=1

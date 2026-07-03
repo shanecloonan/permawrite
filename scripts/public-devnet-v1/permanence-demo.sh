@@ -247,8 +247,16 @@ wait_uploads_list_contains() {
   local mfn_cli="$1" rpc_addr="$2" commit_hash="$3" timeout_seconds="$4"
   local deadline=$(( $(date +%s) + timeout_seconds ))
   local last_error=""
+  local last_tip_height=""
+  local last_tip_change
+  last_tip_change="$(date +%s)"
   while (( $(date +%s) <= deadline )); do
-    local out
+    local out tip_height stall_seconds now
+    tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
+    if [[ "$tip_height" != "$last_tip_height" ]]; then
+      last_tip_height="$tip_height"
+      last_tip_change="$(date +%s)"
+    fi
     if ! out="$("$mfn_cli" --rpc "$rpc_addr" uploads list --limit 50 2>&1)"; then
       last_error="uploads list failed: $out"
       echo "permanence-demo: uploads_list_wait retry_after_error=${last_error//$'\n'/ }"
@@ -259,15 +267,49 @@ wait_uploads_list_contains() {
     if [[ "$out" == *"$commit_hash"* ]]; then
       return
     fi
+    now="$(date +%s)"
+    stall_seconds=$(( now - last_tip_change ))
+    echo "permanence-demo: uploads_list_wait hub_tip_height=$tip_height stall_seconds=$stall_seconds"
+    if (( stall_seconds >= 120 )); then
+      local status
+      status="$(recorded_mesh_process_status)"
+      echo "permanence-demo: hub tip stalled at height=$tip_height for ${stall_seconds}s while waiting for commitment index; process_status=$status; logs=$LOG_DIR" >&2
+      exit 1
+    fi
     last_error=""
     sleep 5
   done
-  local suffix=""
+  local suffix="" tip_height
   if [[ -n "$last_error" ]]; then
     suffix="; last_error=$last_error"
   fi
-  echo "permanence-demo: commitment $commit_hash was not indexed within ${timeout_seconds}s$suffix" >&2
+  tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
+  echo "permanence-demo: commitment $commit_hash was not indexed within ${timeout_seconds}s (hub_tip_height=$tip_height)$suffix" >&2
   exit 1
+}
+
+tip_height_text() {
+  local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
+  if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
+    printf 'unknown\n'
+    return
+  fi
+  tip_height="$(awk '{
+    for (i = 1; i <= NF; i++) {
+      if ($i ~ /^tip_height=/) {
+        sub(/^tip_height=/, "", $i)
+        print $i
+        exit
+      }
+    }
+  }' <<<"$tip_out")"
+  if [[ "$tip_height" == "none" ]]; then
+    printf '0\n'
+  elif [[ -n "$tip_height" ]]; then
+    printf '%s\n' "$tip_height"
+  else
+    printf 'unknown\n'
+  fi
 }
 
 wait_uploads_list_proven() {

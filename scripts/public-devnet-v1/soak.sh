@@ -8,7 +8,7 @@ LOG_DIR="$SCRIPT_DIR/logs"
 DURATION_MINUTES=30
 CHECK_INTERVAL_SECONDS=60
 STALL_SAMPLES=2
-STALL_INTERVAL_SECONDS=35
+STALL_INTERVAL_SECONDS=0
 MIN_HEIGHT_DELTA=1
 NO_START=0
 RESTART_OBSERVER_ONCE=0
@@ -303,6 +303,31 @@ wait_for_mesh_production() {
   while (( $(date +%s) < deadline )); do
     read_ports
     assert_pid_alive HUB_PID "${HUB_PID:-}"
+    assert_p2p_logs
+    if health_output=$(
+      MFN_HEALTH_STALL_SAMPLES=1 \
+        MFN_HEALTH_STALL_INTERVAL_SECONDS=0 \
+        MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
+        MFN_HEALTH_REQUIRE_ALL_ROLES=0 \
+        "$SCRIPT_DIR/health-check.sh" 2>&1
+    ); then
+      hub_height="$(health_role_field "$health_output" hub tip_height)"
+      if [[ "$hub_height" =~ ^[0-9]+$ ]] && (( hub_height >= 1 )); then
+        printf '%s\n' "$health_output"
+        echo "soak: WARMUP phase=hub_produced hub_tip_height=$hub_height"
+        break
+      fi
+    fi
+    sleep 5
+  done
+  if (( $(date +%s) >= deadline )); then
+    echo "soak: FAIL mesh hub did not reach tip_height>=1 within ${timeout}s" >&2
+    exit 1
+  fi
+  local converge_deadline=$(( $(date +%s) + timeout ))
+  while (( $(date +%s) < converge_deadline )); do
+    read_ports
+    assert_pid_alive HUB_PID "${HUB_PID:-}"
     assert_pid_alive V1_PID "${V1_PID:-}"
     assert_pid_alive V2_PID "${V2_PID:-}"
     assert_pid_alive OBSERVER_PID "${OBSERVER_PID:-}"
@@ -311,12 +336,13 @@ wait_for_mesh_production() {
       MFN_HEALTH_STALL_SAMPLES=1 \
         MFN_HEALTH_STALL_INTERVAL_SECONDS=0 \
         MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
+        MFN_HEALTH_REQUIRE_ALL_ROLES=1 \
         "$SCRIPT_DIR/health-check.sh" 2>&1
     ); then
       hub_height="$(health_role_field "$health_output" hub tip_height)"
       if [[ "$hub_height" =~ ^[0-9]+$ ]] && (( hub_height >= 1 )); then
         printf '%s\n' "$health_output"
-        echo "soak: WARMUP hub_tip_height=$hub_height"
+        echo "soak: WARMUP phase=converged hub_tip_height=$hub_height"
         return 0
       fi
     fi
@@ -327,9 +353,27 @@ wait_for_mesh_production() {
 }
 
 if (( NO_START == 0 )); then
+  if [[ -z "${SLOT_MS:-}" ]]; then
+    SLOT_MS=10000
+    export SLOT_MS
+    echo "soak: SLOT_MS=${SLOT_MS} (local soak default; override with env SLOT_MS)"
+  fi
+  if (( STALL_INTERVAL_SECONDS <= 0 )); then
+    slot_sec=$(( SLOT_MS / 1000 ))
+    if (( slot_sec < 1 )); then slot_sec=1; fi
+    STALL_INTERVAL_SECONDS=$(( slot_sec * 5 + 15 ))
+    echo "soak: StallIntervalSeconds=${STALL_INTERVAL_SECONDS} (auto from SLOT_MS)"
+  fi
   echo "soak: starting public-devnet-v1 mesh"
   "$SCRIPT_DIR/start-all.sh"
 else
+  if (( STALL_INTERVAL_SECONDS <= 0 )); then
+    slot_ms="${SLOT_MS:-10000}"
+    slot_sec=$(( slot_ms / 1000 ))
+    if (( slot_sec < 1 )); then slot_sec=1; fi
+    STALL_INTERVAL_SECONDS=$(( slot_sec * 5 + 15 ))
+    echo "soak: StallIntervalSeconds=${STALL_INTERVAL_SECONDS} (auto from SLOT_MS)"
+  fi
   echo "soak: using existing public-devnet-v1 mesh"
 fi
 

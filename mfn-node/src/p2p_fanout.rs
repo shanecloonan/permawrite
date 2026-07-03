@@ -211,6 +211,7 @@ pub struct P2pPeerSet {
     data_root: PathBuf,
     max_outbound_peers: u32,
     peers: Arc<Mutex<BTreeSet<String>>>,
+    durable_peers: Arc<Mutex<BTreeSet<String>>>,
     sessions: Arc<Mutex<BTreeMap<String, Arc<Mutex<TcpStream>>>>>,
     quarantine: Arc<Mutex<PeerQuarantine>>,
     production: Arc<Mutex<Option<ProductionHook>>>,
@@ -257,7 +258,8 @@ impl P2pPeerSet {
             tip_cell,
             data_root,
             max_outbound_peers,
-            peers: Arc::new(Mutex::new(initial)),
+            peers: Arc::new(Mutex::new(initial.clone())),
+            durable_peers: Arc::new(Mutex::new(initial)),
             sessions: Arc::new(Mutex::new(BTreeMap::new())),
             quarantine: Arc::new(Mutex::new(PeerQuarantine::new(
                 PEER_FAILURES_BEFORE_QUARANTINE,
@@ -470,13 +472,31 @@ impl P2pPeerSet {
             .collect()
     }
 
+    /// Durable peers suitable for committee catch-up / reconnect (excludes ephemeral inbound dialers).
+    fn snapshot_durable_available_peers(&self) -> Vec<String> {
+        let peers = match self.durable_peers.lock() {
+            Ok(g) => g.iter().cloned().collect::<Vec<_>>(),
+            Err(_) => return Vec::new(),
+        };
+        let Ok(mut quarantine) = self.quarantine.lock() else {
+            return peers;
+        };
+        peers
+            .into_iter()
+            .filter(|peer| !quarantine.is_quarantined(peer))
+            .collect()
+    }
+
     /// Remember a peer after a successful handshake (inbound accept or outbound dial).
     pub fn register(&self, peer_addr: impl Into<String>) {
         let addr = peer_addr.into();
         self.note_peer_success(&addr);
-        let changed = match self.peers.lock() {
-            Ok(mut g) => g.insert(addr),
-            Err(_) => return,
+        let changed = match (self.peers.lock(), self.durable_peers.lock()) {
+            (Ok(mut peers), Ok(mut durable)) => {
+                durable.insert(addr.clone());
+                peers.insert(addr)
+            }
+            _ => return,
         };
         if changed {
             self.persist();
@@ -521,14 +541,15 @@ impl P2pPeerSet {
     }
 
     fn drop_persistent_peer(&self, peer_addr: &str, reason: &str) {
-        let peers = match self.peers.lock() {
-            Ok(mut peers) => {
+        let peers = match (self.peers.lock(), self.durable_peers.lock()) {
+            (Ok(mut peers), Ok(mut durable)) => {
+                durable.remove(peer_addr);
                 if !peers.remove(peer_addr) {
                     return;
                 }
-                peers.clone()
+                durable.clone()
             }
-            Err(_) => return,
+            _ => return,
         };
         match save_peers(&self.data_root, &peers, self.max_outbound_peers) {
             Ok(()) => {
@@ -540,9 +561,9 @@ impl P2pPeerSet {
         }
     }
 
-    /// Write the current peer set to `peers.json` (e.g. on shutdown).
+    /// Write the current durable peer set to `peers.json` (e.g. on shutdown).
     pub fn persist(&self) {
-        let peers = match self.peers.lock() {
+        let peers = match self.durable_peers.lock() {
             Ok(g) => g.clone(),
             Err(_) => return,
         };
@@ -933,7 +954,7 @@ impl FanoutPeerSet for P2pPeerSet {
     }
 
     fn boot_peer_addrs(&self) -> Vec<String> {
-        self.snapshot_available_peers()
+        self.snapshot_durable_available_peers()
     }
 
     fn max_outbound_peers(&self) -> u32 {
@@ -1001,7 +1022,7 @@ pub fn spawn_committee_catch_up_loop(cfg: CommitteeCatchUpLoop) -> Result<(), St
         .name("mfnd-committee-catchup".into())
         .spawn(move || loop {
             let events = catch_up_peer_events(
-                peer_set.snapshot_available_peers(),
+                peer_set.snapshot_durable_available_peers(),
                 local_p2p_listen,
                 peer_set.max_outbound_peers(),
             );
@@ -1051,7 +1072,7 @@ pub fn spawn_reconnect_saved_peers(cfg: ReconnectPeersBoot<'_>) -> Result<(), St
     } = cfg;
     let mut spawned = 0u32;
     let events = reconnect_peer_events(
-        peer_set.snapshot_available_peers(),
+        peer_set.snapshot_durable_available_peers(),
         local_p2p_listen,
         skip_addrs,
         peer_set.max_outbound_peers(),
@@ -1496,7 +1517,7 @@ mod tests {
 
         assert_eq!(
             catch_up_peer_events(
-                peer_set.snapshot_available_peers(),
+                peer_set.snapshot_durable_available_peers(),
                 None,
                 peer_set.max_outbound_peers(),
             ),
@@ -1512,6 +1533,45 @@ mod tests {
         assert!(loaded.contains(&stale_seed));
         assert!(loaded.contains(&healthy_second));
         assert_eq!(max_outbound, 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ephemeral_peers_are_excluded_from_committee_catch_up() {
+        let dir = temp_dir("committee_catchup_ephemeral_exclude");
+        let durable = "203.0.113.20:19001".to_string();
+        let ephemeral = "127.0.0.1:50612".to_string();
+        let mut peers = BTreeSet::new();
+        peers.insert(durable.clone());
+        save_peers(&dir, &peers, 2).expect("save peers");
+
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        peer_set.register_ephemeral(&ephemeral);
+        assert!(peer_set.snapshot_available_peers().contains(&ephemeral));
+        assert!(!peer_set
+            .snapshot_durable_available_peers()
+            .contains(&ephemeral));
+
+        assert_eq!(
+            catch_up_peer_events(
+                peer_set.snapshot_durable_available_peers(),
+                None,
+                peer_set.max_outbound_peers(),
+            ),
+            vec![CatchUpPeerEvent::Dial {
+                peer: durable.clone(),
+            }]
+        );
+
         std::fs::remove_dir_all(&dir).ok();
     }
 

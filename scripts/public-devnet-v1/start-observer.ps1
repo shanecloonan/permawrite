@@ -10,6 +10,7 @@ New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
 Remove-Item Env:MFND_VALIDATOR_INDEX -ErrorAction SilentlyContinue
 Remove-Item Env:MFND_VRF_SEED_HEX -ErrorAction SilentlyContinue
 Remove-Item Env:MFND_BLS_SEED_HEX -ErrorAction SilentlyContinue
+$SlotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 30000 }
 & $Mfnd --data-dir $DataDir --genesis $Genesis --store fs `
     --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 `
-    --p2p-dial $env:HUB_P2P serve
+    --p2p-dial $env:HUB_P2P --slot-duration-ms $SlotMs serve

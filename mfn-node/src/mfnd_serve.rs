@@ -686,6 +686,23 @@ pub(crate) fn run_serve(
         } else {
             None
         };
+        if !produce && !committee_vote {
+            println!("mfnd_observer_catchup_start");
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (observer catch-up): {e}"))?;
+            let observer_catch_up_ms = slot_duration_ms.max(15_000) / 2;
+            spawn_committee_catch_up_loop(CommitteeCatchUpLoop {
+                peer_set: Arc::clone(&fanout),
+                genesis_id,
+                tip_cell: Arc::clone(&tip_cell),
+                hid_counter: Arc::clone(&hid_counter),
+                block_sync: Arc::clone(&sync_hook),
+                block_applier: Arc::clone(&applier_hook),
+                local_p2p_listen,
+                interval_ms: observer_catch_up_ms,
+            })?;
+        }
         (
             Some(tip_cell),
             Some(hid_counter),

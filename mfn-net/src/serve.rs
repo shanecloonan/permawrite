@@ -610,7 +610,22 @@ fn recv_post_handshake(
                 }
                 Some(stats)
             }
-            Ok(None) => break,
+            Ok(None) => {
+                if let Some(a) = block_applier {
+                    post_session_catch_up(
+                        sock,
+                        hid,
+                        peer,
+                        tip_cell,
+                        block_sync,
+                        a,
+                        handshake_remote,
+                        None,
+                        fanout_peers,
+                    );
+                }
+                break;
+            }
             Err(e) => {
                 eprintln!("mfnd_p2p_gossip_abort hid={hid} peer={peer} {e}");
                 break;

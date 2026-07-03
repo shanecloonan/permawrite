@@ -16,16 +16,16 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet hub liveness integration smoke (`75eb64d`). | Complete on `main`; GitHub CI run #445 in progress. | Hand mesh stability evidence to Agent 3. |
+| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability — durable catch-up peers + two-phase soak warmup. | In progress — unit tests + live soak. | Hand `soak: RESTART` evidence to Agent 3. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; review Agent 3 rehearsal harness fixes. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Rehearsal smoke harness + permanence indexing on live mesh. | In progress — fund-wallet PASS after build-before-start fix; permanence index wait still flaky at height stall. | Fix permanence-demo index wait / mesh tip diagnostics; capture evidence fixture. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Permanence index wait hardening + live rehearsal evidence fixture. | In progress — running full `participant-rehearsal-smoke` after Agent 1 seal fix. | Archive evidence fixture; draft nightly promotion scope. |
 
 ## Recently Completed
 
 - Agent 1: M2.4.61 — restored M2.3.29 (`--produce` skips committee catch-up); helper mesh back to hub `--produce` + committee voters; hub bounded slot scan handles `F=1.5` genesis.
 - Agent 1: M2.4.60 — soak converged warmup (`soak: WARMUP`), manifest multi-producer sortition bounds, P2P dial readiness timeouts.
 - Agent 1: M2.4.59 — observer restart soak evidence (`soak: RESTART`).
-- Agent 1: Bounded in-tick producer slot scan + `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke.
+- Agent 1: M2.4.62 — producer seals quorum pending on slot tick; same-producer slot advance wins `reconcile_pending` so committee votes track live proposals.
 - Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy, wheelhouse/offline validation.
 - Agent 3: Participant rehearsal smoke, faucet reward wait hardening, evidence-dir release-audit handoff.
 
@@ -40,10 +40,30 @@ Completed unit (M2.4.61):
 - [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, check GitHub CI.
 - [ ] Re-run `soak.ps1 -RestartObserverOnce` and archive passing `soak: RESTART` evidence.
 
+Completed unit (M2.4.62):
+
+- [x] Seal pending proposals with quorum on producer slot tick when vote ingest did not apply the block.
+- [x] Exclude ephemeral inbound peers from committee catch-up / reconnect / `peers.json` persist (`durable_peers` set).
+- [x] Two-phase soak warmup: hub-only health (`MFN_HEALTH_REQUIRE_ALL_ROLES=0`) then full mesh convergence.
+- [ ] Unit test `ephemeral_peers_are_excluded_from_committee_catch_up` green.
+- [ ] Live `soak.ps1 -RestartObserverOnce` evidence (`soak: RESTART`).
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, check GitHub CI.
+
 Next Agent 1 task:
 
-- [ ] Live observer restart soak evidence on Windows.
 - [ ] Investigate any remaining hub daemon lifetime issues under long soak runs.
+
+## Agent 3 Detailed Plan
+
+Completed unit:
+
+- [x] Harden `permanence-demo` upload-index wait with `hub_tip_height` logging and 120s stall fail-fast.
+- [x] Use 10s smoke slot duration (`SLOT_MS=10000`) and 360s upload wait in participant rehearsal smoke.
+
+Next Agent 3 task:
+
+- [ ] Capture public-devnet participant evidence fixture from successful live `participant-rehearsal-smoke`.
+- [ ] Promote participant rehearsal smoke into slow/nightly CI once Agent 1 soak `soak: RESTART` evidence is green.
 
 ## Shared Release-Candidate Gates
 
@@ -63,9 +83,3 @@ Next Agent 1 task:
 Next Agent 2 task:
 
 - [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (next unchecked Agent 2 item).
-
-## Agent 3 Detailed Plan
-
-Next Agent 3 task:
-
-- [ ] Promote participant rehearsal smoke into slow/nightly CI once Agent 1 soak `soak: RESTART` evidence is green.

@@ -16,10 +16,11 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
-- Live observer restart soak evidence after M2.4.61 mesh stability fix.
+- M2.4.62 mesh stability — producer seal-on-quorum slot tick, same-producer slot advance in `reconcile_pending`, permanence index wait hardening.
 
 Done:
 
+- M2.4.62: producer seals quorum pending on slot tick; committee adopts newer same-producer slot after pending release (fixes stale vote header_hash rejects).
 - M2.4.61: restored M2.3.29 (`--produce` skips committee catch-up); helper mesh hub `--produce` + committee voters; hub bounded slot scan for `F=1.5` genesis.
 - M2.4.60: soak converged warmup, manifest multi-producer sortition bounds, P2P dial readiness.
 - Bounded in-tick producer slot scan + `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke.
@@ -27,7 +28,9 @@ Done:
 
 Next:
 
-- Capture passing `soak: RESTART` on Windows.
+- Live `soak.ps1 -RestartObserverOnce` evidence (`soak: RESTART`).
+- Regenerate `CODEBASE_STATS.md`, local CI mirror, commit/push, GitHub CI.
+- Hand green soak evidence to Agent 3 for nightly rehearsal promotion.
 - Hand mesh stability to Agent 3 for rehearsal promotion when soak is green.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

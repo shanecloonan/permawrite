@@ -3,7 +3,7 @@ param(
     [int]$DurationMinutes = 30,
     [int]$CheckIntervalSeconds = 60,
     [int]$StallSamples = 2,
-    [int]$StallIntervalSeconds = 35,
+    [int]$StallIntervalSeconds = 0,
     [int]$MinHeightDelta = 1,
     [switch]$RestartObserverOnce,
     [int]$RestartTimeoutSeconds = 180,
@@ -78,11 +78,38 @@ function Wait-ForMeshProduction {
     $oldSamples = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES")
     $oldInterval = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS")
     $oldDelta = [Environment]::GetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA")
+    $oldRequireAll = [Environment]::GetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES")
     try {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", "1", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "0", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "1", "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES", "0", "Process")
         while ((Get-Date) -lt $deadline) {
+            $ports = Read-PortsFile
+            Assert-ProcessAlive $ports "HUB_PID"
+            Assert-P2pLogs
+            try {
+                $healthOutput = & $HealthScript 2>&1 6>&1
+                $healthOutput | ForEach-Object { Write-Host $_ }
+                $passLine = ($healthOutput | ForEach-Object { "$_" } | Where-Object { $_ -match "^health-check: PASS shared tip height=([0-9]+)" } | Select-Object -Last 1)
+                if ($passLine -match "^health-check: PASS shared tip height=([0-9]+)") {
+                    $hubHeight = $Matches[1]
+                    if ([int]$hubHeight -ge 1) {
+                        Write-Host "soak: WARMUP phase=hub_produced hub_tip_height=$hubHeight"
+                        break
+                    }
+                }
+            } catch {
+                # Hub may still be scanning slots; retry until timeout.
+            }
+            Start-Sleep -Seconds 5
+        }
+        if ((Get-Date) -ge $deadline) {
+            throw "soak: FAIL mesh hub did not reach tip_height>=1 within ${timeout}s"
+        }
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES", "1", "Process")
+        $convergeDeadline = (Get-Date).AddSeconds($timeout)
+        while ((Get-Date) -lt $convergeDeadline) {
             $ports = Read-PortsFile
             Assert-ProcessAlive $ports "HUB_PID"
             Assert-ProcessAlive $ports "V1_PID"
@@ -96,12 +123,12 @@ function Wait-ForMeshProduction {
                 if ($passLine -match "^health-check: PASS shared tip height=([0-9]+)") {
                     $hubHeight = $Matches[1]
                     if ([int]$hubHeight -ge 1) {
-                        Write-Host "soak: WARMUP hub_tip_height=$hubHeight"
+                        Write-Host "soak: WARMUP phase=converged hub_tip_height=$hubHeight"
                         return
                     }
                 }
             } catch {
-                # Mesh still converging; retry until timeout.
+                # Followers/observer still catching up; retry until timeout.
             }
             Start-Sleep -Seconds 5
         }
@@ -110,6 +137,7 @@ function Wait-ForMeshProduction {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", $oldSamples, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", $oldInterval, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", $oldDelta, "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES", $oldRequireAll, "Process")
     }
 }
 function Add-SoakSample {
@@ -255,9 +283,24 @@ trap {
 }
 
 if (-not $NoStart) {
+    if (-not $env:SLOT_MS) {
+        $env:SLOT_MS = "10000"
+        Write-Host "soak: SLOT_MS=$($env:SLOT_MS) (local soak default; override with env SLOT_MS)"
+    }
+    if ($StallIntervalSeconds -le 0) {
+        $slotSec = [Math]::Max(1, [int]$env:SLOT_MS / 1000)
+        $StallIntervalSeconds = ($slotSec * 5) + 15
+        Write-Host "soak: StallIntervalSeconds=$StallIntervalSeconds (auto from SLOT_MS)"
+    }
     Write-Host "soak: starting public-devnet-v1 mesh"
     & $StartAllScript
 } else {
+    if ($StallIntervalSeconds -le 0) {
+        $slotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 10000 }
+        $slotSec = [Math]::Max(1, $slotMs / 1000)
+        $StallIntervalSeconds = ($slotSec * 5) + 15
+        Write-Host "soak: StallIntervalSeconds=$StallIntervalSeconds (auto from SLOT_MS)"
+    }
     Write-Host "soak: using existing public-devnet-v1 mesh"
 }
 

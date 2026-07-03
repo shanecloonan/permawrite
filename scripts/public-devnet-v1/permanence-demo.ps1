@@ -110,14 +110,43 @@ function Parse-Field {
     throw "permanence-demo: stdout missing $prefix`n$Text"
 }
 
+function Get-TipHeightText {
+    param([string]$MfnCli, [string]$RpcAddr)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $tipOut = & $MfnCli --rpc $RpcAddr tip 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    if ($LASTEXITCODE -ne 0) { return "unknown" }
+    $tipText = ($tipOut | Out-String)
+    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
+    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+    return "unknown"
+}
+
 function Wait-UploadsListContains {
     param([string]$MfnCli, [string]$RpcAddr, [string]$CommitHash, [int]$TimeoutSeconds)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $lastError = ""
+    $lastTipHeight = ""
+    $lastTipChange = [DateTime]::UtcNow
     do {
         try {
+            $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+            if ($tipHeight -ne $lastTipHeight) {
+                $lastTipHeight = $tipHeight
+                $lastTipChange = [DateTime]::UtcNow
+            }
             $out = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list"
             if ($out -like "*$CommitHash*") { return $out }
+            $stallSeconds = ([DateTime]::UtcNow - $lastTipChange).TotalSeconds
+            Write-Host "permanence-demo: uploads_list_wait hub_tip_height=$tipHeight stall_seconds=$([int]$stallSeconds)"
+            if ($stallSeconds -ge 120) {
+                $status = @(Get-RecordedMeshProcessStatus) -join ", "
+                throw "permanence-demo: hub tip stalled at height=$tipHeight for ${stallSeconds}s while waiting for commitment index; process_status=$status; logs=$LogDir"
+            }
             $lastError = ""
         } catch {
             $lastError = $_.Exception.Message
@@ -127,7 +156,8 @@ function Wait-UploadsListContains {
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)
     $suffix = if ($lastError) { "; last_error=$lastError" } else { "" }
-    throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s$suffix"
+    $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+    throw "permanence-demo: commitment $CommitHash was not indexed within ${TimeoutSeconds}s (hub_tip_height=$tipHeight)$suffix"
 }
 
 function Ensure-SamplePayload {

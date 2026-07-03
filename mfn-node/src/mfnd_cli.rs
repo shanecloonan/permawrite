@@ -112,7 +112,7 @@ fn usage() -> &'static str {
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
-       --slot-duration-ms MS    only for `serve --produce` / `--committee-vote` (default 1000)\n\
+       --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\
                                   set MFND_VALIDATOR_INDEX + MFND_VRF_SEED_HEX + MFND_BLS_SEED_HEX\n\
                                   (or MFND_SOLO_* aliases) matching the JSON genesis validator row\n\
      \n\
@@ -719,12 +719,6 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     if produce && committee_vote {
         return Err(format!(
             "--produce and --committee-vote are mutually exclusive\n{}",
-            usage()
-        ));
-    }
-    if slot_duration_ms != 1000 && !produce && !committee_vote {
-        return Err(format!(
-            "--slot-duration-ms is only valid with serve --produce or --committee-vote\n{}",
             usage()
         ));
     }
