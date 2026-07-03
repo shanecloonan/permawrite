@@ -16,12 +16,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.69** 30s-slot soak evidence. | **In progress** — M2.4.70 lock shipped; 35min 30s-slot soak running. | Archive evidence past height 10. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.70** 30s-slot soak + lock. | **Done** — 35min PASS height 38 + RESTART archived. | Release-evidence handoff (Agent 2). |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release evidence + CI monitor. | Generate `release-evidence` for soak-green commit; monitor Actions. | Archive validation packet. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Nightly smoke confirmation. | M2.4.68 observer PASS archived; nightly job live (M2.4.67). | Confirm first Linux nightly green. |
 
 ## Recently Completed
 
+- Agent 1: **M2.4.70** — soak lock + ports snapshot; 30s-slot 35min PASS height 38 + RESTART evidence archived.
 - Agent 3: **M2.4.68** — observer-enabled rehearsal PASS hub≥5 + evidence archived.
 - Agent 3: **M2.4.67** — nightly + ci-ignored participant-rehearsal-smoke promotion.
 - Agent 1: **M2.4.66** — Windows soak SUMMARY PASS + `soak: RESTART` (height 28, 10s slots).
@@ -32,13 +33,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 - [x] Mesh stability, soak RESTART, devnet-ports mutex, observer rehearsal past height 5.
 
-### In progress (M2.4.69–M2.4.70)
+### Done (M2.4.69–M2.4.70)
 
 - [x] Soak `-ArchiveEvidence` switch + OPERATORS 30s-slot command documented.
 - [x] Soak lock (`.soak-active.lock`) blocks `start-all`/`stop-all` during long soaks (**M2.4.70**).
 - [x] In-memory ports snapshot restores `devnet-ports.env` if deleted while mesh PIDs stay alive (**M2.4.70**).
-- [ ] Windows 30s-slot soak PASS (`SLOT_MS=30000`, 35 min, `-RestartObserverOnce -ArchiveEvidence`).
-- [ ] Hub lifetime past height 10+ under production slot duration.
+- [x] Windows 30s-slot soak PASS (`SLOT_MS=30000`, 35 min, height 38, RESTART) — `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`.
+- [x] Hub lifetime past height 10+ under production slot duration.
 
 ### Next
 

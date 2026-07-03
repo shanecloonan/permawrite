@@ -514,7 +514,7 @@ powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartO
 
 Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` on PASS.
 
-While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `stop-all.ps1` and `start-all.ps1` refuse to tear down the mesh unless `-Force` is passed. Do not run `ci-check`, integration tests, or `taskkill /IM mfnd` against a live soak — wait for PASS/FAIL or remove a stale lock only when no soak process is running.
+While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `start-all.ps1` and `stop-all.ps1` refuse to tear down the mesh unless soak bootstrap (`MFN_SOAK_BOOTSTRAP=1`) or `stop-all -Force`. Do not run `ci-check`, integration tests, or `taskkill /IM mfnd` against a live soak — wait for PASS/FAIL or remove a stale lock only when no soak process is running.
 
 Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up.
 

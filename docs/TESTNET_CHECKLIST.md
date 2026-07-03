@@ -205,7 +205,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 - [x] Add observer-enabled participant rehearsal smoke (`-WithObserver` / `--with-observer`) with post-rehearsal hub and observer height gates (**M2.4.68**).
 - [x] Windows observer-enabled rehearsal smoke PASS with `min_hub_height >= 5` and observer catch-up wait (**M2.4.68**).
-- [ ] Capture passing Windows 30s-slot (`SLOT_MS=30000`) soak evidence with hub lifetime past height 10 (**M2.4.69–70**, in flight).
+- [x] Capture passing Windows 30s-slot (`SLOT_MS=30000`) soak evidence with hub lifetime past height 10 (**M2.4.70**, `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`, final height 38).
 
 ## Cross-Agent Notes
 
