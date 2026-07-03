@@ -4,20 +4,21 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Blocked:** CI #490 on `7008d0a` failed (ubuntu/macOS tests, likely flake; scripts-only commit).
-- **Next:** M2.4.87 push → green CI → Nightly #49 with hub poll 300s.
+- **Doing:** M2.4.88 — observer boot hardening (fatal poll, multi-peer dials, GHA 300s catch-up).
+- **Done:** M2.4.87 on `70b0adb`; local Windows rehearsal PASS.
+- **Next:** Push M2.4.88 after CI #491 green → Nightly #49.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Done:** `release-evidence-052e507` committed with M2.4.86.
-- **Next:** `release-evidence-7008d0a` after CI green.
+- **Doing:** Await green CI for `release-evidence-70b0adb`.
+- **Done:** `release-evidence-052e507` on `7008d0a`.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** Windows `--no-build` participant rehearsal PASS locally.
-- **Waiting:** Nightly #49 after M2.4.86 hub poll fix lands on green CI.
+- **Partial:** Ignored Nightly PASS (#48); observer rehearsal pending M2.4.88.
+- **Next:** Full green Nightly #49 after M2.4.88 lands.
 
 ## Cross-Agent Blockers
 
-- Do not push during CI; docs-only pushes cancel in-flight matrix.
-- Nightly rehearsal still failing on `052e507` (#48); M2.4.86 hub poll 300s not yet validated (CI red).
+- CI #491 on `70b0adb` must finish before M2.4.88 push (cancel-in-progress).
+- Observed local WIP: storage-operator payout in Rust crates — incomplete; not part of M2.4.88.

@@ -158,16 +158,38 @@ Start-Sleep -Seconds 2
 if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
     Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
 } else {
+function Get-VoterP2pFromLog {
+    param([string]$LogPath)
+    for ($i = 1; $i -le 30; $i++) {
+        if (Test-Path $LogPath) {
+            $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
+            if ($m) { return $m.Matches.Groups[1].Value.Trim() }
+        }
+        Start-Sleep -Seconds 1
+    }
+    return $null
+}
+$V1P2p = Get-VoterP2pFromLog -LogPath $v1Log
+$V2P2p = Get-VoterP2pFromLog -LogPath $v2Log
+$obsDials = @($HubP2p)
+if ($V1P2p -and $V1P2p -ne $HubP2p) { $obsDials += $V1P2p }
+if ($V2P2p -and $V2P2p -ne $HubP2p) { $obsDials += $V2P2p }
+if ($obsDials.Count -gt 1) {
+    Write-Host "Observer extra boot dials: $($obsDials[1..($obsDials.Count - 1)] -join ', ')"
+}
 $obsLog = Join-Path $LogDir "observer.log"
 $obsErr = Join-Path $LogDir "observer.err.log"
 $obsDataDir = Join-Path $DataRoot "observer"
 New-Item -ItemType Directory -Force -Path $obsDataDir | Out-Null
+$obsCliArgs = @(
+    "--data-dir", $obsDataDir, "--genesis", $Genesis, "--store", "fs",
+    "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+    "--slot-duration-ms", "$SlotMs"
+)
+foreach ($d in $obsDials) { $obsCliArgs += @("--p2p-dial", $d) }
+$obsCliArgs += "serve"
 $obsProc = Start-MfndRole `
-    -CliArgs @(
-        "--data-dir", $obsDataDir, "--genesis", $Genesis, "--store", "fs",
-        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
-        "--p2p-dial", $HubP2p, "serve"
-    ) `
+    -CliArgs $obsCliArgs `
     -StdoutLog $obsLog `
     -StderrLog $obsErr
 Set-DevnetPort -Path $PortsFile -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
@@ -181,14 +203,27 @@ for ($i = 1; $i -le $ObserverPollMax; $i++) {
             break
         }
     }
+    if ($env:GITHUB_ACTIONS -and ($i % 30 -eq 0)) {
+        if (Test-Path $obsLog) {
+            $text = Get-Content $obsLog -Raw -ErrorAction SilentlyContinue
+            if ($text -and ($text -match "mfnd_p2p_listening=")) {
+                Write-Host "start-all: observer P2P ready, waiting for RPC ($i/${ObserverPollMax}s)..."
+            } else {
+                Write-Host "start-all: waiting for observer startup ($i/${ObserverPollMax}s)..."
+            }
+        } else {
+            Write-Host "start-all: waiting for observer startup ($i/${ObserverPollMax}s)..."
+        }
+    }
     Start-Sleep -Seconds 1
 }
 if ($ObserverRpc) {
     Set-DevnetPort -Path $PortsFile -Key "OBSERVER_RPC" -Value $ObserverRpc
     Write-Host "Observer RPC=$ObserverRpc"
 } else {
-    Write-Host "Observer RPC not ready within ${ObserverPollMax}s; tail $($obsLog):" -ForegroundColor Yellow
+    Write-Host "Observer RPC not ready within ${ObserverPollMax}s; tail $($obsLog):" -ForegroundColor Red
     if (Test-Path $obsLog) { Get-Content $obsLog -Tail 100 | Write-Host }
+    throw "Observer did not print RPC listen within ${ObserverPollMax}s. See $obsLog"
 }
 }
 Write-Host "Started jobs. Logs: $LogDir  Ports: $PortsFile"

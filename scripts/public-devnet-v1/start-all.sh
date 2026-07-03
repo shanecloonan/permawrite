@@ -101,6 +101,34 @@ sleep 2
 if [[ "${MFN_DEVNET_NO_OBSERVER:-}" == "1" ]]; then
   echo "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
 else
+poll_voter_p2p() {
+  local log_path="$1"
+  local out_var="$2"
+  local p2p="" i
+  for i in $(seq 1 30); do
+    if grep -q mfnd_p2p_listening= "$log_path" 2>/dev/null; then
+      p2p=$(grep -m1 mfnd_p2p_listening= "$log_path" | sed 's/.*=//')
+      break
+    fi
+    sleep 1
+  done
+  printf -v "$out_var" '%s' "$p2p"
+}
+V1_P2P=""
+V2_P2P=""
+poll_voter_p2p "$LOG_DIR/v1.log" V1_P2P
+poll_voter_p2p "$LOG_DIR/v2.log" V2_P2P
+EXTRA_P2P_DIALS=""
+if [[ -n "$V1_P2P" && "$V1_P2P" != "$HUB_P2P" ]]; then
+  EXTRA_P2P_DIALS="$V1_P2P"
+fi
+if [[ -n "$V2_P2P" && "$V2_P2P" != "$HUB_P2P" ]]; then
+  EXTRA_P2P_DIALS="${EXTRA_P2P_DIALS:+$EXTRA_P2P_DIALS }$V2_P2P"
+fi
+if [[ -n "$EXTRA_P2P_DIALS" ]]; then
+  echo "Observer extra boot dials: $EXTRA_P2P_DIALS"
+  export EXTRA_P2P_DIALS
+fi
 echo "Starting observer..."
 "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
@@ -114,6 +142,13 @@ for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
     OBSERVER_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/observer.log" | sed 's/.*=//')
     break
   fi
+  if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( _ % 30 == 0 )); then
+    if grep -q mfnd_p2p_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
+      echo "start-all: observer P2P ready, waiting for RPC (${_}/${OBSERVER_POLL_MAX}s)..."
+    else
+      echo "start-all: waiting for observer startup (${_}/${OBSERVER_POLL_MAX}s)..."
+    fi
+  fi
   sleep 1
 done
 if [[ -n "$OBSERVER_RPC" ]]; then
@@ -122,7 +157,18 @@ if [[ -n "$OBSERVER_RPC" ]]; then
 else
   echo "Observer RPC not ready within ${OBSERVER_POLL_MAX}s; tail $LOG_DIR/observer.log:" >&2
   tail -n 100 "$LOG_DIR/observer.log" 2>/dev/null >&2 || echo "(no observer.log)" >&2
+  exit 1
 fi
 fi
 echo "Logs: $LOG_DIR  Ports: $PORTS_FILE"
 echo "Run health-check.sh when a slot has sealed."
+required_keys=(HUB_PID HUB_P2P HUB_RPC V1_PID V2_PID)
+if [[ "${MFN_DEVNET_NO_OBSERVER:-}" != "1" ]]; then
+  required_keys+=(OBSERVER_PID OBSERVER_RPC)
+fi
+for key in "${required_keys[@]}"; do
+  if ! grep -q "^${key}=" "$PORTS_FILE" 2>/dev/null; then
+    echo "start-all: $key missing from $PORTS_FILE after startup" >&2
+    exit 1
+  fi
+done

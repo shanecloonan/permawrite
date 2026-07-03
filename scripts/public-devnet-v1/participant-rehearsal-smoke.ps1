@@ -202,7 +202,14 @@ function Wait-MinHubHeight {
 }
 
 if ($WaitAfterStartSeconds -lt 0) {
-    $WaitAfterStartSeconds = if ($WithObserver) { 45 } else { 30 }
+    if ($env:GITHUB_ACTIONS) {
+        $WaitAfterStartSeconds = if ($WithObserver) { 90 } else { 75 }
+    } else {
+        $WaitAfterStartSeconds = if ($WithObserver) { 45 } else { 30 }
+    }
+}
+if ($env:GITHUB_ACTIONS -and $WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
+    $WaitObserverCatchUpSeconds = 300
 }
 if ($WaitFaucetSeconds -lt 0) { throw "WaitFaucetSeconds must be >= 0" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }

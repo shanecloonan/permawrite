@@ -17,63 +17,62 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.87** CI retry. | **Fixing** — CI #490 on `7008d0a` failed ubuntu/macOS tests (scripts-only commit; likely flake). M2.4.87 Windows parity ready. | Green CI → Nightly #49. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.86** evidence. | **Done** — `052e507` evidence committed. | `release-evidence-7008d0a` after CI green. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.86** Nightly. | **Blocked** — #48 rehearsal fail on `052e507`; hub poll 300s in `7008d0a` awaiting green CI. | All 3 Nightly jobs green on #49. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.88** observer boot hardening. | **Ready to push** — fatal observer poll; multi-peer boot dials; GHA 300s catch-up. | Nightly #49 after green CI. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.88** release evidence. | **Pending** — generate after M2.4.88 CI green. | Operator sign-off after Nightly + soak. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.88** full Nightly green. | **In progress** — observer rehearsal harness fixes. | All 3 Nightly jobs green. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.86** — pushed `7008d0a`; CI #490 **failed** ubuntu/macOS (14m, exit 101; no Rust changes).
-- Agent 1: **M2.4.85** — `start-all --no-build`, preserve `SLOT_MS`; CI green on `052e507`.
-- Agent 1: **M2.4.84** — CI-aware timeouts + sortition fix; Nightly ignored **PASS** (#47–#48).
-- Agent 3: Windows participant + observer rehearsal PASS (local).
+- Agent 1: **M2.4.87** pushed (`70b0adb`); Windows `start-all.ps1 -NoBuild` + hub/observer poll progress logs.
+- Agent 1: Local Windows participant rehearsal **PASS** (~67s, hub height 5).
+- Agent 2: `release-evidence-052e507` + RC audit on `7008d0a`.
+- Agent 3: Nightly ignored **PASS** (#48 on `052e507`).
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.86)
+### Done (M2.4.64–M2.4.87)
 
-- [x] Windows 30s-slot soak PASS height 38 + RESTART.
-- [x] Green GitHub CI on `052e507` (run 28682779428).
-- [x] RC Validation auto-dispatch verified.
-- [x] Nightly ignored P2P/produce smokes **PASS** on GitHub (#47–#48).
-- [x] M2.4.85: `start-all --no-build`; preserve caller `SLOT_MS` in `config.env`.
-- [x] M2.4.86: hub/observer poll 300s; tail logs on failure; Nightly log dump step.
-- [x] Local CI mirror PASS (ci-check-m286.log).
-- [x] Push → `7008d0a` on `main`.
+- [x] M2.4.87: Windows start-all parity; hub poll progress; pushed `70b0adb`.
+- [x] M2.4.86: hub/observer poll 300s; Nightly log dumps; pushed `7008d0a`.
+- [x] M2.4.85: `start-all --no-build`; preserve `SLOT_MS`.
+- [x] CI #489 green on `052e507` (full matrix).
 
-### In Progress
+### M2.4.88 (this push)
 
-- [ ] Green CI on `7008d0a` or M2.4.87 retry (CI #490 failed ubuntu/macOS — likely flake).
-- [ ] Push M2.4.87 (Windows start-all parity + hub poll progress logs).
-- [ ] Green Nightly #49 via RC Validation after CI green.
+- [x] Bash `start-all.sh`: fatal exit when observer RPC missing; poll voter P2P for extra observer boot dials.
+- [x] `start-observer.sh`: `config.env` + `EXTRA_P2P_DIALS` multi-peer boot.
+- [x] Windows `start-all.ps1`: observer multi-dial + fatal throw on RPC timeout; `--slot-duration-ms` on observer.
+- [x] Nightly + rehearsal: GHA `wait-observer-catchup-seconds 300`; longer GHA post-start waits.
+- [ ] CI #491 green on `70b0adb` (baseline before M2.4.88).
+- [ ] Push M2.4.88 → CI green → RC Validation → Nightly #49.
 
 ### Next
 
-- [ ] First full green Nightly (rehearsal + observer jobs).
-- [ ] `release-evidence-7008d0a` + RC audit dry-run.
-- [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** workflow, ~35 min).
-- [ ] Operator sign-off on release inventory.
+- [ ] First full green Nightly (all 3 jobs).
+- [ ] `release-evidence-70b0adb` / M2.4.88 after CI green.
+- [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit**).
+- [ ] Operator sign-off.
 
 ## Agent 3 Detailed Plan
 
-- [x] Nightly ignored integration green on GitHub (`052e507`).
-- [ ] First full green **Nightly** (rehearsal jobs — M2.4.86 hub poll fix; #48 failed at ~193s = pre-build + 120s poll).
+- [x] Nightly ignored integration green (#48).
+- [ ] First full green **Nightly** — observer rehearsal blocked until M2.4.88 lands.
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-052e507` + RC audit committed with M2.4.86.
-- [ ] `release-evidence-7008d0a` after CI green.
-- [ ] Operator human sign-off after Nightly + Linux soak.
+- [x] `release-evidence-052e507` committed on `7008d0a`.
+- [ ] `release-evidence-70b0adb` after CI #491 green.
+- [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **FAIL** on `7008d0a` (#490 ubuntu/macOS); **PASS** on `052e507`.
-- Nightly ignored suite — **PASS** (#48); rehearsal jobs — **fail** on `052e507` (~3m13s, hub poll timeout).
-- Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
+- Exact commit has green GitHub CI — **in flight** CI #491 on `70b0adb` (M2.4.87 baseline).
+- Nightly ignored suite — **PASS** (#48 on `052e507`); rehearsal — **fail** on #47; M2.4.86–M2.4.88 fixes pending Nightly #49.
+- Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- CI run 28685902229 must complete before next push or Nightly #49 dispatch.
-- Rehearsal Nightly: hub startup exceeded 120s poll on GitHub (#48 timing confirms); M2.4.86 raises to 300s.
-- Observed local (uncommitted): Windows `start-all.ps1 -NoBuild` + GHA hub poll parity; bash hub poll progress logs — ship as M2.4.87 **after** CI/Nightly #49, not during CI.
+- Wait for CI #491 on `70b0adb` before pushing M2.4.88 (avoid cancel-in-progress).
+- Observed local WIP (not in this commit): storage-operator payout keys in `mfn-storage` / `mfn-consensus` — incomplete; do not merge until green.
+- Linux Soak Audit manual (~35 min) after first full green Nightly.

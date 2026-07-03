@@ -110,6 +110,10 @@ validate_uint min-hub-height "$MIN_HUB_HEIGHT" 0
 validate_uint wait-min-hub-height-seconds "$WAIT_MIN_HUB_HEIGHT_SECONDS" 0
 validate_uint wait-observer-catchup-seconds "$WAIT_OBSERVER_CATCHUP_SECONDS" 0
 
+if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
+  WAIT_OBSERVER_CATCHUP_SECONDS=300
+fi
+
 if [[ -z "$FAUCET_WALLET" ]]; then
   FAUCET_WALLET="$SMOKE_ROOT/validator0-faucet.json"
 fi
