@@ -18,11 +18,7 @@ See also the root [`3agent.md`](../3agent.md) board for the latest cross-agent h
 
 Current:
 
-- **M2.4.64** mesh stability under catch-up load (uncommitted → landing):
-  - Sync proposal fan-out on producer adopt + slot-tick rebroadcast (`fanout_proposal_sync`).
-  - Extended pending release when votes exist (`PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT = 60`).
-  - Skip committee catch-up when all durable peers have live sessions (`periodic_catch_up_idle`).
-  - Bounded inbound P2P post-handshake workers (cap 48) so accept loop never blocks.
+- **M2.4.64** landed on `main` (`2592d03`). Windows `soak.ps1 -RestartObserverOnce` evidence capture in flight.
 
 Done (M2.4.63 — `d46d87c`):
 
@@ -57,7 +53,7 @@ Next:
 
 Current:
 
-- Re-run full `participant-rehearsal-smoke` after Agent 1 M2.4.64 lands.
+- **Participant rehearsal smoke PASS** on M2.4.64 (`2592d03`): fund-wallet at height 2, permanence-demo, support bundle `20260703T113642Z`.
 
 Done this unit:
 

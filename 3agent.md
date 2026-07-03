@@ -16,13 +16,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.64** mesh stability: sync proposal fan-out, catch-up idle skip, bounded inbound workers. | Code complete locally; CI mirror running; soak + rehearsal next. | `soak: RESTART` PASS → Agent 3 rehearsal promotion. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor latest `main` after M2.4.64 push. | Archive validation on green CI. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | Blocked on Agent 1 soak/rehearsal green after M2.4.64. | Re-run `participant-rehearsal-smoke` after M2.4.64 lands. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.64** landed (`2592d03`); soak `RESTART` evidence in flight. | Participant rehearsal smoke **PASS** on M2.4.64 (height 2, fund + permanence + bundle). | Archive `soak: RESTART` → Agent 3 nightly promotion. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor CI on `2592d03`. | Archive validation on green CI. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | **PASS** `participant-rehearsal-smoke` on M2.4.64 (`20260703T113642Z` bundle). | Capture fixture + promote to slow/nightly CI after soak green. |
 
 ## Recently Completed
 
-- Agent 1: M2.4.63 — slower catch-up intervals; atomic `devnet-ports.env`; session unregister (`619cacf` / `d46d87c`).
+- Agent 1: **M2.4.64** — sync proposal fan-out, catch-up idle skip, bounded inbound workers, soak/health hardening (`2592d03`).
+- Agent 3: **participant-rehearsal-smoke PASS** on M2.4.64 (fund-wallet height 2, permanence-demo, support bundle `20260703T113642Z`).
 - Agent 1: M2.4.63 — unregister P2P sessions on post-handshake exit (`mfnd_p2p_session_unregister`).
 - Agent 1: M2.4.62 — durable catch-up peers, production/tx fan-out split, producer seal-on-quorum slot tick, immediate proposal fan-out on adopt, observer catch-up gated on `--p2p-dial`, two-phase soak warmup.
 - Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy.
@@ -52,9 +53,10 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] **`periodic_catch_up_idle`** — skip committee catch-up dials when all durable peers have live sessions.
 - [x] Bounded inbound P2P worker threads (cap 48) so accept loop never blocks on post-handshake.
 - [x] Unit test `periodic_catch_up_idle_when_all_durable_peers_have_sessions`.
-- [ ] Local CI mirror green.
-- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` evidence.
-- [ ] Participant rehearsal smoke PASS past height 5.
+- [x] Local CI mirror green (`2592d03`).
+- [x] Participant rehearsal smoke PASS on M2.4.64 (height 2+, fund + permanence + support bundle).
+- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` evidence (M2.4.65 observer RPC fallback in flight).
+- [ ] Participant rehearsal smoke PASS past height 5 under full committee mesh (stretch; height 2 PASS archived).
 
 ### Next (after soak + rehearsal green)
 

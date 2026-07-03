@@ -74,6 +74,8 @@ TIP_ID=""
 SNAPSHOT_HEIGHT=""
 SNAPSHOT_ID=""
 run_convergence_check() {
+  # shellcheck source=/dev/null
+  source "$PORTS_FILE"
   query_status hub "${HUB_RPC:?}" 1 || exit 1
   local ref_height="$TIP_HEIGHT"
   local ref_id="$TIP_ID"
@@ -103,30 +105,45 @@ run_convergence_check() {
     fi
   done
   if [[ -n "${OBSERVER_RPC:-}" ]]; then
-    query_status observer "$OBSERVER_RPC" || exit 1
-    if [[ "$TIP_HEIGHT" != "$ref_height" || "$TIP_ID" != "$ref_id" ]]; then
-      echo "health-check: FAIL observer diverged from hub" >&2
+    try_addrs=("$OBSERVER_RPC")
+  else
+    try_addrs=()
+  fi
+  if [[ -f "$SCRIPT_DIR/logs/observer.log" ]]; then
+    log_rpc=$(grep mfnd_serve_listening= "$SCRIPT_DIR/logs/observer.log" 2>/dev/null | tail -1 | sed 's/.*=//' || true)
+    if [[ -n "$log_rpc" ]]; then
+      found=0
+      for a in "${try_addrs[@]:-}"; do
+        if [[ "$a" == "$log_rpc" ]]; then found=1; break; fi
+      done
+      if (( found == 0 )); then try_addrs+=("$log_rpc"); fi
+    fi
+  fi
+  if ((${#try_addrs[@]} == 0)); then
+    if (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
+      echo "health-check: FAIL missing observer RPC in $PORTS_FILE and logs" >&2
       exit 1
     fi
+    echo "health-check: skip observer (no RPC; MFN_HEALTH_REQUIRE_ALL_ROLES=0)" >&2
   else
-    obs_log="$SCRIPT_DIR/logs/observer.log"
-    if [[ -f "$obs_log" ]]; then
-      obs_rpc=$(grep -m1 mfnd_serve_listening= "$obs_log" 2>/dev/null | sed 's/.*=//' || true)
-      if [[ -n "$obs_rpc" ]]; then
-        query_status observer "$obs_rpc" || exit 1
+    obs_ok=0
+    last_err=""
+    for obs_addr in "${try_addrs[@]}"; do
+      if query_status observer "$obs_addr"; then
         if [[ "$TIP_HEIGHT" != "$ref_height" || "$TIP_ID" != "$ref_id" ]]; then
           echo "health-check: FAIL observer diverged from hub" >&2
           exit 1
         fi
-      else
-        if (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
-          echo "health-check: FAIL missing observer RPC in $obs_log" >&2
-          exit 1
+        if [[ "${OBSERVER_RPC:-}" != "$obs_addr" ]]; then
+          echo "health-check: refreshed OBSERVER_RPC=$obs_addr" >&2
         fi
-        echo "health-check: skip observer (no RPC in $obs_log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)" >&2
+        obs_ok=1
+        break
       fi
-    elif (( MFN_HEALTH_REQUIRE_ALL_ROLES > 0 )); then
-      echo "health-check: FAIL missing observer log at $obs_log" >&2
+      last_err="observer RPC unreachable at $obs_addr"
+    done
+    if (( obs_ok == 0 )); then
+      echo "health-check: FAIL $last_err" >&2
       exit 1
     fi
   fi

@@ -63,6 +63,48 @@ function Query-Status {
     Write-Host "${Name}: tip_height=$h tip_id=$id genesis_id=$genesis p2p_sessions=$sessionText p2p_peers=$peerText"
     return @{ Height = $heightValue; Id = $id }
 }
+function Get-LatestObserverRpcFromLog {
+    $obsLog = Join-Path $ScriptDir "logs\observer.log"
+    if (-not (Test-Path $obsLog)) { return $null }
+    $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=(.+)" | Select-Object -Last 1
+    if ($m) { return $m.Matches.Groups[1].Value.Trim() }
+    return $null
+}
+function Query-ObserverWithFallback {
+    param([int64]$RefHeight, [string]$RefId)
+    $portsNow = Read-DevnetPortsFile -Path $PortsFile
+    $tryAddrs = New-Object System.Collections.Generic.List[string]
+    if ($portsNow["OBSERVER_RPC"]) { [void]$tryAddrs.Add($portsNow["OBSERVER_RPC"]) }
+    $logAddr = Get-LatestObserverRpcFromLog
+    if ($logAddr -and -not $tryAddrs.Contains($logAddr)) { [void]$tryAddrs.Add($logAddr) }
+    if ($tryAddrs.Count -eq 0) {
+        if ($RequireAllRoles -gt 0) { throw "health-check: FAIL missing observer RPC in $PortsFile and logs" }
+        Write-Host "health-check: skip observer (no RPC; MFN_HEALTH_REQUIRE_ALL_ROLES=0)"
+        return
+    }
+    $lastConnectError = $null
+    foreach ($addr in $tryAddrs) {
+        try {
+            $obs = Query-Status "observer" $addr
+            if ($obs.Height -ne $RefHeight -or $obs.Id -ne $RefId) {
+                throw "health-check: FAIL observer diverged from hub"
+            }
+            if ($portsNow["OBSERVER_RPC"] -ne $addr) {
+                Set-DevnetPort -Path $PortsFile -Ports $portsNow -Key "OBSERVER_RPC" -Value $addr
+                Write-Host "health-check: refreshed OBSERVER_RPC=$addr"
+            }
+            return
+        } catch {
+            $msg = "$($_.Exception.Message)"
+            if ($msg -match "actively refused|No connection could be made|connection attempt") {
+                $lastConnectError = $msg
+                continue
+            }
+            throw
+        }
+    }
+    throw "health-check: FAIL observer RPC unreachable tried=$($tryAddrs -join ',') last_error=$lastConnectError"
+}
 function Invoke-ConvergenceCheck {
     $hub = Query-Status "hub" $HubRpc -RequireMinP2pSessions
     if ($RequireAllRoles -eq 0) {
@@ -88,29 +130,7 @@ function Invoke-ConvergenceCheck {
             throw "health-check: FAIL v$v diverged from hub"
         }
     }
-    $ObserverRpc = $ports["OBSERVER_RPC"]
-    if ($ObserverRpc) {
-        $obs = Query-Status "observer" $ObserverRpc
-        if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
-            throw "health-check: FAIL observer diverged from hub"
-        }
-    } else {
-        $obsLog = Join-Path $ScriptDir "logs\observer.log"
-        if (Test-Path $obsLog) {
-            $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=(.+)" | Select-Object -First 1
-            if ($m) {
-                $obs = Query-Status "observer" $m.Matches.Groups[1].Value
-                if ($obs.Height -ne $refHeight -or $obs.Id -ne $refId) {
-                    throw "health-check: FAIL observer diverged from hub"
-                }
-            } else {
-                if ($RequireAllRoles -gt 0) { throw "health-check: FAIL missing observer RPC in $obsLog" }
-                Write-Host "health-check: skip observer (no RPC in log; MFN_HEALTH_REQUIRE_ALL_ROLES=0)"
-            }
-        } elseif ($RequireAllRoles -gt 0) {
-            throw "health-check: FAIL missing observer log at $obsLog"
-        }
-    }
+    Query-ObserverWithFallback -RefHeight $refHeight -RefId $refId
     return @{ Height = $refHeight; Id = $refId }
 }
 $first = Invoke-ConvergenceCheck

@@ -358,7 +358,7 @@ while ((Get-Date) -lt $deadline) {
                 break
             } catch {
                 $msg = "$($_.Exception.Message)"
-                if ($msg -match "diverged|unreachable|p2p sessions=") {
+                if ($msg -match "diverged|unreachable|p2p sessions=|actively refused|No connection could be made") {
                     Start-Sleep -Seconds 5
                     continue
                 }
