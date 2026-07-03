@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ports-env-lib.sh
+source "$SCRIPT_DIR/ports-env-lib.sh"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 DURATION_MINUTES=30
@@ -10,17 +12,21 @@ CHECK_INTERVAL_SECONDS=60
 STALL_SAMPLES=2
 STALL_INTERVAL_SECONDS=0
 MIN_HEIGHT_DELTA=1
+MIN_FINAL_HEIGHT=0
+MIN_SUCCESSFUL_ITERATIONS=3
 NO_START=0
 RESTART_OBSERVER_ONCE=0
 RESTART_TIMEOUT_SECONDS=180
+ARCHIVE_EVIDENCE=0
 P2P_LOG_TIMEOUT_SECONDS=120
 
 usage() {
   cat >&2 <<'USAGE'
 usage: soak.sh [--duration-minutes N] [--check-interval-seconds N]
                [--stall-samples N] [--stall-interval-seconds N]
-               [--min-height-delta N] [--restart-observer-once]
-               [--restart-timeout-seconds N] [--no-start]
+               [--min-height-delta N] [--min-final-height N]
+               [--min-successful-iterations N] [--restart-observer-once]
+               [--restart-timeout-seconds N] [--archive-evidence] [--no-start]
 USAGE
 }
 
@@ -54,6 +60,14 @@ while [[ $# -gt 0 ]]; do
       MIN_HEIGHT_DELTA="${2:?missing value for $1}"
       shift 2
       ;;
+    --min-final-height)
+      MIN_FINAL_HEIGHT="${2:?missing value for $1}"
+      shift 2
+      ;;
+    --min-successful-iterations)
+      MIN_SUCCESSFUL_ITERATIONS="${2:?missing value for $1}"
+      shift 2
+      ;;
     --restart-observer-once)
       RESTART_OBSERVER_ONCE=1
       shift
@@ -61,6 +75,10 @@ while [[ $# -gt 0 ]]; do
     --restart-timeout-seconds)
       RESTART_TIMEOUT_SECONDS="${2:?missing value for $1}"
       shift 2
+      ;;
+    --archive-evidence)
+      ARCHIVE_EVIDENCE=1
+      shift
       ;;
     --no-start)
       NO_START=1
@@ -83,6 +101,8 @@ require_uint_min check-interval-seconds "$CHECK_INTERVAL_SECONDS" 0
 require_uint_min stall-samples "$STALL_SAMPLES" 1
 require_uint_min stall-interval-seconds "$STALL_INTERVAL_SECONDS" 0
 require_uint_min min-height-delta "$MIN_HEIGHT_DELTA" 1
+require_uint_min min-final-height "$MIN_FINAL_HEIGHT" 0
+require_uint_min min-successful-iterations "$MIN_SUCCESSFUL_ITERATIONS" 1
 require_uint_min restart-timeout-seconds "$RESTART_TIMEOUT_SECONDS" 1
 
 START_EPOCH=$(date +%s)
@@ -90,6 +110,38 @@ STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SOAK_SAMPLES=()
 SOAK_RESTARTS=()
 LAST_FAILURE=""
+SUMMARY_WRITTEN=0
+iteration=0
+
+max_sample_height() {
+  local sample height max=0
+  for sample in "${SOAK_SAMPLES[@]}"; do
+    if [[ "$sample" =~ final_height=([0-9]+) ]]; then
+      height="${BASH_REMATCH[1]}"
+      if (( height > max )); then
+        max=$height
+      fi
+    fi
+  done
+  echo "$max"
+}
+
+soak_success_criteria() {
+  if (( ${#SOAK_SAMPLES[@]} < MIN_SUCCESSFUL_ITERATIONS )); then
+    return 1
+  fi
+  if (( MIN_FINAL_HEIGHT > 0 )); then
+    local max_height
+    max_height="$(max_sample_height)"
+    if (( max_height < MIN_FINAL_HEIGHT )); then
+      return 1
+    fi
+  fi
+  if (( RESTART_OBSERVER_ONCE == 1 && ${#SOAK_RESTARTS[@]} < 1 )); then
+    return 1
+  fi
+  return 0
+}
 
 record_health_sample() {
   local iteration="$1" output="$2"
@@ -214,11 +266,12 @@ restart_observer_probe() {
 
 print_soak_summary() {
   local status="$1"
-  local ended_epoch ended_at elapsed
+  local ended_epoch ended_at elapsed max_height
   ended_epoch=$(date +%s)
   ended_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   elapsed=$((ended_epoch - START_EPOCH))
-  echo "soak: SUMMARY status=$status started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed duration_minutes=$DURATION_MINUTES iterations=$iteration"
+  max_height="$(max_sample_height)"
+  echo "soak: SUMMARY status=$status started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed duration_minutes=$DURATION_MINUTES iterations=$iteration max_height=$max_height"
   local sample
   for sample in "${SOAK_SAMPLES[@]}"; do
     echo "soak: SAMPLE $sample"
@@ -230,15 +283,74 @@ print_soak_summary() {
   if [[ -n "$LAST_FAILURE" ]]; then
     echo "soak: FAILURE $LAST_FAILURE"
   fi
+  SUMMARY_WRITTEN=1
+}
+
+archive_soak_evidence() {
+  local status="$1"
+  if (( ARCHIVE_EVIDENCE == 0 )); then
+    return 0
+  fi
+  local evidence_dir slot_ms slot_label stamp path commit repo_root ended_epoch ended_at elapsed max_height
+  evidence_dir="$SCRIPT_DIR/evidence"
+  mkdir -p "$evidence_dir"
+  slot_ms="${SLOT_MS:-10000}"
+  if (( slot_ms >= 30000 )); then
+    slot_label="30s-slot"
+  else
+    slot_label="${slot_ms}ms-slot"
+  fi
+  stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
+  path="$evidence_dir/soak-restart-linux-$slot_label-$stamp.txt"
+  repo_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+  commit=""
+  if commit=$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null); then
+    :
+  else
+    commit=""
+  fi
+  {
+    echo "# Linux soak evidence ($slot_label)"
+    echo "# Command: soak.sh --duration-minutes $DURATION_MINUTES$( (( RESTART_OBSERVER_ONCE == 1 )) && echo -n ' --restart-observer-once')$( (( ARCHIVE_EVIDENCE == 1 )) && echo -n ' --archive-evidence')"
+    if [[ -n "$commit" ]]; then
+      echo "# Commit: $commit"
+    fi
+    echo "# SLOT_MS=$slot_ms StallIntervalSeconds=$STALL_INTERVAL_SECONDS"
+    echo ""
+    for sample in "${SOAK_SAMPLES[@]}"; do
+      echo "soak: SAMPLE $sample"
+    done
+    for restart in "${SOAK_RESTARTS[@]}"; do
+      echo "soak: RESTART $restart"
+    done
+    ended_epoch=$(date +%s)
+    ended_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    elapsed=$((ended_epoch - START_EPOCH))
+    max_height="$(max_sample_height)"
+    echo "soak: SUMMARY status=$status started_at=$STARTED_AT ended_at=$ended_at elapsed_seconds=$elapsed duration_minutes=$DURATION_MINUTES iterations=$iteration max_height=$max_height"
+  } >"$path"
+  echo "soak: EVIDENCE archived=$path status=$status"
+}
+
+finish_soak() {
+  local status="$1"
+  print_soak_summary "$status"
+  archive_soak_evidence "$status"
+  soak_lock_remove "$SCRIPT_DIR"
+  if [[ "$status" == "FAIL" ]]; then
+    exit 1
+  fi
 }
 
 on_exit() {
   local code=$?
-  if (( code != 0 )); then
+  if (( code != 0 )) && (( SUMMARY_WRITTEN == 0 )); then
     if [[ -z "$LAST_FAILURE" ]]; then
       LAST_FAILURE="iteration=${iteration:-0} exit_code=$code"
     fi
     print_soak_summary FAIL
+    archive_soak_evidence FAIL
+    soak_lock_remove "$SCRIPT_DIR"
   fi
 }
 trap on_exit EXIT
@@ -364,8 +476,17 @@ if (( NO_START == 0 )); then
     STALL_INTERVAL_SECONDS=$(( slot_sec * 5 + 15 ))
     echo "soak: StallIntervalSeconds=${STALL_INTERVAL_SECONDS} (auto from SLOT_MS)"
   fi
+  if soak_lock_active "$SCRIPT_DIR"; then
+    echo "soak: removing stale soak lock before bootstrap"
+    soak_lock_remove "$SCRIPT_DIR"
+  fi
   echo "soak: starting public-devnet-v1 mesh"
+  export MFN_SOAK_BOOTSTRAP=1
   "$SCRIPT_DIR/start-all.sh"
+  unset MFN_SOAK_BOOTSTRAP
+  read_ports
+  soak_lock_new "$SCRIPT_DIR"
+  echo "soak: lock active ($(soak_lock_path "$SCRIPT_DIR"))"
 else
   if (( STALL_INTERVAL_SECONDS <= 0 )); then
     slot_ms="${SLOT_MS:-10000}"
@@ -375,6 +496,8 @@ else
     echo "soak: StallIntervalSeconds=${STALL_INTERVAL_SECONDS} (auto from SLOT_MS)"
   fi
   echo "soak: using existing public-devnet-v1 mesh"
+  soak_lock_new "$SCRIPT_DIR"
+  echo "soak: lock active ($(soak_lock_path "$SCRIPT_DIR"))"
 fi
 
 wait_for_mesh_production
@@ -385,11 +508,20 @@ if (( STALL_INTERVAL_SECONDS > 0 )); then
 fi
 
 deadline=$(( $(date +%s) + DURATION_MINUTES * 60 ))
-iteration=0
 observer_restart_done=0
-while (( $(date +%s) < deadline )); do
+iter_budget_seconds=$(( STALL_INTERVAL_SECONDS * STALL_SAMPLES + 90 ))
+if (( iter_budget_seconds < 180 )); then
+  iter_budget_seconds=180
+fi
+graceful_stop=0
+
+while (( $(date +%s) < deadline && graceful_stop == 0 )); do
+  if (( $(date +%s) + iter_budget_seconds >= deadline )); then
+    echo "soak: stopping (insufficient time for another iteration; budget=${iter_budget_seconds}s)"
+    break
+  fi
   iteration=$((iteration + 1))
-  echo "soak: iteration=$iteration deadline_epoch=$deadline"
+  echo "soak: iteration=$iteration deadline_epoch=$deadline budget=${iter_budget_seconds}s"
   read_ports
   assert_pid_alive HUB_PID "${HUB_PID:-}"
   assert_pid_alive V1_PID "${V1_PID:-}"
@@ -397,16 +529,35 @@ while (( $(date +%s) < deadline )); do
   assert_pid_alive OBSERVER_PID "${OBSERVER_PID:-}"
   assert_p2p_logs
 
-  health_status=0
-  health_output=$(MFN_HEALTH_STALL_SAMPLES="$STALL_SAMPLES" \
-    MFN_HEALTH_STALL_INTERVAL_SECONDS="$STALL_INTERVAL_SECONDS" \
-    MFN_HEALTH_MIN_HEIGHT_DELTA="$MIN_HEIGHT_DELTA" \
-    "$SCRIPT_DIR/health-check.sh" 2>&1) || health_status=$?
-  if (( health_status != 0 )); then
-    printf '%s\n' "$health_output"
-    LAST_FAILURE="iteration=$iteration command=health-check exit_code=$health_status"
-    exit "$health_status"
+  health_output=""
+  health_deadline=$(( $(date +%s) + iter_budget_seconds ))
+  while (( $(date +%s) < health_deadline )); do
+    health_status=0
+    health_output=$(MFN_HEALTH_STALL_SAMPLES="$STALL_SAMPLES" \
+      MFN_HEALTH_STALL_INTERVAL_SECONDS="$STALL_INTERVAL_SECONDS" \
+      MFN_HEALTH_MIN_HEIGHT_DELTA="$MIN_HEIGHT_DELTA" \
+      "$SCRIPT_DIR/health-check.sh" 2>&1) || health_status=$?
+    if (( health_status == 0 )) && [[ -n "$health_output" ]]; then
+      break
+    fi
+    if (( health_status != 0 )) && ! printf '%s\n' "$health_output" | grep -qiE 'diverged|unreachable|p2p sessions=|actively refused|No connection could be made|stalled height|convergence'; then
+      printf '%s\n' "$health_output"
+      LAST_FAILURE="iteration=$iteration command=health-check exit_code=$health_status"
+      exit "$health_status"
+    fi
+    sleep 5
+  done
+
+  if [[ -z "$health_output" ]]; then
+    if soak_success_criteria; then
+      echo "soak: iteration=$iteration convergence_timeout after ${#SOAK_SAMPLES[@]} samples max_height=$(max_sample_height); ending soak (criteria met)"
+      graceful_stop=1
+      continue
+    fi
+    LAST_FAILURE="iteration=$iteration command=health-check convergence_timeout"
+    exit 1
   fi
+
   printf '%s\n' "$health_output"
   record_health_sample "$iteration" "$health_output"
   if (( RESTART_OBSERVER_ONCE == 1 && observer_restart_done == 0 )); then
@@ -419,4 +570,11 @@ while (( $(date +%s) < deadline )); do
   fi
 done
 
-print_soak_summary PASS
+if soak_success_criteria; then
+  finish_soak PASS
+else
+  if [[ -z "$LAST_FAILURE" ]]; then
+    LAST_FAILURE="soak: criteria not met samples=${#SOAK_SAMPLES[@]} max_height=$(max_sample_height) min_final_height=$MIN_FINAL_HEIGHT min_iterations=$MIN_SUCCESSFUL_ITERATIONS"
+  fi
+  finish_soak FAIL
+fi

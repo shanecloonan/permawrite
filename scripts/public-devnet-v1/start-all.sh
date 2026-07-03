@@ -2,6 +2,8 @@
 # Build mfnd, start hub + two committee voters on loopback; write ports file (M2.4.3).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ports-env-lib.sh
+source "$SCRIPT_DIR/ports-env-lib.sh"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/config.env"
 REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
@@ -15,8 +17,13 @@ if [[ ! -x "$MFND" ]]; then
   MFND="$REPO_ROOT/target/release/mfnd.exe"
 fi
 export MFND
-pkill -f "mfnd.*public-devnet-v1" 2>/dev/null || true
-sleep 1
+if [[ "${MFN_SOAK_BOOTSTRAP:-}" == "1" ]]; then
+  "$SCRIPT_DIR/stop-all.sh" --force --all-mfnd || true
+else
+  assert_soak_not_active "$SCRIPT_DIR" "start-all"
+  pkill -f "mfnd.*public-devnet-v1" 2>/dev/null || true
+  sleep 1
+fi
 rm -rf "$REPO_ROOT/$DATA_ROOT"
 echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."

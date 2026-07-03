@@ -367,7 +367,17 @@ bash scripts/public-devnet-v1/release-audit-packet.sh \
   --output ./release-audit-packet.json
 ```
 
-The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. The packet also runs `release-participant-smoke-policy-check` from the release tree so sign-off fails closed if default CI promotes real-run participant rehearsal smokes outside nightly/`ci-ignored`. A redacted live-rehearsal sample lives in [`fixtures/participant-rehearsal-evidence-v1/`](fixtures/participant-rehearsal-evidence-v1/). Validate the generated packet before publishing launch notes:
+The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. The packet also runs `release-participant-smoke-policy-check` from the release tree so sign-off fails closed if default CI promotes real-run participant rehearsal smokes outside nightly/`ci-ignored`. A redacted live-rehearsal sample lives in [`fixtures/participant-rehearsal-evidence-v1/`](fixtures/participant-rehearsal-evidence-v1/).
+
+Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehearsal fixture (decision=go when all gates pass):
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1
+```
+
+Output: `scripts/public-devnet-v1/evidence/rc-audit-dry-run-<commit>-<timestamp>.json`.
+
+Validate the generated packet before publishing launch notes:
 
 ```powershell
 powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `
@@ -505,6 +515,12 @@ $env:SLOT_MS = "30000"
 powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 35 -RestartObserverOnce -MinFinalHeight 10 -ArchiveEvidence
 ```
 
+Linux/bash parity (`soak.sh`):
+
+```bash
+SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --restart-observer-once --min-final-height 10 --archive-evidence
+```
+
 Smoke-slot soak (10s blocks, faster CI-style mesh):
 
 ```powershell
@@ -514,7 +530,7 @@ powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartO
 
 Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` when the soak finishes (PASS or FAIL). Use `-MinFinalHeight 10` on 30s-slot audits so a graceful deadline exit still PASSes when hub height ≥ 10 and at least three health samples succeeded.
 
-While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `start-all.ps1` and `stop-all.ps1` refuse to tear down the mesh unless soak bootstrap (`MFN_SOAK_BOOTSTRAP=1`) or `stop-all -Force`. Do not run `ci-check`, integration tests, or `taskkill /IM mfnd` against a live soak — wait for PASS/FAIL or remove a stale lock only when no soak process is running.
+While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `start-all.{ps1,sh}` and `stop-all.{ps1,sh}` refuse to tear down the mesh unless soak bootstrap (`MFN_SOAK_BOOTSTRAP=1`) or `stop-all --force` / `stop-all -Force`.
 
 Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up.
 

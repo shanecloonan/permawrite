@@ -15,3 +15,6 @@ cargo build -p mfn-storage-operator --release --bin mfn-storage-operator
 export SLOT_MS="${SLOT_MS:-10000}"
 export MFN_DEVNET_NO_OBSERVER=1
 bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh
+echo "ci-ignored: participant-rehearsal-smoke-observer (mirrors nightly observer job)"
+unset MFN_DEVNET_NO_OBSERVER
+bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 300

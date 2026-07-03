@@ -7,6 +7,10 @@ PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 DRY_RUN=0
 ALL_MFND=0
 REMOVE_PORTS_FILE=0
+FORCE=0
+
+# shellcheck source=ports-env-lib.sh
+source "$SCRIPT_DIR/ports-env-lib.sh"
 
 usage() {
   cat <<'EOF'
@@ -18,6 +22,7 @@ Options:
   --dry-run             print what would be stopped
   --all-mfnd            also stop every running mfnd process owned by this user
   --remove-ports-file   delete devnet-ports.env after stopping (default: keep file)
+  --force               stop even when a soak lock is active
 EOF
 }
 
@@ -35,6 +40,10 @@ while [[ $# -gt 0 ]]; do
       REMOVE_PORTS_FILE=1
       shift
       ;;
+    --force)
+      FORCE=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -46,6 +55,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if (( DRY_RUN == 0 && FORCE == 0 )) && soak_lock_active "$SCRIPT_DIR"; then
+  echo "stop-all: skip (soak lock active; use --force to override)"
+  exit 0
+fi
 
 stop_pid() {
   local name="$1" pid="$2"

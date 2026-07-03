@@ -165,7 +165,7 @@ $evidence = [pscustomobject]@{
     }
     ci = [pscustomobject]@{
         status = $ci.Status
-        conclusion = $ci.Conclusion
+        conclusion = if ($null -eq $ci.Conclusion -or $ci.Conclusion -eq "") { "" } else { [string]$ci.Conclusion }
         source = $ci.Source
         url = $ci.Url
     }

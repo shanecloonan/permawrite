@@ -21,3 +21,7 @@ if (-not $env:SLOT_MS) { $env:SLOT_MS = "10000" }
 $env:MFN_DEVNET_NO_OBSERVER = "1"
 powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "ci-ignored: participant-rehearsal-smoke-observer (mirrors nightly observer job)"
+Remove-Item Env:MFN_DEVNET_NO_OBSERVER -ErrorAction SilentlyContinue
+powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -WithObserver -MinHubHeight 5 -WaitMinHubHeightSeconds 300
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
