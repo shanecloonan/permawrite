@@ -4,20 +4,20 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** M2.4.77 fix `ci-queue-cleanup.yml` UTF-8 encoding (GitHub rejected UTF-16).
-- **Done:** M2.4.76 upload retry, dispatch REST fallback, observer evidence archive.
-- **Next:** Confirm CI queue cleanup succeeds; dispatch Linux Soak Audit.
+- **Doing:** M2.4.78 `rc-validation-after-ci.yml` (Nightly auto-dispatch on green CI).
+- **Done:** M2.4.77 CI queue cleanup UTF-8 fix (success on `d6298d4`).
+- **Next:** Linux Soak Audit manual dispatch + archive artifact.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Done:** `release-evidence-ad18d94` + RC audit decision=go.
-- **Next:** CI green on latest `main` after queue cleanup.
+- **Doing:** Monitor CI `d6298d4` in_progress.
+- **Next:** release-evidence for green commit.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** Observer rehearsal PASS + `-ArchiveEvidence` UTF-8 no BOM.
-- **Next:** Green Linux Nightly (both jobs).
+- **Doing:** bash `--archive-evidence` + Nightly job wiring.
+- **Next:** Green Nightly on exact CI commit (auto via rc-validation).
 
 ## Cross-Agent Blockers
 
-- CI backlog — M2.4.77 cleanup workflow must parse (UTF-8 fix) before it can cancel stale runs.
+- Linux 30s-slot soak: manual dispatch only (90min); Windows evidence archived.

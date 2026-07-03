@@ -18,6 +18,7 @@ NO_START=0
 NO_STOP=0
 NO_BUILD=0
 PLAN_ONLY=0
+ARCHIVE_EVIDENCE=0
 WITH_OBSERVER=0
 MIN_HUB_HEIGHT=0
 WAIT_MIN_HUB_HEIGHT_SECONDS=180
@@ -45,6 +46,7 @@ Options:
   --no-start                  use an already-started mesh
   --no-stop                   leave mesh running after this script started it
   --no-build                  use existing release binaries
+  --archive-evidence          write PASS transcript to scripts/public-devnet-v1/evidence/
   --plan-only                 print the local smoke flow without starting processes
 EOF
 }
@@ -66,6 +68,7 @@ while [[ $# -gt 0 ]]; do
     --no-start) NO_START=1; shift ;;
     --no-stop) NO_STOP=1; shift ;;
     --no-build) NO_BUILD=1; shift ;;
+    --archive-evidence) ARCHIVE_EVIDENCE=1; shift ;;
     --plan-only) PLAN_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -264,6 +267,47 @@ assert_mesh_heights() {
   done
 }
 
+archive_rehearsal_smoke_evidence() {
+  local rpc_addr="$1" hub_height="$2" observer_rpc="${3:-}" observer_height="${4:-unknown}"
+  local evidence_dir="$SCRIPT_DIR/evidence"
+  local observer_label stamp path commit cmd platform
+  mkdir -p "$evidence_dir"
+  if (( WITH_OBSERVER == 1 )); then
+    observer_label="observer"
+  else
+    observer_label="no-observer"
+  fi
+  platform="linux"
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) platform="windows" ;;
+  esac
+  stamp="$(date -u +"%Y%m%dTHHmmssZ")"
+  path="$evidence_dir/participant-rehearsal-${observer_label}-${platform}-${stamp}.txt"
+  commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+  cmd="participant-rehearsal-smoke.sh"
+  if (( WITH_OBSERVER == 1 )); then cmd+=" --with-observer"; fi
+  if (( MIN_HUB_HEIGHT > 0 )); then cmd+=" --min-hub-height $MIN_HUB_HEIGHT"; fi
+  {
+    echo "# Participant rehearsal smoke - $observer_label ($platform)"
+    echo "# Generated: $stamp"
+    echo "# Command: $cmd"
+    if [[ -n "$commit" ]]; then echo "# Commit: $commit"; fi
+    echo ""
+    echo "SUMMARY: PASS"
+    echo ""
+    echo "Hub RPC=$rpc_addr"
+    if (( WITH_OBSERVER == 1 )) && [[ -n "$observer_rpc" ]]; then
+      echo "Observer RPC=$observer_rpc"
+    fi
+    echo ""
+    echo "participant-rehearsal-smoke: PASS with_observer=$WITH_OBSERVER hub_tip_height=$hub_height min_hub_height=$MIN_HUB_HEIGHT"
+    if (( WITH_OBSERVER == 1 )) && [[ "$observer_height" != "unknown" ]]; then
+      echo "participant-rehearsal-smoke: post_rehearsal observer_tip_height=$observer_height observer_rpc=$observer_rpc"
+    fi
+  } >"$path"
+  echo "participant-rehearsal-smoke: EVIDENCE archived=$path"
+}
+
 wait_for_min_hub_height() {
   local mfn_cli="$1" hub_rpc="$2" target="$3" timeout_seconds="$4"
   local deadline height
@@ -373,4 +417,17 @@ bash "$SCRIPT_DIR/participant-rehearsal.sh" \
 wait_for_min_hub_height "$MFN_CLI" "$RPC_ADDR" "$MIN_HUB_HEIGHT" "$WAIT_MIN_HUB_HEIGHT_SECONDS"
 assert_mesh_heights "$MFN_CLI" "$RPC_ADDR"
 
-echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR with_observer=$WITH_OBSERVER hub_tip_height=$(tip_height_text "$MFN_CLI" "$RPC_ADDR") min_hub_height=$MIN_HUB_HEIGHT"
+FINAL_HUB_HEIGHT="$(tip_height_text "$MFN_CLI" "$RPC_ADDR")"
+OBSERVER_RPC=""
+OBSERVER_HEIGHT="unknown"
+if (( WITH_OBSERVER == 1 )); then
+  OBSERVER_RPC="$(latest_observer_rpc || true)"
+  if [[ -n "$OBSERVER_RPC" ]]; then
+    OBSERVER_HEIGHT="$(tip_height_text "$MFN_CLI" "$OBSERVER_RPC")"
+  fi
+fi
+
+echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR with_observer=$WITH_OBSERVER hub_tip_height=$FINAL_HUB_HEIGHT min_hub_height=$MIN_HUB_HEIGHT"
+if (( ARCHIVE_EVIDENCE == 1 )); then
+  archive_rehearsal_smoke_evidence "$RPC_ADDR" "$FINAL_HUB_HEIGHT" "$OBSERVER_RPC" "$OBSERVER_HEIGHT"
+fi

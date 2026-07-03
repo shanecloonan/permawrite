@@ -62,7 +62,7 @@ jobs:
         env:
           SLOT_MS: 10000
           MFN_DEVNET_NO_OBSERVER: 1
-        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh
+        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --archive-evidence
 
   participant-rehearsal-smoke-observer:
     name: public-devnet observer rehearsal smoke
@@ -85,4 +85,4 @@ jobs:
         shell: bash
         env:
           SLOT_MS: 10000
-        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 300
+        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 300 --archive-evidence
