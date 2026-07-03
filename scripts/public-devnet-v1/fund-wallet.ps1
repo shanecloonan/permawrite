@@ -93,8 +93,10 @@ function Wait-RecipientBalance {
     $lastError = ""
     do {
         try {
+            $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
             Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "scan") "recipient wallet scan" | Out-Null
             $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath "recipient"
+            Write-Host "fund-wallet: recipient_balance_wait hub_tip_height=$tipHeight balance=$balance target=$MinimumBalance"
             if ($balance -ge $MinimumBalance) {
                 Write-Host "fund-wallet: recipient_balance=$balance"
                 return
@@ -102,12 +104,32 @@ function Wait-RecipientBalance {
             $lastError = ""
         } catch {
             $lastError = $_.Exception.Message
+            if ($lastError -match "actively refused|Connection refused|error 10061") {
+                throw "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($lastError)"
+            }
             Write-Host "fund-wallet: recipient_balance_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
         }
         Start-Sleep -Seconds 5
     } while ((Get-Date) -lt $deadline)
     $suffix = if ($lastError) { "; last_error=$lastError" } else { "" }
-    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s; mine or wait for a producer block, then run wallet scan and wallet balance$suffix"
+    $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s (hub_tip_height=$tipHeight); mine or wait for a producer block, then run wallet scan and wallet balance$suffix"
+}
+
+function Get-TipHeightText {
+    param([string]$MfnCli, [string]$RpcAddr)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $tipOut = & $MfnCli --rpc $RpcAddr tip 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    if ($LASTEXITCODE -ne 0) { return "unknown" }
+    $tipText = ($tipOut | Out-String)
+    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
+    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+    return "unknown"
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }

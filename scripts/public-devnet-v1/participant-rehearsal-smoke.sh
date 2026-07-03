@@ -204,6 +204,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if (( ! NO_BUILD )); then
+  cargo build -p mfn-cli --release --bin mfn-cli --manifest-path "$REPO_ROOT/Cargo.toml"
+  cargo build -p mfn-storage-operator --release --bin mfn-storage-operator --manifest-path "$REPO_ROOT/Cargo.toml"
+fi
+
 if (( NO_START == 0 )); then
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd
   bash "$SCRIPT_DIR/start-all.sh"
@@ -214,10 +219,6 @@ if (( NO_START == 0 )); then
 fi
 RPC_ADDR="$(resolve_rpc)"
 
-if (( ! NO_BUILD )); then
-  cargo build -p mfn-cli --release --bin mfn-cli --manifest-path "$REPO_ROOT/Cargo.toml"
-  cargo build -p mfn-storage-operator --release --bin mfn-storage-operator --manifest-path "$REPO_ROOT/Cargo.toml"
-fi
 MFN_CLI="$(resolve_mfn_cli)"
 if (( USE_BUNDLED_TEST_FAUCET )); then
   "$MFN_CLI" --wallet "$FAUCET_WALLET" --force wallet restore "$TEST_FAUCET_SEED" --key-derivation payout_stealth_v1

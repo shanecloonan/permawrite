@@ -670,7 +670,7 @@ pub(crate) fn run_serve(
             if produce {
                 spawn_slot_producer_loop(Arc::clone(&engine));
             }
-            if produce || committee_vote {
+            if committee_vote {
                 spawn_committee_catch_up_loop(CommitteeCatchUpLoop {
                     peer_set: Arc::clone(&fanout),
                     genesis_id,

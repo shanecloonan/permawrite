@@ -93,12 +93,12 @@ Wallet recovery and permanence recovery are separate. The wallet JSON contains t
 
 | Role | Flags | Responsibility |
 |------|--------|----------------|
-| **Hub producer** | `serve --produce` | Slot timer, builds proposals when VRF-eligible, seals when local validator is proposer and quorum votes arrive. |
-| **Validator** | `serve --produce` | Same slot loop as the hub; under `expected_proposers_per_slot: 1.5` sortition, any eligible validator may propose when the hub skips a slot. |
-| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. Use only on specs where the hub is always eligible (for example `devnet_three_validators.json` with `F=10`). |
+| **Hub producer** | `serve --produce` | Slot timer, builds proposals when VRF-eligible, seals when local validator is proposer and quorum votes arrive. Scans up to 128 slots per tick when ineligible at the current slot (**M2.4.61** / genesis liveness). |
+| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. |
+| **Validator (all-produce)** | `serve --produce` | Optional on public devnet when every validator must propose under `F=1.5` sortition; use on multi-host meshes, not the default local helper scripts. |
 | **Observer** | `serve` (no produce flags) | Syncs blocks/txs, exposes JSON-RPC; no validator env required. |
 
-The public helper mesh runs three `--produce` validators plus one observer. `mfnd` advances the producer slot timer independently from block height, so an ineligible validator skips a slot instead of retrying the same VRF seed forever. With `expected_proposers_per_slot: 1.5`, validator 0 is ineligible at slot 1, so voters must also run `--produce` or the mesh stalls at genesis. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean).
+The public helper mesh runs one hub producer plus two committee voters and one observer. With `expected_proposers_per_slot: 1.5`, validator 0 is ineligible at slot 1; the hub scans forward through bounded slots within each producer tick instead of waiting a full slot interval, so genesis does not stall. `--produce` nodes do not run periodic committee catch-up dials (**M2.3.29** / **M2.4.61**); only `--committee-vote` followers pull. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean).
 
 ---
 
@@ -140,7 +140,7 @@ $MFND --data-dir /tmp/mfn-v0 --genesis $GENESIS --store fs \
 
 Copy `mfnd_p2p_listening=HOST:PORT` from stdout as `HUB_P2P`.
 
-**Validator 1 (producer):**
+**Validator 1 (committee voter):**
 
 ```bash
 mkdir -p /tmp/mfn-v1
@@ -149,7 +149,7 @@ MFND_VRF_SEED_HEX=02020202020202020202020202020202020202020202020202020202020202
 MFND_BLS_SEED_HEX=7676767676767676767676767676767676767676767676767676767676767676 \
 $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
   --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
-  --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --produce
+  --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --committee-vote
 ```
 
 **Validator 2** â€” same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.

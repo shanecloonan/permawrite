@@ -194,20 +194,30 @@ wait_recipient_balance() {
   local deadline=$(( $(date +%s) + timeout_seconds ))
   local last_error=""
   while (( $(date +%s) <= deadline )); do
-    local balance scan_out balance_out
+    local balance scan_out balance_out tip_height
+    tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
     if ! scan_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet scan 2>&1)"; then
       last_error="recipient wallet scan failed: $scan_out"
+      if [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* ]]; then
+        echo "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($last_error)" >&2
+        exit 1
+      fi
       echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
       sleep 5
       continue
     fi
     if ! balance_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"; then
       last_error="recipient wallet balance failed: $balance_out"
+      if [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* ]]; then
+        echo "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($last_error)" >&2
+        exit 1
+      fi
       echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
       sleep 5
       continue
     fi
     balance="$(parse_field "$balance_out" balance)"
+    echo "fund-wallet: recipient_balance_wait hub_tip_height=$tip_height balance=$balance target=$target_balance"
     if (( balance >= target_balance )); then
       echo "fund-wallet: recipient_balance=$balance"
       return
@@ -215,12 +225,37 @@ wait_recipient_balance() {
     last_error=""
     sleep 5
   done
-  local suffix=""
+  local suffix="" tip_height
   if [[ -n "$last_error" ]]; then
     suffix="; last_error=$last_error"
   fi
-  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s; mine or wait for a producer block, then run wallet scan and wallet balance$suffix" >&2
+  tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
+  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s (hub_tip_height=$tip_height); mine or wait for a producer block, then run wallet scan and wallet balance$suffix" >&2
   exit 1
+}
+
+tip_height_text() {
+  local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
+  if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
+    printf 'unknown\n'
+    return
+  fi
+  tip_height="$(awk '{
+    for (i = 1; i <= NF; i++) {
+      if ($i ~ /^tip_height=/) {
+        sub(/^tip_height=/, "", $i)
+        print $i
+        exit
+      }
+    }
+  }' <<<"$tip_out")"
+  if [[ "$tip_height" == "none" ]]; then
+    printf '0\n'
+  elif [[ -n "$tip_height" ]]; then
+    printf '%s\n' "$tip_height"
+  else
+    printf 'unknown\n'
+  fi
 }
 
 RECIPIENT="${RECIPIENT_WALLET:-$DEFAULT_RECIPIENT_WALLET}"

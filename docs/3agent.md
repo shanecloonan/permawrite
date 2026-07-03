@@ -16,18 +16,19 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
-- Live observer restart soak evidence after M2.4.60 mesh liveness; investigate hub daemon lifetime under all-produce mesh.
+- Live observer restart soak evidence after M2.4.61 mesh stability fix.
 
 Done:
 
-- Public-devnet local-mesh liveness (M2.4.60): voters run `--produce` under `F=1.5` sortition, soak converged warmup (`soak: WARMUP`), manifest multi-producer sortition bounds, bounded in-tick producer slot scan (`MAX_SLOT_ELIGIBILITY_SCANS=128`), and `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke with stderr drain + stray-process cleanup for Windows CI stability.
-- Sequential P2P block-sync catch-up, block-log replay, peer quarantine/scoring, bounded catch-up, self-dial skips, health liveness windows, public-devnet P2P/session health checks, Windows duplex P2P session chunk auto-fanout smoke, and opt-in observer kill/restart evidence via `soak --restart-observer-once` / `-RestartObserverOnce` (`soak: RESTART`).
+- M2.4.61: restored M2.3.29 (`--produce` skips committee catch-up); helper mesh hub `--produce` + committee voters; hub bounded slot scan for `F=1.5` genesis.
+- M2.4.60: soak converged warmup, manifest multi-producer sortition bounds, P2P dial readiness.
+- Bounded in-tick producer slot scan + `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke.
+- Sequential P2P/sync hardening, observer restart soak (`soak: RESTART`), Windows chunk auto-fanout.
 
 Next:
 
-- Capture passing `soak: RESTART` on Windows after M2.4.60.
-- Hand off mesh stability evidence to Agent 3 for rehearsal promotion when CI is green.
-- Review Agent 3's local-mesh evidence for any remaining P2P/process-lifetime issue before public-testnet invites.
+- Capture passing `soak: RESTART` on Windows.
+- Hand mesh stability to Agent 3 for rehearsal promotion when soak is green.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
 

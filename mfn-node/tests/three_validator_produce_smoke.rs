@@ -38,20 +38,6 @@ fn unique_data_dir(test: &str) -> PathBuf {
     std::env::temp_dir().join(format!("permawrite-{test}-{}-{nanos}", std::process::id()))
 }
 
-fn cleanup_stray_mfnd() {
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/IM", "mfnd.exe", "/F", "/T"])
-            .status();
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = Command::new("pkill").args(["-f", "mfnd"]).status();
-    }
-    thread::sleep(Duration::from_millis(750));
-}
-
 fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
     let mut last_err = None;
     for _ in 0..40 {
@@ -472,7 +458,6 @@ fn log_contains_any(log: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
 /// Public-devnet hub must not stall at genesis when validator 0 is ineligible at slot 1.
 #[test]
 fn public_devnet_hub_reaches_height_one_within_one_slot_duration() {
-    cleanup_stray_mfnd();
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/public_devnet_v1.json");
     let slot_ms = 2_000u64;
     let dir0 = unique_data_dir("public_devnet_hub");
@@ -537,6 +522,10 @@ fn public_devnet_hub_reaches_height_one_within_one_slot_duration() {
     assert!(
         !log_contains_any(&log0, "scans_exhausted="),
         "slot scan window should not exhaust before first proposal"
+    );
+    assert!(
+        !log_contains_any(&log0, "mfnd_p2p_catchup_cap_reached"),
+        "hub --produce must not run periodic committee catch-up dials"
     );
 
     shutdown_child(&mut v0.child);

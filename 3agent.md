@@ -16,57 +16,34 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Live observer restart soak evidence after M2.4.60 mesh liveness. | M2.4.60 landing; hub slot-scan + height-1 smoke on `main`. | Capture passing `soak: RESTART` on Windows; investigate hub daemon lifetime under all-produce mesh; hand stability to Agent 3. |
+| Agent 1 | Core protocol, consensus, networking, sync | Live observer restart soak evidence (`soak: RESTART`) after M2.4.61 mesh stability fix. | M2.4.61 landing; local CI next. | Archive passing Windows soak evidence; hand mesh stability to Agent 3 nightly promotion. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; support Agent 1 mesh verification. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Blocked on mesh soak stability. | Promote participant rehearsal smoke into unattended slow/nightly coverage once Agent 1 soak is green. |
 
 ## Recently Completed
 
-- Agent 1: Public-devnet local-mesh liveness (M2.4.60) — voters run `--produce` under `F=1.5` sortition, soak waits for first block (`soak: WARMUP`), manifest tests pin slot-1 peer eligibility.
-- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
-- Agent 2: Release evidence tooling, JSON schema/sample, support-bundle evidence validation, sign-off review, dry-run sign-off flow, artifact inventory, checksum helpers, inventory validation, archive layout guidance, and archive assembly dry-run helper are landed on `main`.
-- Agent 2: Release archive validation scripts now verify staged public files, checksum manifests, and obvious private filename exclusions before publication.
-- Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
-- Agent 2: Release sign-off manifest scripts combine exact-commit CI, release evidence, archive validation, artifact inventory validation, and human approvals into one machine-readable decision record.
-- Agent 2: Release sign-off manifest schema/sample artifacts are published for dashboards and independent validator tooling.
-- Agent 2: Release sign-off manifest validators enforce the published contract and fail `go` decisions unless all machine and human gates pass.
-- Agent 2: Release JSON schema validators enforce the repository's published release schemas without adding an unpinned third-party dependency.
-- Agent 2: Final release audit packet helpers aggregate CI, evidence schema, sign-off, archive, inventory, and stats checks into one operator-facing go/no-go report.
-- Agent 2: Release CI watcher now reports unauthenticated GitHub API rate limits as structured no-go JSON instead of crashing.
-- Agent 2: Release CI watcher fallback uses `GH_TOKEN` / `GITHUB_TOKEN` for authenticated API polling without leaking tokens into JSON output.
-- Agent 2: WASM package metadata is explicit where wasm-pack requires string fields, keeping the local CI mirror's wasm package build green.
-- Agent 1: Recent `main` commits landed outbound P2P connect bounds, boot peer list capping, boot cap startup log coverage, boot-dial connect quarantine without durable peer deletion, saved-peer reconnect quarantine before cap accounting, committee catch-up quarantine before cap accounting, gap-triggered recovery cap accounting, stable gap recovery peer-scoring labels, gap recovery success clearing transient peer penalties, durable gap recovery peer retention, and Windows chunk auto-fanout promotion.
-- Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
-- Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
-- Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
-- Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
-- Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
-- Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
-- Agent 2: Participant rehearsal smoke CI policy guard blocks real-run mesh smokes from default CI/nightly until Agent 2/3 sign off.
-- Agent 2: Release audit packets and release archives now require participant smoke CI policy helpers and audit-packet policy checks.
-- Agent 1: Bounded in-tick producer slot scan prevents public-devnet hub genesis stall when validator 0 is ineligible at slot 1.
-- Agent 1: `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke seals block 1 within one slot after mesh start; harness drains stderr and cleans stray `mfnd` on Windows.
-- Agent 1: Integration smoke `public_devnet_hub_reaches_height_one_within_one_slot_duration` seals block 1 within one slot duration after mesh start.
-- Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
+- Agent 1: M2.4.61 — restored M2.3.29 (`--produce` skips committee catch-up); helper mesh back to hub `--produce` + committee voters; hub bounded slot scan handles `F=1.5` genesis.
+- Agent 1: M2.4.60 — soak converged warmup (`soak: WARMUP`), manifest multi-producer sortition bounds, P2P dial readiness timeouts.
+- Agent 1: M2.4.59 — observer restart soak evidence (`soak: RESTART`).
+- Agent 1: Bounded in-tick producer slot scan + `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke.
+- Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy, wheelhouse/offline validation.
+- Agent 3: Participant rehearsal smoke, faucet reward wait hardening, evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
 
-Completed unit (M2.4.60):
+Completed unit (M2.4.61):
 
-- [x] Switch public-devnet voter helpers from `--committee-vote` to `--produce`.
-- [x] Add soak `soak: WARMUP` wait for `hub tip_height >= 1` before stall sampling.
-- [x] Add `public_devnet_sortition_multi_producer_liveness_bound` manifest coverage.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator guidance.
-- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
+- [x] Restore M2.3.29: `spawn_committee_catch_up_loop` only for `--committee-vote`, not `--produce`.
+- [x] Revert helper mesh voters to `--committee-vote` (hub slot scan covers genesis).
+- [x] Pin hub catch-up exclusion in `public_devnet_hub_reaches_height_one_within_one_slot_duration`.
+- [x] Update `docs/TESTNET.md`, `OPERATORS.md`, `ROADMAP.md`, `TESTNET_CHECKLIST.md`.
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, check GitHub CI.
 - [ ] Re-run `soak.ps1 -RestartObserverOnce` and archive passing `soak: RESTART` evidence.
 
 Next Agent 1 task:
 
-- [x] Diagnose public-devnet hub stall when validator 0 is ineligible at slot 1 (`public_devnet_validator0_needs_advancing_slots_for_liveness`).
-- [x] Scan forward through bounded slot numbers within one producer tick before waiting another `--slot-duration-ms` interval.
-- [x] Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
-- [ ] Live observer restart soak evidence on Windows after M2.4.60 lands.
-- [ ] Investigate hub daemon lifetime and P2P catch-up dial storms under all-produce local mesh.
+- [ ] Live observer restart soak evidence on Windows.
+- [ ] Investigate any remaining hub daemon lifetime issues under long soak runs.
 
 ## Shared Release-Candidate Gates
 
@@ -83,29 +60,12 @@ Next Agent 1 task:
 
 ## Agent 2 Detailed Plan
 
-Completed unit:
-
-- [x] Add `release-schema-wheelhouse` and `release-schema-install-offline` helpers for Bash and PowerShell.
-- [x] Document offline wheelhouse workflow in `OPERATORS.md` and mark the checklist item complete.
-- [x] Stage wheelhouse wheels and `requirements-release-schema.txt` in release-archive dry-run output.
-- [x] Require wheelhouse artifacts in release-archive validation when air-gapped strict validation is expected.
-- [x] Add CI smoke coverage for wheelhouse staging and offline install.
-- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
-
-Completed unit (participant smoke CI policy):
-
-- [x] Add `release-participant-smoke-policy-check` helpers (Python + Bash + PowerShell).
-- [x] Wire policy check and negative fixture into local `ci-check` mirrors and GitHub CI.
-- [x] Document CI policy in `docs/CI.md`, `OPERATORS.md`, and `docs/TESTNET_CHECKLIST.md`.
-- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
-
 Next Agent 2 task:
 
 - [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (next unchecked Agent 2 item).
 
-Completed unit (audit-packet policy integration):
+## Agent 3 Detailed Plan
 
-- [x] Add participant smoke CI policy check to `release-audit-packet` helpers.
-- [x] Stage policy helpers in `release-archive-dry-run` and require them in archive validation.
-- [x] Extend CI archive/audit-packet smoke and update operator/docs samples.
-- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+Next Agent 3 task:
+
+- [ ] Promote participant rehearsal smoke into slow/nightly CI once Agent 1 soak `soak: RESTART` evidence is green.

@@ -42,8 +42,8 @@ New peers should:
 
 | Role | Flags | Notes |
 |------|--------|--------|
-| Hub | `serve --produce` | Usually validator index `0`. |
-| Voter | `serve --produce` | Indices `1` and `2`; set `MFND_VALIDATOR_INDEX` + seeds from genesis. Public devnet uses `expected_proposers_per_slot: 1.5`, so every validator must run the slot loop — hub-only production can stall at genesis when the hub is ineligible. |
+| Hub | `serve --produce` | Usually validator index `0`; scans up to 128 slots per tick when VRF-ineligible. |
+| Voter | `serve --committee-vote` | Indices `1` and `2`; vote on hub proposals and run periodic catch-up dials. |
 | Observer | `serve` | No validator env; sync + RPC only. |
 
 ## Bootstrap scripts
@@ -1005,7 +1005,7 @@ bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only
 bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh
 ```
 
-The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, rescans until the faucet has spendable balance, runs `participant-rehearsal`, and stops the mesh it started. Each faucet wait line includes `hub_tip_height`; if it stays at `0`, diagnose validator `--produce` liveness (all three validators must run the slot loop on public devnet) before debugging wallet funding. Pass `-WaitFaucetSeconds` / `--wait-faucet-seconds` to tune the faucet reward window, `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
+The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, rescans until the faucet has spendable balance, runs `participant-rehearsal`, and stops the mesh it started. Each faucet wait line includes `hub_tip_height`; if it stays at `0`, diagnose hub `--produce` liveness (bounded slot scan + committee voters) before debugging wallet funding. Pass `-WaitFaucetSeconds` / `--wait-faucet-seconds` to tune the faucet reward window, `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
 
 **CI policy:** `release-participant-smoke-policy-check.ps1` / `.sh` scans `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, and the local `ci-check` mirrors. Default CI and nightly may run `participant-rehearsal` / `participant-rehearsal-smoke` with `--plan-only` / `-PlanOnly` only. Real-run mesh smokes stay manual until mesh lifetime is stable and Agent 2/3 sign off on nightly promotion.
 

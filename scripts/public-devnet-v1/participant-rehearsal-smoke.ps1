@@ -109,6 +109,12 @@ $startedMesh = $false
 Push-Location $RepoRoot
 try {
     New-Item -ItemType Directory -Force -Path $SmokeRoot | Out-Null
+    if (-not $NoBuild) {
+        cargo build -p mfn-cli --release --bin mfn-cli
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        cargo build -p mfn-storage-operator --release --bin mfn-storage-operator
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
     if (-not $NoStart) {
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
         . (Join-Path $ScriptDir "start-all.ps1")
@@ -117,12 +123,6 @@ try {
     }
     $RpcAddr = Resolve-Rpc
 
-    if (-not $NoBuild) {
-        cargo build -p mfn-cli --release --bin mfn-cli
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        cargo build -p mfn-storage-operator --release --bin mfn-storage-operator
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
     $MfnCli = Resolve-MfnCli
     if ($UseBundledTestFaucet) {
         & $MfnCli --wallet $Faucet --force wallet restore $TestFaucetSeed --key-derivation payout_stealth_v1
