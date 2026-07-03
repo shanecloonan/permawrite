@@ -6,6 +6,10 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: nightly-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"

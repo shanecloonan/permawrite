@@ -15,13 +15,15 @@ param(
     [switch]$NoStart,
     [switch]$NoStop,
     [switch]$NoBuild,
-    [switch]$PlanOnly
+    [switch]$PlanOnly,
+    [switch]$ArchiveEvidence
 )
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
 $SmokeRoot = if ($RehearsalDir) { $RehearsalDir } else { Join-Path $ScriptDir "participant-rehearsal-smoke" }
 $Faucet = if ($FaucetWallet) { $FaucetWallet } else { Join-Path $SmokeRoot "validator0-faucet.json" }
 $UseBundledTestFaucet = -not $FaucetWallet
@@ -73,6 +75,50 @@ function Get-TipHeightText {
     if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
     if ($tipText -match "(^|\s)tip_height=none") { return "0" }
     return "unknown"
+}
+
+function Archive-RehearsalSmokeEvidence {
+    param(
+        [string]$RpcAddr,
+        [string]$FinalHubHeight,
+        [string]$ObserverRpc,
+        [string]$ObserverHeight
+    )
+    $evidenceDir = Join-Path $ScriptDir "evidence"
+    New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+    $observerLabel = if ($WithObserver) { "observer" } else { "no-observer" }
+    $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    $path = Join-Path $evidenceDir "participant-rehearsal-$observerLabel-windows-$stamp.txt"
+    $commit = ""
+    try {
+        Push-Location $RepoRoot
+        $commit = (git rev-parse --short HEAD 2>$null)
+    } finally {
+        Pop-Location
+    }
+    $cmd = "participant-rehearsal-smoke.ps1"
+    if ($WithObserver) { $cmd += " -WithObserver" }
+    if ($MinHubHeight -gt 0) { $cmd += " -MinHubHeight $MinHubHeight" }
+    $lines = New-Object System.Collections.Generic.List[string]
+    [void]$lines.Add("# Participant rehearsal smoke - $observerLabel (Windows)")
+    [void]$lines.Add("# Generated: $stamp")
+    [void]$lines.Add("# Command: $cmd")
+    if ($commit) { [void]$lines.Add("# Commit: $commit") }
+    [void]$lines.Add("")
+    [void]$lines.Add("SUMMARY: PASS")
+    [void]$lines.Add("")
+    [void]$lines.Add("Hub RPC=$RpcAddr")
+    if ($WithObserver -and $ObserverRpc) {
+        [void]$lines.Add("Observer RPC=$ObserverRpc")
+    }
+    [void]$lines.Add("")
+    [void]$lines.Add("participant-rehearsal-smoke: PASS with_observer=$($WithObserver.IsPresent) hub_tip_height=$FinalHubHeight min_hub_height=$MinHubHeight")
+    if ($WithObserver -and $ObserverHeight -ne "unknown") {
+        [void]$lines.Add("participant-rehearsal-smoke: post_rehearsal observer_tip_height=$ObserverHeight observer_rpc=$ObserverRpc")
+    }
+    $enc = Get-DevnetPortsEncoding
+    [System.IO.File]::WriteAllLines($path, $lines.ToArray(), $enc)
+    Write-Host "participant-rehearsal-smoke: EVIDENCE archived=$path"
 }
 
 function Wait-FaucetBalance {
@@ -233,7 +279,18 @@ try {
     Wait-MinHubHeight $MfnCli $RpcAddr $MinHubHeight $WaitMinHubHeightSeconds
     Assert-MeshHeights $MfnCli $RpcAddr
     $finalHubHeight = Get-TipHeightText $MfnCli $RpcAddr
+    $observerRpc = ""
+    $observerHeight = "unknown"
+    if ($WithObserver) {
+        $observerRpc = Get-LatestObserverRpc
+        if ($observerRpc) {
+            $observerHeight = Get-TipHeightText $MfnCli $observerRpc
+        }
+    }
     Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir with_observer=$($WithObserver.IsPresent) hub_tip_height=$finalHubHeight min_hub_height=$MinHubHeight"
+    if ($ArchiveEvidence) {
+        Archive-RehearsalSmokeEvidence -RpcAddr $RpcAddr -FinalHubHeight $finalHubHeight -ObserverRpc $observerRpc -ObserverHeight $observerHeight
+    }
 } finally {
     if ($startedMesh -and -not $NoStop) {
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile

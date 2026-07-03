@@ -16,6 +16,10 @@ on:
         required: true
         default: "10"
 
+concurrency:
+  group: linux-soak-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"

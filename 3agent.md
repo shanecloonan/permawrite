@@ -16,44 +16,44 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.75** CI concurrency + dispatch helpers. | **In progress** — `cancel-in-progress` on CI; `dispatch-rc-workflows`. | Linux Soak Audit workflow dispatch. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.75** release-evidence `7b3ff02`. | **In progress** — evidence + RC audit generating. | Monitor CI after concurrency fix. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.75** local observer rehearsal. | **In progress** — Windows observer smoke running. | Archive PASS evidence; confirm Nightly green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.76** CI queue cleanup + flaky P2P upload retry. | **In progress** — `ci-queue-cleanup.yml`; chunk upload transport retry. | Monitor Linux Soak Audit after dispatch. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.76** release-evidence `ad18d94`. | **In progress** — RC evidence + CI unblock. | Archive validation after CI green. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.76** observer rehearsal evidence UTF-8 fix. | **Done** — PASS archived + `-ArchiveEvidence` on smoke.ps1. | Green Nightly dispatch (both jobs). |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.74** — `linux-soak-audit.yml` workflow_dispatch (`7b3ff02`).
-- Agent 2: **M2.4.74** — `release-evidence-9536efb` + RC audit decision=go.
+- Agent 1: **M2.4.75** — CI concurrency + `dispatch-rc-workflows` helpers (`ad18d94`).
 - Agent 1: **M2.4.70** — Windows 30s-slot soak PASS height 38 + RESTART.
+- Agent 3: **M2.4.68** — observer-enabled rehearsal PASS hub≥5.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.74)
+### Done (M2.4.64–M2.4.75)
 
-- [x] Windows + Linux soak success criteria, soak lock, archive evidence.
-- [x] Windows 30s-slot soak PASS — `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`.
-- [x] GitHub Actions **Linux Soak Audit** workflow.
+- [x] Windows 30s-slot soak PASS + soak lock + archive evidence.
+- [x] Linux Soak Audit workflow + CI concurrency cancel-in-progress.
 
-### In Progress (M2.4.75)
+### In Progress (M2.4.76)
 
-- [x] CI `concurrency` + `cancel-in-progress` to clear Actions queue backlog.
-- [x] `dispatch-rc-workflows.{ps1,sh}` for Nightly + Linux Soak Audit via `gh`.
+- [x] `ci-queue-cleanup.yml` cancels stale CI runs on main (unblocks Actions backlog).
+- [x] `chunk_p2p_auto_fanout_smoke` wallet upload transport retry (Windows RPC flake).
+- [ ] Linux 30s-slot soak evidence from **Linux Soak Audit** workflow artifact.
 
 ### Next
 
-- [ ] Dispatch **Linux Soak Audit** (`dispatch-rc-workflows.ps1 -LinuxSoakAudit` or Actions UI).
-- [ ] Commit archived Linux 30s-slot soak evidence from workflow artifact.
+- [ ] Dispatch `dispatch-rc-workflows.ps1 -All` (or Actions UI: CI Queue Cleanup → Nightly → Linux Soak Audit).
+- [ ] Commit archived Linux soak evidence once workflow completes.
 
 ## Agent 3 Detailed Plan
 
-- [x] Nightly jobs + `ci-ignored` mirror for both rehearsal smokes.
-- [ ] **Running:** Windows observer rehearsal smoke (`-WithObserver -MinHubHeight 5`).
+- [x] Windows observer rehearsal PASS — `evidence/participant-rehearsal-observer-windows-20260703T140456Z.txt`.
+- [x] `-ArchiveEvidence` on `participant-rehearsal-smoke.ps1` (UTF-8 no BOM via `ports-env-lib`).
 - [ ] First green **Nightly** on post-M2.4.72 commit (manual dispatch).
 
 ## Agent 2 Detailed Plan
 
-- [ ] `release-evidence-7b3ff02` + RC audit dry-run.
-- [x] CI concurrency fix to unblock green CI on latest `main`.
+- [ ] `release-evidence-ad18d94` + RC audit dry-run for latest RC commit.
+- [x] CI queue cleanup workflow to unblock green CI.
 - [ ] Operator human sign-off on release inventory.
 
 ## Shared Release-Candidate Gates
@@ -68,5 +68,5 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Cross-Agent Blockers
 
-- `gh` not authenticated locally — use Actions UI or `gh auth login` + `dispatch-rc-workflows.ps1 -All`.
-- CI queue backlog (M2.4.75 concurrency fix should cancel stale runs on next push).
+- GitHub Actions CI backlog (5+ stale `in_progress` runs) — **M2.4.76** `ci-queue-cleanup.yml` runs on push.
+- `gh` not installed locally — use Actions UI or set `GH_TOKEN`/`GITHUB_TOKEN` for REST dispatch via `dispatch-rc-workflows.ps1`.

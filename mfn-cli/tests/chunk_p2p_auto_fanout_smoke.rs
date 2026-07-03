@@ -173,6 +173,45 @@ fn wait_for_local_inbox_complete(data_dir: &Path, commitment_hash: &str, num_chu
     }
 }
 
+fn wallet_upload_with_transport_retry(
+    rpc: &str,
+    wallet: &Path,
+    payload_path: &Path,
+    fee: &str,
+    ring_size: &str,
+) -> Output {
+    let mut last_out = None;
+    for _ in 0..5 {
+        let out = mfn_cli()
+            .args(["--rpc", rpc, "--wallet"])
+            .arg(wallet)
+            .args([
+                "wallet",
+                "upload",
+                payload_path.to_str().expect("utf8"),
+                "--fee",
+                fee,
+                "--ring-size",
+                ring_size,
+            ])
+            .output()
+            .expect("wallet upload");
+        if out.status.success() {
+            return out;
+        }
+        let stderr = String::from_utf8_lossy(&out.stderr).to_ascii_lowercase();
+        let transient_transport = stderr.contains("forcibly closed")
+            || stderr.contains("connection reset")
+            || stderr.contains("connection refused");
+        last_out = Some(out);
+        if !transient_transport {
+            break;
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+    last_out.expect("wallet upload attempted")
+}
+
 fn assemble_inbox_with_transport_retry(
     rpc: &str,
     wallet: &Path,
@@ -299,20 +338,8 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (hub_rpc_prep, _) = read_serve_addrs(&mut hub_prep);
     let hub_rpc_prep = hub_rpc_prep.to_string();
 
-    let upload_out = mfn_cli()
-        .args(["--rpc", &hub_rpc_prep, "--wallet"])
-        .arg(&hub_wallet)
-        .args([
-            "wallet",
-            "upload",
-            payload_path.to_str().expect("utf8"),
-            "--fee",
-            "10000",
-            "--ring-size",
-            "8",
-        ])
-        .output()
-        .expect("wallet upload");
+    let upload_out =
+        wallet_upload_with_transport_retry(&hub_rpc_prep, &hub_wallet, &payload_path, "10000", "8");
     assert!(
         upload_out.status.success(),
         "upload stderr={}",

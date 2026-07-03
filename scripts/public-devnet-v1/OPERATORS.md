@@ -375,7 +375,7 @@ Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehears
 powershell -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1
 ```
 
-Dispatch **Nightly** and **Linux Soak Audit** on GitHub Actions (requires `gh auth login`):
+Dispatch **CI Queue Cleanup**, **Nightly**, and **Linux Soak Audit** on GitHub Actions (requires `gh auth login` or `GH_TOKEN`/`GITHUB_TOKEN`):
 
 ```powershell
 powershell -File scripts/public-devnet-v1/dispatch-rc-workflows.ps1 -All
@@ -383,6 +383,14 @@ powershell -File scripts/public-devnet-v1/dispatch-rc-workflows.ps1 -All
 
 ```bash
 bash scripts/public-devnet-v1/dispatch-rc-workflows.sh --all
+```
+
+`-All` / `--all` also triggers **CI Queue Cleanup** (`ci-queue-cleanup.yml`), which cancels stale queued/in-progress CI runs on `main` so the latest commit is not blocked behind a backlog.
+
+Participant rehearsal smoke can archive UTF-8 evidence on PASS:
+
+```powershell
+powershell -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -WithObserver -MinHubHeight 5 -ArchiveEvidence
 ```
 
 Output: `scripts/public-devnet-v1/evidence/rc-audit-dry-run-<commit>-<timestamp>.json`.
