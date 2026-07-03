@@ -521,6 +521,19 @@ Linux/bash parity (`soak.sh`):
 SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --restart-observer-once --min-final-height 10 --archive-evidence
 ```
 
+**GitHub Actions Linux soak audit** (workflow_dispatch, uploads evidence artifact):
+
+1. Open **Actions → Linux Soak Audit → Run workflow** on `main`.
+2. Defaults: `SLOT_MS=30000`, 35 minutes, `--min-final-height 10`, observer restart once.
+3. Download artifact `linux-soak-evidence-slot-30000` and archive the transcript under `scripts/public-devnet-v1/evidence/`.
+
+**Nightly Linux rehearsal smokes** (06:00 UTC + workflow_dispatch):
+
+- `participant-rehearsal-smoke` — 10s slots, no observer (`MFN_DEVNET_NO_OBSERVER=1`).
+- `participant-rehearsal-smoke-observer` — full mesh, `--min-hub-height 5`.
+
+Trigger manually: **Actions → Nightly → Run workflow** on `main` to confirm both jobs green before RC sign-off.
+
 Smoke-slot soak (10s blocks, faster CI-style mesh):
 
 ```powershell

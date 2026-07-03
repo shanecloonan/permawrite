@@ -11,7 +11,13 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 Set-Location $RepoRoot
 
 if (-not $ReleaseEvidenceJson) {
-    $ReleaseEvidenceJson = Join-Path $ScriptDir "evidence/release-evidence-ebe1e48.json"
+    $shortCommit = (& git rev-parse --short HEAD).Trim()
+    $headEvidence = Join-Path $ScriptDir "evidence/release-evidence-$shortCommit.json"
+    if (Test-Path -LiteralPath $headEvidence -PathType Leaf) {
+        $ReleaseEvidenceJson = $headEvidence
+    } else {
+        $ReleaseEvidenceJson = Join-Path $ScriptDir "evidence/release-evidence-ebe1e48.json"
+    }
 }
 if (-not (Test-Path -LiteralPath $ReleaseEvidenceJson -PathType Leaf)) {
     throw "release-rc-audit-dry-run: missing release evidence JSON $ReleaseEvidenceJson"
@@ -111,9 +117,12 @@ $auditArgs = @(
 )
 $auditJson = & powershell @auditArgs
 if ($LASTEXITCODE -ne 0) {
+    if ($auditJson -is [array]) { $auditJson = $auditJson -join "`n" }
     Write-Output $auditJson
     exit $LASTEXITCODE
 }
+
+if ($auditJson -is [array]) { $auditJson = $auditJson -join "`n" }
 
 if (-not $OutputPath) {
     $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
@@ -122,13 +131,14 @@ if (-not $OutputPath) {
 
 $auditObject = $auditJson | ConvertFrom-Json
 if ($auditObject.decision -ne "go") {
-    Write-Output ($auditJson | ConvertTo-Json -Depth 10)
+    Write-Output ($auditObject | ConvertTo-Json -Depth 10)
     throw "release-rc-audit-dry-run: audit packet decision=$($auditObject.decision)"
 }
 
-Set-Content -LiteralPath $OutputPath -Value ($auditJson | ConvertTo-Json -Depth 10) -Encoding utf8
+$auditText = $auditObject | ConvertTo-Json -Depth 10
+Set-Content -LiteralPath $OutputPath -Value $auditText -Encoding utf8
 Write-Host "release-rc-audit-dry-run: OK decision=go path=$OutputPath"
 
 if ($Json) {
-    Write-Output ($auditJson | ConvertTo-Json -Depth 10)
+    Write-Output $auditText
 }

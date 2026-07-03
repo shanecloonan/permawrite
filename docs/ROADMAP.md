@@ -2046,6 +2046,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.71** | Soak success criteria (`-MinFinalHeight`, `-MinSuccessfulIterations`), convergence retries, graceful deadline exit, archive evidence on PASS or FAIL. | ✓ shipped |
 | **M2.4.72** | Release-evidence JSON/MD for M2.4.70 commit; nightly Linux `participant-rehearsal-smoke-observer` job (`--with-observer --min-hub-height 5`). | ✓ shipped |
 | **M2.4.73** | Linux `soak.sh` success-criteria parity + bash soak lock; `release-rc-audit-dry-run.ps1` RC audit packet (decision=go); `ci-ignored` observer smoke mirror. | ✓ shipped |
+| **M2.4.74** | GitHub Actions `linux-soak-audit.yml` (workflow_dispatch Linux 30s soak + evidence artifact); release-evidence + RC audit for `9536efb`. | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

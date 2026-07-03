@@ -16,44 +16,43 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.73** Linux soak + bash soak lock parity. | **Done locally** — `soak.sh` success criteria, `ports-env-lib.sh`, start/stop lock. | Linux 30s-slot soak evidence capture. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.73** RC audit dry-run. | **Done locally** — `release-rc-audit-dry-run.ps1` decision=go archived. | Human sign-off + green CI on push. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.72** nightly observer rehearsal job. | **Shipped** — workflow live; awaiting first green run. | Confirm Linux nightly green (both jobs). |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.74** Linux soak audit workflow. | **Done locally** — `linux-soak-audit.yml` workflow_dispatch. | Trigger workflow; archive Linux 30s evidence artifact. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.74** release-evidence + RC audit for `9536efb`. | **Done locally** — evidence + decision=go archived. | Monitor CI queue; operator sign-off. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.74** nightly dispatch guidance. | **Done locally** — OPERATORS docs for manual Nightly run. | Confirm green Nightly (both rehearsal jobs) on `9536efb+`. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.71–72** — soak criteria, release-evidence, nightly observer job (`76d6c82`).
-- Agent 1: **M2.4.70** — 30s-slot soak PASS height 38 + RESTART evidence archived.
-- Agent 3: **M2.4.68** — observer-enabled rehearsal PASS hub≥5 + evidence archived.
-- Agent 2: **M2.4.73** — RC audit dry-run with M2.4.70 soak + participant fixture evidence.
+- Agent 1: **M2.4.73** — Linux `soak.sh` parity + bash soak lock (`9536efb`).
+- Agent 2: **M2.4.73** — RC audit dry-run decision=go archived.
+- Agent 1: **M2.4.70** — Windows 30s-slot soak PASS height 38 + RESTART evidence.
+- Agent 3: **M2.4.68** — observer-enabled rehearsal PASS hub≥5.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.73)
+### Done (M2.4.64–M2.4.74)
 
-- [x] Mesh stability, soak RESTART, devnet-ports mutex, observer rehearsal past height 5.
-- [x] Soak `-MinFinalHeight` / graceful deadline exit / archive on finish (PowerShell + Bash).
-- [x] Bash `ports-env-lib.sh` soak lock; `start-all.sh` / `stop-all.sh` `--force` parity.
+- [x] Windows + Linux soak success criteria, archive evidence, soak lock (ps1 + bash).
 - [x] Windows 30s-slot soak PASS — `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`.
+- [x] GitHub Actions **Linux Soak Audit** workflow (`linux-soak-audit.yml`, workflow_dispatch, artifact upload).
 
 ### Next
 
-- [ ] Capture Linux 30s-slot soak evidence (`soak.sh --min-final-height 10 --archive-evidence`).
-- [ ] Monitor nightly observer rehearsal smoke on GitHub Actions.
+- [ ] Run **Linux Soak Audit** on GitHub Actions; commit archived Linux 30s-slot evidence.
+- [ ] Monitor CI green for `9536efb` / M2.4.74 push.
 
 ## Agent 3 Detailed Plan
 
-- [x] Nightly job `participant-rehearsal-smoke-observer` with `--with-observer --min-hub-height 5`.
-- [x] `ci-ignored` mirrors both nightly rehearsal jobs locally.
-- [ ] Confirm first green Linux nightly for both rehearsal jobs.
+- [x] Nightly jobs: `participant-rehearsal-smoke` + `participant-rehearsal-smoke-observer`.
+- [x] `ci-ignored` mirrors both jobs locally.
+- [x] OPERATORS guidance to manually dispatch **Nightly** before RC sign-off.
+- [ ] First green Nightly on commit **after M2.4.72** (observer job included).
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence` JSON/MD for M2.4.70 commit.
-- [x] `release-rc-audit-dry-run.ps1` + archived `evidence/rc-audit-dry-run-76d6c82-*.json` (decision=go).
-- [x] Fix `release-evidence.ps1` null CI conclusion → empty string for schema validation.
-- [ ] Monitor GitHub CI for M2.4.73 push.
-- [ ] Operator human sign-off fields in release inventory.
+- [x] `release-evidence-9536efb.json` / `.md`.
+- [x] `rc-audit-dry-run-9536efb-*.json` (decision=go).
+- [ ] GitHub CI green on latest push (runs were queued — monitor Actions).
+- [ ] Operator human sign-off on release inventory.
 
 ## Shared Release-Candidate Gates
 
@@ -62,4 +61,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Nightly + ci-ignored smoke coverage for release candidates.
 - `release-evidence.md` / `.json` for exact commit.
 - RC audit dry-run packet archived (`decision=go`).
+- Linux 30s-slot soak evidence (Windows done; Linux via workflow artifact pending).
 - Support bundle + archive validation + human sign-off.
+
+## Cross-Agent Blockers
+
+- GitHub Actions CI queue backlog (multiple `main` pushes queued/in_progress).
+- Last scheduled Nightly (`cc7cb19`) predates M2.4.72 observer job — manual **Nightly** dispatch required to validate both rehearsal jobs.
+- Local `gh` not authenticated; use Actions UI for workflow dispatch and CI monitoring.

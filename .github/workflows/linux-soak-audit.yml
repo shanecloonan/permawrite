@@ -1,0 +1,58 @@
+name: Linux Soak Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      slot_ms:
+        description: Block slot duration in milliseconds
+        required: true
+        default: "30000"
+      duration_minutes:
+        description: Soak duration in minutes
+        required: true
+        default: "35"
+      min_final_height:
+        description: Minimum hub height for PASS
+        required: true
+        default: "10"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  linux-soak-audit:
+    name: Linux public-devnet soak audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust
+          cache-bin: false
+      - name: Verify Rust toolchain
+        shell: bash
+        run: |
+          rustup default stable
+          rustc --version
+          cargo --version
+      - name: Run Linux soak with archive evidence
+        shell: bash
+        env:
+          SLOT_MS: ${{ github.event.inputs.slot_ms }}
+        run: |
+          set -euo pipefail
+          bash scripts/public-devnet-v1/soak.sh \
+            --duration-minutes "${{ github.event.inputs.duration_minutes }}" \
+            --restart-observer-once \
+            --min-final-height "${{ github.event.inputs.min_final_height }}" \
+            --archive-evidence
+      - name: Upload soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-soak-evidence-slot-${{ github.event.inputs.slot_ms }}
+          path: scripts/public-devnet-v1/evidence/soak-restart-linux-*.txt
+          if-no-files-found: warn
