@@ -351,7 +351,7 @@ while ((Get-Date) -lt $deadline) {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "$StallIntervalSeconds", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "$MinHeightDelta", "Process")
         $healthOutput = @()
-        $healthDeadline = (Get-Date).AddSeconds([Math]::Max(60, $StallIntervalSeconds))
+        $healthDeadline = (Get-Date).AddSeconds([Math]::Max(120, ($StallIntervalSeconds * 2)))
         while ((Get-Date) -lt $healthDeadline) {
             try {
                 $healthOutput = & $HealthScript 2>&1 6>&1
