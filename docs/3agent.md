@@ -10,7 +10,7 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Doing:** `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T152900Z.json` decision=go archived.
+- **Doing:** `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T153350Z.json` decision=go archived.
 - **Next:** Confirm GitHub CI green; operator sign-off.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding

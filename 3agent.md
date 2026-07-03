@@ -55,14 +55,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T152900Z.json` decision=go.
+- [x] `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T153350Z.json` decision=go.
 - [ ] Verify GitHub CI green on exact RC commit after M2.4.81 push.
 - [ ] Operator human sign-off.
 
 ## Shared Release-Candidate Gates
 
 - Exact commit has green GitHub CI — **2497668 validate fix proven**; full matrix re-run pending.
-- Local CI mirror — **pending** full `ci-check` before M2.4.81 push.
+- Local CI mirror — **yes** (`scripts/ci-check.ps1` PASS before M2.4.81 push).
 - Nightly after green CI — **pending** RC validation trigger.
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
