@@ -38,6 +38,20 @@ fn unique_data_dir(test: &str) -> PathBuf {
     std::env::temp_dir().join(format!("permawrite-{test}-{}-{nanos}", std::process::id()))
 }
 
+fn cleanup_stray_mfnd() {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/IM", "mfnd.exe", "/F", "/T"])
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = Command::new("pkill").args(["-f", "mfnd"]).status();
+    }
+    thread::sleep(Duration::from_millis(750));
+}
+
 fn tcp_request_json(addr: SocketAddr, request_line: &str) -> String {
     let mut last_err = None;
     for _ in 0..40 {
@@ -148,6 +162,8 @@ fn spawn_produce_validator(
         .stderr(Stdio::piped())
         .spawn()
         .expect("spawn mfnd produce serve");
+    let stderr = child.stderr.take().expect("stderr");
+    drain_stderr(stderr);
     let stdout = child.stdout.take().expect("stdout");
     let mut out = BufReader::new(stdout);
     let (rpc, p2p) = read_startup_addrs(&mut out, slot_producer, p2p_dial.is_some());
@@ -421,6 +437,106 @@ fn three_validators_produce_converge_on_shared_tip() {
     assert_ne!(
         block_at_tip_v0, hub_tip,
         "height-2 tip should differ from height-1 block id"
+    );
+
+    shutdown_child(&mut v0.child);
+    shutdown_child(&mut v1.child);
+    shutdown_child(&mut v2.child);
+    std::fs::remove_dir_all(&dir0).ok();
+    std::fs::remove_dir_all(&dir1).ok();
+    std::fs::remove_dir_all(&dir2).ok();
+}
+
+fn drain_stdout(mut reader: BufReader<impl Read + Send + 'static>) {
+    thread::spawn(move || {
+        let mut line = String::new();
+        while reader.read_line(&mut line).ok().is_some_and(|n| n > 0) {
+            line.clear();
+        }
+    });
+}
+
+fn drain_stderr(mut reader: impl Read + Send + 'static) {
+    thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        while reader.read(&mut buf).ok().is_some_and(|n| n > 0) {}
+    });
+}
+
+fn log_contains_any(log: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
+    log.lock()
+        .ok()
+        .is_some_and(|g| g.iter().any(|l| l.contains(needle)))
+}
+
+/// Public-devnet hub must not stall at genesis when validator 0 is ineligible at slot 1.
+#[test]
+fn public_devnet_hub_reaches_height_one_within_one_slot_duration() {
+    cleanup_stray_mfnd();
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/public_devnet_v1.json");
+    let slot_ms = 2_000u64;
+    let dir0 = unique_data_dir("public_devnet_hub");
+    let dir1 = unique_data_dir("public_devnet_v1");
+    let dir2 = unique_data_dir("public_devnet_v2");
+
+    let sealed = Arc::new(AtomicBool::new(false));
+    let log0 = Arc::new(Mutex::new(Vec::new()));
+    let (mut v0, out0) =
+        spawn_produce_validator(&dir0, &spec, 0, V0_VRF, V0_BLS, None, slot_ms, true);
+    let hub_p2p = v0.p2p.to_string();
+    watch_stdout(out0, Arc::clone(&log0), Some(Arc::clone(&sealed)));
+
+    thread::sleep(Duration::from_millis(500));
+
+    let (mut v1, out1) = spawn_produce_validator(
+        &dir1,
+        &spec,
+        1,
+        V1_VRF,
+        V1_BLS,
+        Some(&hub_p2p),
+        slot_ms,
+        false,
+    );
+    drain_stdout(out1);
+
+    thread::sleep(Duration::from_millis(500));
+
+    let (mut v2, out2) = spawn_produce_validator(
+        &dir2,
+        &spec,
+        2,
+        V2_VRF,
+        V2_BLS,
+        Some(&hub_p2p),
+        slot_ms,
+        false,
+    );
+    drain_stdout(out2);
+
+    let mesh_ready = Instant::now();
+    let within_one_slot = Duration::from_millis(slot_ms + 1_500);
+    let (height, _) = wait_first_block(
+        v0.rpc,
+        &[v1.rpc, v2.rpc],
+        &sealed,
+        Duration::from_secs(20),
+        &[Arc::clone(&log0)],
+    );
+    assert_eq!(height, 1, "expected first sealed block at height 1");
+    assert!(
+        mesh_ready.elapsed() <= within_one_slot,
+        "mesh should seal block 1 within one slot duration after startup (elapsed={:?}, budget={within_one_slot:?})",
+        mesh_ready.elapsed()
+    );
+
+    assert!(
+        log_contains_any(&log0, "mfnd_producer_slot_advance"),
+        "hub should scan forward to an eligible slot within one producer tick"
+    );
+    assert!(
+        !log_contains_any(&log0, "scans_exhausted="),
+        "slot scan window should not exhaust before first proposal"
     );
 
     shutdown_child(&mut v0.child);

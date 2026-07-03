@@ -121,6 +121,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Stabilize Windows duplex P2P session chunk fanout so `chunk_p2p_auto_fanout_smoke` can run on Windows instead of being covered there by the participant rehearsal smoke.
 - [x] Add restart/sync soak evidence for observer lag and delayed catch-up under node kill/restart.
 - [x] Harden public-devnet hub block production when validator 0 is VRF-ineligible at slot 1 by scanning bounded slot numbers within one producer tick.
+- [x] Add integration smoke that public-devnet hub reaches height >= 1 within one slot duration after mesh start.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 

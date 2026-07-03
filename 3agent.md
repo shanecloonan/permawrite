@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet producer slot scan for genesis liveness. | Landed on `main`; verifying GitHub CI. | Add integration smoke that hub reaches height >= 1 within one slot duration. |
+| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet producer slot scan for genesis liveness. | Complete on `main`; verifying GitHub CI. | Hand off mesh stability evidence to Agent 3 rehearsal promotion. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; support Agent 1 mesh verification. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
@@ -44,6 +44,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Participant rehearsal smoke CI policy guard blocks real-run mesh smokes from default CI/nightly until Agent 2/3 sign off.
 - Agent 2: Release audit packets and release archives now require participant smoke CI policy helpers and audit-packet policy checks.
 - Agent 1: Bounded in-tick producer slot scan prevents public-devnet hub genesis stall when validator 0 is ineligible at slot 1.
+- Agent 1: `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke seals block 1 within one slot after mesh start; harness drains stderr and cleans stray `mfnd` on Windows.
+- Agent 1: Integration smoke `public_devnet_hub_reaches_height_one_within_one_slot_duration` seals block 1 within one slot duration after mesh start.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -60,7 +62,7 @@ Next Agent 1 task:
 
 - [x] Diagnose public-devnet hub stall when validator 0 is ineligible at slot 1 (`public_devnet_validator0_needs_advancing_slots_for_liveness`).
 - [x] Scan forward through bounded slot numbers within one producer tick before waiting another `--slot-duration-ms` interval.
-- [ ] Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
+- [x] Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
 - [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 ## Shared Release-Candidate Gates
