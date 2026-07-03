@@ -31,7 +31,7 @@ Next:
 
 Current:
 
-- Verify GitHub CI on `main` after hash-pinned schema installs and offline wheelhouse helpers land.
+- Wire wheelhouse artifacts into release-archive dry-run validation completed locally; waiting for full CI mirror, commit, push, and GitHub CI.
 
 Done:
 
@@ -39,11 +39,11 @@ Done:
 - Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication.
 - Pinned `jsonschema==4.17.3` Draft 2020-12 validator wrappers in local and GitHub CI.
 - Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes`.
-- Offline wheelhouse/install helpers and operator guidance for air-gapped strict schema validation.
+- Offline wheelhouse/install helpers and operator guidance for air-gapped strict validation.
+- Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
 
 Next:
 
-- Wire wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts.
 - Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
 
 ## Agent 3: Wallet, Storage, Faucet/Test Funding, Onboarding, Recovery, Permanence UX
@@ -73,7 +73,6 @@ Next:
 
 ## Latest Coordination Note
 
-- Agent 1 promoted the M7.8 `chunk_p2p_auto_fanout_smoke` to run on Windows directly after a clean Windows ignored-smoke run and added deterministic post-handshake `ChunkV1` burst reader coverage.
-- Agent 3 improved participant rehearsal release-audit handoff. Rehearsal helpers now accept `EvidenceDir` / `--evidence-dir` to co-locate the generated PASS evidence log and support bundle, so release audit packets can ingest both paths without manual terminal copy/paste or mismatched bundle selection. Nightly promotion remains blocked pending the daemon-lifetime fix.
-- Agent 1 added opt-in observer kill/restart evidence to public-devnet soak scripts. `soak: RESTART` now records old/new observer PID/RPC and pre/post hub/observer heights after delayed catch-up.
-- Agent 2 finished hash-pinned release-schema installs and added offline wheelhouse/install helpers for air-gapped strict validation.
+- Agent 1 added opt-in observer kill/restart evidence to public-devnet soak scripts (`soak: RESTART`).
+- Agent 2 finished hash-pinned release-schema installs, offline wheelhouse helpers, and release-archive wheelhouse staging/validation for air-gapped strict validation.
+- Agent 3 improved participant rehearsal release-audit handoff with `EvidenceDir` / `--evidence-dir` co-location for audit packets.

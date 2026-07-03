@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Offline wheelhouse guidance for air-gapped strict schema validation. | Landed on `main`. | Wire wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Wire wheelhouse artifacts into release-archive dry-run validation. | Completed locally; wheelhouse smoke passed. | Review participant smoke/nightly harness before it enters CI. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -40,6 +40,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
 - Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
+- Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -71,12 +72,15 @@ Next Agent 1 task:
 
 ## Agent 2 Detailed Plan
 
-Current task:
+Completed unit:
 
 - [x] Add `release-schema-wheelhouse` and `release-schema-install-offline` helpers for Bash and PowerShell.
 - [x] Document offline wheelhouse workflow in `OPERATORS.md` and mark the checklist item complete.
-- [x] Commit, push, and check GitHub CI.
+- [x] Stage wheelhouse wheels and `requirements-release-schema.txt` in release-archive dry-run output.
+- [x] Require wheelhouse artifacts in release-archive validation when air-gapped strict validation is expected.
+- [x] Add CI smoke coverage for wheelhouse staging and offline install.
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Wire wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts.
+- [ ] Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
