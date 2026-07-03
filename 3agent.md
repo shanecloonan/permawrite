@@ -37,7 +37,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
-- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) is staged for push after rebase onto latest `main`.
+- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -48,7 +48,7 @@ Completed unit (M2.4.59):
 - [x] Emit `soak: RESTART` evidence with old/new observer PID/RPC and pre/post hub/observer heights after catch-up.
 - [x] Wait for follower P2P dial logs before failing early soak iterations.
 - [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator soak guidance.
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
+- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
 
 Next Agent 1 task:
 
