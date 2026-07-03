@@ -92,7 +92,7 @@ Completed unit (participant smoke CI policy):
 
 Next Agent 2 task:
 
-- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` after audit-packet policy integration lands.
+- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (next unchecked Agent 2 item).
 
 Completed unit (audit-packet policy integration):
 
