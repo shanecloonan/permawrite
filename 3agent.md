@@ -17,9 +17,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.85** rehearsal `start-all --no-build`. | **In progress** — fix redundant mfnd rebuild on Nightly; local ci-check. | Green Nightly after M2.4.85 CI + RC dispatch. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.84** release evidence `648ae0d`. | **Done** — CI green run 28677784928; evidence + RC audit archived locally. | Regenerate for M2.4.85 after CI green. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.84–85** Nightly rehearsal. | **Partial** — Nightly #47 ignored suite **PASS**; rehearsal jobs failed (~2m, start-all rebuild). | Green all 3 Nightly jobs after M2.4.85. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.85** pushed (`26a2d07`). | **Watching** — CI in flight; hold pushes ~70 min. | Nightly green after RC auto-dispatch. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.85** release evidence. | **Done** — `648ae0d` + `26a2d07` evidence committed. | Operator sign-off after Nightly + soak. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.85** full Nightly green. | **Watching** — ignored PASS on `648ae0d`; rehearsal fix in `26a2d07`. | Confirm all 3 Nightly jobs green. |
 
 ## Recently Completed
 
@@ -42,7 +42,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] Diagnose rehearsal failure: `start-all.sh` rebuilds mfnd despite smoke `--no-build`; `config.env` overwrote Nightly `SLOT_MS=10000`.
 - [x] Add `start-all.sh --no-build`; wire from `participant-rehearsal-smoke.sh`.
 - [x] Preserve caller `SLOT_MS` in `config.env` (`: "${SLOT_MS:=30000}"`).
-- [ ] Local CI mirror PASS + push.
+- [x] Local CI mirror PASS + push (`26a2d07`).
+- [ ] Green CI on `26a2d07` (~70 min).
 - [ ] Green Nightly (rehearsal + observer jobs).
 - [ ] Linux 30s-slot soak evidence.
 
@@ -58,8 +59,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-648ae0d` + RC audit decision=go (local).
-- [ ] Commit evidence to `main` with M2.4.85.
+- [x] `release-evidence-648ae0d` + RC audit committed (`26a2d07`).
+- [ ] `release-evidence-26a2d07` after CI green.
 - [ ] Operator human sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
