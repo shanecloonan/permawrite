@@ -199,7 +199,7 @@ mkdir -p "$SMOKE_ROOT"
 STARTED_MESH=0
 cleanup() {
   if (( STARTED_MESH == 1 && NO_STOP == 0 )); then
-    bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd || true
+    bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file || true
   fi
 }
 trap cleanup EXIT
@@ -214,7 +214,7 @@ if (( NO_START == 0 )); then
     export SLOT_MS=10000
   fi
   export MFN_DEVNET_NO_OBSERVER=1
-  bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd
+  bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
   bash "$SCRIPT_DIR/start-all.sh"
   STARTED_MESH=1
   if (( WAIT_AFTER_START_SECONDS > 0 )); then

@@ -118,7 +118,7 @@ try {
     if (-not $NoStart) {
         if (-not $env:SLOT_MS) { $env:SLOT_MS = "10000" }
         $env:MFN_DEVNET_NO_OBSERVER = "1"
-        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
+        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile
         . (Join-Path $ScriptDir "start-all.ps1")
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
@@ -150,7 +150,7 @@ try {
     Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir"
 } finally {
     if ($startedMesh -and -not $NoStop) {
-        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd
+        powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile
     }
     Pop-Location
 }
