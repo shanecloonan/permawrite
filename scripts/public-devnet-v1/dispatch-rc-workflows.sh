@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 REF=main
+CHECKOUT_SHA=""
 SLOT_MS=30000
 DURATION_MINUTES=35
 MIN_FINAL_HEIGHT=10
@@ -15,7 +16,7 @@ DISPATCH_SOAK=0
 
 usage() {
   cat <<'USAGE'
-usage: dispatch-rc-workflows.sh [--ref BRANCH] [--nightly] [--linux-soak-audit] [--all]
+usage: dispatch-rc-workflows.sh [--ref BRANCH] [--checkout-sha SHA] [--nightly] [--linux-soak-audit] [--all]
        [--slot-ms MS] [--duration-minutes N] [--min-final-height N]
 
 Requires: gh auth login
@@ -27,6 +28,7 @@ USAGE
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --ref) REF="${2:?}"; shift 2 ;;
+    --checkout-sha) CHECKOUT_SHA="${2:?}"; shift 2 ;;
     --nightly) DISPATCH_NIGHTLY=1; shift ;;
     --linux-soak-audit) DISPATCH_SOAK=1; shift ;;
     --all) DISPATCH_NIGHTLY=1; DISPATCH_SOAK=1; shift ;;
@@ -53,8 +55,13 @@ if ! gh auth status >/dev/null 2>&1; then
 fi
 
 if (( DISPATCH_NIGHTLY == 1 )); then
-  echo "dispatch-rc-workflows: triggering Nightly on ref=$REF"
-  gh workflow run nightly.yml --ref "$REF"
+  if [[ -n "$CHECKOUT_SHA" ]]; then
+    echo "dispatch-rc-workflows: triggering Nightly on ref=$REF checkout_sha=$CHECKOUT_SHA"
+    gh workflow run nightly.yml --ref "$REF" -f "checkout_sha=$CHECKOUT_SHA"
+  else
+    echo "dispatch-rc-workflows: triggering Nightly on ref=$REF"
+    gh workflow run nightly.yml --ref "$REF"
+  fi
 fi
 
 if (( DISPATCH_SOAK == 1 )); then

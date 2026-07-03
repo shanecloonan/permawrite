@@ -29,8 +29,8 @@ use serde_json::{json, Value};
 mod stdout_timeout;
 
 use stdout_timeout::{
-    read_mfnd_serve_listening_addr, read_stdout_line_with_prefix, read_stdout_until_p2p_sync_end,
-    P2P_LINE_TIMEOUT, P2P_SYNC_END_TIMEOUT, SERVE_LISTEN_TIMEOUT,
+    p2p_line_timeout, p2p_sync_end_timeout, read_mfnd_serve_listening_addr,
+    read_stdout_line_with_prefix, read_stdout_until_p2p_sync_end, serve_listen_timeout,
 };
 
 /// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
@@ -110,7 +110,7 @@ fn read_listener_p2p_handshake_session(
     tip_id_hex: &str,
 ) -> u64 {
     let peer_tip_line =
-        read_stdout_line_with_prefix(child_out, "mfnd_p2p_peer_tip ", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_peer_tip ", p2p_line_timeout());
     assert!(
         peer_tip_line.contains(&format!("height={tip_h} ")),
         "peer_tip_line={peer_tip_line:?}"
@@ -121,7 +121,7 @@ fn read_listener_p2p_handshake_session(
     );
     let hid = mfnd_p2p_hid_from_line(&peer_tip_line);
     let height_cmp_line =
-        read_stdout_line_with_prefix(child_out, "mfnd_p2p_height_cmp ", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_height_cmp ", p2p_line_timeout());
     assert!(
         height_cmp_line.contains(&format!("local_height={tip_h} ")),
         "height_cmp_line={height_cmp_line:?}"
@@ -140,7 +140,7 @@ fn read_listener_p2p_handshake_session(
         "height_cmp_line={height_cmp_line:?}"
     );
     let handshake_ms_line =
-        read_stdout_line_with_prefix(child_out, "mfnd_p2p_handshake_ms ", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(child_out, "mfnd_p2p_handshake_ms ", p2p_line_timeout());
     assert_mfnd_p2p_handshake_ms_line(&handshake_ms_line);
     assert_eq!(
         mfnd_p2p_hid_from_line(&handshake_ms_line),
@@ -210,7 +210,7 @@ fn spawn_mfnd_serve_with_store(
         .expect("spawn mfnd serve");
     let stdout = child.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let sock = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
+    let sock = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_reader.read_line(&mut line) {
@@ -255,9 +255,12 @@ fn spawn_mfnd_serve_with_p2p(
     let stderr = child.stderr.take().expect("stderr pipe");
     let mut out_reader = BufReader::new(stdout);
     let err_reader = BufReader::new(stderr);
-    let rpc_addr = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
-    let p2p_line =
-        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_listening=", SERVE_LISTEN_TIMEOUT);
+    let rpc_addr = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
+    let p2p_line = read_stdout_line_with_prefix(
+        &mut out_reader,
+        "mfnd_p2p_listening=",
+        serve_listen_timeout(),
+    );
     let p2p_s = p2p_line
         .strip_prefix("mfnd_p2p_listening=")
         .expect("p2p listening prefix")
@@ -781,12 +784,12 @@ fn mfnd_serve_public_rpc_bind_warns_even_with_api_key() {
     let stdout = child.stdout.take().expect("stdout pipe");
     let stderr = child.stderr.take().expect("stderr pipe");
     let mut out_reader = BufReader::new(stdout);
-    let _sock = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
+    let _sock = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
 
     let warning = read_child_stderr_line_with_prefix(
         stderr,
         "mfnd_rpc_public_bind_warning",
-        SERVE_LISTEN_TIMEOUT,
+        serve_listen_timeout(),
     );
     assert!(warning.contains("listen=0.0.0.0:0"), "warning={warning}");
     assert!(
@@ -865,7 +868,7 @@ fn mfnd_serve_redb_store_get_tip_over_tcp() {
         .expect("spawn mfnd serve --store redb");
     let stdout = child.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let sock = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
+    let sock = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
     let resp = tcp_request_json(sock, "{\"method\":\"get_tip\"}");
     let r = assert_rpc2_result(&resp);
     assert!(r.get("tip_height").is_some(), "r={r}");
@@ -1263,8 +1266,8 @@ fn mfnd_p2p_dial_syncs_blocks_from_ahead_peer() {
         .expect("spawn dialer mfnd serve");
     let stdout = child_b.stdout.take().expect("stdout pipe");
     let mut out_b = BufReader::new(stdout);
-    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
-    let sync_end = read_stdout_until_p2p_sync_end(&mut out_b, P2P_SYNC_END_TIMEOUT);
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
+    let sync_end = read_stdout_until_p2p_sync_end(&mut out_b, p2p_sync_end_timeout());
     assert!(
         sync_end.contains("applied=3"),
         "expected three blocks applied, got {sync_end:?}"
@@ -1320,8 +1323,8 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
         .expect("spawn mfnd serve with dial");
     let stdout_b = child_b.stdout.take().expect("stdout b");
     let mut out_b = BufReader::new(stdout_b);
-    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_b.read_line(&mut line) {
@@ -1359,11 +1362,11 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
         .expect("spawn mfnd serve reconnect");
     let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
     let mut out_b2 = BufReader::new(stdout_b2);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", P2P_LINE_TIMEOUT);
-    let _ = read_mfnd_serve_listening_addr(&mut out_b2, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", P2P_LINE_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", p2p_line_timeout());
+    let _ = read_mfnd_serve_listening_addr(&mut out_b2, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", p2p_line_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", p2p_line_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_b2.read_line(&mut line) {
@@ -1408,9 +1411,9 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("spawn peer A");
     let stdout_a = child_a.stdout.take().expect("stdout a");
     let mut out_a = BufReader::new(stdout_a);
-    let _rpc_a = read_mfnd_serve_listening_addr(&mut out_a, SERVE_LISTEN_TIMEOUT);
+    let _rpc_a = read_mfnd_serve_listening_addr(&mut out_a, serve_listen_timeout());
     let p2p_a_line =
-        read_stdout_line_with_prefix(&mut out_a, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(&mut out_a, "mfnd_p2p_listening=", p2p_line_timeout());
     assert!(
         p2p_a_line.contains(&stable_p2p_a.to_string()),
         "peer A should bind stable P2P addr, got {p2p_a_line:?}"
@@ -1440,9 +1443,9 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("spawn peer B initial dial");
     let stdout_b = child_b.stdout.take().expect("stdout b");
     let mut out_b = BufReader::new(stdout_b);
-    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, P2P_SYNC_END_TIMEOUT);
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", p2p_line_timeout());
+    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, p2p_sync_end_timeout());
     assert!(
         sync_b.contains("final_height=1"),
         "initial sync should reach height 1, got {sync_b:?}"
@@ -1473,8 +1476,8 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("restart peer A at same P2P addr");
     let stdout_a2 = child_a2.stdout.take().expect("stdout a2");
     let mut out_a2 = BufReader::new(stdout_a2);
-    let _rpc_a2 = read_mfnd_serve_listening_addr(&mut out_a2, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_a2, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+    let _rpc_a2 = read_mfnd_serve_listening_addr(&mut out_a2, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_a2, "mfnd_p2p_listening=", p2p_line_timeout());
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_a2.read_line(&mut line) {
@@ -1500,12 +1503,12 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("restart peer B saved reconnect");
     let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
     let mut out_b2 = BufReader::new(stdout_b2);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", P2P_LINE_TIMEOUT);
-    let rpc_b2 = read_mfnd_serve_listening_addr(&mut out_b2, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", P2P_LINE_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let sync_b2 = read_stdout_until_p2p_sync_end(&mut out_b2, P2P_SYNC_END_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", p2p_line_timeout());
+    let rpc_b2 = read_mfnd_serve_listening_addr(&mut out_b2, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", p2p_line_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", p2p_line_timeout());
+    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", p2p_line_timeout());
+    let sync_b2 = read_stdout_until_p2p_sync_end(&mut out_b2, p2p_sync_end_timeout());
     assert!(
         sync_b2.contains("applied=2") && sync_b2.contains("final_height=3"),
         "restart reconnect should apply two missing blocks, got {sync_b2:?}"
@@ -1552,17 +1555,17 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
         .expect("spawn relay mfnd serve");
     let stdout_b = child_b.stdout.take().expect("stdout b");
     let mut out_b = BufReader::new(stdout_b);
-    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
+    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
     let p2p_b_line =
-        read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_listening=", p2p_line_timeout());
     let p2p_b: SocketAddr = p2p_b_line
         .strip_prefix("mfnd_p2p_listening=")
         .unwrap()
         .trim()
         .parse()
         .expect("parse p2p b");
-    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, P2P_SYNC_END_TIMEOUT);
+    read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", p2p_line_timeout());
+    let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, p2p_sync_end_timeout());
     assert!(
         sync_b.contains("applied=1"),
         "relay B should sync one block from A, got {sync_b:?}"
@@ -1586,10 +1589,10 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
         .expect("spawn leaf mfnd serve");
     let stdout_c = child_c.stdout.take().expect("stdout c");
     let mut out_c = BufReader::new(stdout_c);
-    let rpc_c = read_mfnd_serve_listening_addr(&mut out_c, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_listening=", P2P_LINE_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let sync_c = read_stdout_until_p2p_sync_end(&mut out_c, P2P_SYNC_END_TIMEOUT);
+    let rpc_c = read_mfnd_serve_listening_addr(&mut out_c, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_listening=", p2p_line_timeout());
+    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_dial_ok=", p2p_line_timeout());
+    let sync_c = read_stdout_until_p2p_sync_end(&mut out_c, p2p_sync_end_timeout());
     assert!(
         sync_c.contains("applied=1"),
         "leaf C should sync one block from B, got {sync_c:?}"
@@ -1760,20 +1763,24 @@ fn mfnd_serve_p2p_dial_hits_peer_listener() {
         .expect("spawn dialer mfnd serve");
     let stdout = child_b.stdout.take().expect("stdout pipe");
     let mut out_reader = BufReader::new(stdout);
-    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_reader, SERVE_LISTEN_TIMEOUT);
-    read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_dial_ok=", P2P_LINE_TIMEOUT);
-    let l3 = read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_peer_tip ", P2P_LINE_TIMEOUT);
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
+    read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_dial_ok=", p2p_line_timeout());
+    let l3 =
+        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_peer_tip ", p2p_line_timeout());
     assert!(
         l3.contains("height=") && l3.contains("tip_id="),
         "l3={l3:?}"
     );
     let hid = mfnd_p2p_hid_from_line(&l3);
     let l4 =
-        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_height_cmp ", P2P_LINE_TIMEOUT);
+        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_height_cmp ", p2p_line_timeout());
     assert!(l4.contains("cmp=equal"), "l4={l4:?}");
     assert_eq!(mfnd_p2p_hid_from_line(&l4), hid, "l4={l4:?}");
-    let l5 =
-        read_stdout_line_with_prefix(&mut out_reader, "mfnd_p2p_handshake_ms ", P2P_LINE_TIMEOUT);
+    let l5 = read_stdout_line_with_prefix(
+        &mut out_reader,
+        "mfnd_p2p_handshake_ms ",
+        p2p_line_timeout(),
+    );
     assert_mfnd_p2p_handshake_ms_line(&l5);
     assert_eq!(mfnd_p2p_hid_from_line(&l5), hid, "l5={l5:?}");
     let _ = child_b.kill();
@@ -1820,10 +1827,10 @@ fn mfnd_serve_p2p_dial_rejects_foreign_genesis_and_does_not_save_peer() {
         .expect("spawn foreign-genesis dialer");
     let stdout_b = child_b.stdout.take().expect("stdout b");
     let mut out_b = BufReader::new(stdout_b);
-    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b, SERVE_LISTEN_TIMEOUT);
+    let _rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
     let stderr_b = child_b.stderr.take().expect("stderr b");
     let abort_line =
-        read_child_stderr_line_with_prefix(stderr_b, "mfnd_p2p_dial_abort ", P2P_LINE_TIMEOUT);
+        read_child_stderr_line_with_prefix(stderr_b, "mfnd_p2p_dial_abort ", p2p_line_timeout());
     assert!(
         abort_line.contains("reason=genesis_mismatch "),
         "abort_line={abort_line:?}"

@@ -32,7 +32,11 @@ HUB_PID=$!
 echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
 HUB_P2P=""
 HUB_RPC=""
-for _ in $(seq 1 60); do
+HUB_POLL_MAX=60
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  HUB_POLL_MAX=120
+fi
+for _ in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
     HUB_P2P=$(grep -m1 mfnd_p2p_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
     HUB_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
@@ -64,7 +68,11 @@ echo "Starting observer..."
 "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
-for _ in $(seq 1 60); do
+OBSERVER_POLL_MAX=60
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  OBSERVER_POLL_MAX=120
+fi
+for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
     OBSERVER_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/observer.log" | sed 's/.*=//')
     break

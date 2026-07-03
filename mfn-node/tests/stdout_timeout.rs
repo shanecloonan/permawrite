@@ -5,12 +5,24 @@ use std::net::SocketAddr;
 use std::process::ChildStdout;
 use std::time::{Duration, Instant};
 
-/// Wait for `mfnd_serve_listening=`.
-pub const SERVE_LISTEN_TIMEOUT: Duration = Duration::from_secs(30);
+fn github_actions_runner() -> bool {
+    std::env::var("GITHUB_ACTIONS").is_ok()
+}
+
+/// Wait for `mfnd_serve_listening=` (longer on GitHub Actions runners).
+pub fn serve_listen_timeout() -> Duration {
+    Duration::from_secs(if github_actions_runner() { 90 } else { 30 })
+}
+
 /// Wait for a single log line prefix (dial ok, p2p listening, …).
-pub const P2P_LINE_TIMEOUT: Duration = Duration::from_secs(90);
+pub fn p2p_line_timeout() -> Duration {
+    Duration::from_secs(if github_actions_runner() { 120 } else { 90 })
+}
+
 /// Wait for `mfnd_p2p_sync_end` after block pull.
-pub const P2P_SYNC_END_TIMEOUT: Duration = Duration::from_secs(180);
+pub fn p2p_sync_end_timeout() -> Duration {
+    Duration::from_secs(if github_actions_runner() { 300 } else { 180 })
+}
 
 /// Skips unrelated stdout lines (parallel tests may share a console).
 pub fn read_mfnd_serve_listening_addr(
