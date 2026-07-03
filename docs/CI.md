@@ -18,6 +18,8 @@ Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explici
 
 The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` with `pip --require-hashes` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A hash mismatch or installed `jsonschema` version mismatch is a release-toolchain failure, not a warning.
 
+Participant rehearsal automation policy: `release-participant-smoke-policy-check.ps1` / `release-participant-smoke-policy-check.sh` fail closed if `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, or the local `ci-check` mirrors invoke `participant-rehearsal` / `participant-rehearsal-smoke` without `--plan-only` / `-PlanOnly`. Default CI and nightly may validate helper plans and synthetic audit-packet fixtures only; real-run mesh smokes stay manual until mesh lifetime is stable and Agent 2/3 sign off.
+
 ## Inspect GitHub failures (no copy-paste)
 
 Requires [GitHub CLI](https://cli.github.com/) and `gh auth login` for direct `gh run` inspection. Exact-commit release polling can also use `GH_TOKEN` / `GITHUB_TOKEN` through `release-ci-watch.ps1` or `release-ci-watch.sh`.

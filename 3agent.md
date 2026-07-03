@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Wire wheelhouse artifacts into release-archive dry-run validation. | Completed locally; wheelhouse smoke passed. | Review participant smoke/nightly harness before it enters CI. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Participant smoke/nightly CI policy guard. | Completed locally; policy smoke passed. | Pick next release-readiness gate from `docs/TESTNET_CHECKLIST.md`. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -41,6 +41,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
 - Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
+- Agent 2: Participant rehearsal smoke CI policy guard blocks real-run mesh smokes from default CI/nightly until Agent 2/3 sign off.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -79,8 +80,15 @@ Completed unit:
 - [x] Stage wheelhouse wheels and `requirements-release-schema.txt` in release-archive dry-run output.
 - [x] Require wheelhouse artifacts in release-archive validation when air-gapped strict validation is expected.
 - [x] Add CI smoke coverage for wheelhouse staging and offline install.
+- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+
+Completed unit (participant smoke CI policy):
+
+- [x] Add `release-participant-smoke-policy-check` helpers (Python + Bash + PowerShell).
+- [x] Wire policy check and negative fixture into local `ci-check` mirrors and GitHub CI.
+- [x] Document CI policy in `docs/CI.md`, `OPERATORS.md`, and `docs/TESTNET_CHECKLIST.md`.
 - [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
+- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (exact-commit CI watcher hardening, audit-packet coverage, or next unchecked Agent 2 item).

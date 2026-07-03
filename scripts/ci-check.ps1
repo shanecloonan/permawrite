@@ -90,6 +90,24 @@ if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check tes
     $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badPolicyFixture = "scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml"
+$badPolicyStdout = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-participant-policy-bad-" + [System.Guid]::NewGuid().ToString("N") + ".out")
+$badPolicyStderr = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-participant-policy-bad-" + [System.Guid]::NewGuid().ToString("N") + ".err")
+$badPolicyProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1",
+    "--path",
+    $badPolicyFixture
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badPolicyStdout -RedirectStandardError $badPolicyStderr
+if ($badPolicyProcess.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("release-participant-smoke-policy-check.ps1 accepted a real-run participant smoke invocation")
+    exit 1
+}
+$global:LASTEXITCODE = 0
+Remove-Item -Force $badPolicyStdout, $badPolicyStderr -ErrorAction SilentlyContinue
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"

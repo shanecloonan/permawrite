@@ -55,6 +55,12 @@ jobs:
           smoke_plan="$(bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only --rpc 127.0.0.1:18731)"
           [[ "$smoke_plan" == *"flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"* ]] || { echo "$smoke_plan"; exit 1; }
           [[ "$smoke_plan" == *"custom faucet wallets are never overwritten"* ]] || { echo "$smoke_plan"; exit 1; }
+          bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh
+          if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
+            --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then
+            echo "release-participant-smoke-policy-check.sh accepted a real-run participant smoke invocation" >&2
+            exit 1
+          fi
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -499,6 +505,24 @@ jobs:
             $smokePlan
             exit 1
           }
+          powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $badPolicyFixture = "scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml"
+          $badPolicyStdout = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-participant-policy-bad-" + [System.Guid]::NewGuid().ToString("N") + ".out")
+          $badPolicyStderr = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-participant-policy-bad-" + [System.Guid]::NewGuid().ToString("N") + ".err")
+          $badPolicyProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+            "-NoProfile",
+            "-File",
+            "scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1",
+            "--path",
+            $badPolicyFixture
+          ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badPolicyStdout -RedirectStandardError $badPolicyStderr
+          if ($badPolicyProcess.ExitCode -eq 0) {
+            Write-Error "release-participant-smoke-policy-check.ps1 accepted a real-run participant smoke invocation"
+            exit 1
+          }
+          $global:LASTEXITCODE = 0
+          Remove-Item -Force $badPolicyStdout, $badPolicyStderr -ErrorAction SilentlyContinue
       - name: Validate PowerShell release evidence output
         if: runner.os == 'Windows'
         shell: pwsh

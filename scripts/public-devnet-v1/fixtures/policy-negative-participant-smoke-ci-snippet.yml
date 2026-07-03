@@ -1,0 +1,2 @@
+# Intentionally violates participant rehearsal CI policy (real-run smoke without plan-only).
+smoke_run=$(bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --rpc 127.0.0.1:18731)

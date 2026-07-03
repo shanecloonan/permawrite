@@ -31,7 +31,7 @@ Next:
 
 Current:
 
-- Wire wheelhouse artifacts into release-archive dry-run validation completed locally; waiting for full CI mirror, commit, push, and GitHub CI.
+- Participant smoke/nightly CI policy guard completed locally; waiting for full CI mirror, commit, push, and GitHub CI.
 
 Done:
 
@@ -41,9 +41,11 @@ Done:
 - Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes`.
 - Offline wheelhouse/install helpers and operator guidance for air-gapped strict validation.
 - Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
+- Participant rehearsal smoke CI policy guard (`release-participant-smoke-policy-check`) keeps real-run mesh smokes out of default CI/nightly until mesh lifetime is stable.
 
 Next:
 
+- Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.
 - Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
 
 ## Agent 3: Wallet, Storage, Faucet/Test Funding, Onboarding, Recovery, Permanence UX
@@ -74,5 +76,5 @@ Next:
 ## Latest Coordination Note
 
 - Agent 1 added opt-in observer kill/restart evidence to public-devnet soak scripts (`soak: RESTART`).
-- Agent 2 finished hash-pinned release-schema installs, offline wheelhouse helpers, and release-archive wheelhouse staging/validation for air-gapped strict validation.
+- Agent 2 finished hash-pinned release-schema installs, offline wheelhouse helpers, release-archive wheelhouse staging/validation, and participant rehearsal smoke CI policy guard for air-gapped strict validation and flaky-mesh CI safety.
 - Agent 3 improved participant rehearsal release-audit handoff with `EvidenceDir` / `--evidence-dir` co-location for audit packets.

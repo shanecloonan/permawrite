@@ -56,6 +56,12 @@ if [[ "$smoke_plan" != *"flow=stop stale mesh -> start-all -> restore/check test
   printf '%s\n' "$smoke_plan" >&2
   exit 1
 fi
+bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
+if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
+  --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then
+  echo "release-participant-smoke-policy-check.sh accepted a real-run participant smoke invocation" >&2
+  exit 1
+fi
 pwsh -NoProfile -Command '
   $errors = @()
   foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
