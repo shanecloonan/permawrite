@@ -128,8 +128,12 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Seal pending proposals with quorum on producer slot tick when vote ingest did not apply the block (**M2.4.62**).
 - [x] Accept same-producer higher-slot proposals in `reconcile_pending` so committee votes track live hub proposals after pending release (**M2.4.62**).
 - [x] Two-phase soak warmup: hub-only health then full mesh convergence (**M2.4.62**).
-- [x] Observer periodic catch-up gated on `--p2p-dial` (listen-only smokes unaffected).
-- [ ] Capture passing Windows `soak: RESTART` evidence after M2.4.62 mesh stability fixes.
+- [x] Async inbound P2P handlers with concurrency cap so catch-up dials cannot block the accept loop (**M2.4.63**).
+- [x] Durable-only proposal/vote fan-out with live-session bootstrap before P2P advertise registers committee listen addrs (**M2.4.63**).
+- [x] Immediate proposal fan-out when the producer adopts a pending block (**M2.4.63**).
+- [x] Participant rehearsal smoke starts helper mesh without observer (`MFN_DEVNET_NO_OBSERVER=1`) to reduce hub inbound load (**M2.4.63**).
+- [x] Unregister P2P sessions when post-handshake loops end (`mfnd_p2p_session_unregister`) (**M2.4.63**).
+- [ ] Capture passing Windows `soak: RESTART` evidence after M2.4.63 hub lifetime fixes.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 

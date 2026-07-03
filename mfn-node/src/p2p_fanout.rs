@@ -943,6 +943,15 @@ impl FanoutPeerSet for P2pPeerSet {
         eprintln!("mfnd_p2p_session_register peer={peer_addr}");
     }
 
+    fn unregister_session(&self, peer_addr: &str) {
+        let Ok(mut guard) = self.sessions.lock() else {
+            return;
+        };
+        if guard.remove(peer_addr).is_some() {
+            eprintln!("mfnd_p2p_session_unregister peer={peer_addr}");
+        }
+    }
+
     fn on_session_registered(&self, peer_addr: &str) {
         self.fanout_onchain_storage_chunks_to_peer(peer_addr);
     }
@@ -1601,6 +1610,37 @@ mod tests {
                 peer: durable.clone(),
             }]
         );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn unregister_session_drops_live_session_count() {
+        use mfn_net::FanoutPeerSet;
+        use std::net::{TcpListener, TcpStream};
+
+        let dir = temp_dir("session_unregister");
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+        );
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let listen_addr = listener.local_addr().expect("local_addr");
+        let client = thread::spawn(move || TcpStream::connect(listen_addr).expect("connect"));
+        let (stream, peer_addr) = listener.accept().expect("accept");
+        let _ = client.join().expect("client join");
+        let peer_key = peer_addr.to_string();
+
+        peer_set.register_session(&peer_key, stream);
+        assert_eq!(peer_set.snapshot_session_peers(), vec![peer_key.clone()]);
+        peer_set.unregister_session(&peer_key);
+        assert!(peer_set.snapshot_session_peers().is_empty());
 
         std::fs::remove_dir_all(&dir).ok();
     }

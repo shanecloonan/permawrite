@@ -32,6 +32,8 @@ pub trait FanoutPeerSet: Send + Sync {
     fn register_session(&self, peer_addr: &str, stream: std::net::TcpStream) {
         let _ = (peer_addr, stream);
     }
+    /// Drop a registered session when the post-handshake loop ends (**M2.4.63**).
+    fn unregister_session(&self, _peer_addr: &str) {}
     /// Hook after [`register_session`] for chunk-inbox catch-up (**M7.5**).
     fn on_session_registered(&self, _peer_addr: &str) {}
     /// After answering a block-sync pull, push complete operator inboxes (**M7.5**).

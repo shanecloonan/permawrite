@@ -4,6 +4,8 @@ This file coordinates the three Permawrite build lanes. Keep it current alongsid
 `docs/TESTNET_CHECKLIST.md`; the checklist tracks milestone completion, while this
 file tracks who is actively doing what, what is done, and what should happen next.
 
+See also the root [`3agent.md`](../3agent.md) board for the latest cross-agent handoff table.
+
 ## Operating Rules
 
 - Pull latest `main` before starting new work when the tree is safe to update.
@@ -16,72 +18,46 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
-- M2.4.62 mesh stability — producer seal-on-quorum slot tick, same-producer slot advance in `reconcile_pending`, permanence index wait hardening.
+- **M2.4.63** hub P2P + production fan-out hardening (in progress).
 
-Done:
+Done this unit:
 
-- M2.4.62: producer seals quorum pending on slot tick; committee adopts newer same-producer slot after pending release (fixes stale vote header_hash rejects).
-- M2.4.61: restored M2.3.29 (`--produce` skips committee catch-up); helper mesh hub `--produce` + committee voters; hub bounded slot scan for `F=1.5` genesis.
-- M2.4.60: soak converged warmup, manifest multi-producer sortition bounds, P2P dial readiness.
-- Bounded in-tick producer slot scan + `public_devnet_hub_reaches_height_one_within_one_slot_duration` integration smoke.
-- Sequential P2P/sync hardening, observer restart soak (`soak: RESTART`), Windows chunk auto-fanout.
+- Async inbound P2P handlers with concurrency cap (48).
+- Durable-only proposal/vote fan-out; session bootstrap before advertise.
+- Ephemeral inbound dialers no longer pollute the durable peer set.
+- Immediate proposal fan-out when producer adopts a pending block.
+- Slower committee/observer catch-up intervals.
+- Participant rehearsal smoke skips observer (`MFN_DEVNET_NO_OBSERVER=1`).
+- Unregister live P2P sessions on post-handshake exit (`mfnd_p2p_session_unregister`).
 
 Next:
 
-- Live `soak.ps1 -RestartObserverOnce` evidence (`soak: RESTART`).
-- Regenerate `CODEBASE_STATS.md`, local CI mirror, commit/push, GitHub CI.
-- Hand green soak evidence to Agent 3 for nightly rehearsal promotion.
-- Hand mesh stability to Agent 3 for rehearsal promotion when soak is green.
+- Skip committee catch-up when already synced to durable peers.
+- Fix height >= 5 quorum / hub exit under sustained catch-up load.
+- Windows `soak.ps1 -RestartObserverOnce` evidence.
 
-## Agent 2: RPC, Security, Operations, Observability, CI
+## Agent 2: Security, RPC, Ops, Release Readiness
 
 Current:
 
-- Continue cross-agent release gates; support Agent 1 mesh liveness blockers as needed.
-
-Done:
-
-- RPC method classification, API-key enforcement for write/admin methods, request limits, connection caps, sanitized logs, release evidence schema, sign-off bundle checks, and launch go/no-go guidance.
-- Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication.
-- Pinned `jsonschema==4.17.3` Draft 2020-12 validator wrappers in local and GitHub CI.
-- Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes`.
-- Offline wheelhouse/install helpers and operator guidance for air-gapped strict validation.
-- Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
-- Participant rehearsal smoke CI policy guard (`release-participant-smoke-policy-check`) keeps real-run mesh smokes out of default CI/nightly until mesh lifetime is stable.
-- Release audit packets and archives now include participant smoke CI policy checks and staged policy helpers.
+- Monitor GitHub CI on M2.4.63.
 
 Next:
 
 - Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.
-- Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
 
-## Agent 3: Wallet, Storage, Faucet/Test Funding, Onboarding, Recovery, Permanence UX
+## Agent 3: Wallet, Storage, Faucet, Onboarding
 
 Current:
 
-- Improve release-audit handoff for participant rehearsal evidence while live rehearsal/nightly promotion remains blocked by mesh lifetime.
+- Re-run full `participant-rehearsal-smoke` after Agent 1 height-5 fix.
 
-Done:
+Done this unit:
 
-- Wallet/upload retrieval UX, HTTP/P2P restore, permanence demo helpers, funding helpers, seed restore, preflight/stop helpers, backup guidance, `wallet backup-info`, support bundles, recovery plans, recovery walkthrough helpers, and the first full participant rehearsal.
-- Public-devnet rehearsal liveness and first-run decoy work is implemented.
-- A clean Windows `participant-rehearsal-smoke.ps1` run passed end-to-end.
-- `release-audit-packet` ingestion for participant rehearsal evidence is landed.
+- `fund-wallet` PASS on M2.4.63 runs reaching height >= 2.
+- Harness hardening (hub tip logging, stall fail-fast, build-before-start).
 
 Next:
 
-- Continue participant UX audit of `docs/TESTNET.md` and `OPERATORS.md` from an outside-user perspective.
-- Do not promote participant rehearsal smoke into nightly/ignored CI until the Windows daemon-lifetime blocker is fixed or the harness is scoped to a platform where it is proven stable.
-- Add a public-devnet participant evidence fixture from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
-
-## Cross-Agent Blockers
-
-- Do not claim public-testnet readiness until the full local CI mirror is green and GitHub CI is green on `main`.
-- Do not invite outside operators until a local participant rehearsal passes from a clean data root and the resulting logs/support bundle are reviewed.
-- Public deterministic test validator seeds must be replaced before any shared, production-like, incentivized, or non-toy deployment.
-
-## Latest Coordination Note
-
-- Agent 1 added opt-in observer kill/restart evidence to public-devnet soak scripts (`soak: RESTART`).
-- Agent 2 finished hash-pinned release-schema installs, offline wheelhouse helpers, release-archive wheelhouse staging/validation, and participant rehearsal smoke CI policy guard for air-gapped strict validation and flaky-mesh CI safety.
-- Agent 3 improved participant rehearsal release-audit handoff with `EvidenceDir` / `--evidence-dir` co-location for audit packets.
+- Archive participant evidence fixture from a green rehearsal run.
+- Promote rehearsal smoke to slow/nightly CI after soak RESTART evidence.

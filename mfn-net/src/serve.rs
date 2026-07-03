@@ -563,6 +563,24 @@ fn recv_post_handshake(
     production: Option<&ProductionHook>,
     local_p2p_listen: Option<SocketAddr>,
 ) {
+    struct SessionUnregisterGuard {
+        fanout: Option<FanoutPeerSetHook>,
+        peer: String,
+    }
+
+    impl Drop for SessionUnregisterGuard {
+        fn drop(&mut self) {
+            if let Some(ps) = &self.fanout {
+                ps.unregister_session(&self.peer);
+            }
+        }
+    }
+
+    let _session_guard = SessionUnregisterGuard {
+        fanout: fanout_peers.cloned(),
+        peer: peer.to_string(),
+    };
+
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let gap_catch_up = match (block_applier.as_ref(), fanout_peers) {
