@@ -4,24 +4,9 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $LogDir = Join-Path $ScriptDir "logs"
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
+$DevnetPorts = @{}
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-
-function Write-PortsLine {
-    param([string]$Line, [switch]$Reset)
-    for ($i = 0; $i -lt 10; $i++) {
-        try {
-            if ($Reset) {
-                $Line | Set-Content $PortsFile
-            } else {
-                $Line | Add-Content $PortsFile
-            }
-            return
-        } catch {
-            if ($i -eq 9) { throw }
-            Start-Sleep -Milliseconds 200
-        }
-    }
-}
 
 Write-Host "Building mfnd..."
 Push-Location $RepoRoot
@@ -84,7 +69,7 @@ $hubProc = Start-MfndRole `
     -ValidatorIndex "0" `
     -VrfSeedHex "0101010101010101010101010101010101010101010101010101010101010101" `
     -BlsSeedHex "6565656565656565656565656565656565656565656565656565656565656565"
-Write-PortsLine "HUB_PID=$($hubProc.Id)" -Reset
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "HUB_PID" -Value "$($hubProc.Id)"
 $HubP2p = $null
 $HubRpc = $null
 for ($i = 0; $i -lt 60; $i++) {
@@ -99,8 +84,8 @@ for ($i = 0; $i -lt 60; $i++) {
 if (-not $HubP2p) {
     throw "Hub did not print P2P listen within 60s. See $hubLog"
 }
-Write-PortsLine "HUB_P2P=$HubP2p"
-Write-PortsLine "HUB_RPC=$HubRpc"
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "HUB_P2P" -Value $HubP2p
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "HUB_RPC" -Value $HubRpc
 $env:HUB_P2P = $HubP2p
 Write-Host "Hub P2P=$HubP2p RPC=$HubRpc"
 Start-Sleep -Seconds 2
@@ -120,7 +105,7 @@ $v1Proc = Start-MfndRole `
     -ValidatorIndex "1" `
     -VrfSeedHex "0202020202020202020202020202020202020202020202020202020202020202" `
     -BlsSeedHex "7676767676767676767676767676767676767676767676767676767676767676"
-Write-PortsLine "V1_PID=$($v1Proc.Id)"
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "V1_PID" -Value "$($v1Proc.Id)"
 Start-Sleep -Seconds 2
 $v2Log = Join-Path $LogDir "v2.log"
 $v2Err = Join-Path $LogDir "v2.err.log"
@@ -137,7 +122,7 @@ $v2Proc = Start-MfndRole `
     -ValidatorIndex "2" `
     -VrfSeedHex "0303030303030303030303030303030303030303030303030303030303030303" `
     -BlsSeedHex "8787878787878787878787878787878787878787878787878787878787878787"
-Write-PortsLine "V2_PID=$($v2Proc.Id)"
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "V2_PID" -Value "$($v2Proc.Id)"
 Start-Sleep -Seconds 2
 if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
     Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
@@ -154,7 +139,7 @@ $obsProc = Start-MfndRole `
     ) `
     -StdoutLog $obsLog `
     -StderrLog $obsErr
-Write-PortsLine "OBSERVER_PID=$($obsProc.Id)"
+Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
 $ObserverRpc = $null
 for ($i = 0; $i -lt 60; $i++) {
     if (Test-Path $obsLog) {
@@ -167,7 +152,7 @@ for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Seconds 1
 }
 if ($ObserverRpc) {
-    Write-PortsLine "OBSERVER_RPC=$ObserverRpc"
+    Set-DevnetPort -Path $PortsFile -Ports $DevnetPorts -Key "OBSERVER_RPC" -Value $ObserverRpc
     Write-Host "Observer RPC=$ObserverRpc"
 } else {
     Write-Host "Observer RPC not ready within 60s; health-check may skip observer (see $obsLog)"
@@ -175,3 +160,13 @@ if ($ObserverRpc) {
 }
 Write-Host "Started jobs. Logs: $LogDir  Ports: $PortsFile"
 Write-Host "After ~30s run: .\health-check.ps1"
+$required = @("HUB_PID", "HUB_P2P", "HUB_RPC", "V1_PID", "V2_PID")
+if ($env:MFN_DEVNET_NO_OBSERVER -ne "1") {
+    $required += @("OBSERVER_PID", "OBSERVER_RPC")
+}
+$written = Read-DevnetPortsFile -Path $PortsFile
+foreach ($key in $required) {
+    if (-not $written[$key]) {
+        throw "start-all: $key missing from $PortsFile after startup"
+    }
+}

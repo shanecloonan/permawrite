@@ -2,12 +2,9 @@
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
 $ExpectedGenesisId = "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
-if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
-$ports = @{}
-Get-Content $PortsFile | ForEach-Object {
-    if ($_ -match "^([^=]+)=(.*)$") { $ports[$Matches[1]] = $Matches[2] }
-}
+$ports = Read-DevnetPortsFile -Path $PortsFile
 $HubRpc = $ports["HUB_RPC"]
 if (-not $HubRpc) { throw "HUB_RPC missing in $PortsFile" }
 $Req = '{"jsonrpc":"2.0","method":"get_status","id":1}'

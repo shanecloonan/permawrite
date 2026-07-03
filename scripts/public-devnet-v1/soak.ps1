@@ -23,6 +23,7 @@ $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 $HealthScript = Join-Path $ScriptDir "health-check.ps1"
 $StartAllScript = Join-Path $ScriptDir "start-all.ps1"
 $LogDir = Join-Path $ScriptDir "logs"
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
 $StartedAt = Get-Date
 $SoakSamples = New-Object System.Collections.Generic.List[string]
 $SoakRestarts = New-Object System.Collections.Generic.List[string]
@@ -31,12 +32,7 @@ $SummaryWritten = $false
 $P2pLogTimeoutSeconds = 120
 
 function Read-PortsFile {
-    if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
-    $ports = @{}
-    Get-Content $PortsFile | ForEach-Object {
-        if ($_ -match "^([^=]+)=(.*)$") { $ports[$Matches[1]] = $Matches[2] }
-    }
-    return $ports
+    return Read-DevnetPortsFile -Path $PortsFile
 }
 
 function Assert-ProcessAlive {
@@ -188,7 +184,8 @@ function Get-LatestLogValue {
 }
 function Set-ObserverPortLine {
     param([string]$Key, [string]$Value)
-    Add-Content -Path $PortsFile -Value "$Key=$Value"
+    $ports = Read-DevnetPortsFile -Path $PortsFile
+    Set-DevnetPort -Path $PortsFile -Ports $ports -Key $Key -Value $Value
 }
 function Invoke-ObserverRestartProbe {
     param([int]$Iteration, [object[]]$PreHealthOutput)

@@ -679,7 +679,7 @@ pub(crate) fn run_serve(
                     block_sync: Arc::clone(&sync_hook),
                     block_applier: Arc::clone(&applier_hook),
                     local_p2p_listen,
-                    interval_ms: slot_duration_ms.max(2_000) / 2,
+                    interval_ms: slot_duration_ms.max(5_000),
                 })?;
             }
             Some(engine as mfn_net::ProductionHook)
@@ -691,7 +691,7 @@ pub(crate) fn run_serve(
             std::io::stdout()
                 .flush()
                 .map_err(|e| format!("mfnd serve: stdout flush (observer catch-up): {e}"))?;
-            let observer_catch_up_ms = slot_duration_ms.max(15_000) / 2;
+            let observer_catch_up_ms = slot_duration_ms.max(15_000);
             spawn_committee_catch_up_loop(CommitteeCatchUpLoop {
                 peer_set: Arc::clone(&fanout),
                 genesis_id,
