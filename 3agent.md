@@ -16,9 +16,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability — durable catch-up peers + two-phase soak warmup. | In progress — unit tests + live soak. | Hand `soak: RESTART` evidence to Agent 3. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; review Agent 3 rehearsal harness fixes. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Permanence index wait hardening + live rehearsal evidence fixture. | In progress — running full `participant-rehearsal-smoke` after Agent 1 seal fix. | Archive evidence fixture; draft nightly promotion scope. |
+| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability. | Landed on `main` (`cc3d2d3`); local CI green. | Windows `soak: RESTART` evidence. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI on `cc3d2d3`. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Live participant rehearsal evidence fixture. | Harness hardened on `main`; full smoke still flaky when hub RPC dies under observer load. | Re-run `participant-rehearsal-smoke` on `cc3d2d3`; archive evidence fixture. |
 
 ## Recently Completed
 
