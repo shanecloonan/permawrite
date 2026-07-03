@@ -216,20 +216,20 @@ bash scripts/public-devnet-v1/release-json-schema-validate.sh \
 The schema validator is dependency-free and intentionally scoped to the schema features used by Permawrite release artifacts: required fields, `additionalProperties`, `type`, `const`, `enum`, arrays, and local `$ref`. It is not a general-purpose Draft 2020-12 engine. For release-candidate publication, also install the pinned strict validator and run the Draft 2020-12 check:
 
 ```powershell
-python -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+python -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
 powershell -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 `
   -Schema .\docs\release-evidence-v1.schema.json `
   -Json .\release-evidence.json
 ```
 
 ```bash
-python3 -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+python3 -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
 bash scripts/public-devnet-v1/release-json-schema-draft202012.sh \
   --schema ./docs/release-evidence-v1.schema.json \
   --json ./release-evidence.json
 ```
 
-The strict wrapper requires the pinned `jsonschema==4.17.3` dependency and fails closed if a different version is installed.
+The strict wrapper requires the pinned `jsonschema==4.17.3` dependency and fails closed if a different version is installed. Install with `--require-hashes`; a package hash mismatch is a release-toolchain failure.
 
 Block release sign-off until GitHub CI is green for the exact commit:
 

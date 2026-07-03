@@ -16,7 +16,7 @@ This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --a
 
 Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explicitly before `cargo test --release`.
 
-The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A mismatch in the installed `jsonschema` version is a release-toolchain failure, not a warning.
+The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` with `pip --require-hashes` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A hash mismatch or installed `jsonschema` version mismatch is a release-toolchain failure, not a warning.
 
 ## Inspect GitHub failures (no copy-paste)
 

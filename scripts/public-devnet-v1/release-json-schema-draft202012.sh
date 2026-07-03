@@ -34,4 +34,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 python_bin="${PERMAWRITE_RELEASE_SCHEMA_PYTHON:-python3}"
+if [[ -n "${PERMAWRITE_RELEASE_SCHEMA_PYTHON:-}" && "$python_bin" == *\\* ]] && command -v cygpath >/dev/null 2>&1; then
+  python_bin="$(cygpath -u "$python_bin")"
+fi
 "$python_bin" "$SCRIPT_DIR/release-json-schema-draft202012.py" --schema "$schema" --json "$json"

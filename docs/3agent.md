@@ -1,4 +1,4 @@
-﻿# Three-Agent Coordination Checklist
+# Three-Agent Coordination Checklist
 
 This file coordinates the three Permawrite build lanes. Keep it current alongside
 `docs/TESTNET_CHECKLIST.md`; the checklist tracks milestone completion, while this
@@ -33,7 +33,7 @@ Next:
 
 Current:
 
-- Add pinned Draft 2020-12 validation for release artifacts while preserving the offline dependency-free validator.
+- Hash-pinned Python release-schema dependency installation completed locally; waiting for commit, push, and GitHub CI.
 
 Done:
 
@@ -41,10 +41,11 @@ Done:
 - Release archive dry-run/validation, sign-off manifest validation, release JSON schema validation, final audit packet aggregation, authenticated exact-commit CI polling, and `release-audit-packet.v1` schema/sample publication are landed on `main` or staged in the current Agent 2 unit.
 - `release-audit-packet.v1` schema now includes participant rehearsal evidence path fields, and CI validates generated audit packets with participant evidence.
 - Pinned `jsonschema==4.17.3` Draft 2020-12 validator wrappers are staged for local and GitHub CI.
+- Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes`.
 
 Next:
 
-- Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence.
+- Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
 - Review any new participant smoke/nightly harness before it enters CI so it does not hide flaky infrastructure failures.
 
 ## Agent 3: Wallet, Storage, Faucet/Test Funding, Onboarding, Recovery, Permanence UX

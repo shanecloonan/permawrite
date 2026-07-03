@@ -61,9 +61,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Publish and CI-validate a `release-audit-packet.v1` schema/sample so final audit packets have an independent machine-readable contract.
 - [x] Keep the `release-audit-packet.v1` schema aligned with participant rehearsal evidence fields and validate generated audit packets in CI.
 - [x] Add pinned third-party Draft 2020-12 validation for release artifacts with `jsonschema==4.17.3`.
-- [ ] Add checksum/hash-pinned Python dependency installation for release tooling before treating third-party validation as reproducible enough for release sign-off.
+- [x] Add checksum/hash-pinned Python dependency installation for release tooling before treating third-party validation as reproducible enough for release sign-off.
+- [ ] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
 
-## Agent 1 â€” Core Protocol, Consensus, Networking, Sync
+## Agent 1 - Core Protocol, Consensus, Networking, Sync
 
 - [x] Enforce sequential block-sync catch-up in `pull_blocks_to_tip`; stale, skipped, or out-of-order height progress now aborts with `NonSequentialHeight`.
 - [x] Add multi-process restart catch-up coverage where a validator stops, falls behind by several blocks, restarts from disk, and catches up from saved peers.

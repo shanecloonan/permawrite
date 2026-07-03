@@ -39,8 +39,7 @@ if ($missingTools.Count -gt 0) {
 }
 
 Write-Host "==> public-devnet scripts"
-$schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-release-schema-venv"
-Remove-Item -Recurse -Force $schemaVenv -ErrorAction SilentlyContinue
+$schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-release-schema-venv-" + [System.Guid]::NewGuid().ToString("N"))
 python -m venv $schemaVenv
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $schemaPythonCandidates = @(
@@ -53,7 +52,9 @@ if (-not $schemaPython) {
     [Console]::Error.WriteLine("release schema validator venv did not contain a Python executable")
     exit 1
 }
-& $schemaPython -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+& $schemaPython -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $schemaPython -c "import importlib.metadata; assert importlib.metadata.version('jsonschema') == '4.17.3'"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $schemaPython
 Get-ChildItem scripts -Filter *.ps1 -Recurse | ForEach-Object {

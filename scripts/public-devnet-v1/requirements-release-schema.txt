@@ -1,3 +1,6 @@
-attrs==26.1.0
-jsonschema==4.17.3
-pyrsistent==0.20.0
+attrs==26.1.0 \
+    --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309
+jsonschema==4.17.3 \
+    --hash=sha256:a870ad254da1a8ca84b6a2905cac29d265f805acc57af304784962a2aa6508f6
+pyrsistent==0.20.0 \
+    --hash=sha256:c55acc4733aad6560a7f5f818466631f07efc001fd023f34a6c203f8b6df0f0b

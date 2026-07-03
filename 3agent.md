@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Pinned Draft 2020-12 release schema validation. | Completed locally; local CI mirror passed. | Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Hash-pinned Python release-schema dependency installation. | Completed locally; local CI mirror passed. | Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network validation. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -38,6 +38,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
 - Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
+- Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -71,13 +72,12 @@ Next Agent 1 task:
 
 Current task:
 
-- [x] Add pinned `scripts/public-devnet-v1/requirements-release-schema.txt` with `jsonschema==4.17.3`.
-- [x] Add strict Draft 2020-12 validator wrappers for PowerShell and Bash release workflows.
-- [x] Make local and GitHub CI run strict validation on published samples, generated audit packets, and a negative audit-packet fixture.
-- [x] Update release docs and checklists.
+- [x] Add SHA-256 hashes to every package in `scripts/public-devnet-v1/requirements-release-schema.txt`.
+- [x] Make local and GitHub CI install the strict schema validator with `pip --require-hashes`.
+- [x] Update release docs and checklists to treat hash mismatches as release-toolchain failures.
 - [x] Regenerate `CODEBASE_STATS.md` and run local CI mirror.
 - [ ] Commit, push, and check GitHub CI.
 
 Next Agent 2 task:
 
-- [ ] Hash-pin Python release-tool dependencies before treating third-party validation as reproducible release evidence.
+- [ ] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.

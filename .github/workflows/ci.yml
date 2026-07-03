@@ -63,7 +63,7 @@ jobs:
           trap 'rm -rf "$schema_venv"' EXIT
           python3 -m venv "$schema_venv"
           schema_python="$schema_venv/bin/python"
-          "$schema_python" -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+          "$schema_python" -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
           export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
           evidence_md="$(bash scripts/public-devnet-v1/release-evidence.sh --operator ci-smoke --skip-ci-lookup)"
           for required in "# Permawrite Release-Candidate Evidence" "## Commit And CI" "## RPC Posture" "## Operator Sign-Off"; do
@@ -479,8 +479,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-release-schema-venv"
-          Remove-Item -Recurse -Force $schemaVenv -ErrorAction SilentlyContinue
+          $schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-release-schema-venv-" + [System.Guid]::NewGuid().ToString("N"))
           python -m venv $schemaVenv
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $schemaPythonCandidates = @(
@@ -493,7 +492,9 @@ jobs:
             Write-Error "release schema validator venv did not contain a Python executable"
             exit 1
           }
-          & $schemaPython -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+          & $schemaPython -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $schemaPython -c "import importlib.metadata; assert importlib.metadata.version('jsonschema') == '4.17.3'"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $schemaPython
           $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup

@@ -31,7 +31,7 @@ schema_venv="$(mktemp -d)"
 trap 'rm -rf "$schema_venv"' EXIT
 python3 -m venv "$schema_venv"
 schema_python="$schema_venv/bin/python"
-"$schema_python" -m pip install --disable-pip-version-check -r scripts/public-devnet-v1/requirements-release-schema.txt
+"$schema_python" -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
 export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
