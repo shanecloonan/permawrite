@@ -16,58 +16,54 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.79** workflow UTF-8 guard. | **In progress** — fix UTF-16 regression + `validate-workflow-encoding` in CI mirror. | Linux Soak Audit dispatch after CI green. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.79** CI monitor. | **In progress** — `2342b75` CI running; cleanup failed (UTF-16). | Release-evidence for first green CI commit. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation fires after green CI. | Confirm Nightly green + archived Linux evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.79** workflow UTF-8 guard. | **Done** — cleanup **success** on `b581e78`; CI running on `6685c79`. | Linux Soak Audit after CI green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.79** release-evidence. | **Done** — `release-evidence-b581e78` + RC audit decision=go. | Confirm GitHub CI green. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation fires when CI succeeds. | Confirm Nightly green + Linux evidence. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.78** — `rc-validation-after-ci.yml`, bash `--archive-evidence`, Nightly wiring (`794d98c`).
-- Agent 1: **M2.4.77** — CI queue cleanup UTF-8 fix (`d6298d4`).
-- Agent 1: **M2.4.70** — Windows 30s-slot soak PASS height 38 + RESTART.
+- Agent 1: **M2.4.79** — UTF-8 workflow guard; CI queue cleanup **success** (`b581e78`).
+- Agent 2: **M2.4.79** — `release-evidence-b581e78` + RC audit decision=go.
+- Agent 1: **M2.4.78** — RC validation auto-dispatch Nightly.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.78)
+### Done (M2.4.64–M2.4.79)
 
-- [x] Windows 30s-slot soak PASS + soak lock + archive evidence.
-- [x] CI queue cleanup + RC validation auto-dispatch Nightly.
+- [x] Windows 30s-slot soak PASS height 38 + RESTART.
+- [x] CI queue cleanup + RC validation + workflow UTF-8 guard.
 - [x] Linux Soak Audit workflow.
 
-### In Progress (M2.4.79)
+### In Progress
 
-- [x] Rewrite `ci-queue-cleanup.yml` as UTF-8 (regression in `2342b75` re-introduced UTF-16).
-- [x] `.gitattributes` + `validate-workflow-encoding.{ps1,sh}` in local CI mirror.
-- [ ] Green GitHub CI on latest push.
+- [ ] Green GitHub CI on `6685c79` (in progress).
+- [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** dispatch).
 
 ### Next
 
-- [ ] Manual **Linux Soak Audit** dispatch once CI green.
-- [ ] Commit archived Linux 30s-slot soak evidence from workflow artifact.
+- [ ] Archive Linux soak artifact once workflow completes.
+- [ ] Operator sign-off on release inventory.
 
 ## Agent 3 Detailed Plan
 
 - [x] Windows observer rehearsal PASS + `-ArchiveEvidence`.
-- [x] Nightly jobs use `--archive-evidence` on Linux.
-- [ ] First green **Nightly** via RC validation on green CI commit.
+- [x] Nightly jobs `--archive-evidence` on Linux.
+- [ ] First green **Nightly** via RC validation when CI passes.
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-ad18d94` + RC audit decision=go.
-- [ ] Regenerate release-evidence for latest green CI commit.
-- [ ] Operator human sign-off on release inventory.
+- [x] `release-evidence-b581e78` + RC audit decision=go.
+- [ ] Verify GitHub CI green on `6685c79`.
+- [ ] Operator human sign-off.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI.
-- Local CI mirror passed (includes workflow UTF-8 check).
-- Nightly + ci-ignored smoke coverage for release candidates.
-- `release-evidence.md` / `.json` for exact commit.
-- RC audit dry-run packet archived (`decision=go`).
-- Linux 30s-slot soak evidence (Windows done; Linux workflow pending).
-- Support bundle + archive validation + human sign-off.
+- Exact commit has green GitHub CI — **in flight** (`6685c79`).
+- Local CI mirror passed — **yes** (M2.4.79).
+- Nightly after green CI — **pending** RC validation trigger.
+- Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
+- Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- `2342b75` accidentally re-committed `ci-queue-cleanup.yml` as UTF-16 — **M2.4.79** fixes + prevents recurrence.
-- Linux 30s-slot soak requires manual workflow dispatch (90min job).
+- None critical; CI queue cleanup unblocked. Await first green CI, then auto Nightly.
