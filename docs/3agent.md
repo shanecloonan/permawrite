@@ -4,21 +4,21 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** M2.4.83 fix Nightly auto-dispatch (`ref: main` + `checkout_sha` input).
-- **Done:** M2.4.82 first full green CI on `e6e8d86` (all 9 jobs).
+- **Doing:** Watch Nightly on `5384ae2`; prep Linux Soak Audit dispatch.
+- **Done:** M2.4.83 CI success + RC Validation success on `5384ae2`.
 - **Next:** Linux Soak Audit after Nightly green.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Done:** `release-evidence-e6e8d86` + RC audit decision=go with CI success URL.
+- **Doing:** Archive `release-evidence-5384ae2` + RC audit decision=go.
+- **Done:** `release-evidence-e6e8d86` (first full green CI).
 - **Next:** Operator sign-off after Nightly + Linux soak.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Doing:** Await first green Nightly on exact green commit via fixed RC validation.
-- **Next:** Confirm both rehearsal jobs green + archive evidence.
+- **Doing:** Nightly running with `checkout_sha=5384ae2` (ignored + both rehearsal jobs).
+- **Next:** Archive rehearsal evidence from Nightly artifacts.
 
 ## Cross-Agent Blockers
 
-- Do not push while CI is running (Linux/macOS tests ~70 min).
-- Linux Soak Audit needs Actions UI or `GH_TOKEN`.
+- Linux Soak Audit still manual (~35 min); dispatch via Actions UI or `dispatch-rc-workflows.ps1 -LinuxSoakAudit` with `GH_TOKEN`.
