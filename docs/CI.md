@@ -63,7 +63,7 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`), and real-run `participant-rehearsal-smoke.sh` jobs (10s mesh + observer catch-up; both pass `--archive-evidence`).
 
-**RC Validation After CI (M2.4.77):** [`.github/workflows/rc-validation-after-ci.yml`](../.github/workflows/rc-validation-after-ci.yml) listens for successful **CI** workflow runs on `main` (`push` or `workflow_dispatch`) and auto-dispatches **Nightly** at the `main` branch ref (**M2.4.83** — GitHub rejects raw commit SHAs as dispatch refs). Manual re-dispatch: **Actions → RC Validation After CI → Run workflow** (optional `ci_head_sha` for logging). Manual **Nightly** dispatch remains available via `dispatch-rc-workflows.ps1 -Nightly` or Actions UI.
+**RC Validation After CI (M2.4.77):** [`.github/workflows/rc-validation-after-ci.yml`](../.github/workflows/rc-validation-after-ci.yml) listens for successful **CI** workflow runs on `main` (`push` or `workflow_dispatch`) and auto-dispatches **Nightly** with `ref: main` and `inputs.checkout_sha` set to the exact passing commit (**M2.4.83** — GitHub rejects raw commit SHAs as dispatch refs). Manual **Nightly** dispatch remains available via `dispatch-rc-workflows.ps1 -Nightly` or Actions UI.
 
 **Linux Soak Audit (M2.4.74):** [`.github/workflows/linux-soak-audit.yml`](../.github/workflows/linux-soak-audit.yml) — manual `workflow_dispatch`, 35 min 30s-slot soak with observer restart; artifact upload for evidence archival.
 

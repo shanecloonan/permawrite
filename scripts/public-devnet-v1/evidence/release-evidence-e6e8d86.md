@@ -1,4 +1,4 @@
-﻿# Permawrite Release-Candidate Evidence
+# Permawrite Release-Candidate Evidence
 
 Generated UTC: `2026-07-03T16:52:15.9647683Z`
 

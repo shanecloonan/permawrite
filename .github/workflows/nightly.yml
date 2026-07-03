@@ -5,6 +5,11 @@ on:
     # 06:00 UTC daily
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      checkout_sha:
+        description: Exact commit SHA to validate (from RC Validation After CI)
+        required: false
+        default: ""
 
 concurrency:
   group: nightly-${{ github.workflow }}-${{ github.ref }}
@@ -21,6 +26,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -46,6 +53,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -70,6 +79,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
