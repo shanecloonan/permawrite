@@ -1,6 +1,7 @@
 name: CI Queue Cleanup
 
 # Cancels stale CI runs on main so the latest push is not stuck behind a backlog.
+# Never cancels CI for the commit that triggered this cleanup (context.sha).
 on:
   workflow_dispatch:
   push:
@@ -20,9 +21,10 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const current = context.runId;
+            const headSha = context.sha;
             const branch = "main";
             let cancelled = 0;
+            let preserved = 0;
             for (const status of ["queued", "in_progress"]) {
               const { data } = await github.rest.actions.listWorkflowRuns({
                 owner,
@@ -33,7 +35,11 @@ jobs:
                 per_page: 50,
               });
               for (const run of data.workflow_runs) {
-                if (run.id === current) continue;
+                if (run.head_sha === headSha) {
+                  preserved += 1;
+                  core.info(`Preserving current-commit CI run id=${run.id} sha=${run.head_sha.slice(0, 7)}`);
+                  continue;
+                }
                 core.info(`Cancelling stale CI run id=${run.id} sha=${run.head_sha.slice(0, 7)} status=${run.status}`);
                 try {
                   await github.rest.actions.cancelWorkflowRun({ owner, repo, run_id: run.id });
@@ -43,4 +49,4 @@ jobs:
                 }
               }
             }
-            core.info(`CI queue cleanup finished cancelled=${cancelled}`);
+            core.info(`CI queue cleanup finished cancelled=${cancelled} preserved=${preserved}`);

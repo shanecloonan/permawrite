@@ -11,35 +11,37 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Do not claim another agent's uncommitted work; mention it as "observed local work" until it lands on `main`.
 - Continue updating `docs/TESTNET_CHECKLIST.md` for durable release-readiness tasks.
 - Commit and push completed units to `main` after the required local CI mirror passes.
+- **Do not push docs-only follow-ups while CI is in progress** — concurrency `cancel-in-progress` aborts the matrix before tests finish.
 
 ## Current Board
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.81** CI re-run + Linux soak. | **In progress** — `workflow_dispatch` on CI; push to re-trigger green run. | Dispatch **Linux Soak Audit** after CI green. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.81** release evidence. | **In progress** — `release-evidence-2497668` + RC audit decision=go. | Confirm GitHub CI green on `2497668`/`M2.4.81` push. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation after green CI. | Confirm Nightly green + archived Linux evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.82** preserve current-commit CI in queue cleanup. | **In progress** — fix race that cancelled every CI run. | Wait for full green CI; then Linux Soak Audit. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.82** CI green gate. | **Waiting** — prior runs cancelled by follow-up pushes. | Release-evidence for first fully green commit. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation only fires on CI success. | Confirm Nightly green + Linux soak evidence. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.80** — validate-workflow-encoding python3 fix; public-devnet scripts **success** on GitHub before CI cancel (`2497668`).
-- Agent 2: **M2.4.80** — RC audit dry-run decision=go for validate fix commit.
-- Agent 1: **M2.4.79** — UTF-8 workflow guard; CI queue cleanup success.
-- Agent 2: **M2.4.79** — `release-evidence-b581e78` + RC audit decision=go.
+- Agent 1: **M2.4.81** — CI `workflow_dispatch`; wasm-pack repository metadata fix; release-evidence-2497668.
+- Agent 1: **M2.4.80** — validate-workflow-encoding python3 fix.
+- Agent 2: **M2.4.81** — RC audit dry-run decision=go for 2497668.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.80)
+### Done (M2.4.64–M2.4.81)
 
 - [x] Windows 30s-slot soak PASS height 38 + RESTART.
 - [x] CI queue cleanup + RC validation + workflow UTF-8 guard.
 - [x] Linux Soak Audit workflow.
-- [x] M2.4.80 validate script fix (`2497668`) — public-devnet scripts green on GitHub.
+- [x] M2.4.80 validate script fix; public-devnet scripts green on GitHub.
+- [x] M2.4.81 workflow_dispatch + wasm-pack fix.
 
-### In Progress (M2.4.81)
+### In Progress (M2.4.82)
 
-- [x] Add `workflow_dispatch` to CI for manual re-run without empty commits.
-- [ ] Green **full** GitHub CI (2497668 run cancelled during tests; re-trigger via push).
+- [x] CI Queue Cleanup preserves CI runs for `context.sha` (stop cancelling the commit under test).
+- [x] RC Validation After CI also accepts `workflow_dispatch` CI success.
+- [ ] Green **full** GitHub CI on M2.4.82 commit (no follow-up pushes until done).
 - [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** dispatch).
 
 ### Next
@@ -55,19 +57,21 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-2497668` + `rc-audit-dry-run-2497668-20260703T153350Z.json` decision=go.
-- [ ] Verify GitHub CI green on exact RC commit after M2.4.81 push.
+- [x] `release-evidence-2497668` + RC audit decision=go.
+- [ ] Verify GitHub CI green on exact M2.4.82 commit.
+- [ ] Regenerate release-evidence for that green commit.
 - [ ] Operator human sign-off.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **2497668 validate fix proven**; full matrix re-run pending.
-- Local CI mirror — **yes** (`scripts/ci-check.ps1` PASS before M2.4.81 push).
+- Exact commit has green GitHub CI — **blocked by cancel-in-progress from rapid pushes**; M2.4.82 holds the line.
+- Local CI mirror — validate scripts PASS; full mirror not required for workflow-only change.
 - Nightly after green CI — **pending** RC validation trigger.
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- GitHub API rate limit (unauthenticated) — use Actions UI or `GH_TOKEN` for dispatch/monitoring.
-- Linux Soak Audit + Nightly require GitHub Actions (~35–90 min each).
+- Rapid follow-up pushes cancelled CI on `2497668`, `e14df80`, `02a660e` before the test matrix finished.
+- M2.4.82 must land and then **no further pushes** until CI is green.
+- Linux Soak Audit + Nightly require GitHub Actions (~35–90 min each); need `GH_TOKEN` or Actions UI for manual dispatch.
