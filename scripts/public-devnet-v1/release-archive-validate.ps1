@@ -1,7 +1,8 @@
 # Validate a staged public release-candidate archive.
 param(
     [Parameter(Mandatory = $true)][string]$ArchiveDir,
-    [switch]$AllowDryRun
+    [switch]$AllowDryRun,
+    [switch]$RequireReleaseSchemaWheelhouse
 )
 $ErrorActionPreference = "Stop"
 
@@ -125,6 +126,26 @@ if ($AllowDryRun) {
         "support/manifest.json"
     )) {
         Require-File $required
+    }
+}
+
+$wheelhouseDir = Join-Path $archiveRoot "toolchain/wheelhouse-release-schema"
+if ($RequireReleaseSchemaWheelhouse -or (Test-Path -LiteralPath $wheelhouseDir -PathType Container)) {
+    foreach ($required in @(
+        "toolchain/requirements-release-schema.txt",
+        "toolchain/release-schema-install-offline.ps1",
+        "toolchain/release-schema-wheelhouse.ps1",
+        "toolchain/release-json-schema-draft202012.py"
+    )) {
+        Require-File $required
+    }
+    if (-not (Test-Path -LiteralPath $wheelhouseDir -PathType Container)) {
+        Add-Issue "missing release-schema wheelhouse directory: toolchain/wheelhouse-release-schema"
+    } else {
+        $wheels = Get-ChildItem -LiteralPath $wheelhouseDir -Filter *.whl -File
+        if ($wheels.Count -lt 3) {
+            Add-Issue "release-schema wheelhouse has fewer than 3 wheels: toolchain/wheelhouse-release-schema"
+        }
     }
 }
 

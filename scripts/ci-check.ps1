@@ -346,15 +346,20 @@ foreach ($required in @("| Path | SHA-256 | Bytes |", "release-evidence-v1.sampl
         exit 1
     }
 }
-$archivePlan = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -PlanOnly -ReleaseEvidenceJson docs/release-evidence-v1.sample.json
+$archivePlan = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -PlanOnly -ReleaseEvidenceJson docs/release-evidence-v1.sample.json -IncludeReleaseSchemaWheelhouse
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-if (-not (($archivePlan -join "`n").Contains("release-archive-dry-run: PLAN OK"))) {
+$archivePlanText = $archivePlan -join "`n"
+if (-not $archivePlanText.Contains("release-archive-dry-run: PLAN OK")) {
     [Console]::Error.WriteLine("release-archive-dry-run.ps1 plan mode did not complete successfully")
+    exit 1
+}
+if (-not $archivePlanText.Contains("toolchain/wheelhouse-release-schema")) {
+    [Console]::Error.WriteLine("release-archive-dry-run.ps1 plan mode did not include release-schema wheelhouse staging")
     exit 1
 }
 $archiveDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-archive-" + [System.Guid]::NewGuid().ToString("N"))
 try {
-    $archiveRun = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -OutputDir $archiveDir -ReleaseEvidenceJson docs/release-evidence-v1.sample.json
+    $archiveRun = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -OutputDir $archiveDir -ReleaseEvidenceJson docs/release-evidence-v1.sample.json -IncludeReleaseSchemaWheelhouse
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $archiveText = $archiveRun -join "`n"
     if ($archiveText -notmatch "release-archive-dry-run: OK path=(?<path>.+)$") {
@@ -369,15 +374,43 @@ try {
         "docs/SECURITY.md",
         "docs/OPERATORS.md",
         "evidence/release-evidence.json",
-        "evidence/checksums.sha256"
+        "evidence/checksums.sha256",
+        "toolchain/requirements-release-schema.txt",
+        "toolchain/wheelhouse-release-schema"
     )) {
-        if (-not (Test-Path -LiteralPath (Join-Path $archiveRoot $requiredPath) -PathType Leaf)) {
+        if (-not (Test-Path -LiteralPath (Join-Path $archiveRoot $requiredPath))) {
             [Console]::Error.WriteLine("release-archive-dry-run.ps1 missing staged artifact '$requiredPath'")
             exit 1
         }
     }
-    powershell -NoProfile -File scripts/public-devnet-v1/release-archive-validate.ps1 -ArchiveDir $archiveRoot -AllowDryRun | Out-Null
+    $wheelCount = (Get-ChildItem -LiteralPath (Join-Path $archiveRoot "toolchain/wheelhouse-release-schema") -Filter *.whl -File).Count
+    if ($wheelCount -lt 3) {
+        [Console]::Error.WriteLine("release-archive-dry-run.ps1 staged fewer than 3 release-schema wheels")
+        exit 1
+    }
+    powershell -NoProfile -File scripts/public-devnet-v1/release-archive-validate.ps1 -ArchiveDir $archiveRoot -AllowDryRun -RequireReleaseSchemaWheelhouse | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $offlineVenv = Join-Path $archiveDir ("permawrite-release-schema-offline-" + [System.Guid]::NewGuid().ToString("N"))
+    python -m venv $offlineVenv
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $offlinePython = @(
+        (Join-Path $offlineVenv "Scripts\python.exe"),
+        (Join-Path $offlineVenv "bin\python.exe"),
+        (Join-Path $offlineVenv "bin\python")
+    ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    if (-not $offlinePython) {
+        [Console]::Error.WriteLine("offline release-schema venv did not contain a Python executable")
+        exit 1
+    }
+    $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $offlinePython
+    powershell -NoProfile -File (Join-Path $archiveRoot "toolchain/release-schema-install-offline.ps1") `
+        -Wheelhouse (Join-Path $archiveRoot "toolchain/wheelhouse-release-schema")
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    powershell -NoProfile -File (Join-Path $archiveRoot "toolchain/release-json-schema-draft202012.ps1") `
+        -Schema docs/release-audit-packet-v1.schema.json `
+        -Json docs/release-audit-packet-v1.sample.json | Out-Null
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON = $schemaPython
 
     $signoffCommit = "0000000000000000000000000000000000000000"
     $signoffCiSuccess = Join-Path $archiveDir "signoff-ci-success.json"

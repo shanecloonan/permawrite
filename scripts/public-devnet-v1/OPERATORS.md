@@ -408,7 +408,8 @@ powershell -File scripts/public-devnet-v1/release-archive-dry-run.ps1 `
   -ReleaseEvidenceJson .\release-evidence.json `
   -SignoffManifest .\release-signoff-manifest.json `
   -AuditPacket .\release-audit-packet.json `
-  -Inventory .\release-artifact-inventory.md
+  -Inventory .\release-artifact-inventory.md `
+  -IncludeReleaseSchemaWheelhouse
 ```
 
 ```bash
@@ -418,24 +419,27 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
   --release-evidence-json ./release-evidence.json \
   --signoff-manifest ./release-signoff-manifest.json \
   --audit-packet ./release-audit-packet.json \
-  --inventory ./release-artifact-inventory.md
+  --inventory ./release-artifact-inventory.md \
+  --include-release-schema-wheelhouse
 ```
 
-The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
+The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. Use `-IncludeReleaseSchemaWheelhouse` / `--include-release-schema-wheelhouse` on connected release hosts to also stage `toolchain/requirements-release-schema.txt`, hash-pinned wheel files, and offline strict-validation helpers for air-gapped sign-off. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
 
 Validate the staged archive before sign-off:
 
 ```powershell
 powershell -File scripts/public-devnet-v1/release-archive-validate.ps1 `
-  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit>
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit> `
+  -RequireReleaseSchemaWheelhouse
 ```
 
 ```bash
 bash scripts/public-devnet-v1/release-archive-validate.sh \
-  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit>
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit> \
+  --require-release-schema-wheelhouse
 ```
 
-The validator checks required public files, verifies staged `checksums.sha256` manifests against the actual bytes, and rejects obvious private file names. Use `-AllowDryRun` / `--allow-dry-run` only for rehearsal archives with template/sample evidence; do not use it for final publication sign-off.
+The validator checks required public files, verifies staged `checksums.sha256` manifests against the actual bytes, and rejects obvious private file names. Use `-AllowDryRun` / `--allow-dry-run` only for rehearsal archives with template/sample evidence; do not use it for final publication sign-off. When the archive includes `toolchain/wheelhouse-release-schema`, use `-RequireReleaseSchemaWheelhouse` / `--require-release-schema-wheelhouse` so air-gapped strict-validation artifacts are mandatory.
 
 Use `artifact-checksums.ps1` or `artifact-checksums.sh` to generate SHA-256 rows for inventory entries. Run it only on public release artifacts; never hash or publish private keys, wallet seeds, RPC API keys, or private operator files.
 

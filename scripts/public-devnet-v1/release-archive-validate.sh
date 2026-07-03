@@ -4,6 +4,7 @@ set -euo pipefail
 
 archive_dir=""
 allow_dry_run=0
+require_release_schema_wheelhouse=0
 
 usage() {
   cat <<'EOF'
@@ -12,6 +13,8 @@ usage: release-archive-validate.sh --archive-dir DIR [--allow-dry-run]
 Options:
   --archive-dir DIR   Staged release archive directory to validate.
   --allow-dry-run     Allow template/sample evidence files from release-archive-dry-run output.
+  --require-release-schema-wheelhouse
+                      Require toolchain wheelhouse artifacts for air-gapped strict validation.
 EOF
 }
 
@@ -23,6 +26,10 @@ while (($# > 0)); do
       ;;
     --allow-dry-run)
       allow_dry_run=1
+      shift
+      ;;
+    --require-release-schema-wheelhouse)
+      require_release_schema_wheelhouse=1
       shift
       ;;
     -h|--help)
@@ -196,6 +203,25 @@ else
     support/manifest.json; do
     require_file "$required"
   done
+fi
+
+wheelhouse_dir="$archive_root/toolchain/wheelhouse-release-schema"
+if ((require_release_schema_wheelhouse == 1)) || [[ -d "$wheelhouse_dir" ]]; then
+  for required in \
+    toolchain/requirements-release-schema.txt \
+    toolchain/release-schema-install-offline.sh \
+    toolchain/release-schema-wheelhouse.sh \
+    toolchain/release-json-schema-draft202012.py; do
+    require_file "$required"
+  done
+  if [[ ! -d "$wheelhouse_dir" ]]; then
+    add_issue "missing release-schema wheelhouse directory: toolchain/wheelhouse-release-schema"
+  else
+  wheel_count="$(find "$wheelhouse_dir" -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+    if ((wheel_count < 3)); then
+      add_issue "release-schema wheelhouse has fewer than 3 wheels: toolchain/wheelhouse-release-schema"
+    fi
+  fi
 fi
 
 test_directory_checksums "$archive_root"

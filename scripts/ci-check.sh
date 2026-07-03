@@ -292,13 +292,17 @@ for required in "| Path | SHA-256 | Bytes |" "release-evidence-v1.sample.json" "
     exit 1
   fi
 done
-archive_plan="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --plan-only --release-evidence-json docs/release-evidence-v1.sample.json)"
+archive_plan="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --plan-only --release-evidence-json docs/release-evidence-v1.sample.json --include-release-schema-wheelhouse)"
 if [[ "$archive_plan" != *"release-archive-dry-run: PLAN OK"* ]]; then
   echo "release-archive-dry-run.sh plan mode did not complete successfully" >&2
   exit 1
 fi
+if [[ "$archive_plan" != *"toolchain/wheelhouse-release-schema"* ]]; then
+  echo "release-archive-dry-run.sh plan mode did not include release-schema wheelhouse staging" >&2
+  exit 1
+fi
 archive_dir="$(mktemp -d)"
-archive_run="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --output-dir "$archive_dir" --release-evidence-json docs/release-evidence-v1.sample.json)"
+archive_run="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --output-dir "$archive_dir" --release-evidence-json docs/release-evidence-v1.sample.json --include-release-schema-wheelhouse)"
 archive_root="$(printf '%s\n' "$archive_run" | awk -F'path=' '/release-archive-dry-run: OK path=/{print $2}' | tail -n 1)"
 if [[ -z "$archive_root" ]]; then
   echo "release-archive-dry-run.sh did not report an output path" >&2
@@ -311,13 +315,34 @@ for required_path in \
   docs/SECURITY.md \
   docs/OPERATORS.md \
   evidence/release-evidence.json \
-  evidence/checksums.sha256; do
+  evidence/checksums.sha256 \
+  toolchain/requirements-release-schema.txt; do
   if [[ ! -f "$archive_root/$required_path" ]]; then
     echo "release-archive-dry-run.sh missing staged artifact '$required_path'" >&2
     exit 1
   fi
 done
-bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run >/dev/null
+if [[ ! -d "$archive_root/toolchain/wheelhouse-release-schema" ]]; then
+  echo "release-archive-dry-run.sh missing staged release-schema wheelhouse directory" >&2
+  exit 1
+fi
+wheel_count="$(find "$archive_root/toolchain/wheelhouse-release-schema" -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+if ((wheel_count < 3)); then
+  echo "release-archive-dry-run.sh staged fewer than 3 release-schema wheels" >&2
+  exit 1
+fi
+bash scripts/public-devnet-v1/release-archive-validate.sh --archive-dir "$archive_root" --allow-dry-run --require-release-schema-wheelhouse >/dev/null
+offline_venv="$(mktemp -d)"
+python3 -m venv "$offline_venv"
+offline_python="$offline_venv/bin/python"
+PERMAWRITE_RELEASE_SCHEMA_PYTHON="$offline_python" \
+  bash "$archive_root/toolchain/release-schema-install-offline.sh" \
+  --wheelhouse "$archive_root/toolchain/wheelhouse-release-schema"
+PERMAWRITE_RELEASE_SCHEMA_PYTHON="$offline_python" \
+  bash "$archive_root/toolchain/release-json-schema-draft202012.sh" \
+  --schema docs/release-audit-packet-v1.schema.json \
+  --json docs/release-audit-packet-v1.sample.json >/dev/null
+rm -rf "$offline_venv"
 signoff_commit="0000000000000000000000000000000000000000"
 cat > "$archive_dir/signoff-ci-success.json" <<EOF
 [

@@ -16,6 +16,7 @@ signoff_review=""
 signoff_manifest=""
 audit_packet=""
 inventory=""
+include_release_schema_wheelhouse=0
 
 usage() {
   cat <<'EOF'
@@ -32,6 +33,8 @@ Options:
   --signoff-manifest FILE       Stage release-signoff-manifest output.
   --audit-packet FILE           Stage release-audit-packet output.
   --inventory FILE              Stage a filled release artifact inventory.
+  --include-release-schema-wheelhouse
+                                Stage hash-pinned release-schema wheels for air-gapped hosts.
 EOF
 }
 
@@ -76,6 +79,10 @@ while (($# > 0)); do
     --inventory)
       inventory="${2:?missing value for --inventory}"
       shift 2
+      ;;
+    --include-release-schema-wheelhouse)
+      include_release_schema_wheelhouse=1
+      shift
       ;;
     -h|--help)
       usage
@@ -162,6 +169,37 @@ write_tree_checksums() {
   done < <(find "$dir" -mindepth 1 -type d -print0)
 }
 
+stage_release_schema_wheelhouse() {
+  local archive_root_path="$1"
+  local toolchain_dir="$archive_root_path/toolchain"
+  local wheelhouse_dir="$toolchain_dir/wheelhouse-release-schema"
+  local requirements_source="$SCRIPT_DIR/requirements-release-schema.txt"
+  local helper
+  for helper in \
+    release-schema-wheelhouse.sh \
+    release-schema-install-offline.sh \
+    release-json-schema-draft202012.sh \
+    release-json-schema-draft202012.py; do
+    copy_public_file "$SCRIPT_DIR/$helper" "$toolchain_dir/$helper"
+  done
+  copy_public_file "$requirements_source" "$toolchain_dir/requirements-release-schema.txt"
+  if ((plan_only)); then
+    echo "PLAN download hash-pinned wheels -> toolchain/wheelhouse-release-schema"
+    return 0
+  fi
+  mkdir -p "$wheelhouse_dir"
+  local python="${PERMAWRITE_RELEASE_SCHEMA_PYTHON:-python3}"
+  "$python" -m pip download --disable-pip-version-check --require-hashes \
+    -r "$requirements_source" -d "$wheelhouse_dir"
+  local wheel_count
+  wheel_count="$(find "$wheelhouse_dir" -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+  if ((wheel_count < 3)); then
+    echo "release-archive-dry-run: expected at least 3 release-schema wheels, found $wheel_count" >&2
+    exit 1
+  fi
+  echo "release-archive-dry-run: staged release-schema wheelhouse packages=$wheel_count"
+}
+
 echo "release-archive-dry-run: archive=$archive_root"
 echo "release-archive-dry-run: public-only staging; private wallet, seed, API-key, credential, and peers.json sources are refused"
 
@@ -217,6 +255,13 @@ EOF
     fi
     copy_public_file "$support_bundle" "$archive_root/support/support-bundle$ext"
   fi
+fi
+
+if ((include_release_schema_wheelhouse)); then
+  if ((plan_only == 0)); then
+    mkdir -p "$archive_root"
+  fi
+  stage_release_schema_wheelhouse "$archive_root"
 fi
 
 if ((plan_only)); then

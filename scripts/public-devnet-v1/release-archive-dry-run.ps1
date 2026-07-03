@@ -9,7 +9,8 @@ param(
     [string]$SignoffReview,
     [string]$SignoffManifest,
     [string]$AuditPacket,
-    [string]$Inventory
+    [string]$Inventory,
+    [switch]$IncludeReleaseSchemaWheelhouse
 )
 $ErrorActionPreference = "Stop"
 
@@ -76,6 +77,38 @@ function Write-TreeChecksums {
     Get-ChildItem -LiteralPath $Directory -Directory -Recurse | ForEach-Object {
         Write-DirectoryChecksums -Directory $_.FullName
     }
+}
+
+function Stage-ReleaseSchemaWheelhouse {
+    param([string]$ArchiveRootPath)
+    $toolchainDir = Join-Path $ArchiveRootPath "toolchain"
+    $wheelhouseDir = Join-Path $toolchainDir "wheelhouse-release-schema"
+    $requirementsSource = "scripts/public-devnet-v1/requirements-release-schema.txt"
+    $requirementsDest = Join-Path $toolchainDir "requirements-release-schema.txt"
+    foreach ($helper in @(
+        "scripts/public-devnet-v1/release-schema-wheelhouse.ps1",
+        "scripts/public-devnet-v1/release-schema-install-offline.ps1",
+        "scripts/public-devnet-v1/release-json-schema-draft202012.ps1",
+        "scripts/public-devnet-v1/release-json-schema-draft202012.py"
+    )) {
+        $dest = Join-Path $toolchainDir (Split-Path -Leaf $helper)
+        Copy-PublicFile -Source $helper -Destination $dest
+    }
+    Copy-PublicFile -Source $requirementsSource -Destination $requirementsDest
+    if ($PlanOnly) {
+        Write-Output "PLAN download hash-pinned wheels -> toolchain/wheelhouse-release-schema"
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $wheelhouseDir | Out-Null
+    $python = if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON) { $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON } else { "python" }
+    & $python -m pip download --disable-pip-version-check --require-hashes `
+        -r $requirementsSource -d $wheelhouseDir
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $wheelCount = (Get-ChildItem -LiteralPath $wheelhouseDir -Filter *.whl -File).Count
+    if ($wheelCount -lt 3) {
+        throw "release-archive-dry-run: expected at least 3 release-schema wheels, found $wheelCount"
+    }
+    Write-Output "release-archive-dry-run: staged release-schema wheelhouse packages=$wheelCount"
 }
 
 $shortCommit = Invoke-GitText "rev-parse" "--short" "HEAD"
@@ -154,6 +187,13 @@ if ($SupportBundle) {
     } else {
         Copy-PublicFile -Source $SupportBundle -Destination (Join-Path $ArchiveRoot "support/support-bundle$(Split-Path -Leaf $SupportBundle | ForEach-Object { [System.IO.Path]::GetExtension($_) })")
     }
+}
+
+if ($IncludeReleaseSchemaWheelhouse) {
+    if (-not $PlanOnly) {
+        New-Item -ItemType Directory -Force -Path $ArchiveRoot | Out-Null
+    }
+    Stage-ReleaseSchemaWheelhouse -ArchiveRootPath $ArchiveRoot
 }
 
 if (-not $PlanOnly) {

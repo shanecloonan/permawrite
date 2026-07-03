@@ -54,6 +54,14 @@ permawrite-public-devnet-<rc>-<commit>/
     support-bundle.zip
     manifest.json
     checksums.sha256
+  toolchain/
+    requirements-release-schema.txt
+    release-schema-wheelhouse.ps1
+    release-schema-install-offline.ps1
+    release-json-schema-draft202012.py
+    wheelhouse-release-schema/
+      *.whl
+    checksums.sha256
   docs/
     TESTNET.md
     SECURITY.md

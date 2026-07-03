@@ -63,6 +63,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add pinned third-party Draft 2020-12 validation for release artifacts with `jsonschema==4.17.3`.
 - [x] Add checksum/hash-pinned Python dependency installation for release tooling before treating third-party validation as reproducible enough for release sign-off.
 - [x] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
+- [x] Wire release-schema wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts.
 
 ## Agent 1 - Core Protocol, Consensus, Networking, Sync
 
