@@ -4,12 +4,12 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **M2.4.69 in progress:** 30s-slot (`SLOT_MS=30000`) hub lifetime soak with `-ArchiveEvidence` (35 min, observer restart).
-- Done: M2.4.66–68 mesh stability, soak RESTART (10s), observer rehearsal height 5.
+- **M2.4.70 in progress:** soak lock + ports snapshot recovery; re-run 30s-slot 35min soak with `-ArchiveEvidence`.
+- **M2.4.69 partial:** first 30s soak failed when `devnet-ports.env` deleted mid-run (parallel mesh start).
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- Generate release-evidence after M2.4.69 soak green.
+- Generate release-evidence after M2.4.70 soak green + CI mirror.
 - Monitor GitHub CI + nightly rehearsal job.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
@@ -18,4 +18,4 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Cross-Agent Blockers
 
-- Release-evidence packet blocked on M2.4.69 30s-slot soak evidence (Agent 1).
+- Release-evidence packet blocked on M2.4.70 30s-slot soak evidence (Agent 1).

@@ -25,6 +25,7 @@ $HealthScript = Join-Path $ScriptDir "health-check.ps1"
 $StartAllScript = Join-Path $ScriptDir "start-all.ps1"
 $LogDir = Join-Path $ScriptDir "logs"
 . (Join-Path $ScriptDir "ports-env-lib.ps1")
+$script:SoakPortsSnapshot = @{}
 $StartedAt = Get-Date
 $SoakSamples = New-Object System.Collections.Generic.List[string]
 $SoakRestarts = New-Object System.Collections.Generic.List[string]
@@ -32,8 +33,35 @@ $LastFailure = $null
 $SummaryWritten = $false
 $P2pLogTimeoutSeconds = 120
 
+function Update-SoakPortsSnapshot {
+    param([hashtable]$Ports)
+    foreach ($key in $Ports.Keys) {
+        if ($Ports[$key]) { $script:SoakPortsSnapshot[$key] = $Ports[$key] }
+    }
+}
+
+function Restore-SoakPortsFile {
+    if ($script:SoakPortsSnapshot.Count -eq 0) { return $false }
+    foreach ($key in @("HUB_PID", "V1_PID", "V2_PID", "OBSERVER_PID")) {
+        $pidText = $script:SoakPortsSnapshot[$key]
+        if (-not $pidText) { continue }
+        if (-not (Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue)) { return $false }
+    }
+    Write-DevnetPortsFile -Path $PortsFile -Ports $script:SoakPortsSnapshot
+    Write-Host "soak: restored $PortsFile from in-memory snapshot"
+    return $true
+}
+
 function Read-PortsFile {
-    return Read-DevnetPortsFile -Path $PortsFile
+    if (Test-Path $PortsFile) {
+        $ports = Read-DevnetPortsFile -Path $PortsFile
+        Update-SoakPortsSnapshot $ports
+        return $ports
+    }
+    if (Restore-SoakPortsFile) {
+        return Read-DevnetPortsFile -Path $PortsFile
+    }
+    throw "Missing $PortsFile - run start-all.ps1 first"
 }
 
 function Assert-ProcessAlive {
@@ -200,6 +228,7 @@ function Get-LatestLogValue {
 function Set-ObserverPortLine {
     param([string]$Key, [string]$Value)
     Set-DevnetPort -Path $PortsFile -Key $Key -Value $Value
+    $script:SoakPortsSnapshot[$Key] = $Value
 }
 function Rotate-ObserverLogFile {
     param([string]$Source, [string]$Dest, [int]$MaxWaitSeconds = 15)
@@ -347,6 +376,7 @@ trap {
     if (-not $script:SummaryWritten) {
         Write-SoakSummary "FAIL"
     }
+    Remove-SoakLock -ScriptDir $ScriptDir
     break
 }
 
@@ -365,7 +395,15 @@ if (-not $NoStart) {
         Write-Host "soak: WARN $($foreign.Count) mfnd process(es) already running (pids=$($foreign.Id -join ',')); stop CI/integration tests before soak"
     }
     Write-Host "soak: starting public-devnet-v1 mesh"
-    & $StartAllScript
+    $env:MFN_SOAK_BOOTSTRAP = "1"
+    try {
+        & $StartAllScript
+    } finally {
+        Remove-Item Env:MFN_SOAK_BOOTSTRAP -ErrorAction SilentlyContinue
+    }
+    $null = Read-PortsFile
+    New-SoakLock -ScriptDir $ScriptDir
+    Write-Host "soak: lock active ($(Get-SoakLockPath -ScriptDir $ScriptDir))"
 } else {
     if ($StallIntervalSeconds -le 0) {
         $slotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 10000 }
@@ -374,6 +412,8 @@ if (-not $NoStart) {
         Write-Host "soak: StallIntervalSeconds=$StallIntervalSeconds (auto from SLOT_MS)"
     }
     Write-Host "soak: using existing public-devnet-v1 mesh"
+    New-SoakLock -ScriptDir $ScriptDir
+    Write-Host "soak: lock active ($(Get-SoakLockPath -ScriptDir $ScriptDir))"
 }
 
 Wait-ForMeshProduction
@@ -449,3 +489,4 @@ Write-SoakSummary "PASS"
 if ($ArchiveEvidence) {
     Archive-SoakEvidence "PASS"
 }
+Remove-SoakLock -ScriptDir $ScriptDir

@@ -514,6 +514,8 @@ powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartO
 
 Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` on PASS.
 
+While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `stop-all.ps1` and `start-all.ps1` refuse to tear down the mesh unless `-Force` is passed. Do not run `ci-check`, integration tests, or `taskkill /IM mfnd` against a live soak — wait for PASS/FAIL or remove a stale lock only when no soak process is running.
+
 Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up.
 
 The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line, each `soak: SAMPLE` line, and any `soak: RESTART` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, per-role P2P peer/session counts, and delayed catch-up after observer kill/restart.

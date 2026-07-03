@@ -2,12 +2,19 @@
 param(
     [switch]$AllMfnd,
     [switch]$DryRun,
-    [switch]$RemovePortsFile
+    [switch]$RemovePortsFile,
+    [switch]$Force
 )
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
+
+if (-not $DryRun -and -not $Force -and (Test-SoakLockActive -ScriptDir $ScriptDir)) {
+    Write-Host "stop-all: skip (soak lock active; use -Force to override)"
+    exit 0
+}
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { return @{} }
@@ -51,8 +58,8 @@ if ($AllMfnd) {
     }
 }
 
-if (-not $DryRun -and $RemovePortsFile -and (Test-Path $PortsFile)) {
-    Remove-Item -Force $PortsFile
+if (-not $DryRun -and $RemovePortsFile) {
+    Remove-DevnetPortsFile -Path $PortsFile
     Write-Host "stop-all: removed $PortsFile"
 }
 

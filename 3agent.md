@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.69** 30s-slot hub lifetime soak. | **In progress** — `-ArchiveEvidence` added; 35min production-slot soak running. | Archive evidence → release-evidence for RC commit. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.70** soak lock + ports snapshot recovery. | **In progress** — fix ports-file race; re-run 30s-slot soak. | Archive 30s-slot evidence → hand off release-evidence. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release evidence + CI monitor. | Generate `release-evidence` for soak-green commit; monitor Actions. | Archive validation packet. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Nightly smoke confirmation. | M2.4.68 observer PASS archived; nightly job live (M2.4.67). | Confirm first Linux nightly green. |
 
@@ -32,9 +32,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 - [x] Mesh stability, soak RESTART, devnet-ports mutex, observer rehearsal past height 5.
 
-### In progress (M2.4.69)
+### In progress (M2.4.69–M2.4.70)
 
 - [x] Soak `-ArchiveEvidence` switch + OPERATORS 30s-slot command documented.
+- [x] Soak lock (`.soak-active.lock`) blocks `start-all`/`stop-all` during long soaks (**M2.4.70**).
+- [x] In-memory ports snapshot restores `devnet-ports.env` if deleted while mesh PIDs stay alive (**M2.4.70**).
 - [ ] Windows 30s-slot soak PASS (`SLOT_MS=30000`, 35 min, `-RestartObserverOnce -ArchiveEvidence`).
 - [ ] Hub lifetime past height 10+ under production slot duration.
 

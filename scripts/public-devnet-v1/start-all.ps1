@@ -47,6 +47,7 @@ function Start-MfndRole {
 }
 
 $StopAllScript = Join-Path $ScriptDir "stop-all.ps1"
+Assert-SoakNotActive -ScriptDir $ScriptDir -Caller "start-all"
 if (Test-Path $StopAllScript) {
     & $StopAllScript
 } else {

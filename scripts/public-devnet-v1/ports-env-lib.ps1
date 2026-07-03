@@ -99,3 +99,49 @@ function Remove-DevnetPortsFile {
         }
     } | Out-Null
 }
+
+function Get-SoakLockPath {
+    param([string]$ScriptDir)
+    return Join-Path $ScriptDir ".soak-active.lock"
+}
+
+function Test-SoakLockActive {
+    param([string]$ScriptDir)
+    $lockPath = Get-SoakLockPath -ScriptDir $ScriptDir
+    if (-not (Test-Path $lockPath)) { return $false }
+    $lines = Get-Content $lockPath -ErrorAction SilentlyContinue
+    foreach ($line in $lines) {
+        if ($line -match "^pid=(\d+)$") {
+            $lockPid = [int]$Matches[1]
+            if (Get-Process -Id $lockPid -ErrorAction SilentlyContinue) { return $true }
+        }
+    }
+    return $false
+}
+
+function Assert-SoakNotActive {
+    param([string]$ScriptDir, [string]$Caller)
+    if ($env:MFN_SOAK_BOOTSTRAP -eq "1") { return }
+    if (Test-SoakLockActive -ScriptDir $ScriptDir) {
+        $lockPath = Get-SoakLockPath -ScriptDir $ScriptDir
+        throw "${Caller}: soak in progress ($lockPath); wait for soak to finish or remove stale lock if no soak is running"
+    }
+}
+
+function New-SoakLock {
+    param([string]$ScriptDir)
+    $lockPath = Get-SoakLockPath -ScriptDir $ScriptDir
+    $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    @(
+        "pid=$PID"
+        "started_at=$stamp"
+    ) | Set-Content -Path $lockPath -Encoding utf8
+}
+
+function Remove-SoakLock {
+    param([string]$ScriptDir)
+    $lockPath = Get-SoakLockPath -ScriptDir $ScriptDir
+    if (Test-Path $lockPath) {
+        Remove-Item -Force $lockPath
+    }
+}

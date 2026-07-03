@@ -27,6 +27,7 @@ Thumbs.db
 .permawrite-devnet-v1/
 scripts/public-devnet-v1/logs/
 scripts/public-devnet-v1/devnet-ports.env
+scripts/public-devnet-v1/.soak-active.lock
 scripts/public-devnet-v1/wheelhouse-release-schema/
 scripts/public-devnet-v1/participant-rehearsal-smoke/
 scripts/public-devnet-v1/support-bundle/
