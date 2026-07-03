@@ -1,0 +1,33 @@
+{
+  "chain": {
+    "genesis_id": "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005",
+    "tip_height": 3,
+    "tip_id": "fbaa700331da3da69afac8239c81970ac5c43d5fd16de4e9e9ee7df31e1a2587",
+    "validator_count": 3
+  },
+  "mempool": {
+    "pool_len": 0,
+    "root": "d5cb622470ed1f504eeb058970fc71b03468392c90aef4b0b3a728c0615aaffe"
+  },
+  "p2p": {
+    "configured": true,
+    "listen_addr": "127.0.0.1:0",
+    "max_outbound_peers": 8,
+    "peer_count": 3,
+    "session_count": 4
+  },
+  "proof_pool": {
+    "configured": true,
+    "pool_len": 1
+  },
+  "rpc": {
+    "auth_enabled": false,
+    "current_in_flight": 0,
+    "io_timeout_ms": 30000,
+    "listen_addr": "127.0.0.1:0",
+    "max_in_flight": 64,
+    "max_request_line_bytes": 1048576,
+    "method_count": 31,
+    "public_bind": false
+  }
+}

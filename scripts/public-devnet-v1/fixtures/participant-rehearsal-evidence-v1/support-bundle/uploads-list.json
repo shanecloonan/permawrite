@@ -1,0 +1,21 @@
+{
+  "include_claims": true,
+  "limit": 20,
+  "offset": 0,
+  "total": 1,
+  "uploads": [
+    {
+      "chunk_size": 262144,
+      "claims": [],
+      "commitment_hash": "14009d1272fc981a83ff107788815b5e2e724e5dafef123f2a103dafb7df8161",
+      "data_root": "8e553b43d1a342f8118907de8a3eafe24010f897e16b96e38c9ec7f8ea55a48d",
+      "endowment_hex": "3b9abb4432ab7bda8cdf7dba9f6a0f86ff52ce14bacb88b32c967c48184b0fc4",
+      "last_proven_height": 3,
+      "last_proven_slot": 4,
+      "num_chunks": 1,
+      "replication": 3,
+      "size_bytes": 4096
+    }
+  ],
+  "uploads_returned": 1
+}

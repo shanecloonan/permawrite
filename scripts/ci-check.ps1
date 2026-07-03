@@ -553,6 +553,24 @@ Decision: go
         exit 1
     }
     $global:LASTEXITCODE = 0
+    $fixtureRoot = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
+    $fixtureAuditJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
+        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
+        -ArchiveDir $archiveRoot `
+        -Inventory (Join-Path $archiveDir "signoff-inventory.md") `
+        -CiMockRuns (Join-Path $archiveDir "signoff-ci-success.json") `
+        -ParticipantRehearsalLog (Join-Path $fixtureRoot "participant-rehearsal.log") `
+        -ParticipantSupportBundle (Join-Path $fixtureRoot "support-bundle") `
+        -AllowDryRun `
+        -Json
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $fixtureAuditObject = $fixtureAuditJson | ConvertFrom-Json
+    $fixtureParticipant = $fixtureAuditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
+    if (-not $fixtureParticipant -or $fixtureParticipant.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant-rehearsal-evidence-v1 fixture")
+        exit 1
+    }
     $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
     @"
 [

@@ -16,15 +16,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.66** devnet mesh isolation + soak evidence. | **Shipped** — Windows soak SUMMARY PASS + `soak: RESTART` archived (height 28). | Agent 3: nightly rehearsal promotion. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor CI on M2.4.66 commit. | Archive validation on green CI. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | **PASS** on M2.4.64 (`20260703T113642Z`). Soak green unblocks promotion. | Promote rehearsal smoke to slow/nightly CI. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.67** nightly CI promotion (Agent 3 lane). | **Shipped** — policy + nightly job + evidence fixture. | Monitor nightly first green run; 30s-slot hub audit. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor CI on M2.4.67 commit. | Archive validation on green CI + nightly smoke. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.67** participant rehearsal nightly promotion. | **Shipped** — nightly.yml real-run smoke + evidence fixture `participant-rehearsal-evidence-v1`. | Rehearsal PASS past height 5 with observer enabled. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.66** — devnet-ports mutex + merge-from-disk; stop-all no longer deletes ports by default; soak foreign-mfnd preflight; iteration budget fix; **Windows soak PASS** (`evidence/soak-restart-windows-20260703T120117Z.txt`).
-- Agent 1: **M2.4.65** — observer RPC fallback in health-check; soak retries connection refused (`511b2b7` / `b7ef72b`).
-- Agent 1: **M2.4.64** — sync proposal fan-out, catch-up idle skip, bounded inbound workers (`2592d03`).
+- Agent 3: **M2.4.67** — promote `participant-rehearsal-smoke` to nightly + `ci-ignored`; policy check allows real-run in nightly/ci-ignored only; redacted evidence fixture from `20260703T113642Z`.
+- Agent 1: **M2.4.66** — devnet-ports mutex + merge-from-disk; Windows soak SUMMARY PASS + `soak: RESTART` archived (`evidence/soak-restart-windows-20260703T120117Z.txt`).
 - Agent 3: **participant-rehearsal-smoke PASS** on M2.4.64 (fund-wallet height 2, permanence-demo, support bundle `20260703T113642Z`).
 
 ## Agent 1 Detailed Plan
@@ -34,14 +33,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] `fanout_proposal_sync`, extended pending release with votes, `periodic_catch_up_idle`, inbound cap 48.
 - [x] Observer RPC fallback in health-check (log rescrape + ports refresh).
 - [x] Devnet-ports mutex + merge-from-disk `Set-DevnetPort`; start-all owns clean slate.
-- [x] `start-all.ps1` calls `stop-all.ps1` (recorded PIDs only); soak warns on foreign `mfnd`.
-- [x] Soak iteration budget matches stall sampling; retries transient stall/divergence.
-- [x] Participant rehearsal smoke PASS on M2.4.64.
 - [x] Windows `soak.ps1 -RestartObserverOnce` SUMMARY PASS + archived `soak: RESTART` evidence (height 28).
 
 ### Next
 
-- [ ] Agent 3: promote participant rehearsal smoke to slow/nightly CI.
+- [ ] Monitor first green nightly `participant-rehearsal-smoke` job on Linux CI.
 - [ ] Participant rehearsal smoke PASS past height 5 with observer enabled (stretch).
 - [ ] Long-run hub daemon lifetime audit under 30s-slot public devnet config.
 
@@ -49,8 +45,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 - [x] Harden `permanence-demo` upload-index wait; 10s slot smoke defaults.
 - [x] Participant rehearsal smoke PASS on M2.4.64.
-- [ ] Capture public-devnet participant evidence fixture from successful live rehearsal.
-- [ ] Promote participant rehearsal smoke into slow/nightly CI (unblocked by soak green).
+- [x] Capture public-devnet participant evidence fixture (`fixtures/participant-rehearsal-evidence-v1`).
+- [x] Promote participant rehearsal smoke into slow/nightly CI.
+
+### Next
+
+- [ ] Confirm Linux nightly rehearsal smoke green on GitHub Actions.
+- [ ] Rehearsal PASS past height 5 with observer enabled.
 
 ## Shared Release-Candidate Gates
 
@@ -67,5 +68,6 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [ ] Monitor GitHub CI on M2.4.66 commit.
+- [ ] Monitor GitHub CI on M2.4.67 commit.
+- [ ] Monitor first nightly `participant-rehearsal-smoke` run (06:00 UTC or workflow_dispatch).
 - [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.

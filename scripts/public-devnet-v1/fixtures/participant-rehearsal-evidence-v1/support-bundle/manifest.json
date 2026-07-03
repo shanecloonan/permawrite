@@ -1,0 +1,50 @@
+{
+  "generated_at_utc": "2026-07-03T11:36:43Z",
+  "rpc": "127.0.0.1:0",
+  "rpc_api_key_set": false,
+  "wallet": null,
+  "commit_hash": "14009d1272fc981a83ff107788815b5e2e724e5dafef123f2a103dafb7df8161",
+  "peer": null,
+  "chunk_index": 0,
+  "data_dir": null,
+  "data_root": null,
+  "claim_pubkey": null,
+  "release_evidence": {
+    "provided": false,
+    "valid": false,
+    "source": null,
+    "copied_file": null,
+    "schema_version": null,
+    "generated_utc": null,
+    "commit_head": null,
+    "rpc_endpoint": null,
+    "note": "fixture sample from M2.4.64 Windows rehearsal; host paths redacted"
+  },
+  "read_only": true,
+  "commands": [
+    {
+      "name": "node-status",
+      "exit_code": 0,
+      "stdout": "node-status.json",
+      "stderr": null
+    },
+    {
+      "name": "uploads-list",
+      "exit_code": 0,
+      "stdout": "uploads-list.json",
+      "stderr": null
+    },
+    {
+      "name": "operator-pool",
+      "exit_code": 0,
+      "stdout": "operator-pool.json",
+      "stderr": null
+    },
+    {
+      "name": "operator-challenge",
+      "exit_code": 0,
+      "stdout": "operator-challenge.json",
+      "stderr": null
+    }
+  ]
+}

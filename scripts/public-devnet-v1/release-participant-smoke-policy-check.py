@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed unless participant rehearsal helpers stay plan-only in CI automation."""
+"""Fail closed unless participant rehearsal helpers stay plan-only in default CI automation."""
 
 from __future__ import annotations
 
@@ -10,12 +10,21 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-DEFAULT_PATHS = (
+PLAN_ONLY_REQUIRED = (
     REPO_ROOT / ".github/workflows/ci.yml",
-    REPO_ROOT / ".github/workflows/nightly.yml",
     REPO_ROOT / "scripts/ci-check.sh",
     REPO_ROOT / "scripts/ci-check.ps1",
 )
+
+REAL_RUN_ALLOWED = (
+    REPO_ROOT / ".github/workflows/nightly.yml",
+    REPO_ROOT / "scripts/ci-ignored.sh",
+    REPO_ROOT / "scripts/ci-ignored.ps1",
+)
+
+DEFAULT_PATHS = PLAN_ONLY_REQUIRED + REAL_RUN_ALLOWED
+
+REAL_RUN_ALLOWED_NAMES = frozenset(path.name for path in REAL_RUN_ALLOWED)
 
 ALLOW_MARKERS = (
     "--plan-only",
@@ -45,18 +54,13 @@ def check_file(path: Path) -> list[str]:
         if not stripped or stripped.startswith("#"):
             continue
 
-        if "participant-rehearsal-smoke" in line and path.name == "nightly.yml":
-            issues.append(
-                f"{path}:{lineno}: nightly workflow must not run participant-rehearsal-smoke "
-                "until mesh lifetime is stable and Agent 2/3 sign off"
-            )
-            continue
-
         if SMOKE_SCRIPT_RE.search(line) or REHEARSAL_SCRIPT_RE.search(line):
+            if path.name in REAL_RUN_ALLOWED_NAMES:
+                continue
             if not is_allowed_invocation(line):
                 issues.append(
                     f"{path}:{lineno}: participant rehearsal automation must stay plan-only "
-                    f"in CI until mesh lifetime is stable: {stripped}"
+                    f"in default CI until mesh lifetime is stable: {stripped}"
                 )
 
     return issues

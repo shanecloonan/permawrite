@@ -1,0 +1,13 @@
+{
+  "chunk_index": 0,
+  "chunk_size": 262144,
+  "commitment_hash": "14009d1272fc981a83ff107788815b5e2e724e5dafef123f2a103dafb7df8161",
+  "commitment_wire_hex": "8e553b43d1a342f8118907de8a3eafe24010f897e16b96e38c9ec7f8ea55a48d00000000000010000004000000000001033b9abb4432ab7bda8cdf7dba9f6a0f86ff52ce14bacb88b32c967c48184b0fc4",
+  "data_root": "8e553b43d1a342f8118907de8a3eafe24010f897e16b96e38c9ec7f8ea55a48d",
+  "next_height": 4,
+  "next_slot": 4,
+  "num_chunks": 1,
+  "prev_block_id": "fbaa700331da3da69afac8239c81970ac5c43d5fd16de4e9e9ee7df31e1a2587",
+  "replication": 3,
+  "size_bytes": 4096
+}

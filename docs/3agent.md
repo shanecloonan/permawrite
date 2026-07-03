@@ -18,25 +18,24 @@ See also the root [`3agent.md`](../3agent.md) board for the latest cross-agent h
 
 Current:
 
-- **M2.4.66** shipped: devnet-ports mutex/merge, mesh startup isolation, archived Windows soak PASS.
+- **M2.4.67** Agent 3 nightly promotion shipped; monitor first Linux nightly rehearsal smoke.
 
 Done (M2.4.66):
 
 - Mutex + merge-from-disk `Set-DevnetPort`; `stop-all` no longer deletes ports by default.
-- Soak foreign-`mfnd` preflight warning; iteration budget matches stall sampling.
 - Windows `soak.ps1 -RestartObserverOnce` SUMMARY PASS (611s, 5 iterations, height 28, observer restart catch-up).
 - Evidence: `scripts/public-devnet-v1/evidence/soak-restart-windows-20260703T120117Z.txt`.
 
 Next:
 
-- Agent 3 nightly rehearsal promotion.
 - 30s-slot long-run hub lifetime audit.
+- Rehearsal PASS past height 5 with observer enabled.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
 Current:
 
-- Monitor GitHub CI on M2.4.66 commit.
+- Monitor GitHub CI on M2.4.67 commit; first nightly participant-rehearsal-smoke run.
 
 Next:
 
@@ -46,13 +45,17 @@ Next:
 
 Current:
 
-- **Participant rehearsal smoke PASS** on M2.4.64 (`20260703T113642Z` bundle). Agent 1 soak green — promotion unblocked.
+- **M2.4.67 shipped** — nightly + ci-ignored real-run `participant-rehearsal-smoke`; evidence fixture `fixtures/participant-rehearsal-evidence-v1`.
+
+Done:
+
+- Participant rehearsal smoke PASS on M2.4.64 (`20260703T113642Z` bundle).
 
 Next:
 
-- Capture public-devnet participant evidence fixture.
-- Promote participant rehearsal smoke into slow/nightly CI.
+- Confirm Linux nightly rehearsal smoke green.
+- Rehearsal PASS past height 5 with observer enabled.
 
 ## Cross-Agent Blockers
 
-- None for Agent 3 nightly promotion (soak RESTART evidence archived).
+- None. Await first green nightly `participant-rehearsal-smoke` job for release-candidate sign-off evidence.

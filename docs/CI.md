@@ -18,7 +18,7 @@ Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explici
 
 The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` with `pip --require-hashes` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A hash mismatch or installed `jsonschema` version mismatch is a release-toolchain failure, not a warning.
 
-Participant rehearsal automation policy: `release-participant-smoke-policy-check.ps1` / `release-participant-smoke-policy-check.sh` fail closed if `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, or the local `ci-check` mirrors invoke `participant-rehearsal` / `participant-rehearsal-smoke` without `--plan-only` / `-PlanOnly`. Default CI and nightly may validate helper plans and synthetic audit-packet fixtures only; real-run mesh smokes stay manual until mesh lifetime is stable and Agent 2/3 sign off.
+Participant rehearsal automation policy: `release-participant-smoke-policy-check.ps1` / `release-participant-smoke-policy-check.sh` fail closed if `.github/workflows/ci.yml` or the local `ci-check` mirrors invoke `participant-rehearsal` / `participant-rehearsal-smoke` without `--plan-only` / `-PlanOnly`. Default CI may validate helper plans and synthetic audit-packet fixtures only. Real-run mesh smokes run in [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) and `scripts/ci-ignored.{sh,ps1}` after soak green and Agent 2/3 sign-off (M2.4.67).
 
 ## Inspect GitHub failures (no copy-paste)
 
@@ -59,7 +59,7 @@ Or directly:
 cargo test -p mfn-node --release -- --ignored --test-threads=1
 ```
 
-**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`).
+**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`), and a real-run `participant-rehearsal-smoke.sh` public-devnet mesh smoke (10s slots, no observer; 45 min cap).
 
 **Emission / treasury (M5.0â€“M5.30):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + validator CLSAG/mixed fee chains + liveness-slash/combined-inflow treasury ledgers, including 32/64-block equivocation combined-inflow, prefunded treasury backstop coverage, and 16/32-block no-equivocation PPB combined-inflow coverage). Longer sims, including 64/256-block combined-inflow, 64/256/512-block no-equivocation PPB combined-inflow, and 128/512-block equivocation combined-inflow runs, are `#[ignore]` (nightly).
 

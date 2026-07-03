@@ -461,6 +461,29 @@ if bash scripts/public-devnet-v1/release-audit-packet.sh \
   echo "release-audit-packet.sh accepted mismatched participant support bundle evidence" >&2
   exit 1
 fi
+fixture_root="scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
+fixture_audit_json="$(bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json docs/release-evidence-v1.sample.json \
+  --signoff-manifest docs/release-signoff-manifest-v1.sample.json \
+  --archive-dir "$archive_root" \
+  --inventory "$archive_dir/signoff-inventory.md" \
+  --ci-mock-runs "$archive_dir/signoff-ci-success.json" \
+  --participant-rehearsal-log "$fixture_root/participant-rehearsal.log" \
+  --participant-support-bundle "$fixture_root/support-bundle" \
+  --allow-dry-run \
+  --json)"
+FIXTURE_AUDIT_JSON="$fixture_audit_json" python3 - <<'PY'
+import json
+import os
+import sys
+
+doc = json.loads(os.environ["FIXTURE_AUDIT_JSON"])
+checks = {check.get("name"): check for check in doc.get("checks", [])}
+participant = checks.get("participant rehearsal evidence")
+if not participant or participant.get("status") != "pass":
+    print("release-audit-packet.sh did not validate participant-rehearsal-evidence-v1 fixture", file=sys.stderr)
+    sys.exit(1)
+PY
 cat > "$archive_dir/signoff-ci-failure.json" <<EOF
 [
   {"headSha":"$signoff_commit","status":"completed","conclusion":"failure","url":"https://example.invalid/signoff-failure"}
