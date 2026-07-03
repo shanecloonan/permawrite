@@ -71,6 +71,13 @@ for _ in $(seq 1 "$HUB_POLL_MAX"); do
     HUB_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
     break
   fi
+  if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( _ % 30 == 0 )); then
+    if grep -q mfnd_serve_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
+      echo "start-all: hub RPC ready, waiting for P2P (${_}/${HUB_POLL_MAX}s)..."
+    else
+      echo "start-all: waiting for hub startup (${_}/${HUB_POLL_MAX}s)..."
+    fi
+  fi
   sleep 1
 done
 if [[ -z "$HUB_P2P" ]]; then

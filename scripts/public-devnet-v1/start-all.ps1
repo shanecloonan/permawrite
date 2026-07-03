@@ -1,4 +1,7 @@
 # Build mfnd, start hub + two committee voters; write devnet-ports.env (M2.4.3).
+param(
+    [switch]$NoBuild
+)
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
@@ -7,11 +10,18 @@ $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 . (Join-Path $ScriptDir "ports-env-lib.ps1")
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
-Write-Host "Building mfnd..."
-Push-Location $RepoRoot
-cargo build -p mfn-node --release --bin mfnd
-Pop-Location
+if ($env:MFN_DEVNET_SKIP_BUILD -eq "1") { $NoBuild = $true }
 $Mfnd = Join-Path $RepoRoot "target\release\mfnd.exe"
+if (-not $NoBuild) {
+    Write-Host "Building mfnd..."
+    Push-Location $RepoRoot
+    cargo build -p mfn-node --release --bin mfnd
+    Pop-Location
+} elseif (-not (Test-Path $Mfnd)) {
+    throw "start-all: missing mfnd at target\release\mfnd.exe; omit -NoBuild or build first"
+} else {
+    Write-Host "start-all: using existing mfnd ($Mfnd)"
+}
 $env:MFND = $Mfnd
 $Genesis = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.json"
 $SlotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 30000 }
@@ -82,17 +92,28 @@ $hubProc = Start-MfndRole `
 Set-DevnetPort -Path $PortsFile -Key "HUB_PID" -Value "$($hubProc.Id)"
 $HubP2p = $null
 $HubRpc = $null
-for ($i = 0; $i -lt 60; $i++) {
+$HubPollMax = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+for ($i = 1; $i -le $HubPollMax; $i++) {
+    $text = $null
     if (Test-Path $hubLog) {
         $text = Get-Content $hubLog -Raw -ErrorAction SilentlyContinue
         if ($text -match "mfnd_p2p_listening=([^\r\n]+)") { $HubP2p = $Matches[1].Trim() }
         if ($text -match "mfnd_serve_listening=([^\r\n]+)") { $HubRpc = $Matches[1].Trim() }
         if ($HubP2p -and $HubRpc) { break }
     }
+    if ($env:GITHUB_ACTIONS -and ($i % 30 -eq 0)) {
+        if ($text -and ($text -match "mfnd_serve_listening=")) {
+            Write-Host "start-all: hub RPC ready, waiting for P2P ($i/${HubPollMax}s)..."
+        } else {
+            Write-Host "start-all: waiting for hub startup ($i/${HubPollMax}s)..."
+        }
+    }
     Start-Sleep -Seconds 1
 }
 if (-not $HubP2p) {
-    throw "Hub did not print P2P listen within 60s. See $hubLog"
+    Write-Host "hub failed to print P2P listen within ${HubPollMax}s; tail $($hubLog):" -ForegroundColor Red
+    if (Test-Path $hubLog) { Get-Content $hubLog -Tail 100 | Write-Host }
+    throw "Hub did not print P2P listen within ${HubPollMax}s. See $hubLog"
 }
 Set-DevnetPort -Path $PortsFile -Key "HUB_P2P" -Value $HubP2p
 Set-DevnetPort -Path $PortsFile -Key "HUB_RPC" -Value $HubRpc
@@ -151,7 +172,8 @@ $obsProc = Start-MfndRole `
     -StderrLog $obsErr
 Set-DevnetPort -Path $PortsFile -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
 $ObserverRpc = $null
-for ($i = 0; $i -lt 60; $i++) {
+$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+for ($i = 1; $i -le $ObserverPollMax; $i++) {
     if (Test-Path $obsLog) {
         $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=([^\r\n]+)" | Select-Object -First 1
         if ($m) {
@@ -165,7 +187,8 @@ if ($ObserverRpc) {
     Set-DevnetPort -Path $PortsFile -Key "OBSERVER_RPC" -Value $ObserverRpc
     Write-Host "Observer RPC=$ObserverRpc"
 } else {
-    Write-Host "Observer RPC not ready within 60s; health-check may skip observer (see $obsLog)"
+    Write-Host "Observer RPC not ready within ${ObserverPollMax}s; tail $($obsLog):" -ForegroundColor Yellow
+    if (Test-Path $obsLog) { Get-Content $obsLog -Tail 100 | Write-Host }
 }
 }
 Write-Host "Started jobs. Logs: $LogDir  Ports: $PortsFile"

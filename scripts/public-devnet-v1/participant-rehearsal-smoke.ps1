@@ -248,7 +248,11 @@ try {
             $env:MFN_DEVNET_NO_OBSERVER = "1"
         }
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile
-        . (Join-Path $ScriptDir "start-all.ps1")
+        if ($NoBuild) {
+            . (Join-Path $ScriptDir "start-all.ps1") -NoBuild
+        } else {
+            . (Join-Path $ScriptDir "start-all.ps1")
+        }
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
     }

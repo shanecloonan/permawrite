@@ -2059,7 +2059,9 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.82** | CI Queue Cleanup preserves current-commit CI (`context.sha`); RC Validation accepts `workflow_dispatch` CI success; no docs-only pushes while CI runs. | ✓ shipped |
 | **M2.4.83** | Fix Nightly auto-dispatch: `workflow_dispatch` uses `ref: main` + `checkout_sha` input (API rejects commit SHA as ref). First full green CI on `e6e8d86`. | ✓ shipped |
 | **M2.4.84** | Stabilize `three_validator_all_produce_smoke` ignored harness (height 3, accept slot advance). | ✓ shipped |
-| **M2.4.85** | Preserve Nightly `SLOT_MS=10000` in `config.env` (stop sourcing from overwriting caller env). | in flight |
+| **M2.4.85** | Preserve Nightly `SLOT_MS=10000` in `config.env`; `start-all --no-build`. | ✓ shipped |
+| **M2.4.86** | Hub/observer poll 300s on GHA; Nightly log dumps on failure. | CI flake on `7008d0a` (ubuntu/macOS tests). |
+| **M2.4.87** | Windows `start-all -NoBuild` parity; hub poll progress logs on GHA. | in flight |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
