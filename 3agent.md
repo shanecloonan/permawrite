@@ -16,9 +16,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.70** 30s-slot soak + lock. | **Done** — 35min PASS height 38 + RESTART archived. | Release-evidence handoff (Agent 2). |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release evidence + CI monitor. | Generate `release-evidence` for soak-green commit; monitor Actions. | Archive validation packet. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Nightly smoke confirmation. | M2.4.68 observer PASS archived; nightly job live (M2.4.67). | Confirm first Linux nightly green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.71** soak success criteria + graceful deadline exit. | **In progress** — `-MinFinalHeight`, convergence retries, archive on finish. | Monitor nightly observer smoke (Agent 3). |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.72** release-evidence for `ebe1e48`. | **Done locally** — JSON + MD in `evidence/`. | Archive validation packet after CI green. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.72** nightly observer rehearsal job. | **Done locally** — `participant-rehearsal-smoke-observer` in nightly.yml. | Confirm first Linux nightly green (both jobs). |
 
 ## Recently Completed
 
@@ -29,32 +29,36 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.68)
+### Done (M2.4.64–M2.4.70)
 
 - [x] Mesh stability, soak RESTART, devnet-ports mutex, observer rehearsal past height 5.
-
-### Done (M2.4.69–M2.4.70)
-
 - [x] Soak `-ArchiveEvidence` switch + OPERATORS 30s-slot command documented.
-- [x] Soak lock (`.soak-active.lock`) blocks `start-all`/`stop-all` during long soaks (**M2.4.70**).
-- [x] In-memory ports snapshot restores `devnet-ports.env` if deleted while mesh PIDs stay alive (**M2.4.70**).
+- [x] Soak lock (`.soak-active.lock`) blocks `start-all`/`stop-all` during long soaks.
+- [x] In-memory ports snapshot restores `devnet-ports.env` if deleted while mesh PIDs stay alive.
 - [x] Windows 30s-slot soak PASS (`SLOT_MS=30000`, 35 min, height 38, RESTART) — `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`.
-- [x] Hub lifetime past height 10+ under production slot duration.
+
+### In Progress (M2.4.71)
+
+- [x] `-MinFinalHeight` / `-MinSuccessfulIterations` success criteria for production-slot audits.
+- [x] Graceful soak exit when deadline approaches but criteria already met (convergence_timeout retry + criteria break).
+- [x] `-ArchiveEvidence` writes transcript on PASS or FAIL.
 
 ### Next
 
-- [ ] Release-evidence generation for RC commit (Agent 2 lane).
-- [ ] Monitor first green Linux nightly rehearsal smoke.
+- [ ] Linux 30s-slot soak parity in `soak.sh` (deadline budget + success criteria).
+- [ ] Release archive dry-run with M2.4.70 evidence bundle (Agent 2).
 
 ## Agent 3 Detailed Plan
 
 - [x] Observer-enabled rehearsal PASS (M2.4.68).
-- [ ] Confirm Linux nightly `participant-rehearsal-smoke` green on GitHub Actions.
+- [x] Nightly workflow job `participant-rehearsal-smoke-observer` with `--with-observer --min-hub-height 5`.
+- [ ] Confirm first green Linux nightly for both rehearsal jobs.
 
 ## Agent 2 Detailed Plan
 
-- [ ] Run `release-evidence.ps1` for M2.4.69 commit after soak green.
-- [ ] Monitor GitHub CI + first nightly run.
+- [x] Generate `release-evidence` JSON/MD for commit `ebe1e48` (`evidence/release-evidence-ebe1e48.*`).
+- [ ] Monitor GitHub CI for current push (run 28663434467 was queued).
+- [ ] Run `release-audit-packet` dry-run once CI green.
 - [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.
 
 ## Shared Release-Candidate Gates

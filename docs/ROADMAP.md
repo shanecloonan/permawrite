@@ -2043,6 +2043,8 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.68** | Observer-enabled participant rehearsal smoke PASS with hub height ≥ 5 and observer catch-up wait. | ✓ shipped |
 | **M2.4.69** | Soak `-ArchiveEvidence` switch and operator 30s-slot audit command documentation. | ✓ shipped |
 | **M2.4.70** | Soak lock (`.soak-active.lock`) + in-memory ports snapshot recovery; Windows 30s-slot 35min soak PASS (height 38) with `soak: RESTART` evidence archived. | ✓ shipped |
+| **M2.4.71** | Soak success criteria (`-MinFinalHeight`, `-MinSuccessfulIterations`), convergence retries, graceful deadline exit, archive evidence on PASS or FAIL. | ✓ shipped |
+| **M2.4.72** | Release-evidence JSON/MD for M2.4.70 commit; nightly Linux `participant-rehearsal-smoke-observer` job (`--with-observer --min-hub-height 5`). | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

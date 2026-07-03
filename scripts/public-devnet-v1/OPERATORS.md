@@ -502,7 +502,7 @@ Production-slot audit (30s blocks, matches default `start-all` when `SLOT_MS` is
 
 ```powershell
 $env:SLOT_MS = "30000"
-powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 35 -RestartObserverOnce -ArchiveEvidence
+powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 35 -RestartObserverOnce -MinFinalHeight 10 -ArchiveEvidence
 ```
 
 Smoke-slot soak (10s blocks, faster CI-style mesh):
@@ -512,7 +512,7 @@ $env:SLOT_MS = "10000"
 powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartObserverOnce -ArchiveEvidence
 ```
 
-Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` on PASS.
+Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` when the soak finishes (PASS or FAIL). Use `-MinFinalHeight 10` on 30s-slot audits so a graceful deadline exit still PASSes when hub height ≥ 10 and at least three health samples succeeded.
 
 While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `start-all.ps1` and `stop-all.ps1` refuse to tear down the mesh unless soak bootstrap (`MFN_SOAK_BOOTSTRAP=1`) or `stop-all -Force`. Do not run `ci-check`, integration tests, or `taskkill /IM mfnd` against a live soak — wait for PASS/FAIL or remove a stale lock only when no soak process is running.
 

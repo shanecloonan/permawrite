@@ -5,6 +5,8 @@ param(
     [int]$StallSamples = 2,
     [int]$StallIntervalSeconds = 0,
     [int]$MinHeightDelta = 1,
+    [int]$MinFinalHeight = 0,
+    [int]$MinSuccessfulIterations = 3,
     [switch]$RestartObserverOnce,
     [int]$RestartTimeoutSeconds = 180,
     [switch]$NoStart,
@@ -17,6 +19,8 @@ if ($CheckIntervalSeconds -lt 0) { throw "CheckIntervalSeconds must be >= 0" }
 if ($StallSamples -lt 1) { throw "StallSamples must be >= 1" }
 if ($StallIntervalSeconds -lt 0) { throw "StallIntervalSeconds must be >= 0" }
 if ($MinHeightDelta -lt 1) { throw "MinHeightDelta must be >= 1" }
+if ($MinFinalHeight -lt 0) { throw "MinFinalHeight must be >= 0" }
+if ($MinSuccessfulIterations -lt 1) { throw "MinSuccessfulIterations must be >= 1" }
 if ($RestartTimeoutSeconds -lt 1) { throw "RestartTimeoutSeconds must be >= 1" }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -201,6 +205,22 @@ function Add-SoakSample {
     $roleText = if ($roles.Count -gt 0) { $roles -join ";" } else { "none" }
     $script:SoakSamples.Add("iteration=$Iteration final_height=$finalHeight final_tip_id=$finalId genesis_id=$genesis roles=$roleText")
 }
+function Get-MaxSampleHeight {
+    $max = 0
+    foreach ($sample in $SoakSamples) {
+        if ($sample -match "final_height=([0-9]+)") {
+            $height = [int]$Matches[1]
+            if ($height -gt $max) { $max = $height }
+        }
+    }
+    return $max
+}
+function Test-SoakSuccessCriteria {
+    if ($SoakSamples.Count -lt $MinSuccessfulIterations) { return $false }
+    if ($MinFinalHeight -gt 0 -and (Get-MaxSampleHeight) -lt $MinFinalHeight) { return $false }
+    if ($RestartObserverOnce -and $SoakRestarts.Count -lt 1) { return $false }
+    return $true
+}
 function Get-HealthRoleField {
     param([object[]]$HealthOutput, [string]$Role, [string]$Field)
     foreach ($item in $HealthOutput) {
@@ -337,7 +357,7 @@ function Write-SoakSummary {
 }
 function Archive-SoakEvidence {
     param([string]$Status)
-    if ($Status -ne "PASS") { return }
+    if (-not $ArchiveEvidence) { return }
     $evidenceDir = Join-Path $ScriptDir "evidence"
     New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
     $slotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 10000 }
@@ -365,9 +385,9 @@ function Archive-SoakEvidence {
     }
     $endedAt = Get-Date
     $elapsedSeconds = [int][Math]::Floor(($endedAt - $StartedAt).TotalSeconds)
-    [void]$lines.Add("soak: SUMMARY status=PASS started_at=$($StartedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) ended_at=$($endedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) elapsed_seconds=$elapsedSeconds duration_minutes=$DurationMinutes iterations=$iteration")
+    [void]$lines.Add("soak: SUMMARY status=$Status started_at=$($StartedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) ended_at=$($endedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) elapsed_seconds=$elapsedSeconds duration_minutes=$DurationMinutes iterations=$iteration max_height=$(Get-MaxSampleHeight)")
     [System.IO.File]::WriteAllLines($path, $lines.ToArray())
-    Write-Host "soak: EVIDENCE archived=$path"
+    Write-Host "soak: EVIDENCE archived=$path status=$Status"
 }
 trap {
     if (-not $script:LastFailure) {
@@ -375,6 +395,7 @@ trap {
     }
     if (-not $script:SummaryWritten) {
         Write-SoakSummary "FAIL"
+        Archive-SoakEvidence "FAIL"
     }
     Remove-SoakLock -ScriptDir $ScriptDir
     break
@@ -456,10 +477,10 @@ while ((Get-Date) -lt $deadline) {
         while ((Get-Date) -lt $healthDeadline) {
             try {
                 $healthOutput = & $HealthScript 2>&1 6>&1
-                break
+                if ($healthOutput.Count -gt 0) { break }
             } catch {
                 $msg = "$($_.Exception.Message)"
-                if ($msg -match "diverged|unreachable|p2p sessions=|actively refused|No connection could be made|stalled height") {
+                if ($msg -match "diverged|unreachable|p2p sessions=|actively refused|No connection could be made|stalled height|convergence") {
                     Start-Sleep -Seconds 5
                     continue
                 }
@@ -467,8 +488,13 @@ while ((Get-Date) -lt $deadline) {
                 $script:LastFailure = "iteration=$iteration command=health-check error=$msg"
                 throw
             }
+            Start-Sleep -Seconds 5
         }
         if ($healthOutput.Count -eq 0) {
+            if (Test-SoakSuccessCriteria) {
+                Write-Host "soak: iteration=$iteration convergence_timeout after $($SoakSamples.Count) samples max_height=$(Get-MaxSampleHeight); ending soak (criteria met)"
+                break
+            }
             $script:LastFailure = "iteration=$iteration command=health-check convergence_timeout"
             throw $script:LastFailure
         }
@@ -489,8 +515,15 @@ while ((Get-Date) -lt $deadline) {
     }
 }
 
-Write-SoakSummary "PASS"
-if ($ArchiveEvidence) {
-    Archive-SoakEvidence "PASS"
+$summaryStatus = if (Test-SoakSuccessCriteria) { "PASS" } else {
+    if (-not $LastFailure) {
+        $script:LastFailure = "soak: criteria not met samples=$($SoakSamples.Count) max_height=$(Get-MaxSampleHeight) min_final_height=$MinFinalHeight min_iterations=$MinSuccessfulIterations"
+    }
+    "FAIL"
 }
+Write-SoakSummary $summaryStatus
+Archive-SoakEvidence $summaryStatus
 Remove-SoakLock -ScriptDir $ScriptDir
+if ($summaryStatus -eq "FAIL") {
+    throw $LastFailure
+}
