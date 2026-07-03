@@ -1,4 +1,4 @@
-# Start committee voter 1 or 2; requires $env:HUB_P2P (M2.4.3).
+# Start validator 1 or 2 with the slot loop; requires $env:HUB_P2P (M2.4.3).
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("1", "2")]
@@ -23,4 +23,4 @@ if ($Index -eq "1") {
 }
 & $Mfnd --data-dir $DataDir --genesis $Genesis --store fs `
     --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 `
-    --p2p-dial $env:HUB_P2P --slot-duration-ms $SlotMs serve --committee-vote
+    --p2p-dial $env:HUB_P2P --slot-duration-ms $SlotMs serve --produce

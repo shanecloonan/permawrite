@@ -13,7 +13,7 @@ MIN_HEIGHT_DELTA=1
 NO_START=0
 RESTART_OBSERVER_ONCE=0
 RESTART_TIMEOUT_SECONDS=180
-P2P_LOG_TIMEOUT_SECONDS=60
+P2P_LOG_TIMEOUT_SECONDS=120
 
 usage() {
   cat >&2 <<'USAGE'
@@ -293,11 +293,51 @@ assert_p2p_logs() {
   assert_log_contains observer "$LOG_DIR/observer.log" "mfnd_p2p_dial_ok="
 }
 
+wait_for_mesh_production() {
+  local timeout=$(( STALL_INTERVAL_SECONDS * 4 + 60 ))
+  if (( timeout < 120 )); then
+    timeout=120
+  fi
+  local deadline=$(( $(date +%s) + timeout ))
+  echo "soak: waiting for converged first block (timeout=${timeout}s)"
+  while (( $(date +%s) < deadline )); do
+    read_ports
+    assert_pid_alive HUB_PID "${HUB_PID:-}"
+    assert_pid_alive V1_PID "${V1_PID:-}"
+    assert_pid_alive V2_PID "${V2_PID:-}"
+    assert_pid_alive OBSERVER_PID "${OBSERVER_PID:-}"
+    assert_p2p_logs
+    if health_output=$(
+      MFN_HEALTH_STALL_SAMPLES=1 \
+        MFN_HEALTH_STALL_INTERVAL_SECONDS=0 \
+        MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
+        "$SCRIPT_DIR/health-check.sh" 2>&1
+    ); then
+      hub_height="$(health_role_field "$health_output" hub tip_height)"
+      if [[ "$hub_height" =~ ^[0-9]+$ ]] && (( hub_height >= 1 )); then
+        printf '%s\n' "$health_output"
+        echo "soak: WARMUP hub_tip_height=$hub_height"
+        return 0
+      fi
+    fi
+    sleep 5
+  done
+  echo "soak: FAIL mesh did not converge to tip_height>=1 within ${timeout}s" >&2
+  exit 1
+}
+
 if (( NO_START == 0 )); then
   echo "soak: starting public-devnet-v1 mesh"
   "$SCRIPT_DIR/start-all.sh"
 else
   echo "soak: using existing public-devnet-v1 mesh"
+fi
+
+wait_for_mesh_production
+
+if (( STALL_INTERVAL_SECONDS > 0 )); then
+  echo "soak: post-warmup stabilization sleep=${STALL_INTERVAL_SECONDS}s"
+  sleep "$STALL_INTERVAL_SECONDS"
 fi
 
 deadline=$(( $(date +%s) + DURATION_MINUTES * 60 ))

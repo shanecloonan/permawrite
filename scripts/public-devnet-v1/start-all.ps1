@@ -1,4 +1,4 @@
-# Build mfnd, start hub + two committee voters; write devnet-ports.env (M2.4.3).
+# Build mfnd, start hub + two validator producers; write devnet-ports.env (M2.4.3).
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
@@ -113,7 +113,7 @@ $v1Proc = Start-MfndRole `
     -CliArgs @(
         "--data-dir", $v1DataDir, "--genesis", $Genesis, "--store", "fs",
         "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
-        "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--committee-vote"
+        "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--produce"
     ) `
     -StdoutLog $v1Log `
     -StderrLog $v1Err `
@@ -130,7 +130,7 @@ $v2Proc = Start-MfndRole `
     -CliArgs @(
         "--data-dir", $v2DataDir, "--genesis", $Genesis, "--store", "fs",
         "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
-        "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--committee-vote"
+        "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--produce"
     ) `
     -StdoutLog $v2Log `
     -StderrLog $v2Err `

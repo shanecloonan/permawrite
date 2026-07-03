@@ -28,7 +28,7 @@ $SoakSamples = New-Object System.Collections.Generic.List[string]
 $SoakRestarts = New-Object System.Collections.Generic.List[string]
 $LastFailure = $null
 $SummaryWritten = $false
-$P2pLogTimeoutSeconds = 60
+$P2pLogTimeoutSeconds = 120
 
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { throw "Missing $PortsFile - run start-all.ps1 first" }
@@ -69,6 +69,48 @@ function Assert-P2pLogs {
     Assert-LogContains "v1" $v1Log "mfnd_p2p_dial_ok="
     Assert-LogContains "v2" $v2Log "mfnd_p2p_dial_ok="
     Assert-LogContains "observer" $observerLog "mfnd_p2p_dial_ok="
+}
+
+function Wait-ForMeshProduction {
+    $timeout = [Math]::Max(120, ($StallIntervalSeconds * 4) + 60)
+    $deadline = (Get-Date).AddSeconds($timeout)
+    Write-Host "soak: waiting for converged first block (timeout=${timeout}s)"
+    $oldSamples = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES")
+    $oldInterval = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS")
+    $oldDelta = [Environment]::GetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA")
+    try {
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", "1", "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "0", "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "1", "Process")
+        while ((Get-Date) -lt $deadline) {
+            $ports = Read-PortsFile
+            Assert-ProcessAlive $ports "HUB_PID"
+            Assert-ProcessAlive $ports "V1_PID"
+            Assert-ProcessAlive $ports "V2_PID"
+            Assert-ProcessAlive $ports "OBSERVER_PID"
+            Assert-P2pLogs
+            try {
+                $healthOutput = & $HealthScript 2>&1 6>&1
+                $healthOutput | ForEach-Object { Write-Host $_ }
+                $passLine = ($healthOutput | ForEach-Object { "$_" } | Where-Object { $_ -match "^health-check: PASS shared tip height=([0-9]+)" } | Select-Object -Last 1)
+                if ($passLine -match "^health-check: PASS shared tip height=([0-9]+)") {
+                    $hubHeight = $Matches[1]
+                    if ([int]$hubHeight -ge 1) {
+                        Write-Host "soak: WARMUP hub_tip_height=$hubHeight"
+                        return
+                    }
+                }
+            } catch {
+                # Mesh still converging; retry until timeout.
+            }
+            Start-Sleep -Seconds 5
+        }
+        throw "soak: FAIL mesh did not converge to tip_height>=1 within ${timeout}s"
+    } finally {
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", $oldSamples, "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", $oldInterval, "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", $oldDelta, "Process")
+    }
 }
 function Add-SoakSample {
     param([int]$Iteration, [object[]]$HealthOutput)
@@ -217,6 +259,13 @@ if (-not $NoStart) {
     & $StartAllScript
 } else {
     Write-Host "soak: using existing public-devnet-v1 mesh"
+}
+
+Wait-ForMeshProduction
+
+if ($StallIntervalSeconds -gt 0) {
+    Write-Host "soak: post-warmup stabilization sleep=${StallIntervalSeconds}s"
+    Start-Sleep -Seconds $StallIntervalSeconds
 }
 
 $deadline = (Get-Date).AddMinutes($DurationMinutes)

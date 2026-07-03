@@ -43,7 +43,7 @@ New peers should:
 | Role | Flags | Notes |
 |------|--------|--------|
 | Hub | `serve --produce` | Usually validator index `0`. |
-| Voter | `serve --committee-vote` | Indices `1` and `2`; set `MFND_VALIDATOR_INDEX` + seeds from genesis. |
+| Voter | `serve --produce` | Indices `1` and `2`; set `MFND_VALIDATOR_INDEX` + seeds from genesis. Public devnet uses `expected_proposers_per_slot: 1.5`, so every validator must run the slot loop — hub-only production can stall at genesis when the hub is ineligible. |
 | Observer | `serve` | No validator env; sync + RPC only. |
 
 ## Bootstrap scripts
@@ -497,6 +497,8 @@ powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 60 -RestartO
 ```
 
 For restart/catch-up evidence, add `--restart-observer-once` or `-RestartObserverOnce`; the soak kills the observer once, restarts it against the same data dir and hub P2P endpoint, waits for it to catch up, and emits a `soak: RESTART` line with old/new PIDs, old/new RPCs, and pre/post hub/observer heights.
+
+Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up.
 
 The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line, each `soak: SAMPLE` line, and any `soak: RESTART` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, per-role P2P peer/session counts, and delayed catch-up after observer kill/restart.
 
@@ -1003,7 +1005,7 @@ bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only
 bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh
 ```
 
-The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, rescans until the faucet has spendable balance, runs `participant-rehearsal`, and stops the mesh it started. Each faucet wait line includes `hub_tip_height`; if it stays at `0`, diagnose producer/committee liveness before debugging wallet funding. Pass `-WaitFaucetSeconds` / `--wait-faucet-seconds` to tune the faucet reward window, `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
+The smoke wrapper stops stale recorded mesh processes, starts `start-all`, restores validator 0's public test payout wallet into `participant-rehearsal-smoke/validator0-faucet.json` only when no custom faucet wallet is supplied, rescans until the faucet has spendable balance, runs `participant-rehearsal`, and stops the mesh it started. Each faucet wait line includes `hub_tip_height`; if it stays at `0`, diagnose validator `--produce` liveness (all three validators must run the slot loop on public devnet) before debugging wallet funding. Pass `-WaitFaucetSeconds` / `--wait-faucet-seconds` to tune the faucet reward window, `-NoStart` / `--no-start` to attach to an already-running local mesh, and `-NoStop` / `--no-stop` only when you intentionally want to inspect the mesh afterward. A custom `-FaucetWallet` / `--faucet-wallet` is never overwritten. This helper intentionally embeds only the checked-in public validator-0 test payout seed for the default local smoke wallet; use it for local/public-devnet rehearsal only, never for a network with real value or private faucet material.
 
 **CI policy:** `release-participant-smoke-policy-check.ps1` / `.sh` scans `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, and the local `ci-check` mirrors. Default CI and nightly may run `participant-rehearsal` / `participant-rehearsal-smoke` with `--plan-only` / `-PlanOnly` only. Real-run mesh smokes stay manual until mesh lifetime is stable and Agent 2/3 sign off on nightly promotion.
 

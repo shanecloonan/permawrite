@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start committee voter 1 or 2; requires HUB_P2P=host:port (M2.4.3).
+# Start validator 1 or 2 with the slot loop; requires HUB_P2P=host:port (M2.4.3).
 set -euo pipefail
 INDEX="${1:?usage: start-voter.sh 1|2}"
 if [[ "$INDEX" != "1" && "$INDEX" != "2" ]]; then
@@ -25,4 +25,4 @@ else
 fi
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
   --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
-  --p2p-dial "$HUB_P2P" --slot-duration-ms "$SLOT_MS" serve --committee-vote
+  --p2p-dial "$HUB_P2P" --slot-duration-ms "$SLOT_MS" serve --produce

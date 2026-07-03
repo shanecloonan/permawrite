@@ -94,10 +94,11 @@ Wallet recovery and permanence recovery are separate. The wallet JSON contains t
 | Role | Flags | Responsibility |
 |------|--------|----------------|
 | **Hub producer** | `serve --produce` | Slot timer, builds proposals when VRF-eligible, seals when local validator is proposer and quorum votes arrive. |
-| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. |
+| **Validator** | `serve --produce` | Same slot loop as the hub; under `expected_proposers_per_slot: 1.5` sortition, any eligible validator may propose when the hub skips a slot. |
+| **Committee voter** | `serve --committee-vote` | Votes on inbound proposals; periodic catch-up dials to saved peers; does **not** run the slot loop. Use only on specs where the hub is always eligible (for example `devnet_three_validators.json` with `F=10`). |
 | **Observer** | `serve` (no produce flags) | Syncs blocks/txs, exposes JSON-RPC; no validator env required. |
 
-The public helper mesh runs one hub producer plus two committee voters. `mfnd` advances the producer slot timer independently from block height, so an ineligible hub skips a slot instead of retrying the same VRF seed forever. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean). The **public devnet** spec sets `expected_proposers_per_slot: 1.5`, so natural slot skipping is expected while the mesh still advances.
+The public helper mesh runs three `--produce` validators plus one observer. `mfnd` advances the producer slot timer independently from block height, so an ineligible validator skips a slot instead of retrying the same VRF seed forever. With `expected_proposers_per_slot: 1.5`, validator 0 is ineligible at slot 1, so voters must also run `--produce` or the mesh stalls at genesis. Proposal fan-out reads committee `VoteV1` replies on both fresh dials and registered sessions (**M2.3.30**). Inbound P2P blocks must be exactly `tip_height + 1` (**M2.3.31**); stale or gap frames reject before `apply` (catch-up aborts stay clean).
 
 ---
 
@@ -139,7 +140,7 @@ $MFND --data-dir /tmp/mfn-v0 --genesis $GENESIS --store fs \
 
 Copy `mfnd_p2p_listening=HOST:PORT` from stdout as `HUB_P2P`.
 
-**Validator 1 (committee voter):**
+**Validator 1 (producer):**
 
 ```bash
 mkdir -p /tmp/mfn-v1
@@ -148,7 +149,7 @@ MFND_VRF_SEED_HEX=02020202020202020202020202020202020202020202020202020202020202
 MFND_BLS_SEED_HEX=7676767676767676767676767676767676767676767676767676767676767676 \
 $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
   --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
-  --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --committee-vote
+  --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --produce
 ```
 
 **Validator 2** â€” same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.

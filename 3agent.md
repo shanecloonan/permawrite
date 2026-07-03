@@ -16,12 +16,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet producer slot scan for genesis liveness. | Complete on `main`; verifying GitHub CI. | Hand off mesh stability evidence to Agent 3 rehearsal promotion. |
+| Agent 1 | Core protocol, consensus, networking, sync | Live observer restart soak evidence after M2.4.60 mesh liveness. | M2.4.60 landing; hub slot-scan + height-1 smoke on `main`. | Capture passing `soak: RESTART` on Windows; investigate hub daemon lifetime under all-produce mesh; hand stability to Agent 3. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; support Agent 1 mesh verification. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
 
+- Agent 1: Public-devnet local-mesh liveness (M2.4.60) — voters run `--produce` under `F=1.5` sortition, soak waits for first block (`soak: WARMUP`), manifest tests pin slot-1 peer eligibility.
+- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
 - Agent 2: Release evidence tooling, JSON schema/sample, support-bundle evidence validation, sign-off review, dry-run sign-off flow, artifact inventory, checksum helpers, inventory validation, archive layout guidance, and archive assembly dry-run helper are landed on `main`.
 - Agent 2: Release archive validation scripts now verify staged public files, checksum manifests, and obvious private filename exclusions before publication.
 - Agent 2: Release CI watcher scripts now fail closed unless the exact commit has green GitHub CI.
@@ -37,7 +39,6 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release audit packet schema/sample artifacts are published for dashboards and independent validator tooling.
 - Agent 2: Release audit packet schema now includes participant rehearsal evidence paths, and CI validates generated packets with participant evidence.
 - Agent 2: Release artifacts now have pinned `jsonschema==4.17.3` Draft 2020-12 validation wrappers in local and GitHub CI.
-- Agent 1: Observer restart soak evidence (`soak: RESTART` with pre/post heights and RPCs) landed on `main` as M2.4.59.
 - Agent 2: Release-schema Python dependencies are hash-pinned and installed with `pip --require-hashes` in local and GitHub CI.
 - Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
 - Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
@@ -50,20 +51,22 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 1 Detailed Plan
 
-Completed unit (M2.4.59):
+Completed unit (M2.4.60):
 
-- [x] Add opt-in observer restart probe to `soak.sh` and `soak.ps1`.
-- [x] Emit `soak: RESTART` evidence with old/new observer PID/RPC and pre/post hub/observer heights after catch-up.
-- [x] Wait for follower P2P dial logs before failing early soak iterations.
-- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator soak guidance.
+- [x] Switch public-devnet voter helpers from `--committee-vote` to `--produce`.
+- [x] Add soak `soak: WARMUP` wait for `hub tip_height >= 1` before stall sampling.
+- [x] Add `public_devnet_sortition_multi_producer_liveness_bound` manifest coverage.
+- [x] Update `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and operator guidance.
 - [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, push, and check GitHub CI.
+- [ ] Re-run `soak.ps1 -RestartObserverOnce` and archive passing `soak: RESTART` evidence.
 
 Next Agent 1 task:
 
 - [x] Diagnose public-devnet hub stall when validator 0 is ineligible at slot 1 (`public_devnet_validator0_needs_advancing_slots_for_liveness`).
 - [x] Scan forward through bounded slot numbers within one producer tick before waiting another `--slot-duration-ms` interval.
 - [x] Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
-- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
+- [ ] Live observer restart soak evidence on Windows after M2.4.60 lands.
+- [ ] Investigate hub daemon lifetime and P2P catch-up dial storms under all-produce local mesh.
 
 ## Shared Release-Candidate Gates
 
