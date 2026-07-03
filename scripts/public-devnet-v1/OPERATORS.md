@@ -552,6 +552,8 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 
 Trigger manually: **Actions → Nightly → Run workflow** on `main` to confirm both jobs green before RC sign-off.
 
+After every green **CI** push to `main`, **RC Validation After CI** automatically dispatches **Nightly** on the exact passing commit (no local `gh` required).
+
 Smoke-slot soak (10s blocks, faster CI-style mesh):
 
 ```powershell

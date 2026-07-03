@@ -59,7 +59,13 @@ Or directly:
 cargo test -p mfn-node --release -- --ignored --test-threads=1
 ```
 
-**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`), and a real-run `participant-rehearsal-smoke.sh` public-devnet mesh smoke (10s slots, no observer; 45 min cap).
+**Nightly:** [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the same ignored suite daily on `ubuntu-latest` (60 min cap), plus `mfn-consensus` long emission/`apply_block` sims (`emission_simulation` and `apply_block_proptest` test targets, `--ignored`), and real-run `participant-rehearsal-smoke.sh` jobs (10s mesh + observer catch-up; both pass `--archive-evidence`).
+
+**RC Validation After CI (M2.4.78):** [`.github/workflows/rc-validation-after-ci.yml`](../.github/workflows/rc-validation-after-ci.yml) listens for successful **CI** workflow runs on `main` push events and auto-dispatches **Nightly** on the exact passing commit. Manual **Nightly** dispatch remains available via `dispatch-rc-workflows.ps1 -Nightly` or Actions UI.
+
+**Linux Soak Audit (M2.4.74):** [`.github/workflows/linux-soak-audit.yml`](../.github/workflows/linux-soak-audit.yml) — manual `workflow_dispatch`, 35 min 30s-slot soak with observer restart; artifact upload for evidence archival.
+
+**CI Queue Cleanup (M2.4.75):** [`.github/workflows/ci-queue-cleanup.yml`](../.github/workflows/ci-queue-cleanup.yml) cancels stale queued CI runs on push to reduce runner backlog.
 
 **Emission / treasury (M5.0â€“M5.30):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + validator CLSAG/mixed fee chains + liveness-slash/combined-inflow treasury ledgers, including 32/64-block equivocation combined-inflow, prefunded treasury backstop coverage, and 16/32-block no-equivocation PPB combined-inflow coverage). Longer sims, including 64/256-block combined-inflow, 64/256/512-block no-equivocation PPB combined-inflow, and 128/512-block equivocation combined-inflow runs, are `#[ignore]` (nightly).
 
