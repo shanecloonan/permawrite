@@ -16,7 +16,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 mesh stability (durable peers, observer sync, soak harness). | Committing — local CI mirror running. | Windows full `soak: RESTART` PASS. |
+| Agent 1 | Core protocol, consensus, networking, sync | M2.4.62 follow-up (`edff97b`). | Pushed; GitHub CI monitoring. | Windows full `soak: RESTART` PASS. |
 | Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI on `cc3d2d3`. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Live participant rehearsal evidence fixture. | Harness hardened on `main`; full smoke still flaky when hub RPC dies under observer load. | Re-run `participant-rehearsal-smoke` on `cc3d2d3`; archive evidence fixture. |
 
@@ -48,7 +48,7 @@ Completed unit (M2.4.62):
 - [x] Unit test `ephemeral_peers_are_excluded_from_committee_catch_up` green.
 - [x] Two-phase soak warmup passes (`soak: WARMUP phase=hub_produced` / `phase=converged`).
 - [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` (RPC refused / stall tuning on 30s-slot Windows host).
-- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, check GitHub CI.
+- [x] Regenerate `CODEBASE_STATS.md`, commit, push (`edff97b`); check GitHub CI.
 
 Next Agent 1 task:
 
