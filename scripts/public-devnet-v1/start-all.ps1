@@ -49,7 +49,11 @@ function Start-MfndRole {
 $StopAllScript = Join-Path $ScriptDir "stop-all.ps1"
 Assert-SoakNotActive -ScriptDir $ScriptDir -Caller "start-all"
 if (Test-Path $StopAllScript) {
-    & $StopAllScript
+    if ($env:MFN_SOAK_BOOTSTRAP -eq "1") {
+        & $StopAllScript -Force
+    } else {
+        & $StopAllScript
+    }
 } else {
     Get-Process mfnd -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }

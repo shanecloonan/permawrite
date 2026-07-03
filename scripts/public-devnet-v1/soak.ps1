@@ -394,6 +394,10 @@ if (-not $NoStart) {
     if ($foreign.Count -gt 0) {
         Write-Host "soak: WARN $($foreign.Count) mfnd process(es) already running (pids=$($foreign.Id -join ',')); stop CI/integration tests before soak"
     }
+    if (Test-SoakLockActive -ScriptDir $ScriptDir) {
+        Write-Host "soak: removing stale soak lock before bootstrap"
+        Remove-SoakLock -ScriptDir $ScriptDir
+    }
     Write-Host "soak: starting public-devnet-v1 mesh"
     $env:MFN_SOAK_BOOTSTRAP = "1"
     try {
