@@ -210,6 +210,7 @@ ci_args = ["bash", os.path.join(script_dir, "release-ci-watch.sh"), "--commit", 
 if ci_mock_runs:
     ci_args.extend(["--mock-runs", ci_mock_runs])
 add_tool_check("exact commit CI", ci_args)
+add_tool_check("participant smoke CI policy", ["bash", os.path.join(script_dir, "release-participant-smoke-policy-check.sh")])
 add_participant_evidence_check(participant_rehearsal_log, participant_support_bundle)
 
 stats_path = os.path.join(repo_root, "CODEBASE_STATS.md")

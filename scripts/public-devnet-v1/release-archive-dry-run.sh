@@ -200,6 +200,23 @@ stage_release_schema_wheelhouse() {
   echo "release-archive-dry-run: staged release-schema wheelhouse packages=$wheel_count"
 }
 
+stage_release_policy_toolchain() {
+  local archive_root_path="$1"
+  local toolchain_dir="$archive_root_path/toolchain"
+  local helper
+  for helper in \
+    release-participant-smoke-policy-check.py \
+    release-participant-smoke-policy-check.sh \
+    release-participant-smoke-policy-check.ps1; do
+    copy_public_file "$SCRIPT_DIR/$helper" "$toolchain_dir/$helper"
+  done
+  if ((plan_only)); then
+    echo "PLAN stage participant smoke CI policy helpers -> toolchain/"
+  else
+    echo "release-archive-dry-run: staged participant smoke CI policy helpers"
+  fi
+}
+
 echo "release-archive-dry-run: archive=$archive_root"
 echo "release-archive-dry-run: public-only staging; private wallet, seed, API-key, credential, and peers.json sources are refused"
 
@@ -263,6 +280,11 @@ if ((include_release_schema_wheelhouse)); then
   fi
   stage_release_schema_wheelhouse "$archive_root"
 fi
+
+if ((plan_only == 0)); then
+  mkdir -p "$archive_root"
+fi
+stage_release_policy_toolchain "$archive_root"
 
 if ((plan_only)); then
   echo "release-archive-dry-run: PLAN OK"

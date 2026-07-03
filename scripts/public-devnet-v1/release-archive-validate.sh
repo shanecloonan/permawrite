@@ -224,6 +224,15 @@ if ((require_release_schema_wheelhouse == 1)) || [[ -d "$wheelhouse_dir" ]]; the
   fi
 fi
 
+if [[ -d "$archive_root/toolchain" ]]; then
+  for required in \
+    toolchain/release-participant-smoke-policy-check.py \
+    toolchain/release-participant-smoke-policy-check.sh \
+    toolchain/release-participant-smoke-policy-check.ps1; do
+    require_file "$required"
+  done
+fi
+
 test_directory_checksums "$archive_root"
 while IFS= read -r -d '' dir; do
   test_directory_checksums "$dir"

@@ -65,6 +65,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add offline wheelhouse/reproducible artifact guidance if release hosts need no-network strict schema validation.
 - [x] Wire release-schema wheelhouse artifacts into release-archive dry-run validation for air-gapped hosts.
 - [x] Keep participant rehearsal smoke plan-only in CI automation until mesh lifetime is stable enough for unattended real-run coverage.
+- [x] Require participant smoke CI policy in release audit packets and stage policy helpers in release archives.
 
 ## Agent 1 - Core Protocol, Consensus, Networking, Sync
 

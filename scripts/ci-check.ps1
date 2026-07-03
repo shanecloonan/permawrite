@@ -375,6 +375,10 @@ if (-not $archivePlanText.Contains("toolchain/wheelhouse-release-schema")) {
     [Console]::Error.WriteLine("release-archive-dry-run.ps1 plan mode did not include release-schema wheelhouse staging")
     exit 1
 }
+if (-not $archivePlanText.Contains("participant smoke CI policy helpers")) {
+    [Console]::Error.WriteLine("release-archive-dry-run.ps1 plan mode did not include participant smoke CI policy helpers")
+    exit 1
+}
 $archiveDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-archive-" + [System.Guid]::NewGuid().ToString("N"))
 try {
     $archiveRun = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -OutputDir $archiveDir -ReleaseEvidenceJson docs/release-evidence-v1.sample.json -IncludeReleaseSchemaWheelhouse
@@ -394,6 +398,8 @@ try {
         "evidence/release-evidence.json",
         "evidence/checksums.sha256",
         "toolchain/requirements-release-schema.txt",
+        "toolchain/release-participant-smoke-policy-check.py",
+        "toolchain/release-participant-smoke-policy-check.ps1",
         "toolchain/wheelhouse-release-schema"
     )) {
         if (-not (Test-Path -LiteralPath (Join-Path $archiveRoot $requiredPath))) {
@@ -504,6 +510,11 @@ Decision: go
     $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
     if (-not $participantCheck -or $participantCheck.status -ne "pass" -or $participantCheck.message -notmatch "commitment_hash=") {
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant rehearsal evidence")
+        exit 1
+    }
+    $policyCheck = $auditObject.checks | Where-Object { $_.name -eq "participant smoke CI policy" } | Select-Object -First 1
+    if (-not $policyCheck -or $policyCheck.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant smoke CI policy")
         exit 1
     }
     $auditGeneratedJson = Join-Path $archiveDir "release-audit-packet.generated.json"

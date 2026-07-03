@@ -279,6 +279,10 @@ jobs:
             echo "release-archive-dry-run.sh plan mode did not include release-schema wheelhouse staging" >&2
             exit 1
           fi
+          if [[ "$archive_plan" != *"participant smoke CI policy helpers"* ]]; then
+            echo "release-archive-dry-run.sh plan mode did not include participant smoke CI policy helpers" >&2
+            exit 1
+          fi
           archive_dir="$(mktemp -d)"
           archive_run="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --output-dir "$archive_dir" --release-evidence-json docs/release-evidence-v1.sample.json --include-release-schema-wheelhouse)"
           archive_root="$(printf '%s\n' "$archive_run" | awk -F'path=' '/release-archive-dry-run: OK path=/{print $2}' | tail -n 1)"
@@ -286,7 +290,7 @@ jobs:
             echo "release-archive-dry-run.sh did not report an output path" >&2
             exit 1
           fi
-          for required_path in README.md network/genesis.json network/checksums.sha256 docs/SECURITY.md docs/OPERATORS.md evidence/release-evidence.json evidence/checksums.sha256 toolchain/requirements-release-schema.txt; do
+          for required_path in README.md network/genesis.json network/checksums.sha256 docs/SECURITY.md docs/OPERATORS.md evidence/release-evidence.json evidence/checksums.sha256 toolchain/requirements-release-schema.txt toolchain/release-participant-smoke-policy-check.py toolchain/release-participant-smoke-policy-check.sh; do
             if [[ ! -f "$archive_root/$required_path" ]]; then
               echo "release-archive-dry-run.sh missing staged artifact '$required_path'" >&2
               exit 1
@@ -394,6 +398,10 @@ jobs:
           participant = checks.get("participant rehearsal evidence")
           if not participant or participant.get("status") != "pass" or "commitment_hash=" not in participant.get("message", ""):
               print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
+              sys.exit(1)
+          policy = checks.get("participant smoke CI policy")
+          if not policy or policy.get("status") != "pass":
+              print("release-audit-packet.sh did not validate participant smoke CI policy", file=sys.stderr)
               sys.exit(1)
           PY
           printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"
@@ -812,6 +820,10 @@ jobs:
             Write-Error "release-archive-dry-run.ps1 plan mode did not include release-schema wheelhouse staging"
             exit 1
           }
+          if (-not $archivePlanText.Contains("participant smoke CI policy helpers")) {
+            Write-Error "release-archive-dry-run.ps1 plan mode did not include participant smoke CI policy helpers"
+            exit 1
+          }
           $archiveDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-archive-" + [System.Guid]::NewGuid().ToString("N"))
           try {
             $archiveRun = powershell -NoProfile -File scripts/public-devnet-v1/release-archive-dry-run.ps1 -OutputDir $archiveDir -ReleaseEvidenceJson docs/release-evidence-v1.sample.json -IncludeReleaseSchemaWheelhouse
@@ -822,7 +834,7 @@ jobs:
               exit 1
             }
             $archiveRoot = $Matches.path.Trim()
-            foreach ($requiredPath in @("README.md", "network/genesis.json", "network/checksums.sha256", "docs/SECURITY.md", "docs/OPERATORS.md", "evidence/release-evidence.json", "evidence/checksums.sha256", "toolchain/requirements-release-schema.txt", "toolchain/wheelhouse-release-schema")) {
+            foreach ($requiredPath in @("README.md", "network/genesis.json", "network/checksums.sha256", "docs/SECURITY.md", "docs/OPERATORS.md", "evidence/release-evidence.json", "evidence/checksums.sha256", "toolchain/requirements-release-schema.txt", "toolchain/release-participant-smoke-policy-check.py", "toolchain/release-participant-smoke-policy-check.ps1", "toolchain/wheelhouse-release-schema")) {
               if (-not (Test-Path -LiteralPath (Join-Path $archiveRoot $requiredPath))) {
                 Write-Error "release-archive-dry-run.ps1 missing staged artifact '$requiredPath'"
                 exit 1
@@ -930,6 +942,11 @@ jobs:
             $participantCheck = $auditObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
             if (-not $participantCheck -or $participantCheck.status -ne "pass" -or $participantCheck.message -notmatch "commitment_hash=") {
               Write-Error "release-audit-packet.ps1 did not validate participant rehearsal evidence"
+              exit 1
+            }
+            $policyCheck = $auditObject.checks | Where-Object { $_.name -eq "participant smoke CI policy" } | Select-Object -First 1
+            if (-not $policyCheck -or $policyCheck.status -ne "pass") {
+              Write-Error "release-audit-packet.ps1 did not validate participant smoke CI policy"
               exit 1
             }
             $auditGeneratedJson = Join-Path $archiveDir "release-audit-packet.generated.json"

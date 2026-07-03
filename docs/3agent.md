@@ -31,7 +31,7 @@ Next:
 
 Current:
 
-- Pick next release-readiness gate from `docs/TESTNET_CHECKLIST.md`.
+- Release audit packet + archive policy toolchain integration in progress locally.
 
 Done:
 
@@ -42,6 +42,7 @@ Done:
 - Offline wheelhouse/install helpers and operator guidance for air-gapped strict validation.
 - Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
 - Participant rehearsal smoke CI policy guard (`release-participant-smoke-policy-check`) keeps real-run mesh smokes out of default CI/nightly until mesh lifetime is stable.
+- Release audit packets and archives now include participant smoke CI policy checks and staged policy helpers.
 
 Next:
 

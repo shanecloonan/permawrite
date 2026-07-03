@@ -111,6 +111,24 @@ function Stage-ReleaseSchemaWheelhouse {
     Write-Output "release-archive-dry-run: staged release-schema wheelhouse packages=$wheelCount"
 }
 
+function Stage-ReleasePolicyToolchain {
+    param([string]$ArchiveRootPath)
+    $toolchainDir = Join-Path $ArchiveRootPath "toolchain"
+    foreach ($helper in @(
+        "scripts/public-devnet-v1/release-participant-smoke-policy-check.py",
+        "scripts/public-devnet-v1/release-participant-smoke-policy-check.sh",
+        "scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1"
+    )) {
+        $dest = Join-Path $toolchainDir (Split-Path -Leaf $helper)
+        Copy-PublicFile -Source $helper -Destination $dest
+    }
+    if ($PlanOnly) {
+        Write-Output "PLAN stage participant smoke CI policy helpers -> toolchain/"
+    } else {
+        Write-Output "release-archive-dry-run: staged participant smoke CI policy helpers"
+    }
+}
+
 $shortCommit = Invoke-GitText "rev-parse" "--short" "HEAD"
 if (-not $OutputDir) {
     $OutputDir = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-release-archive-dry-run-$shortCommit"
@@ -195,6 +213,11 @@ if ($IncludeReleaseSchemaWheelhouse) {
     }
     Stage-ReleaseSchemaWheelhouse -ArchiveRootPath $ArchiveRoot
 }
+
+if (-not $PlanOnly) {
+    New-Item -ItemType Directory -Force -Path $ArchiveRoot | Out-Null
+}
+Stage-ReleasePolicyToolchain -ArchiveRootPath $ArchiveRoot
 
 if (-not $PlanOnly) {
     New-Item -ItemType Directory -Force -Path $ArchiveRoot | Out-Null

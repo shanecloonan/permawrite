@@ -41,6 +41,11 @@
       "message": "success"
     },
     {
+      "name": "participant smoke CI policy",
+      "status": "pass",
+      "message": "release-participant-smoke-policy-check: OK"
+    },
+    {
       "name": "codebase stats",
       "status": "pass",
       "message": "CODEBASE_STATS.md generated at 2026-06-30T00:00:00.000Z"

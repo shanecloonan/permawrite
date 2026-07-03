@@ -149,6 +149,17 @@ if ($RequireReleaseSchemaWheelhouse -or (Test-Path -LiteralPath $wheelhouseDir -
     }
 }
 
+$toolchainDir = Join-Path $archiveRoot "toolchain"
+if (Test-Path -LiteralPath $toolchainDir -PathType Container) {
+    foreach ($required in @(
+        "toolchain/release-participant-smoke-policy-check.py",
+        "toolchain/release-participant-smoke-policy-check.sh",
+        "toolchain/release-participant-smoke-policy-check.ps1"
+    )) {
+        Require-File $required
+    }
+}
+
 Test-DirectoryChecksums -Directory $archiveRoot
 Get-ChildItem -LiteralPath $archiveRoot -Directory -Recurse | ForEach-Object {
     Test-DirectoryChecksums -Directory $_.FullName

@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Participant smoke/nightly CI policy guard. | Completed locally; policy smoke passed. | Pick next release-readiness gate from `docs/TESTNET_CHECKLIST.md`. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | In progress locally. | Run CI mirror, commit, push, verify GitHub CI. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -42,6 +42,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Offline wheelhouse/install helpers and operator guidance support air-gapped strict Draft 2020-12 validation.
 - Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
 - Agent 2: Participant rehearsal smoke CI policy guard blocks real-run mesh smokes from default CI/nightly until Agent 2/3 sign off.
+- Agent 2: Release audit packets and release archives now require participant smoke CI policy helpers and audit-packet policy checks.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -91,4 +92,11 @@ Completed unit (participant smoke CI policy):
 
 Next Agent 2 task:
 
-- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` (exact-commit CI watcher hardening, audit-packet coverage, or next unchecked Agent 2 item).
+- [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md` after audit-packet policy integration lands.
+
+Completed unit (audit-packet policy integration):
+
+- [x] Add participant smoke CI policy check to `release-audit-packet` helpers.
+- [x] Stage policy helpers in `release-archive-dry-run` and require them in archive validation.
+- [x] Extend CI archive/audit-packet smoke and update operator/docs samples.
+- [ ] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.

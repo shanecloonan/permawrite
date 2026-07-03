@@ -59,6 +59,9 @@ permawrite-public-devnet-<rc>-<commit>/
     release-schema-wheelhouse.ps1
     release-schema-install-offline.ps1
     release-json-schema-draft202012.py
+    release-participant-smoke-policy-check.py
+    release-participant-smoke-policy-check.sh
+    release-participant-smoke-policy-check.ps1
     wheelhouse-release-schema/
       *.whl
     checksums.sha256

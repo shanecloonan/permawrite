@@ -307,6 +307,10 @@ if [[ "$archive_plan" != *"toolchain/wheelhouse-release-schema"* ]]; then
   echo "release-archive-dry-run.sh plan mode did not include release-schema wheelhouse staging" >&2
   exit 1
 fi
+if [[ "$archive_plan" != *"participant smoke CI policy helpers"* ]]; then
+  echo "release-archive-dry-run.sh plan mode did not include participant smoke CI policy helpers" >&2
+  exit 1
+fi
 archive_dir="$(mktemp -d)"
 archive_run="$(bash scripts/public-devnet-v1/release-archive-dry-run.sh --output-dir "$archive_dir" --release-evidence-json docs/release-evidence-v1.sample.json --include-release-schema-wheelhouse)"
 archive_root="$(printf '%s\n' "$archive_run" | awk -F'path=' '/release-archive-dry-run: OK path=/{print $2}' | tail -n 1)"
@@ -322,7 +326,9 @@ for required_path in \
   docs/OPERATORS.md \
   evidence/release-evidence.json \
   evidence/checksums.sha256 \
-  toolchain/requirements-release-schema.txt; do
+  toolchain/requirements-release-schema.txt \
+  toolchain/release-participant-smoke-policy-check.py \
+  toolchain/release-participant-smoke-policy-check.sh; do
   if [[ ! -f "$archive_root/$required_path" ]]; then
     echo "release-archive-dry-run.sh missing staged artifact '$required_path'" >&2
     exit 1
@@ -430,6 +436,10 @@ checks = {check.get("name"): check for check in doc.get("checks", [])}
 participant = checks.get("participant rehearsal evidence")
 if not participant or participant.get("status") != "pass" or "commitment_hash=" not in participant.get("message", ""):
     print("release-audit-packet.sh did not validate participant rehearsal evidence", file=sys.stderr)
+    sys.exit(1)
+policy = checks.get("participant smoke CI policy")
+if not policy or policy.get("status") != "pass":
+    print("release-audit-packet.sh did not validate participant smoke CI policy", file=sys.stderr)
     sys.exit(1)
 PY
 printf '%s\n' "$audit_json" > "$archive_dir/release-audit-packet.generated.json"

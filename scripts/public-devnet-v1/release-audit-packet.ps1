@@ -138,6 +138,7 @@ Add-ToolCheck -Name "artifact inventory" -FilePath "powershell" -ArgumentList @(
 $ciArgs = @("-NoProfile", "-File", (Join-Path $ScriptDir "release-ci-watch.ps1"), "-Commit", $Commit, "-Json")
 if ($CiMockRuns) { $ciArgs += @("-MockRuns", $CiMockRuns) }
 Add-ToolCheck -Name "exact commit CI" -FilePath "powershell" -ArgumentList $ciArgs
+Add-ToolCheck -Name "participant smoke CI policy" -FilePath "powershell" -ArgumentList @("-NoProfile", "-File", (Join-Path $ScriptDir "release-participant-smoke-policy-check.ps1"))
 Add-ParticipantEvidenceCheck -LogPath $ParticipantRehearsalLog -BundleDir $ParticipantSupportBundle
 
 $statsPath = Join-Path $RepoRoot "CODEBASE_STATS.md"

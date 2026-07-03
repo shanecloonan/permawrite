@@ -367,7 +367,7 @@ bash scripts/public-devnet-v1/release-audit-packet.sh \
   --output ./release-audit-packet.json
 ```
 
-The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. Validate the generated packet before publishing launch notes:
+The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. The packet also runs `release-participant-smoke-policy-check` from the release tree so sign-off fails closed if default CI or nightly automation promotes real-run participant rehearsal smokes before mesh lifetime is stable. Validate the generated packet before publishing launch notes:
 
 ```powershell
 powershell -File scripts/public-devnet-v1/release-json-schema-validate.ps1 `
@@ -423,7 +423,7 @@ bash scripts/public-devnet-v1/release-archive-dry-run.sh \
   --include-release-schema-wheelhouse
 ```
 
-The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. Use `-IncludeReleaseSchemaWheelhouse` / `--include-release-schema-wheelhouse` on connected release hosts to also stage `toolchain/requirements-release-schema.txt`, hash-pinned wheel files, and offline strict-validation helpers for air-gapped sign-off. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
+The archive dry-run helper stages the canonical public genesis/manifest, docs snapshots, release-evidence schema/sample, participant smoke CI policy helpers under `toolchain/`, optional reviewed evidence, optional reviewed binaries, and checksum files for artifact directories that contain direct files, including nested binary platform directories. Use `-IncludeReleaseSchemaWheelhouse` / `--include-release-schema-wheelhouse` on connected release hosts to also stage `toolchain/requirements-release-schema.txt`, hash-pinned wheel files, and offline strict-validation helpers for air-gapped sign-off. It refuses obvious private file names such as wallet files, private seeds, API keys, credentials, and `peers.json`. If you pass a support-bundle directory, it copies only `manifest.json`; review and compress a redacted support bundle separately before publishing it.
 
 Validate the staged archive before sign-off:
 
