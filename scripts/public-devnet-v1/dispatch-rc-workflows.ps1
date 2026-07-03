@@ -5,6 +5,7 @@ param(
     [switch]$All,
     [switch]$CleanupCiQueue,
     [string]$Ref = "main",
+    [string]$CheckoutSha = "",
     [string]$SlotMs = "30000",
     [string]$DurationMinutes = "35",
     [string]$MinFinalHeight = "10"
@@ -108,8 +109,14 @@ if ($dispatchCleanup) {
 }
 
 if ($dispatchNightly) {
-    Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref"
-    Start-WorkflowDispatch -WorkflowFile "nightly.yml"
+    $nightlyInputs = @{}
+    if ($CheckoutSha) {
+        $nightlyInputs.checkout_sha = $CheckoutSha
+        Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref checkout_sha=$CheckoutSha"
+    } else {
+        Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref"
+    }
+    Start-WorkflowDispatch -WorkflowFile "nightly.yml" -Inputs $nightlyInputs
 }
 
 if ($dispatchSoak) {

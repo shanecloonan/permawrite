@@ -2058,6 +2058,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.81** | CI `workflow_dispatch`; release-evidence + RC audit for validate-fix commit; drop `mfn-wasm` repository metadata for wasm-pack 0.15. | ✓ shipped |
 | **M2.4.82** | CI Queue Cleanup preserves current-commit CI (`context.sha`); RC Validation accepts `workflow_dispatch` CI success; no docs-only pushes while CI runs. | ✓ shipped |
 | **M2.4.83** | Fix Nightly auto-dispatch: `workflow_dispatch` uses `ref: main` + `checkout_sha` input (API rejects commit SHA as ref). First full green CI on `e6e8d86`. | ✓ shipped |
+| **M2.4.84** | Stabilize `three_validator_all_produce_smoke` ignored harness (height 3, accept slot advance). | in flight |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

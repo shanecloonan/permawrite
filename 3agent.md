@@ -17,15 +17,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.83** Nightly + Linux soak. | **Watching** — CI **success** on `5384ae2`; RC Validation **success**; Nightly in progress. | Linux Soak Audit after Nightly green. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.83** release evidence `5384ae2`. | **In progress** — archiving evidence + RC audit for green dispatch commit. | Operator sign-off after Nightly + Linux soak. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.83** Nightly validation. | **In progress** — Nightly dispatched with `checkout_sha=5384ae2`. | Confirm both rehearsal jobs green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.84** Nightly ignored-test fix. | **In progress** — fix flaky sortition assertion in all-produce smoke. | Re-dispatch Nightly after green CI. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.83** release evidence. | **Done** — `e6e8d86` + `5384ae2` evidence archived. | Operator sign-off after Nightly + Linux soak. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.84** Nightly green. | **Blocked** — Nightly #46 failed (ignored produce smoke). | Confirm Nightly after M2.4.84. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.83** — Nightly dispatch fix (`ref: main` + `checkout_sha`); CI **success** + RC Validation **success** on `5384ae2`.
-- Agent 2: **M2.4.82** — first **full green GitHub CI** on `e6e8d86` (all 9 jobs, including Linux/macOS tests ~70 min).
-- Agent 2: **M2.4.82** — `release-evidence-e6e8d86` + RC audit decision=go.
+- Agent 1: **M2.4.83** — Nightly dispatch fix; CI **success** + RC Validation **success** on `5384ae2`.
+- Agent 2: **M2.4.83** — `release-evidence-5384ae2` archived after green dispatch commit.
 
 ## Agent 1 Detailed Plan
 
@@ -36,13 +35,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] Linux Soak Audit workflow.
 - [x] First full green GitHub CI (`e6e8d86`, run 28670552593).
 
-### In Progress (M2.4.83)
+### In Progress (M2.4.84)
 
-- [x] Diagnose RC Validation failure: `createWorkflowDispatch` rejects commit SHA as `ref`.
-- [x] Dispatch Nightly with `ref: main` + `inputs.checkout_sha`.
-- [x] Green CI on `5384ae2` (M2.4.83 dispatch fix).
-- [x] RC Validation auto-dispatch **success** (Nightly running with `checkout_sha=5384ae2`).
-- [ ] Green Nightly (ignored suite + both rehearsal jobs).
+- [x] Diagnose Nightly #46: `three_validators_all_produce_converge_on_shared_tip` sortition assertion.
+- [x] Wait to height 3; accept `slot_skip` or `slot_advance` as sortition evidence.
+- [ ] Green CI on M2.4.84 push (hold line until matrix finishes).
+- [ ] Green Nightly via RC Validation.
 - [ ] Linux 30s-slot soak evidence.
 
 ### Next
@@ -65,7 +63,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ## Shared Release-Candidate Gates
 
 - Exact commit has green GitHub CI — **PASS** (`5384ae2`, run 28673813642).
-- Nightly after green CI — **in progress** (auto-dispatched via RC Validation M2.4.83).
+- Nightly after green CI — **Nightly #46 failed** (ignored produce smoke); M2.4.84 fix in flight.
 - Linux 30s-slot soak evidence — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 

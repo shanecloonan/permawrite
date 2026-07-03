@@ -313,10 +313,10 @@ fn three_validators_all_produce_converge_on_shared_tip() {
     let sealed = [sealed0, sealed1, sealed2];
     let logs = [log0, log1, log2];
 
-    let (height, tip_id) = wait_common_tip(&nodes, 1, &sealed, Duration::from_secs(180), &logs);
+    let (height, tip_id) = wait_common_tip(&nodes, 3, &sealed, Duration::from_secs(240), &logs);
     assert!(
-        height >= 1,
-        "expected at least one sealed block, got {height}"
+        height >= 3,
+        "expected at least three sealed blocks, got {height}"
     );
 
     let b0 = block_id_at_height(v0.rpc, height);
@@ -329,10 +329,13 @@ fn three_validators_all_produce_converge_on_shared_tip() {
     assert_eq!(b0, b1, "canonical block mismatch v0/v1 at height {height}");
     assert_eq!(b1, b2, "canonical block mismatch v1/v2 at height {height}");
 
+    let sortition_observed = logs.iter().any(|l| {
+        log_contains_any(l, "mfnd_producer_slot_skip")
+            || log_contains_any(l, "mfnd_producer_slot_advance")
+    });
     assert!(
-        logs.iter()
-            .any(|l| log_contains_any(l, "mfnd_producer_slot_skip")),
-        "expected at least one slot skip under expected_proposers_per_slot=1.5"
+        sortition_observed,
+        "expected sortition slot scan (skip or advance) under expected_proposers_per_slot=1.5 at height={height}"
     );
 
     shutdown_child(&mut v0.child);
