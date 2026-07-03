@@ -16,9 +16,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.79** workflow UTF-8 guard. | **Done** — cleanup **success** on `b581e78`; CI running on `6685c79`. | Linux Soak Audit after CI green. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.79** release-evidence. | **Done** — `release-evidence-b581e78` + RC audit decision=go. | Confirm GitHub CI green. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation fires when CI succeeds. | Confirm Nightly green + Linux evidence. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.80** validate script fix. | **In progress** — python3 null-byte check (grep false positive). | Linux Soak Audit after CI green. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.80** CI monitor. | **In progress** — CI failed validate step on `db5b2b9`. | Release-evidence after green CI. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.78** Nightly auto-dispatch. | **Waiting** — RC validation after green CI. | Confirm Nightly green + Linux evidence. |
 
 ## Recently Completed
 
@@ -34,9 +34,10 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] CI queue cleanup + RC validation + workflow UTF-8 guard.
 - [x] Linux Soak Audit workflow.
 
-### In Progress
+### In Progress (M2.4.80)
 
-- [ ] Green GitHub CI on `6685c79` (in progress).
+- [x] Fix `validate-workflow-encoding.sh` — replace `grep $'\x00'` (matches all files on GNU grep) with python3 byte check.
+- [ ] Green GitHub CI on latest push.
 - [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit** dispatch).
 
 ### Next

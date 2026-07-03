@@ -9,29 +9,21 @@ if (-not $WorkflowDir) {
 }
 $WorkflowDir = (Resolve-Path $WorkflowDir).Path
 
-function Test-WorkflowUtf8 {
-    param([string]$Path)
-    $bytes = [System.IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) { return $false }
-    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) { return $false }
-    $nullCount = 0
-    $checkLen = [Math]::Min($bytes.Length, 64)
-    for ($i = 0; $i -lt $checkLen; $i++) {
-        if ($bytes[$i] -eq 0) { $nullCount++ }
-    }
-    if ($nullCount -ge 3) { return $false }
-    return $true
-}
-
 $failed = @()
 Get-ChildItem -Path $WorkflowDir -Filter "*.yml" -File | ForEach-Object {
-    if (-not (Test-WorkflowUtf8 $_.FullName)) { $failed += $_.FullName }
+    $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+    $sample = $bytes[0..([Math]::Min(63, $bytes.Length - 1))]
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) { $failed += "UTF-16 BOM $($_.FullName)"; return }
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) { $failed += "UTF-16 BOM $($_.FullName)"; return }
+    $nullCount = @($sample | Where-Object { $_ -eq 0 }).Count
+    if ($nullCount -ge 3) { $failed += "null bytes $($_.FullName)" }
 }
 
 if ($failed.Count -gt 0) {
-    Write-Host "validate-workflow-encoding: FAIL UTF-16 or null-byte workflow YAML detected:"
+    Write-Host "validate-workflow-encoding: FAIL"
     $failed | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
 
-Write-Host "validate-workflow-encoding: OK ($((Get-ChildItem $WorkflowDir -Filter '*.yml').Count) workflow files UTF-8)"
+$count = (Get-ChildItem -Path $WorkflowDir -Filter "*.yml" -File).Count
+Write-Host "validate-workflow-encoding: OK ($count workflow files UTF-8)"

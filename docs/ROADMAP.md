@@ -2054,6 +2054,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.77** | Fix `ci-queue-cleanup.yml` UTF-8 encoding; trigger cleanup on every `main` push. | ✓ shipped |
 | **M2.4.78** | `rc-validation-after-ci.yml` Nightly auto-dispatch; bash rehearsal `--archive-evidence`; Nightly job evidence archive. | ✓ shipped |
 | **M2.4.79** | Workflow UTF-8 guard (`validate-workflow-encoding`, `.gitattributes`); fix UTF-16 `ci-queue-cleanup.yml` regression. | ✓ shipped |
+| **M2.4.80** | Fix `validate-workflow-encoding.sh` grep null-byte false positive (python3 byte check). | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |
