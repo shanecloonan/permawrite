@@ -137,7 +137,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Offload inbound post-handshake loops to bounded worker threads so catch-up dials cannot block the accept loop (**M2.4.64**).
 - [x] Skip committee catch-up dials when all durable peers already have live sessions (**M2.4.64**).
 - [x] Synchronous proposal fan-out on producer adopt and slot-tick rebroadcast so votes ingest before pending release (**M2.4.64**).
-- [ ] Capture passing Windows `soak: RESTART` evidence after M2.4.64 hub lifetime fixes (in flight).
+- [x] Capture passing Windows `soak: RESTART` evidence (`scripts/public-devnet-v1/evidence/soak-restart-windows-20260703T120117Z.txt`, M2.4.66).
 - [x] Participant rehearsal smoke real-run PASS on M2.4.64 local mesh (fund + permanence + support bundle).
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding

@@ -6,16 +6,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 DRY_RUN=0
 ALL_MFND=0
+REMOVE_PORTS_FILE=0
 
 usage() {
   cat <<'EOF'
-usage: stop-all.sh [--dry-run] [--all-mfnd]
+usage: stop-all.sh [--dry-run] [--all-mfnd] [--remove-ports-file]
 
 Stops public-devnet PIDs recorded in scripts/public-devnet-v1/devnet-ports.env.
 
 Options:
-  --dry-run    print what would be stopped
-  --all-mfnd   also stop every running mfnd process owned by this user
+  --dry-run             print what would be stopped
+  --all-mfnd            also stop every running mfnd process owned by this user
+  --remove-ports-file   delete devnet-ports.env after stopping (default: keep file)
 EOF
 }
 
@@ -27,6 +29,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --all-mfnd)
       ALL_MFND=1
+      shift
+      ;;
+    --remove-ports-file)
+      REMOVE_PORTS_FILE=1
       shift
       ;;
     -h|--help)
@@ -84,7 +90,7 @@ if (( ALL_MFND )); then
   fi
 fi
 
-if (( ! DRY_RUN )) && [[ -f "$PORTS_FILE" ]]; then
+if (( ! DRY_RUN )) && (( REMOVE_PORTS_FILE )) && [[ -f "$PORTS_FILE" ]]; then
   rm -f "$PORTS_FILE"
   echo "stop-all: removed $PORTS_FILE"
 fi

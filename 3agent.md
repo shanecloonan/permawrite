@@ -16,58 +16,41 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.64** landed (`2592d03`); soak `RESTART` evidence in flight. | Participant rehearsal smoke **PASS** on M2.4.64 (height 2, fund + permanence + bundle). | Archive `soak: RESTART` → Agent 3 nightly promotion. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor CI on `2592d03`. | Archive validation on green CI. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | **PASS** `participant-rehearsal-smoke` on M2.4.64 (`20260703T113642Z` bundle). | Capture fixture + promote to slow/nightly CI after soak green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.66** devnet mesh isolation + soak evidence. | **Shipped** — Windows soak SUMMARY PASS + `soak: RESTART` archived (height 28). | Agent 3: nightly rehearsal promotion. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | GitHub CI monitor + release gates. | Monitor CI on M2.4.66 commit. | Archive validation on green CI. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal evidence fixture. | **PASS** on M2.4.64 (`20260703T113642Z`). Soak green unblocks promotion. | Promote rehearsal smoke to slow/nightly CI. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.64** — sync proposal fan-out, catch-up idle skip, bounded inbound workers, soak/health hardening (`2592d03`).
+- Agent 1: **M2.4.66** — devnet-ports mutex + merge-from-disk; stop-all no longer deletes ports by default; soak foreign-mfnd preflight; iteration budget fix; **Windows soak PASS** (`evidence/soak-restart-windows-20260703T120117Z.txt`).
+- Agent 1: **M2.4.65** — observer RPC fallback in health-check; soak retries connection refused (`511b2b7` / `b7ef72b`).
+- Agent 1: **M2.4.64** — sync proposal fan-out, catch-up idle skip, bounded inbound workers (`2592d03`).
 - Agent 3: **participant-rehearsal-smoke PASS** on M2.4.64 (fund-wallet height 2, permanence-demo, support bundle `20260703T113642Z`).
-- Agent 1: M2.4.63 — unregister P2P sessions on post-handshake exit (`mfnd_p2p_session_unregister`).
-- Agent 1: M2.4.62 — durable catch-up peers, production/tx fan-out split, producer seal-on-quorum slot tick, immediate proposal fan-out on adopt, observer catch-up gated on `--p2p-dial`, two-phase soak warmup.
-- Agent 2: Release evidence, schema validation, sign-off manifests, audit packets, participant smoke CI policy.
-- Agent 3: Participant rehearsal smoke, permanence index wait hardening, evidence-dir handoff.
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.62)
+### Done (M2.4.64 / M2.4.65 / M2.4.66)
 
-- [x] Seal pending proposals with quorum on producer slot tick.
-- [x] Durable vs ephemeral peer sets for catch-up / production / tx fan-out.
-- [x] Two-phase soak warmup (`soak: WARMUP phase=hub_produced` / `phase=converged`).
-- [x] Observer catch-up only when `--p2p-dial` is set.
-- [x] Participant rehearsal skips observer via `MFN_DEVNET_NO_OBSERVER=1`.
+- [x] `fanout_proposal_sync`, extended pending release with votes, `periodic_catch_up_idle`, inbound cap 48.
+- [x] Observer RPC fallback in health-check (log rescrape + ports refresh).
+- [x] Devnet-ports mutex + merge-from-disk `Set-DevnetPort`; start-all owns clean slate.
+- [x] `start-all.ps1` calls `stop-all.ps1` (recorded PIDs only); soak warns on foreign `mfnd`.
+- [x] Soak iteration budget matches stall sampling; retries transient stall/divergence.
+- [x] Participant rehearsal smoke PASS on M2.4.64.
+- [x] Windows `soak.ps1 -RestartObserverOnce` SUMMARY PASS + archived `soak: RESTART` evidence (height 28).
 
-### Done (M2.4.63)
-
-- [x] `unregister_session` on post-handshake loop exit (`SessionUnregisterGuard` in `mfn-net`).
-- [x] Atomic `devnet-ports.env` writes via `ports-env-lib.ps1`.
-- [x] Unit test `unregister_session_drops_live_session_count`.
-- [x] Slower committee/observer catch-up intervals (full slot duration, min 5s / 15s).
-
-### In progress (M2.4.64)
-
-- [x] **`fanout_proposal_sync`** — producer adopt + slot-tick rebroadcast apply votes inline (no async race).
-- [x] Extended pending release when votes > 0 (`PENDING_PROPOSAL_REBROADCAST_WITH_VOTES_LIMIT = 60`).
-- [x] **`periodic_catch_up_idle`** — skip committee catch-up dials when all durable peers have live sessions.
-- [x] Bounded inbound P2P worker threads (cap 48) so accept loop never blocks on post-handshake.
-- [x] Unit test `periodic_catch_up_idle_when_all_durable_peers_have_sessions`.
-- [x] Local CI mirror green (`2592d03`).
-- [x] Participant rehearsal smoke PASS on M2.4.64 (height 2+, fund + permanence + support bundle).
-- [ ] Live `soak.ps1 -RestartObserverOnce` full PASS + `soak: RESTART` evidence (M2.4.65 observer RPC fallback in flight).
-- [ ] Participant rehearsal smoke PASS past height 5 under full committee mesh (stretch; height 2 PASS archived).
-
-### Next (after soak + rehearsal green)
+### Next
 
 - [ ] Agent 3: promote participant rehearsal smoke to slow/nightly CI.
+- [ ] Participant rehearsal smoke PASS past height 5 with observer enabled (stretch).
 - [ ] Long-run hub daemon lifetime audit under 30s-slot public devnet config.
 
 ## Agent 3 Detailed Plan
 
 - [x] Harden `permanence-demo` upload-index wait; 10s slot smoke defaults.
+- [x] Participant rehearsal smoke PASS on M2.4.64.
 - [ ] Capture public-devnet participant evidence fixture from successful live rehearsal.
-- [ ] Promote participant rehearsal smoke into slow/nightly CI once Agent 1 `soak: RESTART` is green.
+- [ ] Promote participant rehearsal smoke into slow/nightly CI (unblocked by soak green).
 
 ## Shared Release-Candidate Gates
 
@@ -84,5 +67,5 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [ ] Monitor GitHub CI on M2.4.64 commit.
+- [ ] Monitor GitHub CI on M2.4.66 commit.
 - [ ] Continue release-readiness gates from `docs/TESTNET_CHECKLIST.md`.

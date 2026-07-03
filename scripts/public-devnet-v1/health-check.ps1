@@ -90,7 +90,7 @@ function Query-ObserverWithFallback {
                 throw "health-check: FAIL observer diverged from hub"
             }
             if ($portsNow["OBSERVER_RPC"] -ne $addr) {
-                Set-DevnetPort -Path $PortsFile -Ports $portsNow -Key "OBSERVER_RPC" -Value $addr
+                Set-DevnetPort -Path $PortsFile -Key "OBSERVER_RPC" -Value $addr
                 Write-Host "health-check: refreshed OBSERVER_RPC=$addr"
             }
             return

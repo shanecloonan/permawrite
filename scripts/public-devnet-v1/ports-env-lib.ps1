@@ -1,7 +1,23 @@
-# Shared devnet-ports.env read/write helpers (UTF-8 no BOM, atomic rewrite).
+# Shared devnet-ports.env read/write helpers (UTF-8 no BOM, atomic rewrite, mutex).
 
 function Get-DevnetPortsEncoding {
     [System.Text.UTF8Encoding]::new($false)
+}
+
+if (-not $script:DevnetPortsMutex) {
+    $script:DevnetPortsMutex = New-Object System.Threading.Mutex($false, "Global\PermawriteDevnetPortsEnv")
+}
+
+function Invoke-DevnetPortsLocked {
+    param([scriptblock]$Action)
+    if (-not $script:DevnetPortsMutex.WaitOne(30000)) {
+        throw "devnet-ports: lock timeout after 30s"
+    }
+    try {
+        return & $Action
+    } finally {
+        [void]$script:DevnetPortsMutex.ReleaseMutex()
+    }
 }
 
 function Read-DevnetPortsFile {
@@ -16,6 +32,16 @@ function Read-DevnetPortsFile {
         }
     }
     return $ports
+}
+
+function Try-Read-DevnetPortsFile {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return @{} }
+    try {
+        return Read-DevnetPortsFile -Path $Path
+    } catch {
+        return @{}
+    }
 }
 
 function Write-DevnetPortsFile {
@@ -55,10 +81,21 @@ function Write-DevnetPortsFile {
 function Set-DevnetPort {
     param(
         [string]$Path,
-        [hashtable]$Ports,
         [string]$Key,
         [string]$Value
     )
-    $Ports[$Key] = $Value
-    Write-DevnetPortsFile -Path $Path -Ports $Ports
+    Invoke-DevnetPortsLocked {
+        $ports = Try-Read-DevnetPortsFile -Path $Path
+        $ports[$Key] = $Value
+        Write-DevnetPortsFile -Path $Path -Ports $ports
+    } | Out-Null
+}
+
+function Remove-DevnetPortsFile {
+    param([string]$Path)
+    Invoke-DevnetPortsLocked {
+        if (Test-Path $Path) {
+            Remove-Item -Force $Path
+        }
+    } | Out-Null
 }

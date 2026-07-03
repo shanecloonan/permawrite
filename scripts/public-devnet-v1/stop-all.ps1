@@ -1,7 +1,8 @@
 # Stop public-devnet processes recorded by start-all.ps1.
 param(
     [switch]$AllMfnd,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$RemovePortsFile
 )
 $ErrorActionPreference = "Stop"
 
@@ -50,7 +51,7 @@ if ($AllMfnd) {
     }
 }
 
-if (-not $DryRun -and (Test-Path $PortsFile)) {
+if (-not $DryRun -and $RemovePortsFile -and (Test-Path $PortsFile)) {
     Remove-Item -Force $PortsFile
     Write-Host "stop-all: removed $PortsFile"
 }

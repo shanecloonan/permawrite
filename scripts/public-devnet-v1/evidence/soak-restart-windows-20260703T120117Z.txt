@@ -1,0 +1,14 @@
+# Windows soak: RESTART evidence (M2.4.66)
+# Command: powershell -File soak.ps1 -DurationMinutes 8 -RestartObserverOnce
+# Host: Windows, SLOT_MS=10000, commit pending M2.4.66 ports mutex fix
+# Started: 2026-07-03T11:51:05Z  Ended: 2026-07-03T12:01:17Z  Elapsed: 611s
+
+soak: WARMUP phase=hub_produced hub_tip_height=1
+soak: WARMUP phase=converged hub_tip_height=1
+soak: RESTART iteration=1 role=observer old_pid=43624 new_pid=41632 old_rpc=127.0.0.1:54073 new_rpc=127.0.0.1:54098 pre_hub_height=4 pre_observer_height=4 post_hub_height=7 post_observer_height=7
+soak: SUMMARY status=PASS started_at=2026-07-03T11:51:05Z ended_at=2026-07-03T12:01:17Z elapsed_seconds=611 duration_minutes=8 iterations=5
+soak: SAMPLE iteration=1 final_height=6 final_tip_id=fa9df24ad681d10b3ee75628912f2b7dadba675dadb5aa54e3084714136ba898 genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+soak: SAMPLE iteration=2 final_height=13 final_tip_id=26197311ef06eef61faee6da644eb06fb3f7f8422f8555728ce831ed0383cb2b genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+soak: SAMPLE iteration=3 final_height=19 final_tip_id=801870799b719be33902fab17a28f58c592063141023bf1d72c4915a13ff595b genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+soak: SAMPLE iteration=4 final_height=25 final_tip_id=f92cf3afef19249e11f0ba176001e5ceb85cd6a7e89cbb35c8105e1fde83156a genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+soak: SAMPLE iteration=5 final_height=28 final_tip_id=80259399a0135542715a6ea5a567f3397d5f2d719569e599031bbe68a897dd8f genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005

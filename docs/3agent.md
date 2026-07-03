@@ -18,32 +18,25 @@ See also the root [`3agent.md`](../3agent.md) board for the latest cross-agent h
 
 Current:
 
-- **M2.4.64** landed on `main` (`2592d03`). Windows `soak.ps1 -RestartObserverOnce` evidence capture in flight.
+- **M2.4.66** shipped: devnet-ports mutex/merge, mesh startup isolation, archived Windows soak PASS.
 
-Done (M2.4.63 — `d46d87c`):
+Done (M2.4.66):
 
-- Slower committee/observer catch-up intervals.
-- Atomic `devnet-ports.env` rewrite via `ports-env-lib.ps1`.
-- Unregister live P2P sessions on post-handshake exit (`619cacf`).
-
-Done (M2.4.62 — `cc3d2d3` / `edff97b`):
-
-- Durable-only proposal/vote fan-out with live-session bootstrap before advertise.
-- Ephemeral inbound dialers excluded from durable catch-up and production fan-out.
-- Immediate proposal fan-out when producer adopts a pending block.
-- Participant rehearsal smoke skips observer (`MFN_DEVNET_NO_OBSERVER=1`).
-- Two-phase soak warmup; observer catch-up gated on `--p2p-dial`.
+- Mutex + merge-from-disk `Set-DevnetPort`; `stop-all` no longer deletes ports by default.
+- Soak foreign-`mfnd` preflight warning; iteration budget matches stall sampling.
+- Windows `soak.ps1 -RestartObserverOnce` SUMMARY PASS (611s, 5 iterations, height 28, observer restart catch-up).
+- Evidence: `scripts/public-devnet-v1/evidence/soak-restart-windows-20260703T120117Z.txt`.
 
 Next:
 
-- Windows `soak.ps1 -RestartObserverOnce` evidence after M2.4.64 CI green.
-- Participant rehearsal smoke PASS past height 5 (Agent 3 re-run).
+- Agent 3 nightly rehearsal promotion.
+- 30s-slot long-run hub lifetime audit.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
 Current:
 
-- Monitor GitHub CI on M2.4.64 commit after push.
+- Monitor GitHub CI on M2.4.66 commit.
 
 Next:
 
@@ -53,19 +46,13 @@ Next:
 
 Current:
 
-- **Participant rehearsal smoke PASS** on M2.4.64 (`2592d03`): fund-wallet at height 2, permanence-demo, support bundle `20260703T113642Z`.
-
-Done this unit:
-
-- `fund-wallet` PASS on M2.4.62/M2.4.63 runs reaching height >= 2.
-- Permanence-demo upload-index wait hardening; 10s slot smoke defaults.
+- **Participant rehearsal smoke PASS** on M2.4.64 (`20260703T113642Z` bundle). Agent 1 soak green — promotion unblocked.
 
 Next:
 
-- Capture public-devnet participant evidence fixture from successful live rehearsal.
-- Promote participant rehearsal smoke into slow/nightly CI once Agent 1 `soak: RESTART` is green.
+- Capture public-devnet participant evidence fixture.
+- Promote participant rehearsal smoke into slow/nightly CI.
 
 ## Cross-Agent Blockers
 
-- Agent 3 nightly promotion remains blocked until Agent 1 archives passing `soak: RESTART` and participant rehearsal smoke passes end-to-end.
-- Prior root cause (pre-M2.4.64): catch-up dial storms blocked accept loop; async proposal fan-out raced vote ingest; pending released too early with partial votes → stale `header_hash` rejections at height 5+.
+- None for Agent 3 nightly promotion (soak RESTART evidence archived).

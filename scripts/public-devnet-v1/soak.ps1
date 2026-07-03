@@ -40,7 +40,21 @@ function Assert-ProcessAlive {
     $pidText = $Ports[$Key]
     if (-not $pidText) { throw "soak: $Key missing in $PortsFile" }
     $proc = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
-    if (-not $proc) { throw "soak: process $Key=$pidText is not running" }
+    if (-not $proc) {
+        $logHint = switch ($Key) {
+            "HUB_PID" { Join-Path $LogDir "v0.err.log" }
+            "V1_PID" { Join-Path $LogDir "v1.err.log" }
+            "V2_PID" { Join-Path $LogDir "v2.err.log" }
+            "OBSERVER_PID" { Join-Path $LogDir "observer.err.log" }
+            default { $null }
+        }
+        $tail = ""
+        if ($logHint -and (Test-Path $logHint)) {
+            $tail = (Get-Content $logHint -Tail 5) -join " | "
+        }
+        $extra = if ($tail) { " last_stderr=$tail" } else { "" }
+        throw "soak: process $Key=$pidText is not running$extra"
+    }
 }
 
 function Assert-LogContains {
@@ -184,8 +198,7 @@ function Get-LatestLogValue {
 }
 function Set-ObserverPortLine {
     param([string]$Key, [string]$Value)
-    $ports = Read-DevnetPortsFile -Path $PortsFile
-    Set-DevnetPort -Path $PortsFile -Ports $ports -Key $Key -Value $Value
+    Set-DevnetPort -Path $PortsFile -Key $Key -Value $Value
 }
 function Rotate-ObserverLogFile {
     param([string]$Source, [string]$Dest, [int]$MaxWaitSeconds = 15)
@@ -312,6 +325,10 @@ if (-not $NoStart) {
         $StallIntervalSeconds = ($slotSec * 5) + 15
         Write-Host "soak: StallIntervalSeconds=$StallIntervalSeconds (auto from SLOT_MS)"
     }
+    $foreign = @(Get-Process mfnd -ErrorAction SilentlyContinue)
+    if ($foreign.Count -gt 0) {
+        Write-Host "soak: WARN $($foreign.Count) mfnd process(es) already running (pids=$($foreign.Id -join ',')); stop CI/integration tests before soak"
+    }
     Write-Host "soak: starting public-devnet-v1 mesh"
     & $StartAllScript
 } else {
@@ -334,9 +351,14 @@ if ($StallIntervalSeconds -gt 0) {
 $deadline = (Get-Date).AddMinutes($DurationMinutes)
 $iteration = 0
 $observerRestartDone = $false
+$iterBudgetSeconds = [Math]::Max(180, ($StallIntervalSeconds * $StallSamples) + 90)
 while ((Get-Date) -lt $deadline) {
+    if ((Get-Date).AddSeconds($iterBudgetSeconds) -ge $deadline) {
+        Write-Host "soak: stopping (insufficient time for another iteration; budget=${iterBudgetSeconds}s)"
+        break
+    }
     $iteration += 1
-    Write-Host "soak: iteration=$iteration deadline=$($deadline.ToString("o"))"
+    Write-Host "soak: iteration=$iteration deadline=$($deadline.ToString("o")) budget=${iterBudgetSeconds}s"
     $ports = Read-PortsFile
     foreach ($key in "HUB_PID", "V1_PID", "V2_PID", "OBSERVER_PID") {
         Assert-ProcessAlive $ports $key
@@ -351,14 +373,14 @@ while ((Get-Date) -lt $deadline) {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "$StallIntervalSeconds", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "$MinHeightDelta", "Process")
         $healthOutput = @()
-        $healthDeadline = (Get-Date).AddSeconds([Math]::Max(120, ($StallIntervalSeconds * 2)))
+        $healthDeadline = (Get-Date).AddSeconds($iterBudgetSeconds)
         while ((Get-Date) -lt $healthDeadline) {
             try {
                 $healthOutput = & $HealthScript 2>&1 6>&1
                 break
             } catch {
                 $msg = "$($_.Exception.Message)"
-                if ($msg -match "diverged|unreachable|p2p sessions=|actively refused|No connection could be made") {
+                if ($msg -match "diverged|unreachable|p2p sessions=|actively refused|No connection could be made|stalled height") {
                     Start-Sleep -Seconds 5
                     continue
                 }
