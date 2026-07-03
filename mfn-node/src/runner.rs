@@ -25,6 +25,10 @@ use crate::p2p_fanout::P2pPeerSet;
 
 const MFND_MEMPOOL_DRAIN_MAX: usize = 256;
 const PENDING_PROPOSAL_REBROADCAST_LIMIT: u8 = 12;
+/// When the local validator is not VRF-eligible, advance slot numbers within one wall-clock
+/// tick before waiting for the next `--slot-duration-ms` interval. Public-devnet validator 0
+/// is known ineligible at slot 1; without this scan the hub can stall at genesis for many slots.
+const MAX_SLOT_ELIGIBILITY_SCANS: u32 = 128;
 
 /// Local validator keys + slot timer for `mfnd serve --produce`.
 #[derive(Clone)]
@@ -492,58 +496,80 @@ impl ProductionEngine {
                 return;
             }
         }
-        let inputs = {
-            let chain = match self.chain.lock() {
-                Ok(g) => g,
-                Err(_) => return,
-            };
-            let mut pool = match self.pool.lock() {
-                Ok(g) => g,
-                Err(_) => return,
-            };
-            let mut proof_pool = match self.proof_pool.lock() {
-                Ok(g) => g,
-                Err(_) => return,
-            };
-            match self.block_inputs_for_next(&chain, &mut pool, &mut proof_pool) {
-                Ok(i) => i,
-                Err(e) => {
-                    eprintln!("mfnd_producer_slot_abort build_inputs {e}");
-                    return;
+        let mut last_skip: Option<(u32, u32)> = None;
+        let mut adopted = false;
+        for _ in 0..MAX_SLOT_ELIGIBILITY_SCANS {
+            let inputs = {
+                let chain = match self.chain.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let mut pool = match self.pool.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let mut proof_pool = match self.proof_pool.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                match self.block_inputs_for_next(&chain, &mut pool, &mut proof_pool) {
+                    Ok(i) => i,
+                    Err(e) => {
+                        eprintln!("mfnd_producer_slot_abort build_inputs {e}");
+                        return;
+                    }
                 }
-            }
-        };
-        let proposal = {
-            let chain = match self.chain.lock() {
-                Ok(g) => g,
-                Err(_) => return,
             };
-            let params = self.params(&chain);
-            match build_proposal(
-                chain.state(),
-                &self.local.validator,
-                &self.local.secrets,
-                params,
-                inputs,
-            ) {
-                Ok(p) => p,
-                Err(ProducerError::NotSlotEligible { height, slot }) => {
-                    println!("mfnd_producer_slot_skip height={height} slot={slot}");
+            let proposal = {
+                let chain = match self.chain.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let params = self.params(&chain);
+                match build_proposal(
+                    chain.state(),
+                    &self.local.validator,
+                    &self.local.secrets,
+                    params,
+                    inputs,
+                ) {
+                    Ok(p) => p,
+                    Err(ProducerError::NotSlotEligible { height, slot }) => {
+                        last_skip = Some((height, slot));
+                        continue;
+                    }
+                    Err(e) => {
+                        eprintln!("mfnd_producer_slot_abort build_proposal {e}");
+                        return;
+                    }
+                }
+            };
+            if let Some((height, from_slot)) = last_skip {
+                if proposal.ctx.height == height && proposal.ctx.slot > from_slot {
+                    println!(
+                        "mfnd_producer_slot_advance height={height} from_slot={from_slot} to_slot={}",
+                        proposal.ctx.slot
+                    );
                     let _ = std::io::Write::flush(&mut std::io::stdout());
-                    return;
-                }
-                Err(e) => {
-                    eprintln!("mfnd_producer_slot_abort build_proposal {e}");
-                    return;
                 }
             }
-        };
-        println!(
-            "mfnd_producer_proposal height={} slot={}",
-            proposal.ctx.height, proposal.ctx.slot
-        );
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-        let _ = self.adopt_proposal(proposal);
+            println!(
+                "mfnd_producer_proposal height={} slot={}",
+                proposal.ctx.height, proposal.ctx.slot
+            );
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+            let _ = self.adopt_proposal(proposal);
+            adopted = true;
+            break;
+        }
+        if !adopted {
+            if let Some((height, slot)) = last_skip {
+                println!(
+                    "mfnd_producer_slot_skip height={height} slot={slot} scans_exhausted={MAX_SLOT_ELIGIBILITY_SCANS}"
+                );
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+            }
+        }
     }
 }
 

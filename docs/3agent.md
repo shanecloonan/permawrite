@@ -16,15 +16,15 @@ file tracks who is actively doing what, what is done, and what should happen nex
 
 Current:
 
-- Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
+- Verify GitHub CI on `main` after bounded producer slot scan lands; then add integration smoke for hub height >= 1 within one slot duration.
 
 Done:
 
-- Sequential P2P block-sync catch-up, block-log replay, peer quarantine/scoring, bounded catch-up, self-dial skips, health liveness windows, public-devnet P2P/session health checks, Windows duplex P2P session chunk auto-fanout smoke, and opt-in observer kill/restart evidence via `soak --restart-observer-once` / `-RestartObserverOnce` (`soak: RESTART`).
+- Sequential P2P block-sync catch-up, block-log replay, peer quarantine/scoring, bounded catch-up, self-dial skips, health liveness windows, public-devnet P2P/session health checks, Windows duplex P2P session chunk auto-fanout smoke, opt-in observer kill/restart evidence via `soak --restart-observer-once` / `-RestartObserverOnce` (`soak: RESTART`), and public-devnet validator-0 slot-1 ineligibility diagnosis (`public_devnet_validator0_needs_advancing_slots_for_liveness`).
 
 Next:
 
-- Ship deterministic producer-slot coverage and fix stalled local-mesh block production.
+- Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
 - Review Agent 3's local-mesh evidence for any remaining P2P/process-lifetime issue before public-testnet invites.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

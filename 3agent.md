@@ -16,8 +16,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis. | Next in clean Agent 1 worktree. | Ship deterministic producer-slot coverage and fix stalled local-mesh block production. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed locally; CI mirror passed. | Continue cross-agent release gates; support Agent 1 mesh liveness. |
+| Agent 1 | Core protocol, consensus, networking, sync | Public-devnet producer slot scan for genesis liveness. | Landed on `main`; verifying GitHub CI. | Add integration smoke that hub reaches height >= 1 within one slot duration. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | Release audit packet + archive policy toolchain integration. | Completed on `main`. | Monitor GitHub CI; support Agent 1 mesh verification. |
 | Agent 3 | Wallet, storage, faucet/test funding, onboarding | Participant rehearsal and permanence UX are mostly in place. | Next hardening item remains pending. | Promote participant rehearsal smoke into unattended slow/nightly coverage once mesh runtime is stable enough for CI. |
 
 ## Recently Completed
@@ -43,6 +43,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - Agent 2: Release-archive dry-run/validation now stages and requires hash-pinned release-schema wheelhouses for air-gapped hosts.
 - Agent 2: Participant rehearsal smoke CI policy guard blocks real-run mesh smokes from default CI/nightly until Agent 2/3 sign off.
 - Agent 2: Release audit packets and release archives now require participant smoke CI policy helpers and audit-packet policy checks.
+- Agent 1: Bounded in-tick producer slot scan prevents public-devnet hub genesis stall when validator 0 is ineligible at slot 1.
 - Agent 3: Recent `main` commits landed participant rehearsal smoke, faucet reward wait hardening, and evidence-dir release-audit handoff.
 
 ## Agent 1 Detailed Plan
@@ -57,7 +58,10 @@ Completed unit (M2.4.59):
 
 Next Agent 1 task:
 
-- [ ] Diagnose and harden public-devnet local-mesh liveness when the hub logs `mfnd_producer_slot_skip` and height stalls at genesis.
+- [x] Diagnose public-devnet hub stall when validator 0 is ineligible at slot 1 (`public_devnet_validator0_needs_advancing_slots_for_liveness`).
+- [x] Scan forward through bounded slot numbers within one producer tick before waiting another `--slot-duration-ms` interval.
+- [ ] Add integration smoke that hub reaches height >= 1 within one slot duration after mesh start.
+- [x] Regenerate `CODEBASE_STATS.md`, run local CI mirror, commit, push, and check GitHub CI.
 
 ## Shared Release-Candidate Gates
 

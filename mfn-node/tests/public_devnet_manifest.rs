@@ -114,4 +114,8 @@ fn public_devnet_validator0_needs_advancing_slots_for_liveness() {
         first_eligible.is_some(),
         "advancing slots should give validator 0 an eligible public-devnet slot"
     );
+    assert!(
+        first_eligible.expect("checked above") <= 128,
+        "first eligible slot must fall within mfnd producer scan window (MAX_SLOT_ELIGIBILITY_SCANS)"
+    );
 }
