@@ -7,7 +7,8 @@ param(
     [int]$MinHeightDelta = 1,
     [switch]$RestartObserverOnce,
     [int]$RestartTimeoutSeconds = 180,
-    [switch]$NoStart
+    [switch]$NoStart,
+    [switch]$ArchiveEvidence
 )
 $ErrorActionPreference = "Stop"
 
@@ -305,6 +306,40 @@ function Write-SoakSummary {
     }
     $script:SummaryWritten = $true
 }
+function Archive-SoakEvidence {
+    param([string]$Status)
+    if ($Status -ne "PASS") { return }
+    $evidenceDir = Join-Path $ScriptDir "evidence"
+    New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+    $slotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 10000 }
+    $slotLabel = if ($slotMs -ge 30000) { "30s-slot" } else { "${slotMs}ms-slot" }
+    $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    $path = Join-Path $evidenceDir "soak-restart-windows-$slotLabel-$stamp.txt"
+    $commit = ""
+    try {
+        Push-Location (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+        $commit = (git rev-parse --short HEAD 2>$null)
+    } finally {
+        Pop-Location
+    }
+    $lines = New-Object System.Collections.Generic.List[string]
+    [void]$lines.Add("# Windows soak evidence ($slotLabel)")
+    [void]$lines.Add("# Command: soak.ps1 -DurationMinutes $DurationMinutes -RestartObserverOnce$(if ($ArchiveEvidence) { ' -ArchiveEvidence' })")
+    if ($commit) { [void]$lines.Add("# Commit: $commit") }
+    [void]$lines.Add("# SLOT_MS=$slotMs StallIntervalSeconds=$StallIntervalSeconds")
+    [void]$lines.Add("")
+    foreach ($sample in $SoakSamples) {
+        [void]$lines.Add("soak: SAMPLE $sample")
+    }
+    foreach ($restart in $SoakRestarts) {
+        [void]$lines.Add("soak: RESTART $restart")
+    }
+    $endedAt = Get-Date
+    $elapsedSeconds = [int][Math]::Floor(($endedAt - $StartedAt).TotalSeconds)
+    [void]$lines.Add("soak: SUMMARY status=PASS started_at=$($StartedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) ended_at=$($endedAt.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')) elapsed_seconds=$elapsedSeconds duration_minutes=$DurationMinutes iterations=$iteration")
+    [System.IO.File]::WriteAllLines($path, $lines.ToArray())
+    Write-Host "soak: EVIDENCE archived=$path"
+}
 trap {
     if (-not $script:LastFailure) {
         $script:LastFailure = "error=$($_.Exception.Message)"
@@ -411,3 +446,6 @@ while ((Get-Date) -lt $deadline) {
 }
 
 Write-SoakSummary "PASS"
+if ($ArchiveEvidence) {
+    Archive-SoakEvidence "PASS"
+}

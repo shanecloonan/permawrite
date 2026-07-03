@@ -498,6 +498,22 @@ powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 60 -RestartO
 
 For restart/catch-up evidence, add `--restart-observer-once` or `-RestartObserverOnce`; the soak kills the observer once, restarts it against the same data dir and hub P2P endpoint, waits for it to catch up, and emits a `soak: RESTART` line with old/new PIDs, old/new RPCs, and pre/post hub/observer heights.
 
+Production-slot audit (30s blocks, matches default `start-all` when `SLOT_MS` is unset):
+
+```powershell
+$env:SLOT_MS = "30000"
+powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 35 -RestartObserverOnce -ArchiveEvidence
+```
+
+Smoke-slot soak (10s blocks, faster CI-style mesh):
+
+```powershell
+$env:SLOT_MS = "10000"
+powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartObserverOnce -ArchiveEvidence
+```
+
+Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` on PASS.
+
 Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up.
 
 The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line, each `soak: SAMPLE` line, and any `soak: RESTART` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, per-role P2P peer/session counts, and delayed catch-up after observer kill/restart.
