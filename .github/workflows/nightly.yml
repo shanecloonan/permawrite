@@ -103,7 +103,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: participant-rehearsal-evidence
-          path: scripts/public-devnet-v1/evidence/
+          path: |
+            scripts/public-devnet-v1/evidence/
+            scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/
           if-no-files-found: ignore
 
   participant-rehearsal-smoke-observer:
@@ -160,5 +162,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: observer-rehearsal-evidence
-          path: scripts/public-devnet-v1/evidence/
+          path: |
+            scripts/public-devnet-v1/evidence/
+            scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/
           if-no-files-found: ignore

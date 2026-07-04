@@ -161,7 +161,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #53 — **PARTIAL** on `f5f45bf` (ignored **PASS**; participant+observer **FAIL** ~302s smoke = `HUB_POLL_MAX=300`).
 - [x] **M2.5.7/M2.5.8** — 600s GHA startup polls (`eb64408`); health-check retry + curl fallback; hub tip≥2 (`4dbd5c7`).
 - [x] **M2.5.9** — shared `query_tip_height` get_status fallback (`318407a`/`96327da`).
-- [ ] GitHub CI green on M2.5.10 — **IN PROGRESS** CI #527 on `994d1a9`.
+- [ ] GitHub CI green on M2.5.10 — **IN PROGRESS** CI #529 on `f6bac5e`.
 - [ ] Nightly #55 on M2.5.9 commit after RC Validation.
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
@@ -231,6 +231,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add a participant rehearsal evidence directory option that co-locates the PASS log and support bundle for release-audit packet ingestion.
 - [x] Thread participant rehearsal evidence directories through the local smoke wrappers so clean smoke runs stage audit-ready evidence by default.
 - [x] Add `-ParticipantEvidenceDir` / `--participant-evidence-dir` to release-audit-packet for co-located smoke evidence handoff.
+- [x] Upload audit-ready `participant-rehearsal-smoke/evidence/` from nightly success artifacts (**M2.5.11**).
 - [x] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 - [x] Add observer-enabled participant rehearsal smoke (`-WithObserver` / `--with-observer`) with post-rehearsal hub and observer height gates (**M2.4.68**).
 - [x] Windows observer-enabled rehearsal smoke PASS with `min_hub_height >= 5` (**M2.4.68**, **M2.4.76** re-archived UTF-8 evidence `participant-rehearsal-observer-windows-20260703T140456Z.txt`).
