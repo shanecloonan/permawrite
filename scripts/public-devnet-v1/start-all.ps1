@@ -155,12 +155,10 @@ $v2Proc = Start-MfndRole `
     -BlsSeedHex "8787878787878787878787878787878787878787878787878787878787878787"
 Set-DevnetPort -Path $PortsFile -Key "V2_PID" -Value "$($v2Proc.Id)"
 Start-Sleep -Seconds 2
-if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
-    Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
-} else {
 function Get-VoterP2pFromLog {
     param([string]$LogPath)
-    for ($i = 1; $i -le 30; $i++) {
+    $max = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+    for ($i = 1; $i -le $max; $i++) {
         if (Test-Path $LogPath) {
             $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
             if ($m) { return $m.Matches.Groups[1].Value.Trim() }
@@ -171,6 +169,17 @@ function Get-VoterP2pFromLog {
 }
 $V1P2p = Get-VoterP2pFromLog -LogPath $v1Log
 $V2P2p = Get-VoterP2pFromLog -LogPath $v2Log
+if (-not $V1P2p -or -not $V2P2p) {
+    Write-Host "start-all: committee voters failed to print P2P listen within timeout; tail logs:" -ForegroundColor Red
+    if (Test-Path $v1Log) { Get-Content $v1Log -Tail 80 | Write-Host }
+    if (Test-Path $v2Log) { Get-Content $v2Log -Tail 80 | Write-Host }
+    throw "Committee voters did not print P2P listen. See $v1Log and $v2Log"
+}
+Write-Host "Voter 1 P2P=$V1P2p"
+Write-Host "Voter 2 P2P=$V2P2p"
+if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
+    Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
+} else {
 $obsDials = @($HubP2p)
 if ($V1P2p -and $V1P2p -ne $HubP2p) { $obsDials += $V1P2p }
 if ($V2P2p -and $V2P2p -ne $HubP2p) { $obsDials += $V2P2p }

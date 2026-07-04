@@ -89,11 +89,7 @@ validate_uint() {
 
 if (( WAIT_AFTER_START_SECONDS < 0 )); then
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    if (( WITH_OBSERVER )); then
-      WAIT_AFTER_START_SECONDS=90
-    else
-      WAIT_AFTER_START_SECONDS=75
-    fi
+    WAIT_AFTER_START_SECONDS=90
   elif (( WITH_OBSERVER )); then
     WAIT_AFTER_START_SECONDS=45
   else
@@ -110,8 +106,13 @@ validate_uint min-hub-height "$MIN_HUB_HEIGHT" 0
 validate_uint wait-min-hub-height-seconds "$WAIT_MIN_HUB_HEIGHT_SECONDS" 0
 validate_uint wait-observer-catchup-seconds "$WAIT_OBSERVER_CATCHUP_SECONDS" 0
 
-if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
-  WAIT_OBSERVER_CATCHUP_SECONDS=300
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  if (( WAIT_FAUCET_SECONDS == 240 )); then
+    WAIT_FAUCET_SECONDS=360
+  fi
+  if (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
+    WAIT_OBSERVER_CATCHUP_SECONDS=300
+  fi
 fi
 
 if [[ -z "$FAUCET_WALLET" ]]; then
@@ -191,6 +192,24 @@ tip_height_text() {
   else
     printf 'unknown\n'
   fi
+}
+
+wait_hub_min_height() {
+  local mfn_cli="$1" rpc_addr="$2" min_height="$3" timeout_seconds="$4"
+  local deadline tip_height
+  deadline=$(( $(date +%s) + timeout_seconds ))
+  while :; do
+    tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
+    echo "participant-rehearsal-smoke: hub_liveness_wait tip_height=$tip_height min_height=$min_height"
+    if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= min_height )); then
+      return
+    fi
+    if (( timeout_seconds <= 0 || $(date +%s) >= deadline )); then
+      echo "participant-rehearsal-smoke: hub tip_height=$tip_height below min_height=$min_height after ${timeout_seconds}s; diagnose hub --produce and committee voter quorum before faucet funding" >&2
+      exit 1
+    fi
+    sleep 5
+  done
 }
 
 wait_faucet_balance() {
@@ -413,6 +432,11 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
   echo "participant-rehearsal-smoke: faucet wallet not found: $FAUCET_WALLET" >&2
   exit 1
 fi
+HUB_LIVENESS_WAIT=120
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  HUB_LIVENESS_WAIT=300
+fi
+wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" 1 "$HUB_LIVENESS_WAIT"
 wait_faucet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" "$WAIT_FAUCET_SECONDS"
 if [[ -d "$REHEARSAL_DIR" ]]; then
   rm -rf "$REHEARSAL_DIR"

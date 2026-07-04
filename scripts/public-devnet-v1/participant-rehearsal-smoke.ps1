@@ -121,6 +121,20 @@ function Archive-RehearsalSmokeEvidence {
     Write-Host "participant-rehearsal-smoke: EVIDENCE archived=$path"
 }
 
+function Wait-HubMinHeight {
+    param([string]$MfnCli, [string]$RpcAddr, [int]$MinHeight, [int]$TimeoutSeconds)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
+        Write-Host "participant-rehearsal-smoke: hub_liveness_wait tip_height=$tipHeight min_height=$MinHeight"
+        if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge $MinHeight) { return }
+        if ($TimeoutSeconds -le 0 -or (Get-Date) -ge $deadline) {
+            throw "participant-rehearsal-smoke: hub tip_height=$tipHeight below min_height=$MinHeight after ${TimeoutSeconds}s; diagnose hub --produce and committee voter quorum before faucet funding"
+        }
+        Start-Sleep -Seconds 5
+    } while ($true)
+}
+
 function Wait-FaucetBalance {
     param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [int]$TimeoutSeconds)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -208,8 +222,11 @@ if ($WaitAfterStartSeconds -lt 0) {
         $WaitAfterStartSeconds = if ($WithObserver) { 45 } else { 30 }
     }
 }
-if ($env:GITHUB_ACTIONS -and $WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
-    $WaitObserverCatchUpSeconds = 300
+if ($env:GITHUB_ACTIONS) {
+    if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 360 }
+    if ($WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
+        $WaitObserverCatchUpSeconds = 300
+    }
 }
 if ($WaitFaucetSeconds -lt 0) { throw "WaitFaucetSeconds must be >= 0" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
@@ -272,6 +289,8 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
+    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 300 } else { 120 }
+    Wait-HubMinHeight $MfnCli $RpcAddr 1 $hubLivenessWait
     Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
     if (Test-Path $RunDir) {
         Remove-Item -Recurse -Force $RunDir

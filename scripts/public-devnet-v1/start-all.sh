@@ -98,14 +98,14 @@ echo "Starting voter 2..."
 "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
-if [[ "${MFN_DEVNET_NO_OBSERVER:-}" == "1" ]]; then
-  echo "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
-else
 poll_voter_p2p() {
   local log_path="$1"
   local out_var="$2"
-  local p2p="" i
-  for i in $(seq 1 30); do
+  local p2p="" i max=60
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    max=300
+  fi
+  for i in $(seq 1 "$max"); do
     if grep -q mfnd_p2p_listening= "$log_path" 2>/dev/null; then
       p2p=$(grep -m1 mfnd_p2p_listening= "$log_path" | sed 's/.*=//')
       break
@@ -118,6 +118,17 @@ V1_P2P=""
 V2_P2P=""
 poll_voter_p2p "$LOG_DIR/v1.log" V1_P2P
 poll_voter_p2p "$LOG_DIR/v2.log" V2_P2P
+if [[ -z "$V1_P2P" || -z "$V2_P2P" ]]; then
+  echo "start-all: committee voters failed to print P2P listen within timeout; tail logs:" >&2
+  tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
+  tail -n 80 "$LOG_DIR/v2.log" 2>/dev/null >&2 || echo "(no v2.log)" >&2
+  exit 1
+fi
+echo "Voter 1 P2P=$V1_P2P"
+echo "Voter 2 P2P=$V2_P2P"
+if [[ "${MFN_DEVNET_NO_OBSERVER:-}" == "1" ]]; then
+  echo "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
+else
 EXTRA_P2P_DIALS=""
 if [[ -n "$V1_P2P" && "$V1_P2P" != "$HUB_P2P" ]]; then
   EXTRA_P2P_DIALS="$V1_P2P"

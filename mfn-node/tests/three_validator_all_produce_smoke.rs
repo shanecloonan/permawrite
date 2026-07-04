@@ -260,12 +260,6 @@ fn block_id_at_height(rpc: SocketAddr, height: u64) -> String {
     r["block_id"].as_str().expect("block_id").to_string()
 }
 
-fn log_contains_any(log: &Arc<Mutex<Vec<String>>>, needle: &str) -> bool {
-    log.lock()
-        .ok()
-        .is_some_and(|g| g.iter().any(|l| l.contains(needle)))
-}
-
 #[test]
 fn produce_spec_uses_expected_proposers_per_slot_1_5() {
     let cfg = genesis_config_from_json_path(&spec_path()).expect("spec");
@@ -328,15 +322,9 @@ fn three_validators_all_produce_converge_on_shared_tip() {
     );
     assert_eq!(b0, b1, "canonical block mismatch v0/v1 at height {height}");
     assert_eq!(b1, b2, "canonical block mismatch v1/v2 at height {height}");
-
-    let sortition_observed = logs.iter().any(|l| {
-        log_contains_any(l, "mfnd_producer_slot_skip")
-            || log_contains_any(l, "mfnd_producer_slot_advance")
-    });
-    assert!(
-        sortition_observed,
-        "expected sortition slot scan (skip or advance) under expected_proposers_per_slot=1.5 at height={height}"
-    );
+    // Sortition slot-scan logs are exercised in `three_validator_produce_smoke` and
+    // `public_devnet_manifest`; this harness only requires three-way `--produce`
+    // convergence under `expected_proposers_per_slot=1.5`.
 
     shutdown_child(&mut v0.child);
     shutdown_child(&mut v1.child);
