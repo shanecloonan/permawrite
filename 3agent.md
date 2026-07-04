@@ -19,11 +19,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `96327da` on `main`. | Green Nightly #55 → Linux soak. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.13** RC assert + nightly partial evidence. | **Done** — pushing after local CI green. | Monitor CI #534 → Nightly #55. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.13** RC assert + nightly partial evidence. | **Done** — `0afa61b` on `main`. | Monitor CI #534 → Nightly #55. |
 
 ## Recently Completed
 
-- **M2.5.13** — RC dry-run assert gate; nightly partial evidence upload on failure.
+- **M2.5.13** (`0afa61b`) — RC dry-run assert gate; nightly partial evidence upload on failure.
 - **M2.5.12** (`aa25d26`/`9434ff5`) — `assert-participant-smoke-evidence.{sh,ps1}` gates nightly upload; CI positive/negative coverage.
 - **M2.5.11** (`08bbf7b`) — nightly uploads audit-ready `participant-rehearsal-smoke/evidence/`; TESTNET.md `-ParticipantEvidenceDir` guidance.
 - **M2.5.10** (`994d1a9`) — `-ParticipantEvidenceDir` on release-audit-packet for smoke→audit handoff.
