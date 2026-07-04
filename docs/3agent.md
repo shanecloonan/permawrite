@@ -17,8 +17,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 - **Done:** M2.5.13 — RC dry-run assert gate; nightly partial evidence on failure.
 - **Done:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
-- **In progress:** M2.5.15 — release-evidence refresh helper; nightly assert summary.
-- **Next:** Green CI #537 → push → Agent 2 evidence refresh → Nightly #55.
+- **Done:** M2.5.15 — release-evidence refresh helper; nightly assert summary.
+- **Next:** Green CI #538 → Agent 2 evidence refresh → Nightly #55.
 
 ## Cross-Agent Blockers
 
