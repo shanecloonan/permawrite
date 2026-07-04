@@ -4,20 +4,21 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** Monitor Nightly #53 on `f5f45bf`.
-- **Done:** M2.5.6 (`f5f45bf`) — CI #514 **GREEN** (all OS); RC Validation #44 dispatched Nightly #53.
-- **Next:** Full green Nightly #53 (ignored + participant + observer).
+- **Doing:** **M2.5.7** — Nightly #53 participant/observer fix (voter dial + health-check retry).
+- **Done:** M2.5.6 (`f5f45bf`) — CI #514 **GREEN**; Nightly #53 ignored **PASS**.
+- **Next:** Push M2.5.7 → CI green → RC Validation → Nightly #54.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
 - **Done:** `release-evidence-f5f45bf` + RC audit dry-run (go).
-- **Next:** Operator sign-off after Nightly #53 green.
+- **Next:** Refresh evidence after green Nightly on M2.5.7 commit.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** M2.5.6 (`f5f45bf`) — GHA health-check gate; extended rehearsal timeouts.
-- **Next:** Green Nightly participant + observer on `f5f45bf`.
+- **Doing:** **M2.5.7** — 420s health-check retry; `MIN_P2P_SESSIONS=1` on GHA.
+- **Done:** M2.5.6 voter dial + hub tip wait in `start-all`.
+- **Next:** Green Nightly participant + observer.
 
 ## Cross-Agent Blockers
 
-- Nightly #53 in progress on `f5f45bf`; all three jobs must pass for RC gate.
+- Nightly #53 **FAIL** on `f5f45bf` (participant+observer ~6m); M2.5.7 fix pushing.

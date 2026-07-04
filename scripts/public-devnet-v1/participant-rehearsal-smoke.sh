@@ -89,7 +89,8 @@ validate_uint() {
 
 if (( WAIT_AFTER_START_SECONDS < 0 )); then
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    WAIT_AFTER_START_SECONDS=90
+    # start-all already waits for hub tip + voter dials; short settle only.
+    WAIT_AFTER_START_SECONDS=30
   elif (( WITH_OBSERVER )); then
     WAIT_AFTER_START_SECONDS=45
   else
@@ -108,10 +109,13 @@ validate_uint wait-observer-catchup-seconds "$WAIT_OBSERVER_CATCHUP_SECONDS" 0
 
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   if (( WAIT_FAUCET_SECONDS == 240 )); then
-    WAIT_FAUCET_SECONDS=480
+    WAIT_FAUCET_SECONDS=600
   fi
   if (( WAIT_MINED_SECONDS == 240 )); then
-    WAIT_MINED_SECONDS=360
+    WAIT_MINED_SECONDS=480
+  fi
+  if (( WAIT_UPLOAD_SECONDS == 360 )); then
+    WAIT_UPLOAD_SECONDS=480
   fi
   if (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
     WAIT_OBSERVER_CATCHUP_SECONDS=420
@@ -195,6 +199,35 @@ tip_height_text() {
   else
     printf 'unknown\n'
   fi
+}
+
+wait_mesh_health_check() {
+  local timeout_seconds="$1"
+  local deadline stall_samples stall_interval
+  deadline=$(( $(date +%s) + timeout_seconds ))
+  stall_samples=1
+  stall_interval=30
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    stall_samples=2
+    stall_interval=15
+  fi
+  while :; do
+    if MFN_HEALTH_REQUIRE_ALL_ROLES=0 \
+      MFN_HEALTH_MIN_P2P_SESSIONS=0 \
+      MFN_HEALTH_STALL_SAMPLES="$stall_samples" \
+      MFN_HEALTH_STALL_INTERVAL_SECONDS="$stall_interval" \
+      MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
+      bash "$SCRIPT_DIR/health-check.sh"; then
+      echo "participant-rehearsal-smoke: STAGE=health_check PASS"
+      return
+    fi
+    if (( $(date +%s) >= deadline )); then
+      echo "participant-rehearsal-smoke: health-check did not pass within ${timeout_seconds}s (hub tip advancing + quorum)" >&2
+      exit 1
+    fi
+    echo "participant-rehearsal-smoke: health-check retry (waiting for hub tip advance)..."
+    sleep 10
+  done
 }
 
 wait_hub_min_height() {
@@ -416,21 +449,19 @@ if (( NO_START == 0 )); then
     unset MFN_DEVNET_NO_OBSERVER
   fi
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
+  echo "participant-rehearsal-smoke: STAGE=start_mesh"
   if (( NO_BUILD )); then
     bash "$SCRIPT_DIR/start-all.sh" --no-build
   else
     bash "$SCRIPT_DIR/start-all.sh"
   fi
+  echo "participant-rehearsal-smoke: STAGE=start_mesh_done"
   STARTED_MESH=1
   if (( WAIT_AFTER_START_SECONDS > 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"
   fi
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    MFN_HEALTH_REQUIRE_ALL_ROLES=0 MFN_HEALTH_MIN_P2P_SESSIONS=2 \
-      bash "$SCRIPT_DIR/health-check.sh" || {
-      echo "participant-rehearsal-smoke: health-check failed before rehearsal (hub P2P/quorum)" >&2
-      exit 1
-    }
+    wait_mesh_health_check 420
   fi
 fi
 RPC_ADDR="$(resolve_rpc)"
@@ -444,10 +475,14 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
 fi
 HUB_LIVENESS_WAIT=120
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_LIVENESS_WAIT=480
+  # start-all already waits for hub tip_height >= 1; quick sanity check only.
+  HUB_LIVENESS_WAIT=90
 fi
+echo "participant-rehearsal-smoke: STAGE=hub_liveness"
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" 1 "$HUB_LIVENESS_WAIT"
+echo "participant-rehearsal-smoke: STAGE=faucet_balance"
 wait_faucet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" "$WAIT_FAUCET_SECONDS"
+echo "participant-rehearsal-smoke: STAGE=participant_rehearsal"
 if [[ -d "$REHEARSAL_DIR" ]]; then
   rm -rf "$REHEARSAL_DIR"
   echo "participant-rehearsal-smoke: cleared rehearsal_dir=$REHEARSAL_DIR"

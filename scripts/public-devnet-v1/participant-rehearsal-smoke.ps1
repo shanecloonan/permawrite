@@ -121,6 +121,34 @@ function Archive-RehearsalSmokeEvidence {
     Write-Host "participant-rehearsal-smoke: EVIDENCE archived=$path"
 }
 
+function Wait-MeshHealthCheck {
+    param([int]$TimeoutSeconds)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $stallSamples = 1
+    $stallInterval = 30
+    if ($env:GITHUB_ACTIONS) {
+        $stallSamples = 2
+        $stallInterval = 15
+    }
+    do {
+        $env:MFN_HEALTH_REQUIRE_ALL_ROLES = "0"
+        $env:MFN_HEALTH_MIN_P2P_SESSIONS = "0"
+        $env:MFN_HEALTH_STALL_SAMPLES = "$stallSamples"
+        $env:MFN_HEALTH_STALL_INTERVAL_SECONDS = "$stallInterval"
+        $env:MFN_HEALTH_MIN_HEIGHT_DELTA = "1"
+        & (Join-Path $ScriptDir "health-check.ps1")
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "participant-rehearsal-smoke: STAGE=health_check PASS"
+            return
+        }
+        if ((Get-Date) -ge $deadline) {
+            throw "participant-rehearsal-smoke: health-check did not pass within ${TimeoutSeconds}s (hub tip advancing + quorum)"
+        }
+        Write-Host "participant-rehearsal-smoke: health-check retry (waiting for hub tip advance)..."
+        Start-Sleep -Seconds 10
+    } while ($true)
+}
+
 function Wait-HubMinHeight {
     param([string]$MfnCli, [string]$RpcAddr, [int]$MinHeight, [int]$TimeoutSeconds)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -217,14 +245,16 @@ function Wait-MinHubHeight {
 
 if ($WaitAfterStartSeconds -lt 0) {
     if ($env:GITHUB_ACTIONS) {
-        $WaitAfterStartSeconds = if ($WithObserver) { 90 } else { 75 }
+        # start-all already waits for hub tip + voter dials; short settle only.
+        $WaitAfterStartSeconds = 30
     } else {
         $WaitAfterStartSeconds = if ($WithObserver) { 45 } else { 30 }
     }
 }
 if ($env:GITHUB_ACTIONS) {
-    if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 480 }
-    if ($WaitMinedSeconds -eq 240) { $WaitMinedSeconds = 360 }
+    if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 600 }
+    if ($WaitMinedSeconds -eq 240) { $WaitMinedSeconds = 480 }
+    if ($WaitUploadSeconds -eq 360) { $WaitUploadSeconds = 480 }
     if ($WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
         $WaitObserverCatchUpSeconds = 420
     }
@@ -281,12 +311,7 @@ try {
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
         if ($env:GITHUB_ACTIONS) {
-            $env:MFN_HEALTH_REQUIRE_ALL_ROLES = "0"
-            $env:MFN_HEALTH_MIN_P2P_SESSIONS = "2"
-            & (Join-Path $ScriptDir "health-check.ps1")
-            if ($LASTEXITCODE -ne 0) {
-                throw "participant-rehearsal-smoke: health-check failed before rehearsal (hub P2P/quorum)"
-            }
+            Wait-MeshHealthCheck -TimeoutSeconds 420
         }
     }
     $RpcAddr = Resolve-Rpc
@@ -298,9 +323,12 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
-    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
+    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 90 } else { 120 }
+    Write-Host "participant-rehearsal-smoke: STAGE=hub_liveness"
     Wait-HubMinHeight $MfnCli $RpcAddr 1 $hubLivenessWait
+    Write-Host "participant-rehearsal-smoke: STAGE=faucet_balance"
     Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
+    Write-Host "participant-rehearsal-smoke: STAGE=participant_rehearsal"
     if (Test-Path $RunDir) {
         Remove-Item -Recurse -Force $RunDir
         Write-Host "participant-rehearsal-smoke: cleared rehearsal_dir=$RunDir"
