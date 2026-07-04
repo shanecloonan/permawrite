@@ -17,31 +17,31 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.3** pushed (`95739e4`). | **Done** — CI #505 green (all OS). | Monitor Nightly #49. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.3** evidence. | **Done** — `release-evidence-95739e4` + RC audit dry-run (go). | Operator sign-off after Nightly #49. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.3** mempool harness. | **Done** — ring-16 node tests on `95739e4`. | Nightly #49 in flight. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.4** (`9c76050`). | **Done** — CI #509 **GREEN** (all OS). | Monitor Nightly #51 on `9c76050`. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.4** evidence. | **Done** — `release-evidence-9c76050` + RC audit dry-run. | Operator sign-off after Nightly green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.4** devnet scripts. | **Done** — fund-wallet/participant-rehearsal default ring-16. | Nightly participant+observer green. |
 
 ## Recently Completed
 
-- **M2.5.3** (`95739e4`) — mempool_integration + mfnd_smoke + mfn-runtime/mempool ring-16; CI #505 **GREEN**.
-- **M2.5.2** (`434b444`) — integration ring-2 decoys + checkpoint offsets. CI #503 **FAILED** (node tests ring-2/4/8).
-- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase outputs.
-- Nightly ignored **PASS** (#48 on `052e507`).
+- **M2.5.4** (`9c76050`) — devnet ring-16 script defaults; CI #509 **GREEN**; RC Validation #39 → Nightly #51.
+- **M2.5.3** (`95739e4`) — node/mempool ring-16 harness; CI #505 **GREEN** (all OS).
+- **Nightly #49** — ignored smokes **PASS**; participant + observer **FAIL** (`--ring-size 8` vs CLI min 16).
+- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase.
 
 ## Agent 1 Detailed Plan
 
 ### Done
 
-- [x] M2.5.0–M2.5.2 core + integration harness.
-- [x] **M2.5.3** pushed (`95739e4`) — node/mempool ring-16 alignment.
+- [x] M2.5.0–M2.5.3 core, integration, mempool ring-16 alignment.
+- [x] **M2.5.4** pushed (`9c76050`) — devnet script ring-16 defaults; CI #509 green; RC Validation #39 → Nightly #51.
 
 ### In Progress
 
-- [ ] Monitor Nightly #49 (RC Validation #35 dispatched after CI #505).
+- [ ] Monitor Nightly #51 on `9c76050` (participant + observer + ignored).
 
 ### Next
 
-- [ ] Nightly #49 green (ignored + participant + observer rehearsal).
+- [ ] Nightly green (participant + observer + ignored).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -49,27 +49,26 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
-- [x] `WALLET_MIN_RING_SIZE = 16`; CLI smokes; end_to_end/wasm tests.
-- [x] M2.5.3 mempool_integration (6/6), mfnd_smoke, runtime mempool unit tests.
+- [x] CLI/wallet/mempool ring-16; M2.5.4 devnet funding/rehearsal script defaults.
 
 ### Next
 
-- [ ] Full green Nightly #49.
+- [ ] Full green Nightly #51 (participant + observer + ignored).
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-95739e4` + RC audit dry-run (decision=go).
-- [ ] Operator sign-off after Nightly #49 + Linux soak.
+- [x] `release-evidence-95739e4` + RC audit dry-run (go).
+- [x] `release-evidence-9c76050` + RC audit dry-run (go).
+- [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **PASS** CI #505 on `95739e4` (1h 10m, all OS).
-- RC Validation — **PASS** #35 → Nightly #49 dispatched.
-- Nightly — **IN PROGRESS** #49 (checkout_sha=`95739e4`).
+- Green GitHub CI — **PASS** CI #509 on `9c76050` (M2.5.4, all OS).
+- RC Validation — **PASS** #39 (dispatched Nightly #51 on `9c76050`).
+- Nightly — **IN PROGRESS** #51 on `9c76050`; #49/#50 **FAIL** (pre-fix ring-size 8).
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Nightly #49 in flight on `95739e4` — monitor participant + observer rehearsal.
-- CI #503 ring-2/4/8 fixed in M2.5.3; CI #505 green.
+- Nightly #49/#50 failed on pre-fix ring-size 8; M2.5.4 fix + Nightly #51 dispatched via RC Validation #39.

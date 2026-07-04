@@ -147,9 +147,13 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Green GitHub CI on M2.5.3 fix commit (CI #505, all OS).
 - [x] `release-evidence-95739e4` + RC audit dry-run (decision=go).
 - [x] RC Validation #35 → Nightly #49 dispatched (`95739e4`).
-- [ ] Nightly #49 green (ignored + participant + observer rehearsal).
+- [x] **M2.5.4** — devnet fund-wallet/participant-rehearsal default ring-16 (`9c76050`).
+- [x] Green GitHub CI on M2.5.4 (CI #509, all OS).
+- [x] `release-evidence-9c76050` + RC audit dry-run (decision=go).
+- [x] RC Validation #39 → Nightly #51 dispatched (`9c76050`).
+- [ ] Nightly #51 — participant+observer (ring-16 scripts); #49/#50 **FAIL** (pre-fix ring-size 8).
 
-## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
+## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 
 - [x] Add wallet-local upload retrieval UX so participants can export anchored payload bytes after `wallet upload`, HTTP/P2P backfill, or inbox assembly.
 - [x] Extend P2P ChunkV1 smoke coverage to verify `uploads retrieve` after inbox assembly.
