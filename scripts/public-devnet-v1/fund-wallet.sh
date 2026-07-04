@@ -13,7 +13,7 @@ FAUCET_WALLET=""
 RECIPIENT_WALLET=""
 AMOUNT=1000000
 FEE=10000
-RING_SIZE=8
+RING_SIZE=16
 WAIT_MINED_SECONDS=180
 NO_BUILD=0
 PLAN_ONLY=0
@@ -28,7 +28,7 @@ Options:
   --recipient-wallet FILE     participant wallet to create/reuse (default: permanence-demo/uploader.json)
   --amount N                  amount to send in atomic units (default: 1000000)
   --fee N                     transfer fee in atomic units (default: 10000)
-  --ring-size N               CLSAG ring size (default: 8)
+  --ring-size N               CLSAG ring size (default: 16)
   --wait-mined-seconds N      wait for recipient balance delta (default: 180; 0 disables wait)
   --no-build                  use existing target/release/mfn-cli
   --plan-only                 print resolved flow without requiring binaries or faucet wallet
@@ -95,7 +95,7 @@ validate_uint() {
 
 validate_uint amount "$AMOUNT" 1
 validate_uint fee "$FEE" 0
-validate_uint ring-size "$RING_SIZE" 2
+validate_uint ring-size "$RING_SIZE" 16
 validate_uint wait-mined-seconds "$WAIT_MINED_SECONDS" 0
 
 resolve_rpc() {

@@ -45,11 +45,11 @@ mfn-cli --wallet ./alice.json wallet backup-info
 
 # Send (CLSAG transfer + submit_tx; mine with `mfnd step` after stopping serve)
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send mf<ADDRESS_PAYLOAD_HEX> <AMOUNT> \
-  --fee 10000 --ring-size 8 --json
+  --fee 10000 --ring-size 16 --json
 
 # Legacy raw-key send form
 mfn-cli --rpc 127.0.0.1:<PORT> wallet send <VIEW_PUB_HEX> <SPEND_PUB_HEX> <AMOUNT> \
-  --fee 10000 --ring-size 8 --json
+  --fee 10000 --ring-size 16 --json
 
 # Public-devnet helper: fund a participant wallet from an operator faucet wallet
 powershell -File scripts/public-devnet-v1/preflight.ps1

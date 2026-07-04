@@ -7,7 +7,7 @@ param(
     [string]$ChunkListen = "127.0.0.1:18780",
     [UInt64]$Amount = 1000000,
     [UInt64]$Fee = 10000,
-    [int]$RingSize = 8,
+    [int]$RingSize = 16,
     [int]$WaitMinedSeconds = 180,
     [int]$WaitUploadSeconds = 180,
     [int]$WaitProofSeconds = 180,
@@ -73,7 +73,7 @@ function Parse-TokenField {
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }
-if ($RingSize -lt 2) { throw "RingSize must be >= 2" }
+if ($RingSize -lt 16) { throw "RingSize must be >= 16 (consensus minimum)" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
 if ($WaitUploadSeconds -lt 1) { throw "WaitUploadSeconds must be >= 1" }
 if ($WaitProofSeconds -lt 0) { throw "WaitProofSeconds must be >= 0" }

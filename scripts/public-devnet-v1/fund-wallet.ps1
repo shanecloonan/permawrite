@@ -5,7 +5,7 @@ param(
     [string]$RecipientWallet = "",
     [UInt64]$Amount = 1000000,
     [UInt64]$Fee = 10000,
-    [int]$RingSize = 8,
+    [int]$RingSize = 16,
     [int]$WaitMinedSeconds = 180,
     [switch]$NoBuild,
     [switch]$PlanOnly
@@ -133,7 +133,7 @@ function Get-TipHeightText {
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }
-if ($RingSize -lt 2) { throw "RingSize must be >= 2" }
+if ($RingSize -lt 16) { throw "RingSize must be >= 16 (consensus minimum)" }
 if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
 
 $Recipient = if ($RecipientWallet) { $RecipientWallet } else { $DefaultRecipientWallet }

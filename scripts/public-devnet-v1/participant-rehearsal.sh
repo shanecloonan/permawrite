@@ -13,7 +13,7 @@ PAYLOAD_PATH=""
 CHUNK_LISTEN="127.0.0.1:18780"
 AMOUNT=1000000
 FEE=10000
-RING_SIZE=8
+RING_SIZE=16
 WAIT_MINED_SECONDS=180
 WAIT_UPLOAD_SECONDS=180
 WAIT_PROOF_SECONDS=180
@@ -35,7 +35,7 @@ Options:
   --chunk-listen HOST:PORT    local HTTP chunk server address (default: 127.0.0.1:18780)
   --amount N                  amount to fund uploader wallet (default: 1000000)
   --fee N                     funding transfer fee (default: 10000)
-  --ring-size N               funding transfer ring size (default: 8)
+  --ring-size N               funding transfer ring size (default: 16)
   --wait-mined-seconds N      wait for funding balance delta (default: 180; 0 disables)
   --wait-upload-seconds N     wait for upload discovery (default: 180)
   --wait-proof-seconds N      optional proof-list wait window (default: 180; 0 disables)
@@ -84,7 +84,7 @@ validate_uint() {
 
 validate_uint amount "$AMOUNT" 1
 validate_uint fee "$FEE" 0
-validate_uint ring-size "$RING_SIZE" 2
+validate_uint ring-size "$RING_SIZE" 16
 validate_uint wait-mined-seconds "$WAIT_MINED_SECONDS" 0
 validate_uint wait-upload-seconds "$WAIT_UPLOAD_SECONDS" 1
 validate_uint wait-proof-seconds "$WAIT_PROOF_SECONDS" 0
