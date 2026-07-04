@@ -21,6 +21,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 💻 [**STORAGE_ACCESSIBILITY.md**](./STORAGE_ACCESSIBILITY.md) — feasibility of consumer-grade storage (vs Arweave-style hardware), current gaps, and roadmap.
+- 👤 [**UX_ACCESSIBILITY.md**](./UX_ACCESSIBILITY.md) — normie UX assessment for mature mainnet: current friction, non-negotiable invariants, and privacy/permanence-preserving improvements.
 - 🌐 [**DECENTRALIZATION.md**](./DECENTRALIZATION.md) — hardware profiles for every network role, how they shape decentralization, and improvements that preserve the architecture.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
@@ -58,6 +59,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Trust assumptions & threat model | — | SECURITY_CONSIDERATIONS (full document) | — |
 | Known weaknesses & open risks | — | PROBLEMS (full document) | — |
 | Hardware & decentralization | — | DECENTRALIZATION (full document) | STORAGE_ACCESSIBILITY |
+| Normie UX / mainnet accessibility | UX_ACCESSIBILITY (full document) | STORAGE_ACCESSIBILITY §4–5 | ROADMAP (M3/M4/M6) |
 
 ## Where to file questions
 
