@@ -7,11 +7,9 @@
 *Monero-grade financial privacy fused with Arweave-grade data permanence — in a single chain.*
 
 [![Status](https://img.shields.io/badge/status-controlled_public_devnet-orange)](#status)
-[![Unsafe](https://img.shields.io/badge/unsafe-forbidden-blue)](#design-philosophy)
-[![Clippy](https://img.shields.io/badge/clippy-clean-brightgreen)](#design-philosophy)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
 
-[**Read the overview →**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Public devnet →**](./docs/TESTNET.md) &nbsp;·&nbsp; [**Architecture →**](./docs/ARCHITECTURE.md) &nbsp;·&nbsp; [**Privacy & permanence →**](./docs/PRIVACY_AND_PERMANENCE.md) &nbsp;·&nbsp; [**Roadmap →**](./docs/ROADMAP.md)
+[**Overview**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Public devnet runbook**](./docs/TESTNET.md)
 
 </div>
 
