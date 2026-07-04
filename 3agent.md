@@ -19,11 +19,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `96327da` on `main`. | Green Nightly #55 → Linux soak. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.12** evidence assert gate. | **Done** — local CI green; pushing. | Monitor CI #532 → Nightly #55 assert verification. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.12** evidence assert gate. | **Done** — `aa25d26` on `main`. | Monitor CI #532 → Nightly #55 assert verification. |
 
 ## Recently Completed
 
-- **M2.5.12** — `assert-participant-smoke-evidence.{sh,ps1}` gates nightly upload; CI positive/negative coverage.
+- **M2.5.12** (`aa25d26`) — `assert-participant-smoke-evidence.{sh,ps1}` gates nightly upload; CI positive/negative coverage.
 - **M2.5.11** (`08bbf7b`) — nightly uploads audit-ready `participant-rehearsal-smoke/evidence/`; TESTNET.md `-ParticipantEvidenceDir` guidance.
 - **M2.5.10** (`994d1a9`) — `-ParticipantEvidenceDir` on release-audit-packet for smoke→audit handoff.
 - **M2.5.9** (`96327da`/`318407a`) — shared `query_tip_height` with get_status fallback.
