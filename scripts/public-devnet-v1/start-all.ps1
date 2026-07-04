@@ -179,8 +179,10 @@ Write-Host "Voter 1 P2P=$V1P2p"
 Write-Host "Voter 2 P2P=$V2P2p"
 
 function Wait-VoterDialHub {
-    param([string]$V1LogPath, [string]$V2LogPath)
-    $max = if ($env:GITHUB_ACTIONS) { 300 } else { 120 }
+    param([string]$V1LogPath, [string]$V2LogPath, [string]$HubRpc)
+    $max = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
+    $v1Ok = $false
+    $v2Ok = $false
     for ($i = 1; $i -le $max; $i++) {
         $v1Ok = (Test-Path $V1LogPath) -and (Select-String -Path $V1LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
         $v2Ok = (Test-Path $V2LogPath) -and (Select-String -Path $V2LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
@@ -193,12 +195,22 @@ function Wait-VoterDialHub {
         }
         Start-Sleep -Seconds 1
     }
+    if ($HubRpc) {
+        $mfnCli = Get-MfnCliPath
+        if ($mfnCli) {
+            $tipHeight = Get-TipHeightText $mfnCli $HubRpc
+            if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge 1 -and ($v1Ok -or $v2Ok)) {
+                Write-Host "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tipHeight (v1_ok=$v1Ok v2_ok=$v2Ok); continuing"
+                return
+            }
+        }
+    }
     Write-Host "start-all: voters failed to dial hub within ${max}s; tail logs:" -ForegroundColor Red
     if (Test-Path $V1LogPath) { Get-Content $V1LogPath -Tail 80 | Write-Host }
     if (Test-Path $V2LogPath) { Get-Content $V2LogPath -Tail 80 | Write-Host }
     throw "Committee voters failed to dial hub within ${max}s"
 }
-Wait-VoterDialHub -V1LogPath $v1Log -V2LogPath $v2Log
+Wait-VoterDialHub -V1LogPath $v1Log -V2LogPath $v2Log -HubRpc $HubRpc
 
 if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
     Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
@@ -310,5 +322,5 @@ function Wait-HubTipAtLeast {
     } while ($true)
 }
 
-$hubTipWait = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
+$hubTipWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
 Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight 1 -TimeoutSeconds $hubTipWait

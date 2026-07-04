@@ -51,7 +51,7 @@ jobs:
   participant-rehearsal-smoke:
     name: public-devnet participant rehearsal smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:

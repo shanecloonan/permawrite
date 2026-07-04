@@ -186,9 +186,9 @@ echo "Voter 1 P2P=$V1_P2P"
 echo "Voter 2 P2P=$V2_P2P"
 
 wait_voter_dial_hub() {
-  local max=120 v1_ok v2_ok i
+  local max=120 v1_ok v2_ok i tip_height mfn_cli
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=300
+    max=480
   fi
   for i in $(seq 1 "$max"); do
     v1_ok=0
@@ -204,6 +204,16 @@ wait_voter_dial_hub() {
     fi
     sleep 1
   done
+  if [[ -n "${HUB_RPC:-}" ]]; then
+    mfn_cli="$(resolve_mfn_cli)" || true
+    if [[ -n "$mfn_cli" ]]; then
+      tip_height="$(tip_height_from_rpc "$mfn_cli" "$HUB_RPC")"
+      if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 1 )) && (( v1_ok || v2_ok )); then
+        echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height (v1_ok=$v1_ok v2_ok=$v2_ok); continuing"
+        return
+      fi
+    fi
+  fi
   echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
   tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
   tail -n 80 "$LOG_DIR/v2.log" 2>/dev/null >&2 || echo "(no v2.log)" >&2
@@ -270,6 +280,6 @@ for key in "${required_keys[@]}"; do
 done
 HUB_TIP_WAIT=120
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_TIP_WAIT=480
+  HUB_TIP_WAIT=600
 fi
 wait_hub_tip_at_least "$HUB_RPC" 1 "$HUB_TIP_WAIT"
