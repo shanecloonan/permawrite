@@ -917,6 +917,16 @@ mfn-storage-operator run --once --chunk-listen 127.0.0.1:18780 \
   --wallet ./alice.json --rpc 127.0.0.1:<RPC>
 ```
 
+#### Home chunk serve behind NAT
+
+Home operators without a static public IP can still replicate bytes by exposing `serve-chunks` or `run --chunk-listen` through a **TLS-terminated reverse tunnel** (Cloudflare Tunnel, ngrok, or similar). This is packaging only — no protocol relay:
+
+1. Run `mfn-storage-operator serve-chunks --listen 127.0.0.1:18780` locally.
+2. Point the tunnel at `127.0.0.1:18780`; publish the tunnel hostname to peers (or add it to manifest `replication_peers` when operating a public devnet).
+3. Peers fetch with `operator fetch-chunk` / `uploads fetch-http` using the tunnel URL host:port.
+
+Keep chunk HTTP behind auth at the tunnel edge if the endpoint is public. Proofs still submit via any synced observer RPC — operators do **not** need inbound P2P for the prove loop ([`DECENTRALIZATION.md`](../../docs/DECENTRALIZATION.md) §4.2).
+
 Pull from a peer into the local artifact tree:
 
 ```bash

@@ -142,6 +142,19 @@ Hardware accessibility is necessary but not sufficient. Documented pressures tha
 
 None of these require abandoning the architecture. They are tuning, packaging, and optional protocol upgrades on top of the existing role split.
 
+### 3.3 Mitigations without weakening privacy or permanence
+
+Each pressure in §3.2 has a **packaging-first** path that preserves absolute privacy and absolute permanence (§8). Protocol changes are optional and deferred unless noted.
+
+| Pressure | Packaging / ops (shipped or partial) | Protocol (deferred) | Declined shortcuts |
+|---|---|---|---|
+| **Stake concentration** | Public devnet runbooks, prebuilt binaries, validator onboarding docs | Lower bond floor (weakens per-validator security) | Remove validator bonds |
+| **SPoRA latency race** | RPC-only operators, many observers, `push-all-chunks` replication breadth | Latency-fair inclusion (Phase C) | Skip SPoRA verification |
+| **State growth** | Observer vs validator role docs; light clients avoid full state | Checkpoint distribution (research) | On-chain payloads |
+| **Fee-volume dependence** | Privacy UX, WASM wallet path — drives fee demand | — | Subsidize storage by dropping `min_replication` |
+| **Weak operator defection** | Bondless entry preserves accessibility; direct operator payouts | Tiered bonding (optional premium tier) | Merge storage into validators |
+| **Replication floor** | Manifest `replication_peers`, `push-chunks`, `push-all-chunks` | Erasure-coded replication (research) | Drop `min_replication` |
+
 ### 3.3 What good decentralization looks like in practice
 
 A maximally decentralized Permawrite deployment would exhibit:
@@ -169,7 +182,7 @@ These widen participation by lowering the **skill and friction** barrier, not th
 | **WASM prove + serve** | Storage operators, wallet users | **Shipped** — `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` ([Phase B](./STORAGE_ACCESSIBILITY.md#phase-b--consumer-ux-still-no-consensus-change)) |
 | **Mobile / PWA wallet** | Wallet users, light operators | **Deferred** — WASM prove path unblocks browser operators; full PWA is product scope |
 | **Document RPC-only operator path** | Storage operators | **Shipped** — [`mfn-storage-operator` README](../mfn-storage-operator/README.md), manifest defaults, TESTNET role table |
-| **Curated peer lists → discovery registry** | Uploaders, operators | **Partial** — manifest `replication_peers` shipped; on-chain registry deferred |
+| **Curated peer lists → discovery registry** | Uploaders, operators | **Partial** — manifest peers + `push-all-chunks`; on-chain registry deferred |
 
 A phone holding artifacts and proving on a schedule is a packaging problem today, not a consensus problem. The protocol math already permits it.
 
@@ -178,7 +191,7 @@ A phone holding artifacts and proving on a schedule is a packaging problem today
 | Improvement | Effect | Status |
 |---|---|---|
 | **Public observer mesh** | Operators and wallets anywhere can use community RPC without running `mfnd` | **Partial** — manifest `observer_rpc`; community lists deferred |
-| **NAT traversal / relay helpers** | Home operators can serve chunks without static IPs | **Deferred** — HTTP chunk serve + tunnel docs; no in-protocol relay |
+| **NAT traversal / relay helpers** | Home operators can serve chunks without static IPs | **Partial** — HTTP chunk serve + tunnel runbook ([OPERATORS.md](../scripts/public-devnet-v1/OPERATORS.md#home-chunk-serve-behind-nat)); no in-protocol relay |
 | **Erasure-friendly replication UX** | Encourage many partial holders even before protocol-level erasure coding | **Shipped** — `push-chunks`, `push-all-chunks`, manifest `replication_peers` |
 | **Regional operator onboarding** | Runbooks, translated docs, low-bandwidth artifact fetch | **Partial** — [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) + TESTNET; translation deferred |
 
@@ -245,7 +258,7 @@ Aligned with [`STORAGE_ACCESSIBILITY.md § 5`](./STORAGE_ACCESSIBILITY.md#5-reco
 | Question | Answer |
 |---|---|
 | **Can normal hardware participate?** | **Yes** — for wallets, observers, and storage operators. Validators need more uptime and stake, by design. |
-| **Does hardware gate decentralization today?** | **Partially.** Storage and verification are architecturally consumer-viable; gaps are mostly packaging (CLI-only prove loop, no mobile app). Validator decentralization is primarily a **capital and uptime** question. |
+| **Does hardware gate decentralization today?** | **Partially.** Storage and verification are architecturally consumer-viable; remaining gaps are mobile/PWA product scope and community observer lists — not protocol math. Validator decentralization is primarily a **capital and uptime** question. |
 | **Can accessibility improve without architectural sacrifice?** | **Yes.** Prebuilt binaries, WASM/mobile tooling, public observer meshes, and optional fairness upgrades widen participation while preserving role separation, off-chain payloads, and SPoRA audits. |
 | **What is the main risk if we fail?** | Not that home users *cannot* run operators — they can today with CLI tools — but that **too few do**, and latency races + fee droughts concentrate rewards on well-connected incumbents. |
 
@@ -284,6 +297,8 @@ What was assessed, shipped, deferred, or declined (newest first):
 
 | Item | Verdict | Notes |
 |---|---|---|
+| §3.3 pressure mitigations table + packaging tranche closure | **Shipped** | Maps each centralization pressure to packaging vs protocol vs declined paths |
+| Home chunk serve behind NAT (OPERATORS runbook) | **Partial** | Tunnel guidance; no in-protocol relay |
 | `push-all-chunks` replication UX | **Shipped** | Push every local upload artifact to manifest `replication_peers` in one command |
 | Role-doc cross-links (CONSENSUS, PROBLEMS, OPERATORS) | **Shipped** | See also links to this page from validator pressures and runbook |
 | One-command storage operator wrapper | **Shipped** | `start-storage-operator.{sh,ps1}` — manifest + `OBSERVER_RPC` from local devnet or public RPC |
@@ -297,7 +312,7 @@ What was assessed, shipped, deferred, or declined (newest first):
 | Latency-fair SPoRA inclusion | **Deferred** | Protocol change; reduces datacenter latency advantage (Phase C) |
 | Tiered operator bonding | **Deferred** | Optional fork; bondless default preserves accessibility |
 | Erasure-coded replication | **Deferred** | Research; must preserve deterministic SPoRA verification |
-| NAT traversal / relay | **Deferred** | Ops packaging; HTTP chunk serve + public observer RPC suffice today |
+| NAT traversal / relay | **Partial** | OPERATORS tunnel runbook for home chunk serve; no in-protocol relay |
 | Mobile / PWA wallet | **Deferred** | Product scope; browser WASM prove unblocks light operators |
 | Curated public observer mesh | **Deferred** | Community ops; manifest documents example endpoints |
 | Regional operator onboarding | **Deferred** | Runbooks exist in English; translation/low-bandwidth fetch deferred |
@@ -307,3 +322,9 @@ What was assessed, shipped, deferred, or declined (newest first):
 | Merge storage into validator duties | **Declined** | Raises hardware floor for all storers to validator grade |
 | Drop `min_replication` | **Declined** | Weakens permanence guarantees |
 | Remove validator bonds | **Declined** | Weakens slash-to-treasury security loop |
+
+### 9.1 Packaging tranche status (2026-07)
+
+All **Phase A** items and the core **Phase B** WASM prove path are **shipped** on `main` (commits `bb9600b` → `c1e0373`). No protocol constants were changed; `min_replication`, off-chain payloads, and SPoRA verification remain intact.
+
+**Remaining work** is explicitly out of scope for this tranche: mobile/PWA wallet (product), public observer mesh (community ops), NAT relay (tunnel docs only — see [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md#home-chunk-serve-behind-nat)), and Phase C fairness forks. Re-assess any new proposal against §8 before implementation.

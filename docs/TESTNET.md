@@ -20,8 +20,8 @@ Concrete Linux/Windows firewall baselines, SSH forwarding, and TLS reverse-proxy
 
 | Item | Notes |
 |------|--------|
-| Rust stable | Same toolchain as CI (`rust-toolchain.toml` in repo root). |
-| `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` |
+| Rust stable **or** prebuilt binaries | Build from source with CI toolchain (`rust-toolchain.toml`), **or** download `mfnd`, `mfn-cli`, and `mfn-storage-operator` from GitHub Releases (tag `v*` triggers [release-binaries](../.github/workflows/release-binaries.yml)). See [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) §4.1. |
+| `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` (or prebuilt release) |
 | Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3, plus synthetic test decoys so first-run wallets can form privacy rings). |
 | Chain identity | `genesis_id` **`454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
 | Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` â€” OS assigns). |
