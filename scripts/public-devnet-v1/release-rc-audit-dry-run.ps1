@@ -102,6 +102,9 @@ Get-ChildItem -LiteralPath $archiveDir -Directory -Recurse | ForEach-Object {
 }
 
 $fixtureRoot = Join-Path $ScriptDir "fixtures/participant-rehearsal-evidence-v1"
+& powershell -NoProfile -File (Join-Path $ScriptDir "assert-participant-smoke-evidence.ps1") -EvidenceDir $fixtureRoot | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 $auditArgs = @(
     "-NoProfile", "-File", (Join-Path $ScriptDir "release-audit-packet.ps1"),
     "-ReleaseEvidenceJson", $ReleaseEvidenceJson,

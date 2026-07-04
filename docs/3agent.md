@@ -15,9 +15,9 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** M2.5.12 — assert audit-ready smoke evidence before nightly upload; CI positive/negative coverage.
-- **Done:** M2.5.11 — nightly artifact upload for audit-ready smoke evidence; TESTNET.md handoff docs.
-- **Next:** Green CI #532 → Nightly #55 participant+observer with assert gate.
+- **Done:** M2.5.13 — RC dry-run assert gate; nightly partial evidence on failure.
+- **Done:** M2.5.12 — assert audit-ready smoke evidence before nightly upload.
+- **Next:** Green CI → Nightly #55.
 
 ## Cross-Agent Blockers
 

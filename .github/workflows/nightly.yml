@@ -82,6 +82,13 @@ jobs:
       - name: Assert audit-ready rehearsal evidence staged
         if: success()
         run: bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh
+      - name: Upload partial rehearsal evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: participant-rehearsal-evidence-partial
+          path: scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/
+          if-no-files-found: ignore
       - name: Dump devnet logs on failure
         if: failure()
         shell: bash
@@ -144,6 +151,13 @@ jobs:
       - name: Assert audit-ready rehearsal evidence staged
         if: success()
         run: bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh
+      - name: Upload partial observer rehearsal evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observer-rehearsal-evidence-partial
+          path: scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/
+          if-no-files-found: ignore
       - name: Dump devnet logs on failure
         if: failure()
         shell: bash
