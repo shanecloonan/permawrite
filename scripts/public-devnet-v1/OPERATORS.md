@@ -1102,6 +1102,8 @@ The smoke wrapper stops stale recorded mesh processes, starts `start-all`, resto
 
 **CI policy:** `release-participant-smoke-policy-check.ps1` / `.sh` scans `.github/workflows/ci.yml`, `.github/workflows/nightly.yml`, `scripts/ci-ignored.{sh,ps1}`, and the local `ci-check` mirrors. Default CI and `ci-check` may run `participant-rehearsal` / `participant-rehearsal-smoke` with `--plan-only` / `-PlanOnly` only. Real-run mesh smokes run in nightly and `ci-ignored` after soak green and Agent 2/3 sign-off (M2.4.67).
 
+**Nightly evidence artifacts:** On success, nightly uploads `participant-rehearsal-evidence` / `observer-rehearsal-evidence` containing both the summary transcript under `scripts/public-devnet-v1/evidence/` and the audit-ready directory `scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/` (`participant-rehearsal.log` + `support-bundle/`). After downloading a green nightly artifact, pass `--participant-evidence-dir` / `-ParticipantEvidenceDir` pointing at the extracted `participant-rehearsal-smoke/evidence/` directory when generating `release-audit-packet.v1`. Nightly runs `assert-participant-smoke-evidence.sh` before upload so missing PASS logs or support bundles fail the job instead of shipping empty artifacts.
+
 ### Support bundles
 
 When a participant reports a stuck wallet, missing upload, missing claim, or proof issue, collect the read-only JSON diagnostics in one directory:

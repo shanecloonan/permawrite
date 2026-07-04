@@ -19,11 +19,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `96327da` on `main`. | Green Nightly #55 → Linux soak. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.11** nightly evidence upload. | **Done** — pushed pending; local CI green. | Green CI → Nightly #55. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.12** evidence assert gate. | **Done** — local CI green; pushing. | Monitor CI #532 → Nightly #55 assert verification. |
 
 ## Recently Completed
 
-- **M2.5.11** (local) — nightly uploads audit-ready `participant-rehearsal-smoke/evidence/`; TESTNET.md `-ParticipantEvidenceDir` guidance.
+- **M2.5.12** — `assert-participant-smoke-evidence.{sh,ps1}` gates nightly upload; CI positive/negative coverage.
+- **M2.5.11** (`08bbf7b`) — nightly uploads audit-ready `participant-rehearsal-smoke/evidence/`; TESTNET.md `-ParticipantEvidenceDir` guidance.
 - **M2.5.10** (`994d1a9`) — `-ParticipantEvidenceDir` on release-audit-packet for smoke→audit handoff.
 - **M2.5.9** (`96327da`/`318407a`) — shared `query_tip_height` with get_status fallback.
 - **M2.5.8** (`4dbd5c7`/`eb64408`) — 600s GHA startup polls; single-sample health-check.
@@ -58,10 +59,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] M2.5.9 — fund-wallet/permanence-demo tip query parity.
 - [x] M2.5.10 — smoke evidence dir + `-ParticipantEvidenceDir` on release-audit-packet.
 - [x] M2.5.11 — nightly uploads audit-ready smoke evidence; TESTNET.md handoff docs.
+- [x] M2.5.12 — assert audit-ready smoke evidence before nightly upload; CI negative coverage.
 
 ### Next
 
-- [ ] Green CI on M2.5.11 push → RC Validation → Nightly #55 participant+observer.
+- [ ] Green CI #532 on M2.5.12 push → RC Validation auto-dispatches Nightly #55.
+- [ ] Confirm assert gate passes on Nightly #55 participant+observer jobs.
 
 ## Agent 2 Detailed Plan
 
@@ -71,7 +74,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — pending M2.5.11 push (local CI green).
+- Green GitHub CI — M2.5.12 push pending (#532).
 - RC Validation — pending green CI.
 - Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ + M2.5.9 tip fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.

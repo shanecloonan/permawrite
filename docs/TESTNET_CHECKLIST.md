@@ -232,6 +232,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Thread participant rehearsal evidence directories through the local smoke wrappers so clean smoke runs stage audit-ready evidence by default.
 - [x] Add `-ParticipantEvidenceDir` / `--participant-evidence-dir` to release-audit-packet for co-located smoke evidence handoff.
 - [x] Upload audit-ready `participant-rehearsal-smoke/evidence/` from nightly success artifacts (**M2.5.11**).
+- [x] Assert audit-ready smoke evidence before nightly artifact upload (**M2.5.12**).
 - [x] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 - [x] Add observer-enabled participant rehearsal smoke (`-WithObserver` / `--with-observer`) with post-rehearsal hub and observer height gates (**M2.4.68**).
 - [x] Windows observer-enabled rehearsal smoke PASS with `min_hub_height >= 5` (**M2.4.68**, **M2.4.76** re-archived UTF-8 evidence `participant-rehearsal-observer-windows-20260703T140456Z.txt`).

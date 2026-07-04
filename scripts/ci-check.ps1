@@ -94,6 +94,27 @@ if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check tes
     $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
+powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badEvidenceDir = Join-Path $env:TEMP ("permawrite-bad-evidence-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $badEvidenceDir | Out-Null
+$badAssertStdout = Join-Path $env:TEMP ("permawrite-bad-assert-" + [Guid]::NewGuid().ToString("N") + ".out")
+$badAssertStderr = Join-Path $env:TEMP ("permawrite-bad-assert-" + [Guid]::NewGuid().ToString("N") + ".err")
+$badAssertProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1",
+    "-EvidenceDir",
+    $badEvidenceDir
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAssertStdout -RedirectStandardError $badAssertStderr
+Remove-Item -Recurse -Force $badEvidenceDir -ErrorAction SilentlyContinue
+Remove-Item -Force $badAssertStdout, $badAssertStderr -ErrorAction SilentlyContinue
+if ($badAssertProcess.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("assert-participant-smoke-evidence.ps1 accepted missing evidence directory")
+    exit 1
+}
+$global:LASTEXITCODE = 0
 powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $badPolicyFixture = "scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml"

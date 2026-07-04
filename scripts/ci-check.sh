@@ -58,6 +58,14 @@ if [[ "$smoke_plan" != *"flow=stop stale mesh -> start-all -> restore/check test
   printf '%s\n' "$smoke_plan" >&2
   exit 1
 fi
+bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
+bad_evidence_dir="$(mktemp -d)"
+if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then
+  echo "assert-participant-smoke-evidence.sh accepted missing evidence directory" >&2
+  rm -rf "$bad_evidence_dir"
+  exit 1
+fi
+rm -rf "$bad_evidence_dir"
 bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
 if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then
