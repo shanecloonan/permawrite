@@ -5,8 +5,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
 - **Done:** M2.5.8–M2.5.9 GHA startup + tip poll fixes; M2.5.18 CI #543 **GREEN**.
-- **Done:** M2.5.19 — GHA hub tip 900s; health-check 600s; hub liveness 300s; voter-dial soft-continue when hub tip≥2 + both voters P2P listening.
-- **Next:** Push M2.5.19 → CI green → Nightly #56 → Linux soak.
+- **Done:** M2.5.19 (`fed2dd6`/`a88e8ff`) — GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
+- **Next:** CI #546 green → inline **Nightly #56** on `a88e8ff`.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 

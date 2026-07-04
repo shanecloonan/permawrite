@@ -163,7 +163,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.9** — shared `query_tip_height` get_status fallback (`318407a`/`96327da`).
 - [x] GitHub CI green on M2.5.18 — **GREEN** CI #543 on `afc5fd8`.
 - [x] Nightly #55 on `afc5fd8` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~11.3m).
-- [ ] Nightly #56 after M2.5.19 GHA tip/health/liveness + voter-dial soft gate.
+- [x] **M2.5.19** (`fed2dd6`/`a88e8ff`) — GHA tip/health/liveness + voter-dial soft gate.
+- [ ] CI #546 green on `a88e8ff` → **Nightly #56** all three jobs green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

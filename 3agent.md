@@ -17,13 +17,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.19** GHA rehearsal gates. | **In progress** — tip 900s + voter dial soft-continue. | CI → Nightly #56. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.18** dispatch + evidence stack. | **Done** — CI #543 **GREEN** on `afc5fd8`. | Evidence refresh after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **Nightly #55** post-mortem. | **PARTIAL** — ignored **PASS**; smokes **FAIL** ~11m. | M2.5.19 → Nightly #56. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.19** GHA rehearsal gates. | **Done** — `fed2dd6`/`a88e8ff` on `main`. | CI #546 → Nightly #56. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.18** dispatch + evidence stack. | **Done** — inline Nightly dispatch live. | Evidence refresh after green Nightly #56. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **Nightly #55** post-mortem + M2.5.19. | **Done** — smokes await #56. | Monitor Nightly #56 all three green. |
 
 ## Recently Completed
 
-- **M2.5.19** (pushing) — GHA hub tip 900s; health-check 600s; hub liveness 300s (Nightly #55 ~11m class).
+- **M2.5.19** (`fed2dd6`/`a88e8ff`) — GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
 - **M2.5.18** (`afc5fd8`) — CI #543 **GREEN**; inline `dispatch-nightly-rc` dispatched **Nightly #55**.
 - **M2.5.17** (`850a45b`) — `start-all.ps1` GHA voter hub-dial timeout 600s (bash parity).
 - **M2.5.16** (`4ece816`) — schema-validate `release-evidence-refresh-for-head` output.
@@ -87,7 +87,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] Push M2.5.19 → CI green → **Nightly #56**.
+- [ ] Monitor **CI #546** on `a88e8ff` → inline dispatch **Nightly #56**.
 
 ## Agent 2 Detailed Plan
 
