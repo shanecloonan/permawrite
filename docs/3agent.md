@@ -20,7 +20,9 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 - **Done:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
 - **Done:** M2.5.15 — release-evidence refresh helper; nightly assert summary.
 - **Done:** M2.5.16 — schema-validate refresh output.
-- **Next:** CI #541 **GREEN** on `4987913`; monitor Nightly #55 → Agent 2 evidence refresh.
+- **Done:** M2.5.17 — Windows voter-dial 600s parity (`850a45b`).
+- **Done:** M2.5.18 — inline CI Nightly dispatch (fixes RC workflow_run skip).
+- **Next:** CI #543 green → Nightly #55 on `850a45b`.
 
 ## Cross-Agent Blockers
 

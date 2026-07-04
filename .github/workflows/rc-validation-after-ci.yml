@@ -1,13 +1,10 @@
 name: RC Validation After CI
 
-# After green CI on main, dispatch Nightly (both rehearsal jobs) at the branch ref.
+# Manual operator dispatch when Nightly must be re-run at a specific green commit.
+# Green push CI auto-dispatches Nightly via the dispatch-nightly-rc job in ci.yml (M2.5.18).
 # GitHub workflow_dispatch requires a branch/tag ref, not a raw commit SHA.
-# Pass checkout_sha so Nightly validates the exact green commit.
+# Pass ci_head_sha so Nightly validates the exact green commit.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       ci_head_sha:
@@ -22,32 +19,20 @@ permissions:
 jobs:
   dispatch-nightly:
     name: Dispatch Nightly on green CI
-    if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       (github.event.workflow_run.event == 'push' ||
-        github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
-            const isDispatch = context.eventName === 'workflow_dispatch';
-            const sha = isDispatch
-              ? (context.payload.inputs?.ci_head_sha || context.sha)
-              : context.payload.workflow_run.head_sha;
-            const branch = isDispatch
-              ? 'main'
-              : context.payload.workflow_run.head_branch;
+            const sha = context.payload.inputs?.ci_head_sha || context.sha;
             const short = sha.slice(0, 7);
-            core.info(`Dispatching Nightly at ref=${branch} checkout_sha=${short}`);
+            core.info(`Dispatching Nightly at ref=main checkout_sha=${short}`);
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'nightly.yml',
-              ref: branch,
+              ref: 'main',
               inputs: {
                 checkout_sha: sha,
               },

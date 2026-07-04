@@ -1176,3 +1176,28 @@ jobs:
           cargo --version
       - run: cargo install cargo-audit --locked
       - run: cargo audit
+
+  dispatch-nightly-rc:
+    name: Dispatch Nightly on green main push
+    needs: [fmt, scripts, clippy, test, wasm, audit]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const short = sha.slice(0, 7);
+            core.info(`Dispatching Nightly ref=main checkout_sha=${short}`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'nightly.yml',
+              ref: 'main',
+              inputs: { checkout_sha: sha },
+            });
+            core.info('Nightly dispatch submitted');

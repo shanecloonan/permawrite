@@ -17,13 +17,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.17** Windows voter-dial parity. | **Done** (local) — `start-all.ps1` GHA voter dial 600s. | Push → await CI #542. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.16** evidence refresh. | **Done** — `4ece816`/`4987913`; **CI #541 GREEN**. | Run `release-evidence-refresh-for-head` on `4987913`. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.16** assert + refresh stack. | **Done** — on `main`. | Monitor **Nightly #55** on `4987913`. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.18** CI inline Nightly dispatch. | **Done** (local) — `dispatch-nightly-rc` in `ci.yml`. | Push → CI #543 → Nightly #55. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.17** evidence refresh stack. | **Done** — CI #542 **GREEN** on `850a45b`. | Evidence refresh after Nightly #55. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.18** fix RC dispatch skip. | **Done** (local) — inline CI job replaces flaky `workflow_run`. | Monitor Nightly #55 on `850a45b`. |
 
 ## Recently Completed
 
-- **M2.5.17** (pushing) — `start-all.ps1` GHA voter hub-dial timeout 600s (bash parity; was 480s).
+- **M2.5.18** (pushing) — `dispatch-nightly-rc` CI job; RC validation manual-only (fixes workflow_run skip storm).
+- **M2.5.17** (`850a45b`) — `start-all.ps1` GHA voter hub-dial timeout 600s (bash parity).
 - **M2.5.16** (`4ece816`) — schema-validate `release-evidence-refresh-for-head` output.
 - **M2.5.15** (`e6ba99e`) — `release-evidence-refresh-for-head`; nightly assert GHA step summary.
 - **M2.5.14** (`c55153f`) — ci-check RC dry-run coverage; nightly failure log tail.
@@ -53,7 +54,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] **Nightly #55** on `4987913` (RC Validation after CI #541 green).
+- [ ] **Nightly #55** on `850a45b` after M2.5.18 CI dispatch (CI #542 green; RC workflow_run skipped #66–#71).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**).
 - [ ] Operator sign-off.
 
@@ -75,7 +76,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] Monitor **Nightly #55** on `4987913`; confirm assert gate on participant+observer.
+- [ ] Monitor **Nightly #55** on `850a45b`; M2.5.18 CI job dispatches after green push CI.
 
 ## Agent 2 Detailed Plan
 
@@ -85,14 +86,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **GREEN** CI #541 on `4987913` (M2.5.16 `4ece816`).
-- RC Validation — should dispatch **Nightly #55** on `4987913`.
+- Green GitHub CI — **GREEN** CI #542 on `850a45b` (M2.5.17).
+- RC / Nightly dispatch — **M2.5.18** inline CI job (RC workflow_run skip storm on #66–#71); push triggers Nightly #55.
 - Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ + M2.5.9 tip fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Nightly #52–#54 failed at ~302s (legacy hub P2P poll); M2.5.8+ fixes landed — **Nightly #55** is confirmation gate.
-- Batch M2.5.17 push after CI #541 green (do not cancel Nightly #55 dispatch window).
+- RC workflow_run listener skipped runs #66–#71 (cancel-in-progress churn); **M2.5.18** moves dispatch into green push CI.
+- Do **not** push during in-flight CI — await CI #543 on M2.5.18 before further commits.
 - Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
