@@ -19,11 +19,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `96327da` on `main`. | Green Nightly #55 → Linux soak. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.16** schema-validated refresh. | **Done** — refresh validates schema. | Run after green CI on RC commit. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.16** refresh schema gate. | **Done** — local CI green; pushing. | Monitor CI #540 → Nightly #55. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.16** refresh schema gate. | **Done** — `4ece816` on `main`. | Monitor CI #540 → Nightly #55. |
 
 ## Recently Completed
 
-- **M2.5.16** — schema-validate `release-evidence-refresh-for-head` output.
+- **M2.5.16** (`4ece816`) — schema-validate `release-evidence-refresh-for-head` output.
 - **M2.5.15** (`e6ba99e`) — `release-evidence-refresh-for-head`; nightly assert GHA step summary.
 - **M2.5.14** (`c55153f`) — ci-check RC dry-run coverage; nightly failure log tail.
 - **M2.5.13** (`0afa61b`) — RC dry-run assert gate; nightly partial evidence upload on failure.
