@@ -2,11 +2,44 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
+use std::path::Path;
 use std::time::Duration;
 
 use mfn_storage::{encode_storage_proof, StorageProof};
 use serde::Deserialize;
 use serde_json::{json, Value};
+
+/// Subset of network manifest JSON for operator RPC + replication discovery.
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+pub struct NetworkManifest {
+    /// Default JSON-RPC for wallets and operators.
+    #[serde(default)]
+    pub observer_rpc: Option<String>,
+    /// Live HTTP chunk-server peers (`host:port`).
+    #[serde(default)]
+    pub replication_peers: Vec<String>,
+    /// Documentation-only examples when `replication_peers` is empty.
+    #[serde(default)]
+    pub replication_peers_examples: Vec<String>,
+}
+
+impl NetworkManifest {
+    /// Replication peers for backfill/push-chunks: live list first, else examples.
+    pub fn effective_replication_peers(&self) -> Vec<String> {
+        if !self.replication_peers.is_empty() {
+            return self.replication_peers.clone();
+        }
+        self.replication_peers_examples.clone()
+    }
+}
+
+/// Load operator-facing manifest fields from JSON.
+pub fn load_network_manifest(path: &Path) -> Result<NetworkManifest, String> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| format!("read network manifest `{}`: {e}", path.display()))?;
+    serde_json::from_slice(&bytes)
+        .map_err(|e| format!("parse network manifest `{}`: {e}", path.display()))
+}
 
 /// Default `mfnd serve --rpc-listen`.
 pub const DEFAULT_RPC_ADDR: &str = "127.0.0.1:18731";
@@ -232,5 +265,35 @@ impl RpcClient {
             return Err(RpcError::Protocol("empty response from node".into()));
         }
         Ok(resp)
+    }
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use super::*;
+
+    #[test]
+    fn effective_replication_peers_prefers_live_list() {
+        let m = NetworkManifest {
+            replication_peers: vec!["203.0.113.20:18780".into()],
+            replication_peers_examples: vec!["203.0.113.10:18780".into()],
+            ..NetworkManifest::default()
+        };
+        assert_eq!(
+            m.effective_replication_peers(),
+            vec!["203.0.113.20:18780".to_string()]
+        );
+    }
+
+    #[test]
+    fn effective_replication_peers_falls_back_to_examples() {
+        let m = NetworkManifest {
+            replication_peers_examples: vec!["203.0.113.10:18780".into()],
+            ..NetworkManifest::default()
+        };
+        assert_eq!(
+            m.effective_replication_peers(),
+            vec!["203.0.113.10:18780".to_string()]
+        );
     }
 }

@@ -10,11 +10,20 @@ cargo build -p mfn-storage-operator --release
 
 ## Run
 
-Requires a running `mfnd serve` (JSON-RPC) and a wallet that has performed at least one `wallet upload` (so `wallet.upload-artifacts/` exists).
+Requires a synced JSON-RPC endpoint (your own `mfnd serve` **or** a public observer) and local upload artifacts (`wallet upload`, `operator backfill`, or `uploads fetch-http`).
+
+Optional network manifest (`--manifest` or `MFN_OPERATOR_MANIFEST`) supplies default `observer_rpc` and `replication_peers` from e.g. `mfn-node/testdata/public_devnet_v1.manifest.json`.
 
 ```bash
 # Poll every 30s (default), prove all local artifacts
 mfn-storage-operator run --wallet ./alice.json --rpc 127.0.0.1:18731
+
+# RPC-only operator: public observer + manifest defaults
+mfn-storage-operator run --wallet ./replica.json \
+  --manifest mfn-node/testdata/public_devnet_v1.manifest.json
+
+# Inspect manifest-derived RPC and replication peers
+mfn-storage-operator manifest-info --manifest mfn-node/testdata/public_devnet_v1.manifest.json --json
 
 # Auth-enabled node (same key as mfnd serve --rpc-api-key / MFND_RPC_API_KEY)
 mfn-storage-operator run --wallet ./alice.json --rpc-api-key <KEY>

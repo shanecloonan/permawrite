@@ -1,0 +1,76 @@
+name: Release binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            ext: ""
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: .exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build release binaries
+        run: |
+          cargo build --release --target ${{ matrix.target }} -p mfn-node --bin mfnd
+          cargo build --release --target ${{ matrix.target }} -p mfn-cli --bin mfn-cli
+          cargo build --release --target ${{ matrix.target }} -p mfn-storage-operator --bin mfn-storage-operator
+      - name: Stage artifacts
+        shell: bash
+        run: |
+          staging="release-staging/${{ matrix.target }}"
+          mkdir -p "$staging"
+          for bin in mfnd mfn-cli mfn-storage-operator; do
+            cp "target/${{ matrix.target }}/release/${bin}${{ matrix.ext }}" "$staging/${bin}${{ matrix.ext }}"
+          done
+          (cd "$staging" && sha256sum * > checksums.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: permawrite-${{ matrix.target }}
+          path: release-staging/${{ matrix.target }}/
+
+  wasm:
+    name: build (wasm32)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked --version 0.13.1
+      - name: Build mfn-wasm package
+        run: wasm-pack build mfn-wasm --target web --out-dir pkg --release --features wasm-full
+      - uses: actions/upload-artifact@v4
+        with:
+          name: permawrite-wasm32-web
+          path: mfn-wasm/pkg/

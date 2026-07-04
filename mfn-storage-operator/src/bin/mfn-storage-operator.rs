@@ -10,8 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mfn_storage_operator::{
-    push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks, ChunkPushPeerResult,
-    ChunkServeConfig, OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
+    load_network_manifest, push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks,
+    ChunkPushPeerResult, ChunkServeConfig, OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
 };
 
 fn main() -> ExitCode {
@@ -25,19 +25,37 @@ fn main() -> ExitCode {
 }
 
 fn run_cli(args: Vec<String>) -> Result<(), String> {
-    let mut rpc_addr = DEFAULT_RPC_ADDR.to_string();
+    let mut rpc_addr = env::var("MFN_RPC")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| DEFAULT_RPC_ADDR.to_string());
     let mut rpc_api_key: Option<String> =
         env::var("MFN_RPC_API_KEY").ok().filter(|s| !s.is_empty());
-    let mut wallet_path = PathBuf::from("wallet.json");
+    let mut wallet_path = env::var("MFN_WALLET")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("wallet.json"));
     let mut interval_secs = 30u64;
     let mut once = false;
     let mut json = false;
     let mut listen_addr = "127.0.0.1:18780".to_string();
     let mut chunk_listen: Option<String> = None;
+    let mut manifest_path: Option<PathBuf> = env::var("MFN_OPERATOR_MANIFEST")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from);
     let mut positional: Vec<String> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
         let a = args[i].as_str();
+        if a == "--manifest" {
+            manifest_path = Some(PathBuf::from(
+                args.get(i + 1).ok_or("--manifest requires PATH")?,
+            ));
+            i += 2;
+            continue;
+        }
         if a == "--rpc" {
             rpc_addr = args.get(i + 1).ok_or("--rpc requires HOST:PORT")?.clone();
             i += 2;
@@ -101,6 +119,17 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
         i += 1;
     }
 
+    let network_manifest = manifest_path
+        .as_ref()
+        .map(|p| load_network_manifest(p))
+        .transpose()?;
+    if let Some(manifest) = &network_manifest {
+        if let Some(rpc) = &manifest.observer_rpc {
+            if rpc_addr == DEFAULT_RPC_ADDR && !rpc.trim().is_empty() {
+                rpc_addr = rpc.trim().to_string();
+            }
+        }
+    }
     let sub = positional.first().map(String::as_str).unwrap_or("run");
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(unix)]
@@ -148,11 +177,19 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             .map_err(|e| e.to_string())
         }
         "push-chunks" => {
-            if positional.len() < 3 {
-                return Err("push-chunks requires COMMITMENT_HASH_HEX PEER [PEER...]".into());
+            if positional.len() < 2 {
+                return Err("push-chunks requires COMMITMENT_HASH_HEX [PEER...]".into());
             }
             let commitment_hash_hex = positional[1].clone();
-            let peers: Vec<String> = positional[2..].to_vec();
+            let mut peers: Vec<String> = positional.get(2..).unwrap_or(&[]).to_vec();
+            if peers.is_empty() {
+                if let Some(manifest) = &network_manifest {
+                    peers = manifest.effective_replication_peers();
+                }
+            }
+            if peers.is_empty() {
+                return Err("push-chunks requires PEER [PEER...] or manifest replication_peers".into());
+            }
             let mut client = RpcClient::new(&rpc_addr);
             if let Some(key) = rpc_api_key {
                 client = client.with_api_key(key);
@@ -193,8 +230,37 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 ))
             }
         }
-        other => Err(format!(
-            "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks)"
+        "manifest-info" => {
+            if positional.len() > 1 {
+                return Err("too many arguments for `manifest-info`".into());
+            }
+            let manifest = network_manifest
+                .ok_or("manifest-info requires --manifest PATH or MFN_OPERATOR_MANIFEST")?;
+            let peers = manifest.effective_replication_peers();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "observer_rpc": manifest.observer_rpc,
+                        "effective_rpc": rpc_addr,
+                        "replication_peers": manifest.replication_peers,
+                        "replication_peers_examples": manifest.replication_peers_examples,
+                        "effective_replication_peers": peers,
+                    }))
+                    .map_err(|e| e.to_string())?
+                );
+            } else {
+                if let Some(rpc) = &manifest.observer_rpc {
+                    println!("observer_rpc={rpc}");
+                }
+                println!("effective_rpc={rpc_addr}");
+                for peer in &peers {
+                    println!("replication_peer={peer}");
+                }
+            }
+            Ok(())
+        }        other => Err(format!(
+            "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks | manifest-info)"
         )),
     }
 }

@@ -47,7 +47,7 @@ pub use inbox_backfill::{
     InboxBackfillError, InboxChunkStatus,
 };
 pub use prove::{prove_from_file, prove_from_wallet_artifact, ProveError, ProveSuccess};
-pub use rpc::{RpcClient, RpcError, DEFAULT_RPC_ADDR};
+pub use rpc::{load_network_manifest, NetworkManifest, RpcClient, RpcError, DEFAULT_RPC_ADDR};
 pub use upload_artifact_store::{
     list_upload_artifacts, load_upload_artifact, save_upload_artifact, upload_artifacts_root,
     LoadedUploadArtifact, UploadArtifactSaveMeta, UploadArtifactStoreError, UploadArtifactSummary,
