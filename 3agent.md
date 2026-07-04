@@ -17,9 +17,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.1** pushed (`0313f4d`). | **Done** — ring-16 test harness; local clippy + key tests green. | Monitor CI → Nightly #50. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.1** evidence. | **Waiting** — after green CI on fix commit. | Operator sign-off after Nightly + soak. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.1** wallet ring-16. | **Done (local)** — `WALLET_MIN_RING_SIZE=16`, CLI smokes `--ring-size 16`. | Full Nightly #50 after CI green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.2** integration.rs fix. | **In progress** — M2.5.1 CI #502 failed on integration tests; fix ready locally. | Push → CI #503 → Nightly #50. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.2** evidence. | **Waiting** — after green CI on integration fix. | Release evidence after CI green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.1** wallet ring-16. | **Done** — on `main` via `a4e70c9`. | Nightly #50 after CI green. |
 
 ## Recently Completed
 
@@ -36,12 +36,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] M2.5.1 clippy fixes (`apply.rs`, `spora.rs` doc, treasury test allows).
 - [x] M2.5.1 `apply_block_proptest` harness — ring-16 genesis decoys, multi-output coinbase via `st.endowment_params` (PPB fix).
 - [x] M2.5.1 `block_apply.rs` ring-16 rejection tests.
-- [x] **M2.5.1** pushed (`0313f4d`) — ring-16 block_apply + emission_simulation fixes.
+- [x] **M2.5.1** pushed (`0313f4d`, `4aafeea`) — block_apply + emission_simulation ring-16.
+- [ ] **M2.5.2** — integration.rs multi-output coinbase + ring-2 decoys (CI #502 failed ubuntu/macOS test).
 
 ### In Progress
 
-- [ ] Green GitHub CI on `0313f4d` (local ci-check running: `ci-check-m251-green.log`).
-- [ ] RC Validation → Nightly #50 (M2.4.86–88 rehearsal + M2.5.0 consensus).
+- [ ] Push M2.5.2 → green CI #503 (`ci-check-m252-integration.log`).
+- [ ] RC Validation → Nightly #50.
 
 ### Next
 
@@ -68,7 +69,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **FAIL** CI #494 on `0e10470`; M2.5.1 fix pending push.
+- Green GitHub CI — **FAIL** CI #502 on `4aafeea` (integration tests); M2.5.2 fix pending.
 - Nightly ignored — **PASS** (#48); full Nightly rehearsal — pending green CI + #50.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.

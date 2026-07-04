@@ -20,8 +20,9 @@
 use curve25519_dalek::scalar::Scalar;
 
 use mfn_consensus::{
-    build_coinbase, coinbase_tx_priv, emission_at_height, sign_transaction, verify_coinbase,
-    verify_transaction, InputSpec, OutputSpec, PayoutAddress, Recipient, RingPolicy,
+    block_coinbase_specs, build_coinbase, build_coinbase_outputs, coinbase_tx_priv,
+    emission_at_height, sign_transaction, storage_proof_coinbase_bonus, verify_coinbase,
+    verify_transaction, ChainState, InputSpec, OutputSpec, PayoutAddress, Recipient, RingPolicy,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
@@ -29,6 +30,44 @@ use mfn_crypto::encrypted_amount::decrypt_output_amount;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
 use mfn_crypto::stealth::{indexed_stealth_spend_key, stealth_gen};
+
+/// Deterministic ring-2 decoy for TEST consensus params (`min_ring_size = 2`).
+fn test_ring_decoy_pair(
+    seed: u32,
+) -> (
+    curve25519_dalek::edwards::EdwardsPoint,
+    curve25519_dalek::edwards::EdwardsPoint,
+) {
+    use mfn_crypto::hash::hash_to_scalar;
+    let decoy_spend = hash_to_scalar(&[b"integration/decoy-spend", &seed.to_le_bytes()]);
+    let decoy_blind = hash_to_scalar(&[b"integration/decoy-blind", &seed.to_le_bytes()]);
+    let p = generator_g() * decoy_spend;
+    let c = (generator_g() * decoy_blind) + (generator_h() * Scalar::from(1u64));
+    (p, c)
+}
+
+/// Multi-output coinbase when a block includes accepted storage proofs (M2.5.0).
+fn build_storage_coinbase(
+    st: &mfn_consensus::ChainState,
+    height: u64,
+    slot: u32,
+    emission: &mfn_consensus::EmissionParams,
+    fee_sum: u128,
+    payout: &PayoutAddress,
+    proofs: &[mfn_storage::StorageProof],
+) -> mfn_consensus::TransactionWire {
+    let ep = &st.endowment_params;
+    let accepted: Vec<_> = proofs
+        .iter()
+        .map(|p| {
+            let bonus =
+                storage_proof_coinbase_bonus(std::slice::from_ref(p), &st.storage, slot, ep);
+            (p.clone(), bonus)
+        })
+        .collect();
+    let specs = block_coinbase_specs(height, emission, fee_sum, *payout, &accepted);
+    build_coinbase_outputs(height, &payout.spend_pub, &specs).expect("coinbase")
+}
 
 /// Build an InputSpec where the real input at `signer_idx` has known
 /// `spend_priv`, `value`, and `blinding`. Other ring members are unrelated
@@ -62,6 +101,40 @@ fn fake_input(value: u64, ring_size: usize, signer_idx: usize) -> InputSpec {
         value,
         blinding: signer_blinding,
     }
+}
+
+/// Multi-output coinbase (producer + operator) for validator mixed SPoRA blocks.
+fn mixed_validator_coinbase(
+    height: u32,
+    st: &ChainState,
+    fee: u64,
+    payout: &PayoutAddress,
+    built: &mfn_storage::BuiltCommitment,
+    payload: &[u8],
+    txs_for_scratch: &[mfn_consensus::TransactionWire],
+) -> mfn_consensus::TransactionWire {
+    use mfn_consensus::build_unsealed_header;
+    use mfn_storage::build_test_storage_proof;
+
+    let timestamp = u64::from(height) * 1_000;
+    let scratch = build_unsealed_header(st, txs_for_scratch, &[], &[], &[], height, timestamp);
+    let proof = build_test_storage_proof(
+        &built.commit,
+        &scratch.prev_hash,
+        height,
+        payload,
+        &built.tree,
+    );
+    let ep = &st.endowment_params;
+    let bonus = storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, height, ep);
+    let specs = block_coinbase_specs(
+        u64::from(height),
+        &DEFAULT_EMISSION_PARAMS,
+        u128::from(fee),
+        *payout,
+        &[(proof, bonus)],
+    );
+    build_coinbase_outputs(u64::from(height), &payout.spend_pub, &specs).expect("coinbase")
 }
 
 #[test]
@@ -734,17 +807,22 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(10_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -760,10 +838,10 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -782,6 +860,8 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
                 blinding: signed.output_blindings[0],
                 value: change_value,
                 one_time_addr: change_addr,
+                decoy_p: self.decoy_p,
+                decoy_c: self.decoy_c,
             };
             (signed.tx, next)
         }
@@ -801,10 +881,16 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     let spend = TrackedSpend::from_seed(1, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: spend.decoy_p,
+                amount: spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: spend.one_time_addr,
+                amount: spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: ConsensusParams {
@@ -897,17 +983,22 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(10_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -923,10 +1014,10 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -945,6 +1036,8 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
                 blinding: signed.output_blindings[0],
                 value: change_value,
                 one_time_addr: change_addr,
+                decoy_p: self.decoy_p,
+                decoy_c: self.decoy_c,
             };
             (signed.tx, next)
         }
@@ -964,10 +1057,16 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: ConsensusParams {
@@ -1050,17 +1149,22 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(10_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -1075,10 +1179,10 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -1099,6 +1203,8 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -1149,10 +1255,16 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: ConsensusParams {
@@ -1243,17 +1355,22 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(10_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -1268,10 +1385,10 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -1292,6 +1409,8 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -1342,10 +1461,16 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
     let initial_spend = TrackedSpend::from_seed(2, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: ConsensusParams {
@@ -1428,17 +1553,22 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.5/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.5/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(10_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -1453,10 +1583,10 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -1477,6 +1607,8 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -1558,10 +1690,16 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
     let initial_spend = TrackedSpend::from_seed(3, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: ConsensusParams {
@@ -1629,7 +1767,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
-        encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount, seal_block,
+        encode_finality_proof, finalize, header_signing_hash, producer_portion_amount, seal_block,
         try_produce_slot, ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig,
         GenesisOutput, SlotContext, Validator, ValidatorPayout, ValidatorSecrets,
         DEFAULT_EMISSION_PARAMS,
@@ -1784,14 +1922,20 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         view_pub: v0_payout.view_pub,
         spend_pub: v0_payout.spend_pub,
     };
-    let cb_amount = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee), 1, 0);
-    let coinbase = build_coinbase(1, cb_amount, &cb_payout).expect("coinbase");
-    let txs = vec![coinbase.clone(), signed.tx.clone()];
+    let expected_producer = producer_portion_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee));
 
     let height = 1u32;
     let slot = 1u32;
     let timestamp = 1_000u64;
-    let scratch = build_unsealed_header(&state0, &txs, &[], &[], &[], slot, timestamp);
+    let scratch = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&signed.tx),
+        &[],
+        &[],
+        &[],
+        slot,
+        timestamp,
+    );
     let storage_proof = build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
@@ -1800,6 +1944,16 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         &built.tree,
     );
     let storage_proofs = vec![storage_proof];
+    let coinbase = build_storage_coinbase(
+        &state0,
+        1,
+        slot,
+        &DEFAULT_EMISSION_PARAMS,
+        u128::from(fee),
+        &cb_payout,
+        &storage_proofs,
+    );
+    let txs = vec![coinbase.clone(), signed.tx.clone()];
     let unsealed =
         build_unsealed_header(&state0, &txs, &[], &[], &storage_proofs, height, timestamp);
     let header_hash = header_signing_hash(&unsealed);
@@ -1887,7 +2041,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         &block1.txs[0].outputs[0].enc_amount,
     )
     .expect("decrypt coinbase");
-    assert_eq!(cb_dec.value, cb_amount);
+    assert_eq!(cb_dec.value, expected_producer);
     assert_eq!(state1.spent_key_images.len(), 1);
 }
 
@@ -1900,10 +2054,9 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
-        encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount, seal_block,
-        try_produce_slot, ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig,
-        GenesisOutput, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
-        DEFAULT_EMISSION_PARAMS,
+        encode_finality_proof, finalize, header_signing_hash, seal_block, try_produce_slot,
+        ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
+        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -1931,17 +2084,22 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -1957,10 +2115,10 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -1979,6 +2137,8 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
                 blinding: signed.output_blindings[0],
                 value: change_value,
                 one_time_addr: change_addr,
+                decoy_p: self.decoy_p,
+                decoy_c: self.decoy_c,
             };
             (signed.tx, next)
         }
@@ -2031,10 +2191,16 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -2057,18 +2223,16 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
         spend = next_spend;
         assert!(verify_transaction(&tx, &RingPolicy::TEST).ok);
 
-        let cb_amount = producer_coinbase_amount(
-            u64::from(height),
-            &DEFAULT_EMISSION_PARAMS,
-            u128::from(fee),
-            1,
-            0,
-        );
-        let coinbase = build_coinbase(u64::from(height), cb_amount, &cb_payout).expect("coinbase");
-        let txs = vec![coinbase, tx];
         let timestamp = u64::from(height) * 1_000;
-
-        let scratch = build_unsealed_header(&st, &txs, &[], &[], &[], height, timestamp);
+        let scratch = build_unsealed_header(
+            &st,
+            std::slice::from_ref(&tx),
+            &[],
+            &[],
+            &[],
+            height,
+            timestamp,
+        );
         let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
@@ -2077,6 +2241,21 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
             &built.tree,
         );
         let storage_proofs = vec![storage_proof];
+        let coinbase = build_storage_coinbase(
+            &st,
+            u64::from(height),
+            height,
+            &DEFAULT_EMISSION_PARAMS,
+            u128::from(fee),
+            &cb_payout,
+            &storage_proofs,
+        );
+        assert_eq!(
+            coinbase.outputs.len(),
+            2,
+            "storage coinbase must pay producer + operator at height {height}"
+        );
+        let txs = vec![coinbase, tx];
         let unsealed =
             build_unsealed_header(&st, &txs, &[], &[], &storage_proofs, height, timestamp);
         let header_hash = header_signing_hash(&unsealed);
@@ -2165,10 +2344,10 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
-        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash,
-        producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome, BlockError,
-        ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
-        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash, seal_block,
+        try_produce_slot, ApplyOutcome, BlockError, ChainCheckpoint, ConsensusParams,
+        FinalityProof, GenesisConfig, GenesisOutput, SlotContext, TransactionWire, Validator,
+        ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -2182,17 +2361,22 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -2207,10 +2391,10 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -2231,6 +2415,8 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -2351,10 +2537,16 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -2372,7 +2564,6 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
 
     let fee1 = 100_000u64;
     let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
-    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
     let block1 = seal_validator_mixed(
         &st,
         &validators,
@@ -2380,7 +2571,18 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
         total_stake,
         &params,
         1,
-        vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+        vec![
+            mixed_validator_coinbase(
+                1,
+                &st,
+                fee1,
+                &cb_payout,
+                &built,
+                &payload,
+                std::slice::from_ref(&tx1),
+            ),
+            tx1,
+        ],
         &built,
         &payload,
     );
@@ -2401,7 +2603,6 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     let fee2 = 50_000u64;
     let (mut tx2, _) = spend.sign_self_transfer(fee2, 2);
     tx2.fee = tx2.fee.wrapping_add(1);
-    let cb2 = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
     let bad_block = seal_validator_mixed(
         &st,
         &validators,
@@ -2409,7 +2610,18 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
         total_stake,
         &params,
         2,
-        vec![build_coinbase(2, cb2, &cb_payout).expect("coinbase"), tx2],
+        vec![
+            mixed_validator_coinbase(
+                2,
+                &st,
+                fee2,
+                &cb_payout,
+                &built,
+                &payload,
+                std::slice::from_ref(&tx2),
+            ),
+            tx2,
+        ],
         &built,
         &payload,
     );
@@ -2454,10 +2666,10 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
-        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash,
-        producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome, BlockError,
-        ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
-        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash, seal_block,
+        try_produce_slot, ApplyOutcome, BlockError, ChainCheckpoint, ConsensusParams,
+        FinalityProof, GenesisConfig, GenesisOutput, SlotContext, TransactionWire, Validator,
+        ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -2471,17 +2683,22 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -2496,10 +2713,10 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -2520,6 +2737,8 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -2640,10 +2859,16 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     let initial_spend = TrackedSpend::from_seed(2, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -2661,7 +2886,6 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
 
     let fee1 = 100_000u64;
     let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
-    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
     st = match apply_block(
         &st,
         &seal_validator_mixed(
@@ -2671,7 +2895,18 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
             total_stake,
             &params,
             1,
-            vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+            vec![
+                mixed_validator_coinbase(
+                    1,
+                    &st,
+                    fee1,
+                    &cb_payout,
+                    &built,
+                    &payload,
+                    std::slice::from_ref(&tx1),
+                ),
+                tx1,
+            ],
             &built,
             &payload,
         ),
@@ -2689,7 +2924,6 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
 
     let fee2 = 50_000u64;
     let (tx2, _) = spend.sign_self_transfer(fee2, 2);
-    let cb2 = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
     let mut bad_block = seal_validator_mixed(
         &st,
         &validators,
@@ -2697,7 +2931,18 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
         total_stake,
         &params,
         2,
-        vec![build_coinbase(2, cb2, &cb_payout).expect("coinbase"), tx2],
+        vec![
+            mixed_validator_coinbase(
+                2,
+                &st,
+                fee2,
+                &cb_payout,
+                &built,
+                &payload,
+                std::slice::from_ref(&tx2),
+            ),
+            tx2,
+        ],
         &built,
         &payload,
     );
@@ -2739,10 +2984,9 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
     use mfn_consensus::{
         apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
         emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
-        header_signing_hash, producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome,
-        BlockError, ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput,
-        SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
-        DEFAULT_EMISSION_PARAMS,
+        header_signing_hash, seal_block, try_produce_slot, ApplyOutcome, BlockError,
+        ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
+        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -2756,17 +3000,22 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -2781,10 +3030,10 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -2805,6 +3054,8 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -2926,10 +3177,16 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
     let initial_spend = TrackedSpend::from_seed(3, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -2947,7 +3204,6 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
 
     let fee1 = 100_000u64;
     let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
-    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
     st = match apply_block(
         &st,
         &seal_validator_mixed(
@@ -2957,7 +3213,18 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
             total_stake,
             &params,
             1,
-            vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+            vec![
+                mixed_validator_coinbase(
+                    1,
+                    &st,
+                    fee1,
+                    &cb_payout,
+                    &built,
+                    &payload,
+                    std::slice::from_ref(&tx1),
+                ),
+                tx1,
+            ],
             &built,
             &payload,
             &[0, 1, 2],
@@ -2976,9 +3243,18 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
 
     let fee2 = 50_000u64;
     let (tx2, _) = spend.sign_self_transfer(fee2, 2);
-    let correct_cb = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
     let wrong_cb = emission_at_height(2, &DEFAULT_EMISSION_PARAMS);
-    assert_ne!(wrong_cb, correct_cb);
+    let mut bad_cb = mixed_validator_coinbase(
+        2,
+        &st,
+        fee2,
+        &cb_payout,
+        &built,
+        &payload,
+        std::slice::from_ref(&tx2),
+    );
+    let underpaid = build_coinbase(2, wrong_cb, &cb_payout).expect("underpaid producer-only");
+    bad_cb.outputs[0] = underpaid.outputs[0].clone();
     let bad_block = seal_validator_mixed(
         &st,
         &validators,
@@ -2986,10 +3262,7 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
         total_stake,
         &params,
         2,
-        vec![
-            build_coinbase(2, wrong_cb, &cb_payout).expect("coinbase"),
-            tx2,
-        ],
+        vec![bad_cb, tx2],
         &built,
         &payload,
         &[0, 1, 2],
@@ -3030,10 +3303,10 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
-        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash,
-        producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome, BlockError,
-        ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
-        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash, seal_block,
+        try_produce_slot, ApplyOutcome, BlockError, ChainCheckpoint, ConsensusParams,
+        FinalityProof, GenesisConfig, GenesisOutput, SlotContext, TransactionWire, Validator,
+        ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -3047,17 +3320,22 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -3072,10 +3350,10 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -3096,6 +3374,8 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -3217,10 +3497,16 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
     let initial_spend = TrackedSpend::from_seed(4, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -3238,7 +3524,6 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
 
     let fee1 = 100_000u64;
     let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
-    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
     st = match apply_block(
         &st,
         &seal_validator_mixed(
@@ -3248,7 +3533,18 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
             total_stake,
             &params,
             1,
-            vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+            vec![
+                mixed_validator_coinbase(
+                    1,
+                    &st,
+                    fee1,
+                    &cb_payout,
+                    &built,
+                    &payload,
+                    std::slice::from_ref(&tx1),
+                ),
+                tx1,
+            ],
             &built,
             &payload,
             &[0, 1, 2],
@@ -3267,7 +3563,6 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
 
     let fee2 = 50_000u64;
     let (tx2, _) = spend.sign_self_transfer(fee2, 2);
-    let cb2 = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
     // Two of three validators → 200/300 stake; quorum at 6667 bps requires 201.
     let bad_block = seal_validator_mixed(
         &st,
@@ -3276,7 +3571,18 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
         total_stake,
         &params,
         2,
-        vec![build_coinbase(2, cb2, &cb_payout).expect("coinbase"), tx2],
+        vec![
+            mixed_validator_coinbase(
+                2,
+                &st,
+                fee2,
+                &cb_payout,
+                &built,
+                &payload,
+                std::slice::from_ref(&tx2),
+            ),
+            tx2,
+        ],
         &built,
         &payload,
         &[0, 1],
@@ -3317,10 +3623,10 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
     use mfn_bls::bls_keygen_from_seed;
     use mfn_consensus::{
         apply_block, apply_genesis, block_id, build_genesis, build_unsealed_header, cast_vote,
-        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash,
-        producer_coinbase_amount, seal_block, try_produce_slot, ApplyOutcome, BlockError,
-        ChainCheckpoint, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlotContext,
-        TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        encode_chain_checkpoint, encode_finality_proof, finalize, header_signing_hash, seal_block,
+        try_produce_slot, ApplyOutcome, BlockError, ChainCheckpoint, ConsensusParams,
+        FinalityProof, GenesisConfig, GenesisOutput, SlotContext, TransactionWire, Validator,
+        ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -3334,17 +3640,22 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
         blinding: Scalar,
         value: u64,
         one_time_addr: EdwardsPoint,
+        decoy_p: EdwardsPoint,
+        decoy_c: EdwardsPoint,
     }
 
     impl TrackedSpend {
         fn from_seed(seed: u32, value: u64) -> Self {
             let spend_priv = hash_to_scalar(&[b"M5.6/spend", &seed.to_le_bytes()]);
             let blinding = hash_to_scalar(&[b"M5.6/blind", &seed.to_le_bytes()]);
+            let (decoy_p, decoy_c) = test_ring_decoy_pair(seed.wrapping_add(20_000));
             Self {
                 spend_priv,
                 blinding,
                 value,
                 one_time_addr: generator_g() * spend_priv,
+                decoy_p,
+                decoy_c,
             }
         }
 
@@ -3359,10 +3670,10 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
             let signed = sign_transaction(
                 vec![InputSpec {
                     ring: ClsagRing {
-                        p: vec![self.one_time_addr],
-                        c: vec![self.commitment()],
+                        p: vec![self.decoy_p, self.one_time_addr],
+                        c: vec![self.decoy_c, self.commitment()],
                     },
-                    signer_idx: 0,
+                    signer_idx: 1,
                     spend_priv: self.spend_priv,
                     value: self.value,
                     blinding: self.blinding,
@@ -3383,6 +3694,8 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
                     blinding: signed.output_blindings[0],
                     value: change_value,
                     one_time_addr: change_addr,
+                    decoy_p: self.decoy_p,
+                    decoy_c: self.decoy_c,
                 },
             )
         }
@@ -3509,10 +3822,16 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
     let initial_spend = TrackedSpend::from_seed(5, 1_000_000_000);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: initial_spend.one_time_addr,
-            amount: initial_spend.commitment(),
-        }],
+        initial_outputs: vec![
+            GenesisOutput {
+                one_time_addr: initial_spend.decoy_p,
+                amount: initial_spend.decoy_c,
+            },
+            GenesisOutput {
+                one_time_addr: initial_spend.one_time_addr,
+                amount: initial_spend.commitment(),
+            },
+        ],
         initial_storage: vec![built.commit.clone()],
         validators: validators.clone(),
         params,
@@ -3530,7 +3849,6 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
 
     let fee1 = 100_000u64;
     let (tx1, spend) = initial_spend.sign_self_transfer(fee1, 1);
-    let cb1 = producer_coinbase_amount(1, &DEFAULT_EMISSION_PARAMS, u128::from(fee1), 1, 0);
     st = match apply_block(
         &st,
         &seal_validator_mixed(
@@ -3540,7 +3858,18 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
             total_stake,
             &params,
             1,
-            vec![build_coinbase(1, cb1, &cb_payout).expect("coinbase"), tx1],
+            vec![
+                mixed_validator_coinbase(
+                    1,
+                    &st,
+                    fee1,
+                    &cb_payout,
+                    &built,
+                    &payload,
+                    std::slice::from_ref(&tx1),
+                ),
+                tx1,
+            ],
             &built,
             &payload,
             &[0, 1, 2],
@@ -3560,7 +3889,6 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
 
     let fee2 = 50_000u64;
     let (tx2, _) = spend.sign_self_transfer(fee2, 2);
-    let cb2 = producer_coinbase_amount(2, &DEFAULT_EMISSION_PARAMS, u128::from(fee2), 1, 0);
     let bad_block = seal_validator_mixed(
         &st,
         &validators,
@@ -3568,7 +3896,18 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
         total_stake,
         &params,
         2,
-        vec![build_coinbase(2, cb2, &cb_payout).expect("coinbase"), tx2],
+        vec![
+            mixed_validator_coinbase(
+                2,
+                &st,
+                fee2,
+                &cb_payout,
+                &built,
+                &payload,
+                std::slice::from_ref(&tx2),
+            ),
+            tx2,
+        ],
         &built,
         &payload,
         &[0, 1, 2],

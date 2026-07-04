@@ -515,6 +515,28 @@ mod tests {
         }
     }
 
+    /// Byte offset where the first validator record begins (after header + params + count varint).
+    fn validators_block_start(parts: &CheckpointParts) -> usize {
+        let mut w = Writer::new();
+        w.push(&LIGHT_CHECKPOINT_MAGIC);
+        w.u32(LIGHT_CHECKPOINT_VERSION);
+        w.u32(parts.tip_height);
+        w.push(&parts.tip_id);
+        w.push(&parts.genesis_id);
+        encode_consensus_params(&mut w, &parts.params);
+        encode_bonding_params(&mut w, &parts.bonding_params);
+        w.varint(parts.validators.len() as u64);
+        w.into_bytes().len()
+    }
+
+    fn validator0_bls_pk_offset(parts: &CheckpointParts) -> usize {
+        validators_block_start(parts) + 4 + 8 + 32
+    }
+
+    fn validator0_payout_flag_offset(parts: &CheckpointParts) -> usize {
+        validator0_bls_pk_offset(parts) + 48
+    }
+
     /// Empty validator set, no pending unbonds: smallest valid
     /// payload. Sanity: encode→decode→encode is idempotent.
     #[test]
@@ -732,7 +754,7 @@ mod tests {
         //   magic(4) + version(4) + tip_height(4) + tip_id(32) +
         //   genesis_id(32) + params(8+4+4+4=20) + bonding_params(8+4*4=24) +
         //   validators_len_varint(1) + validators[0].{index(4)+stake(8)+vrf_pk(32)} = 165
-        let bls_pk_start = 4 + 4 + 4 + 32 + 32 + 20 + 24 + 1 + 4 + 8 + 32;
+        let bls_pk_start = validator0_bls_pk_offset(&parts);
         let bls_pk_end = bls_pk_start + 48;
         // Use a pattern that's *not* the canonical "infinity" form
         // (which would still decode). We flip a sentinel bit in the
@@ -757,8 +779,8 @@ mod tests {
     fn checkpoint_rejects_invalid_payout_flag() {
         let parts = sample_parts(1, 0); // validator 0 has payout=Some (i%2==0)
         let mut bytes = encode_checkpoint_bytes(&parts);
-        // Offset of validators[0].payout_flag: prefix(165) + bls_pk(48) = 213.
-        let flag_off = 4 + 4 + 4 + 32 + 32 + 20 + 24 + 1 + 4 + 8 + 32 + 48;
+        // Offset of validators[0].payout_flag: prefix(173) + bls_pk(48) = 221.
+        let flag_off = validator0_payout_flag_offset(&parts);
         bytes[flag_off] = 99;
         let payload_len = bytes.len() - 32;
         let tag = dhash(LIGHT_CHECKPOINT, &[&bytes[..payload_len]]);
@@ -796,10 +818,10 @@ mod tests {
 
         // The validator block starts after:
         //   magic(4) + version(4) + tip_height(4) + tip_id(32)
-        //   + genesis_id(32) + consensus_params(20) + bonding_params(24)
+        //   + genesis_id(32) + consensus_params(28) + bonding_params(24)
         //   + validators_len_varint(1)        // varint(3) = 1 byte
-        // = 121 bytes.
-        let validators_start = 4 + 4 + 4 + 32 + 32 + 20 + 24 + 1;
+        // = 129 bytes.
+        let validators_start = validators_block_start(&parts);
 
         let mut shared = Writer::new();
         for v in &parts.validators {
