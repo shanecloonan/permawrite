@@ -17,9 +17,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.8** GHA startup polls. | **In progress** — hub/voter/observer poll 600s; single-sample health-check. | CI mirror → push → Nightly #55. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence (`6720651`). | **Done** — `release-evidence-f5f45bf`; await M2.5.8 green Nightly. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** health-check fix. | **In progress** — remove stall-delta gate (false fail on 10s slots). | Nightly participant+observer green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.8** GHA startup polls. | **Done** — 600s polls in `eb64408`; CI #522 in progress on `4dbd5c7`. | Nightly #55 after green CI. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** rehearsal gates. | **Done** — single-sample health-check; curl RPC fallback; hub tip≥2. | Nightly #55 participant+observer green. |
 
 ## Recently Completed
 
@@ -35,11 +35,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | participant-rehearsal-smoke | **FAIL** (~6.3m) | Same ~6.3m class as #52/#53 — early startup gate, not full 600s faucet window |
 | observer-rehearsal-smoke | **FAIL** (~6.3m) | Same class as participant |
 
-**Root-cause hypothesis (M2.5.8):**
-1. `start-all` hub P2P poll capped at **300s** on GHA — job fails ~300s smoke + ~90s prebuild ≈ **6.3m**.
-2. Stall health-check required `MIN_HEIGHT_DELTA=1` across 2×15–20s samples — false fail when sortition skips slots on 10s mesh.
+**Root-cause confirmed (Nightly #54 API timing):**
+- Smoke step duration **302s** — matches legacy `HUB_POLL_MAX=300` on GHA (`6720651`/`d08dcca`); hub never printed `mfnd_p2p_listening=` before timeout.
+- **Fixed in `eb64408`:** all GHA startup polls **600s** (hub P2P, voter P2P, voter dial, observer RPC).
 
-**M2.5.8 fix (local):**
+**M2.5.8 on `4dbd5c7` (includes `eb64408`):**
 - GHA poll caps **600s** for hub P2P, voter P2P, observer RPC, voter dial.
 - Health-check: **single-sample** only (`STALL_SAMPLES=1`, no height-delta requirement); **curl JSON-RPC fallback** when `nc` missing.
 - `permanence-demo` — GHA upload-index stall_abort **480s**.
@@ -53,12 +53,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### In Progress
 
-- [ ] **M2.5.8** — extend GHA startup polls; simplify health-check gate.
+- [ ] CI #522 green on `4dbd5c7` → RC Validation → Nightly #55.
 
 ### Next
 
-- [ ] Local CI mirror green on M2.5.8.
-- [ ] Push → CI green → RC Validation → Nightly #55.
+- [ ] Green Nightly #55 (600s hub poll fix from `eb64408`).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -68,13 +67,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 - [x] M2.5.7 — STAGE logging, faucet 600s / mined+upload 480s, stall health-check v1.
 
-### In Progress
+### Done
 
-- [ ] **M2.5.8** — single-sample health-check; 600s GHA startup polls.
+- [x] **M2.5.8** — single-sample health-check; curl RPC fallback; hub tip≥2; 600s GHA startup polls.
 
 ### Next
 
-- [ ] Green Nightly participant + observer on M2.5.8 commit.
+- [ ] Green Nightly participant + observer on `4dbd5c7`.
 
 ## Agent 2 Detailed Plan
 
@@ -84,9 +83,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **PASS** CI #515 on `d08dcca` (M2.5.7 docs atop `6720651`).
-- RC Validation — **PASS** #45 (dispatched Nightly #54).
-- Nightly — **PARTIAL** #54 (ignored **PASS**; participant+observer **FAIL** ~6.3m); M2.5.8 fix in progress.
+- Green GitHub CI — **IN PROGRESS** CI #522 on `4dbd5c7` (M2.5.8).
+- RC Validation — pending green CI #522.
+- Nightly — **PARTIAL** #54; awaiting **#55** on `4dbd5c7` with 600s hub poll fix.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 

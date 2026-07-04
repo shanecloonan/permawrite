@@ -158,7 +158,11 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] GitHub CI green on `f5f45bf` — CI #514 **PASS**.
 - [x] `release-evidence-f5f45bf` + RC audit dry-run (decision=go).
 - [x] RC Validation #44 → Nightly #53 dispatched (`f5f45bf`).
-- [ ] Nightly #53 — **FAIL** on `f5f45bf` (ignored **PASS**; participant+observer **FAIL** ~6m); **M2.5.7** fix in progress.
+- [x] Nightly #53 — **PARTIAL** on `f5f45bf` (ignored **PASS**; participant+observer **FAIL** ~302s smoke = `HUB_POLL_MAX=300`).
+- [x] **M2.5.7/M2.5.8** — 600s GHA startup polls (`eb64408`); health-check retry + curl fallback; hub tip≥2 (`4dbd5c7`).
+- [ ] GitHub CI green on `4dbd5c7` — **IN PROGRESS** CI #522.
+- [ ] Nightly #55 on `4dbd5c7` after RC Validation.
+- [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
 - [ ] Nightly #49/#50 — **FAIL** (pre-fix ring-size 8).
 
