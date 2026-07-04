@@ -70,16 +70,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] **M2.5.8** — single-sample health-check; curl RPC fallback; hub tip≥2; 600s GHA startup polls.
 - [x] Windows draft202012 venv python passthrough in `ci-check.ps1`.
 - [x] **M2.5.9** — fund-wallet/permanence-demo tip query parity.
-
-### In Progress
-
 - [x] **M2.5.10** — `-ParticipantEvidenceDir` / `--participant-evidence-dir` on release-audit-packet for smoke→audit handoff.
 
 ### Next
 
-- [ ] Push M2.5.10 after CI #526 green (do not push during in-progress CI).
-
-- [ ] Green Nightly participant + observer on `4dbd5c7`.
+- [x] Push M2.5.10 (`994d1a9` + board sync `f29d657`).
+- [ ] Green CI #527 → RC Validation → Nightly #55 participant+observer.
 
 ## Agent 2 Detailed Plan
 
