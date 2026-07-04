@@ -449,7 +449,7 @@ fn synth_decoy_one_step_signed_transfer_fixture_with_store(
                 value: 50_000,
             }],
             10_000,
-            8,
+            16,
             chain.state(),
             b"mfnd-serve",
             &mut rng,

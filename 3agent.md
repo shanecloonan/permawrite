@@ -17,35 +17,33 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.2** integration.rs fix. | **In progress** — M2.5.1 CI #502 failed on integration tests; fix ready locally. | Push → CI #503 → Nightly #50. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.2** evidence. | **Waiting** — after green CI on integration fix. | Release evidence after CI green. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.1** wallet ring-16. | **Done** — on `main` via `a4e70c9`. | Nightly #50 after CI green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.3** node test ring-16 fix. | **In progress** — CI #503 failed (mempool ring-2/4/8); local fix ready. | Push after green local ci-check → CI #504. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.3** evidence. | **Waiting** — blocked on green CI. | `release-evidence-<sha>` after CI green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.3** mempool harness. | **In progress** — ring-16 mempool + mfnd smoke (uncommitted). | Nightly #50 after CI green. |
 
 ## Recently Completed
 
-- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase outputs (consensus/storage/node).
-- **M2.4.89** (`f57dc9f`) — CI Linux hardening (threads=2, retry, GHA timeouts); CI #493 cancelled by M2.5.0 push.
-- **M2.4.88** (`297ec27`) — observer boot hardening for Linux Nightly.
+- **M2.5.2** (`434b444`) — integration ring-2 decoys + multi-output coinbase; checkpoint tamper offset helpers. CI #503 **FAILED** (node tests still ring-2/4/8).
+- **M2.5.1** (`0313f4d`) — block_apply + emission_simulation ring-16 harness.
+- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase outputs.
 - Nightly ignored **PASS** (#48 on `052e507`).
 
 ## Agent 1 Detailed Plan
 
 ### Done
 
-- [x] M2.5.0 core: `block_coinbase_specs`, operator payout keys on storage proofs, `RingPolicy::PRODUCTION` (uniform 16).
-- [x] M2.5.1 clippy fixes (`apply.rs`, `spora.rs` doc, treasury test allows).
-- [x] M2.5.1 `apply_block_proptest` harness — ring-16 genesis decoys, multi-output coinbase via `st.endowment_params` (PPB fix).
-- [x] M2.5.1 `block_apply.rs` ring-16 rejection tests.
-- [x] **M2.5.1** pushed (`0313f4d`, `4aafeea`) — block_apply + emission_simulation ring-16.
-- [ ] **M2.5.2** — integration.rs multi-output coinbase + ring-2 decoys (CI #502 failed ubuntu/macOS test).
+- [x] M2.5.0 core: `block_coinbase_specs`, operator payout keys, `RingPolicy::PRODUCTION` (uniform 16).
+- [x] M2.5.1 clippy + proptest + block_apply + emission_simulation ring-16.
+- [x] M2.5.2 integration ring-2 + checkpoint offset helpers (`434b444`).
 
 ### In Progress
 
-- [ ] Push M2.5.2 → green CI #503 (`ci-check-m252-integration.log`).
-- [ ] RC Validation → Nightly #50.
+- [ ] **M2.5.3** — `mempool_integration.rs`, `mfnd_smoke.rs`, `mfn-runtime/mempool.rs` ring-16 (49/49 node+mempool tests pass locally).
+- [ ] Local `scripts/ci-check.ps1` green → push → CI #504.
 
 ### Next
 
+- [ ] Green CI → RC Validation → Nightly #50.
 - [ ] `release-evidence-<sha>` + RC audit dry-run.
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
@@ -54,9 +52,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
-- [x] `WALLET_MIN_RING_SIZE = 16` in `mfn-wallet` (spend + upload builders).
-- [x] All `mfn-cli` integration smokes updated to `--ring-size 16`.
-- [x] `end_to_end`, `mempool_integration`, wasm transfer tests updated for ring-16.
+- [x] `WALLET_MIN_RING_SIZE = 16` in `mfn-wallet`.
+- [x] All `mfn-cli` integration smokes `--ring-size 16`.
+- [x] `end_to_end`, wasm transfer tests ring-16.
+
+### In Progress
+
+- [ ] `mempool_integration.rs`, `mfnd_smoke.rs`, `mfn-runtime/mempool.rs` ring-16 alignment (49/49 pass locally).
 
 ### Next
 
@@ -64,18 +66,17 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Agent 2 Detailed Plan
 
-- [ ] Release evidence after M2.5.1 fix commit CI green.
+- [ ] Release evidence after M2.5.3 CI green.
 - [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **FAIL** CI #502 on `4aafeea` (integration tests); M2.5.2 fix pending.
+- Green GitHub CI — **FAILED** CI #503 on `434b444` (mempool ring-2/4, mfnd_smoke ring-8); fix in M2.5.3.
 - Nightly ignored — **PASS** (#48); full Nightly rehearsal — pending green CI + #50.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- M2.5.0 CI red blocks RC Validation and Nightly #50 until M2.5.1 lands.
-- **Do not push while CI in flight.**
-- CI #493 (`f57dc9f`) cancelled when M2.5.0 landed — expected.
+- CI #503 failed all three OS test jobs on node integration tests (ring size 2/4/8 vs min 16). M2.5.3 fix uncommitted; push after local ci-check.
+- CI #503 complete — safe to push M2.5.3 without cancelling in-flight runs.

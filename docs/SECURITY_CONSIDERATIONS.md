@@ -325,8 +325,8 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
 | 6 | Privacy | Decoy statistics, fee/timing/graph metadata, storage-size fingerprints | Gamma calibration; wallet-layer policy | Tier 3 removes decoy class; metadata remains |
 | 7 | Permanence | No operator bonds; latency race; access ≠ replication | Endowment pricing, replication floor at upload | Open (see PROBLEMS §§ 1, 5, 6) |
 | 8 | Genesis | Entire initial state is unauthenticated | Social/operational verification of genesis artifacts | Inherent; document + tooling checks |
-| 9 | Storage incentive | SPoRA reward paid to producer, not proving operator | None yet (operator must also produce) | Open — operator-direct payout is a wire/consensus milestone (PROBLEMS § 17) |
-| 10 | Privacy enforcement | No consensus min/uniform ring size; under-mixing possible | Wallet-default ring size only | Open — consensus `min_ring_size` is a params-encoding milestone (PROBLEMS § 18) |
+| 9 | Storage incentive | SPoRA reward paid to producer, not proving operator | None yet (operator must also produce) | **Closed:** operator-direct coinbase outputs + `StorageProof` payout keys (PROBLEMS § 17) |
+| 10 | Privacy enforcement | No consensus min/uniform ring size; under-mixing possible | Wallet-default ring size only | **Closed:** consensus enforces `min_ring_size = uniform_ring_size = 16` (PROBLEMS § 18) |
 | 11 | Key-image malleability | Torsion/small-order key images | **Closed:** `verify_transaction` rejects non-prime-order & identity images | Closed (Monero parity) |
 
 ---

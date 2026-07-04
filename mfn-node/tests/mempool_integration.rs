@@ -288,7 +288,7 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
     let fee = 10_000u64;
     let mut rng = seeded_rng(11);
     let signed = alice
-        .build_transfer(&recipients, fee, 2, chain.state(), &[], &mut rng)
+        .build_transfer(&recipients, fee, 16, chain.state(), &[], &mut rng)
         .expect("build");
     pool.admit(signed.tx.clone(), chain.state()).expect("admit");
     assert_eq!(pool.len(), 1);
@@ -371,7 +371,7 @@ fn mempool_admit_after_chain_advanced_still_works() {
     let fee = 10_000u64;
     let mut rng = seeded_rng(42);
     let signed = alice
-        .build_transfer(&recipients, fee, 2, chain.state(), &[], &mut rng)
+        .build_transfer(&recipients, fee, 16, chain.state(), &[], &mut rng)
         .expect("build");
 
     // Now advance the chain by one empty block (coinbase only) without
@@ -406,7 +406,7 @@ fn mempool_admit_after_chain_advanced_still_works() {
 /// own unit tests do, then signs a storage-bearing tx through
 /// `mfn_consensus::sign_transaction`.
 fn genesis_with_spendable_decoy(ring_size: usize, signer_value: u64) -> (Chain, InputSpec) {
-    assert!(ring_size >= 2);
+    assert!(ring_size >= 16, "production consensus requires ring-16");
     let signer_spend = random_scalar();
     let signer_blinding = random_scalar();
     let signer_p = generator_g() * signer_spend;
@@ -489,7 +489,7 @@ fn storage_tx_through_full_mempool_producer_chain_pipeline() {
     // Build a chain whose producer is the same validator key the
     // helper hard-codes. Mining a block requires a producer with
     // stake > 0; the helper sets up exactly that.
-    let (mut chain, inp) = genesis_with_spendable_decoy(4, 1_000);
+    let (mut chain, inp) = genesis_with_spendable_decoy(16, 1_000);
     let validator = chain.validators()[0].clone();
     let bls = bls_keygen_from_seed(&[42u8; 32]);
     let vrf = vrf_keygen_from_seed(&[1u8; 32]).unwrap();
@@ -576,7 +576,7 @@ fn storage_tx_underfunded_is_rejected_by_mempool_before_producer() {
     // Same setup as the happy-path test, but with a fee that doesn't
     // cover the burden. The mempool MUST reject — otherwise the chain
     // would later reject the producer's block via UploadUnderfunded.
-    let (chain, inp) = genesis_with_spendable_decoy(4, 1_000);
+    let (chain, inp) = genesis_with_spendable_decoy(16, 1_000);
     let storage = StorageCommitment {
         data_root: [0xcd; 32],
         size_bytes: 64 * 1024, // 64 KB
@@ -634,7 +634,7 @@ fn already_anchored_storage_tx_silently_skips_burden_in_mempool() {
     let mut decoy_p: Vec<EdwardsPoint> = Vec::new();
     let mut decoy_c: Vec<EdwardsPoint> = Vec::new();
     let mut decoy_outputs: Vec<GenesisOutput> = Vec::new();
-    for i in 0..3 {
+    for i in 0..15 {
         let sp = random_scalar();
         let bp = random_scalar();
         let p = generator_g() * sp;
@@ -657,18 +657,18 @@ fn already_anchored_storage_tx_silently_skips_burden_in_mempool() {
         initial_outputs,
         initial_storage: vec![storage.clone()],
         validators: Vec::<Validator>::new(),
-        params: ConsensusParams::default(),
+        params: consensus_params(),
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
     };
     let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
-    let signer_idx = 1usize;
+    let signer_idx = 8usize;
     let mut p = Vec::new();
     let mut c = Vec::new();
     let mut di = 0usize;
-    for i in 0..4 {
+    for i in 0..16 {
         if i == signer_idx {
             p.push(signer_p);
             c.push(signer_c);
