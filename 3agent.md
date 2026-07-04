@@ -48,12 +48,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### In Progress
 
-- [ ] **M2.5.7** — extended GHA rehearsal timeouts + stall health-check.
+- [ ] Monitor **CI** on `6720651` → RC Validation → **Nightly #54**.
 
 ### Next
 
-- [ ] Local CI mirror green on M2.5.7.
-- [ ] Push → CI green → RC Validation → Nightly #54.
+- [x] Local CI mirror green on M2.5.7 (`ci-check-m257-run.log`).
+- [x] M2.5.7 pushed (`261b0d2` + `6720651`).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
