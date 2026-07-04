@@ -10,6 +10,17 @@ cargo build -p mfn-storage-operator --release
 
 ## Run
 
+One-command wrapper (devnet or RPC-only public observer):
+
+```bash
+# After start-all (uses OBSERVER_RPC + manifest from devnet-ports.env)
+bash scripts/public-devnet-v1/start-storage-operator.sh ./wallet.json
+```
+
+```powershell
+powershell -File scripts/public-devnet-v1/start-storage-operator.ps1 -Wallet .\wallet.json
+```
+
 Requires a synced JSON-RPC endpoint (your own `mfnd serve` **or** a public observer) and local upload artifacts (`wallet upload`, `operator backfill`, or `uploads fetch-http`).
 
 Optional network manifest (`--manifest` or `MFN_OPERATOR_MANIFEST`) supplies default `observer_rpc` and `replication_peers` from e.g. `mfn-node/testdata/public_devnet_v1.manifest.json`.

@@ -27,6 +27,9 @@ With `wasm-full`, additional exports include:
 - `wasm_verify_header_hex`
 - `wasm_light_chain_verify_header`
 - `wasm_light_chain_apply_evolution`
+- `wasm_build_storage_proof` / `buildStorageProof` — SPoRA proof construction (same path as CLI)
+- `wasm_verify_storage_proof` / `verifyStorageProof` — SPoRA proof verification
+- `wasm_storage_chunk_hex` / `storageChunkHex` — extract one Merkle chunk for HTTP replication
 - `wasm_light_follow_quorum_json`
 
 ## Build

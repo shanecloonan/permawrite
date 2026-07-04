@@ -164,12 +164,12 @@ These widen participation by lowering the **skill and friction** barrier, not th
 
 | Improvement | Who benefits | Status / next step |
 |---|---|---|
-| **Prebuilt release binaries** for `mfnd`, `mfn-cli`, `mfn-storage-operator` | All roles | Ship alongside devnet; eliminate Rust toolchain requirement |
-| **One-command storage daemon** | Storage operators | Polish `mfn-storage-operator run` defaults, auto wallet scan, structured logs |
-| **WASM prove + serve** | Storage operators, wallet users | Expose SPoRA build/verify and chunk HTTP from `mfn-wasm` ([`STORAGE_ACCESSIBILITY.md § 5 Phase B`](./STORAGE_ACCESSIBILITY.md#phase-b--consumer-ux-still-no-consensus-change)) |
-| **Mobile / PWA wallet** | Wallet users, light operators | Background prove loop via light-client RPC; encrypted local artifact store |
-| **Document RPC-only operator path** | Storage operators | Observer RPC + operator tooling; no `mfnd` required |
-| **Curated peer lists → discovery registry** | Uploaders, operators | Start with manifest peer lists; evolve to optional on-chain registry |
+| **Prebuilt release binaries** for `mfnd`, `mfn-cli`, `mfn-storage-operator` | All roles | **Shipped** — tag `v*` triggers [release-binaries workflow](../.github/workflows/release-binaries.yml) |
+| **One-command storage daemon** | Storage operators | **Shipped** — `scripts/public-devnet-v1/start-storage-operator.{sh,ps1}`; daemon logs artifact count + `--json` cycles |
+| **WASM prove + serve** | Storage operators, wallet users | **Shipped** — `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` ([Phase B](./STORAGE_ACCESSIBILITY.md#phase-b--consumer-ux-still-no-consensus-change)) |
+| **Mobile / PWA wallet** | Wallet users, light operators | **Deferred** — WASM prove path unblocks browser operators; full PWA is product scope |
+| **Document RPC-only operator path** | Storage operators | **Shipped** — [`mfn-storage-operator` README](../mfn-storage-operator/README.md), manifest defaults, TESTNET role table |
+| **Curated peer lists → discovery registry** | Uploaders, operators | **Partial** — manifest `replication_peers` shipped; on-chain registry deferred |
 
 A phone holding artifacts and proving on a schedule is a packaging problem today, not a consensus problem. The protocol math already permits it.
 
@@ -264,21 +264,44 @@ The codebase already separates consensus security from permanence breadth. The p
 - [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — production runbook
 ---
 
-## 8. Implementation log
+## 8. Privacy and permanence gate
 
-Assessment of §4 improvements against **absolute privacy** and **absolute permanence** (off-chain payloads, SPoRA verification, `min_replication`, no consensus weakening):
+**Absolute privacy** and **absolute permanence** are non-negotiable product pillars ([`PRIVACY_AND_PERMANENCE.md`](./PRIVACY_AND_PERMANENCE.md)). Every item in §4 was evaluated against them:
+
+| Criterion | Must hold | Why improvements can still ship |
+|---|---|---|
+| **Privacy** | Payload bytes stay off-chain; ring/CLSAG/Bulletproof semantics unchanged; no trusted-RPC shortcuts for header or payment verification | Packaging (binaries, WASM, manifests) lowers friction without moving data on-chain or weakening crypto |
+| **Permanence** | `min_replication` unchanged; every node verifies SPoRA proofs deterministically; operator-direct payouts preserved | More independent operators on consumer hardware **increases** replica breadth; we do not “cheapen” permanence by dropping replication |
+| **Role separation** | Validators remain bond + liveness gated; storage operators remain bondless + periodic prove | Merging roles or putting payloads on-chain would raise hardware floors and break light clients — explicitly declined (§4.4) |
+
+Centralization pressures in §3.2 (SPoRA latency races, state growth, stake concentration, fee-volume dependence) are **honest limits**, not reasons to weaken the pillars. Phase C protocol tuning (latency-fair inclusion, tiered bonding) may reduce races **without** moving payloads on-chain — but each fork must re-pass this gate.
+
+---
+
+## 9. Implementation log
+
+What was assessed, shipped, deferred, or declined (newest first):
 
 | Item | Verdict | Notes |
 |---|---|---|
-| Prebuilt release binaries | **Shipped** | `.github/workflows/release-binaries.yml` |
+| One-command storage operator wrapper | **Shipped** | `start-storage-operator.{sh,ps1}` — manifest + `OBSERVER_RPC` from local devnet or public RPC |
+| Daemon startup artifact scan + JSON logs | **Shipped** | `mfn-storage-operator run --json`; startup logs local artifact count |
+| Prebuilt release binaries | **Shipped** | `.github/workflows/release-binaries.yml` (tag `v*`) |
 | Operator manifest discovery | **Shipped** | `NetworkManifest`, `MFN_OPERATOR_MANIFEST`, `--manifest`, `manifest-info` |
-| Operator env defaults | **Shipped** | `MFN_RPC`, `MFN_WALLET`; RPC-only operator path documented |
+| Operator env defaults | **Shipped** | `MFN_RPC`, `MFN_WALLET`; RPC-only path — no local `mfnd` required |
 | WASM prove + verify + chunk serve | **Shipped** | `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` |
-| One-command storage daemon polish | **Partial** | Existing `mfn-storage-operator run`; further UX deferred |
-| Latency-fair SPoRA inclusion | **Deferred** | Protocol change; fairness tuning (Phase C) |
-| Tiered operator bonding | **Deferred** | Optional fork; weak defection penalty acceptable for accessibility today |
-| Erasure-coded replication | **Deferred** | Research; must preserve deterministic verification |
-| NAT traversal / relay | **Deferred** | Ops packaging; home operators can use HTTP + public RPC today |
-| Mobile / PWA wallet | **Deferred** | Product scope; WASM prove path unblocks browser operators |
-| Curated public observer mesh | **Deferred** | Manifest peer lists shipped; full mesh is community ops |
-| On-chain payloads / merge storage into validators / drop `min_replication` | **Declined** | Would weaken privacy or permanence guarantees |
+| Document RPC-only operator path | **Shipped** | README, TESTNET role table, OPERATORS permanence sections |
+| Erasure-friendly replication UX | **Partial** | `push-chunks` + manifest peers; protocol erasure coding deferred |
+| Latency-fair SPoRA inclusion | **Deferred** | Protocol change; reduces datacenter latency advantage (Phase C) |
+| Tiered operator bonding | **Deferred** | Optional fork; bondless default preserves accessibility |
+| Erasure-coded replication | **Deferred** | Research; must preserve deterministic SPoRA verification |
+| NAT traversal / relay | **Deferred** | Ops packaging; HTTP chunk serve + public observer RPC suffice today |
+| Mobile / PWA wallet | **Deferred** | Product scope; browser WASM prove unblocks light operators |
+| Curated public observer mesh | **Deferred** | Community ops; manifest documents example endpoints |
+| Regional operator onboarding | **Deferred** | Runbooks exist in English; translation/low-bandwidth fetch deferred |
+| Light-client checkpoint distribution | **Deferred** | Optional fork; trust anchor for checkpoint publisher TBD |
+| Lower validator bond floor | **Deferred** | Parameter change; weakens per-validator economic security |
+| On-chain payloads | **Declined** | Explodes block size; kills light clients; breaks privacy envelope |
+| Merge storage into validator duties | **Declined** | Raises hardware floor for all storers to validator grade |
+| Drop `min_replication` | **Declined** | Weakens permanence guarantees |
+| Remove validator bonds | **Declined** | Weakens slash-to-treasury security loop |

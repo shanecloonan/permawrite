@@ -144,9 +144,6 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
             if positional.len() > 1 {
                 return Err("too many arguments for `run`".into());
             }
-            if json {
-                return Err("--json is only supported for `push-chunks`".into());
-            }
             run_daemon(
                 OperatorDaemonConfig {
                     rpc_addr,
@@ -155,6 +152,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                     interval: Duration::from_secs(interval_secs),
                     once,
                     chunk_listen,
+                    json_logs: json,
                 },
                 stop,
             )

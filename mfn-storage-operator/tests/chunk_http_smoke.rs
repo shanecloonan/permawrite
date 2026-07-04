@@ -236,6 +236,7 @@ fn run_once_with_chunk_listen_serves_chunk_zero() {
                 interval: Duration::from_secs(3600),
                 once: false,
                 chunk_listen: Some(listen_bg),
+                json_logs: false,
             },
             stop_bg,
         )

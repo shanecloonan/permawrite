@@ -26,6 +26,8 @@ pub struct OperatorDaemonConfig {
     pub once: bool,
     /// When set, serve wallet upload chunks at this `host:port` (**M6.4**).
     pub chunk_listen: Option<String>,
+    /// Emit one JSON object per line instead of `key=value` logs.
+    pub json_logs: bool,
 }
 
 impl Default for OperatorDaemonConfig {
@@ -37,6 +39,7 @@ impl Default for OperatorDaemonConfig {
             interval: Duration::from_secs(30),
             once: false,
             chunk_listen: None,
+            json_logs: false,
         }
     }
 }
@@ -154,14 +157,32 @@ pub fn run_daemon(config: OperatorDaemonConfig, stop: Arc<AtomicBool>) -> Result
     if let Some(api_key) = &config.rpc_api_key {
         client = client.with_api_key(api_key.clone());
     }
-    println!(
-        "mfno_start rpc={} wallet={}",
-        config.rpc_addr,
-        config.wallet_path.display()
-    );
-    println!("mfno_interval_secs={}", config.interval.as_secs());
-    if let Some(addr) = &config.chunk_listen {
-        println!("mfno_chunk_listen addr={addr}");
+    let artifact_count = list_upload_artifacts(&config.wallet_path)
+        .map(|entries| u32::try_from(entries.len()).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+    if config.json_logs {
+        println!(
+            "{}",
+            serde_json::json!({
+                "event": "mfno_start",
+                "rpc": config.rpc_addr,
+                "wallet": config.wallet_path.display().to_string(),
+                "interval_secs": config.interval.as_secs(),
+                "artifacts": artifact_count,
+                "chunk_listen": config.chunk_listen,
+                "once": config.once,
+            })
+        );
+    } else {
+        println!(
+            "mfno_start rpc={} wallet={} artifacts={artifact_count}",
+            config.rpc_addr,
+            config.wallet_path.display()
+        );
+        println!("mfno_interval_secs={}", config.interval.as_secs());
+        if let Some(addr) = &config.chunk_listen {
+            println!("mfno_chunk_listen addr={addr}");
+        }
     }
 
     let chunk_thread = config.chunk_listen.as_ref().map(|listen_addr| {
@@ -200,7 +221,14 @@ fn run_daemon_prove_loop(
 ) -> Result<(), ProveError> {
     loop {
         if stop.load(Ordering::SeqCst) {
-            println!("mfno_stopping signal=stop");
+            if config.json_logs {
+                println!(
+                    "{}",
+                    serde_json::json!({ "event": "mfno_stopping", "signal": "stop" })
+                );
+            } else {
+                println!("mfno_stopping signal=stop");
+            }
             break;
         }
 
@@ -210,34 +238,51 @@ fn run_daemon_prove_loop(
             .and_then(|t| t.tip_height)
             .map(|h| h.to_string())
             .unwrap_or_else(|| "none".to_string());
-        println!("mfno_cycle_start tip_height={tip_height}");
+        if !config.json_logs {
+            println!("mfno_cycle_start tip_height={tip_height}");
+        }
 
         let (summary, attempts) = run_prove_cycle(client, &config.wallet_path)?;
-        println!(
-            "mfno_cycle_summary artifacts={} submitted={} skipped={} failed={}",
-            summary.artifacts, summary.submitted, summary.skipped, summary.failed
-        );
-        for attempt in &attempts {
-            match &attempt.status {
-                ProveAttemptStatus::Submitted {
-                    outcome_kind,
-                    pool_len,
-                    next_height,
-                } => println!(
-                    "mfno_prove commitment_hash={} outcome={outcome_kind} pool_len={pool_len} next_height={next_height}",
-                    attempt.commitment_hash_hex
-                ),
-                ProveAttemptStatus::Skipped { reason } => println!(
-                    "mfno_prove_skip commitment_hash={} reason={reason}",
-                    attempt.commitment_hash_hex
-                ),
-                ProveAttemptStatus::Failed { error } => println!(
-                    "mfno_prove_fail commitment_hash={} error={error}",
-                    attempt.commitment_hash_hex
-                ),
+        if config.json_logs {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "event": "mfno_cycle",
+                    "tip_height": tip_height,
+                    "artifacts": summary.artifacts,
+                    "submitted": summary.submitted,
+                    "skipped": summary.skipped,
+                    "failed": summary.failed,
+                    "attempts": attempts.iter().map(prove_attempt_json).collect::<Vec<_>>(),
+                })
+            );
+        } else {
+            println!(
+                "mfno_cycle_summary artifacts={} submitted={} skipped={} failed={}",
+                summary.artifacts, summary.submitted, summary.skipped, summary.failed
+            );
+            for attempt in &attempts {
+                match &attempt.status {
+                    ProveAttemptStatus::Submitted {
+                        outcome_kind,
+                        pool_len,
+                        next_height,
+                    } => println!(
+                        "mfno_prove commitment_hash={} outcome={outcome_kind} pool_len={pool_len} next_height={next_height}",
+                        attempt.commitment_hash_hex
+                    ),
+                    ProveAttemptStatus::Skipped { reason } => println!(
+                        "mfno_prove_skip commitment_hash={} reason={reason}",
+                        attempt.commitment_hash_hex
+                    ),
+                    ProveAttemptStatus::Failed { error } => println!(
+                        "mfno_prove_fail commitment_hash={} error={error}",
+                        attempt.commitment_hash_hex
+                    ),
+                }
             }
+            println!("mfno_cycle_end");
         }
-        println!("mfno_cycle_end");
 
         if config.once {
             break;
@@ -248,8 +293,40 @@ fn run_daemon_prove_loop(
         thread::sleep(config.interval);
     }
 
-    println!("mfno_exit ok");
+    if config.json_logs {
+        println!(
+            "{}",
+            serde_json::json!({ "event": "mfno_exit", "ok": true })
+        );
+    } else {
+        println!("mfno_exit ok");
+    }
     Ok(())
+}
+
+fn prove_attempt_json(attempt: &ProveAttempt) -> serde_json::Value {
+    let status = match &attempt.status {
+        ProveAttemptStatus::Submitted {
+            outcome_kind,
+            pool_len,
+            next_height,
+        } => serde_json::json!({
+            "kind": "submitted",
+            "outcome": outcome_kind,
+            "pool_len": pool_len,
+            "next_height": next_height,
+        }),
+        ProveAttemptStatus::Skipped { reason } => {
+            serde_json::json!({ "kind": "skipped", "reason": reason })
+        }
+        ProveAttemptStatus::Failed { error } => {
+            serde_json::json!({ "kind": "failed", "error": error })
+        }
+    };
+    serde_json::json!({
+        "commitment_hash": attempt.commitment_hash_hex,
+        "status": status,
+    })
 }
 
 #[cfg(test)]
