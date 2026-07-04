@@ -143,8 +143,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.0** — production ring-16 privacy (`RingPolicy::PRODUCTION`) and operator-direct SPoRA coinbase multi-output settlement (`0e10470`).
 - [x] **M2.5.1** — ring-16 CI fix: proptest harness genesis decoys, multi-output coinbase via `st.endowment_params`, wallet/CLI `--ring-size 16` (local 29/29 apply_block_proptest).
 - [x] **M2.5.2** — integration ring-2 decoys + multi-output validator coinbase; checkpoint tamper byte offsets (`434b444`).
-- [ ] **M2.5.3** — mempool_integration + mfnd_smoke + mfn-runtime/mempool ring-16 (CI #503 failed all OS test jobs on ring-2/4/8).
-- [ ] Green GitHub CI on M2.5.3 fix commit.
+- [x] **M2.5.3** — mempool_integration + mfnd_smoke + mfn-runtime/mempool ring-16 (`95739e4`).
+- [x] Green GitHub CI on M2.5.3 fix commit (CI #505, all OS).
 - [ ] RC Validation → Nightly #50 with M2.4.86–88 rehearsal + M2.5.0 consensus.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
