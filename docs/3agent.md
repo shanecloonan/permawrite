@@ -16,8 +16,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
 - **Done:** M2.5.13 — RC dry-run assert gate; nightly partial evidence on failure.
-- **In progress:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
-- **Next:** Green CI #535 → push M2.5.14 → Nightly #55.
+- **Done:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
+- **Next:** Green CI #536 → Nightly #55.
 
 ## Cross-Agent Blockers
 
