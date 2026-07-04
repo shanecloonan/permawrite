@@ -17,12 +17,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.6** devnet quorum + block-production gates. | **In progress** — `wait_voter_dial_hub` + `wait_hub_tip_at_least` in `start-all`; CI mirror running. | Push → CI green → Nightly #53. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence (`ec845fd`). | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Refresh evidence after green Nightly on M2.5.6. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.6** rehearsal hardening. | **In progress** — GHA health-check gate + extended faucet/mined/upload/observer windows. | Nightly participant+observer green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.6** devnet quorum + block-production gates. | **Done** — `f5f45bf` pushed; local CI mirror **GREEN** (`ci-check-m256b.log`). | Monitor CI #514 → RC Validation → Nightly #53. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence (`ec845fd`). | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Refresh evidence after green Nightly on `f5f45bf`. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.6** rehearsal hardening. | **Done** — GHA health-check gate + extended timeouts in `f5f45bf`. | Nightly participant+observer green on `f5f45bf`. |
 
 ## Recently Completed
 
+- **M2.5.6** (`f5f45bf`) — voter dial wait + hub tip wait in `start-all`; GHA health-check gate; extended rehearsal timeouts; local CI mirror **GREEN**.
 - **M2.5.5** (`ec845fd`) — ignored-test flake fix + devnet CI liveness v1; CI #512 **GREEN**; Nightly #52 ignored **PASS**.
 - **M2.5.4** (`9c76050`) — devnet ring-16 script defaults; CI #509 **GREEN**.
 - **Nightly #51** — **FAIL** on `9c76050` (all jobs; triaged → M2.5.5).
@@ -35,7 +36,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | participant-rehearsal-smoke | **FAIL** (~6.0m) | Hub block production / faucet funding timeout on slow Linux runner |
 | observer-rehearsal-smoke | **FAIL** (~6.2m) | Same class as participant |
 
-**M2.5.6 fix (local, uncommitted):**
+**M2.5.6 fix (`f5f45bf`, pushed):**
 - `start-all` — `wait_voter_dial_hub` (300s GHA) before observer; `wait_hub_tip_at_least` (480s GHA) before return.
 - `participant-rehearsal-smoke` — GHA `health-check.sh` gate (`MFN_HEALTH_REQUIRE_ALL_ROLES=0`, `MFN_HEALTH_MIN_P2P_SESSIONS=2`); hub liveness 480s; faucet 480s; mined 360s.
 - `permanence-demo` — GHA upload stall abort 240s (was 120s).
@@ -45,16 +46,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
+- [x] M2.5.6 (`f5f45bf`) — voter dial + hub tip wait; local CI mirror green.
 - [x] M2.5.5 (`ec845fd`) — ignored-test flake fix; CI #512 **GREEN**; Nightly #52 ignored **PASS**.
-
-### In Progress
-
-- [ ] **M2.5.6** — voter dial wait + hub tip wait in `start-all`; GHA health-check + timeout tuning.
 
 ### Next
 
-- [ ] Local CI mirror green on M2.5.6.
-- [ ] Push → CI green → RC Validation → Nightly #53.
+- [ ] GitHub CI green on `f5f45bf` (CI #514 in progress).
+- [ ] RC Validation → Nightly #53 all jobs green.
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -62,15 +60,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
-- [x] M2.5.5 — voter P2P poll + rehearsal hub liveness wait (v1).
-
-### In Progress
-
-- [ ] **M2.5.6** — `start-all` voter dial + hub tip wait; GHA health-check; faucet/mined/upload/observer tuning.
+- [x] M2.5.6 (`f5f45bf`) — voter dial + hub tip wait; GHA health-check; extended timeouts.
 
 ### Next
 
-- [ ] Green Nightly participant + observer on M2.5.6 commit.
+- [ ] Green Nightly participant + observer on `f5f45bf`.
 
 ## Agent 2 Detailed Plan
 
@@ -80,9 +74,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **PASS** CI #512 on `ec845fd` (M2.5.5, all OS).
-- RC Validation — **PASS** #42 (dispatched Nightly #52).
-- Nightly — **PARTIAL** #52 on `ec845fd` (ignored **PASS**; participant+observer **FAIL**); M2.5.6 fix in progress.
+- Green GitHub CI — **IN PROGRESS** CI #514 on `f5f45bf` (M2.5.6).
+- RC Validation — pending green CI #514.
+- Nightly — **PARTIAL** #52 on `ec845fd`; awaiting #53 on `f5f45bf`.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 

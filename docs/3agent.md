@@ -4,8 +4,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** **M2.5.6** — voter dial + hub tip wait in `start-all`; GHA health-check gate; extended rehearsal timeouts.
-- **Done:** M2.5.5 (`ec845fd`); CI #512 green; Nightly #52 ignored **PASS**.
+- **Doing:** Monitor CI #514 on `f5f45bf`; then RC Validation → Nightly #53.
+- **Done:** M2.5.6 (`f5f45bf`) — voter dial + hub tip wait; local CI mirror green.
 - **Next:** Push M2.5.6 → RC Validation → Nightly #53 green.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
@@ -15,9 +15,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Doing:** **M2.5.6** — GHA health-check gate; faucet/mined/upload/observer 420–480s windows.
-- **Done:** M2.5.5 hub liveness wait + voter P2P poll.
-- **Next:** Green Nightly participant + observer.
+- **Done:** M2.5.6 (`f5f45bf`) — GHA health-check gate; faucet/mined/upload/observer 420–480s windows.
+- **Next:** Green Nightly participant + observer on `f5f45bf`.
 
 ## Cross-Agent Blockers
 
