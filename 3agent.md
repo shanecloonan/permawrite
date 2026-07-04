@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `query_tip_height` get_status fallback; local rehearsal PASS. | Push after CI #522 green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `318407a` pushed; `96327da` local (fund-wallet/permanence parity). | Push `96327da` after CI #524 green. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** rehearsal gates. | **Done** — single-sample health-check; curl RPC fallback; hub tip≥2. | Nightly #55 participant+observer green. |
 
@@ -53,11 +53,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### In Progress
 
-- [ ] CI #522 green on `4dbd5c7` → RC Validation → Nightly #55.
+- [ ] CI #524 green on `318407a` → push `96327da` + docs → RC Validation → Nightly #55.
 
 ### Next
 
-- [ ] Green Nightly #55 (600s hub poll fix from `eb64408`).
+- [ ] Green Nightly #55 (600s hub poll + tip query fallback).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -87,7 +87,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **IN PROGRESS** on `daab765` (await M2.5.9 push).
+- Green GitHub CI — **IN PROGRESS** CI #524 on `318407a` (M2.5.9).
 - RC Validation — pending green CI on M2.5.9 commit.
 - Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ (`eb64408`) + M2.5.9 tip query fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.

@@ -69,12 +69,7 @@ function Get-WalletBalance {
 
 function Get-TipHeightText {
     param([string]$MfnCli, [string]$RpcAddr)
-    $tipOut = & $MfnCli --rpc $RpcAddr tip 2>$null
-    if ($LASTEXITCODE -ne 0) { return "unknown" }
-    $tipText = ($tipOut | Out-String)
-    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
-    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
-    return "unknown"
+    return Get-TipHeightFromRpc -RpcAddr $RpcAddr -MfnCli $MfnCli
 }
 
 function Archive-RehearsalSmokeEvidence {

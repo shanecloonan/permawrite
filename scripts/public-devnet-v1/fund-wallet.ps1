@@ -14,6 +14,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
+. (Join-Path $ScriptDir "ports-env-lib.ps1")
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 $DemoRoot = Join-Path $ScriptDir "permanence-demo"
 $DefaultRecipientWallet = Join-Path $DemoRoot "uploader.json"
@@ -118,18 +119,7 @@ function Wait-RecipientBalance {
 
 function Get-TipHeightText {
     param([string]$MfnCli, [string]$RpcAddr)
-    $oldErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $tipOut = & $MfnCli --rpc $RpcAddr tip 2>&1
-    } finally {
-        $ErrorActionPreference = $oldErrorActionPreference
-    }
-    if ($LASTEXITCODE -ne 0) { return "unknown" }
-    $tipText = ($tipOut | Out-String)
-    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
-    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
-    return "unknown"
+    return Get-TipHeightFromRpc -RpcAddr $RpcAddr -MfnCli $MfnCli
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }
