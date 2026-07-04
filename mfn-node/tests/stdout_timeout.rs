@@ -11,12 +11,12 @@ fn github_actions_runner() -> bool {
 
 /// Wait for `mfnd_serve_listening=` (longer on GitHub Actions runners).
 pub fn serve_listen_timeout() -> Duration {
-    Duration::from_secs(if github_actions_runner() { 90 } else { 30 })
+    Duration::from_secs(if github_actions_runner() { 120 } else { 30 })
 }
 
 /// Wait for a single log line prefix (dial ok, p2p listening, …).
 pub fn p2p_line_timeout() -> Duration {
-    Duration::from_secs(if github_actions_runner() { 120 } else { 90 })
+    Duration::from_secs(if github_actions_runner() { 150 } else { 90 })
 }
 
 /// Wait for `mfnd_p2p_sync_end` after block pull.

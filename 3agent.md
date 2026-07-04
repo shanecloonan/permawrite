@@ -1,6 +1,6 @@
 # 3agent Coordination
 
-This file coordinates the three active Permawrite agent lanes. Keep using `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and the operator runbooks as the detailed source of truth; this file is the cross-agent handoff board for current work, completed units, and next work.
+This file coordinates the three active Permawrite agent lanes. Keep using `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and the operator runbooks as the detailed source of truth; this file is the cross-agent handoff board for current work, completed units, and next handoff.
 
 Permawrite is pre-audit experimental software. Do not mark public-testnet readiness complete until the exact release commit has green GitHub CI, local CI mirror evidence, ignored/nightly coverage where required, release evidence, archive validation, and named human sign-off.
 
@@ -17,62 +17,59 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.88** observer boot hardening. | **Ready to push** — fatal observer poll; multi-peer boot dials; GHA 300s catch-up. | Nightly #49 after green CI. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.88** release evidence. | **Pending** — generate after M2.4.88 CI green. | Operator sign-off after Nightly + soak. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.88** full Nightly green. | **In progress** — observer rehearsal harness fixes. | All 3 Nightly jobs green. |
+| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.89** CI re-run after ubuntu flake. | **In progress** — CI #492 ubuntu-only fail on scripts-only `297ec27`. | Green CI #493 → Nightly #49. |
+| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.89** release evidence. | **Pending** — `release-evidence-297ec27` after green CI. | Operator sign-off after Nightly + soak. |
+| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.88** full Nightly green. | **Blocked** — RC Validation skipped until CI green. | All 3 Nightly jobs green. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.87** pushed (`70b0adb`); Windows `start-all.ps1 -NoBuild` + hub/observer poll progress logs.
-- Agent 1: Local Windows participant rehearsal **PASS** (~67s, hub height 5).
+- Agent 1: **M2.4.88** pushed (`297ec27`) — observer fatal poll, multi-peer boot dials, GHA 300s catch-up.
+- Agent 1: **M2.4.87** (`70b0adb`); Windows `start-all.ps1 -NoBuild` + hub/observer poll progress.
 - Agent 2: `release-evidence-052e507` + RC audit on `7008d0a`.
 - Agent 3: Nightly ignored **PASS** (#48 on `052e507`).
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.87)
+### Done (M2.4.64–M2.4.88)
 
-- [x] M2.4.87: Windows start-all parity; hub poll progress; pushed `70b0adb`.
-- [x] M2.4.86: hub/observer poll 300s; Nightly log dumps; pushed `7008d0a`.
-- [x] M2.4.85: `start-all --no-build`; preserve `SLOT_MS`.
+- [x] M2.4.88: observer boot hardening; pushed `297ec27`.
+- [x] M2.4.87: Windows start-all parity; pushed `70b0adb`.
+- [x] M2.4.86: hub/observer poll 300s; Nightly log dumps; `7008d0a`.
 - [x] CI #489 green on `052e507` (full matrix).
 
-### M2.4.88 (this push)
+### In Progress (M2.4.89)
 
-- [x] Bash `start-all.sh`: fatal exit when observer RPC missing; poll voter P2P for extra observer boot dials.
-- [x] `start-observer.sh`: `config.env` + `EXTRA_P2P_DIALS` multi-peer boot.
-- [x] Windows `start-all.ps1`: observer multi-dial + fatal throw on RPC timeout; `--slot-duration-ms` on observer.
-- [x] Nightly + rehearsal: GHA `wait-observer-catchup-seconds 300`; longer GHA post-start waits.
-- [ ] CI #491 green on `70b0adb` (baseline before M2.4.88).
-- [ ] Push M2.4.88 → CI green → RC Validation → Nightly #49.
+- [x] Diagnose CI #492 (run `28687976097`): **ubuntu** `cargo test` fail; **macos + windows success**; rustfmt/clippy/wasm/audit/scripts **pass**; **zero Rust diff** `052e507..297ec27` → isolated runner flake (same pattern as CI #490 on `7008d0a`).
+- [ ] Local CI mirror PASS on `297ec27`.
+- [ ] Board truth commit → push → CI #493 green.
 
 ### Next
 
+- [ ] RC Validation → Nightly #49 on green `297ec27`.
 - [ ] First full green Nightly (all 3 jobs).
-- [ ] `release-evidence-70b0adb` / M2.4.88 after CI green.
+- [ ] `release-evidence-297ec27` after CI green.
 - [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit**).
-- [ ] Operator sign-off.
 
 ## Agent 3 Detailed Plan
 
 - [x] Nightly ignored integration green (#48).
-- [ ] First full green **Nightly** — observer rehearsal blocked until M2.4.88 lands.
+- [ ] First full green **Nightly** — blocked on green CI for RC auto-dispatch.
 
 ## Agent 2 Detailed Plan
 
 - [x] `release-evidence-052e507` committed on `7008d0a`.
-- [ ] `release-evidence-70b0adb` after CI #491 green.
+- [ ] `release-evidence-297ec27` after CI #493 green.
 - [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **in flight** CI #491 on `70b0adb` (M2.4.87 baseline).
-- Nightly ignored suite — **PASS** (#48 on `052e507`); rehearsal — **fail** on #47; M2.4.86–M2.4.88 fixes pending Nightly #49.
+- Exact commit has green GitHub CI — **FAIL** CI #492 on `297ec27` (ubuntu test only; macos/windows/scripts green).
+- Nightly ignored suite — **PASS** (#48 on `052e507`); full Nightly — **fail** #48 rehearsal; M2.4.88 fixes pending Nightly #49.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Wait for CI #491 on `70b0adb` before pushing M2.4.88 (avoid cancel-in-progress).
-- Observed local WIP (not in this commit): storage-operator payout keys in `mfn-storage` / `mfn-consensus` — incomplete; do not merge until green.
+- CI red on `297ec27` blocks RC Validation → Nightly #49.
+- Observed local WIP (not on `main`): storage-operator payout keys in Rust — incomplete; do not merge until green.
 - Linux Soak Audit manual (~35 min) after first full green Nightly.

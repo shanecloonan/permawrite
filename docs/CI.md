@@ -69,6 +69,8 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **CI Queue Cleanup (M2.4.75):** [`.github/workflows/ci-queue-cleanup.yml`](../.github/workflows/ci-queue-cleanup.yml) cancels stale CI runs on push to reduce runner backlog, but **preserves CI for the triggering commit** (`context.sha`) so the matrix under test is not cancelled (**M2.4.82**). Do not push follow-up commits while CI is in progress — concurrency `cancel-in-progress` aborts the prior matrix.
 
+**Linux test hardening (M2.4.89):** GitHub **CI** runs workspace release tests with `--test-threads=2` on `ubuntu-latest` (4 on macOS/Windows) and retries once after 15s on failure. `mfn-node/tests/stdout_timeout.rs` uses longer GHA deadlines for `mfnd_serve_listening=` (120s) and P2P line prefixes (150s).
+
 **Workflow UTF-8 guard (M2.4.79):** `scripts/validate-workflow-encoding.{sh,ps1}` runs in local CI mirror and GitHub **CI** scripts job — GitHub Actions rejects UTF-16 workflow YAML.
 
 **Emission / treasury (M5.0â€“M5.30):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + validator CLSAG/mixed fee chains + liveness-slash/combined-inflow treasury ledgers, including 32/64-block equivocation combined-inflow, prefunded treasury backstop coverage, and 16/32-block no-equivocation PPB combined-inflow coverage). Longer sims, including 64/256-block combined-inflow, 64/256/512-block no-equivocation PPB combined-inflow, and 128/512-block equivocation combined-inflow runs, are `#[ignore]` (nightly).
