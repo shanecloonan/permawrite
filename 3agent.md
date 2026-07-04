@@ -19,7 +19,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `318407a` pushed; `96327da` local (fund-wallet/permanence parity). | Push `96327da` after CI #524 green. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** rehearsal gates. | **Done** — single-sample health-check; curl RPC fallback; hub tip≥2. | Nightly #55 participant+observer green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.9** hub tip polls. | **In progress** — fund-wallet/permanence-demo shared tip query. | Nightly participant+observer green. |
 
 ## Recently Completed
 
