@@ -140,6 +140,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Synchronous proposal fan-out on producer adopt and slot-tick rebroadcast so votes ingest before pending release (**M2.4.64**).
 - [x] Capture passing Windows `soak: RESTART` evidence (`scripts/public-devnet-v1/evidence/soak-restart-windows-20260703T120117Z.txt`, M2.4.66).
 - [x] Participant rehearsal smoke real-run PASS on M2.4.64 local mesh (fund + permanence + support bundle).
+- [x] **M2.5.0** — production ring-16 privacy (`RingPolicy::PRODUCTION`) and operator-direct SPoRA coinbase multi-output settlement (`0e10470`).
+- [x] **M2.5.1** — ring-16 CI fix: proptest harness genesis decoys, multi-output coinbase via `st.endowment_params`, wallet/CLI `--ring-size 16` (local 29/29 apply_block_proptest).
+- [ ] Green GitHub CI on M2.5.1 fix commit (CI #494 failed on bare M2.5.0).
+- [ ] RC Validation → Nightly #50 with M2.4.86–88 rehearsal + M2.5.0 consensus.
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 

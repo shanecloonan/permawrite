@@ -1269,6 +1269,23 @@ fn storage_proof_body_tamper_rejects_without_state_change() {
     }
 }
 
+const PROD_RING_SIZE: usize = 16;
+
+fn genesis_decoy_output(i: usize) -> GenesisOutput {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+
+    let spend = random_scalar();
+    let blinding = random_scalar();
+    let p = generator_g() * spend;
+    let c = (generator_g() * blinding) + (generator_h() * Scalar::from(1u64 + i as u64));
+    GenesisOutput {
+        one_time_addr: p,
+        amount: c,
+    }
+}
+
 /* ----------------------------------------------------------------- *
  *                                                                   *
  *  These tests target the only thing standing between Permawrite     *
@@ -1289,20 +1306,29 @@ fn ring_member_not_in_utxo_set_rejected() {
 
     use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
 
-    // Genesis funds the real signer with a known UTXO. No decoys are
-    // anchored, so any ring member other than the signer's UTXO will
-    // be unknown to the chain.
+    // Genesis funds the signer plus decoys for a ring-16 spend. One ring
+    // slot uses a fabricated (P, C) pair absent from the UTXO set.
     let init_value = 1_000_000u64;
     let init_blinding = random_scalar();
     let signer_spend = random_scalar();
     let signer_p = generator_g() * signer_spend;
     let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+    let signer_idx = 0usize;
+    let fake_slot = 7usize;
+    let mut decoys = Vec::with_capacity(PROD_RING_SIZE - 1);
+    let mut initial_outputs = Vec::with_capacity(PROD_RING_SIZE);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    });
+    for i in 0..PROD_RING_SIZE - 1 {
+        let d = genesis_decoy_output(i);
+        decoys.push((d.one_time_addr, d.amount));
+        initial_outputs.push(d);
+    }
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: signer_p,
-            amount: signer_c,
-        }],
+        initial_outputs,
         initial_storage: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -1313,20 +1339,23 @@ fn ring_member_not_in_utxo_set_rejected() {
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
 
-    // Construct a 4-member ring; signer at index 1, the other three
-    // are random (P, C) pairs that aren't in the UTXO set.
-    let mut ring_p = Vec::new();
-    let mut ring_c = Vec::new();
-    for i in 0..4 {
-        if i == 1 {
+    let mut ring_p = Vec::with_capacity(PROD_RING_SIZE);
+    let mut ring_c = Vec::with_capacity(PROD_RING_SIZE);
+    for slot in 0..PROD_RING_SIZE {
+        if slot == signer_idx {
             ring_p.push(signer_p);
             ring_c.push(signer_c);
-        } else {
+        } else if slot == fake_slot {
             let sp = random_scalar();
             let bp = random_scalar();
             let vp = random_scalar();
             ring_p.push(generator_g() * sp);
             ring_c.push((generator_g() * bp) + (generator_h() * vp));
+        } else {
+            let decoy_idx = if slot < fake_slot { slot - 1 } else { slot - 2 };
+            let (dp, dc) = decoys[decoy_idx];
+            ring_p.push(dp);
+            ring_c.push(dc);
         }
     }
     let recipient_wallet = stealth_gen();
@@ -1341,7 +1370,7 @@ fn ring_member_not_in_utxo_set_rejected() {
                 p: ring_p,
                 c: ring_c,
             },
-            signer_idx: 1,
+            signer_idx,
             spend_priv: signer_spend,
             value: init_value,
             blinding: init_blinding,
@@ -1399,35 +1428,30 @@ fn ring_member_with_wrong_commit_rejected() {
 
     use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
 
-    // Anchor a real UTXO at genesis; spender will reference it in
-    // their ring but with an inflated Pedersen commitment to try to
-    // sneak extra hidden value past the chain. Must be rejected.
+    // Anchor signer plus decoys for ring-16; attacker inflates one decoy's C.
     let init_value = 1_000_000u64;
     let init_blinding = random_scalar();
     let signer_spend = random_scalar();
     let signer_p = generator_g() * signer_spend;
     let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
 
-    // A second anchored UTXO with KNOWN small value that the attacker
-    // will reference in their ring, but with an inflated C.
-    let decoy_spend = random_scalar();
-    let decoy_p = generator_g() * decoy_spend;
-    let decoy_value = 1u64;
-    let decoy_blinding = random_scalar();
-    let decoy_c = (generator_g() * decoy_blinding) + (generator_h() * Scalar::from(decoy_value));
+    let signer_idx = 0usize;
+    let inflated_slot = 5usize;
+    let mut decoys = Vec::with_capacity(PROD_RING_SIZE - 1);
+    let mut initial_outputs = Vec::with_capacity(PROD_RING_SIZE);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    });
+    for i in 0..PROD_RING_SIZE - 1 {
+        let d = genesis_decoy_output(i + 100);
+        decoys.push((d.one_time_addr, d.amount));
+        initial_outputs.push(d);
+    }
 
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![
-            GenesisOutput {
-                one_time_addr: signer_p,
-                amount: signer_c,
-            },
-            GenesisOutput {
-                one_time_addr: decoy_p,
-                amount: decoy_c,
-            },
-        ],
+        initial_outputs,
         initial_storage: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -1438,12 +1462,25 @@ fn ring_member_with_wrong_commit_rejected() {
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
 
-    // Attacker's ring: signer's real UTXO + the decoy's P with an
-    // INFLATED C (pretending the decoy holds 10^9 base units).
     let inflated_c =
         (generator_g() * random_scalar()) + (generator_h() * Scalar::from(1_000_000_000u64));
-    let ring_p = vec![signer_p, decoy_p];
-    let ring_c = vec![signer_c, inflated_c];
+    let mut ring_p = Vec::with_capacity(PROD_RING_SIZE);
+    let mut ring_c = Vec::with_capacity(PROD_RING_SIZE);
+    for slot in 0..PROD_RING_SIZE {
+        if slot == signer_idx {
+            ring_p.push(signer_p);
+            ring_c.push(signer_c);
+        } else {
+            let decoy_idx = slot - 1;
+            let (dp, dc) = decoys[decoy_idx];
+            ring_p.push(dp);
+            if slot == inflated_slot {
+                ring_c.push(inflated_c);
+            } else {
+                ring_c.push(dc);
+            }
+        }
+    }
 
     let recipient_wallet = stealth_gen();
     let r = Recipient {
@@ -1457,7 +1494,7 @@ fn ring_member_with_wrong_commit_rejected() {
                 p: ring_p,
                 c: ring_c,
             },
-            signer_idx: 0,
+            signer_idx,
             spend_priv: signer_spend,
             value: init_value,
             blinding: init_blinding,

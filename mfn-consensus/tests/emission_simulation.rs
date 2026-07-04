@@ -8,6 +8,7 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
+use mfn_consensus::storage::StorageCommitment;
 use mfn_consensus::{
     apply_block, apply_genesis, block_coinbase_specs, build_coinbase_outputs, build_genesis,
     build_unsealed_header, cast_vote, cumulative_emission, emission_at_height,
@@ -356,8 +357,8 @@ fn build_validator_coinbase(
     st: &ChainState,
     slot: u32,
     proofs: &[StorageProof],
-    ep: &EndowmentParams,
 ) -> TransactionWire {
+    let ep = &st.endowment_params;
     let accepted: Vec<_> = proofs
         .iter()
         .map(|p| {
@@ -374,22 +375,35 @@ fn genesis_validator_with_funded_utxo(
     emission: EmissionParams,
     spend_value: u64,
     fixture: &ValidatorFixture,
+    initial_storage: Vec<StorageCommitment>,
+    endowment_params: EndowmentParams,
+    bonding_params: Option<mfn_consensus::BondingParams>,
 ) -> (ChainState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let ring_size = ring_size_for(&fixture.params);
+    let signer_idx = ring_size - 1;
+    let mut decoys = Vec::with_capacity(ring_size - 1);
+    let mut initial_outputs = Vec::with_capacity(ring_size);
+    for i in 0..ring_size - 1 {
+        let decoy = genesis_decoy_output(i);
+        decoys.push((decoy.one_time_addr, decoy.amount));
+        initial_outputs.push(decoy);
+    }
+    let spend = SpendState::with_ring(spend_priv, blinding, spend_value, decoys, signer_idx);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: spend.one_time_addr,
+        amount: spend.commitment(),
+    });
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: Vec::new(),
+        initial_outputs,
+        initial_storage,
         validators: fixture.validators.clone(),
         params: fixture.params,
         emission_params: emission,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
-        bonding_params: None,
+        endowment_params,
+        bonding_params,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
@@ -545,7 +559,14 @@ fn apply_validator_block_with_voters(
 fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     let fixture = ValidatorFixture::three_validators();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) = genesis_validator_with_funded_utxo(emission, initial, &fixture);
+    let (mut st, mut spend) = genesis_validator_with_funded_utxo(
+        emission,
+        initial,
+        &fixture,
+        Vec::new(),
+        DEFAULT_ENDOWMENT_PARAMS,
+        None,
+    );
     let mut model_treasury = 0u128;
 
     for h in 1..=blocks {
@@ -561,7 +582,6 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
             &st,
             h,
             &[],
-            &DEFAULT_ENDOWMENT_PARAMS,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -575,21 +595,52 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     }
 }
 
+/// Ring size required by consensus params (uniform size when set, else minimum).
+fn ring_size_for(params: &ConsensusParams) -> usize {
+    let policy = params.ring_policy();
+    if policy.uniform_ring_size > 0 {
+        policy.uniform_ring_size as usize
+    } else {
+        policy.min_ring_size as usize
+    }
+}
+
+fn genesis_decoy_output(i: usize) -> GenesisOutput {
+    let spend = random_scalar();
+    let blinding = random_scalar();
+    let p = generator_g() * spend;
+    let c = (generator_g() * blinding) + (generator_h() * Scalar::from(1u64 + i as u64));
+    GenesisOutput {
+        one_time_addr: p,
+        amount: c,
+    }
+}
+
 /// Spendable UTXO the simulator chains block-to-block via `OutputSpec::Raw` change.
 struct SpendState {
     spend_priv: Scalar,
     blinding: Scalar,
     value: u64,
     one_time_addr: EdwardsPoint,
+    ring_decoys: Vec<(EdwardsPoint, EdwardsPoint)>,
+    signer_idx: usize,
 }
 
 impl SpendState {
-    fn genesis(spend_priv: Scalar, blinding: Scalar, value: u64) -> Self {
+    fn with_ring(
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        ring_decoys: Vec<(EdwardsPoint, EdwardsPoint)>,
+        signer_idx: usize,
+    ) -> Self {
         Self {
             spend_priv,
             blinding,
             value,
             one_time_addr: generator_g() * spend_priv,
+            ring_decoys,
+            signer_idx,
         }
     }
 
@@ -598,16 +649,27 @@ impl SpendState {
     }
 
     fn input_spec(&self) -> InputSpec {
-        let decoy_spend = random_scalar();
-        let decoy_blinding = random_scalar();
-        let decoy_p = generator_g() * decoy_spend;
-        let decoy_c = (generator_g() * decoy_blinding) + (generator_h() * Scalar::from(1u64));
+        let ring_size = self.ring_decoys.len() + 1;
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        for slot in 0..ring_size {
+            if slot == self.signer_idx {
+                p.push(self.one_time_addr);
+                c.push(self.commitment());
+            } else {
+                let decoy_idx = if slot < self.signer_idx {
+                    slot
+                } else {
+                    slot - 1
+                };
+                let (dp, dc) = self.ring_decoys[decoy_idx];
+                p.push(dp);
+                c.push(dc);
+            }
+        }
         InputSpec {
-            ring: ClsagRing {
-                p: vec![self.one_time_addr, decoy_p],
-                c: vec![self.commitment(), decoy_c],
-            },
-            signer_idx: 0,
+            ring: ClsagRing { p, c },
+            signer_idx: self.signer_idx,
             spend_priv: self.spend_priv,
             value: self.value,
             blinding: self.blinding,
@@ -636,6 +698,8 @@ impl SpendState {
             blinding: signed.output_blindings[0],
             value: change_value,
             one_time_addr: change_addr,
+            ring_decoys: self.ring_decoys.clone(),
+            signer_idx: self.signer_idx,
         };
         (signed, next)
     }
@@ -644,13 +708,23 @@ impl SpendState {
 fn genesis_with_funded_utxo(emission: EmissionParams, value: u64) -> (ChainState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, value);
+    let ring_size = ring_size_for(&DEFAULT_CONSENSUS_PARAMS);
+    let signer_idx = ring_size - 1;
+    let mut decoys = Vec::with_capacity(ring_size - 1);
+    let mut initial_outputs = Vec::with_capacity(ring_size);
+    for i in 0..ring_size - 1 {
+        let decoy = genesis_decoy_output(i);
+        decoys.push((decoy.one_time_addr, decoy.amount));
+        initial_outputs.push(decoy);
+    }
+    let spend = SpendState::with_ring(spend_priv, blinding, value, decoys, signer_idx);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: spend.one_time_addr,
+        amount: spend.commitment(),
+    });
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs,
         initial_storage: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -707,13 +781,23 @@ fn genesis_with_funded_utxo_and_storage(
 ) -> (ChainState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let ring_size = ring_size_for(&DEFAULT_CONSENSUS_PARAMS);
+    let signer_idx = ring_size - 1;
+    let mut decoys = Vec::with_capacity(ring_size - 1);
+    let mut initial_outputs = Vec::with_capacity(ring_size);
+    for i in 0..ring_size - 1 {
+        let decoy = genesis_decoy_output(i);
+        decoys.push((decoy.one_time_addr, decoy.amount));
+        initial_outputs.push(decoy);
+    }
+    let spend = SpendState::with_ring(spend_priv, blinding, spend_value, decoys, signer_idx);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: spend.one_time_addr,
+        amount: spend.commitment(),
+    });
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs,
         initial_storage: vec![storage.built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -778,40 +862,19 @@ fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
     }
 }
 
-fn genesis_validator_with_funded_utxo_and_storage(
-    emission: EmissionParams,
-    spend_value: u64,
-    storage: &StorageFixture,
-    fixture: &ValidatorFixture,
-) -> (ChainState, SpendState) {
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
-        bonding_params: None,
-    };
-    let g = build_genesis(&cfg);
-    let st = apply_genesis(&g, &cfg).expect("genesis");
-    (st, spend)
-}
-
 /// Validator quorum + coinbase + CLSAG fee + SPoRA proof per block (**M5.0++**).
 fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
     let fixture = ValidatorFixture::three_validators();
     let storage = StorageFixture::sample_4k();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) =
-        genesis_validator_with_funded_utxo_and_storage(emission, initial, &storage, &fixture);
+    let (mut st, mut spend) = genesis_validator_with_funded_utxo(
+        emission,
+        initial,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        DEFAULT_ENDOWMENT_PARAMS,
+        None,
+    );
     let mut model_treasury = 0u128;
 
     for h in 1..=blocks {
@@ -835,7 +898,6 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
             &st,
             h,
             std::slice::from_ref(&proof),
-            &DEFAULT_ENDOWMENT_PARAMS,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -870,6 +932,14 @@ fn run_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
 #[test]
 fn sim_emission_params_validate() {
     assert!(validate_emission_params(&SIM_EMISSION).is_ok());
+}
+
+#[test]
+fn debug_genesis_ring_size_is_sixteen() {
+    let (_, spend) = genesis_with_funded_utxo(SIM_EMISSION, 1_000);
+    assert_eq!(ring_size_for(&DEFAULT_CONSENSUS_PARAMS), 16);
+    assert_eq!(spend.ring_decoys.len(), 15);
+    assert_eq!(spend.input_spec().ring.p.len(), 16);
 }
 
 #[test]
@@ -1031,25 +1101,14 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
 
     let fixture = ValidatorFixture::liveness_absentee_three_validators();
     let initial = 50_000_000_000u64;
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, initial);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
-        bonding_params: None,
-    };
-    let g = build_genesis(&cfg);
-    let mut st = apply_genesis(&g, &cfg).expect("genesis");
-    let mut spend_state = spend;
+    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+        emission,
+        initial,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        DEFAULT_ENDOWMENT_PARAMS,
+        None,
+    );
     let mut model_treasury = 0u128;
     let voters = [0u32, 2];
     let liveness_forfeit = 10_000u128;
@@ -1080,7 +1139,6 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
             &st,
             h,
             &storage_proofs,
-            &DEFAULT_ENDOWMENT_PARAMS,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -1143,26 +1201,15 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
     let storage = StorageFixture { payload, built };
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
-        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
-    };
-    let g = build_genesis(&cfg);
-    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+        emission,
+        50_000_000_000,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        DEFAULT_ENDOWMENT_PARAMS,
+        Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    );
     st.treasury = initial_treasury;
-    let mut spend_state = spend;
     let mut model_treasury = initial_treasury;
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
     let liveness_forfeit = 10_000u128;
@@ -1198,7 +1245,6 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
             &st,
             h,
             &storage_proofs,
-            &DEFAULT_ENDOWMENT_PARAMS,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -1299,26 +1345,15 @@ fn run_combined_inflow_ppb_treasury_sim(
     let commit_hash = storage_commitment_hash(&storage.built.commit);
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: SIM_PPB_ENDOWMENT,
-        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
-    };
-    let g = build_genesis(&cfg);
-    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+        emission,
+        50_000_000_000,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        SIM_PPB_ENDOWMENT,
+        Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    );
     st.treasury = initial_treasury;
-    let mut spend_state = spend;
     let mut model_treasury = initial_treasury;
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
     let liveness_forfeit = 10_000u128;
@@ -1370,7 +1405,6 @@ fn run_combined_inflow_ppb_treasury_sim(
             &st,
             h,
             &storage_proofs,
-            &SIM_PPB_ENDOWMENT,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -1613,26 +1647,15 @@ fn run_equivocation_combined_inflow_treasury_sim(
     let storage = StorageFixture { payload, built };
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
-        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
-    };
-    let g = build_genesis(&cfg);
-    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+        emission,
+        50_000_000_000,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        DEFAULT_ENDOWMENT_PARAMS,
+        Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    );
     st.treasury = initial_treasury;
-    let mut spend_state = spend;
     let mut model_treasury = initial_treasury;
     const EQUIVOCATION_IDX: u32 = 2;
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
@@ -1676,7 +1699,6 @@ fn run_equivocation_combined_inflow_treasury_sim(
             &st,
             h,
             &storage_proofs,
-            &DEFAULT_ENDOWMENT_PARAMS,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
@@ -1798,26 +1820,15 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
     let commit_hash = storage_commitment_hash(&storage.built.commit);
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let spend_priv = random_scalar();
-    let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, 50_000_000_000);
-    let cfg = GenesisConfig {
-        timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
-        initial_storage: vec![storage.built.commit.clone()],
-        validators: fixture.validators.clone(),
-        params: fixture.params,
-        emission_params: emission,
-        endowment_params: SIM_PPB_ENDOWMENT,
-        bonding_params: Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
-    };
-    let g = build_genesis(&cfg);
-    let mut st = apply_genesis(&g, &cfg).expect("genesis");
+    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+        emission,
+        50_000_000_000,
+        &fixture,
+        vec![storage.built.commit.clone()],
+        SIM_PPB_ENDOWMENT,
+        Some(mfn_consensus::DEFAULT_BONDING_PARAMS),
+    );
     st.treasury = initial_treasury;
-    let mut spend_state = spend;
     let mut model_treasury = initial_treasury;
     const EQUIVOCATION_IDX: u32 = 2;
     let bond_stake = u128::from(mfn_consensus::DEFAULT_BONDING_PARAMS.min_validator_stake);
@@ -1877,7 +1888,6 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
             &st,
             h,
             &storage_proofs,
-            &SIM_PPB_ENDOWMENT,
         );
         assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];

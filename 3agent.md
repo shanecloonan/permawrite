@@ -1,6 +1,6 @@
 # 3agent Coordination
 
-This file coordinates the three active Permawrite agent lanes. Keep using `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and the operator runbooks as the detailed source of truth; this file is the cross-agent handoff board for current work, completed units, and next handoff.
+This file coordinates the three active Permawrite agent lanes. Keep using `docs/TESTNET_CHECKLIST.md`, `docs/ROADMAP.md`, `docs/TESTNET.md`, and the operator runbooks as the detailed source of truth; this file is the cross-agent handoff board for current work, completed units, and next work.
 
 Permawrite is pre-audit experimental software. Do not mark public-testnet readiness complete until the exact release commit has green GitHub CI, local CI mirror evidence, ignored/nightly coverage where required, release evidence, archive validation, and named human sign-off.
 
@@ -17,59 +17,65 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, networking, sync | **M2.4.89** CI re-run after ubuntu flake. | **In progress** — CI #492 ubuntu-only fail on scripts-only `297ec27`. | Green CI #493 → Nightly #49. |
-| Agent 2 | Security, RPC, operations, observability, release readiness, documentation truth | **M2.4.89** release evidence. | **Pending** — `release-evidence-297ec27` after green CI. | Operator sign-off after Nightly + soak. |
-| Agent 3 | Wallet, storage, faucet/test funding, onboarding | **M2.4.88** full Nightly green. | **Blocked** — RC Validation skipped until CI green. | All 3 Nightly jobs green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.1** ring-16 CI fix. | **Done (local)** — proptest coinbase uses `st.endowment_params`; 29/29 apply_block_proptest pass. | Push after ci-check green → Nightly #50. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.1** evidence. | **Waiting** — after green CI on fix commit. | Operator sign-off after Nightly + soak. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.1** wallet ring-16. | **Done (local)** — `WALLET_MIN_RING_SIZE=16`, CLI smokes `--ring-size 16`. | Full Nightly #50 after CI green. |
 
 ## Recently Completed
 
-- Agent 1: **M2.4.88** pushed (`297ec27`) — observer fatal poll, multi-peer boot dials, GHA 300s catch-up.
-- Agent 1: **M2.4.87** (`70b0adb`); Windows `start-all.ps1 -NoBuild` + hub/observer poll progress.
-- Agent 2: `release-evidence-052e507` + RC audit on `7008d0a`.
-- Agent 3: Nightly ignored **PASS** (#48 on `052e507`).
+- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase outputs (consensus/storage/node).
+- **M2.4.89** (`f57dc9f`) — CI Linux hardening (threads=2, retry, GHA timeouts); CI #493 cancelled by M2.5.0 push.
+- **M2.4.88** (`297ec27`) — observer boot hardening for Linux Nightly.
+- Nightly ignored **PASS** (#48 on `052e507`).
 
 ## Agent 1 Detailed Plan
 
-### Done (M2.4.64–M2.4.88)
+### Done
 
-- [x] M2.4.88: observer boot hardening; pushed `297ec27`.
-- [x] M2.4.87: Windows start-all parity; pushed `70b0adb`.
-- [x] M2.4.86: hub/observer poll 300s; Nightly log dumps; `7008d0a`.
-- [x] CI #489 green on `052e507` (full matrix).
+- [x] M2.5.0 core: `block_coinbase_specs`, operator payout keys on storage proofs, `RingPolicy::PRODUCTION` (uniform 16).
+- [x] M2.5.1 clippy fixes (`apply.rs`, `spora.rs` doc, treasury test allows).
+- [x] M2.5.1 `apply_block_proptest` harness — ring-16 genesis decoys, multi-output coinbase via `st.endowment_params` (PPB fix).
+- [x] M2.5.1 `block_apply.rs` ring-16 rejection tests.
+- [x] M2.5.1 apply_block_proptest **29 passed / 5 ignored** locally.
 
-### In Progress (M2.4.89)
+### In Progress
 
-- [x] Diagnose CI #492 (run `28687976097`): **ubuntu** `cargo test` fail; **macos + windows success**; rustfmt/clippy/wasm/audit/scripts **pass**; **zero Rust diff** `052e507..297ec27` → isolated runner flake (same pattern as CI #490 on `7008d0a`).
-- [ ] Local CI mirror PASS on `297ec27`.
-- [ ] Board truth commit → push → CI #493 green.
+- [ ] **M2.5.1** — full local CI mirror (`ci-check-m251-final.log`).
+- [ ] Push fix commit → green CI (CI #494 failed on bare `0e10470`).
+- [ ] RC Validation → Nightly #50 (M2.4.86–88 rehearsal + M2.5.0 consensus).
 
 ### Next
 
-- [ ] RC Validation → Nightly #49 on green `297ec27`.
-- [ ] First full green Nightly (all 3 jobs).
-- [ ] `release-evidence-297ec27` after CI green.
-- [ ] Linux 30s-slot soak evidence (manual **Linux Soak Audit**).
+- [ ] `release-evidence-<sha>` + RC audit dry-run.
+- [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
+- [ ] Operator sign-off.
 
 ## Agent 3 Detailed Plan
 
-- [x] Nightly ignored integration green (#48).
-- [ ] First full green **Nightly** — blocked on green CI for RC auto-dispatch.
+### Done
+
+- [x] `WALLET_MIN_RING_SIZE = 16` in `mfn-wallet` (spend + upload builders).
+- [x] All `mfn-cli` integration smokes updated to `--ring-size 16`.
+- [x] `end_to_end`, `mempool_integration`, wasm transfer tests updated for ring-16.
+
+### Next
+
+- [ ] Full green Nightly #50 — blocked on green CI.
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-052e507` committed on `7008d0a`.
-- [ ] `release-evidence-297ec27` after CI #493 green.
+- [ ] Release evidence after M2.5.1 fix commit CI green.
 - [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Exact commit has green GitHub CI — **FAIL** CI #492 on `297ec27` (ubuntu test only; macos/windows/scripts green).
-- Nightly ignored suite — **PASS** (#48 on `052e507`); full Nightly — **fail** #48 rehearsal; M2.4.88 fixes pending Nightly #49.
+- Green GitHub CI — **FAIL** CI #494 on `0e10470`; M2.5.1 fix pending push.
+- Nightly ignored — **PASS** (#48); full Nightly rehearsal — pending green CI + #50.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- CI red on `297ec27` blocks RC Validation → Nightly #49.
-- Observed local WIP (not on `main`): storage-operator payout keys in Rust — incomplete; do not merge until green.
-- Linux Soak Audit manual (~35 min) after first full green Nightly.
+- M2.5.0 CI red blocks RC Validation and Nightly #50 until M2.5.1 lands.
+- **Do not push while CI in flight.**
+- CI #493 (`f57dc9f`) cancelled when M2.5.0 landed — expected.
