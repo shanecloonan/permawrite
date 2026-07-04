@@ -401,7 +401,7 @@ Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehears
 powershell -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1
 ```
 
-After green GitHub CI on `main`, refresh archived release evidence for the current HEAD (Agent 2 handoff). Fails closed unless CI is green unless `-AllowPendingCi` / `--allow-pending-ci`:
+After green GitHub CI on `main`, refresh archived release evidence for the current HEAD (Agent 2 handoff). Fails closed unless CI is green unless `-AllowPendingCi` / `--allow-pending-ci`. Validates JSON against `docs/release-evidence-v1.schema.json` before accepting the refresh.
 
 ```powershell
 powershell -File scripts/public-devnet-v1/release-evidence-refresh-for-head.ps1 `

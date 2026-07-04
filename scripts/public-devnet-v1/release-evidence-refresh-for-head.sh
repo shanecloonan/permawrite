@@ -40,6 +40,9 @@ fi
 
 pwsh -NoProfile -File "$SCRIPT_DIR/release-evidence.ps1" "${common_args[@]}" -Json -OutputPath "$json_path" >/dev/null
 pwsh -NoProfile -File "$SCRIPT_DIR/release-evidence.ps1" "${common_args[@]}" -OutputPath "$md_path" >/dev/null
+pwsh -NoProfile -File "$SCRIPT_DIR/release-json-schema-validate.ps1" \
+  -Schema "$REPO_ROOT/docs/release-evidence-v1.schema.json" \
+  -Json "$json_path" >/dev/null
 
 python3 - <<'PY' "$json_path" "$allow_pending"
 import json, sys

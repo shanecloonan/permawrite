@@ -38,6 +38,11 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & powershell @commonArgs -OutputPath $mdPath | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+& powershell -NoProfile -File (Join-Path $ScriptDir "release-json-schema-validate.ps1") `
+    -Schema (Join-Path $RepoRoot "docs/release-evidence-v1.schema.json") `
+    -Json $jsonPath | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 $evidenceObject = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
 $ciOk = ($evidenceObject.ci.status -eq "completed" -and $evidenceObject.ci.conclusion -eq "success")
 if (-not $ciOk -and -not $AllowPendingCi) {
