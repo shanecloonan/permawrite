@@ -12,6 +12,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 
 - 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Intuition first, with links to the technical specs.
 - 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network (freedom, incentives, economics).
+- 📊 [**STORAGE_COST_MODEL.md**](./STORAGE_COST_MODEL.md) — per-gigabyte endowment projections, Kryder scenarios, and fiat equivalents at default params.
 - 📚 [**GLOSSARY.md**](./GLOSSARY.md) — every acronym and protocol-specific term, alphabetical. Reach for it whenever you hit unfamiliar jargon.
 
 ### Want the technical design?
@@ -50,6 +51,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Storage permanence | OVERVIEW § Permanence half | STORAGE § Endowment | code: `mfn-storage/src/endowment.rs` |
 | SPoRA proofs | OVERVIEW § SPoRA | STORAGE § SPoRA | code: `mfn-storage/src/spora.rs` |
 | Endowment formula | OVERVIEW § Endowment | ECONOMICS § Permanence equation | code: `mfn-storage/src/endowment.rs` |
+| Storage cost / GB | STORAGE_COST_MODEL (full document) | STORAGE § Endowment | code: `mfn-storage/src/endowment.rs` |
 | PoS + leader election | OVERVIEW (implicit) | CONSENSUS § Leader election | code: `mfn-consensus/src/consensus/engine.rs` |
 | BLS finality | OVERVIEW (implicit) | CONSENSUS § Committee finality | code: `mfn-bls/src/sig.rs` |
 | Equivocation slashing | (covered) | CONSENSUS § Equivocation | code: `mfn-consensus/src/slashing.rs` |
