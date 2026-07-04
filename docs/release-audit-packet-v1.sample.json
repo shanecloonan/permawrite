@@ -9,6 +9,7 @@
   "inventory": "release-artifact-inventory.md",
   "participant_rehearsal_log": null,
   "participant_support_bundle": null,
+  "participant_evidence_dir": null,
   "checks": [
     {
       "name": "release evidence schema",

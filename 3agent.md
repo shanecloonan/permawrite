@@ -19,7 +19,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `318407a` pushed; `96327da` local (fund-wallet/permanence parity). | Push `96327da` after CI #524 green. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.9** smoke evidence + CI python. | **Done** — smoke wrappers default `participant-rehearsal-smoke/evidence/`; draft202012 venv python on Windows. | Nightly participant+observer green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.10** audit evidence dir. | **Done** — `-ParticipantEvidenceDir` on release-audit-packet; local CI green; push after CI #526. | Nightly participant+observer green. |
 
 ## Recently Completed
 
@@ -71,7 +71,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] Windows draft202012 venv python passthrough in `ci-check.ps1`.
 - [x] **M2.5.9** — fund-wallet/permanence-demo tip query parity.
 
+### In Progress
+
+- [x] **M2.5.10** — `-ParticipantEvidenceDir` / `--participant-evidence-dir` on release-audit-packet for smoke→audit handoff.
+
 ### Next
+
+- [ ] Push M2.5.10 after CI #526 green (do not push during in-progress CI).
 
 - [ ] Green Nightly participant + observer on `4dbd5c7`.
 
@@ -87,7 +93,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **IN PROGRESS** CI #524 on `318407a` (M2.5.9).
+- Green GitHub CI — **IN PROGRESS** CI #526 on `a6001dc` (M2.5.9 smoke evidence); await green before M2.5.10 push.
 - RC Validation — pending green CI on M2.5.9 commit.
 - Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ (`eb64408`) + M2.5.9 tip query fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.

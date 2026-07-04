@@ -110,8 +110,7 @@ $auditArgs = @(
     "-Inventory", $inventoryInArchive,
     "-Commit", $commit,
     "-CiMockRuns", $ciMock,
-    "-ParticipantRehearsalLog", (Join-Path $fixtureRoot "participant-rehearsal.log"),
-    "-ParticipantSupportBundle", (Join-Path $fixtureRoot "support-bundle"),
+    "-ParticipantEvidenceDir", $fixtureRoot,
     "-AllowDryRun",
     "-Json"
 )

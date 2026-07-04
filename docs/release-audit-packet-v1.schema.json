@@ -15,6 +15,7 @@
     "inventory",
     "participant_rehearsal_log",
     "participant_support_bundle",
+    "participant_evidence_dir",
     "checks"
   ],
   "properties": {
@@ -51,6 +52,10 @@
     "participant_support_bundle": {
       "type": ["string", "null"],
       "description": "Optional participant support-bundle directory validated against the rehearsal PASS line."
+    },
+    "participant_evidence_dir": {
+      "type": ["string", "null"],
+      "description": "Optional co-located participant evidence directory (participant-rehearsal.log + support-bundle/) supplied to the audit packet."
     },
     "checks": {
       "type": "array",

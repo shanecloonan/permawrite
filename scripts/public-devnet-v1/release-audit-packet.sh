@@ -10,6 +10,7 @@ commit=""
 ci_mock_runs=""
 participant_rehearsal_log=""
 participant_support_bundle=""
+participant_evidence_dir=""
 output_path=""
 allow_dry_run=0
 strict_stats_freshness=0
@@ -26,6 +27,9 @@ Options:
                                Saved participant-rehearsal stdout/stderr transcript.
   --participant-support-bundle DIR
                                Support bundle directory named by the rehearsal PASS line.
+  --participant-evidence-dir DIR
+                               Co-located evidence directory containing participant-rehearsal.log
+                               and support-bundle/ (same layout as participant-rehearsal -EvidenceDir).
   --output FILE                Write the audit packet to FILE.
   --allow-dry-run              Allow dry-run archive evidence/template artifacts.
   --strict-stats-freshness     Compare CODEBASE_STATS.md to codebase-stats --dry-run output.
@@ -43,6 +47,7 @@ while (($# > 0)); do
     --ci-mock-runs) ci_mock_runs="${2:?missing value for --ci-mock-runs}"; shift 2 ;;
     --participant-rehearsal-log) participant_rehearsal_log="${2:?missing value for --participant-rehearsal-log}"; shift 2 ;;
     --participant-support-bundle) participant_support_bundle="${2:?missing value for --participant-support-bundle}"; shift 2 ;;
+    --participant-evidence-dir) participant_evidence_dir="${2:?missing value for --participant-evidence-dir}"; shift 2 ;;
     --output) output_path="${2:?missing value for --output}"; shift 2 ;;
     --allow-dry-run) allow_dry_run=1; shift ;;
     --strict-stats-freshness) strict_stats_freshness=1; shift ;;
@@ -64,7 +69,16 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-python3 - "$REPO_ROOT" "$release_evidence_json" "$signoff_manifest" "$archive_dir" "$inventory" "$commit" "$ci_mock_runs" "$participant_rehearsal_log" "$participant_support_bundle" "$output_path" "$allow_dry_run" "$strict_stats_freshness" "$json_output" <<'PY'
+if [[ -n "$participant_evidence_dir" ]]; then
+  if [[ -z "$participant_rehearsal_log" ]]; then
+    participant_rehearsal_log="$participant_evidence_dir/participant-rehearsal.log"
+  fi
+  if [[ -z "$participant_support_bundle" ]]; then
+    participant_support_bundle="$participant_evidence_dir/support-bundle"
+  fi
+fi
+
+python3 - "$REPO_ROOT" "$release_evidence_json" "$signoff_manifest" "$archive_dir" "$inventory" "$commit" "$ci_mock_runs" "$participant_rehearsal_log" "$participant_support_bundle" "$participant_evidence_dir" "$output_path" "$allow_dry_run" "$strict_stats_freshness" "$json_output" <<'PY'
 import json
 import os
 import re
@@ -82,6 +96,7 @@ from datetime import datetime, timezone
     ci_mock_runs,
     participant_rehearsal_log,
     participant_support_bundle,
+    participant_evidence_dir,
     output_path,
     allow_dry_run,
     strict_stats_freshness,
@@ -247,6 +262,7 @@ packet = {
     "inventory": inventory,
     "participant_rehearsal_log": participant_rehearsal_log or None,
     "participant_support_bundle": participant_support_bundle or None,
+    "participant_evidence_dir": participant_evidence_dir or None,
     "checks": checks,
 }
 

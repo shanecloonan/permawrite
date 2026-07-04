@@ -8,6 +8,7 @@ param(
     [string]$CiMockRuns = "",
     [string]$ParticipantRehearsalLog = "",
     [string]$ParticipantSupportBundle = "",
+    [string]$ParticipantEvidenceDir = "",
     [string]$OutputPath = "",
     [switch]$AllowDryRun,
     [switch]$StrictStatsFreshness,
@@ -18,6 +19,15 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 Set-Location $RepoRoot
+
+if ($ParticipantEvidenceDir) {
+    if (-not $ParticipantRehearsalLog) {
+        $ParticipantRehearsalLog = Join-Path $ParticipantEvidenceDir "participant-rehearsal.log"
+    }
+    if (-not $ParticipantSupportBundle) {
+        $ParticipantSupportBundle = Join-Path $ParticipantEvidenceDir "support-bundle"
+    }
+}
 
 $checks = New-Object System.Collections.Generic.List[object]
 
@@ -175,6 +185,7 @@ $packet = [pscustomobject]@{
     inventory = $Inventory
     participant_rehearsal_log = if ($ParticipantRehearsalLog) { $ParticipantRehearsalLog } else { $null }
     participant_support_bundle = if ($ParticipantSupportBundle) { $ParticipantSupportBundle } else { $null }
+    participant_evidence_dir = if ($ParticipantEvidenceDir) { $ParticipantEvidenceDir } else { $null }
     checks = $checkArray
 }
 

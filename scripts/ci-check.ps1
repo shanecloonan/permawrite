@@ -577,6 +577,26 @@ Decision: go
         [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant-rehearsal-evidence-v1 fixture")
         exit 1
     }
+    $fixtureViaDirJson = powershell -NoProfile -File scripts/public-devnet-v1/release-audit-packet.ps1 `
+        -ReleaseEvidenceJson docs/release-evidence-v1.sample.json `
+        -SignoffManifest docs/release-signoff-manifest-v1.sample.json `
+        -ArchiveDir $archiveRoot `
+        -Inventory (Join-Path $archiveDir "signoff-inventory.md") `
+        -CiMockRuns (Join-Path $archiveDir "signoff-ci-success.json") `
+        -ParticipantEvidenceDir $fixtureRoot `
+        -AllowDryRun `
+        -Json
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $fixtureViaDirObject = $fixtureViaDirJson | ConvertFrom-Json
+    if ($fixtureViaDirObject.participant_evidence_dir -ne $fixtureRoot) {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not emit participant_evidence_dir from -ParticipantEvidenceDir")
+        exit 1
+    }
+    $fixtureViaDirParticipant = $fixtureViaDirObject.checks | Where-Object { $_.name -eq "participant rehearsal evidence" } | Select-Object -First 1
+    if (-not $fixtureViaDirParticipant -or $fixtureViaDirParticipant.status -ne "pass") {
+        [Console]::Error.WriteLine("release-audit-packet.ps1 did not validate participant evidence via -ParticipantEvidenceDir")
+        exit 1
+    }
     $signoffCiFailure = Join-Path $archiveDir "signoff-ci-failure.json"
     @"
 [

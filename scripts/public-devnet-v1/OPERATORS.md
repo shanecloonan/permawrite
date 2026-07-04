@@ -348,6 +348,32 @@ powershell -File scripts/public-devnet-v1/release-audit-packet.ps1 `
   -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit> `
   -Inventory .\release-artifact-inventory.md `
   -Commit <release_commit_sha> `
+  -ParticipantEvidenceDir .\participant-rehearsal-smoke\evidence `
+  -Json `
+  -OutputPath .\release-audit-packet.json
+```
+
+```bash
+bash scripts/public-devnet-v1/release-audit-packet.sh \
+  --release-evidence-json ./release-evidence.json \
+  --signoff-manifest ./release-signoff-manifest.json \
+  --archive-dir ./release-staging/permawrite-public-devnet-<rc>-<commit> \
+  --inventory ./release-artifact-inventory.md \
+  --commit <release_commit_sha> \
+  --participant-evidence-dir ./participant-rehearsal-smoke/evidence \
+  --json \
+  --output ./release-audit-packet.json
+```
+
+When evidence is not co-located, pass `-ParticipantRehearsalLog` / `--participant-rehearsal-log` and `-ParticipantSupportBundle` / `--participant-support-bundle` explicitly instead of `-ParticipantEvidenceDir` / `--participant-evidence-dir`.
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-audit-packet.ps1 `
+  -ReleaseEvidenceJson .\release-evidence.json `
+  -SignoffManifest .\release-signoff-manifest.json `
+  -ArchiveDir .\release-staging\permawrite-public-devnet-<rc>-<commit> `
+  -Inventory .\release-artifact-inventory.md `
+  -Commit <release_commit_sha> `
   -ParticipantRehearsalLog .\participant-rehearsal.log `
   -ParticipantSupportBundle .\participant-support-bundle `
   -Json `
@@ -367,7 +393,7 @@ bash scripts/public-devnet-v1/release-audit-packet.sh \
   --output ./release-audit-packet.json
 ```
 
-The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes the optional participant rehearsal transcript and support-bundle paths emitted as `participant_rehearsal_log` and `participant_support_bundle` when those evidence inputs are supplied. The packet also runs `release-participant-smoke-policy-check` from the release tree so sign-off fails closed if default CI promotes real-run participant rehearsal smokes outside nightly/`ci-ignored`. A redacted live-rehearsal sample lives in [`fixtures/participant-rehearsal-evidence-v1/`](fixtures/participant-rehearsal-evidence-v1/).
+The audit packet uses `schema_version=release-audit-packet.v1`; the schema is [`release-audit-packet-v1.schema.json`](../../docs/release-audit-packet-v1.schema.json), with a sample artifact in [`release-audit-packet-v1.sample.json`](../../docs/release-audit-packet-v1.sample.json). The schema includes optional participant evidence paths emitted as `participant_rehearsal_log`, `participant_support_bundle`, and `participant_evidence_dir` when those inputs are supplied. After a local smoke run, `-ParticipantEvidenceDir ./participant-rehearsal-smoke/evidence` resolves the default co-located `participant-rehearsal.log` and `support-bundle/` staged by the smoke wrapper. The packet also runs `release-participant-smoke-policy-check` from the release tree so sign-off fails closed if default CI promotes real-run participant rehearsal smokes outside nightly/`ci-ignored`. A redacted live-rehearsal sample lives in [`fixtures/participant-rehearsal-evidence-v1/`](fixtures/participant-rehearsal-evidence-v1/).
 
 Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehearsal fixture (decision=go when all gates pass):
 
