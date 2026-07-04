@@ -11,6 +11,7 @@ PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 RPC=""
 SMOKE_ROOT="$SCRIPT_DIR/participant-rehearsal-smoke"
 FAUCET_WALLET=""
+EVIDENCE_DIR=""
 WAIT_AFTER_START_SECONDS=-1
 WAIT_FAUCET_SECONDS=240
 WAIT_MINED_SECONDS=240
@@ -36,6 +37,7 @@ Options:
   --rpc HOST:PORT             existing mfnd JSON-RPC address (default: HUB_RPC from devnet-ports.env)
   --faucet-wallet FILE        faucet wallet to restore/use (default: participant-rehearsal-smoke/validator0-faucet.json)
   --smoke-dir DIR             smoke directory (default: participant-rehearsal-smoke/)
+  --evidence-dir DIR          evidence directory (default: <smoke-dir>/evidence)
   --wait-after-start-seconds N wait after start-all before rehearsal (default: 30)
   --wait-faucet-seconds N     wait for faucet wallet to scan spendable rewards (default: 240; 0 checks once)
   --wait-mined-seconds N      wait for funding balance delta (default: 240)
@@ -58,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --rpc) RPC="${2:-}"; shift 2 ;;
     --faucet-wallet) FAUCET_WALLET="${2:-}"; USE_BUNDLED_TEST_FAUCET=0; shift 2 ;;
     --smoke-dir) SMOKE_ROOT="${2:-}"; shift 2 ;;
+    --evidence-dir) EVIDENCE_DIR="${2:-}"; shift 2 ;;
     --wait-after-start-seconds) WAIT_AFTER_START_SECONDS="${2:-}"; shift 2 ;;
     --wait-faucet-seconds) WAIT_FAUCET_SECONDS="${2:-}"; shift 2 ;;
     --wait-mined-seconds) WAIT_MINED_SECONDS="${2:-}"; shift 2 ;;
@@ -131,6 +134,9 @@ if [[ -z "$FAUCET_WALLET" ]]; then
   FAUCET_WALLET="$SMOKE_ROOT/validator0-faucet.json"
 fi
 REHEARSAL_DIR="$SMOKE_ROOT/run"
+if [[ -z "$EVIDENCE_DIR" ]]; then
+  EVIDENCE_DIR="$SMOKE_ROOT/evidence"
+fi
 
 resolve_rpc() {
   if [[ -n "$RPC" ]]; then
@@ -394,6 +400,7 @@ if (( PLAN_ONLY )); then
   echo "  smoke_dir=$SMOKE_ROOT"
   echo "  faucet_wallet=$FAUCET_WALLET"
   echo "  rehearsal_dir=$REHEARSAL_DIR"
+  echo "  evidence_dir=$EVIDENCE_DIR"
   echo "  wait_faucet_seconds=$WAIT_FAUCET_SECONDS"
   echo "  wait_after_start_seconds=$WAIT_AFTER_START_SECONDS"
   echo "  with_observer=$WITH_OBSERVER"
@@ -474,6 +481,7 @@ bash "$SCRIPT_DIR/participant-rehearsal.sh" \
   --rpc "$RPC_ADDR" \
   --faucet-wallet "$FAUCET_WALLET" \
   --rehearsal-dir "$REHEARSAL_DIR" \
+  --evidence-dir "$EVIDENCE_DIR" \
   --wait-mined-seconds "$WAIT_MINED_SECONDS" \
   --wait-upload-seconds "$WAIT_UPLOAD_SECONDS" \
   --wait-proof-seconds "$WAIT_PROOF_SECONDS" \
@@ -492,7 +500,7 @@ if (( WITH_OBSERVER == 1 )); then
   fi
 fi
 
-echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR with_observer=$WITH_OBSERVER hub_tip_height=$FINAL_HUB_HEIGHT min_hub_height=$MIN_HUB_HEIGHT"
+echo "participant-rehearsal-smoke: PASS rpc=$RPC_ADDR rehearsal_dir=$REHEARSAL_DIR evidence_dir=$EVIDENCE_DIR with_observer=$WITH_OBSERVER hub_tip_height=$FINAL_HUB_HEIGHT min_hub_height=$MIN_HUB_HEIGHT"
 if (( ARCHIVE_EVIDENCE == 1 )); then
   archive_rehearsal_smoke_evidence "$RPC_ADDR" "$FINAL_HUB_HEIGHT" "$OBSERVER_RPC" "$OBSERVER_HEIGHT"
 fi

@@ -90,7 +90,7 @@ if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discove
     exit 1
 }
 $smokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
-if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten") {
+if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten" -or $smokePlan -notmatch "evidence_dir=.*participant-rehearsal-smoke.*evidence") {
     $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
@@ -164,7 +164,7 @@ foreach ($strictPair in @(
     @("docs/release-signoff-manifest-v1.schema.json", "docs/release-signoff-manifest-v1.sample.json"),
     @("docs/release-audit-packet-v1.schema.json", "docs/release-audit-packet-v1.sample.json")
 )) {
-    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema $strictPair[0] -Json $strictPair[1] | Out-Null
+    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema $strictPair[0] -Json $strictPair[1] -Python $schemaPython | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 $schemaValidateDir = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-schema-validate-" + [System.Guid]::NewGuid().ToString("N"))
@@ -217,7 +217,9 @@ try {
         "-Schema",
         "docs/release-audit-packet-v1.schema.json",
         "-Json",
-        $badAudit
+        $badAudit,
+        "-Python",
+        $schemaPython
     ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badAuditStrictStdout -RedirectStandardError $badAuditStrictStderr
     if ($badAuditStrictProcess.ExitCode -eq 0) {
         [Console]::Error.WriteLine("release-json-schema-draft202012.ps1 accepted an unexpected release audit packet field")
@@ -525,7 +527,7 @@ Decision: go
     $auditJson | Set-Content -LiteralPath $auditGeneratedJson -Encoding utf8
     powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-validate.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson | Out-Null
+    powershell -NoProfile -File scripts/public-devnet-v1/release-json-schema-draft202012.ps1 -Schema docs/release-audit-packet-v1.schema.json -Json $auditGeneratedJson -Python $schemaPython | Out-Null
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $participantBadBundleLog = Join-Path $archiveDir "participant-rehearsal-bad-bundle.log"
     "participant-rehearsal: PASS commitment_hash=$participantCommit restored_sha256=$participantSha restored_path=restored.bin support_bundle=$(Join-Path $archiveDir "wrong-support-bundle")" | Set-Content -LiteralPath $participantBadBundleLog -Encoding utf8

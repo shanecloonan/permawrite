@@ -17,6 +17,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
 - **Done:** M2.5.8 — single-sample health-check; curl RPC fallback; hub tip≥2; GHA timeout flags.
+- **Done:** Smoke wrappers default `participant-rehearsal-smoke/evidence/` and pass through to `participant-rehearsal`.
+- **Done:** Windows draft202012 venv python passthrough in `ci-check.ps1`.
 - **Done:** M2.5.9 — fund-wallet/permanence-demo tip query parity.
 - **Next:** Green Nightly participant + observer on M2.5.9 commit.
 

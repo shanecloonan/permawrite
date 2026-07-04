@@ -3,6 +3,7 @@ param(
     [string]$Rpc = "",
     [string]$FaucetWallet = "",
     [string]$RehearsalDir = "",
+    [string]$EvidenceDir = "",
     [int]$WaitAfterStartSeconds = -1,
     [int]$WaitFaucetSeconds = 240,
     [int]$WaitMinedSeconds = 240,
@@ -28,6 +29,7 @@ $SmokeRoot = if ($RehearsalDir) { $RehearsalDir } else { Join-Path $ScriptDir "p
 $Faucet = if ($FaucetWallet) { $FaucetWallet } else { Join-Path $SmokeRoot "validator0-faucet.json" }
 $UseBundledTestFaucet = -not $FaucetWallet
 $RunDir = Join-Path $SmokeRoot "run"
+$EvidenceRoot = if ($EvidenceDir) { $EvidenceDir } else { Join-Path $SmokeRoot "evidence" }
 $TestFaucetSeed = "6565656565656565656565656565656565656565656565656565656565656565"
 
 function Read-PortsFile {
@@ -264,6 +266,7 @@ if ($PlanOnly) {
     Write-Host "  smoke_dir=$SmokeRoot"
     Write-Host "  faucet_wallet=$Faucet"
     Write-Host "  rehearsal_dir=$RunDir"
+    Write-Host "  evidence_dir=$EvidenceRoot"
     Write-Host "  wait_faucet_seconds=$WaitFaucetSeconds"
     Write-Host "  wait_after_start_seconds=$WaitAfterStartSeconds"
     Write-Host "  with_observer=$($WithObserver.IsPresent)"
@@ -329,6 +332,7 @@ try {
         -Rpc $RpcAddr `
         -FaucetWallet $Faucet `
         -RehearsalDir $RunDir `
+        -EvidenceDir $EvidenceRoot `
         -WaitMinedSeconds $WaitMinedSeconds `
         -WaitUploadSeconds $WaitUploadSeconds `
         -WaitProofSeconds $WaitProofSeconds `
@@ -345,7 +349,7 @@ try {
             $observerHeight = Get-TipHeightText $MfnCli $observerRpc
         }
     }
-    Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir with_observer=$($WithObserver.IsPresent) hub_tip_height=$finalHubHeight min_hub_height=$MinHubHeight"
+    Write-Host "participant-rehearsal-smoke: PASS rpc=$RpcAddr rehearsal_dir=$RunDir evidence_dir=$EvidenceRoot with_observer=$($WithObserver.IsPresent) hub_tip_height=$finalHubHeight min_hub_height=$MinHubHeight"
     if ($ArchiveEvidence) {
         Archive-RehearsalSmokeEvidence -RpcAddr $RpcAddr -FinalHubHeight $finalHubHeight -ObserverRpc $observerRpc -ObserverHeight $observerHeight
     }

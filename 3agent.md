@@ -19,7 +19,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `318407a` pushed; `96327da` local (fund-wallet/permanence parity). | Push `96327da` after CI #524 green. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.9** hub tip polls. | **In progress** — fund-wallet/permanence-demo shared tip query. | Nightly participant+observer green. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.9** smoke evidence + CI python. | **Done** — smoke wrappers default `participant-rehearsal-smoke/evidence/`; draft202012 venv python on Windows. | Nightly participant+observer green. |
 
 ## Recently Completed
 
@@ -66,10 +66,10 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ### Done
 
 - [x] M2.5.7 — STAGE logging, faucet 600s / mined+upload 480s, stall health-check v1.
-
-### Done
-
+- [x] Smoke wrappers thread `-EvidenceDir` / `--evidence-dir` through to `participant-rehearsal` (default `participant-rehearsal-smoke/evidence/`).
 - [x] **M2.5.8** — single-sample health-check; curl RPC fallback; hub tip≥2; 600s GHA startup polls.
+- [x] Windows draft202012 venv python passthrough in `ci-check.ps1`.
+- [x] **M2.5.9** — fund-wallet/permanence-demo tip query parity.
 
 ### Next
 
