@@ -99,6 +99,8 @@ jobs:
           tail -n 200 scripts/public-devnet-v1/logs/v0.log 2>/dev/null || echo "(no v0.log)"
           echo "=== logs/observer.log (tail) ==="
           tail -n 100 scripts/public-devnet-v1/logs/observer.log 2>/dev/null || true
+          echo "=== participant-rehearsal.log (tail) ==="
+          tail -n 80 scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/participant-rehearsal.log 2>/dev/null || echo "(no participant-rehearsal.log)"
       - name: Upload rehearsal logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -168,6 +170,8 @@ jobs:
           tail -n 200 scripts/public-devnet-v1/logs/v0.log 2>/dev/null || echo "(no v0.log)"
           echo "=== logs/observer.log (tail) ==="
           tail -n 200 scripts/public-devnet-v1/logs/observer.log 2>/dev/null || echo "(no observer.log)"
+          echo "=== participant-rehearsal.log (tail) ==="
+          tail -n 80 scripts/public-devnet-v1/participant-rehearsal-smoke/evidence/participant-rehearsal.log 2>/dev/null || echo "(no participant-rehearsal.log)"
       - name: Upload rehearsal logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

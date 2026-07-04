@@ -133,6 +133,15 @@ if ($badPolicyProcess.ExitCode -eq 0) {
 }
 $global:LASTEXITCODE = 0
 Remove-Item -Force $badPolicyStdout, $badPolicyStderr -ErrorAction SilentlyContinue
+$rcAuditOutput = Join-Path $env:TEMP ("permawrite-rc-audit-dry-run-" + [Guid]::NewGuid().ToString("N") + ".json")
+powershell -NoProfile -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1 -OutputPath $rcAuditOutput -Json | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$rcAuditObject = Get-Content -LiteralPath $rcAuditOutput -Raw | ConvertFrom-Json
+Remove-Item -Force $rcAuditOutput -ErrorAction SilentlyContinue
+if ($rcAuditObject.decision -ne "go") {
+    [Console]::Error.WriteLine("release-rc-audit-dry-run.ps1 returned decision=$($rcAuditObject.decision)")
+    exit 1
+}
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"

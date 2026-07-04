@@ -72,6 +72,25 @@ if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   echo "release-participant-smoke-policy-check.sh accepted a real-run participant smoke invocation" >&2
   exit 1
 fi
+rc_audit_output="$(mktemp -t permawrite-rc-audit-dry-run.XXXXXX.json)"
+pwsh -NoProfile -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1 -OutputPath "$rc_audit_output" -Json >/dev/null
+if [[ "$?" -ne 0 ]]; then
+  rm -f "$rc_audit_output"
+  exit 1
+fi
+if ! python3 - <<'PY' "$rc_audit_output"
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as fh:
+    obj = json.load(fh)
+if obj.get("decision") != "go":
+    print(f"release-rc-audit-dry-run.ps1 returned decision={obj.get('decision')}", file=sys.stderr)
+    sys.exit(1)
+PY
+then
+  rm -f "$rc_audit_output"
+  exit 1
+fi
+rm -f "$rc_audit_output"
 pwsh -NoProfile -Command '
   $errors = @()
   foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
