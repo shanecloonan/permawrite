@@ -155,7 +155,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] RC Validation #42 → Nightly #52 dispatched (`ec845fd`).
 - [x] Nightly #52 — **PARTIAL** on `ec845fd` (ignored **PASS**; participant+observer **FAIL** ~6m hub liveness).
 - [x] **M2.5.6** — voter dial + hub tip wait + GHA health-check + extended rehearsal timeouts (`f5f45bf`, pushed).
-- [ ] GitHub CI green on `f5f45bf` — **IN PROGRESS** CI #514.
+- [x] GitHub CI green on `f5f45bf` — CI #514 **PASS**.
 - [ ] RC Validation → Nightly #53 on `f5f45bf`.
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
 - [ ] Nightly #49/#50 — **FAIL** (pre-fix ring-size 8).

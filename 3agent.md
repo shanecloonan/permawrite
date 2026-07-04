@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.6** devnet quorum + block-production gates. | **Done** — `f5f45bf` pushed; local CI mirror **GREEN** (`ci-check-m256b.log`). | Monitor CI #514 → RC Validation → Nightly #53. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.6** monitoring. | **Done** — CI #514 **GREEN** on `f5f45bf`. | RC Validation → Nightly #53. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence (`ec845fd`). | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Refresh evidence after green Nightly on `f5f45bf`. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.6** rehearsal hardening. | **Done** — GHA health-check gate + extended timeouts in `f5f45bf`. | Nightly participant+observer green on `f5f45bf`. |
 
@@ -74,8 +74,8 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **IN PROGRESS** CI #514 on `f5f45bf` (M2.5.6).
-- RC Validation — pending green CI #514.
+- Green GitHub CI — **PASS** CI #514 on `f5f45bf` (M2.5.6, all OS).
+- RC Validation — **IN PROGRESS** #43+ on `f5f45bf` (dispatches Nightly #53).
 - Nightly — **PARTIAL** #52 on `ec845fd`; awaiting #53 on `f5f45bf`.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
