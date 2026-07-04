@@ -31,6 +31,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).
 - 🎲 [**CASINO_RANDOMNESS_FEASIBILITY.md**](./CASINO_RANDOMNESS_FEASIBILITY.md) — can a chain-native, provably fair casino fund the treasury/endowment? Determinism vs randomness, pros/cons, architectural verdict (not a roadmap item).
+- 📜 [**SMART_CONTRACTS_FEASIBILITY.md**](./SMART_CONTRACTS_FEASIBILITY.md) — should Permawrite add general-purpose on-chain programmability? Codebase fit, privacy/permanence trade-offs, implementation cost, and verdict (do not ship).
 
 ### Want to know what's next?
 
