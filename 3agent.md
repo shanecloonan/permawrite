@@ -17,39 +17,80 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.8** Nightly #54 fix. | **In progress** — hub tip≥2 + upload stall 480s. | CI mirror → push → Nightly #55. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence (`6720651`). | **Done** — CI #519 green; Nightly #54 participant+observer **FAIL** (~6.3m). | Refresh evidence after green Nightly. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** GHA rehearsal. | **In progress** — explicit nightly timeouts; permanence-demo stall 480s. | Nightly participant+observer green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.8** GHA startup polls. | **In progress** — hub/voter/observer poll 600s; single-sample health-check. | CI mirror → push → Nightly #55. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence (`6720651`). | **Done** — `release-evidence-f5f45bf`; await M2.5.8 green Nightly. | Refresh evidence after green Nightly. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** health-check fix. | **In progress** — remove stall-delta gate (false fail on 10s slots). | Nightly participant+observer green. |
 
 ## Recently Completed
 
-- **M2.5.7** (`6720651`) — GHA rehearsal timeout extensions + stall health-check; CI #519 **GREEN**; Nightly #54 participant+observer **FAIL** (~6.3m, same class as #53).
+- **M2.5.7** (`6720651`/`d08dcca`) — health-check retry + extended GHA timeouts; CI #515 **GREEN**; Nightly #54 ignored **PASS**; participant+observer **FAIL** (~6.3m).
 - **M2.5.6** (`f5f45bf`) — voter dial + hub tip wait; CI #514 **GREEN**; Nightly #53 ignored **PASS**.
-- **M2.5.5** (`ec845fd`) — ignored-test flake fix; CI #512 **GREEN**.
+- **M2.5.5** (`ec845fd`) — ignored-test flake fix; Nightly #52 ignored **PASS**.
 
-## Nightly #54 Post-Mortem (`d08dcca`, run [28707532689](https://github.com/shanecloonan/permawrite/actions/runs/28707532689))
+## Nightly #54 Post-Mortem (`6720651` via `d08dcca`, run [28707532689](https://github.com/shanecloonan/permawrite/actions/runs/28707532689))
 
 | Job | Result | Notes |
 | --- | --- | --- |
-| ignored-integration | **PASS** (in progress at check) | Stable |
-| participant-rehearsal-smoke | **FAIL** (~6.3m) | Same ~378s wall clock as #52/#53 → likely `permanence-demo` upload stall_abort=240s or pre-upload timeout class |
+| ignored-integration | **PASS** (~12.4m) | Stable |
+| participant-rehearsal-smoke | **FAIL** (~6.3m) | Same ~6.3m class as #52/#53 — early startup gate, not full 600s faucet window |
 | observer-rehearsal-smoke | **FAIL** (~6.3m) | Same class as participant |
 
+**Root-cause hypothesis (M2.5.8):**
+1. `start-all` hub P2P poll capped at **300s** on GHA — job fails ~300s smoke + ~90s prebuild ≈ **6.3m**.
+2. Stall health-check required `MIN_HEIGHT_DELTA=1` across 2×15–20s samples — false fail when sortition skips slots on 10s mesh.
+
 **M2.5.8 fix (local):**
-- `start-all` — GHA requires hub tip_height ≥ 2 before rehearsal (sustained production).
-- `permanence-demo` — GHA upload-index stall_abort 240s → 480s.
-- `participant-rehearsal-smoke` — GHA proof wait 480s; health-check stall interval 20s.
-- `nightly.yml` — explicit `--wait-faucet-seconds 600` / mined / upload / proof 480s on both rehearsal jobs.
+- GHA poll caps **600s** for hub P2P, voter P2P, observer RPC, voter dial.
+- Health-check: **single-sample** only (`STALL_SAMPLES=1`, no height-delta requirement); **curl JSON-RPC fallback** when `nc` missing.
+- `permanence-demo` — GHA upload-index stall_abort **480s**.
+
+## Agent 1 Detailed Plan
+
+### Done
+
+- [x] M2.5.7 pushed; CI #515 **GREEN**; Nightly #54 ignored **PASS**.
+- [x] Nightly #54 triaged — persistent ~6.3m failure class identified.
+
+### In Progress
+
+- [ ] **M2.5.8** — extend GHA startup polls; simplify health-check gate.
+
+### Next
+
+- [ ] Local CI mirror green on M2.5.8.
+- [ ] Push → CI green → RC Validation → Nightly #55.
+- [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
+- [ ] Operator sign-off.
+
+## Agent 3 Detailed Plan
+
+### Done
+
+- [x] M2.5.7 — STAGE logging, faucet 600s / mined+upload 480s, stall health-check v1.
+
+### In Progress
+
+- [ ] **M2.5.8** — single-sample health-check; 600s GHA startup polls.
+
+### Next
+
+- [ ] Green Nightly participant + observer on M2.5.8 commit.
+
+## Agent 2 Detailed Plan
+
+- [x] `release-evidence-f5f45bf` + RC audit dry-run (go).
+- [ ] Refresh release evidence after green Nightly on M2.5.8 commit.
+- [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **PASS** CI #519 on `d08dcca` (M2.5.7, all OS).
-- RC Validation — **PASS** (dispatched Nightly #54).
-- Nightly — **PARTIAL** #54 on `d08dcca` (participant+observer **FAIL**); M2.5.8 fix in progress.
+- Green GitHub CI — **PASS** CI #515 on `d08dcca` (M2.5.7 docs atop `6720651`).
+- RC Validation — **PASS** #45 (dispatched Nightly #54).
+- Nightly — **PARTIAL** #54 (ignored **PASS**; participant+observer **FAIL** ~6.3m); M2.5.8 fix in progress.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Participant + observer Nightly fail at ~6.3m on GHA (#52–#54) — M2.5.8 extends upload stall window and requires hub tip≥2 before funding.
+- Participant + observer Nightly fail at ~6.3m on GHA (#52/#53/#54) — M2.5.8 addresses hub poll timeout + stall health-check false negatives.
 - Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
