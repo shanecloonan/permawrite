@@ -20,8 +20,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 - **Done:** Smoke wrappers default `participant-rehearsal-smoke/evidence/` and pass through to `participant-rehearsal`.
 - **Done:** Windows draft202012 venv python passthrough in `ci-check.ps1`.
 - **Done:** M2.5.9 — fund-wallet/permanence-demo tip query parity.
-- **Done:** M2.5.10 — `-ParticipantEvidenceDir` on release-audit-packet for smoke→audit handoff (local CI green).
-- **Next:** Push M2.5.10 after CI #526 green; then green Nightly participant + observer.
+- **Done:** M2.5.10 pushed (`994d1a9`); CI #527 running on GitHub.
+- **Next:** Green CI #527 → Nightly participant + observer.
 
 ## Cross-Agent Blockers
 
