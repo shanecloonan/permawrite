@@ -235,3 +235,11 @@ These do not mean the overall system is risk-free; they mean the documented prob
 ---
 
 **This document should be updated whenever a material new weakness is discovered or a planned mitigation ships.** It is not marketing copy; it is part of the protocol's self-assessment.
+---
+
+## See also
+
+- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) — hardware role split, centralization pressures, and packaging improvements that preserve privacy/permanence
+- [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — consumer storage feasibility
+- [`ECONOMICS.md`](./ECONOMICS.md) — treasury, fees, operator payouts
+- [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — production runbook

@@ -10,8 +10,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mfn_storage_operator::{
-    load_network_manifest, push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks,
-    ChunkPushPeerResult, ChunkServeConfig, OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
+    list_upload_artifacts, load_network_manifest, push_wallet_artifact_chunks_to_peers, run_daemon,
+    serve_chunks, ChunkPushPeerResult, ChunkServeConfig, OperatorDaemonConfig, RpcClient,
+    DEFAULT_RPC_ADDR,
 };
 
 fn main() -> ExitCode {
@@ -163,7 +164,7 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 return Err("too many arguments for `serve-chunks`".into());
             }
             if json {
-                return Err("--json is only supported for `push-chunks`".into());
+                return Err("--json is only supported for `push-chunks`, `push-all-chunks`, and `run`".into());
             }
             serve_chunks(
                 ChunkServeConfig {
@@ -228,6 +229,106 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 ))
             }
         }
+        "push-all-chunks" => {
+            if positional.len() > 1 {
+                return Err("too many arguments for `push-all-chunks`".into());
+            }
+            let mut peers: Vec<String> = Vec::new();
+            if let Some(manifest) = &network_manifest {
+                peers = manifest.effective_replication_peers();
+            }
+            if peers.is_empty() {
+                return Err(
+                    "push-all-chunks requires manifest replication_peers (--manifest or MFN_OPERATOR_MANIFEST)".into(),
+                );
+            }
+            let entries = list_upload_artifacts(&wallet_path)
+                .map_err(|e| format!("list upload artifacts: {e}"))?;
+            if entries.is_empty() {
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "artifacts": 0,
+                            "peers": peers,
+                            "push_all_chunks": "ok",
+                            "results": [],
+                        }))
+                        .map_err(|e| e.to_string())?
+                    );
+                } else {
+                    println!("push_all_chunks=ok artifacts=0");
+                }
+                return Ok(());
+            }
+            let mut client = RpcClient::new(&rpc_addr);
+            if let Some(key) = rpc_api_key {
+                client = client.with_api_key(key);
+            }
+            let mut all_results = Vec::with_capacity(entries.len());
+            let mut total_ok = 0usize;
+            let mut total_fail = 0usize;
+            for entry in &entries {
+                let hash = entry.commitment_hash_hex.clone();
+                let results = push_wallet_artifact_chunks_to_peers(
+                    &mut client,
+                    &wallet_path,
+                    &hash,
+                    &peers,
+                )
+                .map_err(|e| e.to_string())?;
+                let ok_count = results.iter().filter(|r| r.ok).count();
+                if ok_count == results.len() {
+                    total_ok += 1;
+                } else {
+                    total_fail += 1;
+                }
+                all_results.push((hash, results));
+            }
+            if json {
+                let results_json: Vec<_> = all_results
+                    .iter()
+                    .map(|(hash, peer_results)| {
+                        push_chunks_json(hash, &peers, peer_results)
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "artifacts": entries.len(),
+                        "peers": peers,
+                        "artifacts_ok": total_ok,
+                        "artifacts_failed": total_fail,
+                        "results": results_json,
+                        "push_all_chunks": if total_fail == 0 { "ok" } else { "partial_failure" },
+                    }))
+                    .map_err(|e| e.to_string())?
+                );
+            } else {
+                for (hash, results) in &all_results {
+                    let ok_count = results.iter().filter(|r| r.ok).count();
+                    println!(
+                        "commitment_hash={hash} peers_ok={ok_count}/{}",
+                        results.len()
+                    );
+                }
+                println!(
+                    "push_all_chunks={} artifacts={} ok={} failed={}",
+                    if total_fail == 0 { "ok" } else { "partial_failure" },
+                    entries.len(),
+                    total_ok,
+                    total_fail
+                );
+            }
+            if total_fail == 0 {
+                Ok(())
+            } else {
+                Err(format!(
+                    "push-all-chunks failed for {total_fail} of {} artifacts",
+                    entries.len()
+                ))
+            }
+        }
         "manifest-info" => {
             if positional.len() > 1 {
                 return Err("too many arguments for `manifest-info`".into());
@@ -257,8 +358,9 @@ fn run_cli(args: Vec<String>) -> Result<(), String> {
                 }
             }
             Ok(())
-        }        other => Err(format!(
-            "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks | manifest-info)"
+        }
+        other => Err(format!(
+            "unknown subcommand `{other}` (expected: run | serve-chunks | push-chunks | push-all-chunks | manifest-info)"
         )),
     }
 }
@@ -311,6 +413,19 @@ fn push_peer_result_json(r: &ChunkPushPeerResult) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn push_all_chunks_empty_artifacts_json_shape() {
+        let value = serde_json::json!({
+            "artifacts": 0,
+            "peers": ["127.0.0.1:18740"],
+            "push_all_chunks": "ok",
+            "results": [],
+        });
+        assert_eq!(value["artifacts"], 0);
+        assert_eq!(value["push_all_chunks"], "ok");
+        assert!(value["results"].as_array().unwrap().is_empty());
+    }
 
     #[test]
     fn push_chunks_json_reports_peer_results() {

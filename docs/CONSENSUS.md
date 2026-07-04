@@ -746,4 +746,5 @@ For full type signatures and the wire encode/decode helpers, see [`mfn-consensus
 - [`PRIVACY.md`](./PRIVACY.md) — the half consensus is protecting
 - [`ECONOMICS.md`](./ECONOMICS.md) — emission curve, fee split, treasury settlement
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — full system view
+- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) — validator hardware/stake vs storage-operator breadth
 - [`ROADMAP.md`](./ROADMAP.md) — validator rotation is the next big consensus-layer feature

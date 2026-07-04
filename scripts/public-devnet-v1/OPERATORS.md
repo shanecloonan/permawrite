@@ -850,6 +850,8 @@ After any key or API-key rotation, rerun health checks and update only the priva
 
 ## Permanence operators (storage + SPoRA) â€” M6 / M7
 
+Hardware roles and decentralization context: [docs/DECENTRALIZATION.md](../../docs/DECENTRALIZATION.md). One-command RPC-only prove loop: [start-storage-operator.sh](./start-storage-operator.sh) / [start-storage-operator.ps1](./start-storage-operator.ps1).
+
 Permawrite separates **on-chain anchors** (private `StorageCommitment` in a block) from **off-chain bytes** (chunk payloads). Validators only mine SPoRA proofs when they can read the challenged chunk. Operators run replication and proving on devnet today via `mfn-cli` and `mfn-storage-operator`.
 
 Build both CLIs after `mfnd`:
@@ -954,6 +956,15 @@ mfn-cli --rpc 127.0.0.1:<HUB_RPC> --wallet ./alice.json \
 mfn-storage-operator push-chunks --wallet ./alice.json \
   <COMMIT_HASH_HEX> <PEER1> [PEER2 ...] --json
 ```
+
+Replicate **every** local upload artifact to manifest `replication_peers` in one command (**M7.10**):
+
+```bash
+mfn-storage-operator push-all-chunks --wallet ./alice.json \
+  --manifest mfn-node/testdata/public_devnet_v1.manifest.json --json
+```
+
+Use this after onboarding a new replica peer or when catching up replication breadth without scripting per-commitment `push-chunks` calls. Requires `--manifest` (or `MFN_OPERATOR_MANIFEST`) with non-empty `replication_peers`.
 
 On the receiver (same `genesis_id`, caught up to the upload block):
 

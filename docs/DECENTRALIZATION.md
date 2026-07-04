@@ -175,12 +175,12 @@ A phone holding artifacts and proving on a schedule is a packaging problem today
 
 ### 4.2 Operational accessibility (no protocol change)
 
-| Improvement | Effect |
-|---|---|
-| **Public observer mesh** | Operators and wallets anywhere can use community RPC without running `mfnd` |
-| **NAT traversal / relay helpers** | Home operators can serve chunks without static IPs |
-| **Erasure-friendly replication UX** | Encourage many partial holders even before protocol-level erasure coding |
-| **Regional operator onboarding** | Runbooks, translated docs, low-bandwidth artifact fetch (HTTP resume, P2P backfill) |
+| Improvement | Effect | Status |
+|---|---|---|
+| **Public observer mesh** | Operators and wallets anywhere can use community RPC without running `mfnd` | **Partial** — manifest `observer_rpc`; community lists deferred |
+| **NAT traversal / relay helpers** | Home operators can serve chunks without static IPs | **Deferred** — HTTP chunk serve + tunnel docs; no in-protocol relay |
+| **Erasure-friendly replication UX** | Encourage many partial holders even before protocol-level erasure coding | **Shipped** — `push-chunks`, `push-all-chunks`, manifest `replication_peers` |
+| **Regional operator onboarding** | Runbooks, translated docs, low-bandwidth artifact fetch | **Partial** — [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) + TESTNET; translation deferred |
 
 ### 4.3 Optional protocol upgrades (architecture-preserving)
 
@@ -224,14 +224,14 @@ Some costs are fundamental to permanent storage networks, not Permawrite-specifi
 Aligned with [`STORAGE_ACCESSIBILITY.md § 5`](./STORAGE_ACCESSIBILITY.md#5-recommended-roadmap-priority-order) and [`ROADMAP.md`](./ROADMAP.md):
 
 ### Phase A — Make existing paths obvious
-1. Cross-link all role docs (this page, TESTNET, OPERATORS).
-2. Ship prebuilt binaries for all three operator-facing tools.
-3. One-command wrappers with sane defaults.
+1. ~~Cross-link all role docs~~ **Done** (TESTNET, OPERATORS, CONSENSUS, PROBLEMS → this page).
+2. ~~Ship prebuilt binaries~~ **Done** (tag `v*` release workflow).
+3. ~~One-command wrappers~~ **Done** (`start-storage-operator.{sh,ps1}`).
 
 ### Phase B — Consumer UX
-4. WASM prove + serve for browser/PWA operators.
-5. Mobile light-client wallet with background prove loop.
-6. Replication discovery (manifest → registry).
+4. ~~WASM prove + serve~~ **Done** (`buildStorageProof`, `verifyStorageProof`, `storageChunkHex`).
+5. Mobile light-client wallet with background prove loop — **Deferred** (product scope).
+6. Replication discovery — **Partial** (manifest peers + push-all-chunks; on-chain registry deferred).
 
 ### Phase C — Fairness tuning (optional forks)
 7. Latency-fair SPoRA inclusion.
@@ -284,6 +284,8 @@ What was assessed, shipped, deferred, or declined (newest first):
 
 | Item | Verdict | Notes |
 |---|---|---|
+| `push-all-chunks` replication UX | **Shipped** | Push every local upload artifact to manifest `replication_peers` in one command |
+| Role-doc cross-links (CONSENSUS, PROBLEMS, OPERATORS) | **Shipped** | See also links to this page from validator pressures and runbook |
 | One-command storage operator wrapper | **Shipped** | `start-storage-operator.{sh,ps1}` — manifest + `OBSERVER_RPC` from local devnet or public RPC |
 | Daemon startup artifact scan + JSON logs | **Shipped** | `mfn-storage-operator run --json`; startup logs local artifact count |
 | Prebuilt release binaries | **Shipped** | `.github/workflows/release-binaries.yml` (tag `v*`) |
@@ -291,7 +293,7 @@ What was assessed, shipped, deferred, or declined (newest first):
 | Operator env defaults | **Shipped** | `MFN_RPC`, `MFN_WALLET`; RPC-only path — no local `mfnd` required |
 | WASM prove + verify + chunk serve | **Shipped** | `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` |
 | Document RPC-only operator path | **Shipped** | README, TESTNET role table, OPERATORS permanence sections |
-| Erasure-friendly replication UX | **Partial** | `push-chunks` + manifest peers; protocol erasure coding deferred |
+| Erasure-friendly replication UX | **Shipped** | `push-chunks`, `push-all-chunks`, manifest peers; protocol erasure coding deferred |
 | Latency-fair SPoRA inclusion | **Deferred** | Protocol change; reduces datacenter latency advantage (Phase C) |
 | Tiered operator bonding | **Deferred** | Optional fork; bondless default preserves accessibility |
 | Erasure-coded replication | **Deferred** | Research; must preserve deterministic SPoRA verification |

@@ -75,6 +75,10 @@ With `--wallet`, bytes are checked against the local upload artifact slice.
 Use the standalone helper when an operator shell only needs wallet artifact fan-out and not the broader `mfn-cli` command surface:
 
 ```bash
+# Replicate every local upload artifact to manifest peers
+mfn-storage-operator push-all-chunks --wallet ./alice.json \
+  --manifest mfn-node/testdata/public_devnet_v1.manifest.json --json
+
 mfn-storage-operator push-chunks --wallet ./alice.json COMMIT_HEX 127.0.0.1:18740 --json
 ```
 
