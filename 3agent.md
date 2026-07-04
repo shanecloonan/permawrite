@@ -18,7 +18,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.6** monitoring. | **Done** — CI #514 **GREEN** on `f5f45bf`. | RC Validation → Nightly #53. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence (`ec845fd`). | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Refresh evidence after green Nightly on `f5f45bf`. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.6** evidence. | **Done** — `release-evidence-f5f45bf` + RC audit dry-run (go). | Operator sign-off after Nightly #53 green. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.6** rehearsal hardening. | **Done** — GHA health-check gate + extended timeouts in `f5f45bf`. | Nightly participant+observer green on `f5f45bf`. |
 
 ## Recently Completed
@@ -46,13 +46,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
-- [x] M2.5.6 (`f5f45bf`) — voter dial + hub tip wait; local CI mirror green.
+- [x] M2.5.6 (`f5f45bf`) — voter dial + hub tip wait; CI #514 **GREEN** (all OS).
 - [x] M2.5.5 (`ec845fd`) — ignored-test flake fix; CI #512 **GREEN**; Nightly #52 ignored **PASS**.
 
 ### Next
 
-- [ ] GitHub CI green on `f5f45bf` (CI #514 in progress).
-- [ ] RC Validation → Nightly #53 all jobs green.
+- [ ] Nightly #53 all jobs green on `f5f45bf` (in progress).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -69,18 +68,17 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ## Agent 2 Detailed Plan
 
 - [x] `release-evidence-ec845fd` + RC audit dry-run (go).
-- [ ] Refresh release evidence after green Nightly on M2.5.6 commit.
+- [x] `release-evidence-f5f45bf` + RC audit dry-run (go).
 - [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
 - Green GitHub CI — **PASS** CI #514 on `f5f45bf` (M2.5.6, all OS).
-- RC Validation — **IN PROGRESS** #43+ on `f5f45bf` (dispatches Nightly #53).
-- Nightly — **PARTIAL** #52 on `ec845fd`; awaiting #53 on `f5f45bf`.
+- RC Validation — **PASS** #44 (dispatched Nightly #53 on `f5f45bf`).
+- Nightly — **IN PROGRESS** #53 on `f5f45bf` (M2.5.6 quorum + block-production gates).
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- CI #514 must go green on `f5f45bf` before RC Validation dispatches Nightly #53.
-- Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
+- Nightly #53 in progress on `f5f45bf`; participant+observer must pass for RC gate.
