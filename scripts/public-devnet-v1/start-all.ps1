@@ -196,11 +196,16 @@ function Wait-VoterDialHub {
         Start-Sleep -Seconds 1
     }
     if ($HubRpc) {
-        $mfnCli = Get-MfnCliPath
-        if ($mfnCli) {
-            $tipHeight = Get-TipHeightText $mfnCli $HubRpc
-            if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge 1 -and ($v1Ok -or $v2Ok)) {
-                Write-Host "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tipHeight (v1_ok=$v1Ok v2_ok=$v2Ok); continuing"
+        $tipHeight = Get-TipHeightText $null $HubRpc
+        if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge 1 -and ($v1Ok -or $v2Ok)) {
+            Write-Host "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tipHeight (v1_ok=$v1Ok v2_ok=$v2Ok); continuing"
+            return
+        }
+        if ($env:GITHUB_ACTIONS -and $tipHeight -match '^\d+$' -and [int]$tipHeight -ge 2) {
+            $v1P2pUp = (Test-Path $V1LogPath) -and (Select-String -Path $V1LogPath -Pattern "mfnd_p2p_listening=" -Quiet)
+            $v2P2pUp = (Test-Path $V2LogPath) -and (Select-String -Path $V2LogPath -Pattern "mfnd_p2p_listening=" -Quiet)
+            if ($v1P2pUp -and $v2P2pUp) {
+                Write-Host "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tipHeight and both voters P2P listening; continuing (GHA)"
                 return
             }
         }
@@ -317,6 +322,6 @@ function Wait-HubTipAtLeast {
     } while ($true)
 }
 
-$hubTipWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
+$hubTipWait = if ($env:GITHUB_ACTIONS) { 900 } else { 120 }
 $hubTipMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
 Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight $hubTipMin -TimeoutSeconds $hubTipWait

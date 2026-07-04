@@ -4,26 +4,22 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Done:** M2.5.8 — 600s GHA startup polls; Nightly #54 post-mortem.
-- **Done:** M2.5.9 — shared `query_tip_height` on `main`.
-- **Done:** M2.5.17 — Windows `start-all.ps1` GHA voter dial 600s parity (bash match).
-- **Next:** Green Nightly #55 on `4987913` → Linux soak → operator sign-off.
+- **Done:** M2.5.8–M2.5.9 GHA startup + tip poll fixes; M2.5.18 CI #543 **GREEN**.
+- **Done:** M2.5.19 — GHA hub tip 900s; health-check 600s; hub liveness 300s.
+- **Next:** CI #544 green → Nightly #56 → Linux soak.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Done:** `release-evidence-f5f45bf` + RC audit dry-run (go).
-- **Next:** Refresh evidence after green CI + Nightly on current RC commit.
+- **Done:** M2.5.14–M2.5.18 evidence refresh + inline Nightly dispatch.
+- **Next:** `release-evidence-refresh-for-head` after green Nightly #56.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** M2.5.13 — RC dry-run assert gate; nightly partial evidence on failure.
-- **Done:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
-- **Done:** M2.5.15 — release-evidence refresh helper; nightly assert summary.
-- **Done:** M2.5.16 — schema-validate refresh output.
-- **Done:** M2.5.17 — Windows voter-dial 600s parity (`850a45b`).
-- **Done:** M2.5.18 — inline CI Nightly dispatch (fixes RC workflow_run skip).
-- **Next:** CI #543 green → Nightly #55 on `850a45b`.
+- **Done:** M2.5.11–M2.5.16 smoke evidence pipeline + assert gates.
+- **Done:** Nightly #55 partial — ignored **PASS**; smokes **FAIL** ~11m (not 302s).
+- **Next:** M2.5.19 → Nightly #56 participant+observer green.
 
 ## Cross-Agent Blockers
 
-- Nightly #55 is the next gate for participant+observer smokes on M2.5.8+ stack with M2.5.12 assert gate.
+- Nightly #55 confirmed startup fix (11m class); **M2.5.19** extends GHA tip/health/liveness waits.
+- Do **not** mark Nightly green until all three jobs pass on the exact RC commit.

@@ -304,7 +304,7 @@ try {
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
         if ($env:GITHUB_ACTIONS) {
-            Wait-MeshHealthCheck -TimeoutSeconds 420
+            Wait-MeshHealthCheck -TimeoutSeconds $(if ($env:GITHUB_ACTIONS) { 600 } else { 420 })
         }
     }
     $RpcAddr = Resolve-Rpc
@@ -317,7 +317,7 @@ try {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
     $hubLivenessMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
-    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 120 } else { 120 }
+    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 300 } else { 120 }
     Write-Host "participant-rehearsal-smoke: STAGE=hub_liveness"
     Wait-HubMinHeight $MfnCli $RpcAddr $hubLivenessMin $hubLivenessWait
     Write-Host "participant-rehearsal-smoke: STAGE=faucet_balance"

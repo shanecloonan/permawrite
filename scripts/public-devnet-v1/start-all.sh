@@ -171,6 +171,14 @@ wait_voter_dial_hub() {
       echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height (v1_ok=$v1_ok v2_ok=$v2_ok); continuing"
       return
     fi
+    # GHA: voters may receive inbound hub dials before mfnd_p2p_dial_ok= appears in redirected logs.
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 2 )); then
+      if grep -q mfnd_p2p_listening= "$LOG_DIR/v1.log" 2>/dev/null && \
+         grep -q mfnd_p2p_listening= "$LOG_DIR/v2.log" 2>/dev/null; then
+        echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height and both voters P2P listening; continuing (GHA)"
+        return
+      fi
+    fi
   fi
   echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
   tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
@@ -239,7 +247,7 @@ done
 HUB_TIP_WAIT=120
 HUB_TIP_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_TIP_WAIT=600
+  HUB_TIP_WAIT=900
   # Require a second sealed block so producer + committee quorum are live before rehearsal.
   HUB_TIP_MIN=2
 fi

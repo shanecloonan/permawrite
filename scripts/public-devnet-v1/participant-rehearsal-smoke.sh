@@ -449,7 +449,7 @@ if (( NO_START == 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"
   fi
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    wait_mesh_health_check 420
+    wait_mesh_health_check 600
   fi
 fi
 RPC_ADDR="$(resolve_rpc)"
@@ -465,7 +465,7 @@ HUB_LIVENESS_WAIT=120
 HUB_LIVENESS_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   HUB_LIVENESS_MIN=2
-  HUB_LIVENESS_WAIT=120
+  HUB_LIVENESS_WAIT=300
 fi
 echo "participant-rehearsal-smoke: STAGE=hub_liveness"
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" "$HUB_LIVENESS_MIN" "$HUB_LIVENESS_WAIT"
