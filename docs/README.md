@@ -19,6 +19,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🏗 [**ARCHITECTURE.md**](./ARCHITECTURE.md) — whitepaper-grade system overview. Wire codec, domain tags, every check `apply_block` performs in order.
 - 🧷 [**M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md) — Milestone M1: validator bond/unbond, churn caps, epoch model (spec + code map).
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
+- 🪙 [**FUNGIBILITY.md**](./FUNGIBILITY.md) — why full anonymity makes MFN interchangeable (vs tainted coins on traceable ledgers).
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 💻 [**STORAGE_ACCESSIBILITY.md**](./STORAGE_ACCESSIBILITY.md) — feasibility of consumer-grade storage (vs Arweave-style hardware), current gaps, and roadmap.
 - 👤 [**UX_ACCESSIBILITY.md**](./UX_ACCESSIBILITY.md) — normie UX assessment for mature mainnet: current friction, non-negotiable invariants, and privacy/permanence-preserving improvements.
@@ -43,6 +44,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Hidden senders | OVERVIEW § Privacy half | PRIVACY § CLSAG | code: `mfn-crypto/src/clsag.rs` |
 | Hidden receivers | OVERVIEW § Privacy half | PRIVACY § Stealth | code: `mfn-crypto/src/stealth.rs` |
 | Hidden amounts | OVERVIEW § Privacy half | PRIVACY § Pedersen | code: `mfn-crypto/src/pedersen.rs` |
+| Fungibility / coin taint | OVERVIEW § Privacy half | FUNGIBILITY (full document) | PRIVACY § RingCT |
 | Range proofs | OVERVIEW § Privacy half | PRIVACY § Range proofs | code: `mfn-crypto/src/bulletproofs.rs` |
 | Decoy selection | OVERVIEW § Privacy half | PRIVACY § Decoy realism | code: `mfn-crypto/src/decoy.rs` |
 | Storage permanence | OVERVIEW § Permanence half | STORAGE § Endowment | code: `mfn-storage/src/endowment.rs` |

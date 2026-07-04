@@ -13,6 +13,8 @@ A regular Permawrite transaction hides:
 3. **Transferred amounts** — how much MFN moves (Pedersen commitment + Bulletproof range proof).
 4. **Wallet linkability across txs** — neither sender nor receiver appears with a stable identifier.
 
+Full anonymity is what makes MFN **fungible**: third parties cannot label individual units by transaction history the way they do on transparent or pseudonymous ledgers. See [`FUNGIBILITY.md`](./FUNGIBILITY.md).
+
 The chain still verifies:
 
 - Inputs balance outputs + fees (Pedersen sum).
@@ -22,14 +24,10 @@ The chain still verifies:
 - No money minted out of thin air (range proofs prove non-negativity).
 - Inputs are real on-chain UTXOs (chain-level ring-membership check).
 
-> **Ring size is a wallet obligation, not a consensus rule.** The chain does
-> **not** enforce a minimum or uniform ring size; it only checks CLSAG validity
-> and ring-member existence. A ring of size 1 (no decoys) is structurally valid.
-> The reference wallet chooses the anonymity-set size (CLI default 8), so
-> under-mixing is possible if a wallet is buggy, malicious, or coerced, and
-> heterogeneous ring sizes can themselves leak information. This is weaker than
-> Monero's mandatory uniform ring size and is tracked as a consensus milestone
-> in [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law).
+> **Ring size is consensus law.** Production [`ConsensusParams`](../mfn-consensus/src/block/state.rs)
+> enforce `min_ring_size = uniform_ring_size = 16` (Monero parity). [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs)
+> rejects any input whose ring is smaller or non-uniform. Reference wallets and the CLI
+> default to 16 and refuse lower values.
 
 What's **not** hidden:
 
@@ -409,13 +407,11 @@ The tradeoff is verification time. A naive `O(N)` verifier becomes painful when 
 
 Permawrite ships in tiers. Each tier monotonically strengthens privacy without breaking earlier tiers.
 
-The ring sizes in this table are **reference-wallet policy targets**, not
-consensus-enforced bounds (see the note under [§ What "privacy" means here](#what-privacy-means-here)
-and [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law)):
+Production chains enforce **uniform ring size 16** at consensus (see Tier 1 below).
 
 | Tier | Status | Ring construction | Range proof | Decoy quality |
 |---|---|---|---|---|
-| **Tier 1** | ✓ Live | CLSAG, wallet ring size (CLI default 8; target 16) | Bulletproofs (log-size) | Gamma age-distributed |
+| **Tier 1** | ✓ Live | CLSAG, **consensus uniform ring 16** | Bulletproofs (log-size) | Gamma age-distributed |
 | **Tier 2** | □ Near-term | CLSAG, ring size 32–64 | Bulletproof+ (smaller transcripts) | Gamma + transaction-graph metadata mitigations |
 | **Tier 3** | □ Mid-term | OoM over entire UTXO accumulator | Bulletproof+ | N/A (all UTXOs are "decoys") |
 | **Tier 4** | □ Long-term | Recursive SNARK proves all rings in a block | Same SNARK proves all ranges | N/A |
