@@ -10,7 +10,7 @@ use crate::consensus::{
     ValidatorPayout, ValidatorSecrets,
 };
 use crate::emission::{emission_at_height, DEFAULT_EMISSION_PARAMS};
-use crate::{ConsensusParams, GenesisConfig};
+use crate::{ConsensusParams, GenesisConfig, TEST_CONSENSUS_PARAMS};
 use mfn_bls::bls_keygen_from_seed;
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -54,6 +54,7 @@ fn build_signed_block_1() -> (
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     let cfg = GenesisConfig {
         timestamp: 0,
@@ -364,6 +365,7 @@ fn verify_block_body_accepts_genesis() {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 0,
+            ..TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,

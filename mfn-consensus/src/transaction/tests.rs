@@ -7,6 +7,7 @@ use super::{
     TxBuildError, TxDecodeError, TxInputWire, TxOutputWire, VerifyResult, TX_RANGE_BITS,
     TX_VERSION,
 };
+use crate::block::RingPolicy;
 use mfn_crypto::pedersen::pedersen_commit;
 use mfn_crypto::stealth::{indexed_stealth_spend_key, stealth_gen, StealthWallet};
 
@@ -71,7 +72,7 @@ fn sign_and_verify_round_trip_single_input_two_outputs() {
     ];
     let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
 
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok, "errors: {:?}", res.errors);
     assert_eq!(res.key_images.len(), 1);
 }
@@ -98,7 +99,7 @@ fn multi_input_multi_output_balances() {
         },
     ];
     let signed = sign_transaction(inputs, outputs, 5_000, Vec::new()).expect("sign");
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok, "errors: {:?}", res.errors);
     assert_eq!(res.key_images.len(), 3);
 }
@@ -113,7 +114,7 @@ fn recipient_can_open_stealth_output() {
         storage: None,
     }];
     let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok);
 
     // Recipient derives the one-time spend key for output 0.
@@ -138,7 +139,7 @@ fn tampered_amount_breaks_balance() {
     let bad = pedersen_commit(Scalar::from(123u64), None);
     tx.outputs[0].amount = bad.c;
 
-    let res = verify_transaction(&tx);
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
     assert!(!res.ok);
     // Could fail balance or range-proof binding (or both).
     assert!(res.errors.iter().any(|e| e.contains("balance")
@@ -159,7 +160,7 @@ fn tampered_fee_breaks_balance() {
     let mut tx = signed.tx;
     tx.fee = 600;
 
-    let res = verify_transaction(&tx);
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
     assert!(!res.ok);
     assert!(res
         .errors
@@ -182,7 +183,7 @@ fn key_image_repeated_within_tx_rejected() {
     let dup = tx.inputs[0].clone();
     tx.inputs.push(dup);
 
-    let res = verify_transaction(&tx);
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
     assert!(!res.ok);
     assert!(res
         .errors
@@ -211,7 +212,7 @@ fn key_image_not_in_prime_subgroup_rejected() {
     assert!(!torsion.is_torsion_free(), "sanity: [1] is a torsion point");
     tx.inputs[0].sig.key_image += torsion;
 
-    let res = verify_transaction(&tx);
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
     assert!(!res.ok);
     assert!(
         res.errors
@@ -236,7 +237,7 @@ fn key_image_identity_rejected() {
     let mut tx = signed.tx;
     tx.inputs[0].sig.key_image = EdwardsPoint::identity();
 
-    let res = verify_transaction(&tx);
+    let res = verify_transaction(&tx, &RingPolicy::TEST);
     assert!(!res.ok);
     assert!(
         res.errors.iter().any(|e| e.contains("identity")),
@@ -261,7 +262,7 @@ fn honest_key_image_still_accepted() {
         signed.tx.inputs[0].sig.key_image.is_torsion_free(),
         "honest key image must be a prime-order-subgroup member"
     );
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok, "honest tx must verify: {:?}", res.errors);
     assert_eq!(res.key_images.len(), 1);
 }
@@ -335,7 +336,7 @@ fn storage_commitment_binds_into_preimage() {
         storage: Some(commit.clone()),
     }];
     let signed = sign_transaction(inputs, outputs, 500, Vec::new()).expect("sign");
-    assert!(verify_transaction(&signed.tx).ok);
+    assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);
 
     // Tamper with storage commit → tx_id changes.
     let mut tx = signed.tx;
@@ -343,7 +344,7 @@ fn storage_commitment_binds_into_preimage() {
     bad.replication = 4;
     tx.outputs[0].storage = Some(bad);
     // The tx is now inconsistent with its CLSAG signatures.
-    assert!(!verify_transaction(&tx).ok);
+    assert!(!verify_transaction(&tx, &RingPolicy::TEST).ok);
 }
 
 /* ---------------------------------------------------------------- *
@@ -415,7 +416,7 @@ fn encode_decode_round_trip_simple_tx() {
 
     // Re-verifying the decoded tx proves CLSAG / range / balance
     // all survived the round-trip intact.
-    let v = verify_transaction(&recovered);
+    let v = verify_transaction(&recovered, &RingPolicy::TEST);
     assert!(v.ok, "decoded tx must verify: {:?}", v.errors);
 }
 
@@ -433,7 +434,7 @@ fn encode_decode_round_trip_multi_input_with_storage() {
     assert!(recovered.outputs[0].storage.is_some());
     assert!(recovered.outputs[1].storage.is_none());
 
-    assert!(verify_transaction(&recovered).ok);
+    assert!(verify_transaction(&recovered, &RingPolicy::TEST).ok);
 }
 
 #[test]
@@ -450,7 +451,7 @@ fn encode_decode_raw_output_round_trip() {
     let bytes = encode_transaction(&signed.tx);
     let recovered = decode_transaction(&bytes).expect("decode");
     assert_eq!(tx_id(&recovered), tx_id(&signed.tx));
-    assert!(verify_transaction(&recovered).ok);
+    assert!(verify_transaction(&recovered, &RingPolicy::TEST).ok);
 }
 
 #[test]
@@ -540,7 +541,7 @@ fn raw_one_time_addr_outputs_supported() {
         storage: None,
     }];
     let signed = sign_transaction(inputs, outputs, 100, Vec::new()).expect("sign");
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok, "errors: {:?}", res.errors);
     // Raw outputs get zero enc_amount blob (no recipient view-key).
     assert_eq!(signed.tx.outputs[0].enc_amount, [0u8; ENC_AMOUNT_BYTES]);

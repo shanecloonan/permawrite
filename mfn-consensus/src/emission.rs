@@ -225,6 +225,7 @@ use std::collections::HashMap;
 use mfn_storage::{accrue_proof_reward, AccrueArgs, EndowmentParams, StorageProof};
 
 use crate::block::StorageEntry;
+use crate::coinbase::{CoinbaseOutputSpec, PayoutAddress};
 
 /// PPB endowment yield bonus for storage proofs about to be mined (mirrors
 /// `apply_block` `storage_bonus_total`).
@@ -252,6 +253,45 @@ pub fn storage_proof_coinbase_bonus(
         }
     }
     bonus
+}
+
+/// Producer coinbase portion only: block subsidy + producer fee share.
+pub fn producer_portion_amount(height: u64, params: &EmissionParams, fee_sum: u128) -> u64 {
+    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+    let producer_fee = fee_sum.saturating_sub(treasury_fee);
+    let subsidy = u128::from(emission_at_height(height, params));
+    let total = subsidy.saturating_add(producer_fee);
+    u64::try_from(total).unwrap_or(u64::MAX)
+}
+
+/// Per-proof operator payout: base storage reward + PPB bonus.
+pub fn storage_payout_amount(base_reward: u64, bonus: u128) -> u64 {
+    u64::try_from(u128::from(base_reward).saturating_add(bonus)).unwrap_or(u64::MAX)
+}
+
+/// Build coinbase output specs for a block: output 0 = producer, 1..N = operators.
+pub fn block_coinbase_specs(
+    height: u64,
+    params: &EmissionParams,
+    fee_sum: u128,
+    producer_payout: PayoutAddress,
+    accepted_proofs: &[(StorageProof, u128)],
+) -> Vec<CoinbaseOutputSpec> {
+    let mut specs = Vec::with_capacity(1 + accepted_proofs.len());
+    specs.push(CoinbaseOutputSpec {
+        payout: producer_payout,
+        amount: producer_portion_amount(height, params, fee_sum),
+    });
+    for (proof, bonus) in accepted_proofs {
+        specs.push(CoinbaseOutputSpec {
+            payout: PayoutAddress {
+                view_pub: proof.operator_view_pub,
+                spend_pub: proof.operator_spend_pub,
+            },
+            amount: storage_payout_amount(params.storage_proof_reward, *bonus),
+        });
+    }
+    specs
 }
 
 /// Coinbase amount [`crate::coinbase::build_coinbase`] must use so

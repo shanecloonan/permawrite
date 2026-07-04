@@ -4,7 +4,7 @@ use curve25519_dalek::edwards::CompressedEdwardsY;
 use mfn_bls::decode_public_key;
 use mfn_consensus::{
     block_id, decode_block_header, verify_header, BlockHeader, ConsensusParams, HeaderCheck,
-    HeaderVerifyError, Validator, ValidatorPayout,
+    HeaderVerifyError, Validator, ValidatorPayout, DEFAULT_CONSENSUS_PARAMS,
 };
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +54,10 @@ struct ConsensusParamsJson {
     quorum_stake_bps: u32,
     liveness_max_consecutive_missed: u32,
     liveness_slash_bps: u32,
+    #[serde(default)]
+    min_ring_size: Option<u32>,
+    #[serde(default)]
+    uniform_ring_size: Option<u32>,
 }
 
 fn decode_hex32(s: &str, label: &str) -> Result<[u8; 32], WasmCoreError> {
@@ -144,6 +148,12 @@ pub(crate) fn consensus_from_json(json: &str) -> Result<ConsensusParams, WasmCor
         quorum_stake_bps: p.quorum_stake_bps,
         liveness_max_consecutive_missed: p.liveness_max_consecutive_missed,
         liveness_slash_bps: p.liveness_slash_bps,
+        min_ring_size: p
+            .min_ring_size
+            .unwrap_or(DEFAULT_CONSENSUS_PARAMS.min_ring_size),
+        uniform_ring_size: p
+            .uniform_ring_size
+            .unwrap_or(DEFAULT_CONSENSUS_PARAMS.uniform_ring_size),
     })
 }
 

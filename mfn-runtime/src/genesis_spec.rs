@@ -149,6 +149,8 @@ struct ConsensusSection {
     quorum_stake_bps: Option<u32>,
     liveness_max_consecutive_missed: Option<u32>,
     liveness_slash_bps: Option<u32>,
+    min_ring_size: Option<u32>,
+    uniform_ring_size: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -210,6 +212,8 @@ fn merge_consensus(base: ConsensusParams, file: Option<ConsensusSection>) -> Con
             .liveness_max_consecutive_missed
             .unwrap_or(base.liveness_max_consecutive_missed),
         liveness_slash_bps: c.liveness_slash_bps.unwrap_or(base.liveness_slash_bps),
+        min_ring_size: c.min_ring_size.unwrap_or(base.min_ring_size),
+        uniform_ring_size: c.uniform_ring_size.unwrap_or(base.uniform_ring_size),
     }
 }
 

@@ -21,7 +21,8 @@ use curve25519_dalek::scalar::Scalar;
 
 use mfn_consensus::{
     build_coinbase, coinbase_tx_priv, emission_at_height, sign_transaction, verify_coinbase,
-    verify_transaction, InputSpec, OutputSpec, PayoutAddress, Recipient, DEFAULT_EMISSION_PARAMS,
+    verify_transaction, InputSpec, OutputSpec, PayoutAddress, Recipient, RingPolicy,
+    DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::encrypted_amount::decrypt_output_amount;
@@ -114,7 +115,7 @@ fn end_to_end_block_flow() {
     .expect("sign");
 
     // Verify the privacy tx.
-    let res = verify_transaction(&signed.tx);
+    let res = verify_transaction(&signed.tx, &RingPolicy::TEST);
     assert!(res.ok, "privacy tx errors: {:?}", res.errors);
     assert_eq!(res.key_images.len(), 1);
 
@@ -218,7 +219,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0, // oversample to make every validator always eligible
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     /* ----- Genesis with one initial UTXO that wallet_a controls ----- */
@@ -548,7 +549,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     assert_eq!(state2.validators[2].stake, 100);
 
     // The genesis UTXO is now spent — verify its key image is recorded.
-    let priv_tx_res = verify_transaction(&block1.txs[1]);
+    let priv_tx_res = verify_transaction(&block1.txs[1], &RingPolicy::TEST);
     assert!(priv_tx_res.ok);
     let ki_bytes = priv_tx_res.key_images[0].compress().to_bytes();
     assert!(state2.spent_key_images.contains(&ki_bytes));
@@ -571,7 +572,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
         ConsensusParams, GenesisConfig,
     };
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -592,7 +593,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -615,14 +616,13 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     // the *real* unsealed header committing the proof under
     // `storage_proof_root`.
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot_b1, timestamp_b1);
-    let storage_proof = build_storage_proof(
+    let storage_proof = build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
         slot_b1,
         &payload,
         &built.tree,
-    )
-    .expect("build proof");
+    );
     let storage_proofs_b1 = vec![storage_proof];
     let unsealed_b1 = build_unsealed_header(
         &state0,
@@ -659,14 +659,13 @@ fn storage_proof_flow_at_genesis_plus_block1() {
     let slot_b2 = 5_100u32;
     let timestamp_b2: u64 = 2_000;
     let unsealed_b2 = build_unsealed_header(&state1, &[], &[], &[], &[], slot_b2, timestamp_b2);
-    let storage_proof_b2 = build_storage_proof(
+    let storage_proof_b2 = build_test_storage_proof(
         &built.commit,
         &unsealed_b2.prev_hash,
         slot_b2,
         &payload,
         &built.tree,
-    )
-    .expect("build proof v2");
+    );
     let dup_proof = storage_proof_b2.clone();
     let before_b2 = (
         state1.storage[&commit_hash].last_proven_height,
@@ -712,7 +711,7 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -811,7 +810,7 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -824,13 +823,13 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
 
     let fee = 100_000u64;
     let (tx, _) = spend.sign_self_transfer(fee);
-    assert!(verify_transaction(&tx).ok);
+    assert!(verify_transaction(&tx, &RingPolicy::TEST).ok);
 
     let height = 1u32;
     let timestamp = 1_000u64;
     let prev = *state0.tip_id().expect("tip");
     let storage_proof =
-        build_storage_proof(&built.commit, &prev, height, &payload, &built.tree).expect("proof");
+        build_test_storage_proof(&built.commit, &prev, height, &payload, &built.tree);
     let storage_proofs = vec![storage_proof];
     let unsealed = build_unsealed_header(
         &state0,
@@ -875,7 +874,7 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -974,7 +973,7 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -989,13 +988,12 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
         let fee = if height == 1 { 100_000 } else { 50_000 };
         let (tx, next_spend) = spend.sign_self_transfer(fee, height);
         spend = next_spend;
-        assert!(verify_transaction(&tx).ok);
+        assert!(verify_transaction(&tx, &RingPolicy::TEST).ok);
 
         let timestamp = u64::from(height) * 1_000;
         let prev = *st.tip_id().expect("tip");
         let storage_proof =
-            build_storage_proof(&built.commit, &prev, height, &payload, &built.tree)
-                .expect("proof");
+            build_test_storage_proof(&built.commit, &prev, height, &payload, &built.tree);
         let storage_proofs = vec![storage_proof];
         let unsealed = build_unsealed_header(
             &st,
@@ -1043,7 +1041,7 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -1116,7 +1114,7 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
         let timestamp = u64::from(height) * 1_000;
         let prev = *st.tip_id().expect("tip");
         let storage_proof =
-            build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+            build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
         let storage_proofs = vec![storage_proof];
         let unsealed = build_unsealed_header(
             st,
@@ -1160,7 +1158,7 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -1236,7 +1234,7 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -1309,7 +1307,7 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
         let timestamp = u64::from(height) * 1_000;
         let prev = *st.tip_id().expect("tip");
         let storage_proof =
-            build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+            build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
         let storage_proofs = vec![storage_proof];
         let unsealed = build_unsealed_header(
             st,
@@ -1353,7 +1351,7 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -1421,7 +1419,7 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
     };
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -1494,7 +1492,7 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
         let timestamp = u64::from(height) * 1_000;
         let prev = *st.tip_id().expect("tip");
         let storage_proof =
-            build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+            build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
         let storage_proofs = vec![storage_proof];
         let unsealed = build_unsealed_header(
             st,
@@ -1525,7 +1523,7 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
         let timestamp = u64::from(height) * 1_000;
         let prev = *st.tip_id().expect("tip");
         let storage_proof =
-            build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+            build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
         let storage_proofs = vec![storage_proof.clone(), storage_proof];
         let unsealed = build_unsealed_header(
             st,
@@ -1569,7 +1567,7 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
@@ -1638,7 +1636,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     };
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -1684,7 +1682,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let init_value = 1_000_000_000u64;
@@ -1779,7 +1777,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         b"m5.6-mixed".to_vec(),
     )
     .expect("sign");
-    assert!(verify_transaction(&signed.tx).ok);
+    assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);
 
     let v0_payout = v0.payout.as_ref().unwrap();
     let cb_payout = PayoutAddress {
@@ -1794,14 +1792,13 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
     let slot = 1u32;
     let timestamp = 1_000u64;
     let scratch = build_unsealed_header(&state0, &txs, &[], &[], &[], slot, timestamp);
-    let storage_proof = build_storage_proof(
+    let storage_proof = build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
         slot,
         &payload,
         &built.tree,
-    )
-    .expect("proof");
+    );
     let storage_proofs = vec![storage_proof];
     let unsealed =
         build_unsealed_header(&state0, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -1911,7 +1908,7 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -2028,7 +2025,7 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
@@ -2058,7 +2055,7 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
         let fee = if height == 1 { 100_000 } else { 50_000 };
         let (tx, next_spend) = spend.sign_self_transfer(fee, height);
         spend = next_spend;
-        assert!(verify_transaction(&tx).ok);
+        assert!(verify_transaction(&tx, &RingPolicy::TEST).ok);
 
         let cb_amount = producer_coinbase_amount(
             u64::from(height),
@@ -2072,14 +2069,13 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
         let timestamp = u64::from(height) * 1_000;
 
         let scratch = build_unsealed_header(&st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             &payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = vec![storage_proof];
         let unsealed =
             build_unsealed_header(&st, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -2177,7 +2173,7 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -2254,14 +2250,13 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     ) -> mfn_consensus::Block {
         let timestamp = u64::from(height) * 1_000;
         let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = vec![storage_proof];
         let unsealed =
             build_unsealed_header(st, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -2350,7 +2345,7 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(1, 1_000_000_000);
@@ -2467,7 +2462,7 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -2544,14 +2539,13 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     ) -> mfn_consensus::Block {
         let timestamp = u64::from(height) * 1_000;
         let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = vec![storage_proof];
         let unsealed =
             build_unsealed_header(st, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -2640,7 +2634,7 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(2, 1_000_000_000);
@@ -2753,7 +2747,7 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -2831,14 +2825,13 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
     ) -> mfn_consensus::Block {
         let timestamp = u64::from(height) * 1_000;
         let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = vec![storage_proof];
         let unsealed =
             build_unsealed_header(st, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -2927,7 +2920,7 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(3, 1_000_000_000);
@@ -3045,7 +3038,7 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -3123,14 +3116,13 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
     ) -> mfn_consensus::Block {
         let timestamp = u64::from(height) * 1_000;
         let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = vec![storage_proof];
         let unsealed =
             build_unsealed_header(st, &txs, &[], &[], &storage_proofs, height, timestamp);
@@ -3219,7 +3211,7 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(4, 1_000_000_000);
@@ -3333,7 +3325,7 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
     use mfn_crypto::hash::hash_to_scalar;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, storage_commitment_hash,
+        build_storage_commitment, build_test_storage_proof, storage_commitment_hash,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -3412,14 +3404,13 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
     ) -> mfn_consensus::Block {
         let timestamp = u64::from(height) * 1_000;
         let scratch = build_unsealed_header(st, &txs, &[], &[], &[], height, timestamp);
-        let storage_proof = build_storage_proof(
+        let storage_proof = build_test_storage_proof(
             &built.commit,
             &scratch.prev_hash,
             height,
             payload,
             &built.tree,
-        )
-        .expect("proof");
+        );
         let storage_proofs = if duplicate_proof {
             vec![storage_proof.clone(), storage_proof]
         } else {
@@ -3512,7 +3503,7 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
     let params = ConsensusParams {
         expected_proposers_per_slot: 10.0,
         quorum_stake_bps: 6667,
-        ..ConsensusParams::default()
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let initial_spend = TrackedSpend::from_seed(5, 1_000_000_000);
@@ -3697,6 +3688,7 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 3,
         liveness_slash_bps: 100, // 1%
+        ..mfn_consensus::TEST_CONSENSUS_PARAMS
     };
 
     let cfg = GenesisConfig {
@@ -3900,6 +3892,7 @@ mod unbond_lifecycle {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 64, // high so liveness doesn't trip
             liveness_slash_bps: 0,
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         };
         let bp = BondingParams {
             min_validator_stake: 100,
@@ -4105,6 +4098,7 @@ mod unbond_lifecycle {
             quorum_stake_bps: 5000, // half quorum so we survive 3 exits
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 0,
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         };
         let bp = BondingParams {
             min_validator_stake: 100,

@@ -17,7 +17,7 @@ use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     build_coinbase, emission_at_height, validator_set_root, verify_header, ConsensusParams,
     GenesisConfig, HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
-    DEFAULT_EMISSION_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -54,6 +54,7 @@ fn single_validator_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusPara
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     (
         GenesisConfig {

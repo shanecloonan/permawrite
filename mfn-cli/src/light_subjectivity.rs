@@ -427,7 +427,9 @@ fn decode_hex(s: &str, label: &str) -> Result<Vec<u8>, String> {
 mod tests {
     use super::*;
     use mfn_bls::bls_keygen_from_seed;
-    use mfn_consensus::{BondingParams, ConsensusParams, GenesisConfig, Validator};
+    use mfn_consensus::{
+        BondingParams, ConsensusParams, GenesisConfig, Validator, TEST_CONSENSUS_PARAMS,
+    };
     use mfn_crypto::vrf::vrf_keygen_from_seed;
     use mfn_light::LightChainConfig;
 
@@ -442,6 +444,7 @@ mod tests {
                 quorum_stake_bps: 6670,
                 liveness_max_consecutive_missed: 3,
                 liveness_slash_bps: 100,
+                ..TEST_CONSENSUS_PARAMS
             },
             emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
             endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
@@ -499,6 +502,7 @@ mod tests {
                 quorum_stake_bps: 6666,
                 liveness_max_consecutive_missed: 64,
                 liveness_slash_bps: 0,
+                ..TEST_CONSENSUS_PARAMS
             },
             emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
             endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,

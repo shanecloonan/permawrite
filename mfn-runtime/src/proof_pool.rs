@@ -239,7 +239,7 @@ mod tests {
         ChainState, GenesisConfig, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, encode_storage_proof,
+        build_storage_commitment, build_test_storage_proof, encode_storage_proof,
         DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -277,14 +277,13 @@ mod tests {
 
     fn good_proof(st: &ChainState, fix: &BuiltFixture, height: u32) -> StorageProof {
         let prev = *st.tip_id().expect("tip");
-        build_storage_proof(
+        build_test_storage_proof(
             &fix.built.commit,
             &prev,
             height,
             &fix.payload,
             &fix.built.tree,
         )
-        .expect("proof")
     }
 
     #[test]

@@ -188,11 +188,13 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                 } else {
                     None
                 };
+                let payout_wallet = resolve_wallet_path(global_wallet_path.as_deref());
                 operator_prove(
                     &mut client,
                     &commitment_hash_hex,
                     data_path.as_deref(),
                     wallet.as_deref(),
+                    &payout_wallet,
                     params,
                 )?
             }

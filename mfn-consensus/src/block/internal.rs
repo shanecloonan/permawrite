@@ -28,11 +28,13 @@ pub(crate) use crate::claims::{
     claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx,
     AuthorshipClaimVerifyError, VerifiedClaimsForTxResult,
 };
-pub(crate) use crate::coinbase::{is_coinbase_shaped, verify_coinbase};
+pub(crate) use crate::coinbase::{is_coinbase_shaped, verify_coinbase_outputs};
 pub(crate) use crate::consensus::Validator;
 #[cfg(feature = "bls")]
 pub(crate) use crate::consensus::{decode_finality_proof, verify_finality_proof, SlotContext};
-pub(crate) use crate::emission::{emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS};
+pub(crate) use crate::emission::{
+    block_coinbase_specs, emission_at_height, EmissionParams, DEFAULT_EMISSION_PARAMS,
+};
 pub(crate) use crate::slashing::{
     decode_evidence, encode_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,
 };

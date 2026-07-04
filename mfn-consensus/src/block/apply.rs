@@ -283,7 +283,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
 
         // Regular tx path.
-        let v = verify_transaction(tx);
+        let v = verify_transaction(tx, &next.params.ring_policy());
         if !v.ok {
             errors.push(BlockError::TxInvalid {
                 index: ti,
@@ -535,6 +535,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let mut seen_proofs: HashSet<[u8; 32]> = HashSet::new();
     let mut accepted_storage_proofs: u128 = 0;
     let mut storage_bonus_total: u128 = 0;
+    let mut accepted_proof_settlements: Vec<(mfn_storage::StorageProof, u128)> = Vec::new();
     let current_slot = u64::from(block.header.slot);
     for (pi, proof) in block.storage_proofs.iter().enumerate() {
         if !seen_proofs.insert(proof.commit_hash) {
@@ -587,6 +588,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 );
                 accepted_storage_proofs += 1;
                 storage_bonus_total = storage_bonus_total.saturating_add(accrual.payout);
+                accepted_proof_settlements.push((proof.clone(), accrual.payout));
             }
             Err(e) => errors.push(BlockError::EndowmentMathFailed {
                 tx: 0,
@@ -693,7 +695,8 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //   3. Storage rewards = storage_proof_reward · N_accepted + Σ bonus.
     //      Treasury drains first; any shortfall is minted via emission
     //      as a backstop. Treasury balance never goes negative.
-    //   4. Coinbase pays producer = subsidy + producer_fee + storage_rewards.
+    //   4. Coinbase output 0 = producer (subsidy + producer_fee);
+    //      outputs 1..N = per-operator storage rewards.
     let emission_params = next.emission_params;
     let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
     let producer_fee_u128 = fee_sum - treasury_fee;
@@ -708,14 +711,8 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     pending_treasury -= storage_from_treasury;
     next.treasury = pending_treasury;
     // The remaining `storage_reward_total - storage_from_treasury` is the
-    // emission backstop; it's part of the producer's coinbase amount but
+    // emission backstop; it's part of operator coinbase outputs but
     // not subtracted from the treasury.
-
-    let subsidy = emission_at_height(u64::from(block.header.height), &emission_params);
-    let expected_reward = u128::from(subsidy)
-        .saturating_add(u128::from(producer_fee))
-        .saturating_add(storage_reward_total);
-    let expected_reward = u64::try_from(expected_reward).unwrap_or(u64::MAX);
 
     if require_coinbase {
         let producer = producer
@@ -725,17 +722,25 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             .payout
             .as_ref()
             .expect("require_coinbase implies payout present");
+        let producer_payout = crate::coinbase::PayoutAddress {
+            view_pub: payout.view_pub,
+            spend_pub: payout.spend_pub,
+        };
+        let specs = block_coinbase_specs(
+            u64::from(block.header.height),
+            &emission_params,
+            fee_sum,
+            producer_payout,
+            &accepted_proof_settlements,
+        );
         match coinbase_tx {
             None => errors.push(BlockError::CoinbaseRequiredButAbsent),
             Some(cb) => {
-                let cv = verify_coinbase(
+                let cv = verify_coinbase_outputs(
                     cb,
                     u64::from(block.header.height),
-                    expected_reward,
-                    &crate::coinbase::PayoutAddress {
-                        view_pub: payout.view_pub,
-                        spend_pub: payout.spend_pub,
-                    },
+                    &payout.spend_pub,
+                    &specs,
                 );
                 if !cv.ok {
                     errors.push(BlockError::CoinbaseInvalid(cv.errors));

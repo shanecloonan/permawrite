@@ -5,6 +5,7 @@ use super::*;
 use super::*;
 use crate::bonding::DEFAULT_BONDING_PARAMS;
 use crate::consensus::{ValidatorPayout, ValidatorSecrets};
+use crate::TEST_CONSENSUS_PARAMS;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -38,6 +39,7 @@ fn default_params() -> ConsensusParams {
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 3,
         liveness_slash_bps: 100,
+        ..TEST_CONSENSUS_PARAMS
     }
 }
 

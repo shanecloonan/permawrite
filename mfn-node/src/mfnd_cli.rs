@@ -28,8 +28,7 @@ use std::thread;
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    build_coinbase, producer_coinbase_amount, storage_proof_coinbase_bonus, PayoutAddress,
-    ValidatorSecrets,
+    block_coinbase_specs, build_coinbase_outputs, PayoutAddress, ValidatorSecrets,
 };
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 
@@ -245,26 +244,42 @@ fn run_solo_step(
             .unwrap_or_else(|| *chain.genesis_id());
         let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, next_height);
         let st = chain.state();
-        let storage_bonus = storage_proof_coinbase_bonus(
-            &storage_proofs,
-            &st.storage,
-            next_height,
-            &st.endowment_params,
-        );
-        let coinbase_amount = producer_coinbase_amount(
-            u64::from(next_height),
-            &emission_params,
-            fee_sum,
-            storage_proofs.len(),
-            storage_bonus,
-        );
+        let storage_bonus_pairs: Vec<(mfn_storage::StorageProof, u128)> = storage_proofs
+            .iter()
+            .map(|proof| {
+                let bonus = st
+                    .storage
+                    .get(&proof.commit_hash)
+                    .map(|entry| {
+                        mfn_storage::accrue_proof_reward(mfn_storage::AccrueArgs {
+                            size_bytes: entry.commit.size_bytes,
+                            replication: entry.commit.replication,
+                            pending_ppb: entry.pending_yield_ppb,
+                            last_proven_slot: entry.last_proven_slot,
+                            current_slot: u64::from(next_height),
+                            params: &st.endowment_params,
+                        })
+                        .map(|a| a.payout)
+                        .unwrap_or(0)
+                    })
+                    .unwrap_or(0);
+                (proof.clone(), bonus)
+            })
+            .collect();
 
         let cb_payout = PayoutAddress {
             view_pub: payout.view_pub,
             spend_pub: payout.spend_pub,
         };
-        let cb = build_coinbase(u64::from(next_height), coinbase_amount, &cb_payout)
-            .map_err(|e| format!("build_coinbase: {e}"))?;
+        let specs = block_coinbase_specs(
+            u64::from(next_height),
+            &emission_params,
+            fee_sum,
+            cb_payout,
+            &storage_bonus_pairs,
+        );
+        let cb = build_coinbase_outputs(u64::from(next_height), &payout.spend_pub, &specs)
+            .map_err(|e| format!("build_coinbase_outputs: {e}"))?;
         let mut txs = Vec::with_capacity(1 + drained.len());
         txs.push(cb);
         txs.extend(drained);

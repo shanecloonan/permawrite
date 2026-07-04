@@ -644,14 +644,13 @@ fn duplicate_storage_proof_in_one_block_rejected() {
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
     let unsealed = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
-    let p = mfn_storage::build_storage_proof(
+    let p = mfn_storage::build_test_storage_proof(
         &built.commit,
         &unsealed.prev_hash,
         5_000,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     let block = seal_block(
         unsealed,
         Vec::new(),
@@ -692,14 +691,13 @@ fn storage_proof_for_unknown_commit_rejected() {
     )
     .unwrap();
     let unsealed = build_unsealed_header(&state0, &[], &[], &[], &[], 1, 100);
-    let p = mfn_storage::build_storage_proof(
+    let p = mfn_storage::build_test_storage_proof(
         &built.commit,
         &unsealed.prev_hash,
         1,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     let block = seal_block(
         unsealed,
         Vec::new(),
@@ -751,14 +749,13 @@ fn storage_proof_with_wrong_chunk_rejected() {
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
     let unsealed = build_unsealed_header(&state0, &[], &[], &[], &[], 1, 100);
-    let mut p = mfn_storage::build_storage_proof(
+    let mut p = mfn_storage::build_test_storage_proof(
         &built.commit,
         &unsealed.prev_hash,
         1,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     if !p.chunk.is_empty() {
         p.chunk[0] ^= 0xff;
     }
@@ -796,22 +793,20 @@ fn build_unsealed_header_commits_storage_proof_emit_order() {
     let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
     let slot = 5_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof_a = mfn_storage::build_storage_proof(
+    let proof_a = mfn_storage::build_test_storage_proof(
         &built_a.commit,
         &scratch.prev_hash,
         slot,
         &payload_a,
         &built_a.tree,
-    )
-    .unwrap();
-    let proof_b = mfn_storage::build_storage_proof(
+    );
+    let proof_b = mfn_storage::build_test_storage_proof(
         &built_b.commit,
         &scratch.prev_hash,
         slot,
         &payload_b,
         &built_b.tree,
-    )
-    .unwrap();
+    );
     let proofs_ab = [proof_a.clone(), proof_b.clone()];
     let root_ab = storage_proof_merkle_root(&proofs_ab);
     let root_ba = storage_proof_merkle_root(&[proof_b, proof_a]);
@@ -829,22 +824,20 @@ fn storage_proof_root_wrong_emit_order_rejected() {
     let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
     let slot = 5_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof_a = mfn_storage::build_storage_proof(
+    let proof_a = mfn_storage::build_test_storage_proof(
         &built_a.commit,
         &scratch.prev_hash,
         slot,
         &payload_a,
         &built_a.tree,
-    )
-    .unwrap();
-    let proof_b = mfn_storage::build_storage_proof(
+    );
+    let proof_b = mfn_storage::build_test_storage_proof(
         &built_b.commit,
         &scratch.prev_hash,
         slot,
         &payload_b,
         &built_b.tree,
-    )
-    .unwrap();
+    );
     let proofs_ab = [proof_a.clone(), proof_b.clone()];
     let hash_a = proof_a.commit_hash;
     let hash_b = proof_b.commit_hash;
@@ -891,14 +884,13 @@ fn tampered_storage_proof_root_rejects_before_payout_effects() {
     state0.treasury = 10_000_000;
     let slot = 5_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof = mfn_storage::build_storage_proof(
+    let proof = mfn_storage::build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
         slot,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     let before = storage_proof_payout_snap(&state0, &commit_hash);
     let mut header = build_unsealed_header(
         &state0,
@@ -951,14 +943,13 @@ fn accepted_storage_proof_updates_provenance_and_treasury() {
     state0.treasury = 100_000_000;
     let slot = 500_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof = mfn_storage::build_storage_proof(
+    let proof = mfn_storage::build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
         slot,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     let expected_accrual = accrue_proof_reward(AccrueArgs {
         size_bytes: built.commit.size_bytes,
         replication: built.commit.replication,
@@ -1039,14 +1030,13 @@ fn storage_proof_accrual_respects_proof_reward_window_at_apply_block() {
         "elapsed {slot} must cap at proof_reward_window_slots"
     );
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof = mfn_storage::build_storage_proof(
+    let proof = mfn_storage::build_test_storage_proof(
         &built.commit,
         &scratch.prev_hash,
         slot,
         &payload,
         &built.tree,
-    )
-    .unwrap();
+    );
     let treasury_before = state0.treasury;
     let unsealed = build_unsealed_header(
         &state0,
@@ -1087,22 +1077,20 @@ fn dual_distinct_storage_proofs_in_one_block_update_both_entries() {
     state0.treasury = 100_000_000;
     let slot = 5_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof_a = mfn_storage::build_storage_proof(
+    let proof_a = mfn_storage::build_test_storage_proof(
         &built_a.commit,
         &scratch.prev_hash,
         slot,
         &payload_a,
         &built_a.tree,
-    )
-    .unwrap();
-    let proof_b = mfn_storage::build_storage_proof(
+    );
+    let proof_b = mfn_storage::build_test_storage_proof(
         &built_b.commit,
         &scratch.prev_hash,
         slot,
         &payload_b,
         &built_b.tree,
-    )
-    .unwrap();
+    );
     let proofs = [proof_a, proof_b];
     let hash_a = storage_commitment_hash(&built_a.commit);
     let hash_b = storage_commitment_hash(&built_b.commit);
@@ -1146,22 +1134,20 @@ fn dual_distinct_storage_proofs_positive_yield_accrues_both_entries() {
     state0.treasury = 100_000_000;
     let slot = 500_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof_a = mfn_storage::build_storage_proof(
+    let proof_a = mfn_storage::build_test_storage_proof(
         &built_a.commit,
         &scratch.prev_hash,
         slot,
         &payload_a,
         &built_a.tree,
-    )
-    .unwrap();
-    let proof_b = mfn_storage::build_storage_proof(
+    );
+    let proof_b = mfn_storage::build_test_storage_proof(
         &built_b.commit,
         &scratch.prev_hash,
         slot,
         &payload_b,
         &built_b.tree,
-    )
-    .unwrap();
+    );
     let proofs = [proof_a, proof_b];
     let hash_a = storage_commitment_hash(&built_a.commit);
     let hash_b = storage_commitment_hash(&built_b.commit);
@@ -1232,22 +1218,20 @@ fn storage_proof_body_tamper_rejects_without_state_change() {
     let (state0, built_a, payload_a, built_b, payload_b) = twin_storage_genesis(ep);
     let slot = 5_000u32;
     let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], slot, 1_000);
-    let proof_a = mfn_storage::build_storage_proof(
+    let proof_a = mfn_storage::build_test_storage_proof(
         &built_a.commit,
         &scratch.prev_hash,
         slot,
         &payload_a,
         &built_a.tree,
-    )
-    .unwrap();
-    let proof_b = mfn_storage::build_storage_proof(
+    );
+    let proof_b = mfn_storage::build_test_storage_proof(
         &built_b.commit,
         &scratch.prev_hash,
         slot,
         &payload_b,
         &built_b.tree,
-    )
-    .unwrap();
+    );
     let hash_a = storage_commitment_hash(&built_a.commit);
     let hash_b = storage_commitment_hash(&built_b.commit);
     let before_a = storage_proof_payout_snap(&state0, &hash_a);

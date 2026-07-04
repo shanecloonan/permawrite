@@ -6,7 +6,9 @@
 //! production deployments must distribute an agreed genesis (for example via
 //! the JSON format in [`crate::genesis_spec`]) so every participant agrees on
 //! initial validators, params, and timestamp.
-use mfn_consensus::{ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS};
+use mfn_consensus::{
+    ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
+};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
 /// Empty-validator genesis with default emission and endowment params.
@@ -23,7 +25,7 @@ pub fn empty_local_dev_genesis() -> GenesisConfig {
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..TEST_CONSENSUS_PARAMS
         },
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,

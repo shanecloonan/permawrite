@@ -416,6 +416,8 @@ pub fn encode_consensus_params(w: &mut Writer, p: &ConsensusParams) {
     w.u32(p.quorum_stake_bps);
     w.u32(p.liveness_max_consecutive_missed);
     w.u32(p.liveness_slash_bps);
+    w.u32(p.min_ring_size);
+    w.u32(p.uniform_ring_size);
 }
 
 /// Wire decode a [`ConsensusParams`].
@@ -428,6 +430,8 @@ pub fn decode_consensus_params(r: &mut Reader<'_>) -> Result<ConsensusParams, Ch
         quorum_stake_bps: read_u32(r, "params.quorum_stake_bps")?,
         liveness_max_consecutive_missed: read_u32(r, "params.liveness_max_consecutive_missed")?,
         liveness_slash_bps: read_u32(r, "params.liveness_slash_bps")?,
+        min_ring_size: read_u32(r, "params.min_ring_size")?,
+        uniform_ring_size: read_u32(r, "params.uniform_ring_size")?,
     })
 }
 
@@ -600,6 +604,8 @@ mod tests {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 100,
+            min_ring_size: 16,
+            uniform_ring_size: 16,
         };
         let mut w = Writer::new();
         encode_consensus_params(&mut w, &p);

@@ -6,6 +6,7 @@ use super::build::placeholder_clsag;
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire};
 use super::{tx_id, tx_preimage, TX_RANGE_BITS, TX_VERSION};
+use crate::block::RingPolicy;
 
 /* ----------------------------------------------------------------------- *
  *  Verification                                                            *
@@ -30,7 +31,7 @@ pub struct VerifyResult {
 /// Performs every check the consensus rules demand at tx ingress:
 /// version + structural shape, range proofs, balance equation,
 /// CLSAG signatures, within-tx key-image uniqueness.
-pub fn verify_transaction(tx: &TransactionWire) -> VerifyResult {
+pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResult {
     let mut errors = Vec::new();
 
     if tx.version != TX_VERSION {
@@ -123,6 +124,22 @@ pub fn verify_transaction(tx: &TransactionWire) -> VerifyResult {
     let mut seen_ki: Vec<[u8; 32]> = Vec::with_capacity(tx.inputs.len());
     let mut key_images: Vec<EdwardsPoint> = Vec::with_capacity(tx.inputs.len());
     for (i, inp) in tx.inputs.iter().enumerate() {
+        let ring_len = inp.ring.p.len();
+        if ring_len != inp.ring.c.len() {
+            errors.push(format!("input {i}: ring P/C length mismatch"));
+        }
+        if (ring_len as u32) < ring.min_ring_size {
+            errors.push(format!(
+                "input {i}: ring size {ring_len} < min {}",
+                ring.min_ring_size
+            ));
+        }
+        if ring.uniform_ring_size != 0 && ring_len as u32 != ring.uniform_ring_size {
+            errors.push(format!(
+                "input {i}: ring size {ring_len} != uniform {}",
+                ring.uniform_ring_size
+            ));
+        }
         if !clsag_verify(&msg, &inp.ring, &inp.c_pseudo, &inp.sig) {
             errors.push(format!("input {i}: CLSAG signature invalid"));
         }

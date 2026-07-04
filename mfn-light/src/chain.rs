@@ -924,6 +924,7 @@ mod tests {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 0,
+            ..mfn_consensus::TEST_CONSENSUS_PARAMS
         };
         let cfg = GenesisConfig {
             timestamp: 0,

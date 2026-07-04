@@ -500,6 +500,7 @@ mod tests {
                 quorum_stake_bps: 6667,
                 liveness_max_consecutive_missed: 32,
                 liveness_slash_bps: 100,
+                ..mfn_consensus::TEST_CONSENSUS_PARAMS
             },
             bonding_params: DEFAULT_BONDING_PARAMS,
             validators,

@@ -15,15 +15,16 @@ use mfn_consensus::{
     FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress,
     ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout,
     ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    accrue_proof_reward, build_storage_commitment, build_storage_proof, storage_commitment_hash,
-    AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS,
-    PPB,
+    accrue_proof_reward, build_storage_commitment, build_test_storage_proof,
+    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE,
+    DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
 
@@ -479,7 +480,7 @@ impl PropValidatorFixture {
         let params = ConsensusParams {
             expected_proposers_per_slot: 10.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..TEST_CONSENSUS_PARAMS
         };
         let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
         Self {
@@ -528,6 +529,7 @@ impl PropValidatorFixture {
             quorum_stake_bps: 5000,
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 100,
+            ..TEST_CONSENSUS_PARAMS
         };
         let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
         Self {
@@ -853,8 +855,7 @@ fn validator_mixed_block_material(
     let coinbase = build_coinbase(u64::from(height), cb_amount, payout).expect("coinbase");
     let txs = vec![coinbase, tx];
     let prev = *st.tip_id().expect("tip");
-    let proof =
-        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+    let proof = build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
     (txs, proof)
 }
 
@@ -896,8 +897,7 @@ fn legacy_mixed_block_material(
     let (tx, _) = spend.sign_self_transfer(fee, height);
     let txs = vec![tx];
     let prev = *st.tip_id().expect("tip");
-    let proof =
-        build_storage_proof(&built.commit, &prev, height, payload, &built.tree).expect("proof");
+    let proof = build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
     (txs, proof)
 }
 
@@ -1108,8 +1108,7 @@ fn build_storage_proof_for_sealed_slot(
     let prev = *st.tip_id().expect("tip");
     let mut slot = height;
     for _ in 0..=512u32 {
-        let proof =
-            build_storage_proof(&built.commit, &prev, slot, payload, &built.tree).expect("proof");
+        let proof = build_test_storage_proof(&built.commit, &prev, slot, payload, &built.tree);
         let unsealed =
             build_unsealed_header(st, &[], &[], &[], std::slice::from_ref(&proof), slot, ts);
         let (final_hdr, _) = attach_test_finality(st, unsealed);
@@ -1373,8 +1372,7 @@ proptest! {
             let (tx, next_spend) = spend.sign_self_transfer(fee, h);
             spend = next_spend;
             let prev = *st.tip_id().expect("tip");
-            let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-                .expect("proof");
+            let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
             st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
             model = treasury_after_block(model, u128::from(fee), 1, emission);
             prop_assert_eq!(
@@ -1411,8 +1409,7 @@ proptest! {
                 build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
             let txs = vec![coinbase, tx];
             let prev = *st.tip_id().expect("tip");
-            let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-                .expect("proof");
+            let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
             st = apply_validator_mixed_clsag_fee_and_storage_proof(
                 &gen.fixture, &st, h, txs, &proof,
             );
@@ -1457,14 +1454,13 @@ proptest! {
                 &st,
                 h,
                 vec![tx],
-                &build_storage_proof(
+                &build_test_storage_proof(
                     &gen.built.commit,
                     &st.tip_id().copied().expect("tip"),
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof"),
+                ),
             );
             model = treasury_after_block(model, u128::from(fee), 1, emission);
             prop_assert_eq!(
@@ -1510,14 +1506,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                vec![build_storage_proof(
+                vec![build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof")]
+                )]
             } else {
                 Vec::new()
             };
@@ -1604,14 +1599,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                vec![build_storage_proof(
+                vec![build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof")]
+                )]
             } else {
                 Vec::new()
             };
@@ -1722,14 +1716,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                vec![build_storage_proof(
+                vec![build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof")]
+                )]
             } else {
                 Vec::new()
             };
@@ -1830,14 +1823,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                vec![build_storage_proof(
+                vec![build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof")]
+                )]
             } else {
                 Vec::new()
             };
@@ -1966,14 +1958,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                let proof = build_storage_proof(
+                let proof = build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof");
+                );
                 let bonus =
                     storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, h, ep);
                 prop_assert_eq!(bonus, ppb_bonus, "PPB bonus must match accrual payout");
@@ -2094,14 +2085,13 @@ proptest! {
             let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
-                let proof = build_storage_proof(
+                let proof = build_test_storage_proof(
                     &gen.built.commit,
                     &prev,
                     h,
                     &gen.payload,
                     &gen.built.tree,
-                )
-                .expect("proof");
+                );
                 let bonus =
                     storage_proof_coinbase_bonus(std::slice::from_ref(&proof), &st.storage, h, ep);
                 prop_assert_eq!(bonus, ppb_bonus, "PPB bonus must match accrual payout");
@@ -2190,8 +2180,8 @@ fn reject_duplicate_storage_proof_in_mixed_block_without_state_change() {
     let (tx, _) = gen.spend.sign_self_transfer(25_000, h);
     let txs = vec![tx];
     let prev = *st.tip_id().expect("tip");
-    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-        .expect("proof");
+    let proof =
+        build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
     let proofs = vec![proof.clone(), proof];
 
     let unsealed = build_unsealed_header(&st, &txs, &[], &[], &proofs, h, u64::from(h) * 1_000);
@@ -2302,8 +2292,7 @@ fn reject_mixed_after_partial_chain_without_state_change() {
         let (tx, next_spend) = spend.sign_self_transfer(fee, h);
         spend = next_spend;
         let prev = *st.tip_id().expect("tip");
-        let proof =
-            build_storage_proof(&built.commit, &prev, h, &payload, &built.tree).expect("proof");
+        let proof = build_test_storage_proof(&built.commit, &prev, h, &payload, &built.tree);
         st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
     }
     assert_eq!(st.height, Some(PREFIX_LEN));
@@ -2354,8 +2343,8 @@ fn reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change(
     .expect("coinbase");
     let txs = vec![coinbase, tx];
     let prev = *st.tip_id().expect("tip");
-    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-        .expect("proof");
+    let proof =
+        build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
     let proofs = vec![proof.clone(), proof];
 
     let unsealed = build_unsealed_header(&st, &txs, &[], &[], &proofs, h, u64::from(h) * 1_000);
@@ -2588,8 +2577,7 @@ fn reject_validator_mixed_after_partial_chain_without_state_change() {
         let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
         let txs = vec![coinbase, tx];
         let prev = *st.tip_id().expect("tip");
-        let proof =
-            build_storage_proof(&built.commit, &prev, h, &payload, &built.tree).expect("proof");
+        let proof = build_test_storage_proof(&built.commit, &prev, h, &payload, &built.tree);
         st = apply_validator_mixed_clsag_fee_and_storage_proof(&fixture, &st, h, txs, &proof);
     }
     assert_eq!(st.height, Some(PREFIX_LEN));
@@ -2656,8 +2644,8 @@ fn reject_duplicate_storage_proof_without_state_change() {
     let before = snap(&st);
     let h = next_height(&st);
     let prev = *st.tip_id().expect("tip");
-    let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-        .expect("proof");
+    let proof =
+        build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
     let proof_dup = proof.clone();
     let unsealed =
         build_unsealed_header(&st, &[], &[], &[], std::slice::from_ref(&proof), h, 1_000);
@@ -2724,8 +2712,8 @@ fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
             build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
         let txs = vec![coinbase, tx];
         let prev = *st.tip_id().expect("tip");
-        let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-            .expect("proof");
+        let proof =
+            build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
         st = apply_validator_mixed_clsag_fee_and_storage_proof(&gen.fixture, &st, h, txs, &proof);
         model = treasury_after_block(model, fee_sum, 1, emission);
         assert_eq!(st.treasury, model, "treasury mismatch at height {h}");
@@ -2748,8 +2736,8 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
         let (tx, next_spend) = spend.sign_self_transfer(fee, h);
         spend = next_spend;
         let prev = *st.tip_id().expect("tip");
-        let proof = build_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree)
-            .expect("proof");
+        let proof =
+            build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
         st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
         model = treasury_after_block(model, u128::from(fee), 1, emission);
         assert_eq!(st.treasury, model, "treasury mismatch at height {h}");

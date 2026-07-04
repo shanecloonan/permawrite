@@ -2046,7 +2046,7 @@ mod tests {
     use mfn_consensus::{
         block_header_bytes, build_coinbase, decode_block, decode_block_header, emission_at_height,
         ConsensusParams, GenesisConfig, PayoutAddress, Validator, ValidatorPayout,
-        ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        ValidatorSecrets, DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
     };
     use mfn_crypto::stealth::stealth_gen;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -2092,6 +2092,7 @@ mod tests {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 64,
             liveness_slash_bps: 0,
+            ..TEST_CONSENSUS_PARAMS
         };
         let gc = GenesisConfig {
             timestamp: 0,

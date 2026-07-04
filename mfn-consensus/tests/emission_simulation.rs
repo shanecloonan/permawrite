@@ -9,13 +9,15 @@ use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
-    apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
-    cumulative_emission, emission_at_height, encode_finality_proof, finalize, header_signing_hash,
-    producer_coinbase_amount, seal_block, sign_transaction, storage_proof_coinbase_bonus,
+    apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
+    build_genesis, build_unsealed_header, cast_vote, cumulative_emission, emission_at_height,
+    encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount,
+    producer_portion_amount, seal_block, sign_transaction, storage_proof_coinbase_bonus,
     try_produce_slot, validate_emission_params, ApplyOutcome, ChainState, ConsensusParams,
     EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
     PayoutAddress, SignedTransaction, SlashEvidence, SlotContext, TransactionWire, Validator,
     ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::encrypted_amount::decrypt_output_amount;
@@ -24,8 +26,9 @@ use mfn_crypto::scalar::random_scalar;
 use mfn_crypto::stealth::{stealth_gen, StealthWallet};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    accrue_proof_reward, build_storage_commitment, build_storage_proof, storage_commitment_hash,
-    AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_ENDOWMENT_PARAMS, PPB,
+    accrue_proof_reward, build_storage_commitment, build_test_storage_proof,
+    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, StorageProof,
+    DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 
 /// Compact schedule so `apply_block` loops finish in CI while still crossing halvings.
@@ -272,7 +275,7 @@ impl ValidatorFixture {
         let params = ConsensusParams {
             expected_proposers_per_slot: 10.0,
             quorum_stake_bps: 6667,
-            ..ConsensusParams::default()
+            ..TEST_CONSENSUS_PARAMS
         };
         let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
         Self {
@@ -317,6 +320,7 @@ impl ValidatorFixture {
             quorum_stake_bps: 6666,
             liveness_max_consecutive_missed: 3,
             liveness_slash_bps: 100,
+            ..TEST_CONSENSUS_PARAMS
         };
         let total_stake: u64 = validators.iter().map(|v| v.stake).sum();
         Self {
@@ -338,12 +342,15 @@ impl ValidatorFixture {
     }
 }
 
-/// Producer decrypts the coinbase output and the amount matches `expected` (**M5.3**).
+/// Producer decrypts coinbase output 0; amount is subsidy + producer fee share only.
 fn assert_producer_coinbase_decryptable(
     coinbase: &TransactionWire,
     fixture: &ValidatorFixture,
-    expected: u64,
+    height: u64,
+    emission: &EmissionParams,
+    fee_sum: u128,
 ) {
+    let expected = producer_portion_amount(height, emission, fee_sum);
     let dec = decrypt_output_amount(
         &coinbase.r_pub,
         0,
@@ -353,8 +360,30 @@ fn assert_producer_coinbase_decryptable(
     .expect("coinbase decrypt");
     assert_eq!(
         dec.value, expected,
-        "producer coinbase amount must match subsidy + fee share + storage rewards"
+        "producer coinbase amount must match subsidy + producer fee share"
     );
+}
+
+fn build_validator_coinbase(
+    height: u64,
+    emission: &EmissionParams,
+    fee_sum: u128,
+    payout: &PayoutAddress,
+    st: &ChainState,
+    slot: u32,
+    proofs: &[StorageProof],
+    ep: &EndowmentParams,
+) -> TransactionWire {
+    let accepted: Vec<_> = proofs
+        .iter()
+        .map(|p| {
+            let bonus =
+                storage_proof_coinbase_bonus(std::slice::from_ref(p), &st.storage, slot, ep);
+            (p.clone(), bonus)
+        })
+        .collect();
+    let specs = block_coinbase_specs(height, emission, fee_sum, *payout, &accepted);
+    build_coinbase_outputs(height, &payout.spend_pub, &specs).expect("coinbase")
 }
 
 fn genesis_validator_with_funded_utxo(
@@ -540,9 +569,17 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
         let (signed, next_spend) = spend.sign_self_transfer(fee);
         spend = next_spend;
         let fee_sum = u128::from(fee);
-        let cb_amount = expected_coinbase_amount(h, fee_sum, 0, &emission);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &[],
+            &DEFAULT_ENDOWMENT_PARAMS,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
         let txs = vec![coinbase, signed.tx];
         st = apply_validator_block(&fixture, &st, h, txs, Vec::new());
         model_treasury = treasury_after_block(model_treasury, fee_sum, 0, &emission);
@@ -577,10 +614,14 @@ impl SpendState {
     }
 
     fn input_spec(&self) -> InputSpec {
+        let decoy_spend = random_scalar();
+        let decoy_blinding = random_scalar();
+        let decoy_p = generator_g() * decoy_spend;
+        let decoy_c = (generator_g() * decoy_blinding) + (generator_h() * Scalar::from(1u64));
         InputSpec {
             ring: ClsagRing {
-                p: vec![self.one_time_addr],
-                c: vec![self.commitment()],
+                p: vec![self.one_time_addr, decoy_p],
+                c: vec![self.commitment(), decoy_c],
             },
             signer_idx: 0,
             spend_priv: self.spend_priv,
@@ -736,14 +777,13 @@ fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
         let (signed, next_spend) = spend.sign_self_transfer(fee);
         spend = next_spend;
         let prev = *st.tip_id().expect("tip");
-        let proof = build_storage_proof(
+        let proof = build_test_storage_proof(
             &storage.built.commit,
             &prev,
             h,
             &storage.payload,
             &storage.built.tree,
-        )
-        .expect("proof");
+        );
         st = apply_legacy_block_mixed(&st, h, std::slice::from_ref(&signed.tx), &proof);
         model_treasury = treasury_after_block(model_treasury, u128::from(fee), 1, &emission);
         assert_eq!(
@@ -795,19 +835,26 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
         let (signed, next_spend) = spend.sign_self_transfer(fee);
         spend = next_spend;
         let fee_sum = u128::from(fee);
-        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, &emission);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let prev = *st.tip_id().expect("tip");
-        let proof = build_storage_proof(
+        let proof = build_test_storage_proof(
             &storage.built.commit,
             &prev,
             h,
             &storage.payload,
             &storage.built.tree,
-        )
-        .expect("proof");
+        );
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            std::slice::from_ref(&proof),
+            &DEFAULT_ENDOWMENT_PARAMS,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         st = apply_validator_block(&fixture, &st, h, txs, vec![proof]);
         model_treasury = treasury_after_block(model_treasury, fee_sum, 1, &emission);
         assert_eq!(
@@ -952,14 +999,13 @@ fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
         let slot = h;
         let ts = u64::from(h) * 1_000;
         let prev = *st.tip_id().expect("tip after genesis");
-        let proof = build_storage_proof(
+        let proof = build_test_storage_proof(
             &storage.built.commit,
             &prev,
             slot,
             &storage.payload,
             &storage.built.tree,
-        )
-        .expect("proof");
+        );
         let unsealed =
             build_unsealed_header(&st, &[], &[], &[], std::slice::from_ref(&proof), slot, ts);
         let blk = seal_block(
@@ -1030,23 +1076,30 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
         spend_state = next_spend;
         let fee_sum = u128::from(fee);
         let proofs = if h == 3 { 1u128 } else { 0 };
-        let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, &emission);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let storage_proofs = if h == 3 {
             let prev = *st.tip_id().expect("tip");
-            vec![build_storage_proof(
+            vec![build_test_storage_proof(
                 &storage.built.commit,
                 &prev,
                 h,
                 &storage.payload,
                 &storage.built.tree,
-            )
-            .expect("proof")]
+            )]
         } else {
             Vec::new()
         };
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &storage_proofs,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         if h == 3 {
             st.validator_stats[1].consecutive_missed = 2;
         }
@@ -1141,23 +1194,30 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
         let with_proof = h % 4 == 0;
         let with_liveness = h == 12;
         let proofs = if with_proof { 1u128 } else { 0 };
-        let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, &emission);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let storage_proofs = if with_proof {
             let prev = *st.tip_id().expect("tip");
-            vec![build_storage_proof(
+            vec![build_test_storage_proof(
                 &storage.built.commit,
                 &prev,
                 h,
                 &storage.payload,
                 &storage.built.tree,
-            )
-            .expect("proof")]
+            )]
         } else {
             Vec::new()
         };
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &storage_proofs,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
             let new_index = st.validators.len() as u32;
@@ -1220,8 +1280,10 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
                 let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
                     + producer_fee
                     + storage_reward;
+                let cb_total =
+                    producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, 0);
                 assert_eq!(
-                    u128::from(cb_amount),
+                    u128::from(cb_total),
                     expected_cb,
                     "coinbase must pay full storage reward; backstop {backstop} at height {h}"
                 );
@@ -1296,21 +1358,15 @@ fn run_combined_inflow_ppb_treasury_sim(
         } else {
             0
         };
-        let cb_amount =
-            producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, ppb_bonus);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let storage_proofs = if with_proof {
             let prev = *st.tip_id().expect("tip");
-            let proof = build_storage_proof(
+            let proof = build_test_storage_proof(
                 &storage.built.commit,
                 &prev,
                 h,
                 &storage.payload,
                 &storage.built.tree,
-            )
-            .expect("proof");
+            );
             let bonus = storage_proof_coinbase_bonus(
                 std::slice::from_ref(&proof),
                 &st.storage,
@@ -1322,6 +1378,18 @@ fn run_combined_inflow_ppb_treasury_sim(
         } else {
             Vec::new()
         };
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &storage_proofs,
+            &SIM_PPB_ENDOWMENT,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
             let new_index = st.validators.len() as u32;
@@ -1385,8 +1453,10 @@ fn run_combined_inflow_ppb_treasury_sim(
                 let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
                     + producer_fee
                     + storage_reward;
+                let cb_total =
+                    producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, 0);
                 assert_eq!(
-                    u128::from(cb_amount),
+                    u128::from(cb_total),
                     expected_cb,
                     "coinbase must pay full PPB-augmented storage reward; backstop {backstop} at height {h}"
                 );
@@ -1602,23 +1672,30 @@ fn run_equivocation_combined_inflow_treasury_sim(
         } else {
             0
         };
-        let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, &emission);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let storage_proofs = if with_proof {
             let prev = *st.tip_id().expect("tip");
-            vec![build_storage_proof(
+            vec![build_test_storage_proof(
                 &storage.built.commit,
                 &prev,
                 h,
                 &storage.payload,
                 &storage.built.tree,
-            )
-            .expect("proof")]
+            )]
         } else {
             Vec::new()
         };
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &storage_proofs,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
             let new_index = st.validators.len() as u32;
@@ -1702,8 +1779,10 @@ fn run_equivocation_combined_inflow_treasury_sim(
                 let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
                     + producer_fee
                     + storage_reward;
+                let cb_total =
+                    producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, 0);
                 assert_eq!(
-                    u128::from(cb_amount),
+                    u128::from(cb_total),
                     expected_cb,
                     "coinbase must pay full storage reward; backstop {backstop} at height {h}"
                 );
@@ -1786,21 +1865,15 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
         } else {
             0
         };
-        let cb_amount =
-            producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, ppb_bonus);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        assert_producer_coinbase_decryptable(&coinbase, &fixture, cb_amount);
-        let txs = vec![coinbase, signed.tx];
         let storage_proofs = if with_proof {
             let prev = *st.tip_id().expect("tip");
-            let proof = build_storage_proof(
+            let proof = build_test_storage_proof(
                 &storage.built.commit,
                 &prev,
                 h,
                 &storage.payload,
                 &storage.built.tree,
-            )
-            .expect("proof");
+            );
             let bonus = storage_proof_coinbase_bonus(
                 std::slice::from_ref(&proof),
                 &st.storage,
@@ -1812,6 +1885,18 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
         } else {
             Vec::new()
         };
+        let coinbase = build_validator_coinbase(
+            u64::from(h),
+            &emission,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            &storage_proofs,
+            &SIM_PPB_ENDOWMENT,
+        );
+        assert_producer_coinbase_decryptable(&coinbase, &fixture, u64::from(h), &emission, fee_sum);
+        let txs = vec![coinbase, signed.tx];
         let bond_ops = if with_bond {
             bond_seed = bond_seed.wrapping_add(1);
             let new_index = st.validators.len() as u32;
@@ -1896,8 +1981,10 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
                 let expected_cb = u128::from(emission_at_height(u64::from(h), &emission))
                     + producer_fee
                     + storage_reward;
+                let cb_total =
+                    producer_coinbase_amount(u64::from(h), &emission, fee_sum, proofs as usize, 0);
                 assert_eq!(
-                    u128::from(cb_amount),
+                    u128::from(cb_total),
                     expected_cb,
                     "coinbase must pay full PPB-augmented storage reward; backstop {backstop} at height {h}"
                 );

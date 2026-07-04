@@ -25,6 +25,9 @@
 
 use sha2::{Digest as ShaDigest, Sha512};
 
+use curve25519_dalek::edwards::EdwardsPoint;
+use curve25519_dalek::traits::IsIdentity;
+
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::domain::{CHUNK_HASH, MERKLE_LEAF, STORAGE_PROOF_LEAF};
 use mfn_crypto::hash::dhash;
@@ -236,6 +239,10 @@ pub struct StorageProof {
     /// Merkle inclusion proof anchoring `chunk_hash(chunk)` to
     /// `commit.data_root`.
     pub proof: MerkleProof,
+    /// Operator's public view key for direct storage-reward payout.
+    pub operator_view_pub: EdwardsPoint,
+    /// Operator's public spend key for direct storage-reward payout.
+    pub operator_spend_pub: EdwardsPoint,
 }
 
 /// Encode a [`StorageProof`] to bytes (consensus-critical).
@@ -249,6 +256,8 @@ pub fn encode_storage_proof(p: &StorageProof) -> Vec<u8> {
         w.push(sib);
         w.u8(if *right { 1 } else { 0 });
     }
+    w.point(&p.operator_view_pub);
+    w.point(&p.operator_spend_pub);
     w.into_bytes()
 }
 
@@ -274,6 +283,8 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
             got => return Err(SporaError::InvalidProofSideFlag(got)),
         }
     }
+    let operator_view_pub = r.point().map_err(SporaError::Codec)?;
+    let operator_spend_pub = r.point().map_err(SporaError::Codec)?;
     if !r.end() {
         return Err(SporaError::Codec(mfn_crypto::CryptoError::TrailingBytes {
             remaining: r.remaining(),
@@ -287,6 +298,8 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
             right_side,
             index: usize::try_from(index).map_err(|_| SporaError::TooManyChunks)?,
         },
+        operator_view_pub,
+        operator_spend_pub,
     })
 }
 
@@ -339,6 +352,8 @@ pub enum StorageProofCheck {
     },
     /// Merkle path didn't open under `data_root`.
     MerkleInvalid,
+    /// Operator payout keys are degenerate or torsion-bearing.
+    InvalidOperatorPayout,
 }
 
 impl StorageProofCheck {
@@ -347,6 +362,10 @@ impl StorageProofCheck {
     pub fn is_valid(&self) -> bool {
         matches!(self, StorageProofCheck::Valid)
     }
+}
+
+pub fn operator_payout_is_valid(view: &EdwardsPoint, spend: &EdwardsPoint) -> bool {
+    !view.is_identity() && !spend.is_identity() && view.is_torsion_free() && spend.is_torsion_free()
 }
 
 /// Verify a storage proof against the on-chain commitment and the block
@@ -363,6 +382,9 @@ pub fn verify_storage_proof(
     slot: u32,
     proof: &StorageProof,
 ) -> StorageProofCheck {
+    if !operator_payout_is_valid(&proof.operator_view_pub, &proof.operator_spend_pub) {
+        return StorageProofCheck::InvalidOperatorPayout;
+    }
     let c_hash = storage_commitment_hash(commit);
     if c_hash != proof.commit_hash {
         return StorageProofCheck::CommitHashMismatch;
@@ -387,7 +409,12 @@ pub fn build_storage_proof(
     slot: u32,
     data: &[u8],
     tree: &MerkleTree,
+    operator_view_pub: EdwardsPoint,
+    operator_spend_pub: EdwardsPoint,
 ) -> Result<StorageProof, SporaError> {
+    if !operator_payout_is_valid(&operator_view_pub, &operator_spend_pub) {
+        return Err(SporaError::InvalidOperatorPayout);
+    }
     let c_hash = storage_commitment_hash(commit);
     let idx = chunk_index_for_challenge(prev_block_id, slot, &c_hash, commit.num_chunks);
     let chunks = chunk_data(data, commit.chunk_size as usize)?;
@@ -400,7 +427,37 @@ pub fn build_storage_proof(
         commit_hash: c_hash,
         chunk: chunk_bytes,
         proof: mp,
+        operator_view_pub,
+        operator_spend_pub,
     })
+}
+
+/// Deterministic operator payout keys for tests (`G`, `2·G`).
+pub fn test_operator_payout_keys() -> (EdwardsPoint, EdwardsPoint) {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::point::generator_g;
+    (generator_g(), generator_g() * Scalar::from(2u64))
+}
+
+/// Build a valid storage proof with deterministic test operator keys.
+pub fn build_test_storage_proof(
+    commit: &StorageCommitment,
+    prev_block_id: &[u8; 32],
+    slot: u32,
+    data: &[u8],
+    tree: &MerkleTree,
+) -> StorageProof {
+    let (operator_view_pub, operator_spend_pub) = test_operator_payout_keys();
+    build_storage_proof(
+        commit,
+        prev_block_id,
+        slot,
+        data,
+        tree,
+        operator_view_pub,
+        operator_spend_pub,
+    )
+    .expect("build_test_storage_proof")
 }
 
 /* ----------------------------------------------------------------------- *
@@ -434,6 +491,9 @@ pub enum SporaError {
     /// Build helper computed an out-of-range chunk index.
     #[error("chunk index out of range")]
     ChunkIndexOutOfRange,
+    /// Operator payout keys failed structural validation.
+    #[error("invalid operator payout keys")]
+    InvalidOperatorPayout,
 }
 
 #[cfg(test)]
@@ -537,7 +597,7 @@ mod tests {
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [42u8; 32];
         for slot in 0u32..8 {
-            let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
+            let p = build_test_storage_proof(&built.commit, &prev, slot, &d, &built.tree);
             assert_eq!(
                 verify_storage_proof(&built.commit, &prev, slot, &p),
                 StorageProofCheck::Valid,
@@ -552,7 +612,7 @@ mod tests {
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
-        let mut p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
+        let mut p = build_test_storage_proof(&built.commit, &prev, slot, &d, &built.tree);
         // Corrupt one byte of the chunk.
         p.chunk[0] ^= 0xff;
         assert_eq!(
@@ -567,7 +627,7 @@ mod tests {
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
-        let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
+        let p = build_test_storage_proof(&built.commit, &prev, slot, &d, &built.tree);
         // Verify against a DIFFERENT slot that maps to a different chunk
         // index. With only 4 chunks any given slot has a 1/4 chance of
         // colliding with the base slot's index — explicitly search for
@@ -597,7 +657,7 @@ mod tests {
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [1u8; 32];
         let slot = 0u32;
-        let mut p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
+        let mut p = build_test_storage_proof(&built.commit, &prev, slot, &d, &built.tree);
         p.commit_hash[0] ^= 1;
         assert_eq!(
             verify_storage_proof(&built.commit, &prev, slot, &p),
@@ -611,7 +671,7 @@ mod tests {
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
         let slot = 5u32;
-        let p = build_storage_proof(&built.commit, &prev, slot, &d, &built.tree).unwrap();
+        let p = build_test_storage_proof(&built.commit, &prev, slot, &d, &built.tree);
         let bytes = encode_storage_proof(&p);
         let dec = decode_storage_proof(&bytes).unwrap();
         assert_eq!(dec.commit_hash, p.commit_hash);
@@ -662,7 +722,7 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
-        let p = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let p = build_test_storage_proof(&built.commit, &prev, 0, &d, &built.tree);
         assert_eq!(storage_proof_leaf_hash(&p), storage_proof_leaf_hash(&p));
     }
 
@@ -671,7 +731,7 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
-        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let p0 = build_test_storage_proof(&built.commit, &prev, 0, &d, &built.tree);
         let mut p1 = p0.clone();
         p1.commit_hash[0] ^= 0xff;
         assert_ne!(storage_proof_leaf_hash(&p0), storage_proof_leaf_hash(&p1));
@@ -682,7 +742,7 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
-        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let p0 = build_test_storage_proof(&built.commit, &prev, 0, &d, &built.tree);
         // Build a "different" proof by flipping the chunk under the same
         // commitment — the leaf hash will differ even though the proof
         // wouldn't itself verify. (We're testing the commitment helper,
@@ -701,7 +761,7 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
-        let p0 = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let p0 = build_test_storage_proof(&built.commit, &prev, 0, &d, &built.tree);
         let mut p1 = p0.clone();
         p1.chunk[0] ^= 0x55;
         let r_a = storage_proof_merkle_root(&[p0.clone(), p1.clone()]);
@@ -714,7 +774,7 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [0u8; 32];
-        let p = build_storage_proof(&built.commit, &prev, 0, &d, &built.tree).unwrap();
+        let p = build_test_storage_proof(&built.commit, &prev, 0, &d, &built.tree);
         let leaf = storage_proof_leaf_hash(&p);
         let other = dhash(
             b"MFBN-1/not-a-storage-proof-leaf",
@@ -760,6 +820,7 @@ mod tests {
     fn storage_proof_root_wire_matches_protocol_golden_vector() {
         // Deterministic, hand-constructed proofs (no randomness, no
         // dependency on the chunking pipeline).
+        let (operator_view_pub, operator_spend_pub) = test_operator_payout_keys();
         let p0 = StorageProof {
             commit_hash: [0xaau8; 32],
             chunk: vec![0u8, 1, 2, 3, 4, 5, 6, 7],
@@ -768,6 +829,8 @@ mod tests {
                 right_side: Vec::new(),
                 index: 0,
             },
+            operator_view_pub,
+            operator_spend_pub,
         };
         let p1 = StorageProof {
             commit_hash: [0xbbu8; 32],
@@ -777,6 +840,8 @@ mod tests {
                 right_side: vec![true, false],
                 index: 1,
             },
+            operator_view_pub,
+            operator_spend_pub,
         };
 
         let leaf0 = storage_proof_leaf_hash(&p0);
@@ -785,17 +850,17 @@ mod tests {
 
         assert_eq!(
             hex::encode(leaf0),
-            "694b5a17a842c528d24f24e53cdd9a1601fff4018c365d8a7f448411daf4709d",
+            "0b196169d67481b26a8a8315ceea67d354d38ba3c813d80c8cfb0213bff0135f",
             "storage-proof leaf for p0 (0-sibling) drifted"
         );
         assert_eq!(
             hex::encode(leaf1),
-            "00bc55e1545fa11184cd2aeb450173fdf8d940cb6f18e294d6f0be454b6c05f6",
+            "4e6f9cb5c2ec3647cddabb21fe910d4160745d2edeb501b6af12334febfd1fa6",
             "storage-proof leaf for p1 (2-sibling, mixed right_side) drifted"
         );
         assert_eq!(
             hex::encode(root),
-            "aaae83fcbc777d692c7fbc0f469213faae63082e8c040c163256ef751c889c6b",
+            "eae49fdff04b4d55dc743a5b9388e7b92680352c4ddaba0b338cd251f917662e",
             "storage_proof_merkle_root over [p0, p1] drifted"
         );
     }

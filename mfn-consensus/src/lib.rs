@@ -81,8 +81,8 @@ pub use block::{
     decode_block_header, encode_block, encode_block_body, header_signing_bytes,
     header_signing_hash, storage_merkle_root, tx_merkle_root, Block, BlockBody, BlockDecodeError,
     BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig, GenesisOutput,
-    HeaderDecodeError, PendingUnbond, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
-    HEADER_VERSION,
+    HeaderDecodeError, PendingUnbond, RingPolicy, UtxoEntry, ValidatorStats,
+    DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, TEST_CONSENSUS_PARAMS,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,
@@ -116,8 +116,9 @@ pub use claims::{
     VerifiedClaimsForTxResult, VerifiedTxClaims,
 };
 pub use coinbase::{
-    build_coinbase, coinbase_tx_priv, describe_coinbase, is_coinbase_shaped, verify_coinbase,
-    CoinbaseError, CoinbaseVerifyResult, PayoutAddress,
+    build_coinbase, build_coinbase_outputs, coinbase_tx_priv, describe_coinbase,
+    is_coinbase_shaped, verify_coinbase, verify_coinbase_outputs, CoinbaseError,
+    CoinbaseOutputSpec, CoinbaseVerifyResult, PayoutAddress,
 };
 #[cfg(feature = "bls")]
 pub use consensus::{
@@ -131,10 +132,10 @@ pub use consensus::{
     validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
 };
 pub use emission::{
-    annual_tail_emission, annualized_inflation_ppb, cumulative_emission, emission_at_height,
-    pre_tail_supply_cap, producer_coinbase_amount, storage_proof_coinbase_bonus,
-    validate_emission_params, EmissionError, EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE,
-    MFN_DECIMALS,
+    annual_tail_emission, annualized_inflation_ppb, block_coinbase_specs, cumulative_emission,
+    emission_at_height, pre_tail_supply_cap, producer_coinbase_amount, producer_portion_amount,
+    storage_payout_amount, storage_proof_coinbase_bonus, validate_emission_params, EmissionError,
+    EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

@@ -23,7 +23,7 @@ use crate::wallet_store::{
 };
 
 /// Default CLSAG ring size (including the real input).
-pub const DEFAULT_RING_SIZE: usize = 8;
+pub const DEFAULT_RING_SIZE: usize = 16;
 
 /// Default transfer fee (atomic units) when `--fee` is omitted.
 pub const DEFAULT_TRANSFER_FEE: u64 = 10_000;
@@ -454,8 +454,10 @@ pub fn wallet_send(
             "amount must be greater than 0".into(),
         ));
     }
-    if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
+    if params.ring_size < 16 {
+        return Err(WalletCmdError::Usage(
+            "ring-size must be at least 16 (consensus minimum)".into(),
+        ));
     }
     let recipient = parse_recipient(&params.to_view_hex, &params.to_spend_hex)?;
     let mut file = WalletFile::load(path)?;
@@ -560,8 +562,10 @@ pub fn wallet_upload(
     client: &mut RpcClient,
     params: &UploadParams,
 ) -> Result<(), WalletCmdError> {
-    if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
+    if params.ring_size < 16 {
+        return Err(WalletCmdError::Usage(
+            "ring-size must be at least 16 (consensus minimum)".into(),
+        ));
     }
     if params.replication == 0 {
         return Err(WalletCmdError::Usage(
@@ -814,8 +818,10 @@ pub fn wallet_claim(
     client: &mut RpcClient,
     params: &ClaimParams,
 ) -> Result<(), WalletCmdError> {
-    if params.ring_size < 2 {
-        return Err(WalletCmdError::Usage("ring-size must be at least 2".into()));
+    if params.ring_size < 16 {
+        return Err(WalletCmdError::Usage(
+            "ring-size must be at least 16 (consensus minimum)".into(),
+        ));
     }
     let data_root = parse_hash32(&params.data_root_hex, "data_root")?;
     let commit_hash = match params.commit_hash_hex.as_deref() {

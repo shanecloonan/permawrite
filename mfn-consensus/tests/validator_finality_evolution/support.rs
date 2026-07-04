@@ -9,7 +9,7 @@ use mfn_consensus::consensus::{
 use mfn_consensus::{
     apply_genesis, build_genesis, build_unsealed_header, header_signing_hash, seal_block, Block,
     BondOp, ChainState, ConsensusParams, GenesisConfig, SlashEvidence, ValidatorStats,
-    DEFAULT_EMISSION_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::vrf::{vrf_keygen_from_seed, vrf_prove};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
@@ -53,6 +53,7 @@ pub fn boot_three_validators_strict_eligibility(liveness_max_missed: u32) -> Fix
         quorum_stake_bps: 6667,
         liveness_max_consecutive_missed: liveness_max_missed,
         liveness_slash_bps: 100,
+        ..TEST_CONSENSUS_PARAMS
     };
     let bonding = BondingParams {
         min_validator_stake: 100_000,
@@ -89,6 +90,7 @@ pub fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights:
         quorum_stake_bps: 6667,
         liveness_max_consecutive_missed: liveness_max_missed,
         liveness_slash_bps: 100,
+        ..TEST_CONSENSUS_PARAMS
     };
     let bonding = BondingParams {
         min_validator_stake: 100_000,
@@ -128,6 +130,7 @@ pub fn boot_three_validators_entry_churn_cfg(
         quorum_stake_bps: 6667,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     let bonding = BondingParams {
         min_validator_stake: 100_000,
@@ -174,6 +177,7 @@ pub fn boot_four_validators_exit_churn_cfg(slots_per_epoch: u32) -> Fixture {
         quorum_stake_bps: 5000,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     let bonding = BondingParams {
         min_validator_stake: 100_000,

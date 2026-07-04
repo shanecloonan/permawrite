@@ -24,6 +24,7 @@ use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     build_coinbase, emission_at_height, ConsensusParams, GenesisConfig, GenesisOutput,
     PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+    TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::random_scalar;
@@ -44,6 +45,7 @@ fn consensus_params() -> ConsensusParams {
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     }
 }
 

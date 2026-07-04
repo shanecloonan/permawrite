@@ -14,6 +14,7 @@ use mfn_storage_operator::{
 
 use crate::rpc::RpcClient;
 use crate::uploads_cmd::UploadsInventoryParams;
+use crate::wallet_store::WalletFile;
 
 /// Output options for simple operator RPC diagnostics.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -89,10 +90,18 @@ pub fn operator_prove(
     commitment_hash_hex: &str,
     data_path: Option<&Path>,
     wallet_path: Option<&Path>,
+    payout_wallet_path: &Path,
     params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
     let ch = client.get_storage_challenge(commitment_hash_hex)?;
     let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
+    let payout_wallet = WalletFile::load(payout_wallet_path)
+        .map_err(|e| OperatorCmdError::Usage(format!("payout wallet: {e}")))?;
+    let payout_keys = payout_wallet
+        .to_wallet()
+        .map_err(|e| OperatorCmdError::Usage(format!("payout wallet keys: {e}")))?;
+    let operator_view_pub = payout_keys.keys().view_pub();
+    let operator_spend_pub = payout_keys.keys().spend_pub();
 
     let (data, tree, payload_source, artifact_source) = match (data_path, wallet_path) {
         (Some(path), _) => {
@@ -163,8 +172,16 @@ pub fn operator_prove(
     )
     .map_err(|e| OperatorCmdError::Usage(format!("decode_storage_commitment: {e}")))?;
     let prev = parse_hex32(&ch.prev_block_id)?;
-    let proof = build_storage_proof(&commit, &prev, ch.next_slot, &data, &tree)
-        .map_err(|e| OperatorCmdError::Usage(format!("build_storage_proof: {e}")))?;
+    let proof = build_storage_proof(
+        &commit,
+        &prev,
+        ch.next_slot,
+        &data,
+        &tree,
+        operator_view_pub,
+        operator_spend_pub,
+    )
+    .map_err(|e| OperatorCmdError::Usage(format!("build_storage_proof: {e}")))?;
     if proof.proof.index as u32 != ch.chunk_index {
         return Err(OperatorCmdError::Usage(format!(
             "built proof chunk index {} != challenge {}",

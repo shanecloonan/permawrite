@@ -14,13 +14,13 @@ use mfn_consensus::{
     build_coinbase, decode_block, emission_at_height, encode_block, sign_register, sign_unbond,
     validator_set_root, BlockHeader, BodyVerifyError, BondOp, BondingParams, ConsensusParams,
     GenesisConfig, HeaderVerifyError, PayoutAddress, Validator, ValidatorPayout, ValidatorSecrets,
-    DEFAULT_EMISSION_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_light::{LightChain, LightChainConfig, LightChainError};
 use mfn_node::{produce_solo_block, BlockInputs, Chain, ChainConfig};
-use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+use mfn_storage::{test_operator_payout_keys, DEFAULT_ENDOWMENT_PARAMS};
 
 fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
     let vrf = vrf_keygen_from_seed(&[i as u8 + 1; 32]).unwrap();
@@ -52,6 +52,7 @@ fn single_validator_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusPara
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     (
         GenesisConfig {
@@ -380,6 +381,7 @@ fn light_chain_apply_block_rejects_storage_proof_body_tamper() {
     // Inject a stray storage_proof. Even a synthetic empty one is a
     // structural tamper since the header committed to an empty list,
     // so the recomputed root differs from the header's claimed root.
+    let (operator_view_pub, operator_spend_pub) = test_operator_payout_keys();
     b1.storage_proofs.push(mfn_storage::StorageProof {
         commit_hash: [0u8; 32],
         chunk: Vec::new(),
@@ -388,6 +390,8 @@ fn light_chain_apply_block_rejects_storage_proof_body_tamper() {
             right_side: Vec::new(),
             index: 0,
         },
+        operator_view_pub,
+        operator_spend_pub,
     });
 
     let pre = light.stats();
@@ -533,6 +537,7 @@ fn rotation_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusParams) {
         quorum_stake_bps: 6666,
         liveness_max_consecutive_missed: 64,
         liveness_slash_bps: 0,
+        ..TEST_CONSENSUS_PARAMS
     };
     (
         GenesisConfig {

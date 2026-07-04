@@ -360,6 +360,7 @@ mod tests {
     use super::*;
     use mfn_consensus::{
         build_unsealed_header, seal_block, ConsensusParams, GenesisConfig, DEFAULT_EMISSION_PARAMS,
+        TEST_CONSENSUS_PARAMS,
     };
     use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 
@@ -372,7 +373,7 @@ mod tests {
             params: ConsensusParams {
                 expected_proposers_per_slot: 1.0,
                 quorum_stake_bps: 6667,
-                ..ConsensusParams::default()
+                ..TEST_CONSENSUS_PARAMS
             },
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,

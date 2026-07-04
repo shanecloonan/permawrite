@@ -73,6 +73,32 @@ pub struct StorageEntry {
     pub pending_yield_ppb: u128,
 }
 
+/// Consensus-enforced CLSAG ring policy (privacy Tier 1).
+///
+/// `uniform_ring_size > 0` requires every input ring to have exactly that
+/// many members; otherwise only `min_ring_size` is enforced.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RingPolicy {
+    /// Minimum ring members per input (including the real spend).
+    pub min_ring_size: u32,
+    /// When non-zero, every input ring must have exactly this size.
+    pub uniform_ring_size: u32,
+}
+
+impl RingPolicy {
+    /// Production defaults: Monero-parity uniform rings of 16.
+    pub const PRODUCTION: Self = Self {
+        min_ring_size: 16,
+        uniform_ring_size: 16,
+    };
+
+    /// Test harness: allow small rings; uniform not enforced.
+    pub const TEST: Self = Self {
+        min_ring_size: 2,
+        uniform_ring_size: 0,
+    };
+}
+
 /// Consensus parameters baked into the chain at genesis. Changing any of
 /// these is a hard fork.
 #[derive(Clone, Copy, Debug)]
@@ -94,6 +120,21 @@ pub struct ConsensusParams {
     /// Equivocation slashing remains its own thing (`SlashEvidence`),
     /// which zeros stake outright.
     pub liveness_slash_bps: u32,
+    /// Minimum CLSAG ring size per input (privacy floor).
+    pub min_ring_size: u32,
+    /// Uniform ring size; `0` = only `min_ring_size` enforced.
+    pub uniform_ring_size: u32,
+}
+
+impl ConsensusParams {
+    /// Ring policy derived from these consensus params.
+    #[inline]
+    pub fn ring_policy(&self) -> RingPolicy {
+        RingPolicy {
+            min_ring_size: self.min_ring_size,
+            uniform_ring_size: self.uniform_ring_size,
+        }
+    }
 }
 
 impl Default for ConsensusParams {
@@ -103,6 +144,8 @@ impl Default for ConsensusParams {
             quorum_stake_bps: 6667,
             liveness_max_consecutive_missed: 32,
             liveness_slash_bps: 100,
+            min_ring_size: 16,
+            uniform_ring_size: 16,
         }
     }
 }
@@ -113,6 +156,18 @@ pub const DEFAULT_CONSENSUS_PARAMS: ConsensusParams = ConsensusParams {
     quorum_stake_bps: 6667,
     liveness_max_consecutive_missed: 32,
     liveness_slash_bps: 100,
+    min_ring_size: 16,
+    uniform_ring_size: 16,
+};
+
+/// Compact params for unit/integration tests (small rings allowed).
+pub const TEST_CONSENSUS_PARAMS: ConsensusParams = ConsensusParams {
+    expected_proposers_per_slot: 1.5,
+    quorum_stake_bps: 6667,
+    liveness_max_consecutive_missed: 32,
+    liveness_slash_bps: 100,
+    min_ring_size: 2,
+    uniform_ring_size: 0,
 };
 
 /// The mutable state of a Permawrite chain.

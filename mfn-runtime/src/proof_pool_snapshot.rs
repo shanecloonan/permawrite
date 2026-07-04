@@ -107,7 +107,7 @@ mod tests {
         ChainState, GenesisConfig, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_storage::{
-        build_storage_commitment, build_storage_proof, chunk_index_for_challenge,
+        build_storage_commitment, build_test_storage_proof, chunk_index_for_challenge,
         storage_commitment_hash, DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -156,8 +156,7 @@ mod tests {
     fn snapshot_round_trip_and_restore() {
         let (st, payload, built) = genesis_with_storage();
         let prev = *st.tip_id().expect("tip");
-        let proof =
-            build_storage_proof(&built.commit, &prev, 1, &payload, &built.tree).expect("proof");
+        let proof = build_test_storage_proof(&built.commit, &prev, 1, &payload, &built.tree);
         let mut pool = ProofPool::new(ProofPoolConfig::default());
         pool.admit(proof.clone(), &st, &prev, 1).expect("admit");
         let bytes = encode_proof_pool_snapshot(&pool);
@@ -202,8 +201,8 @@ mod tests {
         let num_chunks = built.commit.num_chunks;
         let slot_old = 1u32;
         let idx_old = chunk_index_for_challenge(&prev, slot_old, &c_hash, num_chunks);
-        let proof_old = build_storage_proof(&built.commit, &prev, slot_old, &payload, &built.tree)
-            .expect("proof");
+        let proof_old =
+            build_test_storage_proof(&built.commit, &prev, slot_old, &payload, &built.tree);
         let bytes = encode_proof_pool_snapshot_entries(std::slice::from_ref(&proof_old));
 
         let header = build_unsealed_header(&st, &[], &[], &[], &[], 1, 1_000);

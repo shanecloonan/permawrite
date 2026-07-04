@@ -1,9 +1,10 @@
 //! Coinbase — the synthetic block-reward transaction.
 //!
 //! A coinbase has **no inputs** (value is minted from thin air by protocol
-//! rule) and **one output** paying the block producer. Its amount equals
-//! `emission_at_height(height) + Σ fees` of the block; any deviation rejects
-//! the block.
+//! rule) and **one or more outputs**: output 0 pays the block producer
+//! (`subsidy + producer_fee`); outputs 1..N pay proving operators their
+//! per-proof storage rewards. Total minted must equal
+//! `emission_at_height(height) + Σ fees`; any deviation rejects the block.
 //!
 //! //!
 //! ## Deterministic ephemeral key
@@ -46,6 +47,15 @@ pub struct PayoutAddress {
     pub spend_pub: EdwardsPoint,
 }
 
+/// One coinbase output: payout destination and public mint amount.
+#[derive(Clone, Copy, Debug)]
+pub struct CoinbaseOutputSpec {
+    /// Stealth payout keys.
+    pub payout: PayoutAddress,
+    /// Base-unit amount minted to this output.
+    pub amount: u64,
+}
+
 impl From<PayoutAddress> for StealthPubKeys {
     fn from(p: PayoutAddress) -> Self {
         StealthPubKeys {
@@ -80,12 +90,13 @@ pub fn coinbase_tx_priv(height: u64, producer_spend_pub: &EdwardsPoint) -> Scala
 ///
 /// Not secret (the coinbase amount is public), so we derive it from public
 /// inputs. Any node validating the block re-derives the same value.
-fn coinbase_blinding(r_pub: &EdwardsPoint, payout: &PayoutAddress) -> Scalar {
+fn coinbase_blinding(r_pub: &EdwardsPoint, payout: &PayoutAddress, output_index: u32) -> Scalar {
     let mut w = Writer::new();
     w.push(COINBASE_BLIND);
     w.point(r_pub);
     w.point(&payout.view_pub);
     w.point(&payout.spend_pub);
+    w.u32(output_index);
     let s = hash_to_scalar(&[w.bytes()]);
     if s == Scalar::ZERO {
         Scalar::ONE
@@ -104,10 +115,66 @@ pub enum CoinbaseError {
     /// `height < 1`.
     #[error("coinbase: height must be >= 1 (got 0)")]
     HeightZero,
+    /// No outputs supplied.
+    #[error("coinbase: at least one output required")]
+    NoOutputs,
     /// Underlying crypto failure (range-proof construction can fail if the
     /// supplied value is somehow out-of-range, which we reject anyway).
     #[error(transparent)]
     Crypto(#[from] mfn_crypto::CryptoError),
+}
+
+/// Construct a multi-output coinbase. Output 0 conventionally pays the
+/// block producer; subsequent outputs pay storage operators.
+pub fn build_coinbase_outputs(
+    height: u64,
+    producer_spend_pub: &EdwardsPoint,
+    outputs: &[CoinbaseOutputSpec],
+) -> Result<TransactionWire, CoinbaseError> {
+    if height < 1 {
+        return Err(CoinbaseError::HeightZero);
+    }
+    if outputs.is_empty() {
+        return Err(CoinbaseError::NoOutputs);
+    }
+    let tx_priv = coinbase_tx_priv(height, producer_spend_pub);
+    let r_pub = generator_g() * tx_priv;
+
+    let mut wire_outputs = Vec::with_capacity(outputs.len());
+    for (i, spec) in outputs.iter().enumerate() {
+        let payout_pk: StealthPubKeys = spec.payout.into();
+        let one_time_addr = indexed_stealth_address(tx_priv, &payout_pk, i as u32);
+        let blinding = coinbase_blinding(&r_pub, &spec.payout, i as u32);
+        let amount_commit =
+            (generator_g() * blinding) + (generator_h() * Scalar::from(spec.amount));
+        let bp = bp_prove(spec.amount, &blinding, TX_RANGE_BITS)?;
+        debug_assert_eq!(bp.v, amount_commit);
+
+        let enc_amount = mfn_crypto::encrypted_amount::encrypt_output_amount(
+            tx_priv,
+            &spec.payout.view_pub,
+            i as u32,
+            spec.amount,
+            &blinding,
+        );
+
+        wire_outputs.push(TxOutputWire {
+            one_time_addr,
+            amount: amount_commit,
+            range_proof: bp.proof,
+            enc_amount,
+            storage: None,
+        });
+    }
+
+    Ok(TransactionWire {
+        version: TX_VERSION,
+        r_pub,
+        inputs: Vec::new(),
+        outputs: wire_outputs,
+        fee: 0,
+        extra: Vec::new(),
+    })
 }
 
 /// Construct the coinbase [`TransactionWire`] paying `amount` to the
@@ -119,44 +186,14 @@ pub fn build_coinbase(
     amount: u64,
     payout: &PayoutAddress,
 ) -> Result<TransactionWire, CoinbaseError> {
-    if height < 1 {
-        return Err(CoinbaseError::HeightZero);
-    }
-    let tx_priv = coinbase_tx_priv(height, &payout.spend_pub);
-    let r_pub = generator_g() * tx_priv;
-
-    let payout_pk: StealthPubKeys = (*payout).into();
-    // outputIndex = 0 by convention; only one output.
-    let one_time_addr = indexed_stealth_address(tx_priv, &payout_pk, 0);
-    let blinding = coinbase_blinding(&r_pub, payout);
-    let amount_commit = (generator_g() * blinding) + (generator_h() * Scalar::from(amount));
-    let bp = bp_prove(amount, &blinding, TX_RANGE_BITS)?;
-    debug_assert_eq!(bp.v, amount_commit);
-
-    let enc_amount = mfn_crypto::encrypted_amount::encrypt_output_amount(
-        tx_priv,
-        &payout.view_pub,
-        0,
-        amount,
-        &blinding,
-    );
-
-    let output = TxOutputWire {
-        one_time_addr,
-        amount: amount_commit,
-        range_proof: bp.proof,
-        enc_amount,
-        storage: None,
-    };
-
-    Ok(TransactionWire {
-        version: TX_VERSION,
-        r_pub,
-        inputs: Vec::new(),
-        outputs: vec![output],
-        fee: 0,
-        extra: Vec::new(),
-    })
+    build_coinbase_outputs(
+        height,
+        &payout.spend_pub,
+        &[CoinbaseOutputSpec {
+            payout: *payout,
+            amount,
+        }],
+    )
 }
 
 /* ----------------------------------------------------------------------- *
@@ -174,17 +211,13 @@ pub struct CoinbaseVerifyResult {
     pub amount: u64,
 }
 
-/// Validate that a [`TransactionWire`] conforms to coinbase rules for a
-/// given height, expected amount, and producer payout address.
-///
-/// Does NOT check the amount against the protocol's expected
-/// `emission + Σ fees` for the block — that's `apply_block`'s job. This
-/// function checks STRUCTURAL correctness only.
-pub fn verify_coinbase(
+/// Validate that a [`TransactionWire`] conforms to multi-output coinbase
+/// rules for a given height and expected output specs.
+pub fn verify_coinbase_outputs(
     tx: &TransactionWire,
     height: u64,
-    expected_amount: u64,
-    payout: &PayoutAddress,
+    producer_spend_pub: &EdwardsPoint,
+    outputs: &[CoinbaseOutputSpec],
 ) -> CoinbaseVerifyResult {
     let mut errors = Vec::new();
 
@@ -200,10 +233,11 @@ pub fn verify_coinbase(
             tx.inputs.len()
         ));
     }
-    if tx.outputs.len() != 1 {
+    if tx.outputs.len() != outputs.len() {
         errors.push(format!(
-            "coinbase has {} outputs (must be 1)",
-            tx.outputs.len()
+            "coinbase has {} outputs (expected {})",
+            tx.outputs.len(),
+            outputs.len()
         ));
     }
     if tx.fee != 0 {
@@ -217,54 +251,87 @@ pub fn verify_coinbase(
         };
     }
 
-    let out = &tx.outputs[0];
-
-    let tx_priv = coinbase_tx_priv(height, &payout.spend_pub);
+    let tx_priv = coinbase_tx_priv(height, producer_spend_pub);
     let expected_r = generator_g() * tx_priv;
     if expected_r != tx.r_pub {
         errors.push("R does not match deterministic coinbase derivation".to_string());
     }
 
-    let payout_pk: StealthPubKeys = (*payout).into();
-    let expected_one_time = indexed_stealth_address(tx_priv, &payout_pk, 0);
-    if expected_one_time != out.one_time_addr {
-        errors.push("one_time_addr does not match payout-derived stealth address".to_string());
+    let mut total: u128 = 0;
+    for (i, spec) in outputs.iter().enumerate() {
+        total = total.saturating_add(u128::from(spec.amount));
+        let out = &tx.outputs[i];
+        let payout_pk: StealthPubKeys = spec.payout.into();
+        let expected_one_time = indexed_stealth_address(tx_priv, &payout_pk, i as u32);
+        if expected_one_time != out.one_time_addr {
+            errors.push(format!(
+                "output {i}: one_time_addr does not match payout-derived stealth address"
+            ));
+        }
+
+        let blinding = coinbase_blinding(&tx.r_pub, &spec.payout, i as u32);
+        let expected_commit =
+            (generator_g() * blinding) + (generator_h() * Scalar::from(spec.amount));
+        if expected_commit != out.amount {
+            errors.push(format!(
+                "output {i}: amount commitment does not match (expected_amount, blinding)"
+            ));
+        }
+
+        if out.amount != out.range_proof.v {
+            errors.push(format!(
+                "output {i}: range-proof V does not match amount commitment"
+            ));
+        } else if out.range_proof.n != TX_RANGE_BITS {
+            errors.push(format!(
+                "output {i}: range-proof bit-width {} ≠ {TX_RANGE_BITS}",
+                out.range_proof.n
+            ));
+        } else if !bp_verify(&out.range_proof) {
+            errors.push(format!("output {i}: range proof invalid"));
+        }
+
+        if out.storage.is_some() {
+            errors.push(format!("output {i}: coinbase output cannot anchor storage"));
+        }
+
+        if out.enc_amount.len() != ENC_AMOUNT_BYTES {
+            errors.push(format!(
+                "output {i}: enc_amount must be {ENC_AMOUNT_BYTES} bytes (got {})",
+                out.enc_amount.len()
+            ));
+        }
     }
 
-    let blinding = coinbase_blinding(&tx.r_pub, payout);
-    let expected_commit =
-        (generator_g() * blinding) + (generator_h() * Scalar::from(expected_amount));
-    if expected_commit != out.amount {
-        errors.push("amount commitment does not match (expected_amount, blinding)".to_string());
-    }
-
-    if out.amount != out.range_proof.v {
-        errors.push("range-proof V does not match coinbase amount commitment".to_string());
-    } else if out.range_proof.n != TX_RANGE_BITS {
-        errors.push(format!(
-            "range-proof bit-width {} ≠ {TX_RANGE_BITS}",
-            out.range_proof.n
-        ));
-    } else if !bp_verify(&out.range_proof) {
-        errors.push("range proof invalid".to_string());
-    }
-
-    if out.storage.is_some() {
-        errors.push("coinbase output cannot anchor storage".to_string());
-    }
-
-    if out.enc_amount.len() != ENC_AMOUNT_BYTES {
-        errors.push(format!(
-            "enc_amount must be {ENC_AMOUNT_BYTES} bytes (got {})",
-            out.enc_amount.len()
-        ));
-    }
-
+    let amount = u64::try_from(total).unwrap_or(u64::MAX);
     CoinbaseVerifyResult {
         ok: errors.is_empty(),
         errors,
-        amount: expected_amount,
+        amount,
     }
+}
+
+/// Validate that a [`TransactionWire`] conforms to coinbase rules for a
+/// given height, expected amount, and producer payout address.
+///
+/// Does NOT check the amount against the protocol's expected
+/// `emission + Σ fees` for the block — that's `apply_block`'s job. This
+/// function checks STRUCTURAL correctness only.
+pub fn verify_coinbase(
+    tx: &TransactionWire,
+    height: u64,
+    expected_amount: u64,
+    payout: &PayoutAddress,
+) -> CoinbaseVerifyResult {
+    verify_coinbase_outputs(
+        tx,
+        height,
+        &payout.spend_pub,
+        &[CoinbaseOutputSpec {
+            payout: *payout,
+            amount: expected_amount,
+        }],
+    )
 }
 
 /* ----------------------------------------------------------------------- *
@@ -282,14 +349,10 @@ pub fn is_coinbase_shaped(tx: &TransactionWire) -> bool {
 
 /// Pretty-print a coinbase for test output / node logs (public info only).
 pub fn describe_coinbase(tx: &TransactionWire, height: u64) -> String {
-    if !is_coinbase_shaped(tx) || tx.outputs.len() != 1 {
+    if !is_coinbase_shaped(tx) || tx.outputs.is_empty() {
         return "(not a coinbase)".to_string();
     }
-    let one_time_hex = hex::encode(tx.outputs[0].one_time_addr.compress().to_bytes());
-    format!(
-        "coinbase{{height={height}, one_time_addr={}…}}",
-        &one_time_hex[..16]
-    )
+    format!("coinbase{{height={height}, outputs={}}}", tx.outputs.len())
 }
 
 #[cfg(test)]
