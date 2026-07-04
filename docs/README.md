@@ -21,6 +21,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
 - 💻 [**STORAGE_ACCESSIBILITY.md**](./STORAGE_ACCESSIBILITY.md) — feasibility of consumer-grade storage (vs Arweave-style hardware), current gaps, and roadmap.
+- 🌐 [**DECENTRALIZATION.md**](./DECENTRALIZATION.md) — hardware profiles for every network role, how they shape decentralization, and improvements that preserve the architecture.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
@@ -56,6 +57,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Supply schedule | (covered) | SUPPLY_CURVE | code: `mfn-consensus/src/emission.rs` |
 | Trust assumptions & threat model | — | SECURITY_CONSIDERATIONS (full document) | — |
 | Known weaknesses & open risks | — | PROBLEMS (full document) | — |
+| Hardware & decentralization | — | DECENTRALIZATION (full document) | STORAGE_ACCESSIBILITY |
 
 ## Where to file questions
 
