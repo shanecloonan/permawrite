@@ -4,6 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=ports-env-lib.sh
+source "$SCRIPT_DIR/ports-env-lib.sh"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 
 RPC=""
@@ -181,27 +183,8 @@ wallet_balance() {
 }
 
 tip_height_text() {
-  local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
-  if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
-    printf 'unknown\n'
-    return
-  fi
-  tip_height="$(awk '{
-    for (i = 1; i <= NF; i++) {
-      if ($i ~ /^tip_height=/) {
-        sub(/^tip_height=/, "", $i)
-        print $i
-        exit
-      }
-    }
-  }' <<<"$tip_out")"
-  if [[ "$tip_height" == "none" ]]; then
-    printf '0\n'
-  elif [[ -n "$tip_height" ]]; then
-    printf '%s\n' "$tip_height"
-  else
-    printf 'unknown\n'
-  fi
+  local mfn_cli="$1" rpc_addr="$2"
+  query_tip_height "$rpc_addr" "$REPO_ROOT"
 }
 
 wait_mesh_health_check() {

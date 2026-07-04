@@ -50,3 +50,68 @@ soak_lock_remove() {
   lock_path="$(soak_lock_path "$script_dir")"
   rm -f "$lock_path"
 }
+
+# Resolve release mfn-cli for hub tip polls (M2.5.9).
+resolve_mfn_cli() {
+  local repo_root="${1:?repo_root required}"
+  local bin="$repo_root/target/release/mfn-cli"
+  if [[ ! -x "$bin" ]]; then
+    bin="$repo_root/target/release/mfn-cli.exe"
+  fi
+  if [[ ! -x "$bin" ]]; then
+    return 1
+  fi
+  printf '%s\n' "$bin"
+}
+
+# Query hub tip height via mfn-cli, falling back to get_status JSON-RPC (M2.5.9).
+query_tip_height() {
+  local rpc_addr="$1"
+  local repo_root="${2:-}"
+  local mfn_cli tip_out tip_height host port line req
+  if [[ -n "$repo_root" ]]; then
+    mfn_cli="$(resolve_mfn_cli "$repo_root" 2>/dev/null || true)"
+  fi
+  if [[ -n "${mfn_cli:-}" ]]; then
+    if tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
+      tip_height="$(awk '{
+        for (i = 1; i <= NF; i++) {
+          if ($i ~ /^tip_height=/) {
+            sub(/^tip_height=/, "", $i)
+            print $i
+            exit
+          }
+        }
+      }' <<<"$tip_out")"
+      if [[ "$tip_height" == "none" ]]; then
+        printf '0\n'
+        return
+      elif [[ -n "$tip_height" ]]; then
+        printf '%s\n' "$tip_height"
+        return
+      fi
+    fi
+  fi
+  host="${rpc_addr%:*}"
+  port="${rpc_addr##*:}"
+  req='{"jsonrpc":"2.0","method":"get_status","id":1}'
+  line=""
+  if command -v nc >/dev/null 2>&1; then
+    line=$(echo "$req" | nc -w 3 "$host" "$port" 2>/dev/null || true)
+  fi
+  if [[ -z "$line" ]] && command -v curl >/dev/null 2>&1; then
+    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$req" "http://${host}:${port}/" 2>/dev/null || true)
+  fi
+  if [[ -z "$line" ]]; then
+    printf 'unknown\n'
+    return
+  fi
+  tip_height=$(echo "$line" | sed -n 's/.*"tip_height":\([0-9]*\).*/\1/p')
+  if [[ -z "$tip_height" ]] && echo "$line" | grep -q '"tip_height":null'; then
+    printf '0\n'
+  elif [[ -n "$tip_height" ]]; then
+    printf '%s\n' "$tip_height"
+  else
+    printf 'unknown\n'
+  fi
+}

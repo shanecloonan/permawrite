@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.8** GHA startup polls. | **Done** — 600s polls in `eb64408`; CI #522 in progress on `4dbd5c7`. | Nightly #55 after green CI. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `query_tip_height` get_status fallback; local rehearsal PASS. | Push after CI #522 green. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.7** evidence. | **Done** — `release-evidence-f5f45bf`. | Refresh evidence after green Nightly. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.8** rehearsal gates. | **Done** — single-sample health-check; curl RPC fallback; hub tip≥2. | Nightly #55 participant+observer green. |
 
@@ -81,11 +81,15 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [ ] Refresh release evidence after green Nightly on M2.5.8 commit.
 - [ ] Operator sign-off after Nightly + Linux soak.
 
+**M2.5.9 fix (local):**
+- `ports-env-lib.sh` — shared `query_tip_height` via mfn-cli with nc/curl get_status fallback.
+- `start-all`, `participant-rehearsal-smoke`, `fund-wallet`, `permanence-demo` — use shared tip query (fixes silent `unknown` tip on GHA when mfn-cli tip RPC flakes).
+
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **IN PROGRESS** CI #522 on `4dbd5c7` (M2.5.8).
-- RC Validation — pending green CI #522.
-- Nightly — **PARTIAL** #54; awaiting **#55** on `4dbd5c7` with 600s hub poll fix.
+- Green GitHub CI — **IN PROGRESS** on `daab765` (await M2.5.9 push).
+- RC Validation — pending green CI on M2.5.9 commit.
+- Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ (`eb64408`) + M2.5.9 tip query fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 

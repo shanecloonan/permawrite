@@ -293,11 +293,24 @@ function Get-MfnCliPath {
 
 function Get-TipHeightText {
     param([string]$MfnCli, [string]$RpcAddr)
-    $tipOut = & $MfnCli --rpc $RpcAddr tip 2>$null
-    if ($LASTEXITCODE -ne 0) { return "unknown" }
-    $tipText = ($tipOut | Out-String)
-    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
-    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+    if ($MfnCli -and (Test-Path $MfnCli)) {
+        $tipOut = & $MfnCli --rpc $RpcAddr tip 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $tipText = ($tipOut | Out-String)
+            if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
+            if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+        }
+    }
+    $hostPart, $portPart = $RpcAddr -split ":", 2
+    if (-not $portPart) { return "unknown" }
+    $req = '{"jsonrpc":"2.0","method":"get_status","id":1}'
+    try {
+        $line = Invoke-WebRequest -Uri "http://${hostPart}:${portPart}/" -Method POST -Body $req -ContentType "application/json" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop | Select-Object -ExpandProperty Content
+        if ($line -match '"tip_height":(\d+)') { return $Matches[1] }
+        if ($line -match '"tip_height":null') { return "0" }
+    } catch {
+        return "unknown"
+    }
     return "unknown"
 }
 

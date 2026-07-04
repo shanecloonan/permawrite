@@ -115,51 +115,12 @@ poll_voter_p2p() {
   printf -v "$out_var" '%s' "$p2p"
 }
 
-resolve_mfn_cli() {
-  local bin="$REPO_ROOT/target/release/mfn-cli"
-  if [[ ! -x "$bin" ]]; then
-    bin="$REPO_ROOT/target/release/mfn-cli.exe"
-  fi
-  if [[ ! -x "$bin" ]]; then
-    return 1
-  fi
-  printf '%s\n' "$bin"
-}
-
-tip_height_from_rpc() {
-  local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
-  if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
-    printf 'unknown\n'
-    return
-  fi
-  tip_height="$(awk '{
-    for (i = 1; i <= NF; i++) {
-      if ($i ~ /^tip_height=/) {
-        sub(/^tip_height=/, "", $i)
-        print $i
-        exit
-      }
-    }
-  }' <<<"$tip_out")"
-  if [[ "$tip_height" == "none" ]]; then
-    printf '0\n'
-  elif [[ -n "$tip_height" ]]; then
-    printf '%s\n' "$tip_height"
-  else
-    printf 'unknown\n'
-  fi
-}
-
 wait_hub_tip_at_least() {
   local hub_rpc="$1" min_height="$2" timeout_seconds="$3"
-  local mfn_cli deadline tip_height
-  mfn_cli="$(resolve_mfn_cli)" || {
-    echo "start-all: skip hub tip wait (mfn-cli not built)" >&2
-    return 0
-  }
+  local deadline tip_height
   deadline=$(( $(date +%s) + timeout_seconds ))
   while :; do
-    tip_height="$(tip_height_from_rpc "$mfn_cli" "$hub_rpc")"
+    tip_height="$(query_tip_height "$hub_rpc" "$REPO_ROOT")"
     echo "start-all: hub_tip_wait tip_height=$tip_height min_height=$min_height"
     if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= min_height )); then
       return
@@ -186,7 +147,7 @@ echo "Voter 1 P2P=$V1_P2P"
 echo "Voter 2 P2P=$V2_P2P"
 
 wait_voter_dial_hub() {
-  local max=120 v1_ok v2_ok i tip_height mfn_cli
+  local max=120 v1_ok v2_ok i tip_height
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     max=600
   fi
@@ -205,13 +166,10 @@ wait_voter_dial_hub() {
     sleep 1
   done
   if [[ -n "${HUB_RPC:-}" ]]; then
-    mfn_cli="$(resolve_mfn_cli)" || true
-    if [[ -n "$mfn_cli" ]]; then
-      tip_height="$(tip_height_from_rpc "$mfn_cli" "$HUB_RPC")"
-      if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 1 )) && (( v1_ok || v2_ok )); then
-        echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height (v1_ok=$v1_ok v2_ok=$v2_ok); continuing"
-        return
-      fi
+    tip_height="$(query_tip_height "$HUB_RPC" "$REPO_ROOT")"
+    if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 1 )) && (( v1_ok || v2_ok )); then
+      echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height (v1_ok=$v1_ok v2_ok=$v2_ok); continuing"
+      return
     fi
   fi
   echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
