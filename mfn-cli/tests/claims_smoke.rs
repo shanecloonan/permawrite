@@ -146,7 +146,7 @@ fn claims_for_lists_mined_authorship_claim() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet claim");

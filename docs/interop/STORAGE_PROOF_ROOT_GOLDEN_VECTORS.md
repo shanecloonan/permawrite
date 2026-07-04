@@ -18,9 +18,13 @@ commit_hash(32)
 ‖ varint(index)
 ‖ varint(siblings.len)
 ‖ [ siblings[i](32) ‖ u8(right_side[i] ? 1 : 0) ]*
+‖ operator_view_pub(32)                  // compressed ed25519 point
+‖ operator_spend_pub(32)                 // compressed ed25519 point
 ```
 
-`varint` is the consensus-canonical LEB128-style varint shared by every wire codec in the workspace.
+Operator payout keys identify the storage operator who receives the per-proof
+coinbase output. Both must be non-identity, prime-order curve points
+([`operator_payout_is_valid`](../mfn-storage/src/spora.rs)).
 
 ## Inputs (deterministic, hand-constructed)
 
@@ -38,16 +42,20 @@ We construct two proofs by hand so the vector pins the *encoding + hashing* surf
 | | `proof.index` | `1` |
 | | `proof.siblings` | `[[0x11; 32], [0x22; 32]]` |
 | | `proof.right_side` | `[true, false]` |
+| **both** | `operator_view_pub` | `G` (generator, deterministic test vector) |
+| | `operator_spend_pub` | `2·G` |
 
-`p0` exercises the empty-sibling boundary (proof for a single-chunk commitment). `p1` exercises a non-trivial siblings list with a *mixed* `right_side` pattern so an encoder cannot accidentally swap the boolean column without breaking the vector.
+`varint` is the consensus-canonical LEB128-style varint shared by every wire codec in the workspace.
+
+`p0` exercises the empty-sibling boundary (proof for a single-chunk commitment). `p1` exercises a non-trivial siblings list with a *mixed* `right_side` pattern so an encoder cannot accidentally swap the boolean column without breaking the vector. Operator payout keys use [`test_operator_payout_keys()`](../mfn-storage/src/spora.rs) (`G`, `2·G`).
 
 ## Reference bytes
 
 | Field | Hex |
 |-------|-----|
-| `storage_proof_leaf_hash(p0)` (32 bytes) | `694b5a17a842c528d24f24e53cdd9a1601fff4018c365d8a7f448411daf4709d` |
-| `storage_proof_leaf_hash(p1)` (32 bytes) | `00bc55e1545fa11184cd2aeb450173fdf8d940cb6f18e294d6f0be454b6c05f6` |
-| `storage_proof_merkle_root([p0, p1])` (32 bytes) | `aaae83fcbc777d692c7fbc0f469213faae63082e8c040c163256ef751c889c6b` |
+| `storage_proof_leaf_hash(p0)` (32 bytes) | `0b196169d67481b26a8a8315ceea67d354d38ba3c813d80c8cfb0213bff0135f` |
+| `storage_proof_leaf_hash(p1)` (32 bytes) | `4e6f9cb5c2ec3647cddabb21fe910d4160745d2edeb501b6af12334febfd1fa6` |
+| `storage_proof_merkle_root([p0, p1])` (32 bytes) | `eae49fdff04b4d55dc743a5b9388e7b92680352c4ddaba0b338cd251f917662e` |
 
 The root is computed by the binary Merkle root over the leaf hashes in **producer-emit order** (not sorted), using [`mfn-crypto::merkle::merkle_root_or_zero`](../../mfn-crypto/src/merkle.rs). The chain already rejects duplicate proofs per commitment in a single block (see `apply_block` storage-proof phase), so the only ordering choice left across distinct commitments is the producer's emit order — and that order *is* paid out (the first proof that lands accrues the slot's yield). Re-sorting in the commitment would force the applier to re-sort just to verify the header. Empty list folds to the all-zero sentinel, matching every other consensus root.
 

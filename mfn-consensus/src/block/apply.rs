@@ -699,8 +699,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      outputs 1..N = per-operator storage rewards.
     let emission_params = next.emission_params;
     let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
-    let producer_fee_u128 = fee_sum - treasury_fee;
-    let producer_fee: u64 = u64::try_from(producer_fee_u128).unwrap_or(u64::MAX);
+    let _producer_fee_u128 = fee_sum - treasury_fee;
 
     let storage_reward_total: u128 = u128::from(emission_params.storage_proof_reward)
         .saturating_mul(accepted_storage_proofs)

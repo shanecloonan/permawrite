@@ -364,6 +364,7 @@ impl StorageProofCheck {
     }
 }
 
+/// Returns `true` when operator payout keys are non-identity, torsion-free curve points.
 pub fn operator_payout_is_valid(view: &EdwardsPoint, spend: &EdwardsPoint) -> bool {
     !view.is_identity() && !spend.is_identity() && view.is_torsion_free() && spend.is_torsion_free()
 }

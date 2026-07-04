@@ -210,44 +210,18 @@ inclusion is still a latency race to producers ([§ 6](#6-spora-proof-winning-is
 Tracked historically in [`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-questions) and
 [`ROADMAP.md`](./ROADMAP.md).
 
-### 18. No consensus-enforced minimum or uniform ring size (privacy is wallet policy, not protocol law)
+### 18. ~~No consensus-enforced minimum or uniform ring size~~ (resolved)
 
-This is the single largest deviation from "Monero-level privacy."
+> **Status: closed** (uniform ring-16 shipped). [`ConsensusParams`](../mfn-consensus/src/block/state.rs)
+> carries `min_ring_size` / `uniform_ring_size` (production default **16 / 16**);
+> [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) rejects undersized or
+> non-uniform rings at mempool ingress and in [`apply_block`](../mfn-consensus/src/block/apply.rs).
+> Reference wallets (`mfn-wallet`, CLI) default to 16 and refuse lower values.
 
-Consensus verification
-([`verify_transaction`](../mfn-consensus/src/transaction/verify.rs),
-[`apply_block`](../mfn-consensus/src/block/apply.rs)) checks CLSAG validity,
-that `|ring.p| == |ring.c|`, that every ring member is a real UTXO with a
-matching commitment, and key-image validity — but it does **not** enforce any
-lower bound on ring size. A transaction with a ring of size 1 (i.e. **no
-decoys at all**, a fully deanonymized input) is structurally valid and would be
-accepted. Ring size is chosen entirely by the wallet (the CLI default is
-`DEFAULT_RING_SIZE = 8`; the wallet builder only requires `ring_size >= 2`).
-
-Why this matters for the privacy goal:
-
-- **Under-mixing is possible.** Nothing at the protocol level stops a buggy,
-  malicious, or coerced wallet from publishing spends with tiny (or unit) rings
-  that reveal the true input.
-- **Heterogeneous ring sizes are a fingerprint and shrink the herd.** Monero
-  deliberately mandates a single, uniform, fixed ring size (currently 16) for
-  *every* transaction precisely so that ring size cannot be used to cluster
-  wallets and so that no output is ever under-mixed. Permawrite enforcing
-  nothing means the anonymity set is only as strong as each wallet's private
-  choice, and the diversity of choices itself leaks information.
-
-The `PRIVACY.md` "Tier 1 · fixed ring size 16" language describes the reference
-wallet's intended policy, **not** a consensus rule.
-
-**Deferred fix (consensus + params-encoding change; its own milestone).** Add
-`min_ring_size` (and optionally a `uniform_ring_size`) to
-[`ConsensusParams`](../mfn-consensus/src/block/state.rs) — extending the
-checkpoint codec and its golden vectors — and enforce
-`ring.len() >= min_ring_size` (equality if uniform) in `verify_transaction`.
-Raise the wallet/CLI defaults to the mandated size (16, Monero parity), make it
-non-configurable downward, and migrate the many tests/vectors that build
-smaller rings. Interim guidance: reference wallets should default to a uniform
-ring size of at least 16.
+**Historical note.** Before this fix, ring size was wallet policy only — a ring of size 1
+(no decoys) was structurally valid, and heterogeneous ring sizes leaked metadata.
+Monero mandates uniform rings of 16 for exactly this reason; Permawrite now matches that
+at consensus. Residual Tier-3 work (OoM over full UTXO set) remains in [`PRIVACY.md`](./PRIVACY.md).
 
 ## Areas That Appear Relatively Sound (Under Stated Assumptions)
 

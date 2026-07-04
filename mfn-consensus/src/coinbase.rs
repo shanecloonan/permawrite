@@ -490,6 +490,6 @@ mod tests {
         let cb = build_coinbase(99, 1, &payout).expect("build");
         let s = describe_coinbase(&cb, 99);
         assert!(s.contains("height=99"));
-        assert!(s.contains("one_time_addr="));
+        assert!(s.contains("outputs=1"));
     }
 }

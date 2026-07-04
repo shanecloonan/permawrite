@@ -302,7 +302,7 @@ fn hub_push_chunks_two_replicas_inbox_assemble_matching_payload() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");

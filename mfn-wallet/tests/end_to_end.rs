@@ -191,7 +191,7 @@ fn wallet_round_trip_through_full_chain_and_light_chain() {
 
     let mut rng = seeded_rng(0x1234_5678);
     let signed = alice
-        .build_transfer(&recipients, fee, 4, chain.state(), b"hello bob", &mut rng)
+        .build_transfer(&recipients, fee, 16, chain.state(), b"hello bob", &mut rng)
         .expect("build transfer");
 
     // Default emission params route 90% of fees to treasury; the
@@ -259,7 +259,7 @@ fn wallet_rejects_transfer_when_below_balance() {
     let params = consensus_params();
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: decoy_seed_genesis_outputs(8),
+        initial_outputs: decoy_seed_genesis_outputs(20),
         initial_storage: Vec::new(),
         validators: vec![producer.clone()],
         params,
@@ -292,7 +292,7 @@ fn wallet_rejects_transfer_when_below_balance() {
     }];
     let mut rng = seeded_rng(7);
     let err = alice
-        .build_transfer(&recipients, 0, 4, chain.state(), &[], &mut rng)
+        .build_transfer(&recipients, 0, 16, chain.state(), &[], &mut rng)
         .unwrap_err();
     assert!(matches!(
         err,
@@ -385,7 +385,7 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
             alice.recipient(),
             anchor_value,
             None,
-            4, // ring size
+            16, // ring size
             chain.state(),
             b"upload-end-to-end",
             &mut rng,
@@ -488,7 +488,7 @@ fn wallet_storage_upload_rejects_insufficient_funds_before_signing() {
     let params = consensus_params();
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: decoy_seed_genesis_outputs(8),
+        initial_outputs: decoy_seed_genesis_outputs(20),
         initial_storage: Vec::new(),
         validators: vec![producer.clone()],
         params,
@@ -522,7 +522,7 @@ fn wallet_storage_upload_rejects_insufficient_funds_before_signing() {
             alice.recipient(),
             alice.balance().saturating_add(1_000_000_000), // way more than wallet holds
             None,
-            4,
+            16,
             chain.state(),
             &[],
             &mut rng,
@@ -552,7 +552,7 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
     let params = consensus_params();
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: decoy_seed_genesis_outputs(8),
+        initial_outputs: decoy_seed_genesis_outputs(20),
         initial_storage: Vec::new(),
         validators: vec![producer.clone()],
         params,
@@ -596,7 +596,7 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
             alice.recipient(),
             /* anchor_value */ 1_000,
             None,
-            4,
+            16,
             chain.state(),
             &[],
             &mut rng,
@@ -674,7 +674,7 @@ fn publish_claim_tx_round_trip_through_chain() {
             mfn_crypto::authorship::UNBOUND_COMMIT_HASH,
             b"signed by claiming key",
             fee,
-            4,
+            16,
             chain.state(),
             &mut rng,
         )

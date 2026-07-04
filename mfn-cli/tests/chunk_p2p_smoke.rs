@@ -239,7 +239,7 @@ fn push_chunks_inbox_assemble_then_prove() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");

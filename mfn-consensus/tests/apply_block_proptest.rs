@@ -7,9 +7,9 @@ use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
-    apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header, cast_vote,
-    emission_at_height, encode_chain_checkpoint, encode_finality_proof, finalize,
-    header_signing_hash, pick_winner, producer_coinbase_amount, seal_block, sign_register,
+    apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
+    build_genesis, build_unsealed_header, cast_vote, emission_at_height, encode_chain_checkpoint,
+    encode_finality_proof, finalize, header_signing_hash, pick_winner, seal_block, sign_register,
     sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, Block,
     BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams, EmissionParams,
     FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress,
@@ -40,6 +40,9 @@ const PROP_MIXED_EMISSION: EmissionParams = EmissionParams {
 
 /// Genesis UTXO value large enough for many fee-bearing self-transfers.
 const PROP_MIXED_SPEND_VALUE: u64 = 10_000_000_000;
+
+/// Ring width for proptest CLSAG spends under production `DEFAULT_CONSENSUS_PARAMS`.
+const PROP_RING_SIZE: usize = 16;
 
 const PROP_PPB_ENDOWMENT: EndowmentParams = EndowmentParams {
     real_yield_ppb: 40_000_000,
@@ -321,13 +324,38 @@ impl PropSpendState {
         (generator_g() * self.blinding) + (generator_h() * Scalar::from(self.value))
     }
 
+    fn genesis_decoy_at(i: usize) -> GenesisOutput {
+        let genesis_spend = hash_to_scalar(&[b"M5.5/spend", &1u32.to_le_bytes()]);
+        let decoy_spend = hash_to_scalar(&[
+            b"M5.5/decoy-spend",
+            &genesis_spend.to_bytes(),
+            &(i as u32).to_le_bytes(),
+        ]);
+        let decoy_blind = hash_to_scalar(&[
+            b"M5.5/decoy-blind",
+            &genesis_spend.to_bytes(),
+            &(i as u32).to_le_bytes(),
+        ]);
+        GenesisOutput {
+            one_time_addr: generator_g() * decoy_spend,
+            amount: (generator_g() * decoy_blind) + (generator_h() * Scalar::from(1u64)),
+        }
+    }
+
     fn input_spec(&self) -> InputSpec {
+        let signer_idx = PROP_RING_SIZE - 1;
+        let mut p = Vec::with_capacity(PROP_RING_SIZE);
+        let mut c = Vec::with_capacity(PROP_RING_SIZE);
+        for i in 0..PROP_RING_SIZE - 1 {
+            let decoy = Self::genesis_decoy_at(i);
+            p.push(decoy.one_time_addr);
+            c.push(decoy.amount);
+        }
+        p.push(self.one_time_addr);
+        c.push(self.commitment());
         InputSpec {
-            ring: ClsagRing {
-                p: vec![self.one_time_addr],
-                c: vec![self.commitment()],
-            },
-            signer_idx: 0,
+            ring: ClsagRing { p, c },
+            signer_idx,
             spend_priv: self.spend_priv,
             value: self.value,
             blinding: self.blinding,
@@ -361,6 +389,19 @@ impl PropSpendState {
     }
 }
 
+/// Genesis UTXOs: signer output plus deterministic decoys for ring-16 spends.
+fn prop_spend_genesis_outputs(spend: &PropSpendState) -> Vec<GenesisOutput> {
+    let mut outputs = Vec::with_capacity(PROP_RING_SIZE);
+    for i in 0..PROP_RING_SIZE - 1 {
+        outputs.push(PropSpendState::genesis_decoy_at(i));
+    }
+    outputs.push(GenesisOutput {
+        one_time_addr: spend.one_time_addr,
+        amount: spend.commitment(),
+    });
+    outputs
+}
+
 struct PropPrivacyStorageGenesis {
     state: ChainState,
     spend: PropSpendState,
@@ -381,10 +422,7 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: prop_spend_genesis_outputs(&spend),
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -415,10 +453,7 @@ fn genesis_privacy_storage_bonding_for_proptest() -> PropPrivacyStorageGenesis {
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: prop_spend_genesis_outputs(&spend),
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -558,6 +593,53 @@ fn expected_coinbase_amount(
     u64::try_from(total).unwrap_or(u64::MAX)
 }
 
+/// Coinbase matching M2.5.0 multi-output settlement (producer + operator payouts).
+fn prop_build_coinbase(
+    height: u32,
+    emission: &EmissionParams,
+    fee_sum: u128,
+    payout: &PayoutAddress,
+    st: &ChainState,
+    slot: u32,
+    proofs: &[mfn_storage::StorageProof],
+) -> TransactionWire {
+    let ep = &st.endowment_params;
+    let accepted: Vec<_> = proofs
+        .iter()
+        .map(|p| {
+            let bonus =
+                storage_proof_coinbase_bonus(std::slice::from_ref(p), &st.storage, slot, ep);
+            (p.clone(), bonus)
+        })
+        .collect();
+    let specs = block_coinbase_specs(u64::from(height), emission, fee_sum, *payout, &accepted);
+    build_coinbase_outputs(u64::from(height), &payout.spend_pub, &specs).expect("coinbase")
+}
+
+fn prop_coinbase_for_block(
+    height: u32,
+    emission: &EmissionParams,
+    fee_sum: u128,
+    payout: &PayoutAddress,
+    st: &ChainState,
+    storage_proofs: &[mfn_storage::StorageProof],
+) -> TransactionWire {
+    if storage_proofs.is_empty() {
+        let cb_amount = expected_coinbase_amount(height, fee_sum, 0, emission);
+        build_coinbase(u64::from(height), cb_amount, payout).expect("coinbase")
+    } else {
+        prop_build_coinbase(
+            height,
+            emission,
+            fee_sum,
+            payout,
+            st,
+            height,
+            storage_proofs,
+        )
+    }
+}
+
 struct PropValidatorPrivacyStorageGenesis {
     state: ChainState,
     spend: PropSpendState,
@@ -580,10 +662,7 @@ fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStora
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: prop_spend_genesis_outputs(&spend),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -616,10 +695,7 @@ fn genesis_validator_combined_inflow_ppb_for_proptest() -> PropValidatorPrivacyS
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: prop_spend_genesis_outputs(&spend),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -731,10 +807,7 @@ fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStora
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs: prop_spend_genesis_outputs(&spend),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -851,11 +924,18 @@ fn validator_mixed_block_material(
 ) -> (Vec<TransactionWire>, mfn_storage::StorageProof) {
     let (tx, _) = spend.sign_self_transfer(fee, height);
     let fee_sum = u128::from(fee);
-    let cb_amount = expected_coinbase_amount(height, fee_sum, 1, &PROP_MIXED_EMISSION);
-    let coinbase = build_coinbase(u64::from(height), cb_amount, payout).expect("coinbase");
-    let txs = vec![coinbase, tx];
     let prev = *st.tip_id().expect("tip");
     let proof = build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
+    let coinbase = prop_build_coinbase(
+        height,
+        &PROP_MIXED_EMISSION,
+        fee_sum,
+        payout,
+        st,
+        height,
+        std::slice::from_ref(&proof),
+    );
+    let txs = vec![coinbase, tx];
     (txs, proof)
 }
 
@@ -1404,12 +1484,18 @@ proptest! {
             let (tx, next_spend) = spend.sign_self_transfer(fee, h);
             spend = next_spend;
             let fee_sum = u128::from(fee);
-            let cb_amount = expected_coinbase_amount(h, fee_sum, 1, emission);
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let prev = *st.tip_id().expect("tip");
             let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
+            let coinbase = prop_build_coinbase(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                h,
+                std::slice::from_ref(&proof),
+            );
+            let txs = vec![coinbase, tx];
             st = apply_validator_mixed_clsag_fee_and_storage_proof(
                 &gen.fixture, &st, h, txs, &proof,
             );
@@ -1500,10 +1586,6 @@ proptest! {
             let with_proof = h % 4 == 0;
             let with_liveness = h == 8 && n_blocks >= 8;
             let proofs = if with_proof { 1u128 } else { 0 };
-            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 vec![build_test_storage_proof(
@@ -1516,6 +1598,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -1593,10 +1684,6 @@ proptest! {
             } else {
                 0
             };
-            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 vec![build_test_storage_proof(
@@ -1609,6 +1696,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -1710,10 +1806,6 @@ proptest! {
             let with_proof = h % proof_stride == 0;
             let with_liveness = h == liveness_h;
             let proofs = if with_proof { 1u128 } else { 0 };
-            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 vec![build_test_storage_proof(
@@ -1726,6 +1818,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -1817,10 +1918,6 @@ proptest! {
             } else {
                 0
             };
-            let cb_amount = expected_coinbase_amount(h, fee_sum, proofs, emission);
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 vec![build_test_storage_proof(
@@ -1833,6 +1930,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -1946,16 +2052,6 @@ proptest! {
             } else {
                 0
             };
-            let cb_amount = producer_coinbase_amount(
-                u64::from(h),
-                emission,
-                fee_sum,
-                proofs as usize,
-                ppb_bonus,
-            );
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 let proof = build_test_storage_proof(
@@ -1972,6 +2068,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -2073,16 +2178,6 @@ proptest! {
             } else {
                 0
             };
-            let cb_amount = producer_coinbase_amount(
-                u64::from(h),
-                emission,
-                fee_sum,
-                proofs as usize,
-                ppb_bonus,
-            );
-            let coinbase =
-                build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-            let txs = vec![coinbase, tx];
             let storage_proofs = if with_proof {
                 let prev = *st.tip_id().expect("tip");
                 let proof = build_test_storage_proof(
@@ -2099,6 +2194,15 @@ proptest! {
             } else {
                 Vec::new()
             };
+            let coinbase = prop_coinbase_for_block(
+                h,
+                emission,
+                fee_sum,
+                &gen.fixture.payout,
+                &st,
+                &storage_proofs,
+            );
+            let txs = vec![coinbase, tx];
             let bond_ops = if with_bond {
                 bond_seed = bond_seed.wrapping_add(1);
                 vec![register_op(bond_seed)]
@@ -2335,16 +2439,19 @@ fn reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change(
     let h = next_height(&st);
     let fee = 25_000u64;
     let (tx, _) = gen.spend.sign_self_transfer(fee, h);
-    let coinbase = build_coinbase(
-        u64::from(h),
-        expected_coinbase_amount(h, u128::from(fee), 1, &PROP_MIXED_EMISSION),
-        &gen.fixture.payout,
-    )
-    .expect("coinbase");
-    let txs = vec![coinbase, tx];
     let prev = *st.tip_id().expect("tip");
     let proof =
         build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
+    let coinbase = prop_build_coinbase(
+        h,
+        &PROP_MIXED_EMISSION,
+        u128::from(fee),
+        &gen.fixture.payout,
+        &st,
+        h,
+        std::slice::from_ref(&proof),
+    );
+    let txs = vec![coinbase, tx];
     let proofs = vec![proof.clone(), proof];
 
     let unsealed = build_unsealed_header(&st, &txs, &[], &[], &proofs, h, u64::from(h) * 1_000);
@@ -2573,11 +2680,18 @@ fn reject_validator_mixed_after_partial_chain_without_state_change() {
         let (tx, next_spend) = spend.sign_self_transfer(fee, h);
         spend = next_spend;
         let fee_sum = u128::from(fee);
-        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, &PROP_MIXED_EMISSION);
-        let coinbase = build_coinbase(u64::from(h), cb_amount, &fixture.payout).expect("coinbase");
-        let txs = vec![coinbase, tx];
         let prev = *st.tip_id().expect("tip");
         let proof = build_test_storage_proof(&built.commit, &prev, h, &payload, &built.tree);
+        let coinbase = prop_build_coinbase(
+            h,
+            &PROP_MIXED_EMISSION,
+            fee_sum,
+            &fixture.payout,
+            &st,
+            h,
+            std::slice::from_ref(&proof),
+        );
+        let txs = vec![coinbase, tx];
         st = apply_validator_mixed_clsag_fee_and_storage_proof(&fixture, &st, h, txs, &proof);
     }
     assert_eq!(st.height, Some(PREFIX_LEN));
@@ -2707,13 +2821,19 @@ fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
         let (tx, next_spend) = spend.sign_self_transfer(fee, h);
         spend = next_spend;
         let fee_sum = u128::from(fee);
-        let cb_amount = expected_coinbase_amount(h, fee_sum, 1, emission);
-        let coinbase =
-            build_coinbase(u64::from(h), cb_amount, &gen.fixture.payout).expect("coinbase");
-        let txs = vec![coinbase, tx];
         let prev = *st.tip_id().expect("tip");
         let proof =
             build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
+        let coinbase = prop_build_coinbase(
+            h,
+            emission,
+            fee_sum,
+            &gen.fixture.payout,
+            &st,
+            h,
+            std::slice::from_ref(&proof),
+        );
+        let txs = vec![coinbase, tx];
         st = apply_validator_mixed_clsag_fee_and_storage_proof(&gen.fixture, &st, h, txs, &proof);
         model = treasury_after_block(model, fee_sum, 1, emission);
         assert_eq!(st.treasury, model, "treasury mismatch at height {h}");

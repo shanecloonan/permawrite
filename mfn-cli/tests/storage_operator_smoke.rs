@@ -204,7 +204,7 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");
@@ -438,7 +438,7 @@ fn storage_operator_run_once_submits_proof() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");

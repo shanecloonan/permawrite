@@ -168,7 +168,7 @@ fn wallet_send_mined_by_step_reaches_recipient() {
             "--fee",
             &TRANSFER_FEE.to_string(),
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet send");

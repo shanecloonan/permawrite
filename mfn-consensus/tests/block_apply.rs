@@ -2271,3 +2271,174 @@ fn block_codec_empty_body_golden_shape() {
     let b2 = decode_block(&bytes).expect("decode");
     assert_eq!(block_id(&b.header), block_id(&b2.header));
 }
+
+#[test]
+fn consensus_rejects_ring_smaller_than_sixteen() {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    let init_value = 1_000_000u64;
+    let init_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+
+    let mut ring_p = Vec::new();
+    let mut ring_c = Vec::new();
+    for i in 0..4 {
+        if i == 1 {
+            ring_p.push(signer_p);
+            ring_c.push(signer_c);
+        } else {
+            let sp = random_scalar();
+            let bp = random_scalar();
+            let vp = random_scalar();
+            ring_p.push(generator_g() * sp);
+            ring_c.push((generator_g() * bp) + (generator_h() * vp));
+        }
+    }
+
+    let recipient_wallet = stealth_gen();
+    let signed = sign_transaction(
+        vec![InputSpec {
+            ring: ClsagRing {
+                p: ring_p,
+                c: ring_c,
+            },
+            signer_idx: 1,
+            spend_priv: signer_spend,
+            value: init_value,
+            blinding: init_blinding,
+        }],
+        vec![OutputSpec::ToRecipient {
+            recipient: Recipient {
+                view_pub: recipient_wallet.view_pub,
+                spend_pub: recipient_wallet.spend_pub,
+            },
+            value: init_value - 1_000,
+            storage: None,
+        }],
+        1_000,
+        b"ring-4".to_vec(),
+    )
+    .expect("sign");
+
+    let policy = DEFAULT_CONSENSUS_PARAMS.ring_policy();
+    let v = verify_transaction(&signed.tx, &policy);
+    assert!(!v.ok, "ring size 4 must fail under production policy");
+    assert!(
+        v.errors
+            .iter()
+            .any(|e| e.contains("ring size 4") && e.contains("16")),
+        "expected uniform ring-16 error, got {:?}",
+        v.errors
+    );
+}
+
+#[test]
+fn apply_block_rejects_ring_smaller_than_sixteen() {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    let init_value = 1_000_000u64;
+    let init_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: vec![GenesisOutput {
+            one_time_addr: signer_p,
+            amount: signer_c,
+        }],
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let mut ring_p = Vec::new();
+    let mut ring_c = Vec::new();
+    for i in 0..4 {
+        if i == 0 {
+            ring_p.push(signer_p);
+            ring_c.push(signer_c);
+        } else {
+            let sp = random_scalar();
+            let bp = random_scalar();
+            let vp = random_scalar();
+            ring_p.push(generator_g() * sp);
+            ring_c.push((generator_g() * bp) + (generator_h() * vp));
+        }
+    }
+
+    let recipient_wallet = stealth_gen();
+    let signed = sign_transaction(
+        vec![InputSpec {
+            ring: ClsagRing {
+                p: ring_p,
+                c: ring_c,
+            },
+            signer_idx: 0,
+            spend_priv: signer_spend,
+            value: init_value,
+            blinding: init_blinding,
+        }],
+        vec![OutputSpec::ToRecipient {
+            recipient: Recipient {
+                view_pub: recipient_wallet.view_pub,
+                spend_pub: recipient_wallet.spend_pub,
+            },
+            value: init_value - 1_000,
+            storage: None,
+        }],
+        1_000,
+        b"ring-4".to_vec(),
+    )
+    .expect("sign");
+
+    let unsealed = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&signed.tx),
+        &[],
+        &[],
+        &[],
+        1,
+        100,
+    );
+    let block = seal_block(
+        unsealed,
+        vec![signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            let saw = errors.iter().any(|e| {
+                matches!(
+                    e,
+                    BlockError::TxInvalid { errors: detail, .. }
+                        if detail.iter().any(|d| d.contains("ring size"))
+                )
+            });
+            assert!(saw, "expected ring-size TxInvalid, got {errors:?}");
+        }
+        ApplyOutcome::Ok { .. } => panic!("sub-minimum ring must reject block"),
+    }
+}

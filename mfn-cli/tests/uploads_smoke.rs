@@ -154,7 +154,7 @@ fn uploads_list_shows_mined_storage_commitment() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");
@@ -313,7 +313,7 @@ fn uploads_list_include_claims_after_bound_upload() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");

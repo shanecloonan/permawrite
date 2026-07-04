@@ -243,7 +243,7 @@ mod tests {
         let owned = StoredOwnedOutput::from_owned(&scan.recovered[0]);
 
         let mut decoy_utxos = Vec::new();
-        for i in 0..8u32 {
+        for i in 0..20u32 {
             let s = random_scalar();
             let p = generator_g() * s;
             let c = (generator_g() * random_scalar()) + (generator_h() * random_scalar());
@@ -262,7 +262,7 @@ mod tests {
                 value: 998_000,
             }],
             fee: 1_000,
-            ring_size: 4,
+            ring_size: 16,
             current_height: 7,
             decoy_utxos,
             exclude_one_time_addrs_hex: vec![],

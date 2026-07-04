@@ -13,11 +13,11 @@ use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
     build_genesis, build_unsealed_header, cast_vote, emission_at_height, encode_finality_proof,
-    finalize, header_signing_hash, producer_coinbase_amount, producer_portion_amount, seal_block,
-    sign_register, sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome,
-    BlockError, BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
-    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence,
-    SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+    finalize, header_signing_hash, producer_coinbase_amount, seal_block, sign_register,
+    sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, verify_coinbase_outputs,
+    ApplyOutcome, BlockError, BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof,
+    GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction,
+    SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     TEST_CONSENSUS_PARAMS,
 };
@@ -335,20 +335,52 @@ impl ValidatorFixture {
     }
 }
 
+/// Ring size required by consensus params (uniform size when set, else minimum).
+fn ring_size_for(params: &ConsensusParams) -> usize {
+    let policy = params.ring_policy();
+    if policy.uniform_ring_size > 0 {
+        policy.uniform_ring_size as usize
+    } else {
+        policy.min_ring_size as usize
+    }
+}
+
+fn genesis_decoy_output(i: usize) -> GenesisOutput {
+    let spend = random_scalar();
+    let blinding = random_scalar();
+    let p = generator_g() * spend;
+    let c = (generator_g() * blinding) + (generator_h() * Scalar::from(1u64 + i as u64));
+    GenesisOutput {
+        one_time_addr: p,
+        amount: c,
+    }
+}
+
 struct SpendState {
     spend_priv: Scalar,
     blinding: Scalar,
     value: u64,
     one_time_addr: EdwardsPoint,
+    /// Genesis-anchored decoys (one_time_addr, commitment), excluding the signer.
+    ring_decoys: Vec<(EdwardsPoint, EdwardsPoint)>,
+    signer_idx: usize,
 }
 
 impl SpendState {
-    fn genesis(spend_priv: Scalar, blinding: Scalar, value: u64) -> Self {
+    fn with_ring(
+        spend_priv: Scalar,
+        blinding: Scalar,
+        value: u64,
+        ring_decoys: Vec<(EdwardsPoint, EdwardsPoint)>,
+        signer_idx: usize,
+    ) -> Self {
         Self {
             spend_priv,
             blinding,
             value,
             one_time_addr: generator_g() * spend_priv,
+            ring_decoys,
+            signer_idx,
         }
     }
 
@@ -357,16 +389,27 @@ impl SpendState {
     }
 
     fn input_spec(&self) -> InputSpec {
-        let decoy_spend = random_scalar();
-        let decoy_blinding = random_scalar();
-        let decoy_p = generator_g() * decoy_spend;
-        let decoy_c = (generator_g() * decoy_blinding) + (generator_h() * Scalar::from(1u64));
+        let ring_size = self.ring_decoys.len() + 1;
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        for slot in 0..ring_size {
+            if slot == self.signer_idx {
+                p.push(self.one_time_addr);
+                c.push(self.commitment());
+            } else {
+                let decoy_idx = if slot < self.signer_idx {
+                    slot
+                } else {
+                    slot - 1
+                };
+                let (dp, dc) = self.ring_decoys[decoy_idx];
+                p.push(dp);
+                c.push(dc);
+            }
+        }
         InputSpec {
-            ring: ClsagRing {
-                p: vec![self.one_time_addr, decoy_p],
-                c: vec![self.commitment(), decoy_c],
-            },
-            signer_idx: 0,
+            ring: ClsagRing { p, c },
+            signer_idx: self.signer_idx,
             spend_priv: self.spend_priv,
             value: self.value,
             blinding: self.blinding,
@@ -394,6 +437,8 @@ impl SpendState {
             blinding: signed.output_blindings[0],
             value: change_value,
             one_time_addr: change_addr,
+            ring_decoys: self.ring_decoys.clone(),
+            signer_idx: self.signer_idx,
         };
         (signed, next)
     }
@@ -420,6 +465,7 @@ impl StorageFixture {
 }
 
 /// Coinbase with producer output 0 and optional operator outputs 1..N.
+#[allow(clippy::too_many_arguments)]
 fn build_validator_coinbase(
     height: u64,
     emission: &EmissionParams,
@@ -452,13 +498,23 @@ fn genesis_validator_with_funded_utxo(
 ) -> (ChainState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
-    let spend = SpendState::genesis(spend_priv, blinding, spend_value);
+    let ring_size = ring_size_for(&fixture.params);
+    let signer_idx = ring_size - 1;
+    let mut decoys = Vec::with_capacity(ring_size - 1);
+    let mut initial_outputs = Vec::with_capacity(ring_size);
+    for i in 0..ring_size - 1 {
+        let decoy = genesis_decoy_output(i);
+        decoys.push((decoy.one_time_addr, decoy.amount));
+        initial_outputs.push(decoy);
+    }
+    let spend = SpendState::with_ring(spend_priv, blinding, spend_value, decoys, signer_idx);
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: spend.one_time_addr,
+        amount: spend.commitment(),
+    });
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: vec![GenesisOutput {
-            one_time_addr: spend.one_time_addr,
-            amount: spend.commitment(),
-        }],
+        initial_outputs,
         initial_storage: storage
             .map(|s| vec![s.built.commit.clone()])
             .unwrap_or_default(),
@@ -716,13 +772,23 @@ fn fee_only_block_credits_treasury_ninety_percent() {
     let (mut st, spend) = {
         let spend_priv = random_scalar();
         let blinding = random_scalar();
-        let spend = SpendState::genesis(spend_priv, blinding, initial);
+        let ring_size = ring_size_for(&DEFAULT_CONSENSUS_PARAMS);
+        let signer_idx = ring_size - 1;
+        let mut decoys = Vec::with_capacity(ring_size - 1);
+        let mut initial_outputs = Vec::with_capacity(ring_size);
+        for i in 0..ring_size - 1 {
+            let decoy = genesis_decoy_output(i);
+            decoys.push((decoy.one_time_addr, decoy.amount));
+            initial_outputs.push(decoy);
+        }
+        let spend = SpendState::with_ring(spend_priv, blinding, initial, decoys, signer_idx);
+        initial_outputs.push(GenesisOutput {
+            one_time_addr: spend.one_time_addr,
+            amount: spend.commitment(),
+        });
         let cfg = GenesisConfig {
             timestamp: 0,
-            initial_outputs: vec![GenesisOutput {
-                one_time_addr: spend.one_time_addr,
-                amount: spend.commitment(),
-            }],
+            initial_outputs,
             initial_storage: Vec::new(),
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
@@ -765,7 +831,7 @@ fn storage_reward_drains_prefunded_treasury_first() {
     // Block 1: fee inflow prefunds treasury (90%).
     let fee = 10_000u64;
     let (signed, _next_spend) = spend.sign_self_transfer(fee);
-    let cb1 = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
+    let _cb1 = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase1 = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -814,6 +880,27 @@ fn storage_reward_drains_prefunded_treasury_first() {
         2,
         std::slice::from_ref(&proof),
         &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let bonus = storage_proof_coinbase_bonus(
+        std::slice::from_ref(&proof),
+        &st.storage,
+        2,
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    let accepted = vec![(proof.clone(), bonus)];
+    let specs = block_coinbase_specs(2, &TEST_EMISSION, 0, fixture.payout, &accepted);
+    assert_eq!(specs.len(), 2, "producer output 0 + operator output 1");
+    assert_eq!(coinbase2.outputs.len(), 2);
+    let (op_view, op_spend) = mfn_storage::test_operator_payout_keys();
+    assert_eq!(proof.operator_view_pub.compress(), op_view.compress());
+    assert_eq!(proof.operator_spend_pub.compress(), op_spend.compress());
+    assert_eq!(specs[1].payout.view_pub.compress(), op_view.compress());
+    assert_eq!(specs[1].payout.spend_pub.compress(), op_spend.compress());
+    let cb_verify = verify_coinbase_outputs(&coinbase2, 2, &fixture.payout.spend_pub, &specs);
+    assert!(
+        cb_verify.ok,
+        "operator coinbase layout: {:?}",
+        cb_verify.errors
     );
     let txs2 = vec![coinbase2];
     st = match apply_validator_block(
@@ -1042,7 +1129,7 @@ fn bond_burn_and_fee_inflow_compose_in_treasury_closed_loop() {
     let bond_stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
     let fee = 12_000u64;
     let (signed, _) = spend.sign_self_transfer(fee);
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1294,7 +1381,7 @@ fn equivocation_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
         1,
         &DEFAULT_ENDOWMENT_PARAMS,
     );
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1395,7 +1482,7 @@ fn ppb_pending_carryover_pays_on_second_proof_block() {
         &storage.payload,
         &storage.built.tree,
     );
-    let cb1 = producer_coinbase_amount(1, &TEST_EMISSION, 0, 1, 0);
+    let _cb1 = producer_coinbase_amount(1, &TEST_EMISSION, 0, 1, 0);
     let coinbase1 = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1519,7 +1606,7 @@ fn liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
         1,
         &DEFAULT_ENDOWMENT_PARAMS,
     );
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1584,7 +1671,7 @@ fn bond_burn_liveness_slash_and_fee_compose_in_treasury_closed_loop() {
     let liveness_forfeit = 10_000u128;
     let fee = 8_000u64;
     let (signed, _) = spend.sign_self_transfer(fee);
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1671,7 +1758,7 @@ fn bond_liveness_slash_fee_and_storage_proof_compose_in_treasury_closed_loop() {
         1,
         &DEFAULT_ENDOWMENT_PARAMS,
     );
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1747,7 +1834,7 @@ fn equivocation_bond_and_liveness_slash_compose_in_treasury_closed_loop() {
     let liveness_forfeit = 10_000u128;
     let fee = 6_000u64;
     let (signed, _) = spend.sign_self_transfer(fee);
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 0, 0);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1844,7 +1931,7 @@ fn equivocation_bond_liveness_fee_and_storage_proof_compose_in_treasury_closed_l
         1,
         &DEFAULT_ENDOWMENT_PARAMS,
     );
-    let cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
+    let _cb = producer_coinbase_amount(1, &TEST_EMISSION, u128::from(fee), 1, bonus);
     let coinbase = build_validator_coinbase(
         1,
         &TEST_EMISSION,
@@ -1966,7 +2053,7 @@ fn bond_liveness_fee_ppb_storage_proof_compose_in_treasury_closed_loop() {
         &st,
         1,
         std::slice::from_ref(&proof),
-        &DEFAULT_ENDOWMENT_PARAMS,
+        &ep,
     );
     let txs = vec![coinbase, signed.tx];
     let voters = [0u32, 2];
@@ -2089,7 +2176,7 @@ fn equivocation_bond_liveness_fee_ppb_and_storage_proof_compose_in_treasury_clos
         &st,
         1,
         std::slice::from_ref(&proof),
-        &DEFAULT_ENDOWMENT_PARAMS,
+        &ep,
     );
     let txs = vec![coinbase, signed.tx];
     let voters = [0u32, 2];

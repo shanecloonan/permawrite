@@ -338,8 +338,13 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let (hub_rpc_prep, _) = read_serve_addrs(&mut hub_prep);
     let hub_rpc_prep = hub_rpc_prep.to_string();
 
-    let upload_out =
-        wallet_upload_with_transport_retry(&hub_rpc_prep, &hub_wallet, &payload_path, "10000", "8");
+    let upload_out = wallet_upload_with_transport_retry(
+        &hub_rpc_prep,
+        &hub_wallet,
+        &payload_path,
+        "10000",
+        "16",
+    );
     assert!(
         upload_out.status.success(),
         "upload stderr={}",

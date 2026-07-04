@@ -1,0 +1,15 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc bf5c0a1134a690fda56128c0f71c433744b15f2d20af6fb3a8436b0a80d6a137 # shrinks to n_blocks = 1, fee_base = 1000
+cc fed4f350c13002342c10627e391b5dd07d18bbf179dbc4085d18463319305d56 # shrinks to n_fee_blocks = 1, fee_base = 1000
+cc fedd26efe05b964f6a5bdd87fc53987ecd46139791540d3299d15e3fa981cda8 # shrinks to n_blocks = 6, fee_base = 1000, bond_offset = 0, liveness_offset = 0, proof_stride = 2
+cc 0fc02d6cef96363bbdac493c9787670d4dcfcd2e7936bf8d935e3cb19ae634e2 # shrinks to n_blocks = 6, fee_base = 1000
+cc d24a731f57b5676b69d0884244be62e01a8fef7fce356f64310f6954bfa8d608 # shrinks to n_blocks = 4, fee_base = 1000
+cc fae3dfb91068ff7d6f7cdc8ad155db8cf3615ee8fb90fc5e708e16df843b4b9c # shrinks to n_blocks = 8, fee_base = 1000, bond_offset = 0, liveness_offset = 0, proof_stride = 2
+cc 466df09e94a36fed9db5c83d5a1db80a79fbd3bfb66f1651c3f5daf31f17826d # shrinks to n_blocks = 1, fee_base = 1000
+cc a05f962aed62068e878149847c8438b1c349445b0fffbd8f1410da98fd8dbe82 # shrinks to n_blocks = 6, fee_base = 1000, bond_offset = 0, liveness_offset = 0, proof_stride = 2
+cc d342301ef7ca7108d3ac838245077b716b04402af02abfa19effc73c93a0a592 # shrinks to n_blocks = 8, fee_base = 1000, bond_offset = 0, liveness_offset = 0, proof_stride = 2

@@ -72,6 +72,9 @@ pub mod upload_artifact;
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub mod wallet;
 
+/// Minimum CLSAG ring size enforced by reference wallets (matches consensus `min_ring_size`).
+pub const WALLET_MIN_RING_SIZE: usize = 16;
+
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use decoy::{
     build_decoy_pool, build_decoy_pool_from_sources, DecoyPoolBuilder, RingMember, UtxoDecoySource,

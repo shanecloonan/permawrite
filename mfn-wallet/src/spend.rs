@@ -106,7 +106,7 @@ where
     if plan.recipients.is_empty() {
         return Err(WalletError::NoRecipients);
     }
-    if plan.ring_size < 2 {
+    if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
         return Err(WalletError::DecoyPoolTooSmall {
             ring_size: plan.ring_size,
             pool_size: plan.decoy_pool.len(),

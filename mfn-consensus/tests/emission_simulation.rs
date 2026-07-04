@@ -9,8 +9,8 @@ use curve25519_dalek::scalar::Scalar;
 
 use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
-    apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
-    build_genesis, build_unsealed_header, cast_vote, cumulative_emission, emission_at_height,
+    apply_block, apply_genesis, block_coinbase_specs, build_coinbase_outputs, build_genesis,
+    build_unsealed_header, cast_vote, cumulative_emission, emission_at_height,
     encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount,
     producer_portion_amount, seal_block, sign_transaction, storage_proof_coinbase_bonus,
     try_produce_slot, validate_emission_params, ApplyOutcome, ChainState, ConsensusParams,
@@ -216,23 +216,6 @@ fn seed_ppb_pending_and_expected_payout(
     accrual.payout
 }
 
-/// Coinbase amount `apply_block` expects (subsidy + producer fee share + storage rewards).
-fn expected_coinbase_amount(
-    height: u32,
-    fee_sum: u128,
-    storage_proofs: u128,
-    params: &EmissionParams,
-) -> u64 {
-    let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
-    let producer_fee = fee_sum - treasury_fee;
-    let storage_reward_total = params.storage_proof_reward as u128 * storage_proofs;
-    let subsidy = u128::from(emission_at_height(u64::from(height), params));
-    let total = subsidy
-        .saturating_add(producer_fee)
-        .saturating_add(storage_reward_total);
-    u64::try_from(total).unwrap_or(u64::MAX)
-}
-
 /// Three-validator quorum harness (BLS finality + coinbase payout).
 struct ValidatorFixture {
     validators: Vec<Validator>,
@@ -364,6 +347,7 @@ fn assert_producer_coinbase_decryptable(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_validator_coinbase(
     height: u64,
     emission: &EmissionParams,

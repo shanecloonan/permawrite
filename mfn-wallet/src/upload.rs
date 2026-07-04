@@ -268,7 +268,7 @@ pub fn build_storage_upload<R>(
 where
     R: FnMut() -> f64,
 {
-    if plan.ring_size < 2 {
+    if plan.ring_size < crate::WALLET_MIN_RING_SIZE {
         return Err(WalletError::DecoyPoolTooSmall {
             ring_size: plan.ring_size,
             pool_size: plan.decoy_pool.len(),
@@ -535,7 +535,7 @@ mod tests {
         let input_value = 50_000_000_000u64;
         let owned = one_real_owned_output(input_value);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
 
         let data = b"the cypherpunks write code";
@@ -576,7 +576,7 @@ mod tests {
             fee,
             extra: b"upload-1",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -632,7 +632,7 @@ mod tests {
         let (anchor_recipient, _keys) = alice_recipient();
         let owned = one_real_owned_output(1_000_000);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -652,7 +652,7 @@ mod tests {
             fee: 999_000,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -673,7 +673,7 @@ mod tests {
         let (anchor_recipient, _keys) = alice_recipient();
         let owned = one_real_owned_output(1_000_000);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -693,7 +693,7 @@ mod tests {
             fee: 999_000,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -713,7 +713,7 @@ mod tests {
         let (anchor_recipient, _keys) = alice_recipient();
         let owned = one_real_owned_output(50_000_000_000);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -735,7 +735,7 @@ mod tests {
             fee: 1, // grossly insufficient
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -765,7 +765,7 @@ mod tests {
         let (anchor_recipient, _keys) = alice_recipient();
         let owned = one_real_owned_output(50_000_000_000);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -785,7 +785,7 @@ mod tests {
             fee: 1_000_000,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -803,7 +803,7 @@ mod tests {
         let input_value = 10_000u64;
         let owned = one_real_owned_output(input_value);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -826,7 +826,7 @@ mod tests {
             fee,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -896,7 +896,7 @@ mod tests {
         let (anchor_recipient, _keys) = alice_recipient();
         let owned = one_real_owned_output(100);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -916,7 +916,7 @@ mod tests {
             fee: 0,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,
@@ -934,7 +934,7 @@ mod tests {
         let input_value = 50_000_000u64;
         let owned = one_real_owned_output(input_value);
         let inputs = [&owned];
-        let pool = decoy_pool(10);
+        let pool = decoy_pool(20);
         let mut r = rng();
         let params = DEFAULT_ENDOWMENT_PARAMS;
 
@@ -967,7 +967,7 @@ mod tests {
             fee,
             extra: b"",
             authorship_claims: &[],
-            ring_size: 4,
+            ring_size: 16,
             decoy_pool: &pool,
             current_height: 1,
             rng: &mut r,

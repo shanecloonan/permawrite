@@ -590,7 +590,7 @@ fn produce_mesh_push_chunks_two_voters_assemble_matching_payload() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");
@@ -712,7 +712,7 @@ fn produce_mesh_auto_fanout_two_voters_assemble_matching_payload() {
             "--fee",
             "10000",
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("wallet upload");

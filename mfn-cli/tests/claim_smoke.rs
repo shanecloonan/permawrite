@@ -155,7 +155,7 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
             "--fee",
             &CLAIM_FEE.to_string(),
             "--ring-size",
-            "8",
+            "16",
         ])
         .output()
         .expect("claim");
