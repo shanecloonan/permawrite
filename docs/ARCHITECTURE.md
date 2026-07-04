@@ -752,7 +752,7 @@ No hand-rolled curve code. No FFI. No `unsafe` in any first-party module.
 ## Crate layout
 
 ```
-mfn-crypto/         ed25519 primitives + ZK    (154 tests)
+mfn-crypto/         ed25519 primitives + ZK    (164 tests: 159 unit + 5 integration)
 ├── domain.rs       Domain-separation tags
 ├── codec.rs        MFBN-1 Writer/Reader
 ├── scalar.rs       Scalar helpers
@@ -783,7 +783,7 @@ mfn-storage/        Permanence                 (44 tests)
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (206 tests: 192 unit + 14 integration)
+mfn-consensus/      Chain state machine        (373 passing: 151 unit + 222 integration; 25 nightly `#[ignore]`)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization
@@ -916,7 +916,7 @@ mfn-node/           Reference daemon (mfnd) composition layer
                     M2.1.7: append `encode_block` to `chain.blocks` after each `step` apply.
                     Env seeds unchanged for `step`.
 
-mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integration, 1 ignored)
+mfn-light/          Light-client follower      (59 passing: 41 unit + 18 integration, 1 ignored)
 ├── chain.rs        LightChain: tracks tip pointer, trusted validator set,
 │                   AND the shadow state needed to evolve that set across
 │                   rotations (validator_stats, pending_unbonds,
@@ -946,7 +946,7 @@ mfn-light/          Light-client follower      (58 passing: 41 unit + 17 integra
                     indefinitely from a single genesis bootstrap, AND
                     survives restarts via M2.0.9 checkpoint serialization.
 
-mfn-wallet/         Confidential wallet (M2.0.11 + M2.0.14) (42 passing: 37 unit + 5 e2e integration)
+mfn-wallet/         Confidential wallet (M2.0.11 + M2.0.14) (49 passing: 43 unit + 6 e2e integration)
 ├── keys.rs         WalletKeys (wraps StealthWallet) + wallet_from_seed
 │                   (deterministic seed → keys via domain-separated
 │                    hash_to_scalar with MFW_SEED_VIEW_V1 / MFW_SEED_SPEND_V1

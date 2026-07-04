@@ -8,7 +8,7 @@ For the vision and context, start with [`docs/OVERVIEW.md`](./docs/OVERVIEW.md).
 
 ## What we want
 
-- **Tests for everything.** Every new function, every new state-transition rule, every new error variant gets a test. The repo currently has 279 passing tests for a reason.
+- **Tests for everything.** Every new function, every new state-transition rule, every new error variant gets a test. The repo currently has **1,217** passing workspace tests (34 additional `#[ignore]` nightly/deep harnesses) for a reason.
 - **No `unsafe`.** Workspace-level `#![forbid(unsafe_code)]`. If your change can't avoid `unsafe`, the answer is almost certainly "find a different approach."
 - **Determinism.** Anything that touches consensus must be byte-deterministic across runs and platforms. Integer math only; explicit endianness; no `f64` in consensus paths.
 - **Domain separation.** New hash purposes need new domain tags in [`mfn-crypto/src/domain.rs`](./mfn-crypto/src/domain.rs). Reusing a tag for a different purpose is a hard fork by design.
