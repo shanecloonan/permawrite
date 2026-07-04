@@ -17,9 +17,9 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.3** pushed (`95739e4`). | **Done** — CI #505 green (all OS). | RC Validation → Nightly #50. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.3** pushed (`95739e4`). | **Done** — CI #505 green (all OS). | Monitor Nightly #49. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.3** evidence. | **Done** — `release-evidence-95739e4` + RC audit dry-run (go). | Operator sign-off after Nightly #49. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.3** mempool harness. | **Done** — ring-16 node tests on `95739e4`. | Nightly #50 after green CI. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.3** mempool harness. | **Done** — ring-16 node tests on `95739e4`. | Nightly #49 in flight. |
 
 ## Recently Completed
 
@@ -37,11 +37,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### In Progress
 
-- [ ] RC Validation → Nightly #50 (ignored + participant + observer rehearsal).
+- [ ] Monitor Nightly #49 (RC Validation #35 dispatched after CI #505).
 
 ### Next
 
-- [ ] RC Validation → Nightly #50 (ignored + participant + observer rehearsal).
+- [ ] Nightly #49 green (ignored + participant + observer rehearsal).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -54,7 +54,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] Full green Nightly #50.
+- [ ] Full green Nightly #49.
 
 ## Agent 2 Detailed Plan
 
@@ -64,10 +64,12 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ## Shared Release-Candidate Gates
 
 - Green GitHub CI — **PASS** CI #505 on `95739e4` (1h 10m, all OS).
-- Nightly ignored — **PASS** (#48); full Nightly rehearsal — **NEXT** (#50).
+- RC Validation — **PASS** #35 → Nightly #49 dispatched.
+- Nightly — **IN PROGRESS** #49 (checkout_sha=`95739e4`).
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- CI #506 in flight on docs commit `2c8ac87` — do not push until complete.
+- Nightly #49 in flight on `95739e4` — monitor participant + observer rehearsal.
+- CI #503 ring-2/4/8 fixed in M2.5.3; CI #505 green.

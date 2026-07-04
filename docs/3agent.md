@@ -4,19 +4,20 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** RC Validation → Nightly #50 after CI #505 green on `95739e4`.
-- **Done:** M2.5.3 pushed; CI #505 green (all OS).
-- **Next:** RC Validation → Nightly #50.
+- **Doing:** Monitor Nightly #49 on `95739e4`.
+- **Done:** M2.5.3 pushed; CI #505 all-OS green.
+- **Next:** Linux soak audit; operator sign-off.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Doing:** `release-evidence-95739e4` + RC audit dry-run.
+- **Done:** `release-evidence-95739e4` + RC audit dry-run (decision=go).
+- **Next:** Operator sign-off after Nightly #49.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** M2.5.3 mempool/mfnd/runtime ring-16 harness; CI #505 green.
-- **Next:** Nightly #50.
+- **Done:** M2.5.3 mempool/mfnd/runtime ring-16 harness.
+- **Next:** Nightly #49 green.
 
 ## Cross-Agent Blockers
 
-- CI #505 green — proceed with RC Validation and Nightly #50.
+- Nightly #49 in flight — monitor participant + observer rehearsal on `95739e4`.

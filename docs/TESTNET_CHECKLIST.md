@@ -145,7 +145,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.2** — integration ring-2 decoys + multi-output validator coinbase; checkpoint tamper byte offsets (`434b444`).
 - [x] **M2.5.3** — mempool_integration + mfnd_smoke + mfn-runtime/mempool ring-16 (`95739e4`).
 - [x] Green GitHub CI on M2.5.3 fix commit (CI #505, all OS).
-- [ ] RC Validation → Nightly #50 with M2.4.86–88 rehearsal + M2.5.0 consensus.
+- [x] `release-evidence-95739e4` + RC audit dry-run (decision=go).
+- [x] RC Validation #35 → Nightly #49 dispatched (`95739e4`).
+- [ ] Nightly #49 green (ignored + participant + observer rehearsal).
 
 ## Agent 3 â€” Wallet, Storage, Faucet/Test Funding, Onboarding
 
