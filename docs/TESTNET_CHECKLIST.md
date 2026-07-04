@@ -2,6 +2,18 @@
 
 Permawrite is pre-audit experimental software. This checklist tracks the minimum operator, RPC, security, observability, and release hardening needed before any internet-facing public testnet.
 
+## Agent coordination (all parallel lanes)
+
+- **Master board:** [`AGENTS.md`](../AGENTS.md) — lane registry, conflict rules, backlog, cross-lane requests.
+- **Per-lane checklists:** [`docs/AGENTS.md`](./AGENTS.md) — lanes 1–3 (RC / former 3agent) and lanes 4–6 (protocol hardening, privacy surface, permanence depth).
+- **Legacy pointer:** [`3agent.md`](../3agent.md) — lanes 1–3 only; do not add new lanes there.
+- **Before starting work:** claim a lane in `AGENTS.md`; do not duplicate in-progress units listed on the current board.
+- **Done / Doing / Next (mandatory):** every agent announces what they finished, what they are doing, and what they will do next — in chat and on the boards. See [`AGENTS.md` § Agent announcement protocol](../AGENTS.md#agent-announcement-protocol-mandatory).
+- **After landing a unit:** update `AGENTS.md`, `docs/AGENTS.md`, and (if RC-related) the sections below.
+- [x] **M5.31** (lane 4) — consensus + `apply_block` reject non-uniform ring sizes across inputs.
+- [x] **M5.32** (lane 4) — mempool `admit` rejects non-uniform ring before accept.
+- [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
+
 ## Agent 2: RPC, Security, Operations, Observability, CI
 
 - [x] Classify JSON-RPC methods as `public-safe`, `wallet-write`, or `operator-admin` in `list_methods`.
