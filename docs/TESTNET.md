@@ -63,7 +63,7 @@ Pick the lightest role that matches what you want to test:
 |------|------------|-----------------------|
 | Observer | Run `start-all` locally or start `mfnd serve` with no validator env | Verify the public `genesis_id`, follow tips, query RPC, and report divergence. |
 | Wallet user | Connect `mfn-cli --rpc <RPC>` to a synced node | Create a wallet, scan/balance, upload data, publish claims, and retrieve local artifacts. |
-| Storage operator | Run a synced node plus `mfn-storage-operator` / `mfn-cli operator ...` | Replicate chunks, assemble artifacts, submit SPoRA proofs, and restore payload bytes. |
+| Storage operator | `mfn-storage-operator` / `mfn-cli operator ...` against **any** synced RPC (your own `mfnd` observer or a public one) | Replicate chunks, assemble artifacts, submit SPoRA proofs, and restore payload bytes. See [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md). |
 | Validator candidate | Follow the operator invite list and [replace every public test seed](../scripts/public-devnet-v1/OPERATORS.md#replacing-public-test-keys) before real deployments | Produce or vote on devnet blocks while keeping RPC private and P2P reachable. |
 
 Minimal participant path:

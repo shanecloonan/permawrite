@@ -440,15 +440,14 @@ Note the per-slot rate is derived from the **protocol-required** endowment
 (`required_endowment`), not from whatever amount the uploader actually
 committed — over-payment buys privacy headroom, not extra yield. `apply_block`
 calls this whenever it verifies a SPoRA proof, takes `payout`, and adds it to
-the block's storage-reward total (paid via the producer's coinbase).
+the block's storage-reward total.
 
-> **Who actually receives this reward?** The block **producer**, not
-> (necessarily) the operator that proved the data. `StorageProof` has no
-> operator payout field, so a non-producing operator earns nothing on-chain for
-> a proof it submits. This is a known, high-severity incentive gap — see
-> [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)
-> and [`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics) — with an
-> operator-direct payout milestone tracked in the roadmap.
+> **Who actually receives this reward?** Each accepted proof carries
+> `operator_view_pub` / `operator_spend_pub` on the wire. Settlement mints
+> coinbase outputs 1..N to those operator stealth keys (outputs 0 = producer
+> subsidy + fee share). A home storage operator is paid directly without also
+> winning VRF leader election. See [`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics)
+> and [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md).
 
 ---
 
@@ -635,6 +634,7 @@ Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_
 
 ## See also
 
+- [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — can normal devices be storage operators? (feasibility vs Arweave-style hardware)
 - [`ECONOMICS.md`](./ECONOMICS.md) — full derivation of the endowment formula + parameter sensitivity
 - [`PRIVACY.md`](./PRIVACY.md) — the privacy half (which funds this half)
 - [`CONSENSUS.md`](./CONSENSUS.md) — how SPoRA proofs are gated by block production

@@ -171,52 +171,43 @@ use, but it is an undocumented value sink and a trap for anyone repurposing
 legacy mode with real value. (Also: fee-split accounting in this mode does not
 match the ECONOMICS.md money-flow diagram, which assumes a producer exists.)
 
-### 17. Storage rewards are paid to the block producer, not to the operator that proved the data
+### 17. ~~Storage rewards are paid to the block producer, not to the operator that proved the data~~ (resolved)
 
-This is the most important incentive gap relative to the project's thesis
+> **Status: closed** (operator-direct payout shipped). Each [`StorageProof`](../mfn-storage/src/spora.rs) now carries `operator_view_pub` / `operator_spend_pub`; [`apply_block`](../mfn-consensus/src/block/apply.rs) settlement mints per-operator coinbase outputs (see [`mfn-consensus::coinbase`](../mfn-consensus/src/coinbase.rs)). Consumer storage feasibility is discussed in [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md).
+
+**Historical note (pre-fix).** This was the most important incentive gap relative to the project's thesis
 ("storage operators are paid to keep data alive forever"), and it was
 previously mis-described by the economics illustration.
 
-In the implementation, a [`StorageProof`](../mfn-storage/src/spora.rs) carries
-only `{ commit_hash, chunk, proof }` — **there is no operator identity or
+Previously, a [`StorageProof`](../mfn-storage/src/spora.rs) carried
+only `{ commit_hash, chunk, proof }` — **there was no operator identity or
 payout address**. In [`apply_block`](../mfn-consensus/src/block/apply.rs)'s
 settlement phase, the reward for every accepted proof (`storage_proof_reward`
-per proof, plus any PPB endowment-yield bonus) is summed into
+per proof, plus any PPB endowment-yield bonus) was summed into
 `storage_reward_total` and folded into `expected_reward = subsidy +
-producer_fee + storage_reward_total`, which is the amount the **producer's
-coinbase** must pay. Operators submit proofs through the runtime proof pool /
-`submit_storage_proof` RPC; the current block producer drains that pool,
-includes the proofs, and collects the reward.
+producer_fee + storage_reward_total`, which was the amount the **producer's
+coinbase** had to pay. Operators submitted proofs through the runtime proof pool /
+`submit_storage_proof` RPC; the current block producer drained that pool,
+included the proofs, and collected the reward.
 
-Consequences:
+Consequences (before the fix):
 
-- A storage operator that is **not** the current block producer receives
+- A storage operator that was **not** the current block producer received
   **nothing** on-chain for holding and proving data. Its only realized income
-  requires also winning VRF leader election and producing the block that
-  carries its own proof.
-- Because the submitted proof already contains the chunk bytes, a producer can
+  required also winning VRF leader election and producing the block that
+  carried its own proof.
+- Because the submitted proof already contained the chunk bytes, a producer could
   bank a proof relayed by an operator and keep the reward, contributing
   nothing to storage itself.
-- This concentrates all permanence income in the validator/producer set,
-  which is in tension with "maximally decentralized" storage.
+- This concentrated all permanence income in the validator/producer set,
+  which was in tension with "maximally decentralized" storage.
 
-Note the internal documentation tension this entry resolves:
-[`STORAGE.md § 5`/`§ 7`](./STORAGE.md#5-per-slot-payout-to-operators) already
-state the reward is "paid via the producer's coinbase," while
-[`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics) and the
-`money-flow` illustration previously depicted a **distinct** storage-operator
-wallet being paid directly by the treasury. The code is the source of truth:
-the operator-direct payment path does not exist yet.
-
-**Deferred fix (its own milestone; wire-format + consensus change).** Add an
-operator stealth payout address to `StorageProof`, extend the proof codec and
-`storage_proof_leaf_hash` (new golden vectors), and in `apply_block` settlement
-emit per-proof payout outputs to each proof's operator (or a dedicated
-payout-tx class) drained from the treasury/backstop on the same accounting
-footing as today's storage rewards — instead of crediting the producer
-coinbase. Until then, the honest reading of the design is that a storage
-operator must also run as a producer to be compensated. Tracked in
-[`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-questions) and
+**Fix shipped:** operator stealth payout keys in `StorageProof`, extended proof
+codec + `storage_proof_leaf_hash` golden vectors, and per-proof coinbase outputs
+drained from the treasury/backstop on the same accounting footing as before —
+instead of crediting only the producer coinbase. Residual concern: proof
+inclusion is still a latency race to producers ([§ 6](#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)).
+Tracked historically in [`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-questions) and
 [`ROADMAP.md`](./ROADMAP.md).
 
 ### 18. No consensus-enforced minimum or uniform ring size (privacy is wallet policy, not protocol law)

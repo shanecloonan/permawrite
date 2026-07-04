@@ -20,6 +20,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🧷 [**M1_VALIDATOR_ROTATION.md**](./M1_VALIDATOR_ROTATION.md) — Milestone M1: validator bond/unbond, churn caps, epoch model (spec + code map).
 - 🔒 [**PRIVACY.md**](./PRIVACY.md) — the privacy half. Stealth addresses, Pedersen commitments, CLSAG, Bulletproofs, decoy selection, OoM, the counterfeit-input attack and how we closed it.
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
+- 💻 [**STORAGE_ACCESSIBILITY.md**](./STORAGE_ACCESSIBILITY.md) — feasibility of consumer-grade storage (vs Arweave-style hardware), current gaps, and roadmap.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
