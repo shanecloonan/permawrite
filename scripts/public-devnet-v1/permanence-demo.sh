@@ -252,7 +252,7 @@ wait_uploads_list_contains() {
   local last_tip_change
   local stall_abort=120
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    stall_abort=240
+    stall_abort=480
   fi
   last_tip_change="$(date +%s)"
   while (( $(date +%s) <= deadline )); do

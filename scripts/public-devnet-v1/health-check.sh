@@ -33,7 +33,13 @@ query_status() {
   local host port line
   host="${addr%:*}"
   port="${addr##*:}"
-  line=$(echo "$REQ" | nc -w 3 "$host" "$port" 2>/dev/null || true)
+  line=""
+  if command -v nc >/dev/null 2>&1; then
+    line=$(echo "$REQ" | nc -w 3 "$host" "$port" 2>/dev/null || true)
+  fi
+  if [[ -z "$line" ]] && command -v curl >/dev/null 2>&1; then
+    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$REQ" "http://${host}:${port}/" 2>/dev/null || true)
+  fi
   if [[ -z "$line" ]]; then
     echo "health-check: $name RPC unreachable at $addr" >&2
     return 1

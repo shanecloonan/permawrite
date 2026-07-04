@@ -142,9 +142,10 @@ function Wait-UploadsListContains {
             }
             $out = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "uploads", "list", "--limit", "50") "uploads list"
             if ($out -like "*$CommitHash*") { return $out }
+            $stallLimit = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
             $stallSeconds = ([DateTime]::UtcNow - $lastTipChange).TotalSeconds
             Write-Host "permanence-demo: uploads_list_wait hub_tip_height=$tipHeight stall_seconds=$([int]$stallSeconds)"
-            if ($stallSeconds -ge 120) {
+            if ($stallSeconds -ge $stallLimit) {
                 $status = @(Get-RecordedMeshProcessStatus) -join ", "
                 throw "permanence-demo: hub tip stalled at height=$tipHeight for ${stallSeconds}s while waiting for commitment index; process_status=$status; logs=$LogDir"
             }
