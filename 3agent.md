@@ -18,7 +18,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
 | Agent 1 | Core protocol, consensus, economics | **M2.5.3** pushed (`95739e4`). | **Done** — CI #505 green (all OS). | RC Validation → Nightly #50. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.3** evidence. | **Ready** — CI #505 green. | `release-evidence-95739e4` + RC audit dry-run. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.3** evidence. | **Done** — `release-evidence-95739e4` + RC audit dry-run (go). | Operator sign-off after Nightly #49. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.3** mempool harness. | **Done** — ring-16 node tests on `95739e4`. | Nightly #50 after green CI. |
 
 ## Recently Completed
@@ -42,7 +42,6 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 ### Next
 
 - [ ] RC Validation → Nightly #50 (ignored + participant + observer rehearsal).
-- [ ] `release-evidence-<sha>` + RC audit dry-run.
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -55,20 +54,20 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] Full green Nightly #50 — blocked on green CI #505.
+- [ ] Full green Nightly #50.
 
 ## Agent 2 Detailed Plan
 
-- [ ] `release-evidence-95739e4` after CI #505 green.
-- [ ] Operator sign-off after Nightly + Linux soak.
+- [x] `release-evidence-95739e4` + RC audit dry-run (decision=go).
+- [ ] Operator sign-off after Nightly #49 + Linux soak.
 
 ## Shared Release-Candidate Gates
 
 - Green GitHub CI — **PASS** CI #505 on `95739e4` (1h 10m, all OS).
-- Nightly ignored — **PASS** (#48); full Nightly rehearsal — pending green CI.
+- Nightly ignored — **PASS** (#48); full Nightly rehearsal — **NEXT** (#50).
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- CI #503 failed on ring-2/4/8 — fixed in M2.5.3 (`95739e4`); CI #505 green.
+- CI #506 in flight on docs commit `2c8ac87` — do not push until complete.

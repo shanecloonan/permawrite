@@ -14,8 +14,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Done:** M2.5.3 mempool/mfnd/runtime ring-16 harness.
-- **Next:** Nightly #50 after CI green.
+- **Done:** M2.5.3 mempool/mfnd/runtime ring-16 harness; CI #505 green.
+- **Next:** Nightly #50.
 
 ## Cross-Agent Blockers
 
