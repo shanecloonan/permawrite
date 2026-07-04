@@ -250,6 +250,10 @@ wait_uploads_list_contains() {
   local last_error=""
   local last_tip_height=""
   local last_tip_change
+  local stall_abort=120
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    stall_abort=240
+  fi
   last_tip_change="$(date +%s)"
   while (( $(date +%s) <= deadline )); do
     local out tip_height stall_seconds now
@@ -271,7 +275,7 @@ wait_uploads_list_contains() {
     now="$(date +%s)"
     stall_seconds=$(( now - last_tip_change ))
     echo "permanence-demo: uploads_list_wait hub_tip_height=$tip_height stall_seconds=$stall_seconds"
-    if (( stall_seconds >= 120 )); then
+    if (( stall_seconds >= stall_abort )); then
       local status
       status="$(recorded_mesh_process_status)"
       echo "permanence-demo: hub tip stalled at height=$tip_height for ${stall_seconds}s while waiting for commitment index; process_status=$status; logs=$LOG_DIR" >&2

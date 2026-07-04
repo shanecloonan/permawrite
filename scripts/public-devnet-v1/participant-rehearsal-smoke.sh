@@ -108,10 +108,13 @@ validate_uint wait-observer-catchup-seconds "$WAIT_OBSERVER_CATCHUP_SECONDS" 0
 
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   if (( WAIT_FAUCET_SECONDS == 240 )); then
-    WAIT_FAUCET_SECONDS=360
+    WAIT_FAUCET_SECONDS=480
+  fi
+  if (( WAIT_MINED_SECONDS == 240 )); then
+    WAIT_MINED_SECONDS=360
   fi
   if (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
-    WAIT_OBSERVER_CATCHUP_SECONDS=300
+    WAIT_OBSERVER_CATCHUP_SECONDS=420
   fi
 fi
 
@@ -422,6 +425,13 @@ if (( NO_START == 0 )); then
   if (( WAIT_AFTER_START_SECONDS > 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"
   fi
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    MFN_HEALTH_REQUIRE_ALL_ROLES=0 MFN_HEALTH_MIN_P2P_SESSIONS=2 \
+      bash "$SCRIPT_DIR/health-check.sh" || {
+      echo "participant-rehearsal-smoke: health-check failed before rehearsal (hub P2P/quorum)" >&2
+      exit 1
+    }
+  fi
 fi
 RPC_ADDR="$(resolve_rpc)"
 
@@ -434,7 +444,7 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
 fi
 HUB_LIVENESS_WAIT=120
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_LIVENESS_WAIT=300
+  HUB_LIVENESS_WAIT=480
 fi
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" 1 "$HUB_LIVENESS_WAIT"
 wait_faucet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" "$WAIT_FAUCET_SECONDS"

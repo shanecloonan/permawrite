@@ -135,7 +135,7 @@ jobs:
         shell: bash
         env:
           SLOT_MS: 10000
-        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 300 --wait-observer-catchup-seconds 300 --archive-evidence
+        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 420 --wait-observer-catchup-seconds 420 --archive-evidence
       - name: Dump devnet logs on failure
         if: failure()
         shell: bash

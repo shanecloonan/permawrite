@@ -114,6 +114,64 @@ poll_voter_p2p() {
   done
   printf -v "$out_var" '%s' "$p2p"
 }
+
+resolve_mfn_cli() {
+  local bin="$REPO_ROOT/target/release/mfn-cli"
+  if [[ ! -x "$bin" ]]; then
+    bin="$REPO_ROOT/target/release/mfn-cli.exe"
+  fi
+  if [[ ! -x "$bin" ]]; then
+    return 1
+  fi
+  printf '%s\n' "$bin"
+}
+
+tip_height_from_rpc() {
+  local mfn_cli="$1" rpc_addr="$2" tip_out tip_height
+  if ! tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
+    printf 'unknown\n'
+    return
+  fi
+  tip_height="$(awk '{
+    for (i = 1; i <= NF; i++) {
+      if ($i ~ /^tip_height=/) {
+        sub(/^tip_height=/, "", $i)
+        print $i
+        exit
+      }
+    }
+  }' <<<"$tip_out")"
+  if [[ "$tip_height" == "none" ]]; then
+    printf '0\n'
+  elif [[ -n "$tip_height" ]]; then
+    printf '%s\n' "$tip_height"
+  else
+    printf 'unknown\n'
+  fi
+}
+
+wait_hub_tip_at_least() {
+  local hub_rpc="$1" min_height="$2" timeout_seconds="$3"
+  local mfn_cli deadline tip_height
+  mfn_cli="$(resolve_mfn_cli)" || {
+    echo "start-all: skip hub tip wait (mfn-cli not built)" >&2
+    return 0
+  }
+  deadline=$(( $(date +%s) + timeout_seconds ))
+  while :; do
+    tip_height="$(tip_height_from_rpc "$mfn_cli" "$hub_rpc")"
+    echo "start-all: hub_tip_wait tip_height=$tip_height min_height=$min_height"
+    if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= min_height )); then
+      return
+    fi
+    if (( $(date +%s) >= deadline )); then
+      echo "start-all: hub tip_height=$tip_height below min_height=$min_height after ${timeout_seconds}s; tail $LOG_DIR/v0.log:" >&2
+      tail -n 100 "$LOG_DIR/v0.log" 2>/dev/null >&2 || echo "(no v0.log)" >&2
+      exit 1
+    fi
+    sleep 5
+  done
+}
 V1_P2P=""
 V2_P2P=""
 poll_voter_p2p "$LOG_DIR/v1.log" V1_P2P
@@ -126,6 +184,33 @@ if [[ -z "$V1_P2P" || -z "$V2_P2P" ]]; then
 fi
 echo "Voter 1 P2P=$V1_P2P"
 echo "Voter 2 P2P=$V2_P2P"
+
+wait_voter_dial_hub() {
+  local max=120 v1_ok v2_ok i
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    max=300
+  fi
+  for i in $(seq 1 "$max"); do
+    v1_ok=0
+    v2_ok=0
+    grep -q mfnd_p2p_dial_ok= "$LOG_DIR/v1.log" 2>/dev/null && v1_ok=1
+    grep -q mfnd_p2p_dial_ok= "$LOG_DIR/v2.log" 2>/dev/null && v2_ok=1
+    if (( v1_ok && v2_ok )); then
+      echo "start-all: committee voters dialed hub (${i}s)"
+      return
+    fi
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( i % 30 == 0 )); then
+      echo "start-all: waiting for voter hub dials (${i}/${max}s) v1_ok=$v1_ok v2_ok=$v2_ok"
+    fi
+    sleep 1
+  done
+  echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
+  tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
+  tail -n 80 "$LOG_DIR/v2.log" 2>/dev/null >&2 || echo "(no v2.log)" >&2
+  exit 1
+}
+wait_voter_dial_hub
+
 if [[ "${MFN_DEVNET_NO_OBSERVER:-}" == "1" ]]; then
   echo "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
 else
@@ -183,3 +268,8 @@ for key in "${required_keys[@]}"; do
     exit 1
   fi
 done
+HUB_TIP_WAIT=120
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  HUB_TIP_WAIT=480
+fi
+wait_hub_tip_at_least "$HUB_RPC" 1 "$HUB_TIP_WAIT"

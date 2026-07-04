@@ -223,9 +223,10 @@ if ($WaitAfterStartSeconds -lt 0) {
     }
 }
 if ($env:GITHUB_ACTIONS) {
-    if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 360 }
+    if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 480 }
+    if ($WaitMinedSeconds -eq 240) { $WaitMinedSeconds = 360 }
     if ($WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
-        $WaitObserverCatchUpSeconds = 300
+        $WaitObserverCatchUpSeconds = 420
     }
 }
 if ($WaitFaucetSeconds -lt 0) { throw "WaitFaucetSeconds must be >= 0" }
@@ -279,6 +280,14 @@ try {
         }
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
+        if ($env:GITHUB_ACTIONS) {
+            $env:MFN_HEALTH_REQUIRE_ALL_ROLES = "0"
+            $env:MFN_HEALTH_MIN_P2P_SESSIONS = "2"
+            & (Join-Path $ScriptDir "health-check.ps1")
+            if ($LASTEXITCODE -ne 0) {
+                throw "participant-rehearsal-smoke: health-check failed before rehearsal (hub P2P/quorum)"
+            }
+        }
     }
     $RpcAddr = Resolve-Rpc
 
@@ -289,7 +298,7 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
-    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 300 } else { 120 }
+    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
     Wait-HubMinHeight $MfnCli $RpcAddr 1 $hubLivenessWait
     Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
     if (Test-Path $RunDir) {

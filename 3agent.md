@@ -17,41 +17,44 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.5** (`ec845fd`). | **Done** — CI #512 **GREEN** (all OS, ~1h11m). | Monitor Nightly #52 on `ec845fd`. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence. | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Operator sign-off after green Nightly #52. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.5** devnet CI hardening. | **Done** — voter P2P poll + hub liveness wait pushed. | Nightly #52 participant+observer green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.6** devnet quorum + block-production gates. | **In progress** — `wait_voter_dial_hub` + `wait_hub_tip_at_least` in `start-all`; CI mirror running. | Push → CI green → Nightly #53. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence (`ec845fd`). | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Refresh evidence after green Nightly on M2.5.6. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.6** rehearsal hardening. | **In progress** — GHA health-check gate + extended faucet/mined/upload/observer windows. | Nightly participant+observer green. |
 
 ## Recently Completed
 
-- **M2.5.5** (`ec845fd`) — ignored-test flake fix + devnet CI liveness; CI #512 **GREEN**; RC Validation #42 → Nightly #52.
+- **M2.5.5** (`ec845fd`) — ignored-test flake fix + devnet CI liveness v1; CI #512 **GREEN**; Nightly #52 ignored **PASS**.
 - **M2.5.4** (`9c76050`) — devnet ring-16 script defaults; CI #509 **GREEN**.
 - **Nightly #51** — **FAIL** on `9c76050` (all jobs; triaged → M2.5.5).
-- **M2.5.3** (`95739e4`) — node/mempool ring-16 harness; CI #505 **GREEN**.
 
-## Nightly #51 Post-Mortem (`9c76050`, run [28700355365](https://github.com/shanecloonan/permawrite/actions/runs/28700355365))
+## Nightly #52 Post-Mortem (`ec845fd`, run [28702756921](https://github.com/shanecloonan/permawrite/actions/runs/28702756921))
 
-| Job | Root cause |
-| --- | --- |
-| ignored-integration | Flaky `three_validators_all_produce` sortition log grep |
-| participant + observer | Hub liveness / faucet timeout on CI runners |
+| Job | Result | Notes |
+| --- | --- | --- |
+| ignored-integration | **PASS** (~11.8m) | M2.5.5 sortition flake fix confirmed |
+| participant-rehearsal-smoke | **FAIL** (~6.0m) | Hub block production / faucet funding timeout on slow Linux runner |
+| observer-rehearsal-smoke | **FAIL** (~6.2m) | Same class as participant |
 
-**M2.5.5 fix:** removed flaky assertion; `start-all` waits for voter P2P; rehearsal smoke waits for `tip_height >= 1` + longer CI faucet window.
+**M2.5.6 fix (local, uncommitted):**
+- `start-all` — `wait_voter_dial_hub` (300s GHA) before observer; `wait_hub_tip_at_least` (480s GHA) before return.
+- `participant-rehearsal-smoke` — GHA `health-check.sh` gate (`MFN_HEALTH_REQUIRE_ALL_ROLES=0`, `MFN_HEALTH_MIN_P2P_SESSIONS=2`); hub liveness 480s; faucet 480s; mined 360s.
+- `permanence-demo` — GHA upload stall abort 240s (was 120s).
+- `nightly.yml` — observer catchup/min-hub-height waits 420s (was 300s).
 
 ## Agent 1 Detailed Plan
 
 ### Done
 
-- [x] M2.5.5 pushed (`ec845fd`) — ignored-test + devnet CI liveness hardening.
-- [x] Local CI mirror green (`ci-check-m255.log`).
-- [x] CI #512 **GREEN** on `ec845fd` (all OS) — [run 28701096230](https://github.com/shanecloonan/permawrite/actions/runs/28701096230).
+- [x] M2.5.5 (`ec845fd`) — ignored-test flake fix; CI #512 **GREEN**; Nightly #52 ignored **PASS**.
 
 ### In Progress
 
-- [ ] Monitor **Nightly #52** on `ec845fd` (RC Validation #42 dispatched 2026-07-04T10:03Z).
+- [ ] **M2.5.6** — voter dial wait + hub tip wait in `start-all`; GHA health-check + timeout tuning.
 
 ### Next
 
-- [ ] Nightly #52 green (ignored + participant + observer).
+- [ ] Local CI mirror green on M2.5.6.
+- [ ] Push → CI green → RC Validation → Nightly #53.
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -59,27 +62,31 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Done
 
-- [x] M2.5.5 — `start-all` voter P2P readiness; rehearsal smoke hub liveness + CI wait tuning.
+- [x] M2.5.5 — voter P2P poll + rehearsal hub liveness wait (v1).
 
 ### In Progress
 
-- [ ] Nightly #52 participant + observer validation on `ec845fd`.
+- [ ] **M2.5.6** — `start-all` voter dial + hub tip wait; GHA health-check; faucet/mined/upload/observer tuning.
+
+### Next
+
+- [ ] Green Nightly participant + observer on M2.5.6 commit.
 
 ## Agent 2 Detailed Plan
 
 - [x] `release-evidence-ec845fd` + RC audit dry-run (go).
-- [x] Prior: `release-evidence-9c76050`, `release-evidence-95739e4`.
-- [ ] Operator sign-off after Nightly #52 + Linux soak.
+- [ ] Refresh release evidence after green Nightly on M2.5.6 commit.
+- [ ] Operator sign-off after Nightly + Linux soak.
 
 ## Shared Release-Candidate Gates
 
 - Green GitHub CI — **PASS** CI #512 on `ec845fd` (M2.5.5, all OS).
-- RC Validation — **PASS** #42 (dispatched Nightly #52 on `ec845fd`).
-- Nightly — **IN PROGRESS** #52 on `ec845fd`; #51 **FAIL** on `9c76050`.
+- RC Validation — **PASS** #42 (dispatched Nightly #52).
+- Nightly — **PARTIAL** #52 on `ec845fd` (ignored **PASS**; participant+observer **FAIL**); M2.5.6 fix in progress.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- RC gate open until Nightly #52 **GREEN** on exact commit `ec845fd`.
-- Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass.
+- Participant + observer Nightly still failing on slow GitHub Actions runners despite M2.5.5 hub liveness wait — M2.5.6 adds block-production gate in `start-all`.
+- Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.

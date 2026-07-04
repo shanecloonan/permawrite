@@ -177,6 +177,29 @@ if (-not $V1P2p -or -not $V2P2p) {
 }
 Write-Host "Voter 1 P2P=$V1P2p"
 Write-Host "Voter 2 P2P=$V2P2p"
+
+function Wait-VoterDialHub {
+    param([string]$V1LogPath, [string]$V2LogPath)
+    $max = if ($env:GITHUB_ACTIONS) { 300 } else { 120 }
+    for ($i = 1; $i -le $max; $i++) {
+        $v1Ok = (Test-Path $V1LogPath) -and (Select-String -Path $V1LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
+        $v2Ok = (Test-Path $V2LogPath) -and (Select-String -Path $V2LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
+        if ($v1Ok -and $v2Ok) {
+            Write-Host "start-all: committee voters dialed hub (${i}s)"
+            return
+        }
+        if ($env:GITHUB_ACTIONS -and ($i % 30 -eq 0)) {
+            Write-Host "start-all: waiting for voter hub dials ($i/${max}s) v1_ok=$v1Ok v2_ok=$v2Ok"
+        }
+        Start-Sleep -Seconds 1
+    }
+    Write-Host "start-all: voters failed to dial hub within ${max}s; tail logs:" -ForegroundColor Red
+    if (Test-Path $V1LogPath) { Get-Content $V1LogPath -Tail 80 | Write-Host }
+    if (Test-Path $V2LogPath) { Get-Content $V2LogPath -Tail 80 | Write-Host }
+    throw "Committee voters failed to dial hub within ${max}s"
+}
+Wait-VoterDialHub -V1LogPath $v1Log -V2LogPath $v2Log
+
 if ($env:MFN_DEVNET_NO_OBSERVER -eq "1") {
     Write-Host "Skipping observer (MFN_DEVNET_NO_OBSERVER=1)"
 } else {
@@ -247,3 +270,45 @@ foreach ($key in $required) {
         throw "start-all: $key missing from $PortsFile after startup"
     }
 }
+
+function Get-MfnCliPath {
+    $releaseDir = Join-Path (Join-Path $RepoRoot "target") "release"
+    $exe = if ($IsWindows -or $env:OS -eq "Windows_NT") { "mfn-cli.exe" } else { "mfn-cli" }
+    $path = Join-Path $releaseDir $exe
+    if (-not (Test-Path $path)) { return $null }
+    return $path
+}
+
+function Get-TipHeightText {
+    param([string]$MfnCli, [string]$RpcAddr)
+    $tipOut = & $MfnCli --rpc $RpcAddr tip 2>$null
+    if ($LASTEXITCODE -ne 0) { return "unknown" }
+    $tipText = ($tipOut | Out-String)
+    if ($tipText -match "(^|\s)tip_height=([0-9]+)") { return $Matches[2] }
+    if ($tipText -match "(^|\s)tip_height=none") { return "0" }
+    return "unknown"
+}
+
+function Wait-HubTipAtLeast {
+    param([string]$HubRpc, [int]$MinHeight, [int]$TimeoutSeconds)
+    $mfnCli = Get-MfnCliPath
+    if (-not $mfnCli) {
+        Write-Host "start-all: skip hub tip wait (mfn-cli not built)"
+        return
+    }
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        $tipHeight = Get-TipHeightText $mfnCli $HubRpc
+        Write-Host "start-all: hub_tip_wait tip_height=$tipHeight min_height=$MinHeight"
+        if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge $MinHeight) { return }
+        if ((Get-Date) -ge $deadline) {
+            Write-Host "start-all: hub tip_height=$tipHeight below min_height=$MinHeight after ${TimeoutSeconds}s; tail $($hubLog):" -ForegroundColor Red
+            if (Test-Path $hubLog) { Get-Content $hubLog -Tail 100 | Write-Host }
+            throw "Hub tip_height=$tipHeight below min_height=$MinHeight after ${TimeoutSeconds}s"
+        }
+        Start-Sleep -Seconds 5
+    } while ($true)
+}
+
+$hubTipWait = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
+Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight 1 -TimeoutSeconds $hubTipWait
