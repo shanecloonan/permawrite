@@ -81,7 +81,15 @@ jobs:
         run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --archive-evidence --wait-faucet-seconds 600 --wait-mined-seconds 480 --wait-upload-seconds 480 --wait-proof-seconds 480
       - name: Assert audit-ready rehearsal evidence staged
         if: success()
-        run: bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh
+        run: |
+          set -euo pipefail
+          bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh | tee /tmp/participant-evidence-assert.txt
+          {
+            echo "### Rehearsal evidence assert"
+            echo '```text'
+            cat /tmp/participant-evidence-assert.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload partial rehearsal evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -152,7 +160,15 @@ jobs:
         run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 420 --wait-observer-catchup-seconds 420 --wait-faucet-seconds 600 --wait-mined-seconds 480 --wait-upload-seconds 480 --wait-proof-seconds 480 --archive-evidence
       - name: Assert audit-ready rehearsal evidence staged
         if: success()
-        run: bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh
+        run: |
+          set -euo pipefail
+          bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh | tee /tmp/participant-evidence-assert.txt
+          {
+            echo "### Observer rehearsal evidence assert"
+            echo '```text'
+            cat /tmp/participant-evidence-assert.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload partial observer rehearsal evidence on failure
         if: failure()
         uses: actions/upload-artifact@v4

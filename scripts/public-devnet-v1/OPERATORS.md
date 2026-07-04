@@ -401,6 +401,20 @@ Quick RC dry-run with archived M2.4.70 soak evidence and the participant-rehears
 powershell -File scripts/public-devnet-v1/release-rc-audit-dry-run.ps1
 ```
 
+After green GitHub CI on `main`, refresh archived release evidence for the current HEAD (Agent 2 handoff). Fails closed unless CI is green unless `-AllowPendingCi` / `--allow-pending-ci`:
+
+```powershell
+powershell -File scripts/public-devnet-v1/release-evidence-refresh-for-head.ps1 `
+  -Notes "M2.5.12-14 evidence pipeline; Nightly #55 pending" `
+  -RunRcAuditDryRun
+```
+
+```bash
+bash scripts/public-devnet-v1/release-evidence-refresh-for-head.sh \
+  --notes "M2.5.12-14 evidence pipeline; Nightly #55 pending" \
+  --run-rc-audit-dry-run
+```
+
 Dispatch **CI Queue Cleanup**, **Nightly**, and **Linux Soak Audit** on GitHub Actions (requires `gh auth login` or `GH_TOKEN`/`GITHUB_TOKEN`):
 
 ```powershell

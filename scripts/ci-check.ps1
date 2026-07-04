@@ -142,6 +142,17 @@ if ($rcAuditObject.decision -ne "go") {
     [Console]::Error.WriteLine("release-rc-audit-dry-run.ps1 returned decision=$($rcAuditObject.decision)")
     exit 1
 }
+$refreshDir = Join-Path $env:TEMP ("permawrite-evidence-refresh-" + [Guid]::NewGuid().ToString("N"))
+powershell -NoProfile -File scripts/public-devnet-v1/release-evidence-refresh-for-head.ps1 -AllowPendingCi -Notes "ci-check smoke" -OutputDir $refreshDir | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$shortHead = (git rev-parse --short HEAD).Trim()
+$refreshJson = Join-Path $refreshDir "release-evidence-$shortHead.json"
+$refreshMd = Join-Path $refreshDir "release-evidence-$shortHead.md"
+if (-not (Test-Path -LiteralPath $refreshJson -PathType Leaf) -or -not (Test-Path -LiteralPath $refreshMd -PathType Leaf)) {
+    [Console]::Error.WriteLine("release-evidence-refresh-for-head.ps1 did not write expected evidence files")
+    exit 1
+}
+Remove-Item -Recurse -Force $refreshDir -ErrorAction SilentlyContinue
 $evidenceMarkdown = powershell -NoProfile -File scripts/public-devnet-v1/release-evidence.ps1 -Operator "ci-smoke" -SkipCiLookup
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $evidenceText = $evidenceMarkdown -join "`n"

@@ -161,7 +161,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #53 — **PARTIAL** on `f5f45bf` (ignored **PASS**; participant+observer **FAIL** ~302s smoke = `HUB_POLL_MAX=300`).
 - [x] **M2.5.7/M2.5.8** — 600s GHA startup polls (`eb64408`); health-check retry + curl fallback; hub tip≥2 (`4dbd5c7`).
 - [x] **M2.5.9** — shared `query_tip_height` get_status fallback (`318407a`/`96327da`).
-- [ ] GitHub CI green on M2.5.13 — **IN PROGRESS** CI #535 on `e84dd79`.
+- [ ] GitHub CI green on M2.5.14 — **IN PROGRESS** CI #537 on `9968e85`.
+- [ ] Agent 2 refresh `release-evidence-{short}` after green CI (**M2.5.15** helper).
 - [ ] Nightly #55 on M2.5.13 commit after RC Validation.
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
@@ -235,6 +236,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Assert audit-ready smoke evidence before nightly artifact upload (**M2.5.12**).
 - [x] RC audit dry-run asserts fixture evidence; nightly uploads partial evidence on failure (**M2.5.13**).
 - [x] CI mirror covers `release-rc-audit-dry-run`; nightly failure dumps tail `participant-rehearsal.log` (**M2.5.14**).
+- [x] `release-evidence-refresh-for-head` helper; nightly assert GHA step summary (**M2.5.15**).
 - [x] Add a public-devnet participant evidence fixture captured from a successful live rehearsal once the mesh runtime is stable enough to publish representative artifacts.
 - [x] Add observer-enabled participant rehearsal smoke (`-WithObserver` / `--with-observer`) with post-rehearsal hub and observer height gates (**M2.4.68**).
 - [x] Windows observer-enabled rehearsal smoke PASS with `min_hub_height >= 5` (**M2.4.68**, **M2.4.76** re-archived UTF-8 evidence `participant-rehearsal-observer-windows-20260703T140456Z.txt`).

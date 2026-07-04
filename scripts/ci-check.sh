@@ -91,6 +91,18 @@ then
   exit 1
 fi
 rm -f "$rc_audit_output"
+refresh_dir="$(mktemp -d -t permawrite-evidence-refresh.XXXXXX)"
+pwsh -NoProfile -File scripts/public-devnet-v1/release-evidence-refresh-for-head.ps1 \
+  -AllowPendingCi \
+  -Notes "ci-check smoke" \
+  -OutputDir "$refresh_dir" >/dev/null
+short_head="$(git rev-parse --short HEAD)"
+if [[ ! -f "$refresh_dir/release-evidence-${short_head}.json" || ! -f "$refresh_dir/release-evidence-${short_head}.md" ]]; then
+  echo "release-evidence-refresh-for-head.ps1 did not write expected evidence files" >&2
+  rm -rf "$refresh_dir"
+  exit 1
+fi
+rm -rf "$refresh_dir"
 pwsh -NoProfile -Command '
   $errors = @()
   foreach ($script in Get-ChildItem scripts -Filter *.ps1 -Recurse) {
