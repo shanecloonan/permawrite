@@ -149,9 +149,12 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] RC Validation #35 → Nightly #49 dispatched (`95739e4`).
 - [x] **M2.5.4** — devnet fund-wallet/participant-rehearsal default ring-16 (`9c76050`).
 - [x] Green GitHub CI on M2.5.4 (CI #509, all OS).
-- [x] `release-evidence-9c76050` + RC audit dry-run (decision=go).
-- [x] RC Validation #39 → Nightly #51 dispatched (`9c76050`).
-- [ ] Nightly #51 — **FAIL** on `9c76050` (all jobs: ignored flake + devnet CI liveness); **M2.5.5** fix pushed — await Nightly #52.
+- [x] **M2.5.5** — ignored-test flake + devnet CI liveness hardening (`ec845fd`).
+- [x] Green GitHub CI on M2.5.5 (CI #512, all OS).
+- [x] `release-evidence-ec845fd` + RC audit dry-run (decision=go).
+- [x] RC Validation #42 → Nightly #52 dispatched (`ec845fd`).
+- [ ] Nightly #52 — **IN PROGRESS** on `ec845fd` (M2.5.5 fix).
+- [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
 - [ ] Nightly #49/#50 — **FAIL** (pre-fix ring-size 8).
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding

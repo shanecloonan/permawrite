@@ -4,21 +4,21 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 ## Agent 1: Core Protocol, Consensus, Networking, Sync
 
-- **Doing:** **M2.5.5** — pushed; await CI + Nightly #52 on fix commit.
-- **Done:** M2.5.4 ring-16 devnet scripts; CI #509 green; Nightly #51 triaged (all jobs fail).
-- **Next:** RC Validation → Nightly #52 green.
+- **Doing:** Monitor Nightly #52 on `ec845fd`.
+- **Done:** M2.5.5 pushed; CI #512 **GREEN** (all OS); local CI mirror green.
+- **Next:** Nightly #52 green → Linux soak → operator sign-off.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
-- **Done:** `release-evidence-9c76050` + RC audit dry-run (go) on `6936c47`.
-- **Next:** Refresh release evidence after green Nightly on M2.5.5 commit.
+- **Done:** `release-evidence-ec845fd` + RC audit dry-run (go).
+- **Next:** Operator sign-off after Nightly #52 green.
 
 ## Agent 3: Wallet, Storage, Faucet, Onboarding
 
-- **Doing:** **M2.5.5** — pushed; hub liveness wait + voter readiness in start-all.
-- **Done:** M2.5.4 devnet ring-16 defaults.
-- **Next:** Green Nightly participant + observer on fix commit.
+- **Done:** M2.5.5 devnet voter readiness + hub liveness hardening.
+- **Doing:** Await Nightly #52 participant+observer on `ec845fd`.
+- **Next:** Onboarding polish after green Nightly.
 
 ## Cross-Agent Blockers
 
-- Nightly #51 failed (ignored flake + devnet CI liveness); M2.5.5 fix pushed — await Nightly #52.
+- Nightly #52 **IN PROGRESS** on `ec845fd` — RC gate open until all three nightly jobs pass.

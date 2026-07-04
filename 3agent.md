@@ -17,44 +17,41 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.5** Nightly #51 fix. | **Pushed** — ignored-test flake + devnet CI liveness hardening; await CI #512 + Nightly #52. | RC Validation → Nightly #52 green. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.4** evidence (`6936c47`). | **Done** — release evidence + RC audit on `9c76050`. | Refresh evidence after green Nightly on M2.5.5 commit. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.5** devnet CI hardening. | **Pushed** — voter readiness poll + hub liveness wait in rehearsal smoke. | Nightly participant+observer green. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.5** (`ec845fd`). | **Done** — CI #512 **GREEN** (all OS, ~1h11m). | Monitor Nightly #52 on `ec845fd`. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.5** evidence. | **Done** — `release-evidence-ec845fd` + RC audit dry-run (go). | Operator sign-off after green Nightly #52. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.5** devnet CI hardening. | **Done** — voter P2P poll + hub liveness wait pushed. | Nightly #52 participant+observer green. |
 
 ## Recently Completed
 
-- **M2.5.4** (`9c76050`/`6936c47`) — devnet ring-16 script defaults; CI #509 **GREEN**; release evidence archived.
-- **M2.5.3** (`95739e4`) — node/mempool ring-16 harness; CI #505 **GREEN** (all OS).
-- **Nightly #49** — ignored smokes **PASS**; participant + observer **FAIL** (pre-fix `--ring-size 8`).
-- **M2.5.0** (`0e10470`) — ring-16 privacy + operator-direct SPoRA coinbase.
+- **M2.5.5** (`ec845fd`) — ignored-test flake fix + devnet CI liveness; CI #512 **GREEN**; RC Validation #42 → Nightly #52.
+- **M2.5.4** (`9c76050`) — devnet ring-16 script defaults; CI #509 **GREEN**.
+- **Nightly #51** — **FAIL** on `9c76050` (all jobs; triaged → M2.5.5).
+- **M2.5.3** (`95739e4`) — node/mempool ring-16 harness; CI #505 **GREEN**.
 
 ## Nightly #51 Post-Mortem (`9c76050`, run [28700355365](https://github.com/shanecloonan/permawrite/actions/runs/28700355365))
 
-All three jobs **FAIL** (~6m, not full ~11m pass):
+| Job | Root cause |
+| --- | --- |
+| ignored-integration | Flaky `three_validators_all_produce` sortition log grep |
+| participant + observer | Hub liveness / faucet timeout on CI runners |
 
-| Job | Failed step | Root cause (confirmed) |
-| --- | --- | --- |
-| ignored-integration | `cargo test --ignored` | `three_validators_all_produce_converge_on_shared_tip` — flaky stdout grep for `mfnd_producer_slot_skip/advance` under 1.5-proposer sortition |
-| participant-rehearsal-smoke | rehearsal smoke (~5m) | Likely hub liveness / faucet reward timeout (ring-16 scripts OK; failure timing matches 90s start + 360s faucet window) |
-| observer-rehearsal-smoke | observer smoke (~5m) | Same class as participant (hub height / observer catchup) |
-
-**M2.5.5 fix plan:** remove flaky sortition log assertion (covered elsewhere); `start-all` waits for committee voter P2P before returning; `participant-rehearsal-smoke` adds explicit hub `tip_height >= 1` wait + longer CI faucet window.
+**M2.5.5 fix:** removed flaky assertion; `start-all` waits for voter P2P; rehearsal smoke waits for `tip_height >= 1` + longer CI faucet window.
 
 ## Agent 1 Detailed Plan
 
 ### Done
 
-- [x] M2.5.0–M2.5.4 core, integration, mempool, devnet script ring-16 alignment.
-- [x] Nightly #51 triage — all three jobs failed; root causes identified.
+- [x] M2.5.5 pushed (`ec845fd`) — ignored-test + devnet CI liveness hardening.
+- [x] Local CI mirror green (`ci-check-m255.log`).
+- [x] CI #512 **GREEN** on `ec845fd` (all OS) — [run 28701096230](https://github.com/shanecloonan/permawrite/actions/runs/28701096230).
 
 ### In Progress
 
-- [ ] **M2.5.5** — ignored-test flake fix + devnet startup/rehearsal CI hardening (**pushed**; await CI + Nightly #52).
+- [ ] Monitor **Nightly #52** on `ec845fd` (RC Validation #42 dispatched 2026-07-04T10:03Z).
 
 ### Next
 
-- [ ] Local CI mirror green on M2.5.5.
-- [ ] Push → wait CI green → RC Validation → Nightly #52 on exact commit.
+- [ ] Nightly #52 green (ignored + participant + observer).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**, ~35 min).
 - [ ] Operator sign-off.
 
@@ -62,32 +59,27 @@ All three jobs **FAIL** (~6m, not full ~11m pass):
 
 ### Done
 
-- [x] CLI/wallet/mempool ring-16; M2.5.4 devnet funding/rehearsal script defaults.
+- [x] M2.5.5 — `start-all` voter P2P readiness; rehearsal smoke hub liveness + CI wait tuning.
 
 ### In Progress
 
-- [ ] **M2.5.5** — `start-all` voter P2P readiness; rehearsal smoke hub liveness + CI wait tuning (**pushed**).
-
-### Next
-
-- [ ] Green Nightly participant + observer on fix commit.
+- [ ] Nightly #52 participant + observer validation on `ec845fd`.
 
 ## Agent 2 Detailed Plan
 
-- [x] `release-evidence-95739e4` + RC audit dry-run (go).
-- [x] `release-evidence-9c76050` + RC audit dry-run (go) on `6936c47`.
-- [ ] Refresh release evidence after Nightly green on M2.5.5 commit.
-- [ ] Operator sign-off after Nightly + Linux soak.
+- [x] `release-evidence-ec845fd` + RC audit dry-run (go).
+- [x] Prior: `release-evidence-9c76050`, `release-evidence-95739e4`.
+- [ ] Operator sign-off after Nightly #52 + Linux soak.
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — **PASS** CI #509 on `9c76050`; CI #511 on `6936c47` (docs-only). M2.5.5 fix commit — await CI #512.
-- RC Validation — **PASS** #39 (dispatched Nightly #51).
-- Nightly — **FAIL** #51 on `9c76050` (all jobs); #49/#50 **FAIL** (pre-fix ring-size 8).
+- Green GitHub CI — **PASS** CI #512 on `ec845fd` (M2.5.5, all OS).
+- RC Validation — **PASS** #42 (dispatched Nightly #52 on `ec845fd`).
+- Nightly — **IN PROGRESS** #52 on `ec845fd`; #51 **FAIL** on `9c76050`.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Nightly #51 blocked RC on `9c76050` despite ring-16 script fix — ignored-test flake + devnet CI liveness, not ring-size regression.
-- Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
+- RC gate open until Nightly #52 **GREEN** on exact commit `ec845fd`.
+- Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass.
