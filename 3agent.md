@@ -17,7 +17,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.1** ring-16 CI fix. | **Done (local)** — proptest coinbase uses `st.endowment_params`; 29/29 apply_block_proptest pass. | Push after ci-check green → Nightly #50. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.1** pushed (`0313f4d`). | **Done** — ring-16 test harness; local clippy + key tests green. | Monitor CI → Nightly #50. |
 | Agent 2 | Security, RPC, ops, release evidence | **M2.5.1** evidence. | **Waiting** — after green CI on fix commit. | Operator sign-off after Nightly + soak. |
 | Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.1** wallet ring-16. | **Done (local)** — `WALLET_MIN_RING_SIZE=16`, CLI smokes `--ring-size 16`. | Full Nightly #50 after CI green. |
 
@@ -36,12 +36,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] M2.5.1 clippy fixes (`apply.rs`, `spora.rs` doc, treasury test allows).
 - [x] M2.5.1 `apply_block_proptest` harness — ring-16 genesis decoys, multi-output coinbase via `st.endowment_params` (PPB fix).
 - [x] M2.5.1 `block_apply.rs` ring-16 rejection tests.
-- [x] M2.5.1 apply_block_proptest **29 passed / 5 ignored** locally.
+- [x] **M2.5.1** pushed (`0313f4d`) — ring-16 block_apply + emission_simulation fixes.
 
 ### In Progress
 
-- [ ] **M2.5.1** — full local CI mirror (`ci-check-m251-final.log`).
-- [ ] Push fix commit → green CI (CI #494 failed on bare `0e10470`).
+- [ ] Green GitHub CI on `0313f4d` (local ci-check running: `ci-check-m251-green.log`).
 - [ ] RC Validation → Nightly #50 (M2.4.86–88 rehearsal + M2.5.0 consensus).
 
 ### Next
