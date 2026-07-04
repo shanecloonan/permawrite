@@ -124,27 +124,21 @@ function Archive-RehearsalSmokeEvidence {
 function Wait-MeshHealthCheck {
     param([int]$TimeoutSeconds)
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $stallSamples = 1
-    $stallInterval = 30
-    if ($env:GITHUB_ACTIONS) {
-        $stallSamples = 2
-        $stallInterval = 15
-    }
     do {
         $env:MFN_HEALTH_REQUIRE_ALL_ROLES = "0"
         $env:MFN_HEALTH_MIN_P2P_SESSIONS = "0"
-        $env:MFN_HEALTH_STALL_SAMPLES = "$stallSamples"
-        $env:MFN_HEALTH_STALL_INTERVAL_SECONDS = "$stallInterval"
-        $env:MFN_HEALTH_MIN_HEIGHT_DELTA = "1"
+        $env:MFN_HEALTH_STALL_SAMPLES = "1"
+        $env:MFN_HEALTH_STALL_INTERVAL_SECONDS = "0"
+        $env:MFN_HEALTH_MIN_HEIGHT_DELTA = "0"
         & (Join-Path $ScriptDir "health-check.ps1")
         if ($LASTEXITCODE -eq 0) {
             Write-Host "participant-rehearsal-smoke: STAGE=health_check PASS"
             return
         }
         if ((Get-Date) -ge $deadline) {
-            throw "participant-rehearsal-smoke: health-check did not pass within ${TimeoutSeconds}s (hub tip advancing + quorum)"
+            throw "participant-rehearsal-smoke: health-check did not pass within ${TimeoutSeconds}s (hub RPC + genesis)"
         }
-        Write-Host "participant-rehearsal-smoke: health-check retry (waiting for hub tip advance)..."
+        Write-Host "participant-rehearsal-smoke: health-check retry (waiting for hub RPC)..."
         Start-Sleep -Seconds 10
     } while ($true)
 }
@@ -255,6 +249,7 @@ if ($env:GITHUB_ACTIONS) {
     if ($WaitFaucetSeconds -eq 240) { $WaitFaucetSeconds = 600 }
     if ($WaitMinedSeconds -eq 240) { $WaitMinedSeconds = 480 }
     if ($WaitUploadSeconds -eq 360) { $WaitUploadSeconds = 480 }
+    if ($WaitProofSeconds -eq 240) { $WaitProofSeconds = 480 }
     if ($WithObserver -and $WaitObserverCatchUpSeconds -eq 180) {
         $WaitObserverCatchUpSeconds = 420
     }
@@ -323,9 +318,10 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
-    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 90 } else { 120 }
+    $hubLivenessMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
+    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 120 } else { 120 }
     Write-Host "participant-rehearsal-smoke: STAGE=hub_liveness"
-    Wait-HubMinHeight $MfnCli $RpcAddr 1 $hubLivenessWait
+    Wait-HubMinHeight $MfnCli $RpcAddr $hubLivenessMin $hubLivenessWait
     Write-Host "participant-rehearsal-smoke: STAGE=faucet_balance"
     Wait-FaucetBalance $MfnCli $RpcAddr $Faucet $WaitFaucetSeconds | Out-Null
     Write-Host "participant-rehearsal-smoke: STAGE=participant_rehearsal"

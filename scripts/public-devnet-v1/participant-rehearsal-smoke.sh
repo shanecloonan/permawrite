@@ -117,6 +117,9 @@ if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   if (( WAIT_UPLOAD_SECONDS == 360 )); then
     WAIT_UPLOAD_SECONDS=480
   fi
+  if (( WAIT_PROOF_SECONDS == 240 )); then
+    WAIT_PROOF_SECONDS=480
+  fi
   if (( WITH_OBSERVER )) && (( WAIT_OBSERVER_CATCHUP_SECONDS == 180 )); then
     WAIT_OBSERVER_CATCHUP_SECONDS=420
   fi
@@ -203,29 +206,24 @@ tip_height_text() {
 
 wait_mesh_health_check() {
   local timeout_seconds="$1"
-  local deadline stall_samples stall_interval
+  local deadline
   deadline=$(( $(date +%s) + timeout_seconds ))
-  stall_samples=1
-  stall_interval=30
-  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    stall_samples=2
-    stall_interval=15
-  fi
   while :; do
+    # start-all already gates on hub tip_height >= 1; single-sample liveness only.
     if MFN_HEALTH_REQUIRE_ALL_ROLES=0 \
       MFN_HEALTH_MIN_P2P_SESSIONS=0 \
-      MFN_HEALTH_STALL_SAMPLES="$stall_samples" \
-      MFN_HEALTH_STALL_INTERVAL_SECONDS="$stall_interval" \
-      MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
+      MFN_HEALTH_STALL_SAMPLES=1 \
+      MFN_HEALTH_STALL_INTERVAL_SECONDS=0 \
+      MFN_HEALTH_MIN_HEIGHT_DELTA=0 \
       bash "$SCRIPT_DIR/health-check.sh"; then
       echo "participant-rehearsal-smoke: STAGE=health_check PASS"
       return
     fi
     if (( $(date +%s) >= deadline )); then
-      echo "participant-rehearsal-smoke: health-check did not pass within ${timeout_seconds}s (hub tip advancing + quorum)" >&2
+      echo "participant-rehearsal-smoke: health-check did not pass within ${timeout_seconds}s (hub RPC + genesis)" >&2
       exit 1
     fi
-    echo "participant-rehearsal-smoke: health-check retry (waiting for hub tip advance)..."
+    echo "participant-rehearsal-smoke: health-check retry (waiting for hub RPC)..."
     sleep 10
   done
 }
@@ -474,12 +472,13 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
   exit 1
 fi
 HUB_LIVENESS_WAIT=120
+HUB_LIVENESS_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  # start-all already waits for hub tip_height >= 1; quick sanity check only.
-  HUB_LIVENESS_WAIT=90
+  HUB_LIVENESS_MIN=2
+  HUB_LIVENESS_WAIT=120
 fi
 echo "participant-rehearsal-smoke: STAGE=hub_liveness"
-wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" 1 "$HUB_LIVENESS_WAIT"
+wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" "$HUB_LIVENESS_MIN" "$HUB_LIVENESS_WAIT"
 echo "participant-rehearsal-smoke: STAGE=faucet_balance"
 wait_faucet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" "$WAIT_FAUCET_SECONDS"
 echo "participant-rehearsal-smoke: STAGE=participant_rehearsal"

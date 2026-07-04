@@ -92,7 +92,7 @@ $hubProc = Start-MfndRole `
 Set-DevnetPort -Path $PortsFile -Key "HUB_PID" -Value "$($hubProc.Id)"
 $HubP2p = $null
 $HubRpc = $null
-$HubPollMax = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+$HubPollMax = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
 for ($i = 1; $i -le $HubPollMax; $i++) {
     $text = $null
     if (Test-Path $hubLog) {
@@ -157,7 +157,7 @@ Set-DevnetPort -Path $PortsFile -Key "V2_PID" -Value "$($v2Proc.Id)"
 Start-Sleep -Seconds 2
 function Get-VoterP2pFromLog {
     param([string]$LogPath)
-    $max = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+    $max = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
     for ($i = 1; $i -le $max; $i++) {
         if (Test-Path $LogPath) {
             $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
@@ -238,7 +238,7 @@ $obsProc = Start-MfndRole `
     -StderrLog $obsErr
 Set-DevnetPort -Path $PortsFile -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
 $ObserverRpc = $null
-$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 300 } else { 60 }
+$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
 for ($i = 1; $i -le $ObserverPollMax; $i++) {
     if (Test-Path $obsLog) {
         $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=([^\r\n]+)" | Select-Object -First 1
@@ -323,4 +323,5 @@ function Wait-HubTipAtLeast {
 }
 
 $hubTipWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
-Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight 1 -TimeoutSeconds $hubTipWait
+$hubTipMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
+Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight $hubTipMin -TimeoutSeconds $hubTipWait

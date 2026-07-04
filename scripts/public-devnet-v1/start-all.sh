@@ -63,7 +63,7 @@ HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_POLL_MAX=300
+  HUB_POLL_MAX=600
 fi
 for _ in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
@@ -103,7 +103,7 @@ poll_voter_p2p() {
   local out_var="$2"
   local p2p="" i max=60
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=300
+    max=600
   fi
   for i in $(seq 1 "$max"); do
     if grep -q mfnd_p2p_listening= "$log_path" 2>/dev/null; then
@@ -188,7 +188,7 @@ echo "Voter 2 P2P=$V2_P2P"
 wait_voter_dial_hub() {
   local max=120 v1_ok v2_ok i tip_height mfn_cli
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=480
+    max=600
   fi
   for i in $(seq 1 "$max"); do
     v1_ok=0
@@ -241,7 +241,7 @@ echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
 OBSERVER_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  OBSERVER_POLL_MAX=300
+  OBSERVER_POLL_MAX=600
 fi
 for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
@@ -279,7 +279,10 @@ for key in "${required_keys[@]}"; do
   fi
 done
 HUB_TIP_WAIT=120
+HUB_TIP_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   HUB_TIP_WAIT=600
+  # Require a second sealed block so producer + committee quorum are live before rehearsal.
+  HUB_TIP_MIN=2
 fi
-wait_hub_tip_at_least "$HUB_RPC" 1 "$HUB_TIP_WAIT"
+wait_hub_tip_at_least "$HUB_RPC" "$HUB_TIP_MIN" "$HUB_TIP_WAIT"

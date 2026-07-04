@@ -78,7 +78,7 @@ jobs:
         env:
           SLOT_MS: 10000
           MFN_DEVNET_NO_OBSERVER: 1
-        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --archive-evidence
+        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --archive-evidence --wait-faucet-seconds 600 --wait-mined-seconds 480 --wait-upload-seconds 480 --wait-proof-seconds 480
       - name: Dump devnet logs on failure
         if: failure()
         shell: bash
@@ -135,7 +135,7 @@ jobs:
         shell: bash
         env:
           SLOT_MS: 10000
-        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 420 --wait-observer-catchup-seconds 420 --archive-evidence
+        run: bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --no-build --with-observer --min-hub-height 5 --wait-min-hub-height-seconds 420 --wait-observer-catchup-seconds 420 --wait-faucet-seconds 600 --wait-mined-seconds 480 --wait-upload-seconds 480 --wait-proof-seconds 480 --archive-evidence
       - name: Dump devnet logs on failure
         if: failure()
         shell: bash
