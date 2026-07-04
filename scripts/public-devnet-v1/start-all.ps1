@@ -180,7 +180,7 @@ Write-Host "Voter 2 P2P=$V2P2p"
 
 function Wait-VoterDialHub {
     param([string]$V1LogPath, [string]$V2LogPath, [string]$HubRpc)
-    $max = if ($env:GITHUB_ACTIONS) { 480 } else { 120 }
+    $max = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
     $v1Ok = $false
     $v2Ok = $false
     for ($i = 1; $i -le $max; $i++) {

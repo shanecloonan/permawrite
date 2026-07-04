@@ -6,7 +6,8 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 
 - **Done:** M2.5.8 — 600s GHA startup polls; Nightly #54 post-mortem.
 - **Done:** M2.5.9 — shared `query_tip_height` on `main`.
-- **Next:** Green Nightly #55 → Linux soak → operator sign-off.
+- **Done:** M2.5.17 — Windows `start-all.ps1` GHA voter dial 600s parity (bash match).
+- **Next:** Green Nightly #55 on `4987913` → Linux soak → operator sign-off.
 
 ## Agent 2: Security, RPC, Ops, Release Readiness
 
@@ -19,7 +20,7 @@ See the root [`3agent.md`](../3agent.md) board for the latest cross-agent handof
 - **Done:** M2.5.14 — ci-check RC dry-run; nightly failure log tail.
 - **Done:** M2.5.15 — release-evidence refresh helper; nightly assert summary.
 - **Done:** M2.5.16 — schema-validate refresh output.
-- **Next:** Green CI #540 → Agent 2 evidence refresh → Nightly #55.
+- **Next:** CI #541 **GREEN** on `4987913`; monitor Nightly #55 → Agent 2 evidence refresh.
 
 ## Cross-Agent Blockers
 

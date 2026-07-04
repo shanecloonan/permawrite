@@ -17,12 +17,13 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 | Agent | Lane | Current Unit | Status | Next Handoff |
 | --- | --- | --- | --- | --- |
-| Agent 1 | Core protocol, consensus, economics | **M2.5.9** tip poll fallback. | **Done** — `96327da` on `main`. | Green Nightly #55 → Linux soak. |
-| Agent 2 | Security, RPC, ops, release evidence | **M2.5.16** schema-validated refresh. | **Done** — refresh validates schema. | Run after green CI on RC commit. |
-| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.16** refresh schema gate. | **Done** — `4ece816` on `main`. | Monitor CI #540 → Nightly #55. |
+| Agent 1 | Core protocol, consensus, economics | **M2.5.17** Windows voter-dial parity. | **Done** (local) — `start-all.ps1` GHA voter dial 600s. | Push → await CI #542. |
+| Agent 2 | Security, RPC, ops, release evidence | **M2.5.16** evidence refresh. | **Done** — `4ece816`/`4987913`; **CI #541 GREEN**. | Run `release-evidence-refresh-for-head` on `4987913`. |
+| Agent 3 | Wallet, storage, faucet, onboarding | **M2.5.16** assert + refresh stack. | **Done** — on `main`. | Monitor **Nightly #55** on `4987913`. |
 
 ## Recently Completed
 
+- **M2.5.17** (pushing) — `start-all.ps1` GHA voter hub-dial timeout 600s (bash parity; was 480s).
 - **M2.5.16** (`4ece816`) — schema-validate `release-evidence-refresh-for-head` output.
 - **M2.5.15** (`e6ba99e`) — `release-evidence-refresh-for-head`; nightly assert GHA step summary.
 - **M2.5.14** (`c55153f`) — ci-check RC dry-run coverage; nightly failure log tail.
@@ -48,9 +49,11 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 - [x] M2.5.8 — 600s GHA startup polls; Nightly #54 post-mortem.
 - [x] M2.5.9 — shared `query_tip_height` on `main`.
 
+- [x] M2.5.17 — Windows `start-all.ps1` GHA voter dial 600s parity.
+
 ### Next
 
-- [ ] Green Nightly #55 on M2.5.8+ stack.
+- [ ] **Nightly #55** on `4987913` (RC Validation after CI #541 green).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit**).
 - [ ] Operator sign-off.
 
@@ -72,8 +75,7 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ### Next
 
-- [ ] Green CI on M2.5.16 push → Agent 2 evidence refresh → Nightly #55.
-- [ ] Confirm assert gate passes on Nightly #55 participant+observer jobs.
+- [ ] Monitor **Nightly #55** on `4987913`; confirm assert gate on participant+observer.
 
 ## Agent 2 Detailed Plan
 
@@ -83,13 +85,14 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Shared Release-Candidate Gates
 
-- Green GitHub CI — M2.5.16 push pending (#540).
-- RC Validation — pending green CI.
+- Green GitHub CI — **GREEN** CI #541 on `4987913` (M2.5.16 `4ece816`).
+- RC Validation — should dispatch **Nightly #55** on `4987913`.
 - Nightly — **PARTIAL** #54; awaiting **#55** with M2.5.8+ + M2.5.9 tip fallback.
 - Linux 30s-slot soak — Windows done; Linux manual dispatch pending.
 - Human sign-off — pending.
 
 ## Cross-Agent Blockers
 
-- Nightly #52–#54 failed at ~302s (legacy hub P2P poll); M2.5.8+ fixes landed — need green #55 confirmation.
+- Nightly #52–#54 failed at ~302s (legacy hub P2P poll); M2.5.8+ fixes landed — **Nightly #55** is confirmation gate.
+- Batch M2.5.17 push after CI #541 green (do not cancel Nightly #55 dispatch window).
 - Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
