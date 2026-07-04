@@ -82,5 +82,5 @@ Permawrite is pre-audit experimental software. Do not mark public-testnet readin
 
 ## Cross-Agent Blockers
 
-- Participant + observer Nightly still failing on slow GitHub Actions runners despite M2.5.5 hub liveness wait — M2.5.6 adds block-production gate in `start-all`.
+- CI #514 must go green on `f5f45bf` before RC Validation dispatches Nightly #53.
 - Do **not** mark Nightly green until GitHub Actions confirms all three nightly jobs pass on the exact RC commit.
