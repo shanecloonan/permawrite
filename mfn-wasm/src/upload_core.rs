@@ -6,10 +6,15 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_consensus::{encode_transaction, tx_id, Recipient};
 use mfn_crypto::crypto_random;
 use mfn_crypto::point::point_from_bytes;
-use mfn_storage::{storage_commitment_hash, DEFAULT_ENDOWMENT_PARAMS};
+use mfn_storage::{
+    build_storage_proof, chunk_data, decode_storage_commitment, encode_storage_proof,
+    merkle_tree_from_chunks, storage_commitment_hash, verify_storage_proof,
+    DEFAULT_ENDOWMENT_PARAMS,
+};
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_storage_upload, estimate_minimum_fee_for_upload,
-    ClaimingIdentity, StorageUploadPlan, StoredOwnedOutput, TransferRecipient, UtxoDecoySource,
+    wallet_from_seed, ClaimingIdentity, StorageUploadPlan, StoredOwnedOutput, TransferRecipient,
+    UtxoDecoySource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -272,6 +277,135 @@ pub fn build_storage_upload_json(
     serde_json::to_string(&json).map_err(|e| WasmCoreError::Storage(e.to_string()))
 }
 
+fn prove_parse_hex32(field: &str, hex_str: &str) -> Result<[u8; 32], WasmCoreError> {
+    let t = hex_str.trim();
+    let t = t
+        .strip_prefix("0x")
+        .or_else(|| t.strip_prefix("0X"))
+        .unwrap_or(t);
+    if t.len() != 64 {
+        return Err(WasmCoreError::InvalidHex(format!(
+            "{field} must be 64 hex characters (got {})",
+            t.len()
+        )));
+    }
+    let mut out = [0u8; 32];
+    hex::decode_to_slice(t, &mut out)
+        .map_err(|e| WasmCoreError::InvalidHex(format!("{field}: {e}")))?;
+    Ok(out)
+}
+
+/// Build a SPoRA storage proof for the given payload and on-chain commitment (JSON).
+pub fn build_storage_proof_json(
+    seed_hex: &str,
+    data: &[u8],
+    prev_block_id_hex: &str,
+    slot: u32,
+    commitment_wire_hex: &str,
+) -> Result<String, WasmCoreError> {
+    let seed = crate::core::parse_seed_hex(seed_hex)?;
+    let prev = prove_parse_hex32("prev_block_id", prev_block_id_hex)?;
+    let wire = hex::decode(commitment_wire_hex.trim().trim_start_matches("0x"))
+        .map_err(|e| WasmCoreError::InvalidHex(format!("commitment_wire_hex: {e}")))?;
+    let commit = decode_storage_commitment(&wire)
+        .map_err(|e| WasmCoreError::Storage(format!("decode_storage_commitment: {e}")))?;
+    if u64::try_from(data.len()).unwrap_or(u64::MAX) != commit.size_bytes {
+        return Err(WasmCoreError::Storage(format!(
+            "data length {} != commitment size_bytes {}",
+            data.len(),
+            commit.size_bytes
+        )));
+    }
+    let chunks = chunk_data(data, commit.chunk_size as usize)
+        .map_err(|e| WasmCoreError::Storage(format!("chunk_data: {e}")))?;
+    let chunk_refs: Vec<&[u8]> = chunks.iter().map(|c| &c[..]).collect();
+    let tree =
+        merkle_tree_from_chunks(&chunk_refs).map_err(|e| WasmCoreError::Storage(e.to_string()))?;
+    if tree.root() != commit.data_root {
+        return Err(WasmCoreError::Storage(
+            "payload bytes do not match commitment data_root".into(),
+        ));
+    }
+    let keys = wallet_from_seed(&seed);
+    let proof = build_storage_proof(
+        &commit,
+        &prev,
+        slot,
+        data,
+        &tree,
+        keys.view_pub(),
+        keys.spend_pub(),
+    )
+    .map_err(|e| WasmCoreError::Storage(format!("build_storage_proof: {e}")))?;
+    let c_hash = storage_commitment_hash(&commit);
+    #[derive(Serialize)]
+    struct Out {
+        proof_wire_hex: String,
+        commitment_hash: String,
+        chunk_index: u32,
+    }
+    serde_json::to_string(&Out {
+        proof_wire_hex: hex::encode(encode_storage_proof(&proof)),
+        commitment_hash: hex::encode(c_hash),
+        chunk_index: proof.proof.index as u32,
+    })
+    .map_err(|e| WasmCoreError::Storage(e.to_string()))
+}
+
+/// Verify a SPoRA storage proof against commitment, prev block id, and slot (JSON).
+pub fn verify_storage_proof_json(
+    commitment_wire_hex: &str,
+    prev_block_id_hex: &str,
+    slot: u32,
+    proof_wire_hex: &str,
+) -> Result<String, WasmCoreError> {
+    let prev = prove_parse_hex32("prev_block_id", prev_block_id_hex)?;
+    let commit = decode_storage_commitment(
+        &hex::decode(commitment_wire_hex.trim().trim_start_matches("0x"))
+            .map_err(|e| WasmCoreError::InvalidHex(format!("commitment_wire_hex: {e}")))?,
+    )
+    .map_err(|e| WasmCoreError::Storage(format!("decode_storage_commitment: {e}")))?;
+    let proof = mfn_storage::decode_storage_proof(
+        &hex::decode(proof_wire_hex.trim().trim_start_matches("0x"))
+            .map_err(|e| WasmCoreError::InvalidHex(format!("proof_wire_hex: {e}")))?,
+    )
+    .map_err(|e| WasmCoreError::Storage(format!("decode_storage_proof: {e}")))?;
+    let check = verify_storage_proof(&commit, &prev, slot, &proof);
+    #[derive(Serialize)]
+    struct V {
+        valid: bool,
+        check: String,
+    }
+    serde_json::to_string(&V {
+        valid: check.is_valid(),
+        check: format!("{check:?}"),
+    })
+    .map_err(|e| WasmCoreError::Storage(e.to_string()))
+}
+
+/// Return one Merkle chunk of data as hex (JSON) for HTTP chunk serving.
+pub fn storage_chunk_hex_json(
+    data: &[u8],
+    chunk_size: u32,
+    index: u32,
+) -> Result<String, WasmCoreError> {
+    let chunks = chunk_data(data, chunk_size as usize)
+        .map_err(|e| WasmCoreError::Storage(format!("chunk_data: {e}")))?;
+    let chunk = chunks
+        .get(index as usize)
+        .ok_or_else(|| WasmCoreError::Storage(format!("chunk index {index} out of range")))?;
+    #[derive(Serialize)]
+    struct C {
+        index: u32,
+        chunk_hex: String,
+    }
+    serde_json::to_string(&C {
+        index,
+        chunk_hex: hex::encode(chunk),
+    })
+    .map_err(|e| WasmCoreError::Storage(e.to_string()))
+}
+
 fn decode_extra_hex(extra_hex: &str) -> Result<Vec<u8>, WasmCoreError> {
     let t = extra_hex.trim();
     if t.is_empty() {
@@ -295,5 +429,31 @@ mod tests {
         let s: u64 = serde_json::from_str(&small).expect("parse");
         let b: u64 = serde_json::from_str(&big).expect("parse");
         assert!(b >= s);
+    }
+    #[test]
+    fn wasm_build_and_verify_storage_proof_round_trip() {
+        use mfn_storage::{build_storage_commitment, DEFAULT_CHUNK_SIZE};
+        let data: Vec<u8> = (0..256 * 1024).map(|i| (i % 251) as u8).collect();
+        let built = build_storage_commitment(&data, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None)
+            .expect("commit");
+        let wire = hex::encode(mfn_storage::encode_storage_commitment(&built.commit));
+        let built_json = build_storage_proof_json(
+            &hex::encode([9u8; 32]),
+            &data,
+            &hex::encode([42u8; 32]),
+            7,
+            &wire,
+        )
+        .expect("build");
+        let v: serde_json::Value = serde_json::from_str(&built_json).expect("parse");
+        let verify_json = verify_storage_proof_json(
+            &wire,
+            &hex::encode([42u8; 32]),
+            7,
+            v["proof_wire_hex"].as_str().unwrap(),
+        )
+        .expect("verify");
+        let ok: serde_json::Value = serde_json::from_str(&verify_json).expect("parse verify");
+        assert_eq!(ok["valid"], true);
     }
 }

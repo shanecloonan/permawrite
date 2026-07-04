@@ -262,3 +262,23 @@ The codebase already separates consensus security from permanence breadth. The p
 - [`ECONOMICS.md`](./ECONOMICS.md) — fee split, treasury, operator payouts
 - [`PROBLEMS.md`](./PROBLEMS.md) — latency races, state growth, incentive gaps
 - [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — production runbook
+---
+
+## 8. Implementation log
+
+Assessment of §4 improvements against **absolute privacy** and **absolute permanence** (off-chain payloads, SPoRA verification, `min_replication`, no consensus weakening):
+
+| Item | Verdict | Notes |
+|---|---|---|
+| Prebuilt release binaries | **Shipped** | `.github/workflows/release-binaries.yml` |
+| Operator manifest discovery | **Shipped** | `NetworkManifest`, `MFN_OPERATOR_MANIFEST`, `--manifest`, `manifest-info` |
+| Operator env defaults | **Shipped** | `MFN_RPC`, `MFN_WALLET`; RPC-only operator path documented |
+| WASM prove + verify + chunk serve | **Shipped** | `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex` |
+| One-command storage daemon polish | **Partial** | Existing `mfn-storage-operator run`; further UX deferred |
+| Latency-fair SPoRA inclusion | **Deferred** | Protocol change; fairness tuning (Phase C) |
+| Tiered operator bonding | **Deferred** | Optional fork; weak defection penalty acceptable for accessibility today |
+| Erasure-coded replication | **Deferred** | Research; must preserve deterministic verification |
+| NAT traversal / relay | **Deferred** | Ops packaging; home operators can use HTTP + public RPC today |
+| Mobile / PWA wallet | **Deferred** | Product scope; WASM prove path unblocks browser operators |
+| Curated public observer mesh | **Deferred** | Manifest peer lists shipped; full mesh is community ops |
+| On-chain payloads / merge storage into validators / drop `min_replication` | **Declined** | Would weaken privacy or permanence guarantees |

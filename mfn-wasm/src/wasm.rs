@@ -52,7 +52,10 @@ use crate::scan_core::{scan_block_hex_json, scan_block_txs_json, scan_transactio
 #[cfg(feature = "wasm-full")]
 use crate::transfer_core::{build_transfer_json, decoy_pool_preview_json};
 #[cfg(feature = "wasm-full")]
-use crate::upload_core::{build_storage_upload_json, upload_min_fee_json};
+use crate::upload_core::{
+    build_storage_proof_json, build_storage_upload_json, storage_chunk_hex_json,
+    upload_min_fee_json, verify_storage_proof_json,
+};
 
 /// Scan a wire-encoded transaction (hex) for outputs owned by the wallet seed.
 ///
@@ -212,4 +215,36 @@ pub fn wasm_build_storage_upload(
 ) -> Result<String, JsValue> {
     let seed = parse_seed_hex(seed_hex).map_err(|e| js_err(e.to_string()))?;
     build_storage_upload_json(&seed, data, plan_json).map_err(|e| js_err(e.to_string()))
+}
+
+#[cfg(feature = "wasm-full")]
+/// Build a SPoRA storage proof from seed, payload bytes, and commitment wire hex.
+#[wasm_bindgen(js_name = buildStorageProof)]
+pub fn wasm_build_storage_proof(
+    seed_hex: &str,
+    data: &[u8],
+    prev_block_id_hex: &str,
+    slot: u32,
+    commitment_wire_hex: &str,
+) -> Result<String, JsValue> {
+    build_storage_proof_json(seed_hex, data, prev_block_id_hex, slot, commitment_wire_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
+#[cfg(feature = "wasm-full")]
+/// Verify a SPoRA storage proof; returns JSON `{ valid, check }`.
+#[wasm_bindgen(js_name = verifyStorageProof)]
+pub fn wasm_verify_storage_proof(
+    commitment_wire_hex: &str,
+    prev_block_id_hex: &str,
+    slot: u32,
+    proof_wire_hex: &str,
+) -> Result<String, JsValue> {
+    verify_storage_proof_json(commitment_wire_hex, prev_block_id_hex, slot, proof_wire_hex)
+        .map_err(|e| js_err(e.to_string()))
+}
+#[cfg(feature = "wasm-full")]
+/// Extract one chunk of payload data as hex for HTTP replication.
+#[wasm_bindgen(js_name = storageChunkHex)]
+pub fn wasm_storage_chunk_hex(data: &[u8], chunk_size: u32, index: u32) -> Result<String, JsValue> {
+    storage_chunk_hex_json(data, chunk_size, index).map_err(|e| js_err(e.to_string()))
 }
