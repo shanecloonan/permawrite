@@ -11,7 +11,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 ### Just want to understand what this is?
 
 - 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Intuition first, with links to the technical specs.
-- 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network (freedom, incentives, economics).
+- 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network: freedom, incentives, economics, and why no single actor should control money or information.
 - 📊 [**STORAGE_COST_MODEL.md**](./STORAGE_COST_MODEL.md) — per-gigabyte endowment projections, Kryder scenarios, and fiat equivalents at default params.
 - 📚 [**GLOSSARY.md**](./GLOSSARY.md) — every acronym and protocol-specific term, alphabetical. Reach for it whenever you hit unfamiliar jargon.
 
@@ -30,6 +30,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).
+- 🎲 [**CASINO_RANDOMNESS_FEASIBILITY.md**](./CASINO_RANDOMNESS_FEASIBILITY.md) — can a chain-native, provably fair casino fund the treasury/endowment? Determinism vs randomness, pros/cons, architectural verdict (not a roadmap item).
 
 ### Want to know what's next?
 
