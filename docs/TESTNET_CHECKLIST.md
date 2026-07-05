@@ -32,6 +32,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.28** (lane 2) — extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (`dc2e032`).
 - [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (`4bd43f2`).
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
+- [ ] **M7.11.2** (lane 3, this commit) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md`.
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
@@ -199,7 +200,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #56 on `4bd43f2` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~13m).
 - [x] **M2.5.30** (lane 2) - bash validate-workflow-encoding guard path parity (`2eb8417`).
 - [x] **M2.5.31** (lane 1, `0e0de4e`) — voter-dial/health 900s; nightly rehearsal jobs 90m → **Nightly #57**.
-- [ ] **M2.5.32** (lane 2, this commit) — `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md`.
+- [x] **M2.5.32** (lane 2) — `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` (`a35b7a6`).
 - [ ] CI green on `f4b5e37` (CI #622) → **Nightly #57** all three jobs green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).

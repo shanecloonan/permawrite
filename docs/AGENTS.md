@@ -85,9 +85,15 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.21 — preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
 - [x] B-05 — Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
 - [x] M2.5.22 — wasm-pack `wasm-opt=false` (`0dcb1e9`).
+- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (`001e2c6`).
+- [x] M2.5.26 - UTF-8 guard for agent boards in validate-workflow-encoding (`c71e9c3`).
+- [x] M2.5.27 - restore per-lane checklists + board sync (`e0a7ebd`).
+- [x] M2.5.28 - extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (`dc2e032`).
+- [x] M2.5.29 - `.gitattributes` UTF-8 pins for boards (`4bd43f2`).
+- [x] M2.5.30 - bash validate-workflow-encoding guard path parity (`2eb8417`).
+- [x] M2.5.32 - `.gitignore` debris patterns; board mojibake guard; clean docs/AGENTS rebuild (`a35b7a6`).
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
-- [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
 - [x] M6.9 — storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
 
 - [x] M2.4.90 — `ci-check.sh` thread cap parity (this commit).
@@ -112,10 +118,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M4.7 WASM SPoRA bindings (`778053a`).
 - [x] M7.10 — `push-all-chunks` + OPERATORS.md (`c1e0373`).
 - [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
+- [x] M7.11.2 - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (this commit).
 
 ### Next
 
-- [ ] Nightly #57 participant + observer PASS.
+- [ ] B-06 - Nightly #57 all three jobs green (lane 1 RC gate).
 
 ### Do not start
 
@@ -145,7 +152,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Idle - monitor Nightly #57 (B-06).
+- [ ] Idle - monitor Nightly #57 after M5.43 lands.
 
 ### Handoff to lane 3
 
@@ -180,10 +187,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Idle — claim from backlog
 
-
-- [x] **M5.46** - combined-inflow emission CI tier complete (`1232506`).
-- [x] **M5.47** - 256-block equivocation combined-inflow + 1M curve in default CI (`db06c78`).
-- [x] **M5.48** - emission deep-sim tier closure; 2048 CLSAG + 100k `apply_block` stay nightly (`77f2fe1`).- [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
+- [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
 - [x] **M5.42** - 256-block combined-inflow emission sim in default CI (994af36).

@@ -118,7 +118,7 @@ Coinbase pays operator_view/spend keys directly
 
 Documented step-by-step in [`OPERATORS.md ┬º Permanence operators`](../scripts/public-devnet-v1/OPERATORS.md#permanence-operators-storage--spora--m6--m7) and rehearsed by `participant-rehearsal` smokes.
 
-**Upload path** is already browser-capable via WASM (`buildStorageUpload` in `mfn-wasm`). **Prove/serve path** is CLI-only today ΓÇö the gap is bindings and UX, not consensus.
+**Upload path** is already browser-capable via WASM (`buildStorageUpload` in `mfn-wasm`). **Prove path** is WASM-capable via `buildStorageProof` / `verifyStorageProof` / `storageChunkHex` ([`mfn-wasm/README.md`](../mfn-wasm/README.md)); scheduled prove loops and chunk HTTP serving remain CLI/operator or app-layer glue — not consensus gaps.
 
 ---
 
@@ -129,7 +129,7 @@ These are real but not architectural blockers:
 | Gap | Severity for consumer storage | Notes |
 |---|---|---|
 | **Rust CLI packaging** | High (UX) | Release workflow ships binaries on tags; still no app-store storage daemon. |
-| **No WASM/mobile prove loop** | High (UX) | `mfn-wasm` uploads in-browser; SPoRA prove + chunk HTTP serve not yet exposed to WASM. |
+| **No WASM/mobile prove loop** | Medium (UX) | **Shipped (bindings)** — `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex`; remaining gap is PWA/mobile scheduling + HTTP serve glue. |
 | **Proof latency race** | Medium (decentralization) | First valid proof to a producer wins; favors low-latency paths to block producers ([`PROBLEMS.md ┬º 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)). |
 | **Partial operator discovery** | Medium (UX) | Manifest `replication_peers` + `manifest-info` subcommand; no DHT-style "who stores commit X?" |
 | **No operator bonds (by design today)** | Low friction / weak SLA | Casual entry is easy; defection penalty is weak ([`PROBLEMS.md ┬º 1`](./PROBLEMS.md#1-storage-operators-have-almost-no-skin-in-the-game-no-bonds-or-slashing)). |
@@ -148,7 +148,7 @@ These are real but not architectural blockers:
 
 ### Phase B ΓÇö Consumer UX (still no consensus change)
 
-4. **WASM prove + serve** ΓÇö expose `build_storage_proof`, `verify_storage_proof`, and minimal chunk HTTP from `mfn-wasm` so a browser tab or PWA can hold artifacts and prove on a schedule.
+4. **WASM prove + serve** — **done (bindings)** — `mfn-wasm` exposes `buildStorageProof`, `verifyStorageProof`, and `storageChunkHex` for browser/PWA prove loops; minimal chunk HTTP remains app/operator glue ([`mfn-wasm/README.md`](../mfn-wasm/README.md), [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)).
 5. **Mobile/light desktop app** ΓÇö background prove loop using light-client RPC (`get_storage_challenge`, `submit_storage_proof`); local encrypted artifact store.
 6. **Replication discovery** ΓÇö index of operators willing to replicate (could start as curated peer lists in manifests, evolve to on-chain optional registry).
 
@@ -170,7 +170,7 @@ These are real but not architectural blockers:
 |---|---|
 | **Is consumer storage possible with current architecture?** | **Yes.** SPoRA + off-chain payloads + separate operator role + direct operator payouts are exactly the shape needed. |
 | **Is it possible at all (even with rewrites)?** | **Yes.** Permanent storage always requires *someone* to store bytes; the design choice is whether that "someone" must be a specialized miner. Permawrite already answered no. |
-| **Is it fully realized for "anyone with a normal device" today?** | **Not yet.** A technically capable user can operate on devnet with CLI tools and an observer RPC; mass accessibility needs packaged apps and WASM prove/serve. |
+| **Is it fully realized for "anyone with a normal device" today?** | **Not yet.** A technically capable user can operate on devnet with CLI tools and an observer RPC; mass accessibility still needs packaged apps and browser prove-loop UX on top of shipped WASM bindings. |
 | **Does this require abandoning permanence or decentralization?** | **No**, provided the network attracts enough independent operators and sustained fee inflows. The main risks are economic (fee drought) and operational (latency races, weak defection penalties), not hardware impossibility. |
 | **Does SPoRA need big computers?** | **No.** Validators do; storage operators do not. Do not conflate the two roles. |
 
