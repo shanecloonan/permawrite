@@ -89,7 +89,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor Nightly #61 (B-06) |
-| **2** | M2.5.39–42 DOCS-QA-2 hygiene + CI velocity + net decode | **In progress** - lane 2 | B-06 Nightly #61 evidence; M2.5.43 god-file splits (lane 1/4) |
+| **2** | M2.5.39–42 DOCS-QA-2 hygiene + CI velocity + net decode | **Done** - `4a1862b` | B-06 Nightly #61 evidence; M2.5.43 god-file splits (lane 1/4) |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61; M5.40 P2P unwrap hardening |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
@@ -125,7 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.39–42** (__COMMIT__) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
+- **M2.5.39–42** (`4a1862b`) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
 - **M2.5.38** (`843e055`) - mfn-cli health probe; GHA voter-dial both-listening soft gate (lane 1).
 - **M2.5.37** (`12df02d`) - start-all GHA tip>=1 gate; query_rpc_json_line TCP RPC; hub_liveness 900s (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).
