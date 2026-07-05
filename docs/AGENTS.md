@@ -70,7 +70,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Nightly #63 all three jobs green after CI #646 on `0d9646a` (B-06; Nightly #62 FAIL ~16.3m).
+- [ ] Nightly #63 all three jobs green after CI #652 on `bcf0bf5` stack (B-06; Nightly #62 FAIL ~16.3m).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)

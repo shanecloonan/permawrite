@@ -12,12 +12,12 @@
 | **M2.5.50** | **Done** (`dbf6067`) | Early `mfnd_p2p_listening`; POST_START health 120s |
 | **M2.5.51** | **Done** (`0d9646a`) | `hub_tip_wait` uses `MFN_POLL_HUB_MAX`; observer catchup soft gate |
 | **M2.5.52** | **Done** (`2904ea3`) | B-07 dispatch params + method-meta split |
-| **CI #650** | **In progress** | On `a804a64` (board sync; RC `0d9646a` + M2.5.52) |
-| **Nightly #63** | Waiting | After green CI #650 |
+| **CI #652** | **In progress** | On `bcf0bf5` (RC `0d9646a` + M2.5.52 `2904ea3`) |
+| **Nightly #63** | Waiting | After green CI #652 (do not push until green) |
 
 ### RC push embargo
 
-Hold **code** pushes until **CI #650** green. Doc-only board sync after green.
+**No pushes to `main` until CI #652 green** — doc-only sync only after green or on CI failure fixes.
 
 ---
 
@@ -25,7 +25,7 @@ Hold **code** pushes until **CI #650** green. Doc-only board sync after green.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #650** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #652** | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
@@ -37,9 +37,9 @@ Hold **code** pushes until **CI #650** green. Doc-only board sync after green.
 | --- | --- | --- | --- |
 | #58–61 | partial fixes | pre-38 / wrong SHA | FAIL ~16.3m |
 | #62 | `3a1f213` | M2.5.38 + 43–45 | **FAIL** ~16.3m |
-| #63 | pending | M2.5.49–51 | pending |
+| #63 | pending | M2.5.49–52 | pending |
 
-**Fix stack for #63:** M2.5.50 early P2P announce · M2.5.49 soft gates · M2.5.51 hub_tip poll parity · POST_START health trim.
+**Fix stack for #63:** M2.5.50 early P2P · M2.5.49 soft gates · M2.5.51 hub_tip poll · POST_START health trim.
 
 ---
 
@@ -47,8 +47,8 @@ Hold **code** pushes until **CI #650** green. Doc-only board sync after green.
 
 - [x] M2.5.38 + M2.5.43–45 on `main`
 - [x] Nightly #62 executed (FAIL ~16.3m on `3a1f213`)
-- [x] M2.5.49–51 landed on `main`
-- [ ] **Nightly #63** all three green on M2.5.51 stack
+- [x] M2.5.49–52 on `main` (RC stack through `2904ea3`)
+- [ ] **Nightly #63** all three green on M2.5.49–52 stack
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

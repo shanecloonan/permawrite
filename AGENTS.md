@@ -82,13 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #650** in progress on `a804a64` (board sync; RC `0d9646a` + M2.5.52 `2904ea3`). **CI #646–649** cancelled (rapid pushes). **Nightly #63** (B-06) after green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #652** in progress on `bcf0bf5` (RC code `0d9646a` + M2.5.52 `2904ea3`). **CI #646–651** cancelled (rapid doc pushes). **Nightly #63** (B-06) after first full green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+
+**RC push hold:** no pushes to `main` while CI #652 runs — `cancel-in-progress` aborts the ~70 min matrix.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #650 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #652 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.52 B-07 dispatch params + method-meta split | **Done** - `2904ea3` | B-07 `cli.rs` parse split (idle) |
