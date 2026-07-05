@@ -12,6 +12,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - **After landing a unit:** update `AGENTS.md`, `docs/AGENTS.md`, and (if RC-related) the sections below.
 - [x] **M5.31** (lane 4) — consensus + `apply_block` reject non-uniform ring sizes across inputs.
 - [x] **M5.32** (lane 4) — mempool `admit` rejects non-uniform ring before accept.
+- [x] **M5.33** (lane 4) — `prop_mixed_clsag_fee_and_storage_upload_treasury` (CLSAG fee + NEW storage upload same block).
+- [x] **M5.34** (lane 6) — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (**B-03**).
+- [x] **M5.35** (lanes 4+6) — 96-block validator CLSAG-only emission sim + `deep_mixed_clsag_fee_and_storage_upload_treasury_64` proptest in default CI.
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
@@ -176,7 +179,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] GitHub CI green on M2.5.18 — **GREEN** CI #543 on `afc5fd8`.
 - [x] Nightly #55 on `afc5fd8` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~11.3m).
 - [x] **M2.5.19** (`fed2dd6`/`a88e8ff`) — GHA tip/health/liveness + voter-dial soft gate.
-- [ ] CI #546 green on `a88e8ff` → **Nightly #56** all three jobs green.
+- [ ] CI green on current `main` → **Nightly #56** all three jobs green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
@@ -200,6 +203,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add Windows public-devnet preflight diagnostics for required tools, helper runtimes, release binaries, and locked `mfnd` processes.
 - [x] Add Linux/macOS public-devnet preflight diagnostics for required tools, helper runtimes, release binaries, and local mesh discovery.
 - [x] Extend public-devnet preflight diagnostics to catch missing `wasm-pack` and `cargo-audit` before local CI mirror runs.
+- [x] **M2.5.21** — extend preflight to warn on missing `wasm-opt` (Binaryen) before local CI mirror wasm-pack step.
 - [x] Add public-devnet toolchain recovery guidance for missing preflight and CI helper tools.
 - [x] Add public-devnet stop helpers to release `mfnd` locks before rebuilds and CI.
 - [x] Add participant wallet and upload-artifact backup guidance for funds, proving, and permanence restore.
@@ -258,10 +262,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Capture passing Windows 30s-slot (`SLOT_MS=30000`) soak evidence with hub lifetime past height 10 (**M2.4.70**, `evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt`, final height 38).
 - [x] Soak success criteria and graceful deadline exit for production-slot audits (**M2.4.71**, `-MinFinalHeight`, convergence retries, archive on finish).
 - [x] Release-candidate evidence JSON/MD for M2.4.70 commit (**M2.4.72**, `evidence/release-evidence-ebe1e48.*`).
-- [ ] Confirm first green Linux nightly for observer-enabled participant rehearsal smoke (**M2.4.88** observer boot hardening on `297ec27`; CI #492 ubuntu flake — **M2.4.89** retry/timeout hardening pending).
+- [x] **M2.4.89** — CI Linux test hardening (`--test-threads=2`, one retry, GHA stdout timeouts 120s/150s).
 - [x] Linux `soak.sh` success criteria, soak lock, and archive parity with PowerShell (**M2.4.73**).
 - [x] RC audit dry-run with M2.4.70 soak evidence archived (`release-rc-audit-dry-run.ps1`, decision=go) (**M2.4.73**).
-- [ ] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74**, run **Linux Soak Audit** workflow; Windows evidence archived).
+- [ ] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — auto-dispatched **Linux Soak Audit** after green CI when no linux transcript on `main`; PASS auto-commit; Windows evidence archived).
 
 ## Cross-Agent Notes
 

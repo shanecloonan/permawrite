@@ -72,6 +72,7 @@ Add-CommandCheck "node" "CODEBASE_STATS.md generator runtime" $false "Install No
 Add-CommandCheck "bash" "Linux/macOS helper script validator" $false "Install Git Bash, MSYS2, or WSL if you need to run or syntax-check .sh helpers on Windows. $ToolchainRecovery."
 Add-CommandCheck "dlltool.exe" "GNU binutils helper required by some Windows release-test dependencies" $false "Install MSYS2 mingw-w64 binutils or another toolchain package that provides dlltool.exe, then add it to PATH. $ToolchainRecovery."
 Add-CommandCheck "wasm-pack" "WASM package test runner used by the local CI mirror" $false "Install with: cargo install wasm-pack --locked. $ToolchainRecovery."
+Add-CommandCheck "wasm-opt" "Binaryen optimizer invoked by wasm-pack during the local CI mirror wasm32 build" $false "Install Binaryen and add wasm-opt.exe to PATH (see scripts/public-devnet-v1/OPERATORS.md#toolchain-recovery). $ToolchainRecovery."
 Add-CommandCheck "cargo-audit" "dependency advisory scanner used by the local CI mirror" $false "Install with: cargo install cargo-audit --locked. $ToolchainRecovery."
 Add-ReleaseBinaryCheck "mfnd.exe" "cargo build -p mfn-node --release --bin mfnd"
 Add-ReleaseBinaryCheck "mfn-cli.exe" "cargo build -p mfn-cli --release --bin mfn-cli"

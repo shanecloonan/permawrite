@@ -8,6 +8,9 @@ if (-not (Get-Command wasm-pack -ErrorAction SilentlyContinue)) {
 
 rustup target add wasm32-unknown-unknown 2>$null
 
+# wasm-pack 0.15 mis-parses a prior package.json when `files`/`sideEffects` are arrays.
+Remove-Item -Recurse -Force mfn-wasm/demo/web/pkg -ErrorAction SilentlyContinue
+
 wasm-pack --log-level warn build mfn-wasm `
     --target web `
     --out-dir demo/web/pkg `

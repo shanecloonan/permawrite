@@ -16,6 +16,9 @@ on:
         required: true
         default: "10"
 
+permissions:
+  contents: read
+
 concurrency:
   group: linux-soak-audit-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,6 +31,8 @@ jobs:
   linux-soak-audit:
     name: Linux public-devnet soak audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -60,3 +65,34 @@ jobs:
           name: linux-soak-evidence-slot-${{ github.event.inputs.slot_ms }}
           path: scripts/public-devnet-v1/evidence/soak-restart-linux-*.txt
           if-no-files-found: warn
+      - name: Commit PASS soak evidence to main
+        if: success()
+        env:
+          MIN_FINAL_HEIGHT: ${{ github.event.inputs.min_final_height }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(scripts/public-devnet-v1/evidence/soak-restart-linux-*.txt)
+          if ((${#files[@]} == 0)); then
+            echo "No soak evidence transcript to commit"
+            exit 0
+          fi
+          evidence="${files[${#files[@]} - 1]}"
+          if ! grep -q 'soak: SUMMARY status=PASS' "$evidence"; then
+            echo "Soak transcript is not PASS; skip commit ($evidence)"
+            exit 0
+          fi
+          max_height="$(grep -oE 'max_height=[0-9]+' "$evidence" | tail -1 | cut -d= -f2 || true)"
+          if [[ -z "$max_height" || "$max_height" -lt "$MIN_FINAL_HEIGHT" ]]; then
+            echo "Soak max_height=$max_height below MIN_FINAL_HEIGHT=$MIN_FINAL_HEIGHT; skip commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$evidence"
+          if git diff --staged --quiet; then
+            echo "Evidence already committed"
+            exit 0
+          fi
+          git commit -m "evidence: Linux 30s-slot soak PASS (B-05) [skip ci]"
+          git push

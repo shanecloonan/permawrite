@@ -95,7 +95,7 @@ powershell -File scripts/public-devnet-v1/preflight.ps1
 powershell -File scripts/public-devnet-v1/preflight.ps1 -Strict
 ```
 
-The preflight scripts do not install tools or stop nodes. They report missing `node` for `CODEBASE_STATS.md`, missing helper runtimes such as `bash` / `nc` / `python3`, missing `wasm-pack` and `cargo-audit` for the local CI mirror, missing `dlltool.exe` on Windows release-test setups, missing release binaries, absent `devnet-ports.env`, and running `mfnd` PIDs that should be stopped before rebuilding release binaries in place.
+The preflight scripts do not install tools or stop nodes. They report missing `node` for `CODEBASE_STATS.md`, missing helper runtimes such as `bash` / `nc` / `python3`, missing `wasm-pack`, `wasm-opt` (Binaryen), and `cargo-audit` for the local CI mirror, missing `dlltool.exe` on Windows release-test setups, missing release binaries, absent `devnet-ports.env`, and running `mfnd` PIDs that should be stopped before rebuilding release binaries in place.
 
 ### Toolchain Recovery
 
@@ -105,6 +105,12 @@ Use this when `preflight` or `scripts/ci-check` reports missing tools:
 # Windows: Rust-side CI helpers.
 cargo install wasm-pack --locked
 cargo install cargo-audit --locked
+
+# Windows: Binaryen (wasm-opt) for wasm-pack release builds.
+# Download the latest x86_64-windows Binaryen release, extract, and add its bin/
+# directory to PATH. Example layout after manual install:
+#   $env:PATH = "$env:USERPROFILE\.local\bin\binaryen-version_120\bin;" + $env:PATH
+# Verify: wasm-opt --version
 
 # Windows: Node.js for CODEBASE_STATS.md and Git Bash for .sh validation.
 winget install OpenJS.NodeJS.LTS
@@ -121,12 +127,17 @@ pacman -S --needed mingw-w64-x86_64-binutils
 cargo install wasm-pack --locked
 cargo install cargo-audit --locked
 
+# Linux/macOS: Binaryen (wasm-opt) for wasm-pack release builds.
+# Linux (Debian/Ubuntu): sudo apt-get install -y binaryen
+# macOS: brew install binaryen
+# Verify: wasm-opt --version
+
 # Linux examples.
 sudo apt-get update
-sudo apt-get install -y nodejs npm netcat-openbsd python3
+sudo apt-get install -y nodejs npm netcat-openbsd python3 binaryen
 
 # macOS examples.
-brew install node netcat python
+brew install node netcat python binaryen
 ```
 
 After installing tools, open a fresh shell so PATH changes are visible, rerun `preflight` in strict mode, and only then rerun `node scripts/codebase-stats.mjs` and the local CI mirror.
@@ -584,6 +595,10 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 1. Open **Actions → Linux Soak Audit → Run workflow** on `main`.
 2. Defaults: `SLOT_MS=30000`, 35 minutes, `--min-final-height 10`, observer restart once.
 3. Download artifact `linux-soak-evidence-slot-30000` and archive the transcript under `scripts/public-devnet-v1/evidence/`.
+
+**Auto-dispatch (B-05):** After green **CI** on `main`, when no `soak-restart-linux-30s-slot-*.txt` exists on `main`, CI job `dispatch-linux-soak-rc` triggers **Linux Soak Audit** automatically. On PASS with `max_height >= 10`, the workflow commits the transcript to `main` with `[skip ci]` (does not re-dispatch Nightly/soak).
+
+**Import fallback:** `powershell -File scripts/public-devnet-v1/import-linux-soak-artifact.ps1` downloads the latest workflow artifact into `scripts/public-devnet-v1/evidence/` (requires `gh auth login` or `GH_TOKEN`).
 
 **Nightly Linux rehearsal smokes** (06:00 UTC + workflow_dispatch):
 

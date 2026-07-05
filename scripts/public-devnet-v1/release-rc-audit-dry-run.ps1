@@ -79,6 +79,13 @@ $ciMock = Join-Path $archiveDir "signoff-ci-success.json"
     @{ headSha = $commit; status = "completed"; conclusion = "success"; url = "https://github.com/shanecloonan/permawrite/actions/runs/rc-dry-run" }
 ) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ciMock -Encoding utf8
 
+$linuxSoakEvidence = Get-ChildItem -LiteralPath (Join-Path $ScriptDir "evidence") -Filter "soak-restart-linux-30s-slot-*.txt" -File -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+if ($linuxSoakEvidence) {
+    Copy-Item -LiteralPath $linuxSoakEvidence.FullName -Destination (Join-Path $archiveDir "evidence/$($linuxSoakEvidence.Name)") -Force
+}
+
 $soakEvidence = Join-Path $ScriptDir "evidence/soak-restart-windows-30s-slot-20260703T132240Z.txt"
 if (Test-Path -LiteralPath $soakEvidence -PathType Leaf) {
     Copy-Item -LiteralPath $soakEvidence -Destination (Join-Path $archiveDir "evidence/soak-restart-windows-30s-slot.txt") -Force

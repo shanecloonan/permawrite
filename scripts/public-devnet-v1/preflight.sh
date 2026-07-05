@@ -101,6 +101,7 @@ add_command_check node "CODEBASE_STATS.md generator runtime" optional "Install N
 add_command_check nc "JSON-RPC health-check transport" optional "Install netcat (nc) before running health-check.sh against a local mesh. $TOOLCHAIN_RECOVERY."
 add_command_check python3 "permanence-demo.sh sample-payload fallback and support-bundle.sh manifest writer" optional "Install python3, pass --payload to permanence-demo.sh, or run the PowerShell support bundle on Windows. $TOOLCHAIN_RECOVERY."
 add_command_check wasm-pack "WASM package test runner used by the local CI mirror" optional "Install with: cargo install wasm-pack --locked. $TOOLCHAIN_RECOVERY."
+add_command_check wasm-opt "Binaryen optimizer invoked by wasm-pack during the local CI mirror wasm32 build" optional "Install Binaryen and expose wasm-opt on PATH (see scripts/public-devnet-v1/OPERATORS.md#toolchain-recovery). $TOOLCHAIN_RECOVERY."
 add_command_check cargo-audit "dependency advisory scanner used by the local CI mirror" optional "Install with: cargo install cargo-audit --locked. $TOOLCHAIN_RECOVERY."
 add_release_binary_check mfnd "cargo build -p mfn-node --release --bin mfnd"
 add_release_binary_check mfn-cli "cargo build -p mfn-cli --release --bin mfn-cli"

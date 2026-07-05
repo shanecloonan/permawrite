@@ -93,7 +93,7 @@ Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #5
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.31-M5.33 protocol hardening | **Done** - `1d4d67c` | Monitor Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
-| **6** | M5.34 / B-03 emission sim | **Done** - `45a118b` | B-05 Linux soak (lane 2+6) |
+| **6** | M5.34 + M5.35 emission sim | **Done** - this commit | B-05 Linux soak (lane 2+6) |
 
 ---
 

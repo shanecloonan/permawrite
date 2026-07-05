@@ -79,6 +79,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Done
 
 - [x] M2.5.14–M2.5.18 — evidence refresh + inline Nightly dispatch.
+- [x] M2.5.20 — nightly STAGE/start-all log dumps (668044d).
+- [x] M2.5.21 — preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
+- [x] B-05 — Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
 - [x] M6.9 — storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
 
@@ -123,11 +126,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **M5.31** — `consensus_rejects_non_uniform_ring_sizes` + `apply_block_rejects_non_uniform_ring_sizes` (uniform ring-16 across all inputs).
 - [x] **M5.32** — `mfn-runtime` mempool `admit_rejects_non_uniform_ring_sizes_across_inputs` (claim B-01).
-- [x] **M5.33** - `prop_mixed_clsag_fee_and_storage_upload_treasury` + 64-block `#[ignore]` deep chain (claim B-02, `1d4d67c`).
+- [x] **M5.33** — prop_mixed_clsag_fee_and_storage_upload_treasury + 64-block deep chain (claim B-02, 1d4d67c).
+- [x] **M5.35** — deep_mixed_clsag_fee_and_storage_upload_treasury_64 in default CI (this commit).
 
 ### Next
 
-- [ ] Idle - protocol hardening backlog empty; coordinate with lane 6 on deeper sim promotion.
+- [ ] Idle — monitor Nightly #56 after M5.35 lands.
 
 ### Handoff to lane 3
 
@@ -163,7 +167,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Idle — claim from backlog
 
 - [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
-- [ ] B-05 — Linux soak evidence (coordinate with lane 2 for archival).
+- [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (this commit; awaiting first PASS transcript).
 
 ### Do not start
 

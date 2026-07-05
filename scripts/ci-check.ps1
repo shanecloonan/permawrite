@@ -765,6 +765,8 @@ cargo build -p mfn-wasm --target wasm32-unknown-unknown --release --features was
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 cargo test -p mfn-wasm --release --features wasm-full
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+# wasm-pack 0.15 mis-parses a prior package.json when `files`/`sideEffects` are arrays.
+Remove-Item -Recurse -Force mfn-wasm/demo/web/pkg -ErrorAction SilentlyContinue
 wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
