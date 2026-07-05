@@ -125,6 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.43–45** (`b945f73`) - `rehearsal-poll-timeouts.*`; mfnd_serve P2P expect removal; workspace dep hoist; evidence gitignore (lanes 2/4/6).
 - **M2.5.39–42** (`4a1862b`) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
 - **M2.5.38** (`843e055`) - mfn-cli health probe; GHA voter-dial both-listening soft gate (lane 1).
 - **M2.5.37** (`12df02d`) - start-all GHA tip>=1 gate; query_rpc_json_line TCP RPC; hub_liveness 900s (lane 1).
