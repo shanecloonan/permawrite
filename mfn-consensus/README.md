@@ -2,7 +2,7 @@
 
 The state-transition function for Permawrite — the crate that takes the raw primitives from `mfn-crypto`, `mfn-bls`, and `mfn-storage` and turns them into an **actual chain**.
 
-**Tests:** 390 passing (151 unit + 239 integration across six `tests/` targets; 3 nightly `#[ignore]` in emission sim) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** `-D warnings` (see `scripts/ci-check`)
+**Tests:** 402 passing (151 unit + 251 integration across six `tests/` targets; 2 nightly `#[ignore]` in emission sim) &nbsp;·&nbsp; **`unsafe`:** forbidden &nbsp;·&nbsp; **Clippy:** `-D warnings` (see `scripts/ci-check`)
 
 This is where `apply_block` lives — the single deterministic function that validates every consensus rule, performs every state mutation, and either produces a new `ChainState` or rejects the block with a typed error list.
 

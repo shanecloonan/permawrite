@@ -82,17 +82,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #631** **GREEN**; **Nightly #61** dispatched on `843e055`. **M2.5.39–42** (DOCS-QA-2 follow-up) landing on `main`.
+**CI #634** in progress on `df8d985` (M2.5.43–45 stack). **Nightly #61** **FAIL** ~16.3m on wrong SHA `4de1585`. **Nightly #62** after green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor Nightly #61 (B-06) |
-| **2** | M2.5.43–45 timeout dedup + mfnd P2P + workspace deps | **Done** - `b945f73` | B-07 god-file splits; B-08 remainder (lane 4) |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61; M5.40 P2P unwrap hardening |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
+| **1** | M2.5.43–45 rehearsal timeouts + mfnd P2P | **Done** - `b945f73` | Monitor CI #634 → **Nightly #62** (B-06) |
+| **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #62 participant + observer PASS |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #62 |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #62 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
 ---
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #61 green (all three jobs) | 1 | RC gate |
+| B-06 | Nightly #62 green (all three jobs) | 1 | RC gate on `df8d985` (M2.5.38 + M2.5.43–45) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | Reduces parallel-agent conflicts |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | M2.5.44 mfnd_serve dial/listen paths; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |

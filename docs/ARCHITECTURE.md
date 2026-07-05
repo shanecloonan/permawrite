@@ -783,7 +783,7 @@ mfn-storage/        Permanence                 (44 tests)
 │                   M2.0.2 storage-proof merkle commitment
 └── endowment.rs    E₀ formula, per-slot payout, PPB-precision accumulator
 
-mfn-consensus/      Chain state machine        (373 passing: 151 unit + 222 integration; 25 nightly `#[ignore]`)
+mfn-consensus/      Chain state machine        (402 passing: 151 unit + 251 integration; 2 nightly `#[ignore]` in emission sim)
 ├── emission.rs     Hybrid emission curve + fee split
 ├── bonding.rs      M1 rotation params + pure validation helpers
 ├── bond_wire.rs    M1 BondOp::{Register, Unbond} wire codec + BLS-signed authorization

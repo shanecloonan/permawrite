@@ -3,20 +3,20 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-05 (B-06 → Nightly #61)
+## Session — 2026-07-05 (B-06 → Nightly #62)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **M2.5.37** | **Done** (`12df02d`) | tip≥1 start-all; TCP RPC; hub_liveness 900s |
-| **Nightly #60** | **FAIL** | ~16.3m on `54983c7` (M2.5.37) |
 | **M2.5.38** | **Done** (`843e055`) | mfn-cli health probe; voter-dial both-listening soft gate |
-| **CI #631** | **GREEN** | On `843e055` — Nightly #61 dispatched |
-| **Nightly #61** | **In progress** | On `843e055` |
-| **M2.5.39–42** | **Landing** | DOCS-QA-2 follow-up (lane 2) |
+| **Nightly #60–61** | **FAIL** | ~16.3m — #60 on M2.5.37; #61 on pre-fix board SHA `4de1585` |
+| **M2.5.39–42** | **Done** (`4a1862b`) | DOCS-QA-2; ci-check fast paths; P2P decode hardening |
+| **M2.5.43–45** | **Done** (`b945f73`) | `rehearsal-poll-timeouts`; mfnd P2P dial/listen hardening |
+| **CI #634** | **In progress** | On `df8d985` — dispatches **Nightly #62** when green |
+| **Nightly #62** | Waiting | First full stack: M2.5.38 + M2.5.43–45 on `df8d985` |
 
 ### RC push embargo
 
-Lifted after CI #631 green; coordinate with lane 2 board sync before next push.
+Hold **code** pushes until CI #634 green. Doc-only board sync OK after green.
 
 ---
 
@@ -24,29 +24,28 @@ Lifted after CI #631 green; coordinate with lane 2 board sync before next push.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.35–38 on `main` (`843e055`) | Monitor CI #631 | Nightly on `843e055` (B-06) |
-| **2** RC ops | M2.5.43–45 (`b945f73`) | — | B-07 god-file splits |
+| **1** RC core | M2.5.35–38, M2.5.43–45 (`df8d985`) | Monitor CI #634 | **Nightly #62** (B-06) |
+| **2** RC ops | M2.5.39–42; CI fast paths | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---
 
-## Nightly #60 Post-Mortem (`54983c7`, ~16.3m)
+## Nightly failure pattern (~16.3m)
 
-| Job | Result | Notes |
-| --- | --- | --- |
-| ignored-integration | **PASS** | Stable |
-| participant-rehearsal-smoke | **FAIL** | ~16.3m — still single 900s gate |
-| observer-rehearsal-smoke | **FAIL** | Same class |
+| Run | SHA | M2.5.38? | Result |
+| --- | --- | --- | --- |
+| #58–60 | pre-38 / 37 | partial / yes | FAIL ~16.3m |
+| #61 | `4de1585` | board only | FAIL ~16.3m |
+| #62 | `df8d985` | **yes + 43–45** | pending |
 
-**M2.5.38 fix:** `query_get_status_compat_line` (mfn-cli tip first); unconditional GHA both-voters-listening soft gate; `MFN_REPO_ROOT` for health-check.
+**Fix stack on `df8d985`:** M2.5.37 tip≥1 gate · M2.5.38 mfn-cli health · M2.5.43 shared poll timeouts · mfnd P2P no-panic dial.
 
 ---
 
 ## B-06 checklist
 
-- [x] M2.5.37 pushed; Nightly #60 ran (partial)
-- [x] M2.5.38 pushed (`843e055`)
-- [ ] Nightly on `843e055` — all three green
+- [x] M2.5.38 + M2.5.43–45 on `main`
+- [ ] **Nightly #62** all three green on `df8d985`
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 
