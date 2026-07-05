@@ -82,15 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M7.11** (this commit) - STORAGE_ACCESSIBILITY Phase A + UTF-8 board repair; **B-06** Nightly #56 after green CI.
+**M5.45** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.24 RC helper script smoke | **Done** - `001e2c6` | B-05 evidence after soak workflow |
-| **3** | M7.11 storage accessibility Phase A | **Done** - this commit | Monitor Nightly #56 (B-06) |
+| **2** | M2.5.23 bash soak import helper | **Done** - `b408331` | B-05 evidence after soak workflow |
+| **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
 | **6** | M5.45 512-block PPB + equivocation sims | **Done** - 66a697a | B-05 Linux soak (lane 2+6) |
