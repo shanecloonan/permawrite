@@ -598,7 +598,7 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 
 **Auto-dispatch (B-05):** After green **CI** on `main`, when no `soak-restart-linux-30s-slot-*.txt` exists on `main`, CI job `dispatch-linux-soak-rc` triggers **Linux Soak Audit** automatically. On PASS with `max_height >= 10`, the workflow commits the transcript to `main` with `[skip ci]` (does not re-dispatch Nightly/soak).
 
-**Import fallback:** `powershell -File scripts/public-devnet-v1/import-linux-soak-artifact.ps1` downloads the latest workflow artifact into `scripts/public-devnet-v1/evidence/` (requires `gh auth login` or `GH_TOKEN`).
+**Import fallback:** `powershell -File scripts/public-devnet-v1/import-linux-soak-artifact.ps1` or `bash scripts/public-devnet-v1/import-linux-soak-artifact.sh` downloads the latest workflow artifact into `scripts/public-devnet-v1/evidence/` (requires `gh auth login` or `GH_TOKEN`).
 
 **Nightly Linux rehearsal smokes** (06:00 UTC + workflow_dispatch):
 

@@ -89,7 +89,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.4.90 ci-check.sh thread cap | **Done** - this commit | B-05 evidence after soak workflow |
+| **2** | M2.5.23 bash soak import helper | **Done** - this commit | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - this commit | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
