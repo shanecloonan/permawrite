@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.43 256-block PPB combined-inflow sim | **In progress** | Push after local ci-check | B-05 Linux soak (lane 2+6) |
+| **6** | M5.43 256-block PPB combined-inflow sim | **Done** - `7ffcdac` | B-05 Linux soak (lane 2+6) | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
 - **M5.42** (`994af36`) - 256-block combined-inflow treasury ledger emission sim in default CI (lane 6).
 - **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
 - **M2.5.23** (`29fe6df`) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
