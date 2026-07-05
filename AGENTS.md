@@ -89,7 +89,7 @@ Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #5
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.20 nightly failure STAGE dumps | **In progress** | Push after CI #553 green; evidence refresh after Nightly #56 |
+| **2** | M2.5.20 nightly STAGE dumps | **Done** - `668044d` | Evidence refresh after Nightly #56 |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.31-M5.33 protocol hardening | **Done** - `1d4d67c` | Monitor Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
