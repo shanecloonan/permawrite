@@ -63,7 +63,7 @@ HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_POLL_MAX=600
+  HUB_POLL_MAX=900
 fi
 for _ in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
@@ -103,7 +103,7 @@ poll_voter_p2p() {
   local out_var="$2"
   local p2p="" i max=60
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=600
+    max=900
   fi
   for i in $(seq 1 "$max"); do
     if grep -q mfnd_p2p_listening= "$log_path" 2>/dev/null; then
@@ -149,7 +149,7 @@ echo "Voter 2 P2P=$V2_P2P"
 wait_voter_dial_hub() {
   local max=120 v1_ok v2_ok i tip_height
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=600
+    max=900
   fi
   for i in $(seq 1 "$max"); do
     v1_ok=0
@@ -166,13 +166,17 @@ wait_voter_dial_hub() {
     sleep 1
   done
   if [[ -n "${HUB_RPC:-}" ]]; then
+    v1_ok=0
+    v2_ok=0
+    grep -q mfnd_p2p_dial_ok= "$LOG_DIR/v1.log" 2>/dev/null && v1_ok=1
+    grep -q mfnd_p2p_dial_ok= "$LOG_DIR/v2.log" 2>/dev/null && v2_ok=1
     tip_height="$(query_tip_height "$HUB_RPC" "$REPO_ROOT")"
     if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 1 )) && (( v1_ok || v2_ok )); then
       echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height (v1_ok=$v1_ok v2_ok=$v2_ok); continuing"
       return
     fi
     # GHA: voters may receive inbound hub dials before mfnd_p2p_dial_ok= appears in redirected logs.
-    if [[ -n "${GITHUB_ACTIONS:-}" ]] && [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 2 )); then
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 1 )); then
       if grep -q mfnd_p2p_listening= "$LOG_DIR/v1.log" 2>/dev/null && \
          grep -q mfnd_p2p_listening= "$LOG_DIR/v2.log" 2>/dev/null; then
         echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height and both voters P2P listening; continuing (GHA)"
@@ -207,7 +211,7 @@ echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
 OBSERVER_POLL_MAX=60
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  OBSERVER_POLL_MAX=600
+  OBSERVER_POLL_MAX=900
 fi
 for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then

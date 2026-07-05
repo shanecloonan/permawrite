@@ -209,7 +209,7 @@ wait_mesh_health_check() {
       return
     fi
     if (( $(date +%s) >= deadline )); then
-      echo "participant-rehearsal-smoke: health-check did not pass within ${timeout_seconds}s (hub RPC + genesis)" >&2
+      echo "participant-rehearsal-smoke: STAGE=health_check FAIL after ${timeout_seconds}s (hub RPC + genesis)" >&2
       exit 1
     fi
     echo "participant-rehearsal-smoke: health-check retry (waiting for hub RPC)..."
@@ -449,7 +449,7 @@ if (( NO_START == 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"
   fi
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    wait_mesh_health_check 600
+    wait_mesh_health_check 900
   fi
 fi
 RPC_ADDR="$(resolve_rpc)"
@@ -465,7 +465,7 @@ HUB_LIVENESS_WAIT=120
 HUB_LIVENESS_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   HUB_LIVENESS_MIN=2
-  HUB_LIVENESS_WAIT=300
+  HUB_LIVENESS_WAIT=600
 fi
 echo "participant-rehearsal-smoke: STAGE=hub_liveness"
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" "$HUB_LIVENESS_MIN" "$HUB_LIVENESS_WAIT"

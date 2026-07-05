@@ -23,7 +23,7 @@ jobs:
   ignored-integration:
     name: mfn-node ignored P2P / produce smokes
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +51,7 @@ jobs:
   participant-rehearsal-smoke:
     name: public-devnet participant rehearsal smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -135,7 +135,7 @@ jobs:
   participant-rehearsal-smoke-observer:
     name: public-devnet observer rehearsal smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:

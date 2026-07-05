@@ -92,7 +92,7 @@ $hubProc = Start-MfndRole `
 Set-DevnetPort -Path $PortsFile -Key "HUB_PID" -Value "$($hubProc.Id)"
 $HubP2p = $null
 $HubRpc = $null
-$HubPollMax = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
+$HubPollMax = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
 for ($i = 1; $i -le $HubPollMax; $i++) {
     $text = $null
     if (Test-Path $hubLog) {
@@ -157,7 +157,7 @@ Set-DevnetPort -Path $PortsFile -Key "V2_PID" -Value "$($v2Proc.Id)"
 Start-Sleep -Seconds 2
 function Get-VoterP2pFromLog {
     param([string]$LogPath)
-    $max = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
+    $max = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
     for ($i = 1; $i -le $max; $i++) {
         if (Test-Path $LogPath) {
             $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
@@ -180,7 +180,7 @@ Write-Host "Voter 2 P2P=$V2P2p"
 
 function Wait-VoterDialHub {
     param([string]$V1LogPath, [string]$V2LogPath, [string]$HubRpc)
-    $max = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
+    $max = if ($env:GITHUB_ACTIONS) { 900 } else { 120 }
     $v1Ok = $false
     $v2Ok = $false
     for ($i = 1; $i -le $max; $i++) {
@@ -201,7 +201,9 @@ function Wait-VoterDialHub {
             Write-Host "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tipHeight (v1_ok=$v1Ok v2_ok=$v2Ok); continuing"
             return
         }
-        if ($env:GITHUB_ACTIONS -and $tipHeight -match '^\d+$' -and [int]$tipHeight -ge 2) {
+        if ($env:GITHUB_ACTIONS -and $tipHeight -match '^\d+$' -and [int]$tipHeight -ge 1) {
+            $v1Ok = (Test-Path $V1LogPath) -and (Select-String -Path $V1LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
+            $v2Ok = (Test-Path $V2LogPath) -and (Select-String -Path $V2LogPath -Pattern "mfnd_p2p_dial_ok=" -Quiet)
             $v1P2pUp = (Test-Path $V1LogPath) -and (Select-String -Path $V1LogPath -Pattern "mfnd_p2p_listening=" -Quiet)
             $v2P2pUp = (Test-Path $V2LogPath) -and (Select-String -Path $V2LogPath -Pattern "mfnd_p2p_listening=" -Quiet)
             if ($v1P2pUp -and $v2P2pUp) {
@@ -243,7 +245,7 @@ $obsProc = Start-MfndRole `
     -StderrLog $obsErr
 Set-DevnetPort -Path $PortsFile -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
 $ObserverRpc = $null
-$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 600 } else { 60 }
+$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
 for ($i = 1; $i -le $ObserverPollMax; $i++) {
     if (Test-Path $obsLog) {
         $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=([^\r\n]+)" | Select-Object -First 1

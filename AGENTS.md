@@ -35,33 +35,33 @@ Every agent working a lane **must** broadcast **Done / Doing / Next** so simulta
 
 ### What to include (every announcement)
 
-1. **Done** - units landed on `main` (commit hash when known) or explicitly abandoned with reason.
-2. **Doing** - current lane, unit ID, and concrete step (not just the milestone name).
-3. **Next** - immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
+1. **Done** ΓÇö units landed on `main` (commit hash when known) or explicitly abandoned with reason.
+2. **Doing** ΓÇö current lane, unit ID, and concrete step (not just the milestone name).
+3. **Next** ΓÇö immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
 
 Use this template in chat **and** mirror it on the boards:
 
 `text
-Lane N - Done: <completed units + commits>
+Lane N ΓÇö Done: <completed units + commits>
        Doing: <unit + current step>
        Next:  <follow-up + owner + blockers>
 `
 
 ### Where to record it
 
-Update **all applicable** surfaces in the same session - do not rely on chat alone:
+Update **all applicable** surfaces in the same session ΓÇö do not rely on chat alone:
 
-- [`AGENTS.md`](AGENTS.md) - current board, cross-lane requests, recently completed.
-- [`docs/AGENTS.md`](docs/AGENTS.md) - lane Done / Next checklists.
-- [`3agent.md`](3agent.md) - lanes 1-3 mirror (current board + detailed plans).
-- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) - when RC-related.
+- [`AGENTS.md`](AGENTS.md) ΓÇö current board, cross-lane requests, recently completed.
+- [`docs/AGENTS.md`](docs/AGENTS.md) ΓÇö lane Done / Next checklists.
+- [`3agent.md`](3agent.md) ΓÇö lanes 1ΓÇô3 mirror (current board + detailed plans).
+- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) ΓÇö when RC-related.
 
 ### Coordination rules
 
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in ┬º Cross-lane requests.
 
 ---
 
@@ -82,18 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**M2.5.30** (this commit) - wait for green GHA CI before next push; **B-06** Nightly #57 RC gate follows (Nightly #56 partial: ignored PASS; participant+observer FAIL ~13m).
+**M2.5.31** (this commit) - wait for green GHA CI before next push; **B-06** Nightly #57 RC gate follows.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #57 after green CI |
-| **2** | M2.5.30 board encoding hardening | **Done** - `6e99a9e`/`a1ca6bf` | B-05 soak evidence |
-| **3** | M7.11 STORAGE_ACCESSIBILITY Phase A | **Done** - `bb9600b` | Monitor Nightly #57 (B-06) |
+| **1** | M2.5.31 GHA rehearsal gates (900s dial/health; 90m nightly) | **Done** - this commit | Nightly #57 after green CI |
+| **2** | M2.5.30 bash encoding guard parity | **Done** - `2eb8417` | B-05 soak evidence |
+| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #57 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #57 |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-06 Nightly #57 |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
 
 ---
 
@@ -121,9 +121,10 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.30** (`6e99a9e`/`a1ca6bf`) - UTF-8 board repair; `-text` gitattributes; validate-* path expansion (lane 2).
-- **M2.5.29** (`4bd43f2`) - agent board UTF-8 repair + `-text` gitattributes (lane 2).
-- **M2.5.27** (`e0a7ebd`) - restore `docs/AGENTS.md` per-lane checklists (UTF-8); sync master board (lane 2).
+- **M2.5.31** (this commit) - GHA voter-dial/health 900s; nightly rehearsal jobs 90m; soft-continue at tip>=1 + both voters P2P listening (lane 1).
+- **M2.5.30** (`2eb8417`) - bash `validate-workflow-encoding` guard path parity with ps1 (lane 2).
+- **M2.5.29** (`4bd43f2`) - `-text` gitattributes for boards; `fix-m2527-boards.ps1` UTF-8 repair helper (lane 2).
+- **M2.5.27** (`e0a7ebd`) - restore `docs/AGENTS.md` per-lane checklists; sync master board (lane 2).
 - **M2.5.26** (`a417f1e`) - UTF-8 guard for agent boards in validate-workflow-encoding (lane 2).
 - **M2.5.24** (`001e2c6`) - `validate-rc-helper-scripts` smoke in `ci-check` (lane 2).
 - **M7.11** (`bb9600b`) - STORAGE_ACCESSIBILITY.md section 0 (lane 3).
