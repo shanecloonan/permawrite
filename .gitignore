@@ -53,6 +53,8 @@ _*.md
 _*.bin
 _*.tmp
 _*.txt
+_*.ps1
+_*.sh
 _a.tmp
 AGENTS.*.md
 AGENTS.md.*
@@ -61,6 +63,13 @@ docs/AGENTS.*.md
 docs/*.restore.md
 docs/*.new*.md
 .gitattributes.new
+scripts/_*.ps1
+scripts/_*.sh
 scripts/validate-rc*.new.ps1
 scripts/*.restored
+
+# Agent CI-polling scratch and local worktrees (DOCS-QA-2)
+/*.json
+/*.zip
+.worktrees/
 
