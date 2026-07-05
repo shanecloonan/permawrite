@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**M2.5.31** (this commit) - wait for green GHA CI before next push; **B-06** Nightly #57 RC gate follows.
+**M2.5.31** (`0e0de4e`) - wait for green GHA CI before next push; **B-06** Nightly #57 RC gate follows.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.31 GHA rehearsal gates (900s dial/health; 90m nightly) | **Done** - this commit | Nightly #57 after green CI |
+| **1** | M2.5.31 GHA rehearsal gates (900s dial/health; 90m nightly) | **Done** - `0e0de4e` | Nightly #57 after green CI |
 | **2** | M2.5.30 bash encoding guard parity | **Done** - `2eb8417` | B-05 soak evidence |
 | **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #57 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
@@ -121,7 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.31** (this commit) - GHA voter-dial/health 900s; nightly rehearsal jobs 90m; soft-continue at tip>=1 + both voters P2P listening (lane 1).
+- **M2.5.31** (`0e0de4e`) - GHA voter-dial/health 900s; nightly rehearsal jobs 90m; soft-continue at tip>=1 + both voters P2P listening (lane 1).
 - **M2.5.30** (`2eb8417`) - bash `validate-workflow-encoding` guard path parity with ps1 (lane 2).
 - **M2.5.29** (`4bd43f2`) - `-text` gitattributes for boards; `fix-m2527-boards.ps1` UTF-8 repair helper (lane 2).
 - **M2.5.27** (`e0a7ebd`) - restore `docs/AGENTS.md` per-lane checklists; sync master board (lane 2).
