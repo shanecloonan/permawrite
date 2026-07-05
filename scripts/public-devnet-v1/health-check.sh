@@ -32,8 +32,9 @@ validate_health_int MFN_HEALTH_MIN_P2P_SESSIONS "$MFN_HEALTH_MIN_P2P_SESSIONS" 0
 validate_health_int MFN_HEALTH_REQUIRE_ALL_ROLES "$MFN_HEALTH_REQUIRE_ALL_ROLES" 0
 query_status() {
   local name="$1" addr="$2" enforce_sessions="${3:-0}"
-  local line
-  line="$(query_rpc_json_line "$addr" "$REQ")"
+  local line repo_root
+  repo_root="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+  line="$(query_get_status_compat_line "$addr" "$repo_root")"
   if [[ -z "$line" ]]; then
     echo "health-check: $name RPC unreachable at $addr" >&2
     return 1

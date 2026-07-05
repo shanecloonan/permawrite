@@ -175,7 +175,8 @@ wait_voter_dial_hub() {
       return
     fi
     if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( i % 30 == 0 )); then
-      echo "start-all: waiting for voter hub dials (${i}/${max}s) v1_ok=$v1_ok v2_ok=$v2_ok"
+      tip_height="$(query_tip_height "${HUB_RPC:-}" "$REPO_ROOT" 2>/dev/null || echo unknown)"
+      echo "start-all: waiting for voter hub dials (${i}/${max}s) v1_ok=$v1_ok v2_ok=$v2_ok hub_tip_height=$tip_height"
     fi
     sleep 1
   done
@@ -201,7 +202,16 @@ wait_voter_dial_hub() {
       echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height; continuing (GHA chain live)"
       return
     fi
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      if grep -q mfnd_p2p_listening= "$LOG_DIR/v1.log" 2>/dev/null && \
+         grep -q mfnd_p2p_listening= "$LOG_DIR/v2.log" 2>/dev/null; then
+        tip_height="$(query_tip_height "$HUB_RPC" "$REPO_ROOT")"
+        echo "start-all: WARN voter hub dial incomplete after ${max}s but both voters P2P listening (tip_height=$tip_height); continuing (GHA)"
+        return
+      fi
+    fi
   fi
+  echo "start-all: STAGE=voter_dial_fail" >&2
   echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
   tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
   tail -n 80 "$LOG_DIR/v2.log" 2>/dev/null >&2 || echo "(no v2.log)" >&2

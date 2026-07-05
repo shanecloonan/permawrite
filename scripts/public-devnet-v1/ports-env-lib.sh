@@ -82,11 +82,37 @@ query_rpc_json_line() {
   printf '%s' "$line"
 }
 
+# Prefer mfn-cli tip (robust TCP client), then nc JSON-RPC. M2.5.38.
+query_get_status_compat_line() {
+  local rpc_addr="$1"
+  local repo_root="${2:-}"
+  local req mfn_cli tip_out h id g
+  if [[ -n "$repo_root" ]]; then
+    mfn_cli="$(resolve_mfn_cli "$repo_root" 2>/dev/null || true)"
+  fi
+  if [[ -n "${mfn_cli:-}" ]]; then
+    if tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
+      h="$(sed -n 's/^tip_height=//p' <<<"$tip_out" | head -1)"
+      id="$(sed -n 's/^tip_id=//p' <<<"$tip_out" | head -1)"
+      g="$(sed -n 's/^genesis_id=//p' <<<"$tip_out" | head -1)"
+      if [[ -n "$id" && -n "$g" ]]; then
+        if [[ "$h" == "none" || -z "$h" ]]; then
+          h="0"
+        fi
+        printf '{"chain":{"tip_height":%s,"tip_id":"%s","genesis_id":"%s"},"p2p":{"session_count":null,"peer_count":null}}' "$h" "$id" "$g"
+        return 0
+      fi
+    fi
+  fi
+  req='{"jsonrpc":"2.0","method":"get_status","id":1}'
+  query_rpc_json_line "$rpc_addr" "$req"
+}
+
 # Query hub tip height via mfn-cli, falling back to get_status JSON-RPC (M2.5.9).
 query_tip_height() {
   local rpc_addr="$1"
   local repo_root="${2:-}"
-  local mfn_cli tip_out tip_height line req
+  local mfn_cli tip_out tip_height line
   if [[ -n "$repo_root" ]]; then
     mfn_cli="$(resolve_mfn_cli "$repo_root" 2>/dev/null || true)"
   fi
@@ -111,7 +137,7 @@ query_tip_height() {
     fi
   fi
   req='{"jsonrpc":"2.0","method":"get_status","id":1}'
-  line="$(query_rpc_json_line "$rpc_addr" "$req")"
+  line="$(query_get_status_compat_line "$rpc_addr" "$repo_root")"
   if [[ -z "$line" ]]; then
     printf 'unknown\n'
     return

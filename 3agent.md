@@ -11,11 +11,13 @@
 | **Nightly #58** | **PARTIAL** | smokes FAIL ~16.3m on `f16bbb6` (start-all tip≥2 gate) |
 | **M2.5.37** | **Done** (`12df02d`) | tip≥1 start-all; TCP RPC; hub_liveness 900s |
 | **CI #629** | **GREEN** | `54983c7` — stats refresh atop M2.5.37 |
-| **Nightly #60** | **In progress** | On `54983c7` — first run with M2.5.37 fixes |
+| **Nightly #60** | **FAIL** | ~16.3m on `54983c7` (M2.5.37 — still 900s class) |
+| **M2.5.38** | **Landing** | mfn-cli health probe; voter-dial both-listening soft gate |
+| **CI #630** | **In progress** | On `4de1585` (board sync) |
 
 ### RC push embargo
 
-`12df02d` pushed. Hold further pushes until CI #628 green → **Nightly #59**.
+Nightly #60 in flight on `54983c7`. Hold **code** pushes until result; board doc sync OK.
 
 ---
 
@@ -23,7 +25,7 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.35–37 on `main` (`12df02d`) | Monitor CI #628 → Nightly on `12df02d` | B-06 all three green |
+| **1** RC core | M2.5.37 on `54983c7` | **M2.5.38** landing | Nightly #61 (B-06) |
 | **2** RC ops | CI #626–627 green | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B doc sync | — | Participant + observer PASS |
 
@@ -46,7 +48,7 @@
 - [x] CI green on M2.5.34 (`15fd4c7`)
 - [x] Nightly #57 ran (partial)
 - [x] Nightly #58 on `f16bbb6` — **PARTIAL** (ignored **PASS**; smokes **FAIL** ~16.3m).
-- [x] **M2.5.37** (`12df02d`) pushed — awaiting Nightly on `12df02d` (CI #628 dispatch)
+- [ ] **M2.5.38** → Nightly #61 all three green (B-06)
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

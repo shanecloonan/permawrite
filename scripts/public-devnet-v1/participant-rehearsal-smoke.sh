@@ -456,6 +456,7 @@ if (( NO_START == 0 )); then
     sleep "$WAIT_AFTER_START_SECONDS"
   fi
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    export MFN_REPO_ROOT="$REPO_ROOT"
     wait_mesh_health_check 900
   fi
 fi
