@@ -20,7 +20,7 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.19 GHA rehearsal gates (`main`) | — | Nightly #56 after green CI (B-06) |
 | **2** RC ops | M2.5.24 validate-rc-helper-scripts in ci-check (`001e2c6`) | — | B-05 soak evidence |
-| **3** RC onboarding | M7.11 STORAGE_ACCESSIBILITY (`bb9600b`) | — | Monitor Nightly #56 smokes (B-06) |
+| **3** RC onboarding | M7.11 STORAGE_ACCESSIBILITY §0 (this commit) | — | Monitor Nightly #56 smokes (B-06) |
 
 **RC gate:** green CI on `main` → auto-dispatch **Nightly #56** + **Linux Soak Audit** when evidence missing (`ci.yml`).
 
