@@ -32,7 +32,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.28** (lane 2) — extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (`dc2e032`).
 - [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (`4bd43f2`).
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
-- [ ] **M7.11.2** (lane 3, this commit) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md`.
+- [x] **M7.11.2** (lane 3) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md` (`0650ad6`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

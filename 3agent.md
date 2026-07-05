@@ -8,7 +8,7 @@
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **M2.5.32** | **Done** (`a35b7a6`) | `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` |
-| **M7.11.2** | **WIP** (this commit) | STORAGE_ACCESSIBILITY Phase B item 4 shipped doc sync |
+| **M7.11.2** | **Done** (`0650ad6`) | STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync |
 | **CI #623** | **In progress** | `a35b7a6` — hold push until green (~70 min) |
 | **Nightly #57** | Waiting | Auto-dispatch after green CI #623 |
 
@@ -24,7 +24,7 @@ No commits to `main` while CI #623 is in flight.
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.31 (`0e0de4e`) | Idle — monitor CI #623 | Nightly #57 triage (B-06) |
 | **2** RC ops | M2.5.32 (`a35b7a6`) | Idle | Release evidence after Nightly #57 |
-| **3** RC onboarding | M7.11 (`bb9600b`) | M7.11.2 Phase B doc sync | Participant + observer PASS (B-06) |
+| **3** RC onboarding | M7.11.2 (`0650ad6`) | Idle | Participant + observer PASS (B-06) |
 
 ---
 

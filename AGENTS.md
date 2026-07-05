@@ -90,7 +90,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | **1** | M2.5.31 GHA rehearsal gates (900s dial/health; 90m nightly) | **Done** - `0e0de4e` | Nightly #57 after green CI |
 | **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | B-05 soak; release evidence after Nightly #57 |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **In progress** - this commit | Monitor Nightly #57 (B-06) |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #57 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #57 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
 - **M2.5.32** (`a35b7a6`) - `.gitignore` debris patterns; board mojibake guard in validate-workflow-encoding; clean `docs/AGENTS.md` rebuild (lane 2).
 - **M2.5.31** (`0e0de4e`) - GHA voter-dial/health 900s; nightly rehearsal jobs 90m; soft-continue at tip>=1 + both voters P2P listening (lane 1).
 - **M2.5.30** (`2eb8417`) - bash `validate-workflow-encoding` guard path parity with ps1 (lane 2).

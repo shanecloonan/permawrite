@@ -118,7 +118,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M4.7 WASM SPoRA bindings (`778053a`).
 - [x] M7.10 — `push-all-chunks` + OPERATORS.md (`c1e0373`).
 - [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
-- [x] M7.11.2 - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (this commit).
+- [x] M7.11.2 - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (`0650ad6`).
 
 ### Next
 
