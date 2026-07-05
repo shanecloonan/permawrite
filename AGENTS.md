@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M5.37** (pending push) on `main`. Prior gate **`0dcb1e9`** / `a73c086` (M2.5.22 + M5.36). Wait for green CI before the next push.
+**`2a1b4fe`** on `main` — M5.37. Wait for green CI before the next push.
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
@@ -90,7 +90,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
 | **2** | M2.5.22 wasm-pack wasm-opt=false | **Done** - `0dcb1e9` | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.37 deep chain proptests | **Doing** - empty+SPoRA depth | B-06 Nightly #56 |
+| **4** | M5.37 deep chain proptests | **Done** - `2a1b4fe` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
 | **6** | M5.34 + M5.35 emission sim | **Done** - on `main` | B-05 Linux soak (lane 2+6) |
 
