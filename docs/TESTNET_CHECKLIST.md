@@ -206,6 +206,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.38** (`843e055`) — mfn-cli health; voter-dial soft gate.
 - [x] **M2.5.43–45** (`b945f73`) — shared `rehearsal-poll-timeouts`; mfnd P2P hardening.
 - [x] Nightly #61 on `4de1585` — **PARTIAL** (wrong SHA; smokes FAIL ~16.3m).
+- [x] **M2.5.46–47** (`2b33ced`) — B-07 `p2p_fanout` split; B-08 mfnd expect hardening; CI #637 compile fix.
 - [x] GitHub CI green on `3a1f213` — **GREEN** CI #636.
 - [ ] **Nightly #62** on `3a1f213` — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).

@@ -67,7 +67,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Nightly #62 all three jobs green (B-06; CI #635/#636 in flight).
+- [ ] Nightly #62 all three jobs green (B-06; CI #638 in flight).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
@@ -151,8 +151,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.39** - deep_alternating_register_storage_treasury_8 proptest in default CI (35734a5).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
-- [x] **M2.5.46** (`1152e16`) - split `p2p_peer_quarantine` + `p2p_reconnect_plan` from `p2p_fanout` (B-07 partial).
-- [x] **M2.5.47** (`1152e16`) - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
+- [x] **M2.5.46** (`2b33ced`; code `1152e16`) - split `p2p_peer_quarantine` + `p2p_reconnect_plan` from `p2p_fanout` (B-07 partial).
+- [x] **M2.5.47** (`2b33ced`) - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
 
 ### Next
 

@@ -11,14 +11,14 @@
 | **Nightly #60–61** | **FAIL** | ~16.3m — #60 on M2.5.37; #61 on pre-fix board SHA `4de1585` |
 | **M2.5.39–42** | **Done** (`4a1862b`) | DOCS-QA-2; ci-check fast paths; P2P decode hardening |
 | **M2.5.43–45** | **Done** (`b945f73`) | `rehearsal-poll-timeouts`; mfnd P2P dial/listen hardening |
-| **M2.5.46–47** | **Done** (`1152e16`) | B-07 `p2p_fanout` split; B-08 runner/mfnd_cli expect hardening (lane 4) |
+| **M2.5.46–47** | **Done** (`2b33ced`) | B-07 `p2p_fanout` split + B-08 runner/mfnd_cli; `mfnd_serve` import fix |
 | **CI #636** | **GREEN** | On `3a1f213` — **Nightly #62** dispatched |
-| **CI #637** | **In progress** | On `1152e16` (M2.5.46–47) |
+| **CI #638** | **In progress** | On `2b33ced` (compile fix atop M2.5.46–47) |
 | **Nightly #62** | **In progress** | Full fix stack on `3a1f213` |
 
 ### RC push embargo
 
-Monitor **Nightly #62** + CI **#637**; no further lane-4 code until green.
+Monitor **Nightly #62** + CI **#638**; doc-only board sync OK; hold lane-4 code until green.
 
 ---
 
