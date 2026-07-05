@@ -322,7 +322,7 @@ try {
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
         if ($env:GITHUB_ACTIONS) {
-            Wait-MeshHealthCheck -TimeoutSeconds $script:MFN_MESH_HEALTH_TIMEOUT
+            Wait-MeshHealthCheck -TimeoutSeconds $script:MFN_MESH_HEALTH_POST_START_TIMEOUT
         }
     }
     $RpcAddr = Resolve-Rpc
