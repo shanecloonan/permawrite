@@ -1,6 +1,6 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**).
 //!
-//! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
+//! CI runs a bounded case count; all deep chains are in default CI (**M5.36–M5.39**).
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -3077,9 +3077,8 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
     assert_eq!(st.height, Some(64));
 }
 
-/// Alternating register + SPoRA proof through one epoch churn cap (**M5.4**).
+/// Alternating register + SPoRA proof through one epoch churn cap (**M5.4**, **M5.39**).
 #[test]
-#[ignore = "deep alternating treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_alternating_register_storage_treasury_8() {
     let gen = genesis_with_storage_and_bonding();
     let mut st = gen.state;

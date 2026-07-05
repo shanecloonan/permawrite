@@ -129,11 +129,13 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.33** — prop_mixed_clsag_fee_and_storage_upload_treasury + 64-block deep chain (claim B-02, 1d4d67c).
 - [x] **M5.35** - deep_mixed_clsag_fee_and_storage_upload_treasury_64 in default CI (`9537c7b`).
 - [x] **M5.36** - deep_mixed_clsag_fee_and_storage_proof_treasury_64 in default CI (`0dcb1e9`).
-- [x] **M5.37** - deep_empty_block_chain_128 + deep_storage_proof_chain_32 in default CI (this commit).
+- [x] **M5.37** - deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed treasury in default CI (`ec8122e`).
+- [x] **M5.38** - restore deep_mixed_clsag_fee_and_storage_upload_treasury_64 to default CI (`d3a4f36`).
+- [x] **M5.39** - deep_alternating_register_storage_treasury_8 proptest in default CI (this commit).
 
 ### Next
 
-- [ ] Idle - monitor Nightly #56 after M5.37 lands.
+- [ ] Idle - monitor Nightly #56 after M5.39 lands.
 
 ### Handoff to lane 3
 
