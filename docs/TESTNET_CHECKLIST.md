@@ -15,7 +15,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.33** (lane 4) — `prop_mixed_clsag_fee_and_storage_upload_treasury` (CLSAG fee + NEW storage upload same block).
 - [x] **M5.34** (lane 6) — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (**B-03**).
 - [x] **M5.35** (lanes 4+6) — 96-block validator CLSAG-only emission sim + `deep_mixed_clsag_fee_and_storage_upload_treasury_64` proptest in default CI.
-- [x] **M5.36** (lane 4) — `deep_mixed_clsag_fee_and_storage_proof_treasury_64` proptest in default CI.
+- [x] **M5.37** (lane 4) — deep empty/SPoRA/validator-mixed proptest chains in default CI.
+- [x] **M5.38** (lane 4) — `deep_mixed_clsag_fee_and_storage_upload_treasury_64` restored to default CI (**M5.35**).
 - [x] **M5.37** (lane 4) — `deep_empty_block_chain_128` + `deep_storage_proof_chain_32` + `deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32` in default CI.
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 

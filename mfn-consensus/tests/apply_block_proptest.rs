@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -3035,9 +3035,8 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
     assert_eq!(st.height, Some(64));
 }
 
-/// Deep CLSAG fee + storage upload same-block treasury chain (**M5.33**; nightly **M5.35** candidate).
+/// Deep CLSAG fee + storage upload same-block treasury chain (**M5.33**, **M5.35**, **M5.38**).
 #[test]
-#[ignore = "deep mixed CLSAG+upload treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
     const UPLOAD_PAYLOAD_LEN: usize = 1024;
     let min_upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN);
