@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M5.40** (`7648ab2`) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
+**M5.41** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
 
 ## Current board
 
@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - this commit | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.40 64-block combined-inflow emission sims | **Done** - this commit | B-05 Linux soak (lane 2+6) |
+| **6** | M5.41 128-block combined-inflow emission sims | **Done** - this commit | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -121,7 +121,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.40** (this commit) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
+- **M5.41** (this commit) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M5.40** (7648ab2) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
 - **M2.4.90** (this commit) — `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
 - **M2.4.89 Windows mirror** (`8e6b3c1`) — `ci-check.ps1` `--test-threads=2` OOM fix after M5.36–M5.39 promotions (lane 1).
 - **M5.39** (`35734a5`) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
