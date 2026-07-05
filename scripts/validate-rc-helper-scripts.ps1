@@ -1,4 +1,4 @@
-# Fail closed on UTF-16 or syntactically invalid RC helpers, ci-check entrypoints, and agent boards (M2.5.24-M2.5.28).
+﻿# Fail closed on UTF-16 or syntactically invalid RC helpers, ci-check entrypoints, and agent boards (M2.5.24-M2.5.28).
 param()
 $ErrorActionPreference = "Stop"
 
