@@ -59,11 +59,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.8ΓÇôM2.5.9 ΓÇö GHA startup polls + `query_tip_height`.
 - [x] M2.5.17 ΓÇö Windows voter hub-dial 600s parity.
 - [x] M2.5.19 ΓÇö GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
+- [x] M2.5.31 - GHA polls 900s; voter soft gate tip>=1; health 900s; nightly jobs 90m; RC Nightly backup dispatch (0e0de4e).
 - [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
 ### Next
 
-- [ ] Nightly #56 all three jobs green on current RC commit.
+- [ ] Nightly #57 all three jobs green on ``0e0de4e`` (B-06).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
