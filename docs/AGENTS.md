@@ -61,8 +61,6 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.19 — GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
-- [x] M2.4.90 — `ci-check.sh` `--test-threads=2` + docs/CI.md + ROADMAP (this commit).
-
 ### Next
 
 - [ ] Nightly #56 all three jobs green on current RC commit.
