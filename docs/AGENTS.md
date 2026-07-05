@@ -154,6 +154,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.46** (`2b33ced`; code `1152e16`) - split `p2p_peer_quarantine` + `p2p_reconnect_plan` from `p2p_fanout` (B-07 partial).
 - [x] **M2.5.47** (`2b33ced`) - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
 
+- [x] **M2.5.48** - on-disk debris purge; light-follow quorum `expect` removal (B-08).
 ### Next
 
 - [ ] Idle - monitor Nightly #62 (B-06).

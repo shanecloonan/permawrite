@@ -95,12 +95,13 @@ pub fn fetch_light_follow_quorum_json(
         wire_batches.iter().map(|rows| rows.as_slice()).collect();
     light_follow_rows_quorum(&refs).map_err(|e| format!("{e}"))?;
 
+    let first_batch = wire_batches
+        .into_iter()
+        .next()
+        .ok_or_else(|| "quorum fetch produced no batches".to_string())?;
     let page_follow = LightFollowV1 {
         genesis_id: genesis_id_val,
-        rows: wire_batches
-            .into_iter()
-            .next()
-            .expect("quorum requires ≥1 batch"),
+        rows: first_batch,
     };
     let page_to_height = capped_page_to_height(from_height, to_height);
     let mut page = light_follow_v1_to_json(&page_follow, from_height, page_to_height);

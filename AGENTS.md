@@ -91,7 +91,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.43–45 rehearsal timeouts + mfnd P2P | **Done** - `b945f73` | Monitor **Nightly #62** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #62 participant + observer PASS |
-| **4** | M2.5.48 debris purge + B-07 dispatch split start | **In progress** - lane 4 | B-08 closed on mfn-net prod; B-07 remainder |
+| **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - M2.5.48 | B-07 dispatch/cli splits; B-06 Nightly #62 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #62 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
@@ -106,7 +106,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
 | B-06 | Nightly #62 green (all three jobs) | 1 | RC gate on `3a1f213` (M2.5.38 + M2.5.43–45) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Partial** - M2.5.46 `p2p_fanout` split (`1152e16`/`2b33ced`); `dispatch.rs`/`cli.rs` remain |
-| B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | M2.5.44 mfnd_serve; M2.5.47 runner/mfnd_cli (`2b33ced`); frame/chunk done |
+| B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Mostly done** - mfn-net prod uses `Result`; M2.5.47 mfnd; M2.5.48 light-follow; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
 | B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | M2.5.45 redb/proptest/wasm-bindgen hoisted |
 
@@ -125,6 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.48** (this commit) - on-disk debris purge; light-follow quorum `expect` removal; board CI #638 sync (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).
 - **M2.5.43–45** (`b945f73`) - `rehearsal-poll-timeouts.*`; mfnd_serve P2P expect removal; workspace dep hoist; evidence gitignore (lanes 2/4/6).
 - **M2.5.39–42** (`4a1862b`) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
