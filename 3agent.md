@@ -19,7 +19,7 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.19 GHA rehearsal gates (`main`) | — | Nightly #56 after green CI |
-| **2** RC ops | M2.5.23 bash soak import (`this commit`) | — | B-05 soak evidence |
+| **2** RC ops | M2.5.23 bash soak import (`b408331`) | — | B-05 soak evidence |
 | **3** RC onboarding | M7.10 UX + smoke evidence | — | Monitor Nightly #56 smokes |
 
 **RC gate:** green CI on `main` → auto-dispatch **Nightly #56** + **Linux Soak Audit** when evidence missing (`ci.yml`).

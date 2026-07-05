@@ -138,11 +138,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.38** - restore deep_mixed_clsag_fee_and_storage_upload_treasury_64 to default CI (`d3a4f36`).
 - [x] **M5.39** - deep_alternating_register_storage_treasury_8 proptest in default CI (35734a5).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
-- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (this commit).
+- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
 
 ### Next
 
-- [ ] Idle - monitor Nightly #56 after M5.41 (`c7f90e6`) lands.
+- [ ] Idle - monitor Nightly #56 after M5.42 lands.
 
 ### Handoff to lane 3
 
@@ -179,8 +179,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
-- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (this commit).
-- [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (this commit; awaiting first PASS transcript).
+- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
+- [x] **M5.42** - 256-block combined-inflow emission sim in default CI (this commit).
+- [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; awaiting first PASS transcript).
 
 ### Do not start
 
