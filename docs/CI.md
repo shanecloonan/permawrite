@@ -16,7 +16,9 @@ powershell -File scripts/ci-check.ps1
 
 This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features`, `cargo build -p mfn-node --bin mfnd --release`, and `cargo test --workspace --release` with `RUSTFLAGS=-D warnings`, matching CI.
 
-**RC helper script smoke (M2.5.24):** After workflow UTF-8 validation, ci-check runs [scripts/validate-rc-helper-scripts.ps1](../scripts/validate-rc-helper-scripts.ps1) (and [.sh](../scripts/validate-rc-helper-scripts.sh) on Linux/macOS) to fail closed on UTF-16 RC helpers, PowerShell parse errors, and `bash -n` syntax errors under `scripts/public-devnet-v1/`. CI must build it explicitly before `cargo test --release`.
+**RC helper script smoke (M2.5.24):** After workflow UTF-8 validation, ci-check runs [scripts/validate-rc-helper-scripts.ps1](../scripts/validate-rc-helper-scripts.ps1) (and [.sh](../scripts/validate-rc-helper-scripts.sh) on Linux/macOS) to fail closed on UTF-16 RC helpers, PowerShell parse errors, and `bash -n` syntax errors under `scripts/public-devnet-v1/`.
+
+Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explicitly before `cargo test --release`.
 
 The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` with `pip --require-hashes` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A hash mismatch or installed `jsonschema` version mismatch is a release-toolchain failure, not a warning.
 
@@ -74,6 +76,10 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 **Local CI mirror thread cap (M2.4.90):** `scripts/ci-check.sh` and `scripts/ci-check.ps1` both use `--test-threads=2` on all platforms so heavy M5.36–M5.45 proptest/emission sims do not OOM during local mirrors (Windows was crashing at 4 threads after `8e6b3c1`).
 
 **Workflow UTF-8 guard (M2.4.79):** `scripts/validate-workflow-encoding.{sh,ps1}` runs in local CI mirror and GitHub **CI** scripts job — GitHub Actions rejects UTF-16 workflow YAML.
+
+**Agent board UTF-8 guard (M2.5.26):** `validate-workflow-encoding` also checks `AGENTS.md`, `docs/AGENTS.md`, and `3agent.md` for UTF-16 BOM or null-byte corruption so parallel agent boards stay readable and diffable.
+
+**Agent board UTF-8 guard (M2.5.26):** the same scripts also fail closed on UTF-16/null-byte corruption in `AGENTS.md`, `docs/AGENTS.md`, and `3agent.md`.
 
 **Emission / treasury (M5.0–M5.48):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + **1M-height curve (M5.47)** + 10k empty blocks + 512-block storage-proof ledger + validator CLSAG/mixed fee chains including **96-block validator CLSAG-only (M5.35)** and **64-block validator mixed CLSAG+SPoRA (M5.34/B-03)** + **384-block legacy mixed fee+proof ledger (M5.39)** + **64-block combined-inflow + PPB + equivocation-PPB combined-inflow ledgers (M5.40)** + **128-block PPB + equivocation combined-inflow ledgers (M5.41)** + **256-block combined-inflow ledger (M5.42)** + **256-block PPB combined-inflow ledger (M5.43)** + **512-block combined-inflow + PPB + equivocation combined-inflow ledgers (M5.44/M5.45)** + **256-block equivocation combined-inflow ledgers (M5.47)** + liveness-slash/combined-inflow treasury ledgers, including 32/64-block equivocation combined-inflow, prefunded treasury backstop coverage, and 16/32-block no-equivocation PPB combined-inflow coverage). **M5.48:** emission `apply_block` deep-sim tier closure — 38 default + 2 nightly `#[ignore]` (2048-block CLSAG fee mix ~13m release; 100k empty `apply_block` ~7m release).
 
