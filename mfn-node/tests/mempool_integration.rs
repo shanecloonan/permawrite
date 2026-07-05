@@ -713,3 +713,142 @@ fn already_anchored_storage_tx_silently_skips_burden_in_mempool() {
     pool.admit(signed_tx, chain.state())
         .expect("admit (already-anchored silent skip)");
 }
+
+/// Multi-input txs must use the same ring size on every input under
+/// production `uniform_ring_size = 16`. **M5.32**
+#[test]
+fn mempool_rejects_non_uniform_ring_sizes_across_inputs() {
+    use mfn_consensus::DEFAULT_CONSENSUS_PARAMS;
+
+    fn spendable(value: u64) -> (GenesisOutput, Scalar, Scalar) {
+        let blinding = random_scalar();
+        let spend = random_scalar();
+        let p = generator_g() * spend;
+        let c = (generator_g() * blinding) + (generator_h() * Scalar::from(value));
+        (
+            GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            },
+            spend,
+            blinding,
+        )
+    }
+
+    fn build_ring(
+        signer_p: EdwardsPoint,
+        signer_c: EdwardsPoint,
+        signer_idx: usize,
+        ring_size: usize,
+        decoys: &[(EdwardsPoint, EdwardsPoint)],
+    ) -> ClsagRing {
+        let mut ring_p = Vec::with_capacity(ring_size);
+        let mut ring_c = Vec::with_capacity(ring_size);
+        let mut decoy_idx = 0usize;
+        for slot in 0..ring_size {
+            if slot == signer_idx {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else {
+                let (p, c) = decoys[decoy_idx];
+                ring_p.push(p);
+                ring_c.push(c);
+                decoy_idx += 1;
+            }
+        }
+        ClsagRing {
+            p: ring_p,
+            c: ring_c,
+        }
+    }
+
+    const PROD_RING: usize = 16;
+    let (out_a, spend_a, blind_a) = spendable(500_000);
+    let (out_b, spend_b, blind_b) = spendable(400_000);
+    let mut initial_outputs = vec![out_a.clone(), out_b.clone()];
+    let mut decoy_pairs: Vec<(EdwardsPoint, EdwardsPoint)> = Vec::new();
+    for i in 0..30 {
+        let sp = random_scalar();
+        let bp = random_scalar();
+        let p = generator_g() * sp;
+        let c = (generator_g() * bp) + (generator_h() * Scalar::from((i as u64) + 100));
+        decoy_pairs.push((p, c));
+        initial_outputs.push(GenesisOutput {
+            one_time_addr: p,
+            amount: c,
+        });
+    }
+
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+
+    let recipient = {
+        let w = stealth_gen();
+        Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        }
+    };
+    let signed_tx = sign_transaction(
+        vec![
+            InputSpec {
+                ring: build_ring(
+                    out_a.one_time_addr,
+                    out_a.amount,
+                    0,
+                    PROD_RING,
+                    &decoy_pairs[0..(PROD_RING - 1)],
+                ),
+                signer_idx: 0,
+                spend_priv: spend_a,
+                value: 500_000,
+                blinding: blind_a,
+            },
+            InputSpec {
+                ring: build_ring(
+                    out_b.one_time_addr,
+                    out_b.amount,
+                    2,
+                    8,
+                    &decoy_pairs[(PROD_RING - 1)..(PROD_RING - 1 + 7)],
+                ),
+                signer_idx: 2,
+                spend_priv: spend_b,
+                value: 400_000,
+                blinding: blind_b,
+            },
+        ],
+        vec![OutputSpec::ToRecipient {
+            recipient,
+            value: 500_000 + 400_000 - 2_000,
+            storage: None,
+        }],
+        2_000,
+        b"non-uniform-ring".to_vec(),
+    )
+    .expect("sign")
+    .tx;
+
+    let mut pool = Mempool::new(MempoolConfig::default());
+    let err = pool.admit(signed_tx, chain.state()).unwrap_err();
+    match err {
+        AdmitError::TxInvalid { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| e.contains("ring size 8") && e.contains("uniform 16")),
+                "expected uniform ring-16 error, got {errors:?}"
+            );
+        }
+        other => panic!("expected TxInvalid for non-uniform rings, got {other:?}"),
+    }
+}

@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -22,9 +22,9 @@ use mfn_crypto::hash::hash_to_scalar;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    accrue_proof_reward, build_storage_commitment, build_test_storage_proof,
-    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE,
-    DEFAULT_ENDOWMENT_PARAMS, PPB,
+    accrue_proof_reward, build_storage_commitment, build_test_storage_proof, required_endowment,
+    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, StorageCommitment,
+    DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
 
@@ -387,6 +387,37 @@ impl PropSpendState {
         };
         (signed.tx, next)
     }
+
+    /// Storage-anchoring spend with a NEW commitment; next state uses deterministic change keys.
+    fn sign_storage_upload(
+        &self,
+        fee: u64,
+        storage: StorageCommitment,
+        next_seed: u32,
+    ) -> (TransactionWire, Self) {
+        assert!(fee < self.value, "fee must leave positive anchor output");
+        let anchor_value = self.value - fee;
+        let next_spend = hash_to_scalar(&[b"M5.33/change-spend", &next_seed.to_le_bytes()]);
+        let change_addr = generator_g() * next_spend;
+        let signed = sign_transaction(
+            vec![self.input_spec()],
+            vec![OutputSpec::Raw {
+                one_time_addr: change_addr,
+                value: anchor_value,
+                storage: Some(storage),
+            }],
+            fee,
+            Vec::new(),
+        )
+        .expect("sign storage upload");
+        let next = Self {
+            spend_priv: next_spend,
+            blinding: signed.output_blindings[0],
+            value: anchor_value,
+            one_time_addr: change_addr,
+        };
+        (signed.tx, next)
+    }
 }
 
 /// Genesis UTXOs: signer output plus deterministic decoys for ring-16 spends.
@@ -400,6 +431,76 @@ fn prop_spend_genesis_outputs(spend: &PropSpendState) -> Vec<GenesisOutput> {
         amount: spend.commitment(),
     });
     outputs
+}
+
+/// Genesis UTXOs for two independent ring-16 spenders (CLSAG fee + upload).
+fn prop_dual_spend_genesis_outputs(
+    clsag: &PropSpendState,
+    upload: &PropSpendState,
+) -> Vec<GenesisOutput> {
+    let mut outputs = Vec::with_capacity(PROP_RING_SIZE + 1);
+    for i in 0..PROP_RING_SIZE - 1 {
+        outputs.push(PropSpendState::genesis_decoy_at(i));
+    }
+    outputs.push(GenesisOutput {
+        one_time_addr: clsag.one_time_addr,
+        amount: clsag.commitment(),
+    });
+    outputs.push(GenesisOutput {
+        one_time_addr: upload.one_time_addr,
+        amount: upload.commitment(),
+    });
+    outputs
+}
+
+struct PropDualSpendGenesis {
+    state: ChainState,
+    clsag_spend: PropSpendState,
+    upload_spend: PropSpendState,
+}
+
+fn genesis_dual_spend_for_upload_proptest() -> PropDualSpendGenesis {
+    let clsag_spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let upload_spend = PropSpendState::from_seed(2, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: prop_dual_spend_genesis_outputs(&clsag_spend, &upload_spend),
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropDualSpendGenesis {
+        state,
+        clsag_spend,
+        upload_spend,
+    }
+}
+
+/// Minimum upload fee whose treasury share covers the endowment burden for `payload_len`.
+fn prop_min_upload_fee(payload_len: usize) -> u64 {
+    let payload: Vec<u8> = vec![0u8; payload_len];
+    let built = build_storage_commitment(
+        &payload,
+        1_000,
+        Some(256),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let burden = required_endowment(
+        built.commit.size_bytes,
+        built.commit.replication,
+        &DEFAULT_ENDOWMENT_PARAMS,
+    )
+    .expect("burden");
+    let treasury_bps = u128::from(PROP_MIXED_EMISSION.fee_to_treasury_bps);
+    let min_fee = burden.saturating_mul(10_000).div_ceil(treasury_bps).max(1);
+    u64::try_from(min_fee).unwrap_or(u64::MAX)
 }
 
 struct PropPrivacyStorageGenesis {
@@ -1004,6 +1105,20 @@ fn apply_mixed_clsag_fee_and_storage_proof(
     }
 }
 
+fn apply_mixed_clsag_fee_and_storage_upload(
+    st: &ChainState,
+    height: u32,
+    txs: Vec<TransactionWire>,
+) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(st, &txs, &[], &[], &[], height, ts);
+    let blk = seal_with_test_finality(st, unsealed, txs, Vec::new(), Vec::new(), Vec::new());
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("height {height}: {errors:?}"),
+    }
+}
+
 fn register_op(seed: u8) -> BondOp {
     let bls = bls_keygen_from_seed(&[seed.wrapping_add(1); 32]);
     let vrf = vrf_keygen_from_seed(&[seed.wrapping_add(101); 32]).expect("vrf");
@@ -1462,6 +1577,65 @@ proptest! {
                 h,
                 fee
             );
+            prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
+    /// CLSAG fee credit + NEW storage upload in the **same block** (**M5.33**).
+    #[test]
+    fn prop_mixed_clsag_fee_and_storage_upload_treasury(
+        n_blocks in 1u32..=12u32,
+        clsag_fee_base in 1_000u64..=200_000u64,
+        upload_fee_extra in 0u64..=5_000u64,
+    ) {
+        const UPLOAD_PAYLOAD_LEN: usize = 1024;
+        let min_upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN);
+        let gen = genesis_dual_spend_for_upload_proptest();
+        let mut st = gen.state;
+        let mut clsag_spend = gen.clsag_spend;
+        let mut upload_spend = gen.upload_spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+
+        for h in 1..=n_blocks {
+            let clsag_fee = clsag_fee_base.saturating_add(u64::from(h % 7_001));
+            let upload_fee = min_upload_fee.saturating_add(upload_fee_extra);
+            prop_assert!(clsag_fee < PROP_MIXED_SPEND_VALUE, "CLSAG fee must fit genesis UTXO");
+            prop_assert!(upload_fee < PROP_MIXED_SPEND_VALUE, "upload fee must fit genesis UTXO");
+
+            let payload: Vec<u8> = vec![h as u8; UPLOAD_PAYLOAD_LEN];
+            let built = build_storage_commitment(
+                &payload,
+                1_000,
+                Some(256),
+                DEFAULT_ENDOWMENT_PARAMS.min_replication,
+                None,
+            )
+            .expect("commitment");
+            let commit_hash = storage_commitment_hash(&built.commit);
+            prop_assert!(
+                !st.storage.contains_key(&commit_hash),
+                "upload must anchor a fresh commitment at height {h}"
+            );
+
+            let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+            clsag_spend = next_clsag;
+            let (upload_tx, next_upload) =
+                upload_spend.sign_storage_upload(upload_fee, built.commit, h.wrapping_add(10_000));
+            upload_spend = next_upload;
+
+            let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
+            st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
+            model = treasury_after_block(model, fee_sum, 0, emission);
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (clsag_fee {} upload_fee {})",
+                h,
+                clsag_fee,
+                upload_fee
+            );
+            prop_assert!(st.storage.contains_key(&commit_hash));
             prop_assert!(st.treasury < u128::MAX);
         }
     }
@@ -2861,6 +3035,49 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
         st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
         model = treasury_after_block(model, u128::from(fee), 1, emission);
         assert_eq!(st.treasury, model, "treasury mismatch at height {h}");
+    }
+    assert_eq!(st.height, Some(64));
+}
+
+/// Deep CLSAG fee + storage upload same-block treasury chain (**M5.33**).
+#[test]
+#[ignore = "deep mixed CLSAG+upload treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
+fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
+    const UPLOAD_PAYLOAD_LEN: usize = 1024;
+    let min_upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN);
+    let gen = genesis_dual_spend_for_upload_proptest();
+    let mut st = gen.state;
+    let mut clsag_spend = gen.clsag_spend;
+    let mut upload_spend = gen.upload_spend;
+    let mut model = 0u128;
+    let emission = &PROP_MIXED_EMISSION;
+
+    for h in 1..=64u32 {
+        let clsag_fee = 2_000u64 + u64::from(h % 5_001);
+        let upload_fee = min_upload_fee + u64::from(h % 501);
+        let payload: Vec<u8> = vec![h as u8; UPLOAD_PAYLOAD_LEN];
+        let built = build_storage_commitment(
+            &payload,
+            1_000,
+            Some(256),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commitment");
+        let commit_hash = storage_commitment_hash(&built.commit);
+        let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+        clsag_spend = next_clsag;
+        let (upload_tx, next_upload) =
+            upload_spend.sign_storage_upload(upload_fee, built.commit, h.wrapping_add(10_000));
+        upload_spend = next_upload;
+        let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
+        st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
+        model = treasury_after_block(model, fee_sum, 0, emission);
+        assert_eq!(
+            st.treasury, model,
+            "treasury mismatch at height {h} (clsag_fee {clsag_fee} upload_fee {upload_fee})"
+        );
+        assert!(st.storage.contains_key(&commit_hash));
     }
     assert_eq!(st.height, Some(64));
 }

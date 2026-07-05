@@ -31,8 +31,9 @@ for block in incoming_blocks {
 }
 
 // Send: assemble a transfer paying Bob 100_000 atomic units, with
-// fee 10_000. `ring_size = 4` picks 3 gamma-aged decoys from the
-// chain's UTXO set automatically.
+// fee 10_000. Production chains require **uniform ring-16** (see
+// `WALLET_MIN_RING_SIZE`, consensus `RingPolicy::PRODUCTION`, and
+// [`docs/PRIVACY.md`](../docs/PRIVACY.md) §6 anonymity tiers).
 let recipients = vec![TransferRecipient {
     recipient: mfn_consensus::Recipient {
         view_pub: bob.keys().view_pub(),
@@ -44,7 +45,7 @@ let mut rng = seeded_rng(0xC0FFEE);
 let signed = alice.build_transfer(
     &recipients,
     /* fee = */ 10_000,
-    /* ring_size = */ 4,
+    /* ring_size = */ mfn_wallet::WALLET_MIN_RING_SIZE,
     chain.state(),
     b"hello bob",
     &mut rng,
@@ -76,7 +77,7 @@ let art = alice.build_storage_upload(
     /* anchor_recipient = */ alice.recipient(),     // anchor to self
     /* anchor_value = */ 1_000,                     // tiny self-pay UTXO
     /* chunk_size = */ None,                        // default 256 KiB
-    /* ring_size = */ 4,
+    /* ring_size = */ mfn_wallet::WALLET_MIN_RING_SIZE,
     chain.state(),
     b"manifesto-v1",
     &mut rng,

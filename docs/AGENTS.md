@@ -68,7 +68,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Do not start (other lanes)
 
 - M7.10 `push-all-chunks` — lanes 2–3 (landed `c1e0373`).
-- M5.31+ ring tests — lane 4 (M5.31–M5.32 landed this commit).
+- M5.31+ ring tests — lane 4 (M5.31-M5.33 landed this commit).
 
 ---
 
@@ -126,7 +126,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **M5.33** — proptest mixed storage upload + CLSAG fee treasury identity (claim B-02).
+- [x] **M5.33** — `prop_mixed_clsag_fee_and_storage_upload_treasury` + 64-block `#[ignore]` deep chain (claim B-02).
 
 ### Handoff to lane 3
 
@@ -175,7 +175,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
-| B-02 | Proptest CLSAG + storage upload same block | 4 | Extends M5.5 |
+| B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | `emission_simulation.rs` |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
 | B-06 | Nightly #56 green | 1 | Blocks RC sign-off |

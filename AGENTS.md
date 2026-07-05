@@ -87,8 +87,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
 | **2** | M7.10 push-all-chunks + evidence | **Done** - `c1e0373`/`3d34556` on `main` | Evidence refresh after Nightly #56 |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.31 + M5.32 uniform ring policy | **Done** — this commit | M5.33 proptest (claim B-02) |
-| **5** | Wallet README ring-16 examples | **Done** — this commit | B-04 CLI help audit |
+| **4** | M5.31-M5.33 protocol hardening | **Done** - this commit | B-03 emission sim (lane 6) |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
 | **6** | - | **Idle** | Claim B-03 or B-05 from backlog |
 
 ---
@@ -97,7 +97,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | ID | Item | Suggested lane | Privacy / performance |
 | --- | --- | --- | --- |
-| B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Both |
+| B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Privacy fee mix |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Performance ops |
 | B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
@@ -110,13 +110,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | 2 | 1 | Green CI on `main` before Nightly #56 dispatch | Waiting |
 | 3 | 1 | Nightly #56 participant + observer PASS | Waiting |
-| 4 | 3 | M5.31/M5.32 ring tests green before next M7.10 UX | **Done** - this commit |
+| 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - this commit |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
 ---
 
 ## Recently completed
 
+- **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.
 - **M5.31** (this commit) - consensus + `apply_block` reject non-uniform ring sizes across inputs (production uniform ring-16).
 - **M5.32** (this commit) - mempool ingress rejects non-uniform ring before accept (`mfn-runtime`, `mfn-node` integration).
 - **M5.31-docs/cli** (this commit) - `mfn-wallet/README.md` ring-16 examples; CLI help documents default 16; PRIVACY.md cross-link.

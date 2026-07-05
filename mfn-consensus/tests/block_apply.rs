@@ -2377,6 +2377,258 @@ fn consensus_rejects_ring_smaller_than_sixteen() {
     );
 }
 
+/// Multi-input txs must use the same ring size on every input when
+/// `uniform_ring_size = 16` — heterogeneous sizes leak metadata.
+/// **M5.31**
+#[test]
+fn consensus_rejects_non_uniform_ring_sizes_across_inputs() {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    fn spendable_output(value: u64) -> (GenesisOutput, Scalar, Scalar) {
+        let blinding = random_scalar();
+        let spend = random_scalar();
+        let p = generator_g() * spend;
+        let c = (generator_g() * blinding) + (generator_h() * Scalar::from(value));
+        (
+            GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            },
+            spend,
+            blinding,
+        )
+    }
+
+    fn build_ring(
+        signer_p: curve25519_dalek::edwards::EdwardsPoint,
+        signer_c: curve25519_dalek::edwards::EdwardsPoint,
+        signer_idx: usize,
+        ring_size: usize,
+    ) -> ClsagRing {
+        let mut ring_p = Vec::with_capacity(ring_size);
+        let mut ring_c = Vec::with_capacity(ring_size);
+        for slot in 0..ring_size {
+            if slot == signer_idx {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else {
+                let sp = random_scalar();
+                let bp = random_scalar();
+                let vp = random_scalar();
+                ring_p.push(generator_g() * sp);
+                ring_c.push((generator_g() * bp) + (generator_h() * vp));
+            }
+        }
+        ClsagRing {
+            p: ring_p,
+            c: ring_c,
+        }
+    }
+
+    let (out_a, spend_a, blind_a) = spendable_output(500_000);
+    let (out_b, spend_b, blind_b) = spendable_output(400_000);
+    let mut initial_outputs = vec![out_a.clone(), out_b.clone()];
+    for i in 0..30 {
+        initial_outputs.push(genesis_decoy_output(i));
+    }
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let _state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let recipient_wallet = stealth_gen();
+    let signed = sign_transaction(
+        vec![
+            InputSpec {
+                ring: build_ring(out_a.one_time_addr, out_a.amount, 0, PROD_RING_SIZE),
+                signer_idx: 0,
+                spend_priv: spend_a,
+                value: 500_000,
+                blinding: blind_a,
+            },
+            InputSpec {
+                ring: build_ring(out_b.one_time_addr, out_b.amount, 2, 8),
+                signer_idx: 2,
+                spend_priv: spend_b,
+                value: 400_000,
+                blinding: blind_b,
+            },
+        ],
+        vec![OutputSpec::ToRecipient {
+            recipient: Recipient {
+                view_pub: recipient_wallet.view_pub,
+                spend_pub: recipient_wallet.spend_pub,
+            },
+            value: 500_000 + 400_000 - 2_000,
+            storage: None,
+        }],
+        2_000,
+        b"non-uniform-ring".to_vec(),
+    )
+    .expect("sign");
+
+    let policy = DEFAULT_CONSENSUS_PARAMS.ring_policy();
+    let v = verify_transaction(&signed.tx, &policy);
+    assert!(
+        !v.ok,
+        "heterogeneous ring sizes must fail under production policy"
+    );
+    assert!(
+        v.errors
+            .iter()
+            .any(|e| e.contains("ring size 8") && e.contains("uniform 16")),
+        "expected uniform ring-16 error on 8-member input, got {:?}",
+        v.errors
+    );
+}
+
+#[test]
+fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    fn spendable_output(value: u64) -> (GenesisOutput, Scalar, Scalar) {
+        let blinding = random_scalar();
+        let spend = random_scalar();
+        let p = generator_g() * spend;
+        let c = (generator_g() * blinding) + (generator_h() * Scalar::from(value));
+        (
+            GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            },
+            spend,
+            blinding,
+        )
+    }
+
+    fn build_ring(
+        signer_p: curve25519_dalek::edwards::EdwardsPoint,
+        signer_c: curve25519_dalek::edwards::EdwardsPoint,
+        signer_idx: usize,
+        ring_size: usize,
+    ) -> ClsagRing {
+        let mut ring_p = Vec::with_capacity(ring_size);
+        let mut ring_c = Vec::with_capacity(ring_size);
+        for slot in 0..ring_size {
+            if slot == signer_idx {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else {
+                let sp = random_scalar();
+                let bp = random_scalar();
+                let vp = random_scalar();
+                ring_p.push(generator_g() * sp);
+                ring_c.push((generator_g() * bp) + (generator_h() * vp));
+            }
+        }
+        ClsagRing {
+            p: ring_p,
+            c: ring_c,
+        }
+    }
+
+    let (out_a, spend_a, blind_a) = spendable_output(500_000);
+    let (out_b, spend_b, blind_b) = spendable_output(400_000);
+    let mut initial_outputs = vec![out_a.clone(), out_b.clone()];
+    for i in 0..30 {
+        initial_outputs.push(genesis_decoy_output(i));
+    }
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let recipient_wallet = stealth_gen();
+    let signed = sign_transaction(
+        vec![
+            InputSpec {
+                ring: build_ring(out_a.one_time_addr, out_a.amount, 0, PROD_RING_SIZE),
+                signer_idx: 0,
+                spend_priv: spend_a,
+                value: 500_000,
+                blinding: blind_a,
+            },
+            InputSpec {
+                ring: build_ring(out_b.one_time_addr, out_b.amount, 2, 8),
+                signer_idx: 2,
+                spend_priv: spend_b,
+                value: 400_000,
+                blinding: blind_b,
+            },
+        ],
+        vec![OutputSpec::ToRecipient {
+            recipient: Recipient {
+                view_pub: recipient_wallet.view_pub,
+                spend_pub: recipient_wallet.spend_pub,
+            },
+            value: 500_000 + 400_000 - 2_000,
+            storage: None,
+        }],
+        2_000,
+        b"non-uniform-ring".to_vec(),
+    )
+    .expect("sign");
+
+    let unsealed = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&signed.tx),
+        &[],
+        &[],
+        &[],
+        1,
+        100,
+    );
+    let block = seal_block(
+        unsealed,
+        vec![signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            let saw = errors.iter().any(|e| {
+                matches!(
+                    e,
+                    BlockError::TxInvalid { errors: detail, .. }
+                        if detail.iter().any(|d| d.contains("ring size 8") && d.contains("uniform"))
+                )
+            });
+            assert!(saw, "expected non-uniform ring TxInvalid, got {errors:?}");
+        }
+        ApplyOutcome::Ok { .. } => panic!("non-uniform ring sizes must reject block"),
+    }
+}
+
 #[test]
 fn apply_block_rejects_ring_smaller_than_sixteen() {
     use curve25519_dalek::scalar::Scalar;

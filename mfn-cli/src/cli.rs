@@ -467,15 +467,15 @@ fn usage() -> &'static str {
                          options: --json\n\
 wallet send ADDRESS AMOUNT  build CLSAG transfer and submit_tx\n\
 wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
-                         options: --fee N --ring-size N --extra HEX --json\n\
+                         options: --fee N --ring-size N (default 16, consensus min) --extra HEX --json\n\
        wallet upload FILE                 anchor FILE on-chain (storage upload + submit_tx)\n\
-                         options: --replication N --fee N --anchor-value N --ring-size N\n\
+                         options: --replication N --fee N --anchor-value N --ring-size N (default 16)\n\
                          --anchor-view HEX --anchor-spend HEX --extra HEX\n\
                          --message TEXT | --message-hex HEX (MFCL claim bound to upload)\n\
                          --json\n\
        wallet claim DATA_ROOT_HEX         publish MFCL authorship claim + submit_tx\n\
                          options: --message TEXT | --message-hex HEX --commit-hash HEX\n\
-                         --fee N --ring-size N --json\n\
+                         --fee N --ring-size N (default 16) --json\n\
        wallet export-trusted-summary      write weak-subjectivity summary JSON (**M3.14**)\n\
                          options: --out FILE --height N --pin --from-wallet-checkpoint\n\
        wallet import-trusted-summary FILE pin weak-subjectivity summary into wallet (**M3.15**)\n\

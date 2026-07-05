@@ -882,6 +882,116 @@ mod tests {
         .tx
     }
 
+    /// **M5.32** — mempool ingress uses the same `verify_transaction` +
+    /// production ring policy as `apply_block`.
+    #[test]
+    fn admit_rejects_non_uniform_ring_sizes() {
+        fn spendable(value: u64) -> (GenesisOutput, Scalar, Scalar) {
+            let blinding = random_scalar();
+            let spend = random_scalar();
+            let p = generator_g() * spend;
+            let c = (generator_g() * blinding) + (generator_h() * Scalar::from(value));
+            (
+                GenesisOutput {
+                    one_time_addr: p,
+                    amount: c,
+                },
+                spend,
+                blinding,
+            )
+        }
+
+        fn ring(
+            signer_p: EdwardsPoint,
+            signer_c: EdwardsPoint,
+            signer_idx: usize,
+            ring_size: usize,
+        ) -> ClsagRing {
+            let mut p = Vec::with_capacity(ring_size);
+            let mut c = Vec::with_capacity(ring_size);
+            for slot in 0..ring_size {
+                if slot == signer_idx {
+                    p.push(signer_p);
+                    c.push(signer_c);
+                } else {
+                    let sp = random_scalar();
+                    let bp = random_scalar();
+                    let vp = random_scalar();
+                    p.push(generator_g() * sp);
+                    c.push((generator_g() * bp) + (generator_h() * vp));
+                }
+            }
+            ClsagRing { p, c }
+        }
+
+        let (out_a, spend_a, blind_a) = spendable(500_000);
+        let (out_b, spend_b, blind_b) = spendable(400_000);
+        let mut initial_outputs = vec![out_a.clone(), out_b.clone()];
+        for i in 0..20 {
+            let sp = random_scalar();
+            let bp = random_scalar();
+            let p = generator_g() * sp;
+            let c = (generator_g() * bp) + (generator_h() * Scalar::from((i as u64) + 100));
+            initial_outputs.push(GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            });
+        }
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs,
+            initial_storage: Vec::new(),
+            validators: Vec::<Validator>::new(),
+            params: ConsensusParams::default(),
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
+
+        let signed = sign_transaction(
+            vec![
+                InputSpec {
+                    ring: ring(out_a.one_time_addr, out_a.amount, 0, 16),
+                    signer_idx: 0,
+                    spend_priv: spend_a,
+                    value: 500_000,
+                    blinding: blind_a,
+                },
+                InputSpec {
+                    ring: ring(out_b.one_time_addr, out_b.amount, 2, 8),
+                    signer_idx: 2,
+                    spend_priv: spend_b,
+                    value: 400_000,
+                    blinding: blind_b,
+                },
+            ],
+            vec![OutputSpec::ToRecipient {
+                recipient: recipient(),
+                value: 500_000 + 400_000 - 2_000,
+                storage: None,
+            }],
+            2_000,
+            Vec::new(),
+        )
+        .expect("sign")
+        .tx;
+
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(signed, chain.state()).unwrap_err();
+        match err {
+            AdmitError::TxInvalid { errors, .. } => {
+                assert!(
+                    errors
+                        .iter()
+                        .any(|e| e.contains("ring size 8") && e.contains("uniform 16")),
+                    "expected uniform ring error, got {errors:?}"
+                );
+            }
+            other => panic!("expected TxInvalid, got {other:?}"),
+        }
+    }
+
     #[test]
     fn admit_happy_path_fresh() {
         let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
