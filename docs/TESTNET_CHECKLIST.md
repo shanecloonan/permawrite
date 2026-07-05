@@ -30,6 +30,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.26** (lane 2) — agent board UTF-8 guard in validate-workflow-encoding (`c71e9c3`).
 - [x] **M2.5.27** (lane 2) — restore `docs/AGENTS.md` per-lane checklists (this commit).
 - [x] **M2.5.28** (lane 2) — extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (this commit).
+- [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (__COMMIT__).
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 

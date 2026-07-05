@@ -35,33 +35,33 @@ Every agent working a lane **must** broadcast **Done / Doing / Next** so simulta
 
 ### What to include (every announcement)
 
-1. **Done** â€” units landed on `main` (commit hash when known) or explicitly abandoned with reason.
-2. **Doing** â€” current lane, unit ID, and concrete step (not just the milestone name).
-3. **Next** â€” immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
+1. **Done** — units landed on `main` (commit hash when known) or explicitly abandoned with reason.
+2. **Doing** — current lane, unit ID, and concrete step (not just the milestone name).
+3. **Next** — immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
 
 Use this template in chat **and** mirror it on the boards:
 
 `text
-Lane N â€” Done: <completed units + commits>
+Lane N — Done: <completed units + commits>
        Doing: <unit + current step>
        Next:  <follow-up + owner + blockers>
 `
 
 ### Where to record it
 
-Update **all applicable** surfaces in the same session â€” do not rely on chat alone:
+Update **all applicable** surfaces in the same session — do not rely on chat alone:
 
-- [`AGENTS.md`](AGENTS.md) â€” current board, cross-lane requests, recently completed.
-- [`docs/AGENTS.md`](docs/AGENTS.md) â€” lane Done / Next checklists.
-- [`3agent.md`](3agent.md) â€” lanes 1â€“3 mirror (current board + detailed plans).
-- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) â€” when RC-related.
+- [`AGENTS.md`](AGENTS.md) — current board, cross-lane requests, recently completed.
+- [`docs/AGENTS.md`](docs/AGENTS.md) — lane Done / Next checklists.
+- [`3agent.md`](3agent.md) — lanes 1–3 mirror (current board + detailed plans).
+- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) — when RC-related.
 
 ### Coordination rules
 
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in Â§ Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in § Cross-lane requests.
 
 ---
 
@@ -80,20 +80,21 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-04)
+## CI gate (2026-07-05)
 
-**M2.5.28** (`dc2e032`) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak auto-dispatch follow.`n
+**M2.5.29** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
+
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.23 bash soak import helper | **Done** - `b408331` | B-05 evidence after soak workflow |
-| **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
+| **2** | M2.5.28 RC encoding guard + M2.5.27 docs mirror | **Done** - `99f5da2`/`aaf2246` | B-05 soak evidence |
+| **3** | M7.11 STORAGE_ACCESSIBILITY Phase A | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.45 512-block PPB + equivocation sims | **Done** - 66a697a | B-05 Linux soak (lane 2+6) |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-06 Nightly #56 |
 
 ---
 
@@ -121,33 +122,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.45** (this commit) â€” 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.45** (this commit) - 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.44** (`3fcb4bc`) â€” 512-block combined-inflow emission sim in default CI (lane 6).
-- **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
-- **M5.45** (this commit) - 256-block combined-inflow treasury ledger emission sim in default CI (lane 6).
+- **M2.5.29** (this commit) - `.gitattributes` UTF-8 pins for agent boards + RC validators; restore master board after encoding fix (lane 2).
+- **M7.11** (`7690138`) - STORAGE_ACCESSIBILITY section 0 plain-language verdict (lane 3).
+- **M2.5.28** (`99f5da2`) - consolidated RC encoding guard in validate-rc-helper-scripts (lane 2).
+- **M2.5.27** (`aaf2246`) - restore `docs/AGENTS.md` per-lane checklists (lane 2).
+- **M2.5.26** (`c71e9c3`) - UTF-8 guard for AGENTS.md boards in validate-workflow-encoding (lane 2).
+- **M5.48** (`77f2fe1`) - emission deep-sim tier closure (lane 6).
+- **M2.5.24** (`001e2c6`) - validate-rc-helper-scripts smoke in ci-check (lane 2).
+- **M5.47** (`db06c78`) - 256-block equivocation + 1M curve in default CI (lane 6).
+
 - **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
-- **M2.5.23** (`29fe6df`) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
-- **M5.41** (`c7f90e6`) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.40** (7648ab2) â€” 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
-- **M2.4.90** (`01a98d2`) â€” `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
-- **M2.4.89 Windows mirror** (`8e6b3c1`) â€” `ci-check.ps1` `--test-threads=2` OOM fix after M5.36â€“M5.39 promotions (lane 1).
-- **M5.39** (`35734a5`) â€” `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
-- **M5.38** (`d3a4f36`) â€” restore `deep_mixed_clsag_fee_and_storage_upload_treasury_64` to default CI after M5.37 regression.
-- **M5.37** (`ec8122e`) â€” deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32` in default CI.
-- **M5.36** (`0dcb1e9`) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
-- **M2.5.22** (`0dcb1e9`) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
-- **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.
-- **M2.5.21** (`9537c7b`) - preflight `wasm-opt` warning; Linux soak auto-dispatch + import helper.
-- **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.
-- **M5.31** (this commit) - consensus + `apply_block` reject non-uniform ring sizes across inputs (production uniform ring-16).
-- **M5.32** (this commit) - mempool ingress rejects non-uniform ring before accept (`mfn-runtime`, `mfn-node` integration).
-- **M5.31-docs/cli** (this commit) - `mfn-wallet/README.md` ring-16 examples; CLI help documents default 16; PRIVACY.md cross-link.
-- **M6.9** (partial, this commit) - `prove_attempt_json` unit test + README `--json` docs.
 - **Coordination** - unified `AGENTS.md` lane registry (lanes 1-6) + `docs/AGENTS.md` per-lane detail.
-- **M7.10** (`c1e0373`) - `push-all-chunks` + decentralization doc cross-links.
-- **M4.7** (`778053a`) - WASM SPoRA prove/verify bindings.
-- **M2.5.19** (`fed2dd6`/`a88e8ff`) - GHA hub tip 900s; voter-dial soft-continue.
 
 ---
 
