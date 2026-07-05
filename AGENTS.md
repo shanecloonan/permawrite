@@ -1,4 +1,4 @@
-﻿# Agent Coordination (master board)
+# Agent Coordination (master board)
 
 Single source of truth for **all** parallel agent lanes (formerly `3agent.md` lanes 1-3, plus overflow lanes 4-6). Release gates: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md).
 
@@ -70,7 +70,7 @@ Update **all applicable** surfaces in the same session ΓÇö do not rely on cha
 | Lane | Scope | Owns (exclusive) | Does *not* own |
 | --- | --- | --- | --- |
 | **1** | RC core | M2.5.x mesh startup, voter-dial timeouts, Nightly rehearsal stability, Linux soak dispatch | M7.10 replication, M5 ring tests |
-| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
+| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - e0a7ebd | B-05 soak evidence |
 | **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
 | **4** | Protocol hardening | M5 privacy + permanence tests, `apply_block` invariants, ring/SPoRA consensus guards | RC Nightly fixes, `push-all-chunks` |
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no silent downgrade UX | M7.10 replication, GHA rehearsal |
@@ -82,14 +82,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**M2.5.27** (__COMMIT__) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak follow.
+**M2.5.27** (e0a7ebd) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak follow.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
+| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - e0a7ebd | B-05 soak evidence |
 | **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
@@ -121,7 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.27** (__COMMIT__) - restore `docs/AGENTS.md` per-lane checklists (UTF-8); sync master board (lane 2).
+- **M2.5.27** (e0a7ebd) - restore `docs/AGENTS.md` per-lane checklists (UTF-8); sync master board (lane 2).
 - **M2.5.26** (`a417f1e`) - UTF-8 guard for agent boards in validate-workflow-encoding (lane 2).
 - **M2.5.24** (`001e2c6`) - `validate-rc-helper-scripts` smoke in `ci-check` (lane 2).
 - **M7.11** (`bb9600b`) - STORAGE_ACCESSIBILITY.md section 0 (lane 3).

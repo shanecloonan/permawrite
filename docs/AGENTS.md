@@ -69,7 +69,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Do not start (other lanes)
 
 - M7.10 `push-all-chunks` ΓÇö lanes 2ΓÇô3 (landed `c1e0373`).
-- M5.31+ ring tests ΓÇö lane 4 (M5.31-M5.33 landed __COMMIT__).
+- M5.31+ ring tests ΓÇö lane 4 (M5.31-M5.33 landed e0a7ebd).
 
 ---
 
@@ -81,16 +81,16 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.5.14ΓÇôM2.5.18 ΓÇö evidence refresh + inline Nightly dispatch.
 - [x] M2.5.20 ΓÇö nightly STAGE/start-all log dumps (668044d).
-- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (__COMMIT__).
-- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (__COMMIT__).
+- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (e0a7ebd).
+- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (e0a7ebd).
 - [x] M2.5.22 ΓÇö wasm-pack `wasm-opt=false` (`0dcb1e9`).
-- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (__COMMIT__).
+- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (e0a7ebd).
 - [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
 - [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
-- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (__COMMIT__).
+- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (e0a7ebd).
 
-- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (__COMMIT__).
+- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (e0a7ebd).
 
 ### Next
 
@@ -119,7 +119,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Do not start
 
-- Wallet README ring examples ΓÇö lane 5 (done __COMMIT__).
+- Wallet README ring examples ΓÇö lane 5 (done e0a7ebd).
 - Consensus ring tests ΓÇö lane 4.
 
 ---

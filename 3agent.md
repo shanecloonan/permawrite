@@ -8,7 +8,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.19 GHA rehearsal gates (`main`) | - | Nightly #56 (B-06) |
-| **2** RC ops | M2.5.27 docs mirror (__COMMIT__); M2.5.26 (`a417f1e`); M2.5.24 (`001e2c6`) | - | B-05 soak evidence |
+| **2** RC ops | M2.5.27 docs mirror (e0a7ebd); M2.5.26 (`a417f1e`); M2.5.24 (`001e2c6`) | - | B-05 soak evidence |
 | **3** RC onboarding | M7.11 section 0 (`bb9600b`) | - | Monitor Nightly #56 (B-06) |
 
 Update [`AGENTS.md`](./AGENTS.md) instead of growing this file.
