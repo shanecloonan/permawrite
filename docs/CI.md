@@ -16,9 +16,7 @@ powershell -File scripts/ci-check.ps1
 
 This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features`, `cargo build -p mfn-node --bin mfnd --release`, and `cargo test --workspace --release` with `RUSTFLAGS=-D warnings`, matching CI.
 
-**RC helper script smoke (M2.5.24):** After workflow UTF-8 validation, ci-check runs [scripts/validate-rc-helper-scripts.ps1](../scripts/validate-rc-helper-scripts.ps1) (and [.sh](../scripts/validate-rc-helper-scripts.sh) on Linux/macOS) to fail closed on UTF-16 RC helpers, PowerShell parse errors, and `bash -n` syntax errors under `scripts/public-devnet-v1/`.
-
-Integration tests in `mfn-cli` spawn the `mfnd` binary; CI must build it explicitly before `cargo test --release`.
+**RC helper script smoke (M2.5.24):** After workflow UTF-8 validation, ci-check runs [scripts/validate-rc-helper-scripts.ps1](../scripts/validate-rc-helper-scripts.ps1) (and [.sh](../scripts/validate-rc-helper-scripts.sh) on Linux/macOS) to fail closed on UTF-16 RC helpers, PowerShell parse errors, and `bash -n` syntax errors under `scripts/public-devnet-v1/`. CI must build it explicitly before `cargo test --release`.
 
 The public-devnet script checks install `scripts/public-devnet-v1/requirements-release-schema.txt` with `pip --require-hashes` and run the pinned `jsonschema==4.17.3` Draft 2020-12 validator in addition to the dependency-free release-schema validator. A hash mismatch or installed `jsonschema` version mismatch is a release-toolchain failure, not a warning.
 

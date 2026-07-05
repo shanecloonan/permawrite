@@ -26,6 +26,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.45** (lane 6) — 512-block PPB + equivocation combined-inflow emission sims in default CI.
 - [x] **M5.46** (lane 6) — combined-inflow emission CI tier complete; 2048-block CLSAG fee mix timed nightly-only (~13 min).
 - [x] **M5.47** (lane 6) — 256-block equivocation combined-inflow + 1M-height emission curve in default CI.
+- [x] **M5.48** (lane 6) — emission `apply_block` deep-sim tier closure; 2048-block CLSAG + 100k empty stay nightly.
+- [x] **M2.5.26** (lane 2) — agent board UTF-8 guard in validate-workflow-encoding (this commit).
+- [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
