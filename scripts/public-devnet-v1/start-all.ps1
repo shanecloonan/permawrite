@@ -164,6 +164,10 @@ function Get-VoterP2pFromLog {
             $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
             if ($m) { return $m.Matches.Groups[1].Value.Trim() }
         }
+        if ($env:GITHUB_ACTIONS -and ($i % 30 -eq 0)) {
+            $serve = (Test-Path $LogPath) -and (Select-String -Path $LogPath -Pattern "mfnd_serve_listening=" -Quiet)
+            Write-Host "start-all: STAGE=voter_p2p_wait log=$(Split-Path $LogPath -Leaf) elapsed=${i}/${max}s serve_listening=$serve"
+        }
         Start-Sleep -Seconds 1
     }
     return $null

@@ -105,6 +105,11 @@ poll_voter_p2p() {
       p2p=$(grep -m1 mfnd_p2p_listening= "$log_path" | sed 's/.*=//')
       break
     fi
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( i % 30 == 0 )); then
+      local serve=0
+      grep -q mfnd_serve_listening= "$log_path" 2>/dev/null && serve=1
+      echo "start-all: STAGE=voter_p2p_wait log=$(basename "$log_path") elapsed=${i}/${max}s serve_listening=$serve"
+    fi
     sleep 1
   done
   printf '%s' "$p2p"

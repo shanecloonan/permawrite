@@ -14,13 +14,14 @@
 | **M2.5.46–47** | **Done** (`2b33ced`) | B-07 `p2p_fanout` split + B-08 runner/mfnd_cli; `mfnd_serve` import fix |
 | **M2.5.48** | **Done** (`040d31d`) | Debris purge; light-follow quorum expect removal |
 | **M2.5.49** | **Done** (`8650543`) | GHA health + hub_liveness soft gates at tip>=1 |
+| **M2.5.50** | **Done** (lane 1) | Early P2P listen + POST_START timeout export |
 | **CI #636** | **GREEN** | On `3a1f213` — Nightly #62 dispatched |
-| **CI #641** | **In progress** | On `8650543` (M2.5.49) |
-| **Nightly #63** | Waiting | After green CI on `8650543` |
+| **CI #642** | **In progress** | M2.5.50 stack |
+| **Nightly #63** | Waiting | After green CI on M2.5.50 |
 
 ### RC push embargo
 
-Hold **code** pushes until CI #641 green; doc-only board sync OK.
+Hold **code** pushes until CI #642 green; doc-only board sync OK.
 
 ---
 
@@ -28,7 +29,7 @@ Hold **code** pushes until CI #641 green; doc-only board sync OK.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.35–38, M2.5.43–45, M2.5.49 (`8650543`) | Monitor CI #641 | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.35–38, M2.5.43–45, M2.5.49–50 | Monitor CI #642 | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
@@ -40,9 +41,9 @@ Hold **code** pushes until CI #641 green; doc-only board sync OK.
 | --- | --- | --- | --- |
 | #58–61 | pre-38 / board-only | partial fixes | FAIL ~16.3m |
 | #62 | `3a1f213` | M2.5.38 + 43–45 | **FAIL** ~16.3m |
-| #63 | pending | + M2.5.49 soft gates | pending |
+| #63 | pending | + M2.5.49–50 | pending |
 
-**M2.5.49 fix:** GHA soft-continue mesh health + hub_liveness when hub tip>=1 (mirrors M2.5.38 voter-dial gate).
+**M2.5.50 fix:** mfnd prints `mfnd_p2p_listening` before committee engine init; POST_START mesh health timeout exported.
 
 ---
 
@@ -50,7 +51,7 @@ Hold **code** pushes until CI #641 green; doc-only board sync OK.
 
 - [x] M2.5.38 + M2.5.43–45 on `main`
 - [x] Nightly #62 ran (FAIL ~16.3m on `3a1f213`)
-- [ ] **Nightly #63** all three green after M2.5.49
+- [ ] **Nightly #63** all three green after M2.5.50
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #641** in progress on `8650543` (M2.5.49). **CI #636** **GREEN** on `3a1f213`; **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **Nightly #63** after green CI.
+**CI #642** in progress (M2.5.50). **CI #641** on `8650543` (M2.5.49). **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **Nightly #63** after green CI on M2.5.50 stack.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.49 GHA smoke health + hub_liveness soft gates | **Done** - `8650543` | Monitor CI #641 → **Nightly #63** (B-06) |
+| **1** | M2.5.50 early P2P listen + POST_START timeout parity | **Done** - (this commit) | Monitor CI #642 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits |
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49 (Nightly #62 FAIL ~16.3m on `3a1f213`) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.50 (M2.5.49 + early P2P listen) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Partial** - M2.5.46 `p2p_fanout` split (`1152e16`/`2b33ced`); `dispatch.rs`/`cli.rs` remain |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Mostly done** - mfn-net prod uses `Result`; M2.5.47 mfnd; M2.5.48 light-follow; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
@@ -125,6 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.50** (this commit) - mfnd early `mfnd_p2p_listening` before committee init; `MFN_MESH_HEALTH_POST_START_TIMEOUT` export; start-all voter P2P GHA diagnostics (lane 1).
 - **M2.5.49** (`8650543`) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
 - **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).

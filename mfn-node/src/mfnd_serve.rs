@@ -594,6 +594,12 @@ pub(crate) fn run_serve(
         let listen_addr = listener
             .local_addr()
             .map_err(|e| format!("mfnd serve: p2p local_addr: {e}"))?;
+        // Announce P2P listen before fan-out / production setup so devnet start-all polls
+        // do not block on committee engine initialization (GHA Nightly ~900s voter poll).
+        println!("mfnd_p2p_listening={listen_addr}");
+        std::io::stdout()
+            .flush()
+            .map_err(|e| format!("mfnd serve: stdout flush (p2p early): {e}"))?;
         (Some(listener), Some(listen_addr))
     } else {
         (None, None)
@@ -731,7 +737,7 @@ pub(crate) fn run_serve(
         .map_err(|e| format!("mfnd serve: stdout flush: {e}"))?;
 
     if let Some(pl) = p2p_listener {
-        let Some(p2p_addr) = local_p2p_listen else {
+        if local_p2p_listen.is_none() {
             return Err(
                 "mfnd serve: internal error: P2P listener active without listen address".into(),
             );
@@ -746,10 +752,6 @@ pub(crate) fn run_serve(
                 "mfnd serve: internal error: P2P listener active without HID counter".into(),
             );
         };
-        println!("mfnd_p2p_listening={p2p_addr}");
-        std::io::stdout()
-            .flush()
-            .map_err(|e| format!("mfnd serve: stdout flush (p2p): {e}"))?;
         spawn_inbound_handshake_loop(InboundP2pLoop {
             listener: pl,
             genesis_id,
