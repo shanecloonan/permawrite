@@ -158,7 +158,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.47** (`2b33ced`) - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
 
 - [x] **M2.5.48** (40d31d) - on-disk debris purge; light-follow quorum `expect` removal (B-08).
-- [x] **M2.5.52** (this commit) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
+- [x] **M2.5.52** (`2904ea3`) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
 ### Next
 
 - [ ] B-07 `cli.rs` god-file split (idle until claimed).
