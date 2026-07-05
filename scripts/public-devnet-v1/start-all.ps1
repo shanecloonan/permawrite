@@ -329,10 +329,15 @@ function Wait-HubTipAtLeast {
         return
     }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $i = 0
     do {
+        $i++
         $tipHeight = Get-TipHeightText $mfnCli $HubRpc
         Write-Host "start-all: hub_tip_wait tip_height=$tipHeight min_height=$MinHeight"
         if ($tipHeight -match '^\d+$' -and [int]$tipHeight -ge $MinHeight) { return }
+        if ($env:GITHUB_ACTIONS -and ($i % 6 -eq 0)) {
+            Write-Host "start-all: STAGE=hub_tip_wait elapsed=$(( $i * 5 ))/${TimeoutSeconds}s tip_height=$tipHeight"
+        }
         if ((Get-Date) -ge $deadline) {
             Write-Host "start-all: hub tip_height=$tipHeight below min_height=$MinHeight after ${TimeoutSeconds}s; tail $($hubLog):" -ForegroundColor Red
             if (Test-Path $hubLog) { Get-Content $hubLog -Tail 100 | Write-Host }
@@ -342,7 +347,7 @@ function Wait-HubTipAtLeast {
     } while ($true)
 }
 
-$hubTipWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
+$hubTipWait = if ($env:GITHUB_ACTIONS) { $script:MFN_POLL_HUB_MAX } else { 120 }
 $hubTipMin = 1
 Write-Host "start-all: STAGE=hub_tip_wait min_height=$hubTipMin timeout=${hubTipWait}s"
 Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight $hubTipMin -TimeoutSeconds $hubTipWait

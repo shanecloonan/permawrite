@@ -117,13 +117,17 @@ poll_voter_p2p() {
 
 wait_hub_tip_at_least() {
   local hub_rpc="$1" min_height="$2" timeout_seconds="$3"
-  local deadline tip_height
+  local deadline tip_height i=0
   deadline=$(( $(date +%s) + timeout_seconds ))
   while :; do
+    i=$(( i + 1 ))
     tip_height="$(query_tip_height "$hub_rpc" "$REPO_ROOT")"
     echo "start-all: hub_tip_wait tip_height=$tip_height min_height=$min_height"
     if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= min_height )); then
       return
+    fi
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( i % 6 == 0 )); then
+      echo "start-all: STAGE=hub_tip_wait elapsed=$(( i * 5 ))/${timeout_seconds}s tip_height=$tip_height"
     fi
     if (( $(date +%s) >= deadline )); then
       echo "start-all: STAGE=hub_tip_wait_fail tip_height=$tip_height min_height=$min_height after ${timeout_seconds}s; tail $LOG_DIR/v0.log:" >&2
@@ -275,8 +279,8 @@ HUB_TIP_WAIT=120
 HUB_TIP_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   # Mesh convergence to tip>=2 is gated in participant-rehearsal-smoke (hub_liveness).
-  # Requiring tip>=2 here duplicated that wait and failed smokes at ~900s when block 2 lagged.
-  HUB_TIP_WAIT=600
+  # Align with MFN_POLL_HUB_MAX (900s) — hardcoded 600s caused ~16.3m Nightly fails (M2.5.51).
+  HUB_TIP_WAIT="$MFN_POLL_HUB_MAX"
   HUB_TIP_MIN=1
 fi
 echo "start-all: STAGE=hub_tip_wait min_height=$HUB_TIP_MIN timeout=${HUB_TIP_WAIT}s"
