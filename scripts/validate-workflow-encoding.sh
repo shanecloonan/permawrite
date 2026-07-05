@@ -40,6 +40,11 @@ for path in paths:
         failed.append(f"UTF-16 BOM {path}")
     elif data.count(b"\x00") >= 3:
         failed.append(f"null bytes {path}")
+    rel = str(path.relative_to(root)).replace("\\", "/")
+    if "AGENTS" in rel or rel == "3agent.md":
+        text = path.read_text(encoding="utf-8")
+        if "\u0393" in text or "`n-" in text or "`n**" in text:
+            failed.append(f"board text quality {path}")
 if failed:
     print("validate-workflow-encoding: FAIL", *failed, sep="\n", file=sys.stderr)
     sys.exit(1)

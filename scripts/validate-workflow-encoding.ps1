@@ -21,6 +21,13 @@ function Test-Utf8TextFile {
     return $null
 }
 
+function Test-BoardTextQuality {
+    param([string]$Path)
+    $text = [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
+    if ($text -match '\u0393|`n-|`n\*\*') { return "board text quality $Path" }
+    return $null
+}
+
 $failed = @()
 Get-ChildItem -Path $WorkflowDir -Filter "*.yml" -File | ForEach-Object {
     $issue = Test-Utf8TextFile $_.FullName
@@ -43,6 +50,10 @@ foreach ($rel in @(
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         $issue = Test-Utf8TextFile $path
         if ($issue) { $failed += $issue }
+        if ($rel -match 'AGENTS|3agent') {
+            $quality = Test-BoardTextQuality $path
+            if ($quality) { $failed += $quality }
+        }
     }
 }
 

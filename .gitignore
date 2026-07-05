@@ -37,3 +37,30 @@ scripts/ci-check-last.log
 # commit messages on Powershell, which lacks HEREDOC support for git commit -m)
 .commit-msg.tmp
 
+# Local CI / rehearsal logs (M2.5.32)
+ci-check-*.log
+ci-watch-*.log
+ci-ignored*.log
+ci-bulletproof*.log
+nightly-watch-*.log
+participant-rehearsal-*.log
+m5*-timing.log
+test-list.log
+ci548-*.zip
+
+# Agent-board encoding recovery scratch (M2.5.26-M2.5.32)
+_*.md
+_*.bin
+_*.tmp
+_*.txt
+_a.tmp
+AGENTS.*.md
+AGENTS.md.*
+docs/_*
+docs/AGENTS.*.md
+docs/*.restore.md
+docs/*.new*.md
+.gitattributes.new
+scripts/validate-rc*.new.ps1
+scripts/*.restored
+

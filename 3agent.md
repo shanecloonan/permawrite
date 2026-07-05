@@ -3,18 +3,18 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4-6** are overflow lanes.
 
-## Session — 2026-07-05 (B-06)
+## Session — 2026-07-05 (B-06 / M2.5.32)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **M2.5.31** | **Done** (`0e0de4e`) | GHA polls 900s; health 900s; nightly 90m; workflow_run Nightly backup |
-| **CI #619** | In progress | `0e0de4e` — **do not push** until green (~70 min) |
-| **Nightly #56** | FAIL | `4bd43f2` — ignored PASS; participant+observer FAIL ~11m (pre-M2.5.31) |
-| **Nightly #57** | Waiting | Dispatches after green CI #619 |
+| **M2.5.32** | **WIP** (this commit) | `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` |
+| **CI #622** | **In progress** | `f4b5e37` — hold push until green (~70 min) |
+| **Nightly #57** | Waiting | Auto-dispatch after green CI #622 |
 
 ### RC push embargo
 
-No commits to `main` while CI #619 is in flight.
+No commits to `main` while CI #622 is in flight.
 
 ---
 
@@ -22,16 +22,16 @@ No commits to `main` while CI #619 is in flight.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.31 mesh hardening (`0e0de4e`) | Monitor CI #619 | Nightly #57 triage |
-| **2** RC ops | M2.5.30 encoding (`2eb8417`) | Wait CI green | Release evidence after Nightly #57 |
-| **3** RC onboarding | M7.11 section 0 (`bb9600b`) | Monitor B-06 | Observer/participant smoke PASS |
+| **1** RC core | M2.5.31 (`0e0de4e`) | Idle — monitor CI #622 | Nightly #57 triage (B-06) |
+| **2** RC ops | M2.5.30 encoding (`2eb8417`) | M2.5.32 hygiene + guards | Release evidence after Nightly #57 |
+| **3** RC onboarding | M7.11 (`bb9600b`) | Monitor B-06 | Participant + observer PASS |
 
 ---
 
 ## B-06 checklist
 
 - [x] Nightly #56 ran (pre-M2.5.31 stack)
-- [ ] Green CI #619 on `0e0de4e`
+- [ ] Green CI #622 on `f4b5e37`
 - [ ] Nightly #57 all-3-jobs green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence

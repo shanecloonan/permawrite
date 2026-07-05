@@ -40,6 +40,19 @@ function Write-Utf8 {
     [IO.File]::WriteAllText((Join-Path $root $Path), $Text, $utf8)
 }
 
+function Repair-BoardMojibake {
+    param([string]$Text)
+    $Text = $Text -replace '\u0393\u00c7\u00f6', ' - '
+    $Text = $Text -replace '\u0393\u00c7\u00f4', '-'
+    $Text = $Text -replace '\u0393\u00c7\u00a3|\u0393\u00c7\u00a5', '"'
+    $Text = $Text -replace '\u0393\u00c7\u00a6', '...'
+    $Text = $Text -replace '\u0393\u00a3\u00f4', 'x'
+    $Text = $Text -replace '\u0393\u00f6\u00c7|\u0393\u00f6\u00bc|\u0393\u00f6\u00a3', '-'
+    $Text = $Text -replace '\u00c2\u00a7', 'section '
+    $Text = $Text -replace '`n-', '-'
+    return $Text
+}
+
 $agentsHead = Read-GitBlobText "HEAD:AGENTS.md"
 if ($agentsHead -match 'M2\.5\.31') {
     Write-Host "AGENTS.md: HEAD already at M2.5.31+; skipping stale M2.5.27 template"
@@ -70,18 +83,51 @@ if ($agentsHead -match 'M2\.5\.31') {
     Write-Utf8 "AGENTS.md" $agents
 }
 
-$docs = Read-GitBlobText "HEAD:docs/AGENTS.md"
-if ($docs -notmatch 'M2\.5\.31') {
-    throw "docs/AGENTS.md on HEAD missing M2.5.31; land lane-1 unit before running fix-m2527-boards"
+$docsBase = Join-Path $root "docs/_agents_head.md"
+if (Test-Path -LiteralPath $docsBase) {
+    $docs = [IO.File]::ReadAllText($docsBase, $utf8)
+    Write-Host "docs/AGENTS.md: rebuilding from docs/_agents_head.md (M2.5.32 clean base)"
+} else {
+    $docs = Read-GitBlobText "HEAD:docs/AGENTS.md"
 }
+if ($docs -notmatch 'M2\.5\.19') { throw "docs/AGENTS.md base missing M2.5.19 row" }
 $docs = $docs -replace 'Nightly #56', 'Nightly #57'
 $docs = $docs -replace '\(e0a7ebd\)\.', '(`001e2c6`).'
+if ($docs -notmatch 'M2\.5\.31') {
+    $docs = $docs -replace '(- \[x\] M2\.5\.19[^\n]+\r?\n)', "`$1- [x] M2.5.31 - GHA polls 900s; voter soft gate tip>=1; health 900s; nightly jobs 90m; RC Nightly backup dispatch (``0e0de4e``).`n"
+}
 if ($docs -notmatch 'M2\.5\.26') {
     $docs = $docs -replace '(- \[x\] M2\.5\.24[^\n]+\r?\n)', "`$1- [x] M2.5.26 - UTF-8 guard for agent boards in validate-workflow-encoding (``c71e9c3``).`n- [x] M2.5.27 - restore per-lane checklists + board sync (``e0a7ebd``).`n- [x] M2.5.28 - extend ``validate-rc-helper-scripts`` for boards + ci-check entrypoints (``dc2e032``).`n- [x] M2.5.29 - ``.gitattributes`` UTF-8 pins for boards (``4bd43f2``).`n- [x] M2.5.30 - bash validate-workflow-encoding guard path parity (``2eb8417``).`n"
 }
+if ($docs -notmatch 'M7\.11') {
+    $docs = $docs -replace '(- \[x\] M7\.10[^\n]+\r?\n)', "`$1- [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (``bb9600b``).`n"
+}
+if ($docs -notmatch 'M5\.48') {
+    $lane6 = @"
+
+- [x] **M5.46** - combined-inflow emission CI tier complete (``1232506``).
+- [x] **M5.47** - 256-block equivocation combined-inflow + 1M curve in default CI (``db06c78``).
+- [x] **M5.48** - emission deep-sim tier closure; 2048 CLSAG + 100k ``apply_block`` stay nightly (``77f2fe1``).
+"@
+    $docs = $docs -replace '(### Idle[^\n]+\r?\n\r?\n)', "`$1$lane6"
+}
+if ($docs -notmatch 'M2\.5\.32') {
+    $docs = $docs -replace '(- \[x\] M2\.5\.30[^\n]+\r?\n)', "`$1- [x] M2.5.32 - ``.gitignore`` debris patterns; board mojibake guard; clean docs/AGENTS rebuild (__COMMIT__).`n"
+}
 $docs = $docs -replace 'Idle - monitor Nightly #57 after M5\.43 lands', 'Idle - monitor Nightly #57 (B-06)'
 $docs = $docs -replace '\| B-06 \| Nightly #57 green \| 1 \| Blocks RC sign-off \|', '| B-06 | Nightly #57 green | 1 | Blocks RC sign-off (Nightly #56 partial) |'
+$docs = Repair-BoardMojibake $docs
 Write-Utf8 "docs/AGENTS.md" $docs
+
+foreach ($boardRel in @("AGENTS.md", "3agent.md")) {
+    $boardPath = Join-Path $root $boardRel
+    if (-not (Test-Path -LiteralPath $boardPath)) { continue }
+    $boardText = [IO.File]::ReadAllText($boardPath, $utf8)
+    if ($boardText -match '\u0393|`n-') {
+        Write-Host "fix-m2527-boards: repairing mojibake in $boardRel"
+        Write-Utf8 $boardRel (Repair-BoardMojibake $boardText)
+    }
+}
 
 # 3agent.md is maintained by lane agents; do not overwrite from stale template.
 

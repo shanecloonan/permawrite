@@ -197,8 +197,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #55 on `afc5fd8` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~11.3m).
 - [x] **M2.5.19** (`fed2dd6`/`a88e8ff`) — GHA tip/health/liveness + voter-dial soft gate.
 - [x] Nightly #56 on `4bd43f2` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~13m).
+- [x] **M2.5.30** (lane 2) - bash validate-workflow-encoding guard path parity (`2eb8417`).
 - [x] **M2.5.31** (lane 1, `0e0de4e`) — voter-dial/health 900s; nightly rehearsal jobs 90m → **Nightly #57**.
-- [ ] CI green on current `main` → **Nightly #57** all three jobs green.
+- [ ] **M2.5.32** (lane 2, this commit) — `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md`.
+- [ ] CI green on `f4b5e37` (CI #622) → **Nightly #57** all three jobs green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
