@@ -89,7 +89,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor Nightly #61 (B-06) |
-| **2** | M2.5.43–45 timeout dedup + mfnd P2P + workspace deps | **In progress** - lane 2/4/6 | B-07 god-file splits; B-08 remainder |
+| **2** | M2.5.43–45 timeout dedup + mfnd P2P + workspace deps | **Done** - `b945f73` | B-07 god-file splits; B-08 remainder (lane 4) |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61; M5.40 P2P unwrap hardening |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
