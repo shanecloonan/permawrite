@@ -42,6 +42,10 @@ Write-Host "==> workflow YAML encoding (UTF-8)"
 powershell -NoProfile -File scripts/validate-workflow-encoding.ps1 | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "==> RC helper scripts smoke"
+powershell -NoProfile -File scripts/validate-rc-helper-scripts.ps1 | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "==> public-devnet scripts"
 $schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-release-schema-venv-" + [System.Guid]::NewGuid().ToString("N"))
 python -m venv $schemaVenv

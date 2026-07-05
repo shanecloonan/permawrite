@@ -28,6 +28,8 @@ fi
 
 echo "==> workflow YAML encoding (UTF-8)"
 bash scripts/validate-workflow-encoding.sh
+echo "==> RC helper scripts smoke"
+bash scripts/validate-rc-helper-scripts.sh
 echo "==> public-devnet scripts"
 schema_venv="$(mktemp -d)"
 trap 'rm -rf "$schema_venv"' EXIT
