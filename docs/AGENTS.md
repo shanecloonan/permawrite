@@ -1,158 +1,224 @@
-# Agent Coordination (master board)
+# Agent coordination checklists
 
-Single source of truth for **all** parallel agent lanes (formerly `3agent.md` lanes 1-3, plus overflow lanes 4-6). Release gates: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md).
+Master board: [`AGENTS.md`](../AGENTS.md). Release gates: [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md).
 
-**Priority doctrine:** privacy and permanence over everything. UX, ops, and CI serve those guarantees - never weaken ring policy, endowment enforcement, or SPoRA verification.
-
-Permawrite is pre-audit experimental software. Do not mark public-testnet readiness complete until the exact release commit has green GitHub CI, local CI mirror evidence, ignored/nightly coverage where required, release evidence, archive validation, and named human sign-off.
+When a lane completes a unit, update **all three**: this file, `AGENTS.md`, and the matching `TESTNET_CHECKLIST.md` section (if RC-related).
 
 ---
 
-## Conflict prevention (read before every unit)
+## How lanes talk to each other
 
-1. **Check this table first.** If another lane owns the unit with status `In progress`, do not start it.
-2. **Claim before coding.** Set status to `In progress` + note the commit base in [`docs/AGENTS.md`](docs/AGENTS.md).
-3. **Do not commit another lane's uncommitted work.** List it under **Observed local work** until it lands on `main`.
-4. **One coherent unit per commit.** Run `scripts/ci-check` (Windows: `scripts/ci-check.ps1`) before push.
-5. **Do not push while CI is in progress** on `main` - concurrency `cancel-in-progress` aborts the matrix (~70 min on Linux/macOS).
-6. **Hand off explicitly.** Update this board + lane checklist + any cross-lane request rows when done.
+```text
+AGENTS.md (master)  <ΓöÇΓöÇΓöÇ claim / status / backlog
+       Γöé
+       Γö£ΓöÇΓöÇ docs/AGENTS.md (this file) ΓÇö per-lane detail
+       Γö£ΓöÇΓöÇ docs/TESTNET_CHECKLIST.md ΓÇö RC mirror for lanes 1ΓÇô3
+       ΓööΓöÇΓöÇ 3agent.md ΓÇö alias pointer to lanes 1ΓÇô3
+```
 
----
+**Cross-lane rules**
 
-## Agent announcement protocol (mandatory)
+- **Request:** add a row to `AGENTS.md` ┬º Cross-lane requests; target lane acknowledges in their section below.
+- **Blocker:** if your unit depends on another lane, status = `Blocked on lane N` ΓÇö do not push partial protocol changes.
+- **Observed WIP:** if `git status` shows another lane's files modified, note under your lane but do not stage them.
 
-Every agent working a lane **must** broadcast **Done / Doing / Next** so simultaneous agents on the same roadmap can coordinate without duplicating work or missing handoffs.
+### Done / Doing / Next (mandatory)
 
-### When to announce
+Every lane agent **must** announce all three on every session and keep the boards in sync. See [`AGENTS.md` ┬º Agent announcement protocol](../AGENTS.md#agent-announcement-protocol-mandatory).
 
-| Trigger | Required action |
-| --- | --- |
-| **Start of session** | Post Done / Doing / Next before touching code. |
-| **Claim a unit** | Update current board + lane section; announce Doing + planned Next. |
-| **Mid-unit pivot** | Re-announce if scope, lane, or blockers change. |
-| **End of unit** | Move unit to Done; announce Next; update cross-lane requests. |
-| **Before push** | Board reflects the exact commit about to land; Next names the follow-up owner. |
-
-### What to include (every announcement)
-
-1. **Done** ΓÇö units landed on `main` (commit hash when known) or explicitly abandoned with reason.
-2. **Doing** ΓÇö current lane, unit ID, and concrete step (not just the milestone name).
-3. **Next** ΓÇö immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
-
-Use this template in chat **and** mirror it on the boards:
-
-`text
-Lane N ΓÇö Done: <completed units + commits>
-       Doing: <unit + current step>
-       Next:  <follow-up + owner + blockers>
-`
-
-### Where to record it
-
-Update **all applicable** surfaces in the same session ΓÇö do not rely on chat alone:
-
-- [`AGENTS.md`](AGENTS.md) ΓÇö current board, cross-lane requests, recently completed.
-- [`docs/AGENTS.md`](docs/AGENTS.md) ΓÇö lane Done / Next checklists.
-- [`3agent.md`](3agent.md) ΓÇö lanes 1ΓÇô3 mirror (current board + detailed plans).
-- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) ΓÇö when RC-related.
-
-### Coordination rules
-
-- **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
-- **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
-- **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in ┬º Cross-lane requests.
-
----
-
-## Lane registry
-
-| Lane | Scope | Owns (exclusive) | Does *not* own |
+| Surface | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** | RC core | M2.5.x mesh startup, voter-dial timeouts, Nightly rehearsal stability, Linux soak dispatch | M7.10 replication, M5 ring tests |
-| **2** | RC ops | `release-evidence-*`, RC audit dry-run, CI/Nightly auto-dispatch, schema validation gates | M5 protocol tests |
-| **3** | RC onboarding | Participant/observer rehearsal smokes, faucet/demo scripts, operator onboarding polish, M7.10 UX | Wallet README ring examples (lane 5), consensus ring tests (lane 4) |
-| **4** | Protocol hardening | M5 privacy + permanence tests, `apply_block` invariants, ring/SPoRA consensus guards | RC Nightly fixes, `push-all-chunks` |
-| **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no silent downgrade UX | M7.10 replication, GHA rehearsal |
-| **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` |
+| Chat (start + end of unit) | Γ£ô | Γ£ô | Γ£ô |
+| `AGENTS.md` current board | Γ£ô | Γ£ô | Γ£ô |
+| This file ΓÇö lane section | Γ£ô | ΓÇö | Γ£ô |
+| `3agent.md` (lanes 1ΓÇô3 only) | Γ£ô | Γ£ô | Γ£ô |
 
-Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes before they exceed ~2 active units.
+**Per-lane checklist format** ΓÇö keep these three subsections under every active lane:
+
+```markdown
+### Done
+- [x] ΓÇª
+
+### Doing
+- [ ] **<unit>** ΓÇö <concrete current step> (claim base: `<sha>`)
+
+### Next
+- [ ] ΓÇª
+```
+
+When **Doing** is empty, set lane status to **Idle** on the master board and list Next as backlog claims only.
 
 ---
 
-## CI gate (2026-07-04)
+## Lane 1 ΓÇö RC core (consensus, networking, GHA)
 
-**M5.46** (`1232506`) ΓÇö wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
+**Owns:** M2.5.x mesh startup, voter-dial timeouts, Nightly rehearsal stability, Linux soak dispatch.
 
-## Current board
+### Done
 
-| Lane | Current unit | Status | Next handoff |
+- [x] M2.5.8ΓÇôM2.5.9 ΓÇö GHA startup polls + `query_tip_height`.
+- [x] M2.5.17 ΓÇö Windows voter hub-dial 600s parity.
+- [x] M2.5.19 ΓÇö GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
+- [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
+
+### Next
+
+- [ ] Nightly #56 all three jobs green on current RC commit.
+- [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
+
+### Do not start (other lanes)
+
+- M7.10 `push-all-chunks` ΓÇö lanes 2ΓÇô3 (landed `c1e0373`).
+- M5.31+ ring tests ΓÇö lane 4 (M5.31-M5.33 landed this commit).
+
+---
+
+## Lane 2 ΓÇö RC ops (security, RPC, release evidence)
+
+**Owns:** `release-evidence-*`, RC audit dry-run, CI/Nightly auto-dispatch, schema validation gates.
+
+### Done
+
+- [x] M2.5.14ΓÇôM2.5.18 ΓÇö evidence refresh + inline Nightly dispatch.
+- [x] M2.5.20 ΓÇö nightly STAGE/start-all log dumps (668044d).
+- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
+- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
+- [x] M2.5.22 ΓÇö wasm-pack `wasm-opt=false` (`0dcb1e9`).
+- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (this commit).
+- [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
+- [x] M7.10 push-all-chunks (`c1e0373` on `main`).
+- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
+
+- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (this commit).
+
+### Next
+
+- [ ] `release-evidence-refresh-for-head` after green CI + Nightly #56.
+
+### Do not start
+
+- M5 protocol tests ΓÇö lane 4.
+
+---
+
+## Lane 3 ΓÇö RC onboarding (wallet, storage, faucet, rehearsal)
+
+**Owns:** Participant/observer rehearsal smokes, faucet/demo scripts, operator onboarding polish, M7.10 UX.
+
+### Done
+
+- [x] M2.5.7ΓÇôM2.5.16 ΓÇö smoke evidence pipeline + assert gates.
+- [x] M4.7 WASM SPoRA bindings (`778053a`).
+- [x] M7.10 ΓÇö `push-all-chunks` + OPERATORS.md (`c1e0373`).
+
+### Next
+
+- [ ] Nightly #56 participant + observer PASS.
+
+### Do not start
+
+- Wallet README ring examples ΓÇö lane 5 (done this commit).
+- Consensus ring tests ΓÇö lane 4.
+
+---
+
+## Lane 4 ΓÇö Protocol hardening (M5 privacy + permanence)
+
+**Owns:** Consensus/mempool privacy guards, mixed CLSAG+SPoRA tests, proptests not covered by RC lanes.
+
+**Doctrine:** Tier 1 production policy only (uniform ring-16). No Tier 2/3/4 until `AGENTS.md` backlog explicitly schedules it.
+
+### Done
+
+- [x] **M5.31** ΓÇö `consensus_rejects_non_uniform_ring_sizes` + `apply_block_rejects_non_uniform_ring_sizes` (uniform ring-16 across all inputs).
+- [x] **M5.32** ΓÇö `mfn-runtime` mempool `admit_rejects_non_uniform_ring_sizes_across_inputs` (claim B-01).
+- [x] **M5.33** ΓÇö prop_mixed_clsag_fee_and_storage_upload_treasury + 64-block deep chain (claim B-02, 1d4d67c).
+- [x] **M5.35** - deep_mixed_clsag_fee_and_storage_upload_treasury_64 in default CI (`9537c7b`).
+- [x] **M5.36** - deep_mixed_clsag_fee_and_storage_proof_treasury_64 in default CI (`0dcb1e9`).
+- [x] **M5.37** - deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed treasury in default CI (`ec8122e`).
+- [x] **M5.38** - restore deep_mixed_clsag_fee_and_storage_upload_treasury_64 to default CI (`d3a4f36`).
+- [x] **M5.39** - deep_alternating_register_storage_treasury_8 proptest in default CI (35734a5).
+- [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
+- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
+
+### Next
+
+- [ ] Idle - monitor Nightly #56 after M5.43 lands.
+
+### Handoff to lane 3
+
+- Ring-16 is consensus-enforced; wallet/CLI must stay ΓëÑ16 (lane 5 documents).
+
+---
+
+## Lane 5 ΓÇö Privacy surface (wallet, CLI, WASM, docs)
+
+**Owns:** Reference-wallet ring defaults, privacy doc accuracy, ΓÇ£no silent downgradeΓÇ¥ UX.
+
+### Done
+
+- [x] **M5.31-docs** ΓÇö `mfn-wallet/README.md` quick-start uses ring-16 and cites `WALLET_MIN_RING_SIZE`.
+- [x] **M5.31-cli** ΓÇö `mfn-cli wallet` help documents `--ring-size` default 16 (claim B-04).
+- [x] **PRIVACY cross-link** ΓÇö wallet README links uniform-ring policy in [`PRIVACY.md`](./PRIVACY.md).
+
+### Next
+
+- [ ] Monitor Nightly #56 after M5.31/M5.32 land on `main`.
+
+### Do not start
+
+- M7.10 replication ΓÇö lanes 2ΓÇô3.
+- GHA rehearsal ΓÇö lane 1.
+
+---
+
+## Lane 6 ΓÇö Permanence depth (economics, SPoRA, treasury)
+
+**Owns:** Long-run treasury/emission sims, SPoRA payout invariants, operator-bonding research.
+
+### Idle ΓÇö claim from backlog
+
+- [x] **M5.34 / B-03** ΓÇö 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
+- [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
+- [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
+- [x] **M5.42** - 256-block combined-inflow emission sim in default CI (994af36).
+- [x] **M5.44** - 512-block combined-inflow emission sim in default CI (3fcb4bc).
+- [x] **M5.46** - combined-inflow emission CI tier complete; 2048-block CLSAG fee mix timed nightly-only (~13 min release).
+- [x] **M5.47** - 256-block equivocation combined-inflow + 1M-height emission curve in default CI (`db06c78`).
+- [x] **M5.45** - 512-block PPB + equivocation combined-inflow emission sims in default CI (66a697a).
+- [x] **M5.43** - 256-block PPB combined-inflow emission sim in default CI (7ffcdac).
+- [x] B-05 ΓÇö Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; awaiting first PASS transcript).
+
+### Next
+
+- [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
+- [ ] B-06 - Nightly #56 all three jobs green (lane 1 RC gate).
+
+### Do not start
+
+- RC Nightly fixes ΓÇö lane 1.
+- `push-all-chunks` ΓÇö lanes 2ΓÇô3.
+
+---
+
+## Backlog detail (claim ΓåÆ move to lane section)
+
+| ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
-| **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.23 bash soak import helper | **Done** - `b408331` | B-05 evidence after soak workflow |
-| **3** | M7.11 storage accessibility Phase A | **Done** - this commit | Monitor Nightly #56 (B-06) |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.46 combined-inflow CI tier closure | **Done** - `1232506` | B-05 Linux soak (lane 2+6) |
+| B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
+| B-03 | CI emission sim with privacy fees | 6 | **Done** ΓÇö 64-block validator mixed |
+| B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
+| B-06 | Nightly #56 green | 1 | Blocks RC sign-off |
 
 ---
 
-## Backlog (unassigned -> claim in lane section)
+## TESTNET_CHECKLIST mirror
 
-| ID | Item | Suggested lane | Privacy / performance |
-| --- | --- | --- | --- |
-| B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
-| B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
-| B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
+RC lanes 1ΓÇô3 must keep [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) in sync when they land units. Lanes 4ΓÇô6 add a one-line note under **Agent coordination** when they ship protocol or privacy-surface changes.
 
 ---
 
-## Cross-lane requests
+## See also
 
-| From | To | Request | Status |
-| --- | --- | --- | --- |
-| 2 | 1 | Green CI on `main` before Nightly #56 dispatch | Waiting |
-| 3 | 1 | Nightly #56 participant + observer PASS | Waiting |
-| 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
-| TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
-
----
-
-## Recently completed
-
-- **M7.11** (this commit) - STORAGE_ACCESSIBILITY.md section 0 plain-language verdict (lane 3).`n- **M2.5.26** (this commit) - UTF-8 guard for AGENTS.md boards in validate-workflow-encoding (lane 2).`n- **M5.46** (`1232506`) ΓÇö combined-inflow emission CI tier complete; 2048-block CLSAG fee mix stays nightly (~765s release).
-- **M5.45** (`66a697a`) ΓÇö 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.44** (`3fcb4bc`) ΓÇö 512-block combined-inflow emission sim in default CI (lane 6).
-- **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
-- **M5.42** (`994af36`) - 256-block combined-inflow emission sim in default CI (lane 6).
-- **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
-- **M2.5.23** (`29fe6df`) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
-- **M5.41** (`c7f90e6`) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.40** (7648ab2) ΓÇö 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
-- **M2.4.90** (`01a98d2`) ΓÇö `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
-- **M2.4.89 Windows mirror** (`8e6b3c1`) ΓÇö `ci-check.ps1` `--test-threads=2` OOM fix after M5.36ΓÇôM5.39 promotions (lane 1).
-- **M5.39** (`35734a5`) ΓÇö `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
-- **M5.38** (`d3a4f36`) ΓÇö restore `deep_mixed_clsag_fee_and_storage_upload_treasury_64` to default CI after M5.37 regression.
-- **M5.37** (`ec8122e`) ΓÇö deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32` in default CI.
-- **M5.36** (`0dcb1e9`) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
-- **M2.5.22** (`0dcb1e9`) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
-- **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.
-- **M2.5.21** (`9537c7b`) - preflight `wasm-opt` warning; Linux soak auto-dispatch + import helper.
-- **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.
-- **M5.31** (this commit) - consensus + `apply_block` reject non-uniform ring sizes across inputs (production uniform ring-16).
-- **M5.32** (this commit) - mempool ingress rejects non-uniform ring before accept (`mfn-runtime`, `mfn-node` integration).
-- **M5.31-docs/cli** (this commit) - `mfn-wallet/README.md` ring-16 examples; CLI help documents default 16; PRIVACY.md cross-link.
-- **M6.9** (partial, this commit) - `prove_attempt_json` unit test + README `--json` docs.
-- **Coordination** - unified `AGENTS.md` lane registry (lanes 1-6) + `docs/AGENTS.md` per-lane detail.
-- **M7.10** (`c1e0373`) - `push-all-chunks` + decentralization doc cross-links.
-- **M4.7** (`778053a`) - WASM SPoRA prove/verify bindings.
-- **M2.5.19** (`fed2dd6`/`a88e8ff`) - GHA hub tip 900s; voter-dial soft-continue.
-
----
-
-## Legacy name
-
-The **3agent** board (`3agent.md`) is lanes **1-3** only. It now redirects here so new parallel agents use one registry.
-
-See also: [`docs/ROADMAP.md`](./docs/ROADMAP.md), [`docs/TESTNET.md`](./docs/TESTNET.md), [`scripts/public-devnet-v1/OPERATORS.md`](./scripts/public-devnet-v1/OPERATORS.md).
+- [`3agent.md`](./3agent.md) ΓÇö legacy lanes 1ΓÇô3 pointer
+- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md), [`PRIVACY.md`](./PRIVACY.md), [`ROADMAP.md`](./ROADMAP.md)
