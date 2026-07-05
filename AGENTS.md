@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.46** (this commit) — combined-inflow emission CI tier complete; 2048-block CLSAG fee mix stays nightly (~765s release).
 - **M5.45** (this commit) — 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.45** (this commit) - 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.44** (`3fcb4bc`) — 512-block combined-inflow emission sim in default CI (lane 6).
