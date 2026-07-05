@@ -203,8 +203,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.32** (lane 2) — `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` (`a35b7a6`).
 - [x] **M2.5.34** (lane 1) — macOS CI `--test-threads=2` parity; CI #625 **GREEN** (`15fd4c7`).
 - [x] Nightly #57 on `15fd4c7` — **PARTIAL** (ignored **PASS**; smokes **FAIL** ~16m).
-- [x] **M2.5.37** (lane 1, `12df02d`) — start-all tip≥1; TCP RPC health; hub_liveness 900s.
-- [ ] Nightly on `12df02d` — all three jobs green (after CI #628).
+- [x] Nightly #60 on `54983c7` — **PARTIAL** (smokes FAIL ~16.3m).
+- [ ] **M2.5.38** (`843e055`) → Nightly #61 all three green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

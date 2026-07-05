@@ -3,21 +3,19 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-05 (B-06 → Nightly #59)
+## Session — 2026-07-05 (B-06 → Nightly #61)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **CI #626** | **GREEN** | `f16bbb6` — M2.5.35 |
-| **Nightly #58** | **PARTIAL** | smokes FAIL ~16.3m on `f16bbb6` (start-all tip≥2 gate) |
 | **M2.5.37** | **Done** (`12df02d`) | tip≥1 start-all; TCP RPC; hub_liveness 900s |
-| **CI #629** | **GREEN** | `54983c7` — stats refresh atop M2.5.37 |
-| **Nightly #60** | **FAIL** | ~16.3m on `54983c7` (M2.5.37 — still 900s class) |
-| **M2.5.38** | **Landing** | mfn-cli health probe; voter-dial both-listening soft gate |
-| **CI #630** | **In progress** | On `4de1585` (board sync) |
+| **Nightly #60** | **FAIL** | ~16.3m on `54983c7` (M2.5.37) |
+| **M2.5.38** | **Done** (`843e055`) | mfn-cli health probe; voter-dial both-listening soft gate |
+| **CI #631** | **In progress** | On `843e055` — dispatches Nightly on `843e055` when green |
+| **Nightly #61** | **In progress** | On `4de1585` (pre-M2.5.38 — expect fail; superseded by #631 dispatch) |
 
 ### RC push embargo
 
-Nightly #60 in flight on `54983c7`. Hold **code** pushes until result; board doc sync OK.
+Hold pushes until CI #631 green (board doc sync only — this commit).
 
 ---
 
@@ -25,30 +23,29 @@ Nightly #60 in flight on `54983c7`. Hold **code** pushes until result; board doc
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.37 on `54983c7` | **M2.5.38** landing | Nightly #61 (B-06) |
-| **2** RC ops | CI #626–627 green | — | Release evidence after green Nightly |
-| **3** RC onboarding | M7.11.2 Phase B doc sync | — | Participant + observer PASS |
+| **1** RC core | M2.5.35–38 on `main` (`843e055`) | Monitor CI #631 | Nightly on `843e055` (B-06) |
+| **2** RC ops | CI #629–630 green | — | Release evidence after green Nightly |
+| **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---
 
-## Nightly #58 Post-Mortem (`f16bbb6`, ~16.3m)
+## Nightly #60 Post-Mortem (`54983c7`, ~16.3m)
 
 | Job | Result | Notes |
 | --- | --- | --- |
 | ignored-integration | **PASS** | Stable |
-| participant-rehearsal-smoke | **FAIL** | ~16.3m — `start-all` tip≥2 @ 900s duplicate gate |
+| participant-rehearsal-smoke | **FAIL** | ~16.3m — still single 900s gate |
 | observer-rehearsal-smoke | **FAIL** | Same class |
 
-**M2.5.37 fix:** start-all GHA tip≥1 (600s); tip≥2 in `hub_liveness` (900s); `query_rpc_json_line` TCP RPC.
+**M2.5.38 fix:** `query_get_status_compat_line` (mfn-cli tip first); unconditional GHA both-voters-listening soft gate; `MFN_REPO_ROOT` for health-check.
 
 ---
 
 ## B-06 checklist
 
-- [x] CI green on M2.5.34 (`15fd4c7`)
-- [x] Nightly #57 ran (partial)
-- [x] Nightly #58 on `f16bbb6` — **PARTIAL** (ignored **PASS**; smokes **FAIL** ~16.3m).
-- [ ] **M2.5.38** → Nightly #61 all three green (B-06)
+- [x] M2.5.37 pushed; Nightly #60 ran (partial)
+- [x] M2.5.38 pushed (`843e055`)
+- [ ] Nightly on `843e055` — all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

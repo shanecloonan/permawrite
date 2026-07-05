@@ -41,11 +41,11 @@ Every agent working a lane **must** broadcast **Done / Doing / Next** so simulta
 
 Use this template in chat **and** mirror it on the boards:
 
-`text
-Lane N  -  Done: <completed units + commits>
+```text
+Lane N - Done: <completed units + commits>
        Doing: <unit + current step>
        Next:  <follow-up + owner + blockers>
-`
+```
 
 ### Where to record it
 
@@ -82,17 +82,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #628** in progress on `12df02d` (M2.5.37); **Nightly #59** on `cfd5c8f` (superseded by CI #628 dispatch on green).
+**CI #630** **GREEN**; **Nightly #60** **PARTIAL** (~16.3m on M2.5.37). **M2.5.38** (`843e055`) pushed → CI #631 → **Nightly #61**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.37 start-all tip gate + TCP RPC health | **Done** - `12df02d` | Monitor CI #628 → Nightly on `12df02d` (B-06) |
-| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #59 |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #59 participant + observer PASS |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #59 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #59 |
+| **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor CI #631 → Nightly #61 (B-06) |
+| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #61 |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61 |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
 ---
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #59 green (all three jobs) | 1 | RC gate (Nightly #58 partial: smokes FAIL ~16.3m on `f16bbb6`) |
+| B-06 | Nightly #61 green (all three jobs) | 1 | RC gate (Nightly #60 partial: smokes FAIL ~16.3m on M2.5.37) |
 
 ---
 
@@ -112,8 +112,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI on M2.5.37 before Nightly #59 dispatch | Waiting |
-| 3 | 1 | Nightly #59 participant + observer PASS | Waiting |
+| 2 | 1 | Green CI on M2.5.38 before Nightly #61 dispatch | Waiting |
+| 3 | 1 | Nightly #61 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.38** (`843e055`) - mfn-cli health probe; GHA voter-dial both-listening soft gate (lane 1).
 - **M2.5.37** (`12df02d`) - start-all GHA tip>=1 gate; query_rpc_json_line TCP RPC; hub_liveness 900s (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).
 - **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
