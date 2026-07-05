@@ -67,7 +67,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Nightly #62 all three jobs green on `df8d985` (B-06; CI #634 in flight).
+- [ ] Nightly #62 all three jobs green (B-06; CI #635/#636 in flight).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
@@ -151,6 +151,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.39** - deep_alternating_register_storage_treasury_8 proptest in default CI (35734a5).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
+- [x] **M2.5.46** - split `p2p_peer_quarantine` + `p2p_reconnect_plan` from `p2p_fanout` (B-07 partial).
+- [x] **M2.5.47** - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
 
 ### Next
 
@@ -218,7 +220,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## Backlog detail (claim → move to lane section)
 
 | ID | Item | Suggested lane | Notes |
-| --- | --- | --- | --- |
+| B-06 | Nightly #62 green | 1 | RC gate on `b73b38d` stack |
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |

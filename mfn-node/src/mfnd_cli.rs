@@ -309,7 +309,9 @@ fn run_solo_step(
 
         if checkpoint_each_block {
             let meta = store.save(&chain).map_err(|e| format!("{e}"))?;
-            let h = chain.tip_height().expect("tip after apply");
+            let h = chain
+                .tip_height()
+                .ok_or_else(|| "tip missing after apply".to_string())?;
             println!(
                 "step_checkpoint tip_height={h} saved_checkpoint_bytes={} path={}",
                 meta.bytes_written,
@@ -328,10 +330,10 @@ fn run_solo_step(
     let last_tip_id = chain
         .tip_id()
         .ok_or_else(|| "mfnd step: internal error: missing tip id after apply".to_string())?;
-    println!(
-        "new_tip_height={}",
-        chain.tip_height().expect("tip after apply")
-    );
+    let tip_height = chain
+        .tip_height()
+        .ok_or_else(|| "mfnd step: internal error: missing tip height after apply".to_string())?;
+    println!("new_tip_height={tip_height}");
     println!("new_tip_id={}", hex32(last_tip_id));
     save_mempool(store, &pool).map_err(|e| format!("mfnd step: save mempool: {e}"))?;
     Ok(())

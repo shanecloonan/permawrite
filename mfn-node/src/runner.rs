@@ -402,7 +402,15 @@ impl ProductionEngine {
             return Ok(());
         }
         let candidates = [a.clone(), b.clone()];
-        let winner = pick_winner(&candidates).expect("two candidates");
+        let winner = match pick_winner(&candidates) {
+            Some(w) => w,
+            None => {
+                return Err(format!(
+                    "competing:height={}:pick_winner",
+                    incoming.ctx.height
+                ));
+            }
+        };
         if winner.validator_index == a.validator_index && winner.beta == a.beta {
             return Err(format!("competing:height={}", incoming.ctx.height));
         }
@@ -677,7 +685,7 @@ impl ProductionHandler for ProductionEngine {
 /// Spawn the slot timer thread; returns immediately.
 pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
     let slot_ms = engine.local.slot_duration_ms;
-    thread::Builder::new()
+    if let Err(e) = thread::Builder::new()
         .name("mfnd-producer".into())
         .spawn(move || {
             // Wait one slot before the first tick so inbound `--p2p-dial` peers can
@@ -688,7 +696,9 @@ pub fn spawn_slot_producer_loop(engine: Arc<ProductionEngine>) {
                 thread::sleep(Duration::from_millis(slot_ms));
             }
         })
-        .expect("spawn mfnd-producer thread");
+    {
+        eprintln!("mfnd serve: spawn producer loop failed: {e}");
+    }
 }
 
 /// Resolve `--produce` validator keys from env against genesis validators.

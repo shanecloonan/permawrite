@@ -29,6 +29,8 @@ mod p2p_chunk_inbox;
 mod p2p_fanout;
 mod p2p_gossip;
 mod p2p_light_follow_fetch;
+mod p2p_peer_quarantine;
+mod p2p_reconnect_plan;
 mod runner;
 
 pub use node_store::{NodeStore, StoreBackend};
