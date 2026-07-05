@@ -22,6 +22,10 @@ workflow_dir = Path(sys.argv[2])
 failed = []
 paths = sorted(workflow_dir.glob("*.yml"))
 paths.extend(sorted((root / "scripts").rglob("*.sh")))
+for rel in ("AGENTS.md", "docs/AGENTS.md", "3agent.md"):
+    p = root / rel
+    if p.is_file():
+        paths.append(p)
 for path in paths:
     data = path.read_bytes()[:64]
     if len(data) >= 2 and data[:2] in (b"\xff\xfe", b"\xfe\xff"):

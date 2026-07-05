@@ -30,6 +30,13 @@ Get-ChildItem -Path (Join-Path $repoRoot "scripts") -Filter "*.sh" -Recurse -Fil
     $issue = Test-Utf8TextFile $_.FullName
     if ($issue) { $failed += $issue }
 }
+foreach ($rel in @("AGENTS.md", "docs/AGENTS.md", "3agent.md")) {
+    $path = Join-Path $repoRoot $rel
+    if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $issue = Test-Utf8TextFile $path
+        if ($issue) { $failed += $issue }
+    }
+}
 
 if ($failed.Count -gt 0) {
     Write-Host "validate-workflow-encoding: FAIL"
