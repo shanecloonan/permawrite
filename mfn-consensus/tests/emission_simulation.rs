@@ -1,8 +1,9 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**, **M5.40**, **M5.41**, **M5.42**, **M5.43**, **M5.44**, **M5.45**, **M5.46**, **M5.47**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**, **M5.40**, **M5.41**, **M5.42**, **M5.43**, **M5.44**, **M5.45**, **M5.46**, **M5.47**, **M5.48**).
 //!
-//! Fast curve checks (including 1M-height summation, **M5.47**) run in default CI; deep `apply_block`
-//! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
+//! Fast curve checks (including 1M-height summation, **M5.47**) run in default CI; only the
+//! 2048-block CLSAG fee mix (~13m release) and 100k empty `apply_block` (~7m release) harnesses
+//! stay `#[ignore]` (**M5.48** tier closure; see `scripts/ci-ignored.sh` / nightly).
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -1012,8 +1013,9 @@ fn treasury_ledger_matches_apply_block_over_clsag_fee_blocks() {
     run_fee_treasury_sim(128, SIM_EMISSION);
 }
 
+/// 2048-block CLSAG fee treasury ledger (**M5.48** nightly-only; ~13m release; not promoted to CI).
 #[test]
-#[ignore = "long CLSAG fee treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
+#[ignore = "long CLSAG fee treasury simulation (~13m release); M5.48 nightly-only tier closure; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_apply_block_over_two_thousand_clsag_fee_blocks() {
     run_fee_treasury_sim(2_048, SIM_EMISSION);
 }
@@ -2055,8 +2057,9 @@ fn treasury_ledger_matches_five_hundred_twelve_equivocation_combined_inflow_ppb_
     run_equivocation_combined_inflow_ppb_treasury_sim(512, SIM_EMISSION, 0);
 }
 
+/// 100k empty legacy `apply_block` chain (**M5.48** nightly-only; ~7m release; not promoted to CI).
 #[test]
-#[ignore = "long apply_block simulation; run with cargo test -p mfn-consensus -- --ignored"]
+#[ignore = "long apply_block simulation (~7m release); M5.48 nightly-only tier closure; run with cargo test -p mfn-consensus -- --ignored"]
 fn apply_block_hundred_thousand_empty_legacy_blocks() {
     let mut st = genesis_state(SIM_EMISSION);
     for h in 1..=100_000u32 {
