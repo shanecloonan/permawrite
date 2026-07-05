@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #624** (`0ddafc9`) **FAIL** — macOS release tests at 4 threads; **M2.5.34** macOS `--test-threads=2` fix staged; push after CI completes; **B-06** Nightly #57 follows green CI.
+**CI #625** (`aae3097`) pending - push triggers CI; **B-06** Nightly #57 after green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.34 macOS CI test hardening (`--test-threads=2`) | **In progress** - this commit | Nightly #57 after green CI |
+| **1** | M2.5.34 macOS CI test hardening | **Done** - `aae3097` | Nightly #57 after green CI #625 |
 | **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | B-05 soak; release evidence after Nightly #57 |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #57 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
@@ -121,7 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.34** (this commit) - macOS CI `--test-threads=2` parity with Linux after CI #624 macOS FAIL (lane 1).
+- **M2.5.34** (`aae3097`) - macOS CI `--test-threads=2` parity with Linux after CI #624 macOS FAIL (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).
 - **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
 - **M2.5.32** (`a35b7a6`) - `.gitignore` debris patterns; board mojibake guard in validate-workflow-encoding; clean `docs/AGENTS.md` rebuild (lane 2).

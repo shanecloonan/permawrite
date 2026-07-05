@@ -64,7 +64,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] M2.5.34 - macOS CI `--test-threads=2` parity after CI #624 macOS FAIL (this commit).
+- [ ] M2.5.34 - macOS CI `--test-threads=2` parity after CI #624 macOS FAIL (`aae3097`).
 
 ### Next
 
@@ -74,7 +74,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Do not start (other lanes)
 
 - M7.10 `push-all-chunks` — lanes 2–3 (landed `c1e0373`).
-- M5.31+ ring tests — lane 4 (M5.31-M5.33 landed this commit).
+- M5.31+ ring tests — lane 4 (M5.31-M5.33 landed `aae3097`).
 
 ---
 
@@ -86,8 +86,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.5.14–M2.5.18 — evidence refresh + inline Nightly dispatch.
 - [x] M2.5.20 — nightly STAGE/start-all log dumps (668044d).
-- [x] M2.5.21 — preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
-- [x] B-05 — Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
+- [x] M2.5.21 — preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (`aae3097`).
+- [x] B-05 — Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (`aae3097`).
 - [x] M2.5.22 — wasm-pack `wasm-opt=false` (`0dcb1e9`).
 - [x] M2.5.30 - bash validate-workflow-encoding guard path parity (`2eb8417`).
 - [x] M2.5.32 - `.gitignore` debris; board mojibake guard; clean docs/AGENTS rebuild (`a35b7a6`).
@@ -95,9 +95,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
 - [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
 - [x] M7.11.2 - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (`0650ad6`).
-- [x] M6.9 — storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
+- [x] M6.9 — storage-operator JSON logs + `prove_attempt_json` unit test (`aae3097`).
 
-- [x] M2.4.90 — `ci-check.sh` thread cap parity (this commit).
+- [x] M2.4.90 — `ci-check.sh` thread cap parity (`aae3097`).
 
 ### Next
 
@@ -127,7 +127,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Do not start
 
-- Wallet README ring examples — lane 5 (done this commit).
+- Wallet README ring examples — lane 5 (done `aae3097`).
 - Consensus ring tests — lane 4.
 
 ---
