@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #649** in progress on `1b99749` (board sync; RC code `0d9646a` + M2.5.52 `2904ea3`). **Nightly #63** (B-06) after green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #650** in progress on `a804a64` (board sync; RC `0d9646a` + M2.5.52 `2904ea3`). **CI #646–649** cancelled (rapid pushes). **Nightly #63** (B-06) after green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #649 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #650 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.53 B-07 `cli.rs` parse module split | **In progress** | B-07 `dispatch.rs` remainder (idle) |

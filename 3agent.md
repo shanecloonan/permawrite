@@ -12,12 +12,12 @@
 | **M2.5.50** | **Done** (`dbf6067`) | Early `mfnd_p2p_listening`; POST_START health 120s |
 | **M2.5.51** | **Done** (`0d9646a`) | `hub_tip_wait` uses `MFN_POLL_HUB_MAX`; observer catchup soft gate |
 | **M2.5.52** | **Done** (`2904ea3`) | B-07 dispatch params + method-meta split |
-| **CI #649** | **In progress** | On `1b99749` (board sync; RC `0d9646a`) |
-| **Nightly #63** | Waiting | After green CI #649 |
+| **CI #650** | **In progress** | On `a804a64` (board sync; RC `0d9646a` + M2.5.52) |
+| **Nightly #63** | Waiting | After green CI #650 |
 
 ### RC push embargo
 
-Hold **code** pushes until **CI #649** green. Doc-only board sync OK.
+Hold **code** pushes until **CI #650** green. Doc-only board sync after green.
 
 ---
 
@@ -25,7 +25,7 @@ Hold **code** pushes until **CI #649** green. Doc-only board sync OK.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #648** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #650** | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
