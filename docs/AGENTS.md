@@ -123,10 +123,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **M5.31** — `consensus_rejects_non_uniform_ring_sizes` + `apply_block_rejects_non_uniform_ring_sizes` (uniform ring-16 across all inputs).
 - [x] **M5.32** — `mfn-runtime` mempool `admit_rejects_non_uniform_ring_sizes_across_inputs` (claim B-01).
+- [x] **M5.33** - `prop_mixed_clsag_fee_and_storage_upload_treasury` + 64-block `#[ignore]` deep chain (claim B-02, `1d4d67c`).
 
 ### Next
 
-- [x] **M5.33** — `prop_mixed_clsag_fee_and_storage_upload_treasury` + 64-block `#[ignore]` deep chain (claim B-02).
+- [ ] Idle - protocol hardening backlog empty; coordinate with lane 6 on deeper sim promotion.
 
 ### Handoff to lane 3
 
