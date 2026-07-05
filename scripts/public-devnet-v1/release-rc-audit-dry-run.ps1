@@ -25,10 +25,8 @@ if (-not (Test-Path -LiteralPath $ReleaseEvidenceJson -PathType Leaf)) {
 
 $commit = (& git rev-parse HEAD).Trim()
 $shortCommit = (& git rev-parse --short HEAD).Trim()
-$archiveRoot = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-rc-audit-dry-run-$shortCommit"
-if (Test-Path -LiteralPath $archiveRoot -PathType Container) {
-    Remove-Item -LiteralPath $archiveRoot -Recurse -Force
-}
+$runId = [System.Guid]::NewGuid().ToString("N")
+$archiveRoot = Join-Path ([System.IO.Path]::GetTempPath()) "permawrite-rc-audit-dry-run-$shortCommit-$runId"
 $archiveDir = Join-Path $archiveRoot "permawrite-public-devnet-dry-run-$shortCommit"
 
 $releaseEvidenceMd = Join-Path $ScriptDir "evidence/release-evidence-ebe1e48.md"
@@ -104,7 +102,7 @@ function Write-DirectoryChecksumsLocal {
 }
 
 Write-DirectoryChecksumsLocal $archiveDir
-Get-ChildItem -LiteralPath $archiveDir -Directory -Recurse | ForEach-Object {
+Get-ChildItem -LiteralPath $archiveDir -Directory -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
     Write-DirectoryChecksumsLocal $_.FullName
 }
 
