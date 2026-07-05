@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M5.41** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
+**M2.5.23** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
 
 ## Current board
 
@@ -91,9 +91,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
 | **2** | M2.5.23 bash soak import helper | **Done** - this commit | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.39 alternating proptest CI | **Done** - this commit | B-06 Nightly #56 |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.41 128-block combined-inflow emission sims | **Done** - this commit | B-05 Linux soak (lane 2+6) |
+| **6** | M5.41 128-block combined-inflow emission sims | **Done** - `c7f90e6` | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -121,9 +121,10 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.41** (this commit) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M2.5.23** (this commit) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
+- **M5.41** (`c7f90e6`) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.40** (7648ab2) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
-- **M2.4.90** (this commit) — `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
+- **M2.4.90** (`01a98d2`) — `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
 - **M2.4.89 Windows mirror** (`8e6b3c1`) — `ci-check.ps1` `--test-threads=2` OOM fix after M5.36–M5.39 promotions (lane 1).
 - **M5.39** (`35734a5`) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
 - **M5.38** (`d3a4f36`) — restore `deep_mixed_clsag_fee_and_storage_upload_treasury_64` to default CI after M5.37 regression.

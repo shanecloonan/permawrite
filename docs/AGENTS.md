@@ -142,7 +142,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Idle - monitor Nightly #56 after M5.41 lands.
+- [ ] Idle - monitor Nightly #56 after M5.41 (`c7f90e6`) lands.
 
 ### Handoff to lane 3
 
