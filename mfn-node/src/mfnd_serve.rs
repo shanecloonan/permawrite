@@ -29,10 +29,11 @@ use serde_json::{json, Value};
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{
-    is_self_peer_addr, spawn_committee_catch_up_loop, spawn_reconnect_saved_peers,
-    CommitteeCatchUpLoop, P2pPeerSet, ReconnectPeersBoot,
+    spawn_committee_catch_up_loop, spawn_reconnect_saved_peers, CommitteeCatchUpLoop, P2pPeerSet,
+    ReconnectPeersBoot,
 };
 use crate::p2p_gossip::P2pGossipHandler;
+use crate::p2p_reconnect_plan::is_self_peer_addr;
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
 };

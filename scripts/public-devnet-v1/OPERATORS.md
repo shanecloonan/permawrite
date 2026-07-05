@@ -12,7 +12,7 @@ Add your node's **public P2P listen address** (`host:port`, reachable from the i
 
 The manifest includes `seed_nodes_examples` (documentation only — `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
 
-### Local mesh â†’ published seeds
+### Local mesh → published seeds
 
 After `start-all.sh` / `start-all.ps1`:
 
@@ -882,11 +882,11 @@ Point `--rpc` at any synced node's `mfnd_serve_listening=` address. Use the same
 ### End-to-end flow
 
 ```text
-wallet upload  â†’  tx mined (storage on-chain)
-       â†“
+wallet upload  →  tx mined (storage on-chain)
+       ↓
 replicate bytes to peers (HTTP and/or P2P ChunkV1)
-       â†“
-assemble local artifact  â†’  operator prove  â†’  SPoRA proof mined
+       ↓
+assemble local artifact  →  operator prove  →  SPoRA proof mined
 ```
 
 | Stage | On-chain | Off-chain |
@@ -1037,7 +1037,7 @@ After the proof is mined, `uploads list` should show a higher `last_proven_heigh
 1. Start hub + voters ([bootstrap scripts](#bootstrap-scripts)); note each `mfnd_p2p_listening=`.
 2. Upload on a wallet connected to the hub RPC; mine the tx.
 3. `push-chunks` to two voter P2P ports (or HTTP `serve-chunks` on the uploader).
-4. On each voter: `inbox-status` â†’ `assemble-inbox` â†’ `operator prove` when challenged.
+4. On each voter: `inbox-status` → `assemble-inbox` → `operator prove` when challenged.
 5. For HTTP replicas, run `uploads fetch-http <COMMIT_HASH_HEX> ./restored.bin <PEER_HTTP>`; for assembled P2P artifacts, run `uploads retrieve <COMMIT_HASH_HEX> ./restored.bin`. Confirm identical payload hashes across peers before proving.
 
 ### Funding test wallets
@@ -1197,7 +1197,7 @@ bash scripts/public-devnet-v1/recovery-plan.sh --rpc 127.0.0.1:<RPC> --wallet ./
   --data-dir /path/to/replica-data
 ```
 
-The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` â†’ `operator assemble-inbox` â†’ `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
+The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` → `operator assemble-inbox` → `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
 
 For a guided recovery run that captures a support bundle first, prints the plan, restores the payload, verifies an expected SHA-256 when supplied, and optionally submits a proof:
 
@@ -1238,9 +1238,9 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 
 | Test | What it proves |
 |------|----------------|
-| `mfn-cli` `chunk_p2p_smoke` | push â†’ inbox â†’ assemble â†’ prove (single node) |
+| `mfn-cli` `chunk_p2p_smoke` | push → inbox → assemble → prove (single node) |
 | `mfn-cli` `chunk_p2p_two_node_smoke` | hub mines, replica sync + push, matching payload |
-| `mfn-cli` `chunk_p2p_three_node_smoke` | hub â†’ two replicas via multi-peer `push-chunks` |
+| `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
 | `mfn-cli` `chunk_p2p_auto_fanout_smoke` | hub mines, replica dials, M7.5 session fan-out fills the replica inbox without `push-chunks` (runs on Windows) |
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
 | `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |
