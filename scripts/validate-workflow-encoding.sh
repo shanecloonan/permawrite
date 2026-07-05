@@ -22,7 +22,15 @@ workflow_dir = Path(sys.argv[2])
 failed = []
 paths = sorted(workflow_dir.glob("*.yml"))
 paths.extend(sorted((root / "scripts").rglob("*.sh")))
-for rel in ("AGENTS.md", "docs/AGENTS.md", "3agent.md"):
+for rel in (
+    ".gitattributes",
+    "AGENTS.md",
+    "docs/AGENTS.md",
+    "3agent.md",
+    "docs/STORAGE_ACCESSIBILITY.md",
+    "scripts/validate-rc-helper-scripts.ps1",
+    "scripts/validate-rc-helper-scripts.sh",
+):
     p = root / rel
     if p.is_file():
         paths.append(p)
