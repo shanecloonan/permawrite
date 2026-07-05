@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -2956,9 +2956,8 @@ fn reject_duplicate_storage_proof_without_state_change() {
     }
 }
 
-/// Longer empty-block chain (nightly / local deep fuzz).
+/// Longer empty-block chain (**M5.37**).
 #[test]
-#[ignore = "deep apply_block chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_empty_block_chain_128() {
     let mut st = genesis_state();
     for h in 1..=128u32 {
@@ -2968,9 +2967,8 @@ fn deep_empty_block_chain_128() {
     assert_eq!(st.block_ids.len(), 129);
 }
 
-/// Longer storage-proof chain (nightly).
+/// Longer storage-proof chain (**M5.37**).
 #[test]
-#[ignore = "deep storage-proof apply_block chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_storage_proof_chain_32() {
     let gen = genesis_with_storage();
     let mut st = gen.state;
@@ -2980,9 +2978,8 @@ fn deep_storage_proof_chain_32() {
     assert_eq!(st.height, Some(32));
 }
 
-/// Deep validator-mode mixed CLSAG + SPoRA treasury chain (**M5.6**).
+/// Deep validator-mode mixed CLSAG + SPoRA treasury chain (**M5.6**, **M5.37**).
 #[test]
-#[ignore = "deep validator mixed CLSAG+SPoRA treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
     let gen = genesis_validator_privacy_storage_for_proptest();
     let mut st = gen.state;

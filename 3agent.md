@@ -22,7 +22,7 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 | **2** RC ops | M2.5.22 wasm-opt=false (`0dcb1e9`) | — | B-05 soak evidence |
 | **3** RC onboarding | M7.10 UX + smoke evidence | — | Monitor Nightly #56 smokes |
 
-**RC gate:** green CI on `main` → auto-dispatch **Nightly #56** (`dispatch-nightly-rc` in `ci.yml`).
+**RC gate:** green CI on `main` → auto-dispatch **Nightly #56** + **Linux Soak Audit** when evidence missing (`ci.yml`).
 
 **Do not duplicate:** lanes 4–6 — see master board before starting M5/protocol/privacy-surface work.
 
