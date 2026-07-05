@@ -210,7 +210,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] GitHub CI green on `3a1f213` — **GREEN** CI #636.
 - [x] **Nightly #62** on `3a1f213` — **FAIL** ~16.3m (smokes; B-06 still open).
 - [x] **M2.5.49** (`8650543`) — GHA mesh health + hub_liveness soft gates at tip>=1 (lane 1).
-- [x] **M2.5.50** (`6216aec`) — mfnd early P2P listen + POST_START timeout export (lane 1).
+- [x] **M2.5.50** (`dbf6067`; code `6216aec`) — early P2P listen + POST_START ps1 parity (lane 1).
 - [ ] **Nightly #63** after green CI on M2.5.50 stack — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).

@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #642** in progress on `6216aec` (M2.5.50). **CI #641** on `8650543` (M2.5.49). **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **Nightly #63** after green CI.
+**CI #643** in progress on `dbf6067` (M2.5.50 ps1 POST_START parity). **CI #642** on `6216aec`. **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **Nightly #63** after green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.50 early P2P listen + POST_START timeout parity | **Done** - `6216aec` | Monitor CI #642 → **Nightly #63** (B-06) |
+| **1** | M2.5.50 early P2P listen + POST_START timeout parity | **Done** - `dbf6067` | Monitor CI #643 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits |
@@ -125,7 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.50** (`6216aec`) - mfnd early `mfnd_p2p_listening` before committee init; `MFN_MESH_HEALTH_POST_START_TIMEOUT` export; start-all voter P2P GHA diagnostics (lane 1).
+- **M2.5.50** (`dbf6067`; code `6216aec`) - mfnd early `mfnd_p2p_listening`; POST_START timeout export; participant smoke ps1 parity (lane 1).
 - **M2.5.49** (`8650543`) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
 - **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).

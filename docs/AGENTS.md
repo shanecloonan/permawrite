@@ -64,8 +64,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.37 - start-all tip>=1; TCP RPC health; hub_liveness 900s (12df02d).
 - [x] M2.5.38 - mfn-cli health probe; voter-dial both-listening soft gate (843e055).
 - [x] M2.5.49 (`8650543`) - GHA participant smoke soft-continue mesh health + hub_liveness at tip>=1.
-- [x] M2.5.50 (`6216aec`) - early `mfnd_p2p_listening` log; POST_START health poll; voter P2P STAGE logs.
-- [x] M2.5.50 (`6216aec`) - mfnd early P2P listen; POST_START mesh health timeout export; start-all voter P2P GHA diagnostics.
+- [x] M2.5.50 (`dbf6067`; code `6216aec`) - early P2P listen; POST_START timeout export; participant smoke ps1 parity.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
 ### Next
@@ -228,7 +227,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
-| B-06 | Nightly #63 after M2.5.50 | 1 | M2.5.49 soft gates + early P2P listen |
+| B-06 | Nightly #63 after M2.5.50 | 1 | M2.5.49-50 stack on `dbf6067` |
 
 ---
 
