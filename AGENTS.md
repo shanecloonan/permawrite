@@ -82,19 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M2.5.26** (this commit) - wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
-
+**M7.11** (this commit) - STORAGE_ACCESSIBILITY Phase A + UTF-8 board repair; **B-06** Nightly #56 after green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.26 agent board UTF-8 guard | **Done** - this commit | B-05 soak evidence |
-| **3** | M7.11 STORAGE_ACCESSIBILITY Phase A | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
+| **2** | M2.5.24 RC helper script smoke | **Done** - `001e2c6` | B-05 evidence after soak workflow |
+| **3** | M7.11 storage accessibility Phase A | **Done** - this commit | Monitor Nightly #56 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-06 Nightly #56 |
+| **6** | M5.45 512-block PPB + equivocation sims | **Done** - 66a697a | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -122,13 +121,33 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.26** (this commit) - UTF-8 guard for AGENTS.md boards in validate-workflow-encoding (lane 2).
-- **M5.48** (`77f2fe1`) - emission deep-sim tier closure (lane 6).
-- **M2.5.24** (`001e2c6`) - validate-rc-helper-scripts smoke in ci-check (lane 2).
-- **M5.47** (`db06c78`) - 256-block equivocation + 1M curve in default CI (lane 6).
-
+- **M5.45** (this commit) — 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M5.45** (this commit) - 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M5.44** (`3fcb4bc`) — 512-block combined-inflow emission sim in default CI (lane 6).
+- **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
+- **M5.45** (this commit) - 256-block combined-inflow treasury ledger emission sim in default CI (lane 6).
 - **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
+- **M2.5.23** (`29fe6df`) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
+- **M5.41** (`c7f90e6`) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M5.40** (7648ab2) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (lane 6).
+- **M2.4.90** (`01a98d2`) — `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
+- **M2.4.89 Windows mirror** (`8e6b3c1`) — `ci-check.ps1` `--test-threads=2` OOM fix after M5.36–M5.39 promotions (lane 1).
+- **M5.39** (`35734a5`) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
+- **M5.38** (`d3a4f36`) — restore `deep_mixed_clsag_fee_and_storage_upload_treasury_64` to default CI after M5.37 regression.
+- **M5.37** (`ec8122e`) — deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32` in default CI.
+- **M5.36** (`0dcb1e9`) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
+- **M2.5.22** (`0dcb1e9`) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
+- **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.
+- **M2.5.21** (`9537c7b`) - preflight `wasm-opt` warning; Linux soak auto-dispatch + import helper.
+- **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.
+- **M5.31** (this commit) - consensus + `apply_block` reject non-uniform ring sizes across inputs (production uniform ring-16).
+- **M5.32** (this commit) - mempool ingress rejects non-uniform ring before accept (`mfn-runtime`, `mfn-node` integration).
+- **M5.31-docs/cli** (this commit) - `mfn-wallet/README.md` ring-16 examples; CLI help documents default 16; PRIVACY.md cross-link.
+- **M6.9** (partial, this commit) - `prove_attempt_json` unit test + README `--json` docs.
 - **Coordination** - unified `AGENTS.md` lane registry (lanes 1-6) + `docs/AGENTS.md` per-lane detail.
+- **M7.10** (`c1e0373`) - `push-all-chunks` + decentralization doc cross-links.
+- **M4.7** (`778053a`) - WASM SPoRA prove/verify bindings.
+- **M2.5.19** (`fed2dd6`/`a88e8ff`) - GHA hub tip 900s; voter-dial soft-continue.
 
 ---
 
