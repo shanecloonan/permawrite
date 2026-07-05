@@ -755,6 +755,7 @@ cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> test (release)"
+# M2.4.89 / M2.4.90: heavy M5.36–M5.39 proptest + emission sims OOM at threads=4 on Windows.
 cargo test --workspace --release -- --test-threads=2
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

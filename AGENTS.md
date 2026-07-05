@@ -82,14 +82,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M5.39** landing — wait for green CI on this push before the next commit.
+**B-06** — Nightly #56 RC gate after green GHA CI on this push.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.22 wasm-pack wasm-opt=false | **Done** - `0dcb1e9` | B-05 evidence after soak workflow |
+| **2** | M2.4.90 ci-check.sh thread cap | **Done** - this commit | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - this commit | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
@@ -121,10 +121,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.39** (this commit) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
+- **M2.4.90** (this commit) — `ci-check.sh` `--test-threads=2` on all platforms; docs/CI.md + ROADMAP (lane 2).
+- **M2.4.89 Windows mirror** (`8e6b3c1`) — `ci-check.ps1` `--test-threads=2` OOM fix after M5.36–M5.39 promotions (lane 1).
+- **M5.39** (`35734a5`) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI (lanes 4+6).
 - **M5.38** (`d3a4f36`) — restore `deep_mixed_clsag_fee_and_storage_upload_treasury_64` to default CI after M5.37 regression.
-- **M5.37** (`ec8122e`) — deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed CLSAG+SPoRA treasury in default CI.
-- **M5.37** (this commit) - `deep_empty_block_chain_128` + `deep_storage_proof_chain_32` in default CI.
+- **M5.37** (`ec8122e`) — deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32` in default CI.
 - **M5.36** (`0dcb1e9`) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
 - **M2.5.22** (`0dcb1e9`) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
 - **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.

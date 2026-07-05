@@ -71,6 +71,8 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Linux test hardening (M2.4.89):** GitHub **CI** runs workspace release tests with `--test-threads=2` on `ubuntu-latest` (4 on macOS/Windows) and retries once after 15s on failure. `mfn-node/tests/stdout_timeout.rs` uses longer GHA deadlines for `mfnd_serve_listening=` (120s) and P2P line prefixes (150s).
 
+**Local CI mirror thread cap (M2.4.90):** `scripts/ci-check.sh` and `scripts/ci-check.ps1` both use `--test-threads=2` on all platforms so heavy M5.36–M5.39 proptest/emission sims do not OOM during local mirrors (Windows was crashing at 4 threads after `8e6b3c1`).
+
 **Workflow UTF-8 guard (M2.4.79):** `scripts/validate-workflow-encoding.{sh,ps1}` runs in local CI mirror and GitHub **CI** scripts job — GitHub Actions rejects UTF-16 workflow YAML.
 
 **Emission / treasury (M5.0–M5.39):** default CI runs `mfn-consensus/tests/emission_simulation.rs` (100k-height curve + 10k empty blocks + 512-block storage-proof ledger + validator CLSAG/mixed fee chains including **96-block validator CLSAG-only (M5.35)** and **64-block validator mixed CLSAG+SPoRA (M5.34/B-03)** + **384-block legacy mixed fee+proof ledger (M5.39)** + liveness-slash/combined-inflow treasury ledgers, including 32/64-block equivocation combined-inflow, prefunded treasury backstop coverage, and 16/32-block no-equivocation PPB combined-inflow coverage). Longer sims, including 64/256-block combined-inflow, 64/256/512-block no-equivocation PPB combined-inflow, and 128/512-block equivocation combined-inflow runs, are `#[ignore]` (nightly).

@@ -1,4 +1,4 @@
-﻿# 3agent (legacy name — lanes 1–3)
+# 3agent (legacy name — lanes 1–3)
 
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).  
 > Lanes **4–6** are overflow lanes for work the RC track does not own (M5 hardening, privacy surface, permanence depth).
@@ -18,8 +18,8 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.19 GHA gates | — | Nightly #56 after green CI |
-| **2** RC ops | M2.5.22 wasm-opt=false (`0dcb1e9`) | — | B-05 soak evidence |
+| **1** RC core | M2.4.89 Windows ci-check threads=2 (`8e6b3c1`) | — | Nightly #56 after green CI |
+| **2** RC ops | M2.5.22 wasm-opt=false (`0dcb1e9`) | M2.4.90 ci-check.sh threads=2 | B-05 soak evidence |
 | **3** RC onboarding | M7.10 UX + smoke evidence | — | Monitor Nightly #56 smokes |
 
 **RC gate:** green CI on `main` → auto-dispatch **Nightly #56** + **Linux Soak Audit** when evidence missing (`ci.yml`).

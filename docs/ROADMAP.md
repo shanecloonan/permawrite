@@ -2064,6 +2064,7 @@ This milestone is a **refactor + persistence-backend addition** rather than a ne
 | **M2.4.87** | Windows `start-all -NoBuild` parity; hub poll progress logs on GHA. | ✓ shipped |
 | **M2.4.88** | Observer boot hardening: bash fatal poll, multi-peer boot dials, GHA catch-up 300s, Windows slot-ms parity. | ✓ shipped |
 | **M2.4.89** | CI Linux test hardening: `--test-threads=2`, one retry, GHA stdout timeouts 120s/150s. | ✓ shipped |
+| **M2.4.90** | Local CI mirror thread cap: `ci-check.sh` + `ci-check.ps1` use `--test-threads=2` on all platforms (OOM parity after M5.36–M5.39 promotions). | ✓ shipped |
 | **M2.3.26** | Three validators all `--produce` with `expected_proposers_per_slot: 1.5` + `pick_winner` smoke. | ✓ shipped |
 | **M2.3.27** | Bounded stdout timeouts for P2P smokes + nightly `cargo test -- --ignored` workflow. | ✓ shipped |
 | **M2.3.28** | Producer slot loop runs one tick before the first sleep (faster first block in mesh smokes). | ✓ shipped |

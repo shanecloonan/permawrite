@@ -614,7 +614,9 @@ cargo build -p mfn-node --bin mfnd --release
 cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 
 echo "==> test (release)"
-cargo test --workspace --release -- --test-threads=4
+# M2.4.90 / M2.4.89 parity: heavy M5.36–M5.39 proptest + emission sims OOM at threads=4
+# on contended runners (Windows local mirror, Linux GHA). Match ci-check.ps1 + GHA Linux.
+cargo test --workspace --release -- --test-threads=2
 
 echo "==> wasm32 build"
 rustup target add wasm32-unknown-unknown

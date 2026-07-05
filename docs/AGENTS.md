@@ -59,6 +59,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.8–M2.5.9 — GHA startup polls + `query_tip_height`.
 - [x] M2.5.17 — Windows voter hub-dial 600s parity.
 - [x] M2.5.19 — GHA hub tip 900s; health 600s; liveness 300s; voter-dial soft-continue.
+- [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
+
+- [x] M2.4.90 — `ci-check.sh` `--test-threads=2` + docs/CI.md + ROADMAP (this commit).
 
 ### Next
 
@@ -82,8 +85,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.20 — nightly STAGE/start-all log dumps (668044d).
 - [x] M2.5.21 — preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
 - [x] B-05 — Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
+- [x] M2.5.22 — wasm-pack `wasm-opt=false` (`0dcb1e9`).
+- [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
 - [x] M6.9 — storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
+
+- [x] M2.4.90 — `ci-check.sh` thread cap parity (this commit).
 
 ### Next
 
