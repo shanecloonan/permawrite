@@ -18,9 +18,11 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.19 GHA gates | — | Nightly #56 green |
-| **2** RC ops | M7.10 push-all-chunks (`c1e0373`) | — | Release evidence after Nightly #56 |
+| **1** RC core | M2.5.19 GHA gates | — | **CI #553** green → Nightly #56 |
+| **2** RC ops | M7.10 push-all-chunks (`c1e0373`) | M2.5.20 nightly STAGE dumps | Push after CI #553 green |
 | **3** RC onboarding | M7.10 UX + smoke evidence pipeline | — | Monitor Nightly #56 smokes |
+
+**CI churn (2026-07-04):** CI #544–#552 cancelled by rapid pushes. **Hold pushes** until **CI #553** on `45a118b` completes green so `dispatch-nightly-rc` fires **Nightly #56**.
 
 **Do not duplicate:** lanes 4–6 — see master board before starting M5/protocol/privacy-surface work.
 
