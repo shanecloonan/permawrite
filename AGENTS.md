@@ -82,17 +82,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #626** pending on `f16bbb6` (M2.5.35); **Nightly #58** after green CI (B-06).
+**CI #626** **GREEN** on `f16bbb6`; **Nightly #58** **PARTIAL** (smokes FAIL ~16.3m). **M2.5.37** landing → Nightly #59.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.35 Nightly #57 triage | **Done** - `f16bbb6` | Monitor CI #626 → Nightly #58 (B-06) |
-| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #58 |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #58 participant + observer PASS |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #58 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #58 |
+| **1** | M2.5.37 start-all tip gate + TCP RPC health | **In progress** | Nightly #59 after green CI (B-06) |
+| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #59 |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #59 participant + observer PASS |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #59 |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #59 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
 ---
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #58 green (all three jobs) | 1 | RC gate (Nightly #57 partial: ignored PASS; smokes FAIL ~16m on `15fd4c7`) |
+| B-06 | Nightly #59 green (all three jobs) | 1 | RC gate (Nightly #58 partial: smokes FAIL ~16.3m on `f16bbb6`) |
 
 ---
 
@@ -112,8 +112,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI on M2.5.35 before Nightly #58 dispatch | Waiting |
-| 3 | 1 | Nightly #58 participant + observer PASS | Waiting |
+| 2 | 1 | Green CI on M2.5.37 before Nightly #59 dispatch | Waiting |
+| 3 | 1 | Nightly #59 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 

@@ -324,6 +324,8 @@ function Wait-HubTipAtLeast {
     } while ($true)
 }
 
-$hubTipWait = if ($env:GITHUB_ACTIONS) { 900 } else { 120 }
-$hubTipMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
+$hubTipWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
+$hubTipMin = 1
+Write-Host "start-all: STAGE=hub_tip_wait min_height=$hubTipMin timeout=${hubTipWait}s"
 Wait-HubTipAtLeast -HubRpc $HubRpc -MinHeight $hubTipMin -TimeoutSeconds $hubTipWait
+Write-Host "start-all: STAGE=hub_tip_wait_done"

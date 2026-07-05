@@ -64,11 +64,29 @@ resolve_mfn_cli() {
   printf '%s\n' "$bin"
 }
 
+# One newline-delimited JSON-RPC request over mfnd TCP (not HTTP). M2.5.36.
+query_rpc_json_line() {
+  local rpc_addr="$1"
+  local req="${2:-{\"jsonrpc\":\"2.0\",\"method\":\"get_status\",\"id\":1}}"
+  local host port nc_wait line
+  host="${rpc_addr%:*}"
+  port="${rpc_addr##*:}"
+  nc_wait=3
+  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    nc_wait=5
+  fi
+  line=""
+  if command -v nc >/dev/null 2>&1; then
+    line=$(printf '%s\n' "$req" | nc -w "$nc_wait" "$host" "$port" 2>/dev/null || true)
+  fi
+  printf '%s' "$line"
+}
+
 # Query hub tip height via mfn-cli, falling back to get_status JSON-RPC (M2.5.9).
 query_tip_height() {
   local rpc_addr="$1"
   local repo_root="${2:-}"
-  local mfn_cli tip_out tip_height host port line req
+  local mfn_cli tip_out tip_height line req
   if [[ -n "$repo_root" ]]; then
     mfn_cli="$(resolve_mfn_cli "$repo_root" 2>/dev/null || true)"
   fi
@@ -92,16 +110,8 @@ query_tip_height() {
       fi
     fi
   fi
-  host="${rpc_addr%:*}"
-  port="${rpc_addr##*:}"
   req='{"jsonrpc":"2.0","method":"get_status","id":1}'
-  line=""
-  if command -v nc >/dev/null 2>&1; then
-    line=$(echo "$req" | nc -w 3 "$host" "$port" 2>/dev/null || true)
-  fi
-  if [[ -z "$line" ]] && command -v curl >/dev/null 2>&1; then
-    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$req" "http://${host}:${port}/" 2>/dev/null || true)
-  fi
+  line="$(query_rpc_json_line "$rpc_addr" "$req")"
   if [[ -z "$line" ]]; then
     printf 'unknown\n'
     return

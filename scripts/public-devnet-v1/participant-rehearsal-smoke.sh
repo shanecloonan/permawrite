@@ -228,6 +228,7 @@ wait_hub_min_height() {
       return
     fi
     if (( timeout_seconds <= 0 || $(date +%s) >= deadline )); then
+      echo "participant-rehearsal-smoke: STAGE=hub_liveness_fail tip_height=$tip_height min_height=$min_height after ${timeout_seconds}s" >&2
       echo "participant-rehearsal-smoke: hub tip_height=$tip_height below min_height=$min_height after ${timeout_seconds}s; diagnose hub --produce and committee voter quorum before faucet funding" >&2
       exit 1
     fi
@@ -471,7 +472,7 @@ HUB_LIVENESS_WAIT=120
 HUB_LIVENESS_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
   HUB_LIVENESS_MIN=2
-  HUB_LIVENESS_WAIT=600
+  HUB_LIVENESS_WAIT=900
 fi
 echo "participant-rehearsal-smoke: STAGE=hub_liveness"
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" "$HUB_LIVENESS_MIN" "$HUB_LIVENESS_WAIT"

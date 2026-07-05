@@ -2,6 +2,8 @@
 # Query get_status on hub + voters; require matching tip, public genesis_id, and live P2P sessions.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ports-env-lib.sh
+source "$SCRIPT_DIR/ports-env-lib.sh"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 EXPECTED_GENESIS_ID="454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
 if [[ ! -f "$PORTS_FILE" ]]; then
@@ -30,19 +32,8 @@ validate_health_int MFN_HEALTH_MIN_P2P_SESSIONS "$MFN_HEALTH_MIN_P2P_SESSIONS" 0
 validate_health_int MFN_HEALTH_REQUIRE_ALL_ROLES "$MFN_HEALTH_REQUIRE_ALL_ROLES" 0
 query_status() {
   local name="$1" addr="$2" enforce_sessions="${3:-0}"
-  local host port line
-  host="${addr%:*}"
-  port="${addr##*:}"
-  line=""
-  if [[ -n "${GITHUB_ACTIONS:-}" ]] && command -v curl >/dev/null 2>&1; then
-    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$REQ" "http://${host}:${port}/" 2>/dev/null || true)
-  fi
-  if [[ -z "$line" ]] && command -v nc >/dev/null 2>&1; then
-    line=$(echo "$REQ" | nc -w 3 "$host" "$port" 2>/dev/null || true)
-  fi
-  if [[ -z "$line" ]] && command -v curl >/dev/null 2>&1; then
-    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$REQ" "http://${host}:${port}/" 2>/dev/null || true)
-  fi
+  local line
+  line="$(query_rpc_json_line "$addr" "$REQ")"
   if [[ -z "$line" ]]; then
     echo "health-check: $name RPC unreachable at $addr" >&2
     return 1

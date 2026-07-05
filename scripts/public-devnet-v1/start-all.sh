@@ -125,6 +125,7 @@ wait_hub_tip_at_least() {
       return
     fi
     if (( $(date +%s) >= deadline )); then
+      echo "start-all: STAGE=hub_tip_wait_fail tip_height=$tip_height min_height=$min_height after ${timeout_seconds}s; tail $LOG_DIR/v0.log:" >&2
       echo "start-all: hub tip_height=$tip_height below min_height=$min_height after ${timeout_seconds}s; tail $LOG_DIR/v0.log:" >&2
       tail -n 100 "$LOG_DIR/v0.log" 2>/dev/null >&2 || echo "(no v0.log)" >&2
       exit 1
@@ -268,8 +269,11 @@ done
 HUB_TIP_WAIT=120
 HUB_TIP_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_TIP_WAIT=900
-  # Require a second sealed block so producer + committee quorum are live before rehearsal.
-  HUB_TIP_MIN=2
+  # Mesh convergence to tip>=2 is gated in participant-rehearsal-smoke (hub_liveness).
+  # Requiring tip>=2 here duplicated that wait and failed smokes at ~900s when block 2 lagged.
+  HUB_TIP_WAIT=600
+  HUB_TIP_MIN=1
 fi
+echo "start-all: STAGE=hub_tip_wait min_height=$HUB_TIP_MIN timeout=${HUB_TIP_WAIT}s"
 wait_hub_tip_at_least "$HUB_RPC" "$HUB_TIP_MIN" "$HUB_TIP_WAIT"
+echo "start-all: STAGE=hub_tip_wait_done"
