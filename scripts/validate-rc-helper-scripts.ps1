@@ -1,4 +1,4 @@
-# Fail closed on UTF-16 or syntactically invalid RC helper scripts under scripts/public-devnet-v1/.
+# Fail closed on UTF-16 or syntactically invalid RC helpers, ci-check entrypoints, and agent boards (M2.5.24-M2.5.28).
 param()
 $ErrorActionPreference = "Stop"
 
@@ -88,10 +88,46 @@ foreach ($name in $requiredScripts) {
     }
 }
 
+foreach ($rel in @("AGENTS.md", "docs\AGENTS.md", "3agent.md", "docs\STORAGE_ACCESSIBILITY.md")) {
+    $path = Join-Path $repoRoot $rel
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $failed += "missing coordination/doc file $rel"
+        continue
+    }
+    $issue = Test-Utf8TextFile $path
+    if ($issue) { $failed += $issue }
+}
+
+$entrypointScripts = @(
+    (Join-Path $repoRoot "scripts\validate-rc-helper-scripts.ps1"),
+    (Join-Path $repoRoot "scripts\validate-rc-helper-scripts.sh"),
+    (Join-Path $repoRoot "scripts\validate-workflow-encoding.ps1"),
+    (Join-Path $repoRoot "scripts\validate-workflow-encoding.sh"),
+    (Join-Path $repoRoot "scripts\ci-check.ps1"),
+    (Join-Path $repoRoot "scripts\ci-check.sh")
+)
+foreach ($path in $entrypointScripts) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $failed += "missing ci entrypoint $path"
+        continue
+    }
+    $issue = Test-Utf8TextFile $path
+    if ($issue) { $failed += $issue }
+}
+
+$ciCheckPs1 = Join-Path $repoRoot "scripts\ci-check.ps1"
+if (Test-Path -LiteralPath $ciCheckPs1 -PathType Leaf) {
+    $tokens = $null
+    $errors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile($ciCheckPs1, [ref]$tokens, [ref]$errors)
+    if ($errors -and $errors.Count -gt 0) {
+        $failed += "PowerShell parse ci-check.ps1: $($errors[0].Message)"
+    }
+}
 if ($failed.Count -gt 0) {
     Write-Host "validate-rc-helper-scripts: FAIL"
     $failed | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
 
-Write-Host "validate-rc-helper-scripts: OK ($psCount PowerShell helpers, $shCount shell scripts; bash syntax=$([bool]$bash))"
+Write-Host "validate-rc-helper-scripts: OK ($psCount devnet ps1, $shCount devnet sh, $($entrypointScripts.Count) ci entrypoints, 4 boards/docs; bash=$([bool]$bash))"

@@ -30,7 +30,14 @@ Get-ChildItem -Path (Join-Path $repoRoot "scripts") -Filter "*.sh" -Recurse -Fil
     $issue = Test-Utf8TextFile $_.FullName
     if ($issue) { $failed += $issue }
 }
-foreach ($rel in @("AGENTS.md", "docs/AGENTS.md", "3agent.md")) {
+foreach ($rel in @(
+        "scripts/validate-rc-helper-scripts.ps1",
+        "scripts/validate-rc-helper-scripts.sh",
+        "AGENTS.md",
+        "docs/AGENTS.md",
+        "3agent.md",
+        "docs/STORAGE_ACCESSIBILITY.md"
+    )) {
     $path = Join-Path $repoRoot $rel
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         $issue = Test-Utf8TextFile $path
