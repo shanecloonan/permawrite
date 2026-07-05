@@ -211,9 +211,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Nightly #62** on `3a1f213` — **FAIL** ~16.3m (smokes; B-06 still open).
 - [x] **M2.5.49** (`8650543`) — GHA mesh health + hub_liveness soft gates at tip>=1 (lane 1).
 - [x] **M2.5.50** (`dbf6067`; code `6216aec`) — early P2P listen + POST_START ps1 parity (lane 1).
-- [x] **M2.5.51** (this commit) — start-all GHA `hub_tip_wait` uses `MFN_POLL_HUB_MAX` (900s); observer catchup soft gate; ps1 health fast path (lane 1).
-- [x] **M2.5.52** (this commit) — B-07: `mfn-rpc` dispatch params + method-meta module split (lane 4).
-- [ ] **Nightly #63** after green CI on M2.5.50–51 stack — all three green (B-06 gate).
+- [x] **M2.5.51** (`0d9646a`) — start-all GHA `hub_tip_wait` uses `MFN_POLL_HUB_MAX` (900s); observer catchup soft gate; ps1 health fast path (lane 1).
+- [ ] **Nightly #63** after green CI on M2.5.49–51 stack — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

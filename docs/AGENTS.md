@@ -65,12 +65,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.38 - mfn-cli health probe; voter-dial both-listening soft gate (843e055).
 - [x] M2.5.49 (`8650543`) - GHA participant smoke soft-continue mesh health + hub_liveness at tip>=1.
 - [x] M2.5.50 (`dbf6067`; code `6216aec`) - early P2P listen; POST_START timeout export; participant smoke ps1 parity.
-- [x] M2.5.51 (this commit) - start-all GHA hub_tip_wait uses MFN_POLL_HUB_MAX; observer catchup soft gate.
+- [x] M2.5.51 (`0d9646a`) - start-all GHA hub_tip_wait uses MFN_POLL_HUB_MAX; observer catchup soft gate.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
 ### Next
 
-- [ ] Nightly #63 all three jobs green after M2.5.51 (B-06; Nightly #62 FAIL ~16.3m on `3a1f213`).
+- [ ] Nightly #63 all three jobs green after CI #646 on `0d9646a` (B-06; Nightly #62 FAIL ~16.3m).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
@@ -158,7 +158,6 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.47** (`2b33ced`) - mfnd `runner`/`mfnd_cli` production `expect` removal (B-08 partial).
 
 - [x] **M2.5.48** (40d31d) - on-disk debris purge; light-follow quorum `expect` removal (B-08).
-- [x] **M2.5.52** (this commit) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
 ### Next
 
 - [ ] B-07 `cli.rs` god-file split (idle until claimed).
@@ -229,7 +228,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
-| B-06 | Nightly #63 after M2.5.51 | 1 | M2.5.49-50 stack on `dbf6067` |
+| B-06 | Nightly #63 after M2.5.51 | 1 | M2.5.49-51 stack on `0d9646a` |
 
 ---
 
