@@ -40,18 +40,22 @@ function Write-Utf8 {
     [IO.File]::WriteAllText((Join-Path $root $Path), $Text, $utf8)
 }
 
-$agents = Read-GitBlobText "5680ff9:AGENTS.md"
-$agents = $agents -replace '(?s)## CI gate \(2026-07-04\).*?## Current board', @"
+$agentsHead = Read-GitBlobText "HEAD:AGENTS.md"
+if ($agentsHead -match 'M2\.5\.31') {
+    Write-Host "AGENTS.md: HEAD already at M2.5.31+; skipping stale M2.5.27 template"
+} else {
+    $agents = Read-GitBlobText "5680ff9:AGENTS.md"
+    $agents = $agents -replace '(?s)## CI gate \(2026-07-04\).*?## Current board', @"
 ## CI gate (2026-07-05)
 
 **M2.5.27** (__COMMIT__) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak follow.
 
 ## Current board
 "@
-$agents = $agents -replace '(?s)\| \*\*2\*\* \|[^\n]+\n', "| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |`n"
-$agents = $agents -replace '(?s)\| \*\*3\*\* \|[^\n]+\n', "| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - ``bb9600b`` | Monitor Nightly #56 (B-06) |`n"
-$agents = $agents -replace '(?s)\| \*\*6\*\* \|[^\n]+\n', "| **6** | M5.48 emission deep-sim tier closure | **Done** - ``77f2fe1`` | B-05 / B-06 monitor |`n"
-$agents = $agents -replace '(?s)## Recently completed\r?\n\r?\n.*?(?=\r?\n---\r?\n\r?\n## Legacy name)', @"
+    $agents = $agents -replace '(?s)\| \*\*2\*\* \|[^\n]+\n', "| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |`n"
+    $agents = $agents -replace '(?s)\| \*\*3\*\* \|[^\n]+\n', "| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - ``bb9600b`` | Monitor Nightly #56 (B-06) |`n"
+    $agents = $agents -replace '(?s)\| \*\*6\*\* \|[^\n]+\n', "| **6** | M5.48 emission deep-sim tier closure | **Done** - ``77f2fe1`` | B-05 / B-06 monitor |`n"
+    $agents = $agents -replace '(?s)## Recently completed\r?\n\r?\n.*?(?=\r?\n---\r?\n\r?\n## Legacy name)', @"
 ## Recently completed
 
 - **M2.5.27** (__COMMIT__) - restore ``docs/AGENTS.md`` per-lane checklists; sync master board (lane 2).
@@ -63,60 +67,23 @@ $agents = $agents -replace '(?s)## Recently completed\r?\n\r?\n.*?(?=\r?\n---\r?
 - **M5.46** (``1232506``) - combined-inflow emission CI tier complete (lane 6).
 
 "@
-Write-Utf8 "AGENTS.md" $agents
+    Write-Utf8 "AGENTS.md" $agents
+}
 
-$docs = Read-GitBlobText "001e2c6:docs/AGENTS.md"
-if ($docs -match '^# Agent Coordination \(master board\)') { throw "bad docs/AGENTS.md base" }
-if ($docs -notmatch 'M2.5.24') {
-    $docs = $docs -replace '(- \[x\] M2.5.22[^\n]+\r?\n)', "`$1- [x] M2.5.24 - ``validate-rc-helper-scripts`` smoke in ``ci-check`` (``001e2c6``).`n- [x] M2.5.26 - UTF-8 guard for agent boards in validate-workflow-encoding (``a417f1e``).`n- [x] M2.5.27 - restore per-lane checklists + board sync (__COMMIT__).`n"
+$docs = Read-GitBlobText "HEAD:docs/AGENTS.md"
+if ($docs -notmatch 'M2\.5\.31') {
+    throw "docs/AGENTS.md on HEAD missing M2.5.31; land lane-1 unit before running fix-m2527-boards"
 }
-if ($docs -notmatch 'M7.11') {
-    $docs = $docs -replace '(- \[x\] M7.10[^\n]+\r?\n)', "`$1- [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (``bb9600b``).`n"
+$docs = $docs -replace 'Nightly #56', 'Nightly #57'
+$docs = $docs -replace '\(e0a7ebd\)\.', '(`001e2c6`).'
+if ($docs -notmatch 'M2\.5\.26') {
+    $docs = $docs -replace '(- \[x\] M2\.5\.24[^\n]+\r?\n)', "`$1- [x] M2.5.26 - UTF-8 guard for agent boards in validate-workflow-encoding (``c71e9c3``).`n- [x] M2.5.27 - restore per-lane checklists + board sync (``e0a7ebd``).`n- [x] M2.5.28 - extend ``validate-rc-helper-scripts`` for boards + ci-check entrypoints (``dc2e032``).`n- [x] M2.5.29 - ``.gitattributes`` UTF-8 pins for boards (``4bd43f2``).`n- [x] M2.5.30 - bash validate-workflow-encoding guard path parity (``2eb8417``).`n"
 }
-$lane6 = @"
-
-- [x] **M5.46** - combined-inflow emission CI tier complete (``1232506``).
-- [x] **M5.47** - 256-block equivocation combined-inflow + 1M curve in default CI (``db06c78``).
-- [x] **M5.48** - emission deep-sim tier closure; 2048 CLSAG + 100k ``apply_block`` stay nightly (``77f2fe1``).
-"@
-if ($docs -notmatch 'M5.48') {
-    $docs = $docs -replace '(### Idle[^\n]+\r?\n\r?\n)', "`$1$lane6"
-}
-$docs = $docs -replace 'this commit', '__COMMIT__'
+$docs = $docs -replace 'Idle - monitor Nightly #57 after M5\.43 lands', 'Idle - monitor Nightly #57 (B-06)'
+$docs = $docs -replace '\| B-06 \| Nightly #57 green \| 1 \| Blocks RC sign-off \|', '| B-06 | Nightly #57 green | 1 | Blocks RC sign-off (Nightly #56 partial) |'
 Write-Utf8 "docs/AGENTS.md" $docs
 
-$three = @"
-# 3agent (legacy name - lanes 1-3)
-
-> **Unified coordination:** [``AGENTS.md``](./AGENTS.md) (master board) and [``docs/AGENTS.md``](./docs/AGENTS.md) (per-lane checklists).  
-> Lanes **4-6** are overflow lanes for work the RC track does not own (M5 hardening, privacy surface, permanence depth).
-
-## Done / Doing / Next (mandatory)
-
-Every lane agent **must announce** what they finished, what they are doing, and what they will do next - in chat and on the boards. Full protocol: [``AGENTS.md`` Agent announcement protocol](./AGENTS.md#agent-announcement-protocol-mandatory).
-
-| When | Announce |
-| --- | --- |
-| Session start | Done + Doing + Next **before** coding |
-| Claim unit | Update quick mirror **Doing** column + master board |
-| Unit complete | Refresh **Done**; set **Next** handoff |
-| Before push | Board matches the commit about to land |
-
-## Lanes 1-3 quick mirror
-
-| Lane | Done | Doing | Next |
-| --- | --- | --- | --- |
-| **1** RC core | M2.5.19 GHA rehearsal gates (``main``) | - | Nightly #56 after green CI (B-06) |
-| **2** RC ops | M2.5.27 docs mirror (__COMMIT__); M2.5.26 (``a417f1e``); M2.5.24 (``001e2c6``) | - | B-05 soak evidence |
-| **3** RC onboarding | M7.11 STORAGE_ACCESSIBILITY section 0 (``bb9600b``) | - | Monitor Nightly #56 smokes (B-06) |
-
-**RC gate:** green CI on ``main`` -> auto-dispatch **Nightly #56** + **Linux Soak Audit** when evidence missing (``ci.yml``).
-
-**Do not duplicate:** lanes 4-6 - see master board before starting M5/protocol/privacy-surface work. Lane 6 emission sim promotions are **closed** at M5.48.
-
-Update [``AGENTS.md``](./AGENTS.md) instead of growing this file.
-"@
-Write-Utf8 "3agent.md" $three
+# 3agent.md is maintained by lane agents; do not overwrite from stale template.
 
 & (Join-Path $root "scripts/validate-workflow-encoding.ps1")
 if ($LASTEXITCODE -ne 0) { throw "validate-workflow-encoding failed" }

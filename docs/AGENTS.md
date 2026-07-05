@@ -82,20 +82,25 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.5.14ΓÇôM2.5.18 ΓÇö evidence refresh + inline Nightly dispatch.
 - [x] M2.5.20 ΓÇö nightly STAGE/start-all log dumps (668044d).
-- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (e0a7ebd).
-- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (e0a7ebd).
+- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (`001e2c6`).
+- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (`001e2c6`).
 - [x] M2.5.22 ΓÇö wasm-pack `wasm-opt=false` (`0dcb1e9`).
-- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (e0a7ebd).
+- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (`001e2c6`).
+- [x] M2.5.26 - UTF-8 guard for agent boards in validate-workflow-encoding (`c71e9c3`).
+- [x] M2.5.27 - restore per-lane checklists + board sync (`e0a7ebd`).
+- [x] M2.5.28 - extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (`dc2e032`).
+- [x] M2.5.29 - `.gitattributes` UTF-8 pins for boards (`4bd43f2`).
+- [x] M2.5.30 - bash validate-workflow-encoding guard path parity (`2eb8417`).
 - [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
 - [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
-- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (e0a7ebd).
+- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (`001e2c6`).
 
-- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (e0a7ebd).
+- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (`001e2c6`).
 
 ### Next
 
-- [ ] `release-evidence-refresh-for-head` after green CI + Nightly #56.
+- [ ] `release-evidence-refresh-for-head` after green CI + Nightly #57.
 
 ### Do not start
 
@@ -116,7 +121,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Nightly #56 participant + observer PASS.
+- [ ] Nightly #57 participant + observer PASS.
 
 ### Do not start
 
@@ -146,7 +151,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Idle - monitor Nightly #56 after M5.43 lands.
+- [ ] Idle - monitor Nightly #57 (B-06).
 
 ### Handoff to lane 3
 
@@ -166,7 +171,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Monitor Nightly #56 after M5.31/M5.32 land on `main`.
+- [ ] Monitor Nightly #57 after M5.31/M5.32 land on `main`.
 
 ### Do not start
 
@@ -199,7 +204,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
-- [ ] B-06 - Nightly #56 all three jobs green (lane 1 RC gate).
+- [ ] B-06 - Nightly #57 all three jobs green (lane 1 RC gate).
 
 ### Do not start
 
@@ -215,7 +220,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** ΓÇö 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
-| B-06 | Nightly #56 green | 1 | Blocks RC sign-off |
+| B-06 | Nightly #57 green | 1 | Blocks RC sign-off (Nightly #56 partial) |
 
 ---
 

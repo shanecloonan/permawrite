@@ -23,7 +23,7 @@ No commits to `main` while CI #619 is in flight.
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.31 mesh hardening (`0e0de4e`) | Monitor CI #619 | Nightly #57 triage |
-| **2** RC ops | M2.5.30 encoding (`6e99a9e`) | Wait CI green | Release evidence after Nightly #57 |
+| **2** RC ops | M2.5.30 encoding (`2eb8417`) | Wait CI green | Release evidence after Nightly #57 |
 | **3** RC onboarding | M7.11 section 0 (`bb9600b`) | Monitor B-06 | Observer/participant smoke PASS |
 
 ---

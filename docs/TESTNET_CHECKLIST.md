@@ -28,9 +28,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.47** (lane 6) — 256-block equivocation combined-inflow + 1M-height emission curve in default CI.
 - [x] **M5.48** (lane 6) — emission `apply_block` deep-sim tier closure; 2048-block CLSAG + 100k empty stay nightly.
 - [x] **M2.5.26** (lane 2) — agent board UTF-8 guard in validate-workflow-encoding (`c71e9c3`).
-- [x] **M2.5.27** (lane 2) — restore `docs/AGENTS.md` per-lane checklists (this commit).
-- [x] **M2.5.28** (lane 2) — extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (this commit).
-- [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (__COMMIT__).
+- [x] **M2.5.27** (lane 2) — restore `docs/AGENTS.md` per-lane checklists (`e0a7ebd`).
+- [x] **M2.5.28** (lane 2) — extend `validate-rc-helper-scripts` for boards + ci-check entrypoints (`dc2e032`).
+- [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (`4bd43f2`).
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
@@ -197,7 +197,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #55 on `afc5fd8` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~11.3m).
 - [x] **M2.5.19** (`fed2dd6`/`a88e8ff`) — GHA tip/health/liveness + voter-dial soft gate.
 - [x] Nightly #56 on `4bd43f2` — **PARTIAL** (ignored **PASS**; participant+observer **FAIL** ~13m).
-- [x] **M2.5.31** (lane 1, this commit) — voter-dial/health 900s; nightly rehearsal jobs 90m → **Nightly #57**.
+- [x] **M2.5.31** (lane 1, `0e0de4e`) — voter-dial/health 900s; nightly rehearsal jobs 90m → **Nightly #57**.
 - [ ] CI green on current `main` → **Nightly #57** all three jobs green.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
