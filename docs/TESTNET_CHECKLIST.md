@@ -18,6 +18,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.37** (lane 4) — deep empty/SPoRA/validator-mixed proptest chains in default CI.
 - [x] **M5.38** (lane 4) — `deep_mixed_clsag_fee_and_storage_upload_treasury_64` restored to default CI (**M5.35**).
 - [x] **M5.39** (lanes 4+6) — `deep_alternating_register_storage_treasury_8` proptest + 384-block mixed emission sim in default CI.
+- [x] **M5.40** (lane 6) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI.
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

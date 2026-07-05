@@ -1,5 +1,5 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**, **M5.40**).
 //!
 //! Fast curve checks run in default CI; million-block and deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
@@ -1566,8 +1566,8 @@ fn treasury_ledger_matches_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(16, SIM_EMISSION, 0);
 }
 
+/// 64-block bond/liveness/fee/proof combined-inflow treasury ledger (**M5.40**).
 #[test]
-#[ignore = "long combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_sixty_four_combined_inflow_blocks() {
     run_combined_inflow_treasury_sim(64, SIM_EMISSION, 0);
 }
@@ -1595,8 +1595,8 @@ fn treasury_ledger_matches_combined_inflow_ppb_blocks() {
     run_combined_inflow_ppb_treasury_sim(16, SIM_EMISSION, 0);
 }
 
+/// 64-block bond/liveness/fee/PPB-proof combined-inflow treasury ledger (**M5.40**).
 #[test]
-#[ignore = "long combined inflow PPB treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_sixty_four_combined_inflow_ppb_blocks() {
     run_combined_inflow_ppb_treasury_sim(64, SIM_EMISSION, 0);
 }
@@ -2014,8 +2014,8 @@ fn treasury_ledger_matches_prefunded_equivocation_combined_inflow_ppb_blocks() {
     run_equivocation_combined_inflow_ppb_treasury_sim(32, SIM_EMISSION, 10);
 }
 
+/// 64-block equivocation bond/liveness/fee/PPB-proof combined-inflow ledger (**M5.40**).
 #[test]
-#[ignore = "long equivocation PPB combined inflow treasury simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn treasury_ledger_matches_sixty_four_equivocation_combined_inflow_ppb_blocks() {
     run_equivocation_combined_inflow_ppb_treasury_sim(64, SIM_EMISSION, 0);
 }
