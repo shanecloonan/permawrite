@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**M5.45** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
+**M5.46** (`1232506`) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
 
 ## Current board
 
@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.45 512-block PPB + equivocation sims | **Done** - 66a697a | B-05 Linux soak (lane 2+6) |
+| **6** | M5.46 combined-inflow CI tier closure | **Done** - `1232506` | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -121,12 +121,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.46** (this commit) — combined-inflow emission CI tier complete; 2048-block CLSAG fee mix stays nightly (~765s release).
-- **M5.45** (this commit) — 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
-- **M5.45** (this commit) - 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
+- **M5.46** (`1232506`) — combined-inflow emission CI tier complete; 2048-block CLSAG fee mix stays nightly (~765s release).
+- **M5.45** (`66a697a`) — 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.44** (`3fcb4bc`) — 512-block combined-inflow emission sim in default CI (lane 6).
 - **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
-- **M5.45** (this commit) - 256-block combined-inflow treasury ledger emission sim in default CI (lane 6).
+- **M5.42** (`994af36`) - 256-block combined-inflow emission sim in default CI (lane 6).
 - **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
 - **M2.5.23** (`29fe6df`) - import-linux-soak-artifact.sh UTF-8 bash parity with PowerShell helper (B-05 lane 2+6).
 - **M5.41** (`c7f90e6`) - 128-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).

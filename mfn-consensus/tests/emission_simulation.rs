@@ -1,7 +1,7 @@
 //! Long-horizon emission / treasury simulations (**M5.0**, **M5.0+**, **M5.0++**, **M5.1**,
-//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**, **M5.40**, **M5.41**, **M5.42**, **M5.43**, **M5.44**, **M5.45**).
+//! **M5.1+**, **M5.3**, **M5.9**, **M5.11**, **M5.12**, **M5.13**, **M5.16**, **M5.17**, **M5.19**, **M5.22**, **M5.23**, **M5.24**, **M5.25**, **M5.26**, **M5.28**, **M5.29**, **M5.30**, **M5.31**, **M5.32**, **M5.33**, **M5.34**, **M5.35**, **M5.39**, **M5.40**, **M5.41**, **M5.42**, **M5.43**, **M5.44**, **M5.45**, **M5.46**, **M5.47**).
 //!
-//! Fast curve checks run in default CI; million-block and deep `apply_block`
+//! Fast curve checks (including 1M-height summation, **M5.47**) run in default CI; deep `apply_block`
 //! harnesses are `#[ignore]` (see `scripts/ci-ignored.sh` pattern / nightly).
 
 use curve25519_dalek::edwards::EdwardsPoint;
@@ -956,9 +956,8 @@ fn emission_summation_matches_cumulative_over_100k_heights() {
     assert_eq!(running, cumulative_emission(max_h, &p));
 }
 
-/// Full million-height curve check (~1–2s locally). Run with `cargo test -- --ignored`.
+/// Full million-height curve check (~0.1s release). **M5.47** — default CI.
 #[test]
-#[ignore = "long emission curve simulation; run with cargo test -p mfn-consensus -- --ignored"]
 fn emission_summation_matches_cumulative_over_1m_heights() {
     let p = DEFAULT_EMISSION_PARAMS;
     let max_h = 1_000_000u64;
@@ -2030,6 +2029,18 @@ fn treasury_ledger_matches_one_hundred_twenty_eight_equivocation_combined_inflow
 #[test]
 fn treasury_ledger_matches_one_hundred_twenty_eight_equivocation_combined_inflow_blocks() {
     run_equivocation_combined_inflow_treasury_sim(128, SIM_EMISSION, 0);
+}
+
+/// 256-block equivocation bond/liveness/fee/proof combined-inflow ledger (**M5.47**).
+#[test]
+fn treasury_ledger_matches_two_hundred_fifty_six_equivocation_combined_inflow_blocks() {
+    run_equivocation_combined_inflow_treasury_sim(256, SIM_EMISSION, 0);
+}
+
+/// 256-block equivocation bond/liveness/fee/PPB-proof combined-inflow ledger (**M5.47**).
+#[test]
+fn treasury_ledger_matches_two_hundred_fifty_six_equivocation_combined_inflow_ppb_blocks() {
+    run_equivocation_combined_inflow_ppb_treasury_sim(256, SIM_EMISSION, 0);
 }
 
 /// 512-block equivocation bond/liveness/fee/proof combined-inflow ledger (**M5.45**).
