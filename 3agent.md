@@ -14,7 +14,7 @@
 | **M2.5.46–47** | **Done** (`2b33ced`) | B-07 `p2p_fanout` split + B-08 runner/mfnd_cli; `mfnd_serve` import fix |
 | **CI #636** | **GREEN** | On `3a1f213` — **Nightly #62** dispatched |
 | **CI #638** | **In progress** | On `2b33ced` (compile fix atop M2.5.46–47) |
-| **M2.5.48** | **Done** (pending push) | Debris purge; light-follow quorum expect removal |
+| **M2.5.48** | **Done** (`040d31d`) | Debris purge; light-follow quorum expect removal |
 | **Nightly #62** | **In progress** | Full fix stack on `3a1f213` |
 
 ### RC push embargo

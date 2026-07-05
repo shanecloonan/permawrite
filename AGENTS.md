@@ -91,7 +91,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.43–45 rehearsal timeouts + mfnd P2P | **Done** - `b945f73` | Monitor **Nightly #62** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #62 participant + observer PASS |
-| **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - M2.5.48 | B-07 dispatch/cli splits; B-06 Nightly #62 |
+| **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits; B-06 Nightly #62 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #62 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
@@ -125,7 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.48** (this commit) - on-disk debris purge; light-follow quorum `expect` removal; board CI #638 sync (lane 4).
+- **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal; board CI #638 sync (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).
 - **M2.5.43–45** (`b945f73`) - `rehearsal-poll-timeouts.*`; mfnd_serve P2P expect removal; workspace dep hoist; evidence gitignore (lanes 2/4/6).
 - **M2.5.39–42** (`4a1862b`) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
