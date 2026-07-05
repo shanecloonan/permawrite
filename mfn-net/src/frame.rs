@@ -218,7 +218,11 @@ impl ChainTipV1 {
         if payload[0] != CHAIN_TIP_V1_TAG {
             return Err(TipV1DecodeError::UnknownTag(payload[0]));
         }
-        let height = u32::from_be_bytes(payload[1..5].try_into().unwrap());
+        let height = u32::from_be_bytes(
+            payload[1..5]
+                .try_into()
+                .map_err(|_| TipV1DecodeError::WrongLength { got: payload.len() })?,
+        );
         let mut tip_id = [0u8; 32];
         tip_id.copy_from_slice(&payload[5..]);
         Ok(Self { height, tip_id })

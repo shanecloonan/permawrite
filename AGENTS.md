@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #630** **GREEN**; **Nightly #60** **PARTIAL** (~16.3m on M2.5.37). **M2.5.38** (`843e055`) pushed → CI #631 → **Nightly #61**.
+**CI #631** **GREEN**; **Nightly #61** dispatched on `843e055`. **M2.5.39–42** (DOCS-QA-2 follow-up) landing on `main`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor CI #631 → Nightly #61 (B-06) |
-| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #61 |
+| **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor Nightly #61 (B-06) |
+| **2** | M2.5.39–42 DOCS-QA-2 hygiene + CI velocity + net decode | **In progress** - lane 2 | B-06 Nightly #61 evidence; M2.5.43 god-file splits (lane 1/4) |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61 |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61; M5.40 P2P unwrap hardening |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
@@ -104,7 +104,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #61 green (all three jobs) | 1 | RC gate (Nightly #60 partial: smokes FAIL ~16.3m on M2.5.37) |
+| B-06 | Nightly #61 green (all three jobs) | 1 | RC gate |
+| B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | Reduces parallel-agent conflicts |
+| B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | M2.5.42 started frame/chunk decode |
+| B-09 | ps1/sh dedup generator or shared timeout constants | 2 | e.g. start-all 900s parity |
+| B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | redb/proptest/wasm-bindgen |
 
 ---
 
@@ -112,7 +116,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI on M2.5.38 before Nightly #61 dispatch | Waiting |
+| 2 | 1 | Green CI on M2.5.38 before Nightly #61 dispatch | **Done** - CI #631 |
 | 3 | 1 | Nightly #61 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
@@ -121,6 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.39–42** (__COMMIT__) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).
 - **M2.5.38** (`843e055`) - mfn-cli health probe; GHA voter-dial both-listening soft gate (lane 1).
 - **M2.5.37** (`12df02d`) - start-all GHA tip>=1 gate; query_rpc_json_line TCP RPC; hub_liveness 900s (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).

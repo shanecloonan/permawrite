@@ -10,12 +10,13 @@
 | **M2.5.37** | **Done** (`12df02d`) | tip≥1 start-all; TCP RPC; hub_liveness 900s |
 | **Nightly #60** | **FAIL** | ~16.3m on `54983c7` (M2.5.37) |
 | **M2.5.38** | **Done** (`843e055`) | mfn-cli health probe; voter-dial both-listening soft gate |
-| **CI #631** | **In progress** | On `843e055` — dispatches Nightly on `843e055` when green |
-| **Nightly #61** | **In progress** | On `4de1585` (pre-M2.5.38 — expect fail; superseded by #631 dispatch) |
+| **CI #631** | **GREEN** | On `843e055` — Nightly #61 dispatched |
+| **Nightly #61** | **In progress** | On `843e055` |
+| **M2.5.39–42** | **Landing** | DOCS-QA-2 follow-up (lane 2) |
 
 ### RC push embargo
 
-Hold pushes until CI #631 green (board doc sync only — this commit).
+Lifted after CI #631 green; coordinate with lane 2 board sync before next push.
 
 ---
 
@@ -24,7 +25,7 @@ Hold pushes until CI #631 green (board doc sync only — this commit).
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.35–38 on `main` (`843e055`) | Monitor CI #631 | Nightly on `843e055` (B-06) |
-| **2** RC ops | CI #629–630 green | — | Release evidence after green Nightly |
+| **2** RC ops | M2.5.39–42 DOCS-QA-2 | M2.5.39 debris purge + CI flags | Nightly #61 evidence |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---

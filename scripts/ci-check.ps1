@@ -1,6 +1,17 @@
 # Mirror .github/workflows/ci.yml locally before pushing to main.
+param(
+    [switch]$DocsOnly,
+    [switch]$RustOnly
+)
 $ErrorActionPreference = "Stop"
+if ($DocsOnly -and $RustOnly) {
+    [Console]::Error.WriteLine("Use only one of -DocsOnly or -RustOnly")
+    exit 2
+}
+$runDocs = -not $RustOnly
+$runRust = -not $DocsOnly
 Set-Location (Join-Path $PSScriptRoot "..")
+$repoRoot = (Get-Location).Path
 
 $env:CARGO_TERM_COLOR = "always"
 $env:RUSTFLAGS = "-D warnings"
@@ -23,14 +34,18 @@ function Add-MissingCommand($Name, $InstallHint) {
     }
 }
 
-Add-MissingCommand cargo "Install Rust from https://rustup.rs/ and reopen the shell."
-Add-MissingCommand rustup "Install Rust from https://rustup.rs/ and reopen the shell."
 Add-MissingCommand bash "Install Git Bash, MSYS2, or WSL and reopen the shell."
-Add-MissingCommand python "Install Python 3 and ensure python is on PATH."
-Add-MissingCommand wasm-pack "Install with: cargo install wasm-pack --locked"
-Add-MissingCommand cargo-audit "Install with: cargo install cargo-audit --locked"
+if ($runRust) {
+    Add-MissingCommand cargo "Install Rust from https://rustup.rs/ and reopen the shell."
+    Add-MissingCommand rustup "Install Rust from https://rustup.rs/ and reopen the shell."
+    Add-MissingCommand wasm-pack "Install with: cargo install wasm-pack --locked"
+    Add-MissingCommand cargo-audit "Install with: cargo install cargo-audit --locked"
+}
+if ($runDocs) {
+    Add-MissingCommand python "Install Python 3 and ensure python is on PATH."
+}
 $isWindowsHost = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
-if ($isWindowsHost -and -not (Test-Command dlltool)) {
+if ($runRust -and $isWindowsHost -and -not (Test-Command dlltool)) {
     $missingTools += "missing required Windows build tool 'dlltool.exe'. Install the GNU binutils/mingw toolchain used by the local Rust target before running release tests."
 }
 if ($missingTools.Count -gt 0) {
@@ -46,10 +61,13 @@ Write-Host "==> RC helper scripts smoke"
 powershell -NoProfile -File scripts/validate-rc-helper-scripts.ps1 | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+if ($runDocs) {
 Write-Host "==> public-devnet scripts"
-$schemaVenv = Join-Path ([System.IO.Path]::GetTempPath()) ("permawrite-release-schema-venv-" + [System.Guid]::NewGuid().ToString("N"))
-python -m venv $schemaVenv
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$schemaVenv = Join-Path $repoRoot ".permawrite-ci-venv"
+if (-not (Test-Path -LiteralPath $schemaVenv -PathType Container)) {
+    python -m venv $schemaVenv
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
 $schemaPythonCandidates = @(
     (Join-Path $schemaVenv "Scripts\python.exe"),
     (Join-Path $schemaVenv "bin\python.exe"),
@@ -60,7 +78,7 @@ if (-not $schemaPython) {
     [Console]::Error.WriteLine("release schema validator venv did not contain a Python executable")
     exit 1
 }
-& $schemaPython -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
+& $schemaPython -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt -q
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $schemaPython -c "import importlib.metadata; assert importlib.metadata.version('jsonschema') == '4.17.3'"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -743,7 +761,9 @@ Decision:
 } finally {
     Remove-Item -Recurse -Force $inventoryDir -ErrorAction SilentlyContinue
 }
+}
 
+if ($runRust) {
 Write-Host "==> rustfmt"
 cargo fmt --all --check
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -789,5 +809,6 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "==> cargo audit"
 cargo audit
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
 
 Write-Host "ci-check: OK"

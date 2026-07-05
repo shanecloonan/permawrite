@@ -14,6 +14,20 @@ bash scripts/ci-check.sh
 powershell -File scripts/ci-check.ps1
 ```
 
+**Fast paths (M2.5.39):** docs-only or Rust-only mirrors skip the other half (~90 min full run on Windows).
+
+```powershell
+powershell -File scripts/ci-check.ps1 -DocsOnly   # encoding + RC helpers + devnet scripts
+powershell -File scripts/ci-check.ps1 -RustOnly   # rustfmt, clippy, test, wasm, audit
+```
+
+```bash
+bash scripts/ci-check.sh --docs-only
+bash scripts/ci-check.sh --rust-only
+```
+
+Release-schema Python installs reuse `.permawrite-ci-venv/` at the repo root (gitignored) instead of creating a fresh temp venv every run.
+
 This runs `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features`, `cargo build -p mfn-node --bin mfnd --release`, and `cargo test --workspace --release` with `RUSTFLAGS=-D warnings`, matching CI.
 
 **RC helper script smoke (M2.5.24 / M2.5.28):** After workflow UTF-8 validation, ci-check runs [scripts/validate-rc-helper-scripts.ps1](../scripts/validate-rc-helper-scripts.ps1) (and [.sh](../scripts/validate-rc-helper-scripts.sh) on Linux/macOS) to fail closed on UTF-16 RC helpers under `scripts/public-devnet-v1/`, PowerShell parse errors, `bash -n` syntax errors, **agent boards** (`AGENTS.md`, `docs/AGENTS.md`, `3agent.md`), **`docs/STORAGE_ACCESSIBILITY.md`**, and ci-check entrypoint scripts.
@@ -77,7 +91,7 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **Workflow UTF-8 guard (M2.4.79):** `scripts/validate-workflow-encoding.{sh,ps1}` runs in local CI mirror and GitHub **CI** scripts job — GitHub Actions rejects UTF-16 workflow YAML.
 
-**Agent board UTF-8 guard (M2.5.26):** `validate-workflow-encoding` also checks `AGENTS.md`, `docs/AGENTS.md`, and `3agent.md` for UTF-16 BOM or null-byte corruption so parallel agent boards stay readable and diffable.
+**Markdown mojibake guard (M2.5.40):** all tracked `*.md` files are scanned for CP437/CP1252 double-encoding of UTF-8 punctuation (em dash, arrows, approximately-equal). Intentional Greek-gamma math notation in privacy docs is preserved.
 
 **Agent board UTF-8 guard (M2.5.26, M2.5.27):** the same scripts also fail closed on UTF-16/null-byte corruption in `AGENTS.md`, `docs/AGENTS.md`, `3agent.md`, and `docs/STORAGE_ACCESSIBILITY.md`. M2.5.27 restored `docs/AGENTS.md` to per-lane checklists (it must not duplicate the master board).
 

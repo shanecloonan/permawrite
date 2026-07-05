@@ -32,7 +32,8 @@ function Test-BoardTextQuality {
 function Test-MarkdownMojibake {
     param([string]$Path)
     $text = [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
-    if ($text -match '\u0393\u00C7|\u00E2\u20AC|\u252C\u00BA') { return "mojibake $Path" }
+    # CP437/CP1252 double-encoding of UTF-8 punctuation (≈ ↓ → —). Keep intentional `\u0393(` math.
+    if ($text -match '\u0393\u00C7|\u0393\u00e5|\u0393\u00eb|\u00E2\u20AC|\u252C\u00BA') { return "mojibake $Path" }
     return $null
 }
 

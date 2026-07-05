@@ -46,7 +46,12 @@ impl ChunkV1 {
         }
         let mut commit_hash = [0u8; 32];
         commit_hash.copy_from_slice(&payload[1..33]);
-        let chunk_index = u32::from_be_bytes(payload[33..37].try_into().expect("index"));
+        let chunk_index = u32::from_be_bytes(payload[33..37].try_into().map_err(|_| {
+            ChunkV1DecodeError::TooShort {
+                got: payload.len(),
+                need: CHUNK_V1_HEADER_LEN,
+            }
+        })?);
         let chunk_bytes = payload[37..].to_vec();
         if chunk_bytes.len() > MAX_CHUNK_V1_BODY_LEN {
             return Err(ChunkV1DecodeError::BodyTooLarge {

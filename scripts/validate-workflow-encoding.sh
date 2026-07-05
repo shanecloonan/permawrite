@@ -45,7 +45,7 @@ tracked_md = subprocess.run(
 ).stdout.splitlines()
 markdown_paths = [root / rel for rel in tracked_md if rel]
 # CP437/CP1252 renderings of UTF-8 punctuation bytes; never in clean docs.
-MOJIBAKE = ("\u0393\u00c7", "\u00e2\u20ac", "\u252c\u00ba")
+MOJIBAKE = ("\u0393\u00c7", "\u0393\u00e5", "\u0393\u00eb", "\u00e2\u20ac", "\u252c\u00ba")
 for path in paths + [p for p in markdown_paths if p.is_file()]:
     data = path.read_bytes()[:64]
     if len(data) >= 2 and data[:2] in (b"\xff\xfe", b"\xfe\xff"):

@@ -2,6 +2,26 @@
 # Mirror .github/workflows/ci.yml locally before pushing to main.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+repo_root="$(pwd)"
+
+docs_only=0
+rust_only=0
+for arg in "$@"; do
+  case "$arg" in
+    --docs-only) docs_only=1 ;;
+    --rust-only) rust_only=1 ;;
+    *)
+      echo "unknown ci-check argument: $arg (use --docs-only or --rust-only)" >&2
+      exit 2
+      ;;
+  esac
+done
+if (( docs_only && rust_only )); then
+  echo "Use only one of --docs-only or --rust-only" >&2
+  exit 2
+fi
+run_docs=$(( ! rust_only ))
+run_rust=$(( ! docs_only ))
 
 export CARGO_TERM_COLOR=always
 export RUSTFLAGS="-D warnings"
@@ -15,12 +35,17 @@ add_missing_command() {
   fi
 }
 
-add_missing_command cargo "Install Rust from https://rustup.rs/ and reopen the shell."
-add_missing_command rustup "Install Rust from https://rustup.rs/ and reopen the shell."
-add_missing_command pwsh "Install PowerShell 7+ to parse-check Windows helper scripts."
-add_missing_command python3 "Install Python 3 to validate release-evidence JSON output."
-add_missing_command wasm-pack "Install with: cargo install wasm-pack --locked."
-add_missing_command cargo-audit "Install with: cargo install cargo-audit --locked."
+add_missing_command bash "Install bash and reopen the shell."
+if (( run_rust )); then
+  add_missing_command cargo "Install Rust from https://rustup.rs/ and reopen the shell."
+  add_missing_command rustup "Install Rust from https://rustup.rs/ and reopen the shell."
+  add_missing_command wasm-pack "Install with: cargo install wasm-pack --locked."
+  add_missing_command cargo-audit "Install with: cargo install cargo-audit --locked."
+fi
+if (( run_docs )); then
+  add_missing_command pwsh "Install PowerShell 7+ to parse-check Windows helper scripts."
+  add_missing_command python3 "Install Python 3 to validate release-evidence JSON output."
+fi
 if ((${#missing_tools[@]} > 0)); then
   printf '%s\n' "${missing_tools[@]}" >&2
   exit 127
@@ -30,12 +55,14 @@ echo "==> workflow YAML encoding (UTF-8)"
 bash scripts/validate-workflow-encoding.sh
 echo "==> RC helper scripts smoke"
 bash scripts/validate-rc-helper-scripts.sh
+if (( run_docs )); then
 echo "==> public-devnet scripts"
-schema_venv="$(mktemp -d)"
-trap 'rm -rf "$schema_venv"' EXIT
-python3 -m venv "$schema_venv"
+schema_venv="$repo_root/.permawrite-ci-venv"
+if [[ ! -x "$schema_venv/bin/python" ]]; then
+  python3 -m venv "$schema_venv"
+fi
 schema_python="$schema_venv/bin/python"
-"$schema_python" -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt
+"$schema_python" -m pip install --disable-pip-version-check --require-hashes -r scripts/public-devnet-v1/requirements-release-schema.txt -q
 export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
@@ -604,7 +631,9 @@ if bash scripts/public-devnet-v1/artifact-inventory-validate.sh "$inventory_dir/
   echo "artifact-inventory-validate.sh accepted an incomplete inventory" >&2
   exit 1
 fi
+fi
 
+if (( run_rust )); then
 echo "==> rustfmt"
 cargo fmt --all --check
 
@@ -640,5 +669,6 @@ wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --
 
 echo "==> cargo audit"
 cargo audit
+fi
 
 echo "ci-check: OK"

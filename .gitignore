@@ -32,6 +32,8 @@ scripts/public-devnet-v1/wheelhouse-release-schema/
 scripts/public-devnet-v1/participant-rehearsal-smoke/
 scripts/public-devnet-v1/support-bundle/
 scripts/ci-check-last.log
+test-count-run.log
+.permawrite-ci-venv/
 
 # Transient commit-message scratch files (used when crafting multi-line
 # commit messages on Powershell, which lacks HEREDOC support for git commit -m)

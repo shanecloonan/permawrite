@@ -52,7 +52,7 @@ No validator keys, no block production, no specialized hardware.
 | **Disk profile** | Large, sequentially-packed replica tuned for random access at mining speed | Ordinary files or chunk directories; any HDD/SSD/NVMe |
 | **CPU profile** | Sustained hashing + recall during block production | Microseconds of SHA-256 per proof; no GPU unless a future SNARK tier ships |
 | **Network** | Must win block races against other miners | Must reach *any* synced RPC to submit proofs; HTTP/P2P for replication |
-| **Role coupling** | Miner Γëê storer Γëê block producer | **Storage operator is a separate role** from validator |
+| **Role coupling** | Miner ≈ storer ≈ block producer | **Storage operator is a separate role** from validator |
 
 Arweave's permanence economics (endowment + deflation) inspired Permawrite, but the **audit primitive differs**. Permawrite chose Merkle SPoRA proofs because they verify in microseconds on every node ([`STORAGE.md § Why we don't use ZK SNARKs`](./STORAGE.md#why-we-dont-use-zk-snarks-here-yet)) — which is exactly what makes consumer hardware viable.
 
@@ -108,11 +108,11 @@ The lightest end-to-end path that already works on public devnet:
 
 ```text
 Connect to observer RPC (no validator env)
-       Γåô
-operator backfill / uploads fetch-http  ΓåÆ  local wallet artifact
-       Γåô
-mfn-storage-operator run --once  ΓåÆ  submit_storage_proof
-       Γåô
+       ↓
+operator backfill / uploads fetch-http  →  local wallet artifact
+       ↓
+mfn-storage-operator run --once  →  submit_storage_proof
+       ↓
 Coinbase pays operator_view/spend keys directly
 ```
 
