@@ -1,4 +1,4 @@
-# Agent coordination checklists
+﻿# Agent coordination checklists
 
 Master board: [`AGENTS.md`](../AGENTS.md). Release gates: [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md).
 
@@ -177,6 +177,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Idle — claim from backlog
 
 - [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
+- [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (this commit).
 - [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (this commit; awaiting first PASS transcript).
 
 ### Do not start
