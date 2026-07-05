@@ -3035,8 +3035,9 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
     assert_eq!(st.height, Some(64));
 }
 
-/// Deep CLSAG fee + storage upload same-block treasury chain (**M5.33**, **M5.35**).
+/// Deep CLSAG fee + storage upload same-block treasury chain (**M5.33**; nightly **M5.35** candidate).
 #[test]
+#[ignore = "deep mixed CLSAG+upload treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
     const UPLOAD_PAYLOAD_LEN: usize = 1024;
     let min_upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN);

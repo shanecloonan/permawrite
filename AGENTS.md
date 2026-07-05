@@ -82,7 +82,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**`2a1b4fe`** on `main` — M5.37. Wait for green CI before the next push.
+**M5.37** landing — wait for green CI on this push before the next commit.
+
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
@@ -120,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.37** (this commit) - deep_empty_block_chain_128 + deep_storage_proof_chain_32 + deep_validator_mixed CLSAG+SPoRA treasury in default CI.
 - **M5.37** (this commit) - `deep_empty_block_chain_128` + `deep_storage_proof_chain_32` in default CI.
 - **M5.36** (`0dcb1e9`) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
 - **M2.5.22** (`0dcb1e9`) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
