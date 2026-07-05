@@ -181,9 +181,15 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
 - [x] **M5.42** - 256-block combined-inflow emission sim in default CI (994af36).
-- [x] **M5.44** - 512-block combined-inflow emission sim in default CI (this commit).
+- [x] **M5.44** - 512-block combined-inflow emission sim in default CI (3fcb4bc).
+- [x] **M5.45** - 512-block PPB + equivocation combined-inflow emission sims in default CI (this commit).
 - [x] **M5.43** - 256-block PPB combined-inflow emission sim in default CI (7ffcdac).
 - [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; awaiting first PASS transcript).
+
+### Next
+
+- [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
+- [ ] B-06 - Nightly #56 all three jobs green (lane 1 RC gate).
 
 ### Do not start
 
