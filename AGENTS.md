@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-04)
 
-**B-06** — Nightly #56 RC gate after green GHA CI on this push.
+**M5.40** (`7648ab2`) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
 
 ## Current board
 
