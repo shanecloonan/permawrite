@@ -31,7 +31,7 @@ Get-ChildItem -Path (Join-Path $repoRoot "scripts") -Filter "*.sh" -Recurse -Fil
     if ($issue) { $failed += $issue }
 }
 foreach ($rel in @(
-        "scripts/validate-rc-helper-scripts.ps1",
+        "`.gitattributes",`n        "scripts/validate-rc-helper-scripts.ps1",
         "scripts/validate-rc-helper-scripts.sh",
         "AGENTS.md",
         "docs/AGENTS.md",

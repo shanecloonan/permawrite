@@ -10,7 +10,7 @@
 | **CI #612** | In progress | `4bd43f2` (M2.5.29) — **do not push** until green (~70 min matrix) |
 | **Nightly #56** | In progress | First Nightly on M2.5.19+ stack; monitor all 3 jobs |
 | **B-05** Linux soak | Waiting | After B-06 green CI + soak dispatch |
-| **M2.5.30** | Local WIP | `workflow_run` backup in `rc-validation-after-ci.yml`; push after CI #612 green |
+| **M2.5.30** | **Done** (this commit) | UTF-8 board repair; `-text` gitattributes; validate-* path expansion |
 
 ### RC push embargo
 
@@ -23,7 +23,7 @@ No commits to `main` while CI #612 is in flight. Rapid pushes cancel the matrix 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.19 GHA rehearsal gates (`main`) | Monitor Nightly #56 participant + observer jobs | Triage `STAGE=` artifacts if ~11m fail |
-| **2** RC ops | M2.5.24–M2.5.29 encoding stack (`4bd43f2`) | M2.5.30 `workflow_run` backup (local) | ci-check → commit/push after CI #612 green |
+| **2** RC ops | M2.5.24–M2.5.30 encoding stack (this commit) | - | B-05 soak evidence after green CI |
 | **3** RC onboarding | M7.11 section 0 (`bb9600b`) | Monitor Nightly #56 ignored suite | Release evidence refresh after green Nightly |
 
 ---
