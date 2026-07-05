@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #625** **GREEN** (`15fd4c7`); **Nightly #57** **PARTIAL** (ignored PASS; smokes FAIL ~16m). **M2.5.35** landing → CI #626 → **Nightly #58** (B-06).
+**CI #626** pending on `f16bbb6` (M2.5.35); **Nightly #58** after green CI (B-06).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.35 Nightly #57 triage (parallel voter poll, curl-first health, tip≥2 fallback) | **In progress** | Nightly #58 all three green (B-06) |
+| **1** | M2.5.35 Nightly #57 triage | **Done** - `f16bbb6` | Monitor CI #626 → Nightly #58 (B-06) |
 | **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #58 |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #58 participant + observer PASS |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #58 |
@@ -121,7 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.34** (`aae3097`) - macOS CI `--test-threads=2` parity with Linux after CI #624 macOS FAIL (lane 1).
+- **M2.5.35** (`f16bbb6`) - parallel GHA voter poll; curl-first health; tip>=2 dial fallback; STAGE=start_mesh_fail; mojibake doc repair (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).
 - **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
 - **M2.5.32** (`a35b7a6`) - `.gitignore` debris patterns; board mojibake guard in validate-workflow-encoding; clean `docs/AGENTS.md` rebuild (lane 2).

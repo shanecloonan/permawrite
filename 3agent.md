@@ -9,8 +9,9 @@
 | --- | --- | --- |
 | **CI #625** | **GREEN** | `15fd4c7` — M2.5.34 macOS threads=2 |
 | **Nightly #57** | **PARTIAL** | ignored **PASS**; smokes **FAIL** ~16m on `15fd4c7` |
-| **M2.5.35** | **Landing** (ci-check in flight) | parallel voter poll; curl-first health; tip≥2 dial fallback; mojibake doc repair |
-| **Nightly #58** | Waiting | After green CI #626 on M2.5.35 |
+| **M2.5.35** | **Done** (`f16bbb6`) | parallel voter poll; curl-first health; tip≥2 dial fallback; mojibake doc repair |
+| **CI #626** | **Pending** | On `f16bbb6`; hold further pushes until green |
+| **Nightly #58** | Waiting | After green CI #626 |
 
 ### RC push embargo
 
@@ -22,7 +23,7 @@ Hold push until local ci-check green; then single batch to `main`.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.31–M2.5.34 on `main` | **M2.5.35** Nightly #57 triage fix | Monitor Nightly #58 (B-06) |
+| **1** RC core | M2.5.31–M2.5.35 on `main` (`f16bbb6`) | Monitor CI #626 | Nightly #58 (B-06) |
 | **2** RC ops | CI #625 green; M2.5.32 debris gitignore | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B doc sync | — | Participant + observer PASS |
 
@@ -44,7 +45,7 @@ Hold push until local ci-check green; then single batch to `main`.
 
 - [x] CI green on M2.5.34 (`15fd4c7`)
 - [x] Nightly #57 ran (partial)
-- [ ] **M2.5.35** → Nightly #58 all three green
+- [x] **M2.5.35** → Nightly #58 all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 
