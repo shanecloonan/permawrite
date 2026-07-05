@@ -71,7 +71,7 @@ cargo test -p mfn-node --release -- --ignored --test-threads=1
 
 **CI Queue Cleanup (M2.4.75):** [`.github/workflows/ci-queue-cleanup.yml`](../.github/workflows/ci-queue-cleanup.yml) cancels stale CI runs on push to reduce runner backlog, but **preserves CI for the triggering commit** (`context.sha`) so the matrix under test is not cancelled (**M2.4.82**). Do not push follow-up commits while CI is in progress — concurrency `cancel-in-progress` aborts the prior matrix.
 
-**Linux test hardening (M2.4.89):** GitHub **CI** runs workspace release tests with `--test-threads=2` on `ubuntu-latest` (4 on macOS/Windows) and retries once after 15s on failure. `mfn-node/tests/stdout_timeout.rs` uses longer GHA deadlines for `mfnd_serve_listening=` (120s) and P2P line prefixes (150s).
+**Linux/macOS test hardening (M2.4.89, M2.5.34):** GitHub **CI** runs workspace release tests with `--test-threads=2` on `ubuntu-latest` and `macos-latest` (4 on Windows) and retries once after 15s on failure. **M2.5.34** extends M2.4.89 macOS parity after CI #624 `test (macos-latest)` release-test failure at 4 threads. `mfn-node/tests/stdout_timeout.rs` uses longer GHA deadlines for `mfnd_serve_listening=` (120s) and P2P line prefixes (150s).
 
 **Local CI mirror thread cap (M2.4.90):** `scripts/ci-check.sh` and `scripts/ci-check.ps1` both use `--test-threads=2` on all platforms so heavy M5.36–M5.45 proptest/emission sims do not OOM during local mirrors (Windows was crashing at 4 threads after `8e6b3c1`).
 

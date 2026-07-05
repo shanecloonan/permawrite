@@ -1116,13 +1116,14 @@ jobs:
       - run: cargo build -p mfn-node --bin mfnd --release
       - run: cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
       # Default `cargo test` skips `#[ignore]` slow P2P / multi-validator harness tests.
-      # Linux runners are more contended: lower parallelism + one retry on flake (M2.4.89).
+      # Linux/macOS runners are contended under heavy M5 proptest tiers: lower parallelism +
+      # one retry on flake (M2.4.89 Linux; M2.5.34 macOS parity after CI #624 failure).
       - name: Run workspace release tests
         shell: bash
         run: |
           set -euo pipefail
           threads=4
-          if [ "${{ runner.os }}" = "Linux" ]; then
+          if [ "${{ runner.os }}" = "Linux" ] || [ "${{ runner.os }}" = "macOS" ]; then
             threads=2
           fi
           for attempt in 1 2; do
