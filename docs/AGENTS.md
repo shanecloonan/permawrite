@@ -1,4 +1,4 @@
-# Agent coordination checklists
+﻿# Agent coordination checklists
 
 Master board: [`AGENTS.md`](../AGENTS.md). Release gates: [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md).
 

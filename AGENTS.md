@@ -88,9 +88,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.21 wasm-opt preflight + Linux soak dispatch | **Done** - `9537c7b` | B-05 evidence after soak workflow |
+| **2** | M2.5.22 wasm-pack wasm-opt=false | **Done** - this commit | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.35 deep upload proptest CI | **Done** - `9537c7b` | Monitor Nightly #56 |
+| **4** | M5.36 deep SPoRA proptest CI | **Done** - this commit | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
 | **6** | M5.34 + M5.35 emission sim | **Done** - this commit | B-05 Linux soak (lane 2+6) |
 
@@ -120,6 +120,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.36** (this commit) - `deep_mixed_clsag_fee_and_storage_proof_treasury_64` in default CI.
+- **M2.5.22** (this commit) - `mfn-wasm` `wasm-opt = false` for ci-check without Binaryen.
 - **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.
 - **M2.5.21** (`9537c7b`) - preflight `wasm-opt` warning; Linux soak auto-dispatch + import helper.
 - **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.

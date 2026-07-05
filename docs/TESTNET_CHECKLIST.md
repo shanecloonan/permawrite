@@ -15,6 +15,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.33** (lane 4) — `prop_mixed_clsag_fee_and_storage_upload_treasury` (CLSAG fee + NEW storage upload same block).
 - [x] **M5.34** (lane 6) — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (**B-03**).
 - [x] **M5.35** (lanes 4+6) — 96-block validator CLSAG-only emission sim + `deep_mixed_clsag_fee_and_storage_upload_treasury_64` proptest in default CI.
+- [x] **M5.36** (lane 4) — `deep_mixed_clsag_fee_and_storage_proof_treasury_64` proptest in default CI.
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
@@ -204,6 +205,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Add Linux/macOS public-devnet preflight diagnostics for required tools, helper runtimes, release binaries, and local mesh discovery.
 - [x] Extend public-devnet preflight diagnostics to catch missing `wasm-pack` and `cargo-audit` before local CI mirror runs.
 - [x] **M2.5.21** — extend preflight to warn on missing `wasm-opt` (Binaryen) before local CI mirror wasm-pack step.
+- [x] **M2.5.22** — `mfn-wasm` sets `[package.metadata.wasm-pack] wasm-opt = false` so ci-check wasm-pack step passes without Binaryen.
 - [x] Add public-devnet toolchain recovery guidance for missing preflight and CI helper tools.
 - [x] Add public-devnet stop helpers to release `mfnd` locks before rebuilds and CI.
 - [x] Add participant wallet and upload-artifact backup guidance for funds, proving, and permanence restore.

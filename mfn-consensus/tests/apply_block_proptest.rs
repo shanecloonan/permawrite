@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**).
 //!
 //! CI runs a bounded case count; deeper chains are `#[ignore]` (nightly).
 
@@ -3015,9 +3015,8 @@ fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
     assert_eq!(st.height, Some(32));
 }
 
-/// Deep CLSAG fee + SPoRA proof same-block treasury chain (**M5.5**).
+/// Deep CLSAG fee + SPoRA proof same-block treasury chain (**M5.5**, **M5.36**).
 #[test]
-#[ignore = "deep mixed CLSAG+SPoRA treasury chain; run with cargo test -p mfn-consensus --test apply_block_proptest -- --ignored"]
 fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
     let gen = genesis_privacy_storage_for_proptest();
     let mut st = gen.state;
