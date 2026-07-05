@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if GitHub Actions workflow YAML is UTF-16 (GitHub cannot parse it).
+# Fail if GitHub Actions workflow YAML or shell scripts are UTF-16 (GitHub/bash cannot parse them).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,13 +13,15 @@ if ! command -v "$PY" >/dev/null 2>&1; then
   exit 1
 fi
 
-"$PY" - "$WORKFLOW_DIR" <<'PY'
+"$PY" - "$ROOT" "$WORKFLOW_DIR" <<'PY'
 import sys
 from pathlib import Path
 
-workflow_dir = Path(sys.argv[1])
+root = Path(sys.argv[1])
+workflow_dir = Path(sys.argv[2])
 failed = []
 paths = sorted(workflow_dir.glob("*.yml"))
+paths.extend(sorted((root / "scripts").rglob("*.sh")))
 for path in paths:
     data = path.read_bytes()[:64]
     if len(data) >= 2 and data[:2] in (b"\xff\xfe", b"\xfe\xff"):
@@ -29,5 +31,10 @@ for path in paths:
 if failed:
     print("validate-workflow-encoding: FAIL", *failed, sep="\n", file=sys.stderr)
     sys.exit(1)
-print(f"validate-workflow-encoding: OK ({len(paths)} workflow files UTF-8)")
+workflow_count = len(list(workflow_dir.glob("*.yml")))
+script_count = len(list((root / "scripts").rglob("*.sh")))
+print(
+    f"validate-workflow-encoding: OK ({workflow_count} workflow files, "
+    f"{script_count} shell scripts UTF-8)"
+)
 PY
