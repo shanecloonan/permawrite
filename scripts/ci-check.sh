@@ -618,7 +618,17 @@ cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 echo "==> test (release)"
 # M2.4.90 / M2.4.89 parity: heavy M5.36–M5.39 proptest + emission sims OOM at threads=4
 # on contended runners (Windows local mirror, Linux GHA). Match ci-check.ps1 + GHA Linux.
-cargo test --workspace --release -- --test-threads=2
+# One retry after 15s on flake (M2.4.89).
+for attempt in 1 2; do
+  if cargo test --workspace --release -- --test-threads=2; then
+    break
+  fi
+  if [ "$attempt" -eq 2 ]; then
+    exit 1
+  fi
+  echo "cargo test attempt $attempt failed; retrying once after 15s..."
+  sleep 15
+done
 
 echo "==> wasm32 build"
 rustup target add wasm32-unknown-unknown

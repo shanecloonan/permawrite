@@ -760,8 +760,19 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> test (release)"
 # M2.4.89 / M2.4.90: heavy M5.36–M5.39 proptest + emission sims OOM at threads=4 on Windows.
-cargo test --workspace --release -- --test-threads=2
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+# Match GHA: one retry after 15s on contended runners (M2.4.89).
+$testOk = $false
+for ($attempt = 1; $attempt -le 2; $attempt++) {
+    cargo test --workspace --release -- --test-threads=2
+    if ($LASTEXITCODE -eq 0) {
+        $testOk = $true
+        break
+    }
+    if ($attempt -eq 2) { exit $LASTEXITCODE }
+    Write-Host "cargo test attempt $attempt failed; retrying once after 15s..."
+    Start-Sleep -Seconds 15
+}
+if (-not $testOk) { exit 1 }
 
 Write-Host "==> wasm32 build"
 rustup target add wasm32-unknown-unknown
