@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **DOCS-QA-1** (this commit) - `docs/CODEBASE_IMPROVEMENTS.md`: prioritized engineering-quality audit (repo hygiene, encoding workflow, unwrap density in P2P paths, god files, ci-check velocity, script duplication); indexed in `docs/README.md` (docs-only, no lane conflict).
 - **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
 - **M2.5.32** (`a35b7a6`) - `.gitignore` debris patterns; board mojibake guard in validate-workflow-encoding; clean `docs/AGENTS.md` rebuild (lane 2).
 - **M2.5.31** (`0e0de4e`) - GHA voter-dial/health 900s; nightly rehearsal jobs 90m; soft-continue at tip>=1 + both voters P2P listening (lane 1).
