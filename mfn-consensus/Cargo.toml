@@ -34,4 +34,4 @@ hex = { workspace = true }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-proptest = "1.6"
+proptest = { workspace = true }

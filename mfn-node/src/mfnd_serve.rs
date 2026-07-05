@@ -730,7 +730,21 @@ pub(crate) fn run_serve(
         .map_err(|e| format!("mfnd serve: stdout flush: {e}"))?;
 
     if let Some(pl) = p2p_listener {
-        let p2p_addr = local_p2p_listen.expect("p2p listen addr when listener bound");
+        let Some(p2p_addr) = local_p2p_listen else {
+            return Err(
+                "mfnd serve: internal error: P2P listener active without listen address".into(),
+            );
+        };
+        let Some(tip_cell) = p2p_tip_cell.as_ref() else {
+            return Err(
+                "mfnd serve: internal error: P2P listener active without tip snapshot".into(),
+            );
+        };
+        let Some(hid_counter) = p2p_hid_counter.as_ref() else {
+            return Err(
+                "mfnd serve: internal error: P2P listener active without HID counter".into(),
+            );
+        };
         println!("mfnd_p2p_listening={p2p_addr}");
         std::io::stdout()
             .flush()
@@ -738,14 +752,8 @@ pub(crate) fn run_serve(
         spawn_inbound_handshake_loop(InboundP2pLoop {
             listener: pl,
             genesis_id,
-            tip_cell: p2p_tip_cell
-                .as_ref()
-                .expect("p2p tip cell when p2p listen")
-                .clone(),
-            hid_counter: p2p_hid_counter
-                .as_ref()
-                .expect("p2p hid counter when p2p listen")
-                .clone(),
+            tip_cell: tip_cell.clone(),
+            hid_counter: hid_counter.clone(),
             hooks: P2pSessionHooks {
                 gossip: gossip_hook.clone(),
                 block_sync: block_sync_hook.clone(),
@@ -767,17 +775,16 @@ pub(crate) fn run_serve(
                 .map_err(|e| format!("mfnd serve: stdout flush (p2p self skip): {e}"))?;
             continue;
         }
+        let (Some(tip_cell), Some(hid_counter)) = (p2p_tip_cell.as_ref(), p2p_hid_counter.as_ref())
+        else {
+            eprintln!("mfnd_p2p_dial_skip peer={dial} reason=missing_p2p_state");
+            continue;
+        };
         spawn_outbound_dial(OutboundP2pDial {
             addr: dial.clone(),
             genesis_id,
-            tip_cell: p2p_tip_cell
-                .as_ref()
-                .expect("p2p tip cell when p2p dial")
-                .clone(),
-            hid_counter: p2p_hid_counter
-                .as_ref()
-                .expect("p2p hid counter when p2p dial")
-                .clone(),
+            tip_cell: tip_cell.clone(),
+            hid_counter: hid_counter.clone(),
             hooks: P2pSessionHooks {
                 gossip: gossip_hook.clone(),
                 block_sync: block_sync_hook.clone(),

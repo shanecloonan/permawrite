@@ -25,7 +25,7 @@ Lifted after CI #631 green; coordinate with lane 2 board sync before next push.
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.35–38 on `main` (`843e055`) | Monitor CI #631 | Nightly on `843e055` (B-06) |
-| **2** RC ops | M2.5.39–42 DOCS-QA-2 (`4a1862b`) | — | Nightly #61 evidence |
+| **2** RC ops | M2.5.39–42 (`4a1862b`) | M2.5.43–45 timeout dedup + deps | Nightly #61 evidence |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---

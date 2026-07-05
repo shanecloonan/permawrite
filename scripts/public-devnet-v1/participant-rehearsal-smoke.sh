@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=ports-env-lib.sh
 source "$SCRIPT_DIR/ports-env-lib.sh"
+# shellcheck source=rehearsal-poll-timeouts.env
+source "$SCRIPT_DIR/rehearsal-poll-timeouts.env"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 
 RPC=""
@@ -457,7 +459,7 @@ if (( NO_START == 0 )); then
   fi
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     export MFN_REPO_ROOT="$REPO_ROOT"
-    wait_mesh_health_check 900
+    wait_mesh_health_check "$MFN_MESH_HEALTH_TIMEOUT"
   fi
 fi
 RPC_ADDR="$(resolve_rpc)"
@@ -469,12 +471,8 @@ elif [[ ! -f "$FAUCET_WALLET" ]]; then
   echo "participant-rehearsal-smoke: faucet wallet not found: $FAUCET_WALLET" >&2
   exit 1
 fi
-HUB_LIVENESS_WAIT=120
-HUB_LIVENESS_MIN=1
-if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_LIVENESS_MIN=2
-  HUB_LIVENESS_WAIT=900
-fi
+HUB_LIVENESS_WAIT="$MFN_HUB_LIVENESS_WAIT"
+HUB_LIVENESS_MIN="$MFN_HUB_LIVENESS_MIN"
 echo "participant-rehearsal-smoke: STAGE=hub_liveness"
 wait_hub_min_height "$MFN_CLI" "$RPC_ADDR" "$HUB_LIVENESS_MIN" "$HUB_LIVENESS_WAIT"
 echo "participant-rehearsal-smoke: STAGE=faucet_balance"

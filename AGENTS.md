@@ -89,7 +89,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.38 GHA mesh probe hardening | **Done** - `843e055` | Monitor Nightly #61 (B-06) |
-| **2** | M2.5.39–42 DOCS-QA-2 hygiene + CI velocity + net decode | **Done** - `4a1862b` | B-06 Nightly #61 evidence; M2.5.43 god-file splits (lane 1/4) |
+| **2** | M2.5.43–45 timeout dedup + mfnd P2P + workspace deps | **In progress** - lane 2/4/6 | B-07 god-file splits; B-08 remainder |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #61 participant + observer PASS |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #61; M5.40 P2P unwrap hardening |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #61 |
@@ -106,9 +106,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
 | B-06 | Nightly #61 green (all three jobs) | 1 | RC gate |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | Reduces parallel-agent conflicts |
-| B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | M2.5.42 started frame/chunk decode |
-| B-09 | ps1/sh dedup generator or shared timeout constants | 2 | e.g. start-all 900s parity |
-| B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | redb/proptest/wasm-bindgen |
+| B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | M2.5.44 mfnd_serve dial/listen paths; frame/chunk done |
+| B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
+| B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | M2.5.45 redb/proptest/wasm-bindgen hoisted |
 
 ---
 

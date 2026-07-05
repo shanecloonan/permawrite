@@ -25,6 +25,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 . (Join-Path $ScriptDir "ports-env-lib.ps1")
+. (Join-Path $ScriptDir "rehearsal-poll-timeouts.ps1")
 $SmokeRoot = if ($RehearsalDir) { $RehearsalDir } else { Join-Path $ScriptDir "participant-rehearsal-smoke" }
 $Faucet = if ($FaucetWallet) { $FaucetWallet } else { Join-Path $SmokeRoot "validator0-faucet.json" }
 $UseBundledTestFaucet = -not $FaucetWallet
@@ -304,7 +305,7 @@ try {
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
         if ($env:GITHUB_ACTIONS) {
-            Wait-MeshHealthCheck -TimeoutSeconds $(if ($env:GITHUB_ACTIONS) { 900 } else { 420 })
+            Wait-MeshHealthCheck -TimeoutSeconds $script:MFN_MESH_HEALTH_TIMEOUT
         }
     }
     $RpcAddr = Resolve-Rpc
@@ -316,8 +317,8 @@ try {
     } elseif (-not (Test-Path $Faucet)) {
         throw "participant-rehearsal-smoke: faucet wallet not found: $Faucet"
     }
-    $hubLivenessMin = if ($env:GITHUB_ACTIONS) { 2 } else { 1 }
-    $hubLivenessWait = if ($env:GITHUB_ACTIONS) { 600 } else { 120 }
+    $hubLivenessMin = $script:MFN_HUB_LIVENESS_MIN
+    $hubLivenessWait = $script:MFN_HUB_LIVENESS_WAIT
     Write-Host "participant-rehearsal-smoke: STAGE=hub_liveness"
     Wait-HubMinHeight $MfnCli $RpcAddr $hubLivenessMin $hubLivenessWait
     Write-Host "participant-rehearsal-smoke: STAGE=faucet_balance"

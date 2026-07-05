@@ -8,6 +8,7 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $LogDir = Join-Path $ScriptDir "logs"
 $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 . (Join-Path $ScriptDir "ports-env-lib.ps1")
+. (Join-Path $ScriptDir "rehearsal-poll-timeouts.ps1")
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 if ($env:MFN_DEVNET_SKIP_BUILD -eq "1") { $NoBuild = $true }
@@ -92,7 +93,7 @@ $hubProc = Start-MfndRole `
 Set-DevnetPort -Path $PortsFile -Key "HUB_PID" -Value "$($hubProc.Id)"
 $HubP2p = $null
 $HubRpc = $null
-$HubPollMax = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
+$HubPollMax = $script:MFN_POLL_HUB_MAX
 for ($i = 1; $i -le $HubPollMax; $i++) {
     $text = $null
     if (Test-Path $hubLog) {
@@ -157,7 +158,7 @@ Set-DevnetPort -Path $PortsFile -Key "V2_PID" -Value "$($v2Proc.Id)"
 Start-Sleep -Seconds 2
 function Get-VoterP2pFromLog {
     param([string]$LogPath)
-    $max = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
+    $max = $script:MFN_POLL_VOTER_P2P_MAX
     for ($i = 1; $i -le $max; $i++) {
         if (Test-Path $LogPath) {
             $m = Select-String -Path $LogPath -Pattern "mfnd_p2p_listening=([^\r\n]+)" | Select-Object -First 1
@@ -180,7 +181,7 @@ Write-Host "Voter 2 P2P=$V2P2p"
 
 function Wait-VoterDialHub {
     param([string]$V1LogPath, [string]$V2LogPath, [string]$HubRpc)
-    $max = if ($env:GITHUB_ACTIONS) { 900 } else { 120 }
+    $max = $script:MFN_POLL_VOTER_DIAL_MAX
     $v1Ok = $false
     $v2Ok = $false
     for ($i = 1; $i -le $max; $i++) {
@@ -258,7 +259,7 @@ $obsProc = Start-MfndRole `
     -StderrLog $obsErr
 Set-DevnetPort -Path $PortsFile -Key "OBSERVER_PID" -Value "$($obsProc.Id)"
 $ObserverRpc = $null
-$ObserverPollMax = if ($env:GITHUB_ACTIONS) { 900 } else { 60 }
+$ObserverPollMax = $script:MFN_POLL_OBSERVER_MAX
 for ($i = 1; $i -le $ObserverPollMax; $i++) {
     if (Test-Path $obsLog) {
         $m = Select-String -Path $obsLog -Pattern "mfnd_serve_listening=([^\r\n]+)" | Select-Object -First 1

@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/ports-env-lib.sh"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/config.env"
+# shellcheck source=rehearsal-poll-timeouts.env
+source "$SCRIPT_DIR/rehearsal-poll-timeouts.env"
 REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
@@ -61,10 +63,7 @@ HUB_PID=$!
 echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
 HUB_P2P=""
 HUB_RPC=""
-HUB_POLL_MAX=60
-if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  HUB_POLL_MAX=900
-fi
+HUB_POLL_MAX="$MFN_POLL_HUB_MAX"
 for _ in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
     HUB_P2P=$(grep -m1 mfnd_p2p_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
@@ -100,10 +99,7 @@ echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
 poll_voter_p2p() {
   local log_path="$1"
-  local p2p="" i max=60
-  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=900
-  fi
+  local p2p="" i max="$MFN_POLL_VOTER_P2P_MAX"
   for i in $(seq 1 "$max"); do
     if grep -q mfnd_p2p_listening= "$log_path" 2>/dev/null; then
       p2p=$(grep -m1 mfnd_p2p_listening= "$log_path" | sed 's/.*=//')
@@ -161,10 +157,7 @@ echo "Voter 1 P2P=$V1_P2P"
 echo "Voter 2 P2P=$V2_P2P"
 
 wait_voter_dial_hub() {
-  local max=120 v1_ok v2_ok i tip_height
-  if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-    max=900
-  fi
+  local max="$MFN_POLL_VOTER_DIAL_MAX" v1_ok v2_ok i tip_height
   for i in $(seq 1 "$max"); do
     v1_ok=0
     v2_ok=0
@@ -237,10 +230,7 @@ echo "Starting observer..."
 "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
-OBSERVER_POLL_MAX=60
-if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-  OBSERVER_POLL_MAX=900
-fi
+OBSERVER_POLL_MAX="$MFN_POLL_OBSERVER_MAX"
 for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
     OBSERVER_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/observer.log" | sed 's/.*=//')

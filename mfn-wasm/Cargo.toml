@@ -49,7 +49,7 @@ hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-wasm-bindgen = "0.2"
+wasm-bindgen = { workspace = true }
 
 # Union feature into the workspace `getrandom` graph for wasm32-unknown-unknown.
 getrandom = { version = "0.2", features = ["js"] }

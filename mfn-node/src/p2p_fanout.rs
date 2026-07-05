@@ -461,7 +461,7 @@ impl P2pPeerSet {
             .unwrap_or_default()
     }
 
-    #[allow(dead_code)] // exercised by unit tests in this module
+    #[cfg(test)]
     fn snapshot_available_peers(&self) -> Vec<String> {
         let peers = self.snapshot_peers();
         let Ok(mut quarantine) = self.quarantine.lock() else {
