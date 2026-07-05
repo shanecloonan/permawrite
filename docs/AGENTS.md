@@ -69,7 +69,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Do not start (other lanes)
 
 - M7.10 `push-all-chunks` ΓÇö lanes 2ΓÇô3 (landed `c1e0373`).
-- M5.31+ ring tests ΓÇö lane 4 (M5.31-M5.33 landed this commit).
+- M5.31+ ring tests ΓÇö lane 4 (M5.31-M5.33 landed __COMMIT__).
 
 ---
 
@@ -81,19 +81,16 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.5.14ΓÇôM2.5.18 ΓÇö evidence refresh + inline Nightly dispatch.
 - [x] M2.5.20 ΓÇö nightly STAGE/start-all log dumps (668044d).
-- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (this commit).
-- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (this commit).
+- [x] M2.5.21 ΓÇö preflight `wasm-opt` + ci-check wasm-pack pkg cleanup (__COMMIT__).
+- [x] B-05 ΓÇö Linux soak auto-dispatch + RC audit dry-run Linux evidence hook (__COMMIT__).
 - [x] M2.5.22 ΓÇö wasm-pack `wasm-opt=false` (`0dcb1e9`).
-- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (`001e2c6`).
-- [x] M2.5.26 - UTF-8 board guard in validate-workflow-encoding (`c71e9c3`).
-- [x] M2.5.27 - restore per-lane checklists + board sync (`aaf2246`).
-- [x] M2.5.28 - consolidated RC encoding guard in validate-rc-helper-scripts (`99f5da2`).
-- [x] M2.5.29 - `.gitattributes` text eol=lf pins for boards (this commit).
+- [x] M2.5.24 - `validate-rc-helper-scripts` smoke in `ci-check` (__COMMIT__).
 - [x] M2.4.89 Windows mirror ΓÇö `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 - [x] M7.10 push-all-chunks (`c1e0373` on `main`).
-- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (this commit).
+- [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
+- [x] M6.9 ΓÇö storage-operator JSON logs + `prove_attempt_json` unit test (__COMMIT__).
 
-- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (this commit).
+- [x] M2.4.90 ΓÇö `ci-check.sh` thread cap parity (__COMMIT__).
 
 ### Next
 
@@ -114,6 +111,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.7ΓÇôM2.5.16 ΓÇö smoke evidence pipeline + assert gates.
 - [x] M4.7 WASM SPoRA bindings (`778053a`).
 - [x] M7.10 ΓÇö `push-all-chunks` + OPERATORS.md (`c1e0373`).
+- [x] M7.11 - STORAGE_ACCESSIBILITY.md section 0 (`bb9600b`).
 
 ### Next
 
@@ -121,7 +119,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Do not start
 
-- Wallet README ring examples ΓÇö lane 5 (done this commit).
+- Wallet README ring examples ΓÇö lane 5 (done __COMMIT__).
 - Consensus ring tests ΓÇö lane 4.
 
 ---
@@ -182,6 +180,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Idle ΓÇö claim from backlog
 
+
+- [x] **M5.46** - combined-inflow emission CI tier complete (`1232506`).
+- [x] **M5.47** - 256-block equivocation combined-inflow + 1M curve in default CI (`db06c78`).
+- [x] **M5.48** - emission deep-sim tier closure; 2048 CLSAG + 100k `apply_block` stay nightly (`77f2fe1`).
 - [x] **M5.34 / B-03** ΓÇö 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).

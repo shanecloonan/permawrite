@@ -1,4 +1,4 @@
-# Agent Coordination (master board)
+﻿# Agent Coordination (master board)
 
 Single source of truth for **all** parallel agent lanes (formerly `3agent.md` lanes 1-3, plus overflow lanes 4-6). Release gates: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md).
 
@@ -35,33 +35,33 @@ Every agent working a lane **must** broadcast **Done / Doing / Next** so simulta
 
 ### What to include (every announcement)
 
-1. **Done** — units landed on `main` (commit hash when known) or explicitly abandoned with reason.
-2. **Doing** — current lane, unit ID, and concrete step (not just the milestone name).
-3. **Next** — immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
+1. **Done** ΓÇö units landed on `main` (commit hash when known) or explicitly abandoned with reason.
+2. **Doing** ΓÇö current lane, unit ID, and concrete step (not just the milestone name).
+3. **Next** ΓÇö immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
 
 Use this template in chat **and** mirror it on the boards:
 
 `text
-Lane N — Done: <completed units + commits>
+Lane N ΓÇö Done: <completed units + commits>
        Doing: <unit + current step>
        Next:  <follow-up + owner + blockers>
 `
 
 ### Where to record it
 
-Update **all applicable** surfaces in the same session — do not rely on chat alone:
+Update **all applicable** surfaces in the same session ΓÇö do not rely on chat alone:
 
-- [`AGENTS.md`](AGENTS.md) — current board, cross-lane requests, recently completed.
-- [`docs/AGENTS.md`](docs/AGENTS.md) — lane Done / Next checklists.
-- [`3agent.md`](3agent.md) — lanes 1–3 mirror (current board + detailed plans).
-- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) — when RC-related.
+- [`AGENTS.md`](AGENTS.md) ΓÇö current board, cross-lane requests, recently completed.
+- [`docs/AGENTS.md`](docs/AGENTS.md) ΓÇö lane Done / Next checklists.
+- [`3agent.md`](3agent.md) ΓÇö lanes 1ΓÇô3 mirror (current board + detailed plans).
+- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) ΓÇö when RC-related.
 
 ### Coordination rules
 
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in § Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in ┬º Cross-lane requests.
 
 ---
 
@@ -70,11 +70,11 @@ Update **all applicable** surfaces in the same session — do not rely on chat a
 | Lane | Scope | Owns (exclusive) | Does *not* own |
 | --- | --- | --- | --- |
 | **1** | RC core | M2.5.x mesh startup, voter-dial timeouts, Nightly rehearsal stability, Linux soak dispatch | M7.10 replication, M5 ring tests |
-| **2** | RC ops | `release-evidence-*`, RC audit dry-run, CI/Nightly auto-dispatch, schema validation gates | M5 protocol tests |
-| **3** | RC onboarding | Participant/observer rehearsal smokes, faucet/demo scripts, operator onboarding polish, M7.10 UX | Wallet README ring examples (lane 5), consensus ring tests (lane 4) |
+| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
+| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
 | **4** | Protocol hardening | M5 privacy + permanence tests, `apply_block` invariants, ring/SPoRA consensus guards | RC Nightly fixes, `push-all-chunks` |
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no silent downgrade UX | M7.10 replication, GHA rehearsal |
-| **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
 
 Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes before they exceed ~2 active units.
 
@@ -82,19 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**M2.5.29** (this commit) — wait for green GHA CI before next push; **B-06** Nightly #56 RC gate follows.
-
+**M2.5.27** (__COMMIT__) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak follow.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.28 RC encoding guard + M2.5.27 docs mirror | **Done** - `99f5da2`/`aaf2246` | B-05 soak evidence |
-| **3** | M7.11 STORAGE_ACCESSIBILITY Phase A | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
+| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
+| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-06 Nightly #56 |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
 
 ---
 
@@ -122,17 +121,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.29** (this commit) - `.gitattributes` UTF-8 pins for agent boards + RC validators; restore master board after encoding fix (lane 2).
-- **M7.11** (`7690138`) - STORAGE_ACCESSIBILITY section 0 plain-language verdict (lane 3).
-- **M2.5.28** (`99f5da2`) - consolidated RC encoding guard in validate-rc-helper-scripts (lane 2).
-- **M2.5.27** (`aaf2246`) - restore `docs/AGENTS.md` per-lane checklists (lane 2).
-- **M2.5.26** (`c71e9c3`) - UTF-8 guard for AGENTS.md boards in validate-workflow-encoding (lane 2).
+- **M2.5.27** (__COMMIT__) - restore `docs/AGENTS.md` per-lane checklists (UTF-8); sync master board (lane 2).
+- **M2.5.26** (`a417f1e`) - UTF-8 guard for agent boards in validate-workflow-encoding (lane 2).
+- **M2.5.24** (`001e2c6`) - `validate-rc-helper-scripts` smoke in `ci-check` (lane 2).
+- **M7.11** (`bb9600b`) - STORAGE_ACCESSIBILITY.md section 0 (lane 3).
 - **M5.48** (`77f2fe1`) - emission deep-sim tier closure (lane 6).
-- **M2.5.24** (`001e2c6`) - validate-rc-helper-scripts smoke in ci-check (lane 2).
 - **M5.47** (`db06c78`) - 256-block equivocation + 1M curve in default CI (lane 6).
+- **M5.46** (`1232506`) - combined-inflow emission CI tier complete (lane 6).
 
-- **UTF-8 fix** (`b408331`) - import-linux-soak-artifact.sh text encoding (not UTF-16 binary).
-- **Coordination** - unified `AGENTS.md` lane registry (lanes 1-6) + `docs/AGENTS.md` per-lane detail.
 
 ---
 
