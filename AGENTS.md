@@ -80,16 +80,20 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
+## CI churn (2026-07-04)
+
+Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #553** on `45a118b` (M5.34) is the current gate — do not push until it completes green.
+
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M7.10 push-all-chunks + evidence | **Done** - `c1e0373`/`3d34556` on `main` | Evidence refresh after Nightly #56 |
+| **2** | M2.5.20 nightly failure STAGE dumps | **In progress** | Push after CI #553 green; evidence refresh after Nightly #56 |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.31-M5.33 protocol hardening | **Done** - this commit | B-03 emission sim (lane 6) |
+| **4** | M5.31-M5.33 protocol hardening | **Done** - `1d4d67c` | Monitor Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
-| **6** | - | **Idle** | Claim B-03 or B-05 from backlog |
+| **6** | M5.34 / B-03 emission sim | **Done** - `45a118b` | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -98,7 +102,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | ID | Item | Suggested lane | Privacy / performance |
 | --- | --- | --- | --- |
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
-| B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Privacy fee mix |
+| B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Privacy fee mix | **Done** - `45a118b` |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Performance ops |
 | B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
 

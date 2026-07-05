@@ -161,7 +161,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Idle — claim from backlog
 
-- [ ] B-03 — promote one ignored emission sim with CLSAG fee mix to CI.
+- [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
 - [ ] B-05 — Linux soak evidence (coordinate with lane 2 for archival).
 
 ### Do not start
@@ -176,7 +176,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
-| B-03 | CI emission sim with privacy fees | 6 | `emission_simulation.rs` |
+| B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
 | B-06 | Nightly #56 green | 1 | Blocks RC sign-off |
 
