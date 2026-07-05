@@ -1,4 +1,4 @@
-# Agent Coordination (master board)
+﻿# Agent Coordination (master board)
 
 Single source of truth for **all** parallel agent lanes (formerly `3agent.md` lanes 1-3, plus overflow lanes 4-6). Release gates: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md).
 
@@ -80,18 +80,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI churn (2026-07-04)
+## CI gate (2026-07-04)
 
-Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #553** on `45a118b` (M5.34) is the current gate — do not push until it completes green.
-
+**`9537c7b`** on `main` — M2.5.21 + M5.35 + B-05 soak dispatch. Wait for green CI before the next push (concurrency cancels in-flight runs).
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.20 nightly STAGE dumps | **Done** - `668044d` | Evidence refresh after Nightly #56 |
+| **2** | M2.5.21 wasm-opt preflight + Linux soak dispatch | **Done** - `9537c7b` | B-05 evidence after soak workflow |
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
-| **4** | M5.31-M5.33 protocol hardening | **Done** - `1d4d67c` | Monitor Nightly #56 |
+| **4** | M5.35 deep upload proptest CI | **Done** - `9537c7b` | Monitor Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - this commit | Monitor Nightly #56 |
 | **6** | M5.34 + M5.35 emission sim | **Done** - this commit | B-05 Linux soak (lane 2+6) |
 
@@ -103,7 +102,7 @@ Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #5
 | --- | --- | --- | --- |
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Privacy fee mix | **Done** - `45a118b` |
-| B-05 | Linux 30s soak evidence | 2 + 6 | Performance ops |
+| B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
 | B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
 
 ---
@@ -121,6 +120,8 @@ Rapid pushes cancelled CI #544–#552 before Nightly #56 could dispatch. **CI #5
 
 ## Recently completed
 
+- **M5.35** (`9537c7b`) - 96-block validator CLSAG emission sim + 64-block deep CLSAG+upload proptest in default CI.
+- **M2.5.21** (`9537c7b`) - preflight `wasm-opt` warning; Linux soak auto-dispatch + import helper.
 - **M5.33** (this commit) - `prop_mixed_clsag_fee_and_storage_upload_treasury` proptest: CLSAG fee + NEW storage upload same block treasury identity; 64-block `#[ignore]` deep chain.
 - **M5.31** (this commit) - consensus + `apply_block` reject non-uniform ring sizes across inputs (production uniform ring-16).
 - **M5.32** (this commit) - mempool ingress rejects non-uniform ring before accept (`mfn-runtime`, `mfn-node` integration).

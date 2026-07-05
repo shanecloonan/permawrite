@@ -1,4 +1,4 @@
-# 3agent (legacy name — lanes 1–3)
+﻿# 3agent (legacy name — lanes 1–3)
 
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).  
 > Lanes **4–6** are overflow lanes for work the RC track does not own (M5 hardening, privacy surface, permanence depth).
