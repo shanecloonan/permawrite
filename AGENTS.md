@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #626** **GREEN** on `f16bbb6`; **Nightly #58** **PARTIAL** (smokes FAIL ~16.3m). **M2.5.37** landing → Nightly #59.
+**CI #628** in progress on `12df02d` (M2.5.37); **Nightly #59** on `cfd5c8f` (superseded by CI #628 dispatch on green).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.37 start-all tip gate + TCP RPC health | **In progress** | Nightly #59 after green CI (B-06) |
+| **1** | M2.5.37 start-all tip gate + TCP RPC health | **Done** - `12df02d` | Monitor CI #628 → Nightly on `12df02d` (B-06) |
 | **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #59 |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #59 participant + observer PASS |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #59 |
@@ -121,7 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.35** (`f16bbb6`) - parallel GHA voter poll; curl-first health; tip>=2 dial fallback; STAGE=start_mesh_fail; mojibake doc repair (lane 1).
+- **M2.5.37** (`12df02d`) - start-all GHA tip>=1 gate; query_rpc_json_line TCP RPC; hub_liveness 900s (lane 1).
 - **DOCS-QA-1** (`5775b07`) - `docs/CODEBASE_IMPROVEMENTS.md` engineering-quality audit (docs-only).
 - **M7.11.2** (`0650ad6`) - STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync (lane 3).
 - **M2.5.32** (`a35b7a6`) - `.gitignore` debris patterns; board mojibake guard in validate-workflow-encoding; clean `docs/AGENTS.md` rebuild (lane 2).
