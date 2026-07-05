@@ -64,8 +64,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.37 - start-all tip>=1; TCP RPC health; hub_liveness 900s (12df02d).
 - [x] M2.5.38 - mfn-cli health probe; voter-dial both-listening soft gate (843e055).
 - [x] M2.5.49 (`8650543`) - GHA participant smoke soft-continue mesh health + hub_liveness at tip>=1.
-- [x] M2.5.50 (this commit) - early `mfnd_p2p_listening` log; POST_START health poll; voter P2P STAGE logs.
-- [x] M2.5.50 (this commit) - mfnd early P2P listen; POST_START mesh health timeout export; start-all voter P2P GHA diagnostics.
+- [x] M2.5.50 (`6216aec`) - early `mfnd_p2p_listening` log; POST_START health poll; voter P2P STAGE logs.
+- [x] M2.5.50 (`6216aec`) - mfnd early P2P listen; POST_START mesh health timeout export; start-all voter P2P GHA diagnostics.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
 ### Next
