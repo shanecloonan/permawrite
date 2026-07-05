@@ -19,7 +19,7 @@ Every lane agent **must announce** what they finished, what they are doing, and 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M2.5.19 GHA gates | — | Nightly #56 after green CI |
-| **2** RC ops | M2.5.21 preflight + B-05 soak dispatch | — | Evidence refresh after Nightly #56 |
+| **2** RC ops | M2.5.22 wasm-opt=false (`0dcb1e9`) | — | B-05 soak evidence |
 | **3** RC onboarding | M7.10 UX + smoke evidence | — | Monitor Nightly #56 smokes |
 
 **RC gate:** green CI on `main` → auto-dispatch **Nightly #56** (`dispatch-nightly-rc` in `ci.yml`).
