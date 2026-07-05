@@ -102,7 +102,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | ID | Item | Suggested lane | Privacy / performance |
 | --- | --- | --- | --- |
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
-| B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Privacy fee mix | **Done** - `45a118b` |
+| B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
 | B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
 

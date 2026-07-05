@@ -755,7 +755,7 @@ cargo build -p mfn-storage-operator --bin mfn-storage-operator --release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> test (release)"
-cargo test --workspace --release -- --test-threads=4
+cargo test --workspace --release -- --test-threads=2
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> wasm32 build"
