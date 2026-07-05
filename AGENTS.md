@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.42 256-block combined-inflow emission sim | **Done** - `994af36` | B-05 Linux soak (lane 2+6) |
+| **6** | M5.43 256-block PPB combined-inflow sim | **In progress** | Push after local ci-check | B-05 Linux soak (lane 2+6) |
 
 ---
 

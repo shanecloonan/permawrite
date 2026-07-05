@@ -21,6 +21,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M5.40** (lane 6) — 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI.
 - [x] **M5.41** (lane 6) — 128-block PPB + equivocation combined-inflow emission sims in default CI.
 - [x] **M5.42** (lane 6) — 256-block combined-inflow emission sim in default CI.
+- [ ] **M5.43** (lane 6) — 256-block PPB combined-inflow emission sim in default CI (this commit).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

@@ -142,7 +142,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Idle - monitor Nightly #56 after M5.42 lands.
+- [ ] Idle - monitor Nightly #56 after M5.43 lands.
 
 ### Handoff to lane 3
 
@@ -180,7 +180,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.34 / B-03** — 64-block validator mixed CLSAG+SPoRA emission sim in default CI (`45a118b`).
 - [x] **M5.40** - 64-block combined-inflow + PPB + equivocation-PPB emission sims in default CI (`7648ab2`).
 - [x] **M5.41** - 128-block PPB + equivocation combined-inflow emission sims in default CI (`c7f90e6`).
-- [x] **M5.42** - 256-block combined-inflow emission sim in default CI (`994af36`).
+- [x] **M5.42** - 256-block combined-inflow emission sim in default CI (994af36).
+- [x] **M5.43** - 256-block PPB combined-inflow emission sim in default CI (this commit).
 - [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; awaiting first PASS transcript).
 
 ### Do not start
