@@ -82,17 +82,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #638** in progress on `2b33ced` (mfnd_serve import fix atop M2.5.46–47). **CI #636** **GREEN** on `3a1f213`; **Nightly #62** in progress on `3a1f213`. **CI #637** cancelled (broken import on `1152e16`, fixed in `2b33ced`).
+**CI #640** in progress on `040d31d` (M2.5.48). **CI #636** **GREEN** on `3a1f213`; **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **M2.5.49** (GHA health + hub_liveness soft gates at tip>=1) landing now.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.43–45 rehearsal timeouts + mfnd P2P | **Done** - `b945f73` | Monitor **Nightly #62** (B-06) |
+| **1** | M2.5.49 GHA smoke health + hub_liveness soft gates | **In progress** - this commit | Monitor CI #640 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #62 participant + observer PASS |
-| **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits; B-06 Nightly #62 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #62 |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
+| **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
 ---
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #62 green (all three jobs) | 1 | RC gate on `3a1f213` (M2.5.38 + M2.5.43–45) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49 (Nightly #62 FAIL ~16.3m on `3a1f213`) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Partial** - M2.5.46 `p2p_fanout` split (`1152e16`/`2b33ced`); `dispatch.rs`/`cli.rs` remain |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Mostly done** - mfn-net prod uses `Result`; M2.5.47 mfnd; M2.5.48 light-follow; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
@@ -117,7 +117,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 2 | 1 | Green CI on M2.5.43–45 stack before Nightly #62 dispatch | **Done** - CI #636 |
-| 3 | 1 | Nightly #62 participant + observer PASS | Waiting |
+| 3 | 1 | Nightly #63 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
@@ -125,7 +125,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal; board CI #638 sync (lane 4).
+- **M2.5.49** (this commit) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
+- **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).
 - **M2.5.43–45** (`b945f73`) - `rehearsal-poll-timeouts.*`; mfnd_serve P2P expect removal; workspace dep hoist; evidence gitignore (lanes 2/4/6).
 - **M2.5.39–42** (`4a1862b`) - debris purge via `git clean -X`; mojibake guard + STORAGE_ACCESSIBILITY fix; ci-check `-DocsOnly`/`-RustOnly` + venv cache; frame/chunk decode without panic (lane 2).

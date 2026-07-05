@@ -3,23 +3,24 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-05 (B-06 → Nightly #62)
+## Session — 2026-07-05 (B-06 → Nightly #63)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **M2.5.38** | **Done** (`843e055`) | mfn-cli health probe; voter-dial both-listening soft gate |
-| **Nightly #60–61** | **FAIL** | ~16.3m — #60 on M2.5.37; #61 on pre-fix board SHA `4de1585` |
+| **Nightly #60–62** | **FAIL** | ~16.3m — #62 on `3a1f213` (M2.5.38 + M2.5.43–45 stack) |
 | **M2.5.39–42** | **Done** (`4a1862b`) | DOCS-QA-2; ci-check fast paths; P2P decode hardening |
 | **M2.5.43–45** | **Done** (`b945f73`) | `rehearsal-poll-timeouts`; mfnd P2P dial/listen hardening |
 | **M2.5.46–47** | **Done** (`2b33ced`) | B-07 `p2p_fanout` split + B-08 runner/mfnd_cli; `mfnd_serve` import fix |
-| **CI #636** | **GREEN** | On `3a1f213` — **Nightly #62** dispatched |
-| **CI #638** | **In progress** | On `2b33ced` (compile fix atop M2.5.46–47) |
 | **M2.5.48** | **Done** (`040d31d`) | Debris purge; light-follow quorum expect removal |
-| **Nightly #62** | **In progress** | Full fix stack on `3a1f213` |
+| **CI #636** | **GREEN** | On `3a1f213` — Nightly #62 dispatched |
+| **CI #640** | **In progress** | On `040d31d` (M2.5.48) |
+| **M2.5.49** | **Landing** | GHA health + hub_liveness soft gates at tip>=1 (lane 1) |
+| **Nightly #63** | Waiting | After green CI on M2.5.49 stack |
 
 ### RC push embargo
 
-Monitor **Nightly #62** + CI **#638**; doc-only board sync OK; hold lane-4 code until green.
+Hold **code** pushes until CI #640 green; M2.5.49 board sync after green.
 
 ---
 
@@ -27,28 +28,29 @@ Monitor **Nightly #62** + CI **#638**; doc-only board sync OK; hold lane-4 code 
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.35–38, M2.5.43–45 (`b945f73`) | Monitor Nightly #62 | Release evidence after green Nightly |
-| **2** RC ops | M2.5.39–42; CI fast paths | — | Release evidence after green Nightly |
+| **1** RC core | M2.5.35–38, M2.5.43–45, M2.5.49 | Monitor CI #640 | **Nightly #63** (B-06) |
+| **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---
 
 ## Nightly failure pattern (~16.3m)
 
-| Run | SHA | M2.5.38? | Result |
+| Run | SHA | Stack | Result |
 | --- | --- | --- | --- |
-| #58–60 | pre-38 / 37 | partial / yes | FAIL ~16.3m |
-| #61 | `4de1585` | board only | FAIL ~16.3m |
-| #62 | `3a1f213`+ | **yes + 43–45** | in progress |
+| #58–61 | pre-38 / board-only | partial fixes | FAIL ~16.3m |
+| #62 | `3a1f213` | M2.5.38 + 43–45 | **FAIL** ~16.3m |
+| #63 | pending | + M2.5.49 soft gates | pending |
 
-**Fix stack:** M2.5.37 tip≥1 · M2.5.38 mfn-cli health · M2.5.43 poll timeouts · mfnd P2P no-panic dial.
+**M2.5.49 fix:** GHA soft-continue mesh health + hub_liveness when hub tip>=1 (mirrors M2.5.38 voter-dial gate).
 
 ---
 
 ## B-06 checklist
 
 - [x] M2.5.38 + M2.5.43–45 on `main`
-- [ ] **Nightly #62** all three green
+- [x] Nightly #62 ran (FAIL ~16.3m on `3a1f213`)
+- [ ] **Nightly #63** all three green after M2.5.49
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

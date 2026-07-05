@@ -208,7 +208,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Nightly #61 on `4de1585` — **PARTIAL** (wrong SHA; smokes FAIL ~16.3m).
 - [x] **M2.5.46–47** (`2b33ced`) — B-07 `p2p_fanout` split; B-08 mfnd expect hardening; CI #637 compile fix.
 - [x] GitHub CI green on `3a1f213` — **GREEN** CI #636.
-- [ ] **Nightly #62** on `3a1f213` — all three green (B-06 gate).
+- [x] **Nightly #62** on `3a1f213` — **FAIL** ~16.3m (smokes; B-06 still open).
+- [ ] **M2.5.49** — GHA mesh health + hub_liveness soft gates at tip>=1 (lane 1).
+- [ ] **Nightly #63** after green CI on M2.5.49 stack — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
