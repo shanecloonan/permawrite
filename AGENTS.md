@@ -61,7 +61,7 @@ Update **all applicable** surfaces in the same session  -  do not rely on chat a
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in ┬º Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in § Cross-lane requests.
 
 ---
 
@@ -82,18 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #625** (`aae3097`) pending - push triggers CI; **B-06** Nightly #57 after green CI.
+**CI #625** **GREEN** (`15fd4c7`); **Nightly #57** **PARTIAL** (ignored PASS; smokes FAIL ~16m). **M2.5.35** landing → CI #626 → **Nightly #58** (B-06).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.34 macOS CI test hardening | **Done** - `aae3097` | Nightly #57 after green CI #625 |
-| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | B-05 soak; release evidence after Nightly #57 |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #57 (B-06) |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #57 |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
+| **1** | M2.5.35 Nightly #57 triage (parallel voter poll, curl-first health, tip≥2 fallback) | **In progress** | Nightly #58 all three green (B-06) |
+| **2** | M2.5.32 repo hygiene + board mojibake guards | **Done** - `a35b7a6` | Release evidence after green Nightly #58 |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B WASM doc sync | **Done** - `0650ad6` | Monitor Nightly #58 participant + observer PASS |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #58 |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #58 |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
 ---
 
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #57 green (all three jobs) | 1 | RC gate (Nightly #56 partial: ignored PASS; participant+observer FAIL ~13m) |
+| B-06 | Nightly #58 green (all three jobs) | 1 | RC gate (Nightly #57 partial: ignored PASS; smokes FAIL ~16m on `15fd4c7`) |
 
 ---
 
@@ -112,8 +112,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI on `main` before Nightly #57 dispatch | Waiting |
-| 3 | 1 | Nightly #57 participant + observer PASS | Waiting |
+| 2 | 1 | Green CI on M2.5.35 before Nightly #58 dispatch | Waiting |
+| 3 | 1 | Nightly #58 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 

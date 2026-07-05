@@ -201,8 +201,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.30** (lane 2) - bash validate-workflow-encoding guard path parity (`2eb8417`).
 - [x] **M2.5.31** (lane 1, `0e0de4e`) — voter-dial/health 900s; nightly rehearsal jobs 90m → **Nightly #57**.
 - [x] **M2.5.32** (lane 2) — `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` (`a35b7a6`).
-- [ ] **M2.5.34** (lane 1) — macOS CI `--test-threads=2` parity with Linux (CI #624 macOS FAIL).
-- [ ] CI green on M2.5.34 → **Nightly #57** all three jobs green.
+- [x] **M2.5.34** (lane 1) — macOS CI `--test-threads=2` parity; CI #625 **GREEN** (`15fd4c7`).
+- [x] Nightly #57 on `15fd4c7` — **PARTIAL** (ignored **PASS**; smokes **FAIL** ~16m).
+- [ ] **M2.5.35** (lane 1) — parallel voter poll; curl-first health; tip≥2 dial fallback → **Nightly #58**.
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

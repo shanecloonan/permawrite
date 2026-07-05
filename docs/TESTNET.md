@@ -24,9 +24,9 @@ Concrete Linux/Windows firewall baselines, SSH forwarding, and TLS reverse-proxy
 | `mfnd` binary | `cargo build -p mfn-node --release --bin mfnd` (or prebuilt release) |
 | Genesis file | `public_devnet_v1.json` (three equal-stake validators, quorum 2/3, plus synthetic test decoys so first-run wallets can form privacy rings). |
 | Chain identity | `genesis_id` **`454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`** ([`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json)). |
-| Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` â€” OS assigns). |
+| Open TCP ports | One RPC + one P2P port per node (defaults bind `127.0.0.1:0` — OS assigns). |
 
-On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=â€¦` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
+On `mfnd serve`, stdout includes `mfnd_chain_network=public_devnet_v1` and `mfnd_chain_genesis_id=…` when `--genesis` points at the public spec. Peers reject handshakes when `genesis_id` differs.
 
 ---
 
@@ -107,7 +107,7 @@ The public helper mesh runs one hub producer plus two committee voters and one o
 Set these in the shell that starts each `mfnd serve` process:
 
 ```text
-MFND_VALIDATOR_INDEX=0   # 0, 1, or 2 â€” must match genesis row
+MFND_VALIDATOR_INDEX=0   # 0, 1, or 2 — must match genesis row
 MFND_VRF_SEED_HEX=<32-byte hex from genesis validators[].vrf_seed_hex>
 MFND_BLS_SEED_HEX=<32-byte hex from genesis validators[].bls_seed_hex>
 ```
@@ -126,7 +126,7 @@ export MFND=target/release/mfnd
 export GENESIS=mfn-node/testdata/public_devnet_v1.json
 ```
 
-**Validator 0 (hub)** â€” note RPC/P2P lines on stdout:
+**Validator 0 (hub)** — note RPC/P2P lines on stdout:
 
 ```bash
 mkdir -p /tmp/mfn-v0
@@ -152,7 +152,7 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
   --p2p-dial $HUB_P2P --slot-duration-ms 30000 serve --committee-vote
 ```
 
-**Validator 2** â€” same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.
+**Validator 2** — same as validator 1 with index `2` and the third seed pair from genesis; add `--p2p-dial $HUB_P2P`.
 
 ---
 
@@ -160,7 +160,7 @@ $MFND --data-dir /tmp/mfn-v1 --genesis $GENESIS --store fs \
 
 Each node prints `mfnd_serve_listening=127.0.0.1:PORT`.
 
-**M3.0 / M3.1 â€” `mfn-cli`** (after `cargo build -p mfn-cli --release`):
+**M3.0 / M3.1 — `mfn-cli`** (after `cargo build -p mfn-cli --release`):
 
 ```bash
 mfn-cli --rpc 127.0.0.1:<RPC_PORT> tip
@@ -221,7 +221,7 @@ All validators should report the same `tip_height` and `tip_id` after a slot sea
 ## P2P mesh tips
 
 - **Boot dial:** At least one `--p2p-dial` to a peer already on the chain (usually the hub). Repeat `--p2p-dial` for multiple seeds (**M2.4.4**).
-- **Manifest seeds:** With `--genesis path/to/public_devnet_v1.json`, `mfnd` also merges `seed_nodes` from the sibling `public_devnet_v1.manifest.json` with explicit CLI dials (trimmed, deduped, and validated as `HOST:PORT` before dialing). Operators append public `host:port` values to that list; stdout prints `mfnd_p2p_boot_dials=â€¦` when any boot peer is configured. The merged list is capped at 64 peers, preserving explicit `--p2p-dial` entries before manifest seeds; oversized lists log `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`.
+- **Manifest seeds:** With `--genesis path/to/public_devnet_v1.json`, `mfnd` also merges `seed_nodes` from the sibling `public_devnet_v1.manifest.json` with explicit CLI dials (trimmed, deduped, and validated as `HOST:PORT` before dialing). Operators append public `host:port` values to that list; stdout prints `mfnd_p2p_boot_dials=…` when any boot peer is configured. The merged list is capped at 64 peers, preserving explicit `--p2p-dial` entries before manifest seeds; oversized lists log `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`.
 - **Self-dial skip:** If the node's own resolved P2P listen address appears in CLI dials, manifest seeds, or saved peers, `mfnd` skips that outbound connection and logs `mfnd_p2p_self_dial_skip peer=...`.
 - **Stale/unavailable seeds:** Outbound P2P boot, saved-peer reconnect, and catch-up dials bound each resolved TCP connect attempt to 5s before trying the next resolved address or logging `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort`. Treat repeated aborts for public seeds as stale seed inventory, firewall, or reachability issues rather than consensus failures.
 - **Persistent peers:** Successful handshakes append to `peers.json` under `--data-dir`; restart reconnects automatically (**M2.3.22**, **M2.4.2** block-sync on reconnect). Saved-peer reconnect skips addresses already dialed at boot and logs `mfnd_p2p_reconnect_skip peer=... reason=boot_dial`; it also skips the node's own P2P listen address. `max_outbound_peers` defaults to 8 and is clamped to a hard maximum of 64 on load/save so a bad peer file cannot cause an unbounded reconnect storm; quarantined saved peers are filtered before this cap is counted, and if the cap stops additional reconnects, `mfnd` logs `mfnd_p2p_reconnect_cap_reached count=... cap=...`. Malformed, empty, or duplicate saved peers are filtered on load; `mfnd` logs `mfnd_peers_load_filtered raw=... kept=... filtered=...` when that happens.

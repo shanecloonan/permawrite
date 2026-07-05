@@ -1,8 +1,8 @@
-# Consumer-accessible storage ΓÇö feasibility assessment
+# Consumer-accessible storage — feasibility assessment
 
-**Question:** Can Permawrite make *storing* permanent data accessible to practically anyone with a normal device ΓÇö not just operators with datacenter-grade hardware, as on Arweave?
+**Question:** Can Permawrite make *storing* permanent data accessible to practically anyone with a normal device — not just operators with datacenter-grade hardware, as on Arweave?
 
-**Short answer:** **Yes, with the current architecture.** The protocol was deliberately designed so storage operators hold bytes off-chain and answer lightweight SPoRA audits. No specialized mining hardware, GPU provers, or exotic disk layouts are required. What remains is mostly **product packaging** (mobile/desktop apps, one-click operators), **discovery** (which peers hold which files), and **incentive tuning** (latency fairness, optional bonding tiers) ΓÇö not a fundamental redesign.
+**Short answer:** **Yes, with the current architecture.** The protocol was deliberately designed so storage operators hold bytes off-chain and answer lightweight SPoRA audits. No specialized mining hardware, GPU provers, or exotic disk layouts are required. What remains is mostly **product packaging** (mobile/desktop apps, one-click operators), **discovery** (which peers hold which files), and **incentive tuning** (latency fairness, optional bonding tiers) — not a fundamental redesign.
 
 See also: [`STORAGE.md`](./STORAGE.md) (mechanics), [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) (runbook), [`PROBLEMS.md`](./PROBLEMS.md) (honest gaps).
 
@@ -54,7 +54,7 @@ No validator keys, no block production, no specialized hardware.
 | **Network** | Must win block races against other miners | Must reach *any* synced RPC to submit proofs; HTTP/P2P for replication |
 | **Role coupling** | Miner Γëê storer Γëê block producer | **Storage operator is a separate role** from validator |
 
-Arweave's permanence economics (endowment + deflation) inspired Permawrite, but the **audit primitive differs**. Permawrite chose Merkle SPoRA proofs because they verify in microseconds on every node ([`STORAGE.md ┬º Why we don't use ZK SNARKs`](./STORAGE.md#why-we-dont-use-zk-snarks-here-yet)) ΓÇö which is exactly what makes consumer hardware viable.
+Arweave's permanence economics (endowment + deflation) inspired Permawrite, but the **audit primitive differs**. Permawrite chose Merkle SPoRA proofs because they verify in microseconds on every node ([`STORAGE.md § Why we don't use ZK SNARKs`](./STORAGE.md#why-we-dont-use-zk-snarks-here-yet)) — which is exactly what makes consumer hardware viable.
 
 ---
 
@@ -64,17 +64,17 @@ Arweave's permanence economics (endowment + deflation) inspired Permawrite, but 
 
 These properties are already in the codebase:
 
-1. **Off-chain bytes, on-chain commitment.** Uploads anchor an 81-byte `StorageCommitment`; payloads live in wallet artifacts, `chunk-inbox/`, or any directory the operator chooses ([`STORAGE.md ┬º StorageCommitment`](./STORAGE.md#2-storagecommitment)).
+1. **Off-chain bytes, on-chain commitment.** Uploads anchor an 81-byte `StorageCommitment`; payloads live in wallet artifacts, `chunk-inbox/`, or any directory the operator chooses ([`STORAGE.md § StorageCommitment`](./STORAGE.md#2-storagecommitment)).
 
 2. **Lightweight proofs.** A `StorageProof` is ~256 KiB of chunk data plus `O(log num_chunks)` hashes. Building and verifying a proof is standard CPU + disk I/O ([`mfn-storage::spora`](../mfn-storage/src/spora.rs)).
 
-3. **Separate operator tooling.** `mfn-storage-operator` polls RPC, builds proofs from local artifacts, and submits via `submit_storage_proof` ΓÇö no validator keys required ([`mfn-storage-operator/README.md`](../mfn-storage-operator/README.md)).
+3. **Separate operator tooling.** `mfn-storage-operator` polls RPC, builds proofs from local artifacts, and submits via `submit_storage_proof` — no validator keys required ([`mfn-storage-operator/README.md`](../mfn-storage-operator/README.md)).
 
-4. **Replication without re-upload.** Peers backfill via HTTP (`operator backfill`, `uploads fetch-http`) or P2P `ChunkV1` gossip ΓÇö a home user can hold a replica without ever uploading the original file.
+4. **Replication without re-upload.** Peers backfill via HTTP (`operator backfill`, `uploads fetch-http`) or P2P `ChunkV1` gossip — a home user can hold a replica without ever uploading the original file.
 
 5. **Direct operator payouts (shipped).** Each `StorageProof` carries `operator_view_pub` / `operator_spend_pub`; accepted proofs mint per-operator coinbase outputs (outputs 1..N) drained from the treasury/backstop ([`mfn-consensus::coinbase`](../mfn-consensus/src/coinbase.rs)). A casual storer is paid on-chain without also winning VRF leader election.
 
-6. **Observer-grade RPC suffices for proving.** An operator can point `mfn-storage-operator` at any synced node's JSON-RPC (e.g. a public observer). Running a full `mfnd` is optional ΓÇö needed only for P2P inbox replication or serving chunks to peers without a separate HTTP server.
+6. **Observer-grade RPC suffices for proving.** An operator can point `mfn-storage-operator` at any synced node's JSON-RPC (e.g. a public observer). Running a full `mfnd` is optional — needed only for P2P inbox replication or serving chunks to peers without a separate HTTP server.
 
 7. **Manifest-based onboarding (shipped M6.8).** `public_devnet_v1.manifest.json` carries optional `observer_rpc` and `replication_peers`. Pass `--manifest` (or `MFN_OPERATOR_MANIFEST`) so `mfn-storage-operator` picks default RPC and peer lists for `push-chunks` without hand-typing addresses.
 
@@ -91,14 +91,14 @@ These properties are already in the codebase:
 | **Stake / bonds** | Validator bond required | **None today** (optional future premium tier) | Same |
 | **Software** | `mfnd` release binary | `mfn-storage-operator` + `mfn-cli` (release or Rust builds) | Optional `mfnd serve` for P2P inbox |
 
-A laptop, always-on NAS, or small VPS is sufficient. A phone can participate **once** packaged (see ┬º4); the protocol math does not block it.
+A laptop, always-on NAS, or small VPS is sufficient. A phone can participate **once** packaged (see §4); the protocol math does not block it.
 
 ### 2.3 Hard limits that are universal (not Permawrite-specific)
 
 - **Disk is proportional to data kept.** Permanence means someone must store the bytes somewhere. Consumer accessibility means *many small holders*, not *zero bytes*.
 - **`min_replication = 3`.** The chain requires at least three independent replicas at upload time. A healthy network needs many casual operators, not three datacenters.
-- **Always-on-ish proving.** SPoRA challenges arrive every block; operators who disappear for longer than the anti-hoarding window stop earning until they return ([`STORAGE.md ┬º Anti-hoarding cap`](./STORAGE.md#anti-hoarding-cap-proof_reward_window_slots)).
-- **State growth.** Every upload adds a permanent `StorageEntry` on-chain. Light clients mitigate *verification* cost, not operator disk for payloads ([`PROBLEMS.md ┬º 7`](./PROBLEMS.md#7-state-growth-is-fundamentally-linear-with-usage-and-difficult-to-prune)).
+- **Always-on-ish proving.** SPoRA challenges arrive every block; operators who disappear for longer than the anti-hoarding window stop earning until they return ([`STORAGE.md § Anti-hoarding cap`](./STORAGE.md#anti-hoarding-cap-proof_reward_window_slots)).
+- **State growth.** Every upload adds a permanent `StorageEntry` on-chain. Light clients mitigate *verification* cost, not operator disk for payloads ([`PROBLEMS.md § 7`](./PROBLEMS.md#7-state-growth-is-fundamentally-linear-with-usage-and-difficult-to-prune)).
 
 ---
 
@@ -116,7 +116,7 @@ mfn-storage-operator run --once  ΓåÆ  submit_storage_proof
 Coinbase pays operator_view/spend keys directly
 ```
 
-Documented step-by-step in [`OPERATORS.md ┬º Permanence operators`](../scripts/public-devnet-v1/OPERATORS.md#permanence-operators-storage--spora--m6--m7) and rehearsed by `participant-rehearsal` smokes.
+Documented step-by-step in [`OPERATORS.md § Permanence operators`](../scripts/public-devnet-v1/OPERATORS.md#permanence-operators-storage--spora--m6--m7) and rehearsed by `participant-rehearsal` smokes.
 
 **Upload path** is already browser-capable via WASM (`buildStorageUpload` in `mfn-wasm`). **Prove path** is WASM-capable via `buildStorageProof` / `verifyStorageProof` / `storageChunkHex` ([`mfn-wasm/README.md`](../mfn-wasm/README.md)); scheduled prove loops and chunk HTTP serving remain CLI/operator or app-layer glue — not consensus gaps.
 
@@ -130,37 +130,37 @@ These are real but not architectural blockers:
 |---|---|---|
 | **Rust CLI packaging** | High (UX) | Release workflow ships binaries on tags; still no app-store storage daemon. |
 | **No WASM/mobile prove loop** | Medium (UX) | **Shipped (bindings)** — `mfn-wasm`: `buildStorageProof`, `verifyStorageProof`, `storageChunkHex`; remaining gap is PWA/mobile scheduling + HTTP serve glue. |
-| **Proof latency race** | Medium (decentralization) | First valid proof to a producer wins; favors low-latency paths to block producers ([`PROBLEMS.md ┬º 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)). |
+| **Proof latency race** | Medium (decentralization) | First valid proof to a producer wins; favors low-latency paths to block producers ([`PROBLEMS.md § 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)). |
 | **Partial operator discovery** | Medium (UX) | Manifest `replication_peers` + `manifest-info` subcommand; no DHT-style "who stores commit X?" |
-| **No operator bonds (by design today)** | Low friction / weak SLA | Casual entry is easy; defection penalty is weak ([`PROBLEMS.md ┬º 1`](./PROBLEMS.md#1-storage-operators-have-almost-no-skin-in-the-game-no-bonds-or-slashing)). |
-| **Treasury depends on privacy fee volume** | Medium (economics) | Storage payouts ultimately flow from fees + emission backstop ([`PROBLEMS.md ┬º 2`](./PROBLEMS.md#2-r--0-default-makes-permanence-heavily-dependent-on-continuous-high-privacy-transaction-volume)). |
-| **TESTNET role table wording** | Documentation only | [`TESTNET.md`](./TESTNET.md) lists "synced node plus operator" ΓÇö RPC-only operators are valid but under-documented until this note. |
+| **No operator bonds (by design today)** | Low friction / weak SLA | Casual entry is easy; defection penalty is weak ([`PROBLEMS.md § 1`](./PROBLEMS.md#1-storage-operators-have-almost-no-skin-in-the-game-no-bonds-or-slashing)). |
+| **Treasury depends on privacy fee volume** | Medium (economics) | Storage payouts ultimately flow from fees + emission backstop ([`PROBLEMS.md § 2`](./PROBLEMS.md#2-r--0-default-makes-permanence-heavily-dependent-on-continuous-high-privacy-transaction-volume)). |
+| **TESTNET role table wording** | Documentation only | [`TESTNET.md`](./TESTNET.md) lists "synced node plus operator" — RPC-only operators are valid but under-documented until this note. |
 
 ---
 
 ## 5. Recommended roadmap (priority order)
 
-### Phase A ΓÇö Make the existing path obvious (no protocol change)
+### Phase A — Make the existing path obvious (no protocol change)
 
-1. **Document the RPC-only operator path** ΓÇö observer RPC + `mfn-storage-operator`; optional `serve-chunks` for HTTP replication (this document + TESTNET/OPERATORS cross-links).
+1. **Document the RPC-only operator path** — observer RPC + `mfn-storage-operator`; optional `serve-chunks` for HTTP replication (this document + TESTNET/OPERATORS cross-links).
 2. **Ship prebuilt release artifacts** for `mfn-storage-operator` alongside `mfnd` / `mfn-cli` on major platforms (**done** via `.github/workflows/release-binaries.yml`).
-3. **One-command "storage daemon" wrapper** ΓÇö e.g. `mfn-storage-operator run` with sane defaults, auto wallet scan, structured logs (partially exists; polish onboarding).
+3. **One-command "storage daemon" wrapper** — e.g. `mfn-storage-operator run` with sane defaults, auto wallet scan, structured logs (partially exists; polish onboarding).
 
-### Phase B ΓÇö Consumer UX (still no consensus change)
+### Phase B — Consumer UX (still no consensus change)
 
 4. **WASM prove + serve** — **done (bindings)** — `mfn-wasm` exposes `buildStorageProof`, `verifyStorageProof`, and `storageChunkHex` for browser/PWA prove loops; minimal chunk HTTP remains app/operator glue ([`mfn-wasm/README.md`](../mfn-wasm/README.md), [`DECENTRALIZATION.md`](./DECENTRALIZATION.md)).
-5. **Mobile/light desktop app** ΓÇö background prove loop using light-client RPC (`get_storage_challenge`, `submit_storage_proof`); local encrypted artifact store.
-6. **Replication discovery** ΓÇö index of operators willing to replicate (could start as curated peer lists in manifests, evolve to on-chain optional registry).
+5. **Mobile/light desktop app** — background prove loop using light-client RPC (`get_storage_challenge`, `submit_storage_proof`); local encrypted artifact store.
+6. **Replication discovery** — index of operators willing to replicate (could start as curated peer lists in manifests, evolve to on-chain optional registry).
 
-### Phase C ΓÇö Incentive fairness (optional protocol upgrades)
+### Phase C — Incentive fairness (optional protocol upgrades)
 
-7. **Latency-fair proof inclusion** ΓÇö e.g. commit-reveal, VRF-weighted operator selection, or proof pools that don't pure-race to producers ([`PROBLEMS.md ┬º 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)).
-8. **Tiered operator model** ΓÇö bondless "best effort" replicas (default, low friction) vs bonded "premium" replicas with slashing for SLA-sensitive uploads ([`ECONOMICS.md ┬º 10`](./ECONOMICS.md#10-open-economic-questions)).
-9. **Erasure-coded replication (research)** ΓÇö let many home nodes each store a fraction of a file while SPoRA still attests recoverability; increases operator count without multiplying full-file disk cost.
+7. **Latency-fair proof inclusion** — e.g. commit-reveal, VRF-weighted operator selection, or proof pools that don't pure-race to producers ([`PROBLEMS.md § 6`](./PROBLEMS.md#6-spora-proof-winning-is-a-pure-first-to-publish-latency-race)).
+8. **Tiered operator model** — bondless "best effort" replicas (default, low friction) vs bonded "premium" replicas with slashing for SLA-sensitive uploads ([`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-questions)).
+9. **Erasure-coded replication (research)** — let many home nodes each store a fraction of a file while SPoRA still attests recoverability; increases operator count without multiplying full-file disk cost.
 
-### Phase D ΓÇö Only if SNARK tier ships (not planned near-term)
+### Phase D — Only if SNARK tier ships (not planned near-term)
 
-10. **Aggregated SNARK audits** ΓÇö would shift prover cost up and verifier cost down; explicitly deferred because Merkle proofs keep validators cheap ([`STORAGE.md`](./STORAGE.md)). Consumer storage should *not* depend on this path.
+10. **Aggregated SNARK audits** — would shift prover cost up and verifier cost down; explicitly deferred because Merkle proofs keep validators cheap ([`STORAGE.md`](./STORAGE.md)). Consumer storage should *not* depend on this path.
 
 ---
 
@@ -180,10 +180,10 @@ These are real but not architectural blockers:
 
 ## See also
 
-- [`OVERVIEW.md ┬º How the permanence half works`](./OVERVIEW.md#how-the-permanence-half-works-no-formulas)
-- [`STORAGE.md`](./STORAGE.md) ΓÇö SPoRA, endowment, apply_block flow
-- [`ECONOMICS.md ┬º 7`](./ECONOMICS.md#7-storage-operator-economics) ΓÇö operator payout accounting
-- [`PRIVACY_AND_PERMANENCE.md`](./PRIVACY_AND_PERMANENCE.md) ΓÇö why one network for both properties
-- [ROADMAP.md](./ROADMAP.md) ΓÇö M6/M7 operator tooling shipped; WASM M4 next steps
-- [DECENTRALIZATION.md](./DECENTRALIZATION.md) ΓÇö hardware profiles for every network role
+- [`OVERVIEW.md § How the permanence half works`](./OVERVIEW.md#how-the-permanence-half-works-no-formulas)
+- [`STORAGE.md`](./STORAGE.md) — SPoRA, endowment, apply_block flow
+- [`ECONOMICS.md § 7`](./ECONOMICS.md#7-storage-operator-economics) — operator payout accounting
+- [`PRIVACY_AND_PERMANENCE.md`](./PRIVACY_AND_PERMANENCE.md) — why one network for both properties
+- [ROADMAP.md](./ROADMAP.md) — M6/M7 operator tooling shipped; WASM M4 next steps
+- [DECENTRALIZATION.md](./DECENTRALIZATION.md) — hardware profiles for every network role
 

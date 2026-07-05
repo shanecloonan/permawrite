@@ -439,9 +439,15 @@ if (( NO_START == 0 )); then
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
   echo "participant-rehearsal-smoke: STAGE=start_mesh"
   if (( NO_BUILD )); then
-    bash "$SCRIPT_DIR/start-all.sh" --no-build
+    bash "$SCRIPT_DIR/start-all.sh" --no-build || {
+      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
+      exit 1
+    }
   else
-    bash "$SCRIPT_DIR/start-all.sh"
+    bash "$SCRIPT_DIR/start-all.sh" || {
+      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
+      exit 1
+    }
   fi
   echo "participant-rehearsal-smoke: STAGE=start_mesh_done"
   STARTED_MESH=1

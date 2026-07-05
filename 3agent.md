@@ -1,39 +1,50 @@
-# 3agent (legacy name - lanes 1-3)
+# 3agent (legacy name — lanes 1–3)
 
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
-> Lanes **4-6** are overflow lanes.
+> Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-05 (B-06 / M2.5.34)
+## Session — 2026-07-05 (B-06 → Nightly #58)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **M2.5.32** | **Done** (`a35b7a6`) | `.gitignore` debris; board mojibake guards; clean `docs/AGENTS.md` |
-| **M7.11.2** | **Done** (`0650ad6`) | STORAGE_ACCESSIBILITY Phase B item 4 WASM prove+serve doc sync |
-| **CI #624** | **FAIL** (macOS) | `0ddafc9` — release tests at 4 threads; **M2.5.34** fix staged |
-| **Nightly #57** | Waiting | Auto-dispatch after green CI on M2.5.34 |
+| **CI #625** | **GREEN** | `15fd4c7` — M2.5.34 macOS threads=2 |
+| **Nightly #57** | **PARTIAL** | ignored **PASS**; smokes **FAIL** ~16m on `15fd4c7` |
+| **M2.5.35** | **Landing** (ci-check in flight) | parallel voter poll; curl-first health; tip≥2 dial fallback; mojibake doc repair |
+| **Nightly #58** | Waiting | After green CI #626 on M2.5.35 |
 
 ### RC push embargo
 
-No commits to `main` while CI #624 ubuntu/windows jobs are in flight.
+Hold push until local ci-check green; then single batch to `main`.
 
 ---
 
-## Lanes 1-3 — Done / Doing / Next
+## Lanes 1–3 — Done / Doing / Next
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.31 (`0e0de4e`) | M2.5.34 macOS `--test-threads=2` | Nightly #57 triage (B-06) |
-| **2** RC ops | M2.5.32 (`a35b7a6`) | Idle | Release evidence after Nightly #57 |
-| **3** RC onboarding | M7.11.2 (`0650ad6`) | Idle | Participant + observer PASS (B-06) |
+| **1** RC core | M2.5.31–M2.5.34 on `main` | **M2.5.35** Nightly #57 triage fix | Monitor Nightly #58 (B-06) |
+| **2** RC ops | CI #625 green; M2.5.32 debris gitignore | — | Release evidence after green Nightly |
+| **3** RC onboarding | M7.11.2 Phase B doc sync | — | Participant + observer PASS |
+
+---
+
+## Nightly #57 Post-Mortem (`15fd4c7`, ~16m)
+
+| Job | Result | Notes |
+| --- | --- | --- |
+| ignored-integration | **PASS** | Stable |
+| participant-rehearsal-smoke | **FAIL** | ~16m — mesh startup / health gate |
+| observer-rehearsal-smoke | **FAIL** | Same class |
+
+**M2.5.35 fix:** parallel GHA voter P2P poll; curl-first health-check on GHA; tip≥2 chain-live voter-dial fallback; `STAGE=start_mesh_fail` logging.
 
 ---
 
 ## B-06 checklist
 
-- [x] Nightly #56 ran (pre-M2.5.31 stack)
-- [x] CI #624 on `0ddafc9` — **FAIL** macOS release tests (M2.5.34 fix)
-- [ ] Green CI on M2.5.34 push
-- [ ] Nightly #57 all-3-jobs green
+- [x] CI green on M2.5.34 (`15fd4c7`)
+- [x] Nightly #57 ran (partial)
+- [ ] **M2.5.35** → Nightly #58 all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

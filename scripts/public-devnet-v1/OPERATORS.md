@@ -1,4 +1,4 @@
-# Public devnet v1 â€” operator invite list (M2.4.3 / M2.4.4)
+# Public devnet v1 — operator invite list (M2.4.3 / M2.4.4)
 
 Join the **public-devnet-v1** network only if your node's `genesis_id` matches the manifest:
 
@@ -10,7 +10,7 @@ Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/tes
 
 Add your node's **public P2P listen address** (`host:port`, reachable from the internet or your LAN) to [`public_devnet_v1.manifest.json`](../../mfn-node/testdata/public_devnet_v1.manifest.json) under `seed_nodes`, then open a PR or post in the operator channel.
 
-The manifest includes `seed_nodes_examples` (documentation only â€” `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
+The manifest includes `seed_nodes_examples` (documentation only — `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
 
 ### Local mesh â†’ published seeds
 
@@ -34,9 +34,9 @@ New peers should:
 
 1. Build `mfnd` from this repository (or a release artifact with matching consensus).
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
-3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file â€” **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable). `mfnd` trims, dedupes, and validates every boot peer as `HOST:PORT` before dialing; use `[IPv6]:PORT` for IPv6 literals. If your own resolved P2P listen address appears in CLI dials, manifest seeds, or `peers.json`, `mfnd` logs `mfnd_p2p_self_dial_skip peer=...` and skips that outbound dial. The merged CLI/manifest boot list is capped at 64 peers with explicit `--p2p-dial` entries kept first; if the cap drops extras, stdout logs `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`. Stale or firewalled public seeds are bounded per resolved TCP address by a 5s connect timeout before the dial logs `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort` and peer scoring decides whether to quarantine later retries.
+3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable). `mfnd` trims, dedupes, and validates every boot peer as `HOST:PORT` before dialing; use `[IPv6]:PORT` for IPv6 literals. If your own resolved P2P listen address appears in CLI dials, manifest seeds, or `peers.json`, `mfnd` logs `mfnd_p2p_self_dial_skip peer=...` and skips that outbound dial. The merged CLI/manifest boot list is capped at 64 peers with explicit `--p2p-dial` entries kept first; if the cap drops extras, stdout logs `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`. Stale or firewalled public seeds are bounded per resolved TCP address by a 5s connect timeout before the dial logs `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort` and peer scoring decides whether to quarantine later retries.
 4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
-5. Run `health-check.sh` / `health-check.ps1` â€” hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**), all expected role RPC endpoints must be discoverable, and each checked node must have at least `MFN_HEALTH_MIN_P2P_SESSIONS` live P2P sessions (default `1`). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks. Set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
+5. Run `health-check.sh` / `health-check.ps1` — hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**), all expected role RPC endpoints must be discoverable, and each checked node must have at least `MFN_HEALTH_MIN_P2P_SESSIONS` live P2P sessions (default `1`). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks. Set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
 
 ## Roles
 
@@ -180,7 +180,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Operators agree on halt conditions: divergent tips, repeated invalid block/gossip errors, leaked validator seeds, unexpected public RPC exposure, or reproducible storage data-root mismatches.
 - [ ] Operators agree where incident notes live and who can publish "pause, rollback, or rotate genesis" instructions.
 
-Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** â€” exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` â‰  public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
+Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` ≠ public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
 
 Release-candidate evidence:
 
@@ -649,8 +649,8 @@ New participants should start with the role-based [Join the testnet](../../docs/
 
 `mfnd serve` exposes an **unauthenticated** JSON-RPC 2.0 line protocol on `--rpc-listen`. Any client that can open a TCP connection may:
 
-- Read chain state (`get_tip`, `get_block`, `list_methods`, â€¦)
-- Submit transactions and storage proofs (`submit_tx`, `submit_storage_proof`, â€¦)
+- Read chain state (`get_tip`, `get_block`, `list_methods`, …)
+- Submit transactions and storage proofs (`submit_tx`, `submit_storage_proof`, …)
 - Inspect the mempool and proof pool
 
 There is **no TLS** in v0.1 testnet builds. Optional API-key auth can gate `wallet-write` and `operator-admin` RPC methods, but public read methods remain open by design.
@@ -863,7 +863,7 @@ After any key or API-key rotation, rerun health checks and update only the priva
 
 ---
 
-## Permanence operators (storage + SPoRA) â€” M6 / M7
+## Permanence operators (storage + SPoRA) — M6 / M7
 
 Hardware roles and decentralization context: [docs/DECENTRALIZATION.md](../../docs/DECENTRALIZATION.md). One-command RPC-only prove loop: [start-storage-operator.sh](./start-storage-operator.sh) / [start-storage-operator.ps1](./start-storage-operator.ps1).
 
@@ -892,7 +892,7 @@ assemble local artifact  â†’  operator prove  â†’  SPoRA proof mined
 | Stage | On-chain | Off-chain |
 |-------|----------|-----------|
 | Upload | Commitment + endowment in a block | `wallet.upload-artifacts/<hash>/` (payload + metadata) |
-| Replicate | â€” | Peers hold matching chunk bytes |
+| Replicate | — | Peers hold matching chunk bytes |
 | Prove | `StorageProof` in a later block | Operator uses artifact or inbox bytes |
 
 ### 1. Anchor data (any synced node)
@@ -916,7 +916,7 @@ mfn-cli --rpc 127.0.0.1:<RPC> operator challenge <COMMIT_HASH_HEX> --json
 
 Pick **at least `replication` peers** (from the commitment) that store byte-identical chunks.
 
-#### HTTP (M6) â€” good for observers and static fetch
+#### HTTP (M6) — good for observers and static fetch
 
 On a machine that has the wallet artifact:
 
@@ -963,7 +963,7 @@ mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./bob.json \
 
 `uploads fetch-http` first rebuilds the wallet artifact from peer chunks using the on-chain challenge, then exports the restored payload bytes. Add `--json` to record the restored `output_path`, `artifact_dir`, `payload_bytes`, peer list, and quorum size. Use `replace` only when both the local artifact and output file may be overwritten.
 
-#### P2P ChunkV1 (M7) â€” good for `mfnd` mesh
+#### P2P ChunkV1 (M7) — good for `mfnd` mesh
 
 Each `mfnd --data-dir` may contain:
 

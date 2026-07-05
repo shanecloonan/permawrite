@@ -34,7 +34,10 @@ query_status() {
   host="${addr%:*}"
   port="${addr##*:}"
   line=""
-  if command -v nc >/dev/null 2>&1; then
+  if [[ -n "${GITHUB_ACTIONS:-}" ]] && command -v curl >/dev/null 2>&1; then
+    line=$(curl -sf --max-time 5 -H 'Content-Type: application/json' -d "$REQ" "http://${host}:${port}/" 2>/dev/null || true)
+  fi
+  if [[ -z "$line" ]] && command -v nc >/dev/null 2>&1; then
     line=$(echo "$REQ" | nc -w 3 "$host" "$port" 2>/dev/null || true)
   fi
   if [[ -z "$line" ]] && command -v curl >/dev/null 2>&1; then

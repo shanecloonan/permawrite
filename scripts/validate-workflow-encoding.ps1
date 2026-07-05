@@ -28,6 +28,14 @@ function Test-BoardTextQuality {
     return $null
 }
 
+# CP437/CP1252 renderings of UTF-8 punctuation bytes; these two-char pairs never appear in clean docs.
+function Test-MarkdownMojibake {
+    param([string]$Path)
+    $text = [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
+    if ($text -match '\u0393\u00C7|\u00E2\u20AC|\u252C\u00BA') { return "mojibake $Path" }
+    return $null
+}
+
 $failed = @()
 Get-ChildItem -Path $WorkflowDir -Filter "*.yml" -File | ForEach-Object {
     $issue = Test-Utf8TextFile $_.FullName
@@ -55,6 +63,18 @@ foreach ($rel in @(
             if ($quality) { $failed += $quality }
         }
     }
+}
+
+# Tracked markdown only: local gitignored scratch must not fail the guard,
+# and GHA checkouts contain exactly the tracked set.
+$markdownFiles = @(git -C $repoRoot ls-files -- "*.md") | Where-Object { $_ }
+foreach ($rel in $markdownFiles) {
+    $path = Join-Path $repoRoot $rel
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+    $issue = Test-Utf8TextFile $path
+    if ($issue) { $failed += $issue }
+    $moji = Test-MarkdownMojibake $path
+    if ($moji) { $failed += $moji }
 }
 
 if ($failed.Count -gt 0) {

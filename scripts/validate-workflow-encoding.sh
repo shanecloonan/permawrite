@@ -14,6 +14,7 @@ if ! command -v "$PY" >/dev/null 2>&1; then
 fi
 
 "$PY" - "$ROOT" "$WORKFLOW_DIR" <<'PY'
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,7 +35,18 @@ for rel in (
     p = root / rel
     if p.is_file():
         paths.append(p)
-for path in paths:
+# Tracked markdown only: local gitignored scratch must not fail the guard,
+# and GHA checkouts contain exactly the tracked set.
+tracked_md = subprocess.run(
+    ["git", "-C", str(root), "ls-files", "--", "*.md"],
+    capture_output=True,
+    text=True,
+    check=True,
+).stdout.splitlines()
+markdown_paths = [root / rel for rel in tracked_md if rel]
+# CP437/CP1252 renderings of UTF-8 punctuation bytes; never in clean docs.
+MOJIBAKE = ("\u0393\u00c7", "\u00e2\u20ac", "\u252c\u00ba")
+for path in paths + [p for p in markdown_paths if p.is_file()]:
     data = path.read_bytes()[:64]
     if len(data) >= 2 and data[:2] in (b"\xff\xfe", b"\xfe\xff"):
         failed.append(f"UTF-16 BOM {path}")
@@ -45,6 +57,10 @@ for path in paths:
         text = path.read_text(encoding="utf-8")
         if "\u0393" in text or "`n-" in text or "`n**" in text:
             failed.append(f"board text quality {path}")
+    if rel.endswith(".md"):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if any(marker in text for marker in MOJIBAKE):
+            failed.append(f"mojibake {path}")
 if failed:
     print("validate-workflow-encoding: FAIL", *failed, sep="\n", file=sys.stderr)
     sys.exit(1)

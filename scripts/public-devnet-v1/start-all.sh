@@ -100,7 +100,6 @@ echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
 poll_voter_p2p() {
   local log_path="$1"
-  local out_var="$2"
   local p2p="" i max=60
   if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     max=900
@@ -112,7 +111,7 @@ poll_voter_p2p() {
     fi
     sleep 1
   done
-  printf -v "$out_var" '%s' "$p2p"
+  printf '%s' "$p2p"
 }
 
 wait_hub_tip_at_least() {
@@ -135,8 +134,22 @@ wait_hub_tip_at_least() {
 }
 V1_P2P=""
 V2_P2P=""
-poll_voter_p2p "$LOG_DIR/v1.log" V1_P2P
-poll_voter_p2p "$LOG_DIR/v2.log" V2_P2P
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  v1_p2p_file="$(mktemp)"
+  v2_p2p_file="$(mktemp)"
+  poll_voter_p2p "$LOG_DIR/v1.log" >"$v1_p2p_file" &
+  pid_v1=$!
+  poll_voter_p2p "$LOG_DIR/v2.log" >"$v2_p2p_file" &
+  pid_v2=$!
+  wait "$pid_v1"
+  wait "$pid_v2"
+  V1_P2P="$(cat "$v1_p2p_file" 2>/dev/null || true)"
+  V2_P2P="$(cat "$v2_p2p_file" 2>/dev/null || true)"
+  rm -f "$v1_p2p_file" "$v2_p2p_file"
+else
+  V1_P2P="$(poll_voter_p2p "$LOG_DIR/v1.log")"
+  V2_P2P="$(poll_voter_p2p "$LOG_DIR/v2.log")"
+fi
 if [[ -z "$V1_P2P" || -z "$V2_P2P" ]]; then
   echo "start-all: committee voters failed to print P2P listen within timeout; tail logs:" >&2
   tail -n 80 "$LOG_DIR/v1.log" 2>/dev/null >&2 || echo "(no v1.log)" >&2
@@ -182,6 +195,10 @@ wait_voter_dial_hub() {
         echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height and both voters P2P listening; continuing (GHA)"
         return
       fi
+    fi
+    if [[ -n "${GITHUB_ACTIONS:-}" ]] && [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= 2 )); then
+      echo "start-all: WARN voter hub dial incomplete after ${max}s but hub tip_height=$tip_height; continuing (GHA chain live)"
+      return
     fi
   fi
   echo "start-all: voters failed to dial hub within ${max}s; tail logs:" >&2
