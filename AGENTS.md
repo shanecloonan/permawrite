@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #646+** — M2.5.52 (`8a14b8c`) landing; local Rust mirror before push. **Nightly #63** (B-06) after green CI on M2.5.51–52 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #647** in progress on `2904ea3` (M2.5.52 stack after push). **Nightly #63** (B-06) after green CI on M2.5.49–51 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #646 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #647 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.52 B-07 dispatch params + method-meta split | **Done** - `8a14b8c` | B-07 `cli.rs` split |
+| **4** | M2.5.52 B-07 dispatch params + method-meta split | **Done** - `2904ea3` | B-07 `cli.rs` split |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
@@ -125,7 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.52** (`8a14b8c`) - B-07: extract `mfn-rpc/src/dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs` (~620 lines); lane 4.
+- **M2.5.52** (`2904ea3`) - B-07: extract `mfn-rpc/src/dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs` (~620 lines); lane 4.
 - **M2.5.51** (`0d9646a`) - start-all GHA `hub_tip_wait` uses `MFN_POLL_HUB_MAX` (900s); observer catchup soft gate (lag <= 2); ps1 health_check tip>=1 fast path (lane 1).
 - **M2.5.50** (`dbf6067`; code `6216aec`) - mfnd early `mfnd_p2p_listening`; POST_START timeout export; participant smoke ps1 parity (lane 1).
 - **M2.5.49** (`8650543`) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
