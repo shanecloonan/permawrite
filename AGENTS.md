@@ -35,33 +35,33 @@ Every agent working a lane **must** broadcast **Done / Doing / Next** so simulta
 
 ### What to include (every announcement)
 
-1. **Done** ΓÇö units landed on `main` (commit hash when known) or explicitly abandoned with reason.
-2. **Doing** ΓÇö current lane, unit ID, and concrete step (not just the milestone name).
-3. **Next** ΓÇö immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
+1. **Done** - units landed on `main` (commit hash when known) or explicitly abandoned with reason.
+2. **Doing** - current lane, unit ID, and concrete step (not just the milestone name).
+3. **Next** - immediate follow-up after this unit, expected lane owner, and any dependency on another lane.
 
 Use this template in chat **and** mirror it on the boards:
 
 `text
-Lane N ΓÇö Done: <completed units + commits>
+Lane N - Done: <completed units + commits>
        Doing: <unit + current step>
        Next:  <follow-up + owner + blockers>
 `
 
 ### Where to record it
 
-Update **all applicable** surfaces in the same session ΓÇö do not rely on chat alone:
+Update **all applicable** surfaces in the same session - do not rely on chat alone:
 
-- [`AGENTS.md`](AGENTS.md) ΓÇö current board, cross-lane requests, recently completed.
-- [`docs/AGENTS.md`](docs/AGENTS.md) ΓÇö lane Done / Next checklists.
-- [`3agent.md`](3agent.md) ΓÇö lanes 1ΓÇô3 mirror (current board + detailed plans).
-- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) ΓÇö when RC-related.
+- [`AGENTS.md`](AGENTS.md) - current board, cross-lane requests, recently completed.
+- [`docs/AGENTS.md`](docs/AGENTS.md) - lane Done / Next checklists.
+- [`3agent.md`](3agent.md) - lanes 1-3 mirror (current board + detailed plans).
+- [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) - when RC-related.
 
 ### Coordination rules
 
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in ┬º Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in Cross-lane requests.
 
 ---
 
@@ -70,11 +70,11 @@ Update **all applicable** surfaces in the same session ΓÇö do not rely on cha
 | Lane | Scope | Owns (exclusive) | Does *not* own |
 | --- | --- | --- | --- |
 | **1** | RC core | M2.5.x mesh startup, voter-dial timeouts, Nightly rehearsal stability, Linux soak dispatch | M7.10 replication, M5 ring tests |
-| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
-| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
+| **2** | RC ops | `release-evidence-*`, RC audit dry-run, CI/Nightly auto-dispatch, schema validation gates | M5 protocol tests |
+| **3** | RC onboarding | Participant/observer rehearsal smokes, faucet/demo scripts, operator onboarding polish, M7.10 UX | Wallet README ring examples (lane 5), consensus ring tests (lane 4) |
 | **4** | Protocol hardening | M5 privacy + permanence tests, `apply_block` invariants, ring/SPoRA consensus guards | RC Nightly fixes, `push-all-chunks` |
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no silent downgrade UX | M7.10 replication, GHA rehearsal |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
+| **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` |
 
 Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes before they exceed ~2 active units.
 
@@ -82,18 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**M2.5.27** (__COMMIT__) - wait for green GHA CI before next push; **B-06** Nightly #56 + **B-05** Linux soak follow.
+**M2.5.30** (this commit) - wait for green GHA CI before next push; **B-06** Nightly #57 RC gate follows (Nightly #56 partial: ignored PASS; participant+observer FAIL ~13m).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #56 after green CI |
-| **2** | M2.5.27 docs/AGENTS.md mirror restore | **Done** - __COMMIT__ | B-05 soak evidence |
-| **3** | M7.11 STORAGE_ACCESSIBILITY section 0 | **Done** - `bb9600b` | Monitor Nightly #56 (B-06) |
-| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 / B-06 monitor |
+| **1** | M2.5.19 GHA rehearsal gates | **Done** - on `main` | Nightly #57 after green CI |
+| **2** | M2.5.30 board encoding hardening | **Done** - `6e99a9e`/`a1ca6bf` | B-05 soak evidence |
+| **3** | M7.11 STORAGE_ACCESSIBILITY Phase A | **Done** - `bb9600b` | Monitor Nightly #57 (B-06) |
+| **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #57 |
+| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #57 |
+| **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-06 Nightly #57 |
 
 ---
 
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #56 green (all three jobs) | 1 | RC gate |
+| B-06 | Nightly #57 green (all three jobs) | 1 | RC gate (Nightly #56 partial: ignored PASS; participant+observer FAIL ~13m) |
 
 ---
 
@@ -112,8 +112,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI on `main` before Nightly #56 dispatch | Waiting |
-| 3 | 1 | Nightly #56 participant + observer PASS | Waiting |
+| 2 | 1 | Green CI on `main` before Nightly #57 dispatch | Waiting |
+| 3 | 1 | Nightly #57 participant + observer PASS | Waiting |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
@@ -121,7 +121,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.27** (__COMMIT__) - restore `docs/AGENTS.md` per-lane checklists; sync master board (lane 2).
+- **M2.5.30** (`6e99a9e`/`a1ca6bf`) - UTF-8 board repair; `-text` gitattributes; validate-* path expansion (lane 2).
+- **M2.5.29** (`4bd43f2`) - agent board UTF-8 repair + `-text` gitattributes (lane 2).
+- **M2.5.27** (`e0a7ebd`) - restore `docs/AGENTS.md` per-lane checklists (UTF-8); sync master board (lane 2).
 - **M2.5.26** (`a417f1e`) - UTF-8 guard for agent boards in validate-workflow-encoding (lane 2).
 - **M2.5.24** (`001e2c6`) - `validate-rc-helper-scripts` smoke in `ci-check` (lane 2).
 - **M7.11** (`bb9600b`) - STORAGE_ACCESSIBILITY.md section 0 (lane 3).
