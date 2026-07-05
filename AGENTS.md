@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **3** | M7.10 operator UX + Nightly smokes | **Done** - push-all-chunks shipped | Monitor Nightly #56 participant + observer |
 | **4** | M5.39 alternating proptest CI | **Done** - `35734a5` | B-06 Nightly #56 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #56 |
-| **6** | M5.45 512-block PPB + equivocation sims | **Done** - this commit | **Idle** - B-05 Linux soak (lane 2+6) |
+| **6** | M5.45 512-block PPB + equivocation sims | **Done** - 66a697a | B-05 Linux soak (lane 2+6) |
 
 ---
 
@@ -121,6 +121,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.45** (this commit) — 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.45** (this commit) - 512-block PPB + equivocation combined-inflow emission sims in default CI (lane 6).
 - **M5.44** (`3fcb4bc`) — 512-block combined-inflow emission sim in default CI (lane 6).
 - **M5.43** (`7ffcdac`) - 256-block PPB combined-inflow emission sim in default CI (lane 6).
