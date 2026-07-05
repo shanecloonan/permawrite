@@ -61,7 +61,7 @@ Update **all applicable** surfaces in the same session — do not rely on chat a
 - **Read before write:** scan every lane's latest Done / Doing / Next before claiming work.
 - **No silent work:** if you are coding without a `Doing` row on the board, stop and claim first.
 - **Stale boards are blockers:** if your lane's Doing row is >1 session old, refresh or release the claim.
-- **Cross-lane visibility:** when Next depends on another lane, add or update a row in 뿯½ Cross-lane requests.
+- **Cross-lane visibility:** when Next depends on another lane, add or update a row in § Cross-lane requests.
 
 ---
 
