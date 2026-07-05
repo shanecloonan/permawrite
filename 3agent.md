@@ -12,12 +12,12 @@
 | **M2.5.50** | **Done** (`dbf6067`) | Early `mfnd_p2p_listening`; POST_START health 120s |
 | **M2.5.51** | **Done** (`0d9646a`) | `hub_tip_wait` uses `MFN_POLL_HUB_MAX`; observer catchup soft gate |
 | **M2.5.52** | **Done** (`2904ea3`) | B-07 dispatch params + method-meta split |
-| **CI #648** | **In progress** | On `870882f` (M2.5.52 board; code `2904ea3`) |
-| **Nightly #63** | Waiting | After green CI on M2.5.51 stack (`0d9646a`) |
+| **CI #649** | **In progress** | On `1b99749` (board sync; RC `0d9646a`) |
+| **Nightly #63** | Waiting | After green CI #649 |
 
 ### RC push embargo
 
-Hold **code** pushes until **CI #648** green on `870882f`. Doc-only board sync OK.
+Hold **code** pushes until **CI #649** green. Doc-only board sync OK.
 
 ---
 
