@@ -82,13 +82,13 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #640** in progress on `040d31d` (M2.5.48). **CI #636** **GREEN** on `3a1f213`; **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **M2.5.49** (GHA health + hub_liveness soft gates at tip>=1) landing now.
+**CI #641** in progress on `8650543` (M2.5.49). **CI #636** **GREEN** on `3a1f213`; **Nightly #62** **FAIL** ~16.3m on `3a1f213`. **Nightly #63** after green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.49 GHA smoke health + hub_liveness soft gates | **In progress** - this commit | Monitor CI #640 → **Nightly #63** (B-06) |
+| **1** | M2.5.49 GHA smoke health + hub_liveness soft gates | **Done** - `8650543` | Monitor CI #641 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.48 debris purge + light-follow expect fix | **Done** - `040d31d` | B-07 dispatch/cli splits |
@@ -125,7 +125,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.49** (this commit) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
+- **M2.5.49** (`8650543`) - GHA soft-continue on mesh health + hub_liveness when hub tip>=1 (lane 1).
 - **M2.5.48** (`040d31d`) - on-disk debris purge; light-follow quorum `expect` removal (lane 4).
 - **M2.5.46–47** (`2b33ced`; code `1152e16`) - B-07 `p2p_peer_quarantine` + `p2p_reconnect_plan` split from `p2p_fanout`; B-08 mfnd `runner`/`mfnd_cli` expect removal; `mfnd_serve` import fix (lane 4).
 - **M2.5.43–45** (`b945f73`) - `rehearsal-poll-timeouts.*`; mfnd_serve P2P expect removal; workspace dep hoist; evidence gitignore (lanes 2/4/6).

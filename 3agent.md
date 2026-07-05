@@ -13,14 +13,14 @@
 | **M2.5.43–45** | **Done** (`b945f73`) | `rehearsal-poll-timeouts`; mfnd P2P dial/listen hardening |
 | **M2.5.46–47** | **Done** (`2b33ced`) | B-07 `p2p_fanout` split + B-08 runner/mfnd_cli; `mfnd_serve` import fix |
 | **M2.5.48** | **Done** (`040d31d`) | Debris purge; light-follow quorum expect removal |
+| **M2.5.49** | **Done** (`8650543`) | GHA health + hub_liveness soft gates at tip>=1 |
 | **CI #636** | **GREEN** | On `3a1f213` — Nightly #62 dispatched |
-| **CI #640** | **In progress** | On `040d31d` (M2.5.48) |
-| **M2.5.49** | **Landing** | GHA health + hub_liveness soft gates at tip>=1 (lane 1) |
-| **Nightly #63** | Waiting | After green CI on M2.5.49 stack |
+| **CI #641** | **In progress** | On `8650543` (M2.5.49) |
+| **Nightly #63** | Waiting | After green CI on `8650543` |
 
 ### RC push embargo
 
-Hold **code** pushes until CI #640 green; M2.5.49 board sync after green.
+Hold **code** pushes until CI #641 green; doc-only board sync OK.
 
 ---
 
@@ -28,7 +28,7 @@ Hold **code** pushes until CI #640 green; M2.5.49 board sync after green.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.35–38, M2.5.43–45, M2.5.49 | Monitor CI #640 | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.35–38, M2.5.43–45, M2.5.49 (`8650543`) | Monitor CI #641 | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
