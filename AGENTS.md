@@ -93,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #652 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.52 B-07 dispatch params + method-meta split | **Done** - `2904ea3` | B-07 `cli.rs` parse split (idle) |
+| **4** | M2.5.53 B-07 `cli/parse.rs` split | **Done** - pending push | B-07 complete; monitor Nightly #63 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
