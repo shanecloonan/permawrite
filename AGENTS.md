@@ -107,7 +107,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
 | B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.51 (`0d9646a`; M2.5.49–51 stack) |
-| B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Partial** - M2.5.46 `p2p_fanout`; M2.5.52 `dispatch/rpc_params` + `rpc_method_meta`; `cli.rs` remains |
+| B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52 dispatch split; M2.5.53 `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Mostly done** - mfn-net prod uses `Result`; M2.5.47 mfnd; M2.5.48 light-follow; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
 | B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | M2.5.45 redb/proptest/wasm-bindgen hoisted |
@@ -127,6 +127,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.53** (pending) - B-07: extract `mfn-cli/src/cli/parse.rs` from `cli.rs` (~1730 lines); lane 4.
 - **M2.5.52** (`2904ea3`) - B-07: extract `mfn-rpc/src/dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs` (~620 lines); lane 4.
 - **M2.5.51** (`0d9646a`) - start-all GHA `hub_tip_wait` uses `MFN_POLL_HUB_MAX` (900s); observer catchup soft gate (lag <= 2); ps1 health_check tip>=1 fast path (lane 1).
 - **M2.5.50** (`dbf6067`; code `6216aec`) - mfnd early `mfnd_p2p_listening`; POST_START timeout export; participant smoke ps1 parity (lane 1).
