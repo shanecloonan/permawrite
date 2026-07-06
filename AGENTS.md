@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #665** in progress on `3e994b9` (M2.5.57 DOCS-QA-2 closure). **CI #663–664** **cancelled** (rapid board pushes). **Nightly #63** (B-06) after first green CI on M2.5.49–57 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #666** in progress on `9fc2f4a`. **M2.5.58** landing (Windows schema-python resolver). **Nightly #63** (B-06) after green CI on M2.5.49–57 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 **RC push hold:** no pushes while CI #665 runs (`cancel-in-progress`).
 
@@ -91,7 +91,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — CI #665 on `3e994b9` | After green: monitor Nightly #63 + Linux soak (B-05) |
-| **2** | M2.5.57 DOCS-QA-2 audit closure | **Done** - `3e994b9` | Release evidence after green Nightly |
+| **2** | M2.5.58 Windows schema-python resolver | **Done** - pending push | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
@@ -127,6 +127,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.58** (pending) - `resolve-schema-python.ps1`; ignore stale `PERMAWRITE_RELEASE_SCHEMA_PYTHON` on Windows; lane 2.
 - **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure; debris purge; gitignore test logs (lane 2).
 - **M2.5.56** (`6fe1b18`) - B-10: pin workspace `anyhow` 1.0.103 (RUSTSEC-2026-0190); lane 6.
 - **M2.5.55** (`6fe1b18`) - light-chain `EvolutionFailed` integration test; mempool test cleanup; lane 4.
