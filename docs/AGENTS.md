@@ -70,7 +70,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Monitor **CI #663** on `6903413` (RC `6fe1b18`); then **Nightly #63** all three green (B-06; Nightly #62 FAIL ~16.3m on `3a1f213`).
+- [ ] Monitor **CI #665** on `3e994b9`; then **Nightly #63** all three green (B-06; Nightly #62 FAIL ~16.3m on `3a1f213`).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
@@ -160,8 +160,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.48** (40d31d) - on-disk debris purge; light-follow quorum `expect` removal (B-08).
 - [x] **M2.5.52** (`2904ea3`) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test; mempool test dead_code cleanup.
-- [x] **M2.5.54** (770e7a9) - cli.rs mod order + test imports.
-- [x] **M2.5.53** (`5c246d5`; code `bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
+- [x] **M2.5.53** (`bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
 ### Next
 
 - [ ] Idle — B-07 god-file splits complete.
@@ -196,7 +195,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## Lane 6 — Permanence depth (economics, SPoRA, treasury)
 
 ### Done
-- [x] **M2.5.57** (pending) - debris purge + DOCS-QA-2 closure.
+- [x] **M2.5.57** (`3e994b9`) - debris purge + DOCS-QA-2 closure.
 - [x] **M2.5.56** (6fe1b18) - B-10: anyhow 1.0.103 clears RUSTSEC-2026-0190.
 
 
@@ -221,7 +220,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
-- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-56 stack (lane 1 RC gate).
+- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-57 stack on `9fc2f4a` (lane 1 RC gate).
 
 ### Do not start
 
@@ -233,11 +232,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## Backlog detail (claim → move to lane section)
 
 | ID | Item | Suggested lane | Notes |
-| B-06 | Nightly #63 green | 1 | After M2.5.51 (Nightly #62 FAIL on `3a1f213`) |
+| B-06 | Nightly #63 green | 1 | After M2.5.49-57 stack `3e994b9` (CI #665) |
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
-| B-06 | Nightly #63 after M2.5.56 | 1 | M2.5.49-56 stack on `6fe1b18` |
+| B-06 | Nightly #63 after M2.5.57 | 1 | M2.5.49-57 stack on `3e994b9` |
 
 ---
 
