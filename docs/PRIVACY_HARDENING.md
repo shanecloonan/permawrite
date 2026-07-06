@@ -1,0 +1,417 @@
+# Privacy Hardening — shipped changes and the remaining work
+
+This document is the **implementation-level** companion to
+[`PRIVACY.md`](./PRIVACY.md) (how the current privacy mechanisms work) and
+[`F5.md`](./F5.md) (the high-level menu of future privacy/permanence
+frontiers). Where `F5.md` says *what* to build and *why*, this file records
+**what has actually shipped** and gives the **specific, file-and-function
+level** plan for the changes that have not — so the next contributor can pick
+an item up without re-deriving the design.
+
+Doctrine reminder (from [`AGENTS.md`](../AGENTS.md)): privacy and permanence
+over everything. Every item here either strengthens or leaves untouched ring
+policy, endowment enforcement, and SPoRA verification. Anything that changes
+consensus requires a version gate and the full M5-style test treatment before
+it touches `main`.
+
+Baseline being improved on: consensus-enforced uniform ring-16 CLSAG,
+Bulletproof range proofs, stealth one-time addresses, gamma decoy sampling,
+Pedersen-committed amounts, public fees, direct P2P tx fanout. Known
+weaknesses are catalogued in [`PROBLEMS.md`](./PROBLEMS.md).
+
+---
+
+## Part A — Shipped
+
+### A1. Two-output floor: no single-output transactions (wallet layer)
+
+**Status:** shipped (`mfn-wallet`, reference CLI, WASM browser wallet).
+
+#### The fingerprint this removes
+
+Transaction *amounts* are hidden behind Pedersen commitments, but the
+transaction's **output count is public** on the wire
+([`TransactionWire`](../mfn-consensus/src/transaction/wire.rs)). A transaction
+with a **single output** is therefore a strong fingerprint: with no change
+output, it can only be a **no-change sweep** (spending an entire input set) or
+an **exact-amount payment**. Both are rare relative to the ordinary "payment +
+change back to self" shape, so a one-output transaction visibly stands out and
+narrows the set of plausible interpretations an observer must consider. This
+is the same leak Monero closed by requiring a minimum of two outputs.
+
+#### What changed
+
+A new constant defines the floor:
+
+```75:89:mfn-wallet/src/lib.rs
+/// Minimum CLSAG ring size enforced by reference wallets (matches consensus `min_ring_size`).
+pub const WALLET_MIN_RING_SIZE: usize = 16;
+
+/// Minimum number of outputs the reference wallet will place in a
+/// value-transfer transaction (privacy floor, Monero-parity).
+///
+/// A transaction with a single output leaks that it is a no-change
+/// sweep or an exact-amount payment — a strong fingerprint that lets an
+/// observer distinguish those spends from ordinary "payment + change"
+/// transfers and shrinks the plausible-recipient set. The reference
+/// wallet therefore never broadcasts a one-output transfer: it pads to
+/// two outputs with a zero-value output back to the sender. Output
+/// amounts are Pedersen-committed, so the padding output is
+/// indistinguishable on-chain from any other output.
+pub const WALLET_MIN_TX_OUTPUTS: usize = 2;
+```
+
+The enforcement lives at three points, chosen so **every reference caller**
+inherits the guarantee:
+
+1. **Universal backstop** — the shared plan-based builder
+   [`mfn_wallet::build_transfer`](../mfn-wallet/src/spend.rs). Every reference
+   frontend funnels through here (the high-level `Wallet` API, the WASM
+   `build_transfer_json`, and the CLI), so padding here catches all of them:
+
+```213:229:mfn-wallet/src/spend.rs
+    // Privacy floor (universal backstop for every reference caller —
+    // wallet, WASM, CLI): never sign a single-output transfer. A lone
+    // output reveals a no-change sweep or exact-amount payment and
+    // fingerprints the spend against ordinary "payment + change"
+    // transfers. Pad to `WALLET_MIN_TX_OUTPUTS` with zero-value outputs
+    // addressed to a recipient already on this tx (no new counterparty is
+    // exposed). Output amounts are Pedersen-committed, so the padding is
+    // indistinguishable on-chain, and value 0 leaves the balance equation
+    // (`Σ inputs == Σ outputs + fee`) untouched. `recipients` is
+    // non-empty (checked above), so indexing `[0]` is safe.
+    while output_specs.len() < crate::WALLET_MIN_TX_OUTPUTS {
+        output_specs.push(OutputSpec::ToRecipient {
+            recipient: plan.recipients[0].recipient,
+            value: 0,
+            storage: None,
+        });
+    }
+```
+
+2. **High-level transfer path** — `Wallet::build_transfer`
+   ([`mfn-wallet/src/wallet.rs`](../mfn-wallet/src/wallet.rs), ~line 297).
+   This path knows the sender's own keys, so it pads to **self** (a
+   change-like output) rather than to the recipient, producing the nicer
+   "payment + change" shape. This runs before the backstop, so the backstop is
+   a no-op for this path. `Wallet::publish_claim_tx` routes through
+   `build_transfer`, so authorship claims are covered too.
+
+3. **Storage-upload builder** — `build_storage_upload`
+   ([`mfn-wallet/src/upload.rs`](../mfn-wallet/src/upload.rs), ~line 458). An
+   upload with no change is otherwise a single (anchor) output. It pads with a
+   zero-value output **to the anchor recipient** — who is already on the tx, so
+   no new counterparty is revealed.
+
+#### Why it is safe (consensus-invariant)
+
+- **Balance equation untouched.** A padding output has `value = 0`, so it
+  contributes `0` to `Σ outputs`; the RingCT balance check
+  `Σ c_pseudo − Σ amount − fee·H == 0` in
+  [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) still
+  closes. The builder's pseudo-blinding sum
+  ([`build.rs`](../mfn-consensus/src/transaction/build.rs)) already handles an
+  arbitrary output count.
+- **Valid range proof.** `0 ∈ [0, 2^64)`, so `bp_prove(0, r, TX_RANGE_BITS)`
+  produces a valid Bulletproof; the padded tx verifies unchanged under
+  `RingPolicy::PRODUCTION`.
+- **On-chain indistinguishability.** Because output amounts are
+  Pedersen-committed and each output gets a fresh stealth one-time address, a
+  zero-value padding output is byte-for-byte the same *shape* as any other
+  output. An external observer cannot tell padded outputs from real ones.
+
+#### Coverage matrix
+
+| Caller | Path | Pads to | Covered |
+|---|---|---|---|
+| `Wallet::build_transfer` | `wallet.rs` → `spend::build_transfer` | self (change-like) | ✅ |
+| `Wallet::publish_claim_tx` | → `build_transfer` | self | ✅ |
+| `Wallet::build_storage_upload*` | `upload.rs` | anchor recipient | ✅ |
+| WASM `build_transfer_json` | `mfn-wasm` → `spend::build_transfer` | recipient[0] | ✅ |
+| WASM `build_storage_upload_json` | `mfn-wasm` → `build_storage_upload` | anchor recipient | ✅ |
+| CLI `wallet send` / `wallet upload` | `mfn-cli` → wallet API | as above | ✅ |
+
+#### What this change does NOT cover (honest limits)
+
+- **It is a wallet-layer default, not consensus law.** `verify_transaction`
+  still accepts a one-output transaction. A non-reference wallet can emit one,
+  and that transaction would still be distinguishable — which shrinks the
+  *global* anonymity set for everyone. Closing this network-wide requires the
+  consensus change in [§B1](#b1-consensus-enforced-minimum-output-count-p5).
+- **Input count still leaks.** `tx.inputs.len()` is public and reveals how
+  many UTXOs were consumed; the largest-first coin selection
+  ([§B2](#b2-age-band-coin-selection)) tends to correlate this over time.
+- **Output *ordering* and other wallet-chosen bytes are not yet
+  canonicalized** ([§B3](#b3-canonical-encoding-conformance-p9)).
+- **Fees remain public plaintext** ([§B6](#b6-hidden-fees-p6)).
+- **Network origin is unprotected** ([§B7](#b7-dandelion-transaction-relay-p3)).
+
+#### Test coverage
+
+- `mfn-wallet/src/spend.rs`
+  - `single_recipient_transfer_is_padded_to_two_outputs` — a no-change
+    (exact-amount) transfer is padded to two outputs and verifies under
+    `RingPolicy::PRODUCTION`.
+  - `transfer_with_change_is_not_over_padded` — a payment+change transfer is
+    left at exactly two outputs (the pad only fills up to the floor, never
+    beyond).
+- `mfn-wallet/src/upload.rs` — `empty_data_zero_burden_zero_min_fee_is_fine`
+  updated to assert the anchor+pad two-output result and that the pad carries
+  no storage commitment.
+
+#### Verification
+
+Landed on `main` after the local CI mirror (`scripts/ci-check.ps1`): rustfmt,
+clippy `-D warnings`, and `cargo test --release`. All Rust suites pass
+(`mfn-wallet`, `mfn-consensus`, `mfn-runtime`, `mfn-rpc`,
+`mfn-storage-operator`, `mfn-wasm`). The only mirror failures were flaky
+`mfnd_smoke` P2P TCP integration tests (port/timing on Windows), unrelated to
+output construction.
+
+---
+
+## Part B — Remaining work (specific plans)
+
+Ordered roughly cheapest-and-safest first. Each item names the exact file(s)
+and the concrete change. Items marked **consensus** need a version gate and
+M5-style proptests. Cross-references to the `F5.md` menu are given as `F5:Pn`.
+
+### B1. Consensus-enforced minimum output count (`F5:P5`) — **consensus**
+
+**Problem.** [§A1](#a1-two-output-floor-no-single-output-transactions-wallet-layer)
+is wallet-only; consensus still admits one-output txs, so the anonymity-set
+benefit is not network-wide.
+
+**Plan.** Add `min_output_count: u32` to
+[`RingPolicy`](../mfn-consensus/src/block/state.rs) (`PRODUCTION = 2`,
+`TEST = 0` so existing single-output test vectors keep passing). Enforce it in
+[`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) next to the
+ring-size checks (`tx.outputs.len() as u32 >= ring.min_output_count`).
+Derive the value in `ConsensusParams::ring_policy()` — either add a matching
+`ConsensusParams` field (touches `genesis_spec.rs` + `checkpoint_codec.rs`
+serialization and the WASM `header_verify_core.rs` mirror, so version-gate it)
+or, lower-blast-radius, gate on `min_ring_size >= 16`.
+
+**Blast radius.** Production-params tests that build valid single-output txs
+must gain a second output. Rejection-path tests that use `any(...)` on the
+error list are unaffected. Estimate: a handful of tests in
+`mfn-consensus/tests/block_apply.rs` and `mfn-node/tests/mempool_integration.rs`.
+
+**Effort:** moderate. **Risk:** medium (consensus + test churn).
+
+### B2. Age-band coin selection
+
+**Problem.** `Wallet::select_inputs`
+([`mfn-wallet/src/wallet.rs`](../mfn-wallet/src/wallet.rs), ~line 222) is
+largest-first greedy. It minimizes input count (good for size), but it
+correlates spends over time: it deterministically drains the biggest UTXOs
+first, so the *set* of consumed inputs and the input count leak a usage
+pattern. The doc comment already flags a future Knapsack selector.
+
+**Plan.** Replace with an age-band / Knapsack-style selector that prefers
+inputs from the same age band (Monero's approach) to improve plausible
+deniability, with a deterministic tie-break only under the seeded test RNG.
+Keep the `select_inputs` signature; add unit tests asserting band cohesion and
+that the selection still balances. Pure `mfn-wallet` change, no consensus
+impact.
+
+**Effort:** moderate. **Risk:** low.
+
+### B3. Canonical-encoding conformance (`F5:P9`)
+
+**Problem.** Any wallet-controlled byte that differs between implementations
+partitions the anonymity set into "users of wallet X": output ordering, change
+position, `extra`-field contents, decoy sampling seed handling.
+
+**Plan.** Define a canonical policy in `mfn-wallet` (e.g. sort outputs by
+one-time-address bytes so change position carries no signal; fix `extra`
+defaults to empty; document the RNG contract) and add a conformance test that
+the CLI and WASM frontends must pass. Today output order follows construction
+order (recipient, then change/pad) — that ordering itself is a signal. Sorting
+outputs is the highest-value sub-item and is a small, self-contained change to
+the `output_specs` assembly in
+[`spend.rs`](../mfn-wallet/src/spend.rs) / [`upload.rs`](../mfn-wallet/src/upload.rs).
+
+**Effort:** low–moderate. **Risk:** low.
+
+### B4. Decoy-pool quality
+
+**Problem.** Two issues in the wallet decoy path:
+- `build_decoy_pool` excludes **all** owned outputs
+  ([`mfn-wallet/src/decoy.rs`](../mfn-wallet/src/decoy.rs), `exclude_owned`).
+  The comment concedes this "slightly weakens the anonymity set": your own
+  UTXOs never appear as decoys for others, so an active wallet's outputs are
+  under-represented in rings globally.
+- `DEFAULT_GAMMA_PARAMS`
+  ([`mfn-crypto/src/decoy.rs`](../mfn-crypto/src/decoy.rs)) are Monero's
+  empirically-tuned constants; Permawrite's spend-age distribution may differ,
+  and the co-height binary-search pick is deterministic within a height bucket.
+
+**Plan.** (a) Reconsider excluding only the *real input* being spent rather
+than all owned outputs; (b) once mainnet has spend data, re-fit the gamma
+shape/scale; (c) randomize selection among co-height candidates. All are
+`mfn-crypto`/`mfn-wallet` changes with no consensus impact, but (b) needs real
+data. This item is **retired outright** by B8/B9 (membership proofs), so weigh
+effort against that endgame.
+
+**Effort:** low (a, c) / research (b). **Risk:** low.
+
+### B5. Drop the LSAG legacy path from release builds (`F5:P8`)
+
+**Problem.** [`mfn-crypto/src/lsag.rs`](../mfn-crypto/src/lsag.rs) predates
+CLSAG and is unused in the production tx path, but its presence is accepted
+surface area.
+
+**Plan.** Feature-gate `lsag` (and `oom` until wired) out of release binaries
+so no code path, test harness, or future RPC can accept the weaker/larger
+variant on a production chain. Cheap win.
+
+**Effort:** low. **Risk:** low.
+
+### B6. Hidden fees (`F5:P6`) — **consensus**
+
+**Problem.** `tx.fee` is public plaintext
+([`wire.rs`](../mfn-consensus/src/transaction/wire.rs)) because the balance
+check needs `fee·H`. It is the last plaintext amount on every tx and a
+fee-fingerprinting vector.
+
+**Plan.** Move to committed fees with a range proof; reveal only the
+per-block aggregated fee total for the coinbase check in `apply_block`.
+Touches [`pedersen.rs`](../mfn-crypto/src/pedersen.rs) balance helpers and the
+coinbase settlement path in
+[`emission.rs`](../mfn-consensus/src/emission.rs) /
+[`block/apply.rs`](../mfn-consensus/src/block/apply.rs).
+
+**Effort:** high. **Risk:** high (consensus).
+
+### B7. Dandelion++ transaction relay (`F5:P3`) — network layer
+
+**Problem.** The single largest uncovered deanonymization surface. On RPC
+`submit_tx`, `mfnd` fans the fresh tx to **all peers in parallel**
+([`mfn-node/src/p2p_fanout.rs`](../mfn-node/src/p2p_fanout.rs),
+`broadcast_fresh_tx`, always `except_peer = None`), so the first peers learn
+the origin node. `PRIVACY.md` explicitly punts network privacy to the wallet
+layer.
+
+**Plan.** Implement Dandelion++ stem/fluff routing across `mfn-net` and
+[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs): a stem phase
+that forwards to a single randomly-chosen peer with a per-node epoch mapping,
+then a randomized transition to diffusion (fluff). Add stem-phase state and
+timers; keep the existing fanout as the fluff transport. This is a substantial
+change that touches the rehearsal mesh CI — land it on its own with careful
+soak testing.
+
+**Effort:** high. **Risk:** high (network behavior + CI mesh).
+
+### B8. Optional Tor/arti transport (`F5:P4`) — network layer
+
+**Problem.** Complements B7. Decoy rings hide *which UTXO* you spent; they do
+nothing about a network observer correlating broadcast timing with a home IP.
+
+**Plan.** Optional onion-routed transport (the `arti` crate) for P2P dials and
+RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
+
+**Effort:** moderate–high. **Risk:** medium.
+
+### B9. View tags for cheap light-client scanning (`F5:P7`)
+
+**Problem.** Light wallets do `O(outputs_per_block)` curve multiplications to
+scan. Expensive scanning pushes users toward handing view keys to third-party
+scanners — a privacy regression.
+
+**Plan.** Add a Monero-style 1-byte **view tag** derived from the shared
+secret to each output so scanners skip ~99% of work. Lands in
+[`mfn-crypto/src/stealth.rs`](../mfn-crypto/src/stealth.rs) and the WASM
+light-client scan path; changes the output wire format, so version-gate it.
+
+**Effort:** moderate. **Risk:** medium (wire format).
+
+### B10. Structural authorship-key firewall (`F5:P10`)
+
+**Problem.** `AUTHORSHIP.md` *advises* not deriving the claiming key from the
+stealth seed path, but nothing enforces it — reuse would link financial
+activity to a stable public label.
+
+**Plan.** Give `ClaimingIdentity`
+([`mfn-crypto`](../mfn-crypto/src/stealth.rs) / the wallet keys module) a
+distinct, incompatible derivation domain so a wallet *cannot* reuse the
+financial seed, plus a test that rejects cross-domain key material. Cheap,
+structural, no consensus impact.
+
+**Effort:** low. **Risk:** low.
+
+### B11. Full-chain membership proofs — retire decoy rings (`F5:P2`, `F5:P11`) — **consensus**
+
+**Problem.** Ring-16 caps every spend's anonymity set at 16 and keeps the
+gamma-calibration weakness (B4) alive.
+
+**Plan.** The Groth–Kohlweiss One-out-of-Many primitive already exists and is
+tested in [`mfn-crypto/src/oom.rs`](../mfn-crypto/src/oom.rs) but is not wired
+into transactions. Wiring it (a UTXO-accumulator membership formulation plus a
+linkable Triptych-style extension) makes the anonymity set the entire UTXO
+history. The endgame (`F5:P11`) is a curve-tree accumulator (FCMP++) with
+`O(log N)` proofs and no decoy selection at all. Largest privacy uplift
+available; research-grade wiring.
+
+**Effort:** very high. **Risk:** high (consensus + crypto).
+
+### B12. Post-quantum stealth hybrid (`F5:P12`) — **consensus**
+
+**Problem.** Pedersen amounts are information-theoretically hiding, but
+stealth-address detection rests on ECDH. On a *permanence* chain, an adversary
+archiving today and breaking discrete log later can retroactively link every
+historical output to its recipient — the data will still be there.
+
+**Plan.** Hybrid the shared-secret derivation in
+[`mfn-crypto/src/stealth.rs`](../mfn-crypto/src/stealth.rs) with an ML-KEM
+encapsulation (`s_shared = H(ECDH || ML-KEM secret)`) so unlinkability holds if
+*either* assumption survives. Wire-format change; version-gate.
+
+**Effort:** high. **Risk:** high.
+
+### B13. Size-bucketed storage commitments (`F5:P15`) — **consensus-adjacent**
+
+**Problem.** `size_bytes` is public in every `StorageCommitment`
+([`mfn-storage/src/commitment.rs`](../mfn-storage/src/commitment.rs)); exact
+file size is a strong fingerprint against known documents.
+
+**Plan.** Pad uploads to a small set of size buckets (powers of two, or 1.5×
+steps) at the chunking layer and price endowments on the bucket. Costs a few
+percent of storage; removes the highest-entropy public metadata field.
+
+**Effort:** moderate. **Risk:** medium (endowment pricing).
+
+### B14. Note: `list_utxos` RPC exposure (not a fix — a clarification)
+
+The public `list_utxos` RPC
+([`mfn-rpc/src/dispatch.rs`](../mfn-rpc/src/dispatch.rs)) returns the entire
+UTXO set (one-time addresses + commitments). This looks like a leak but is
+**intended** — light/browser wallets need it to build decoy pools, and the
+same data is already derivable from public blocks (`get_block_txs`). Removing
+it would break light clients without adding privacy. Documented here so it is
+not "fixed" by mistake. Private *reads* are a real problem addressed by
+`F5:P13` (oblivious retrieval), not by restricting this endpoint.
+
+---
+
+## Prioritization
+
+| Impact / effort | Items |
+|---|---|
+| Shipped | **A1** two-output floor (wallet) |
+| Cheap wins | B3 (canonical encoding / output sort), B5 (drop LSAG), B10 (key firewall) |
+| High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
+| High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
+| Network add-ons | B8 (Tor) |
+
+Natural next step after A1: **B3** (sort outputs so change position carries no
+signal — small, self-contained, no consensus change) and then **B1** (lift the
+two-output floor into consensus so the guarantee is network-wide).
+
+## See also
+
+- [`PRIVACY.md`](./PRIVACY.md) — how the current privacy mechanisms work
+  (includes the *Output-count uniformity* section for A1).
+- [`F5.md`](./F5.md) — the broader privacy/permanence frontier menu.
+- [`PROBLEMS.md`](./PROBLEMS.md) — the weaknesses these items answer.
+- [`ROADMAP.md`](./ROADMAP.md) — where scheduled items live.
