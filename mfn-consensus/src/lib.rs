@@ -30,6 +30,9 @@
 //!   `producer_proof`.
 //! - [`slashing`] — on-chain equivocation evidence: two BLS-signed headers
 //!   at the same slot from the same validator → stake slashed to zero.
+//! - [`constitution`] — the fork-legitimacy test (F5:PM13): invariants no
+//!   genesis or future upgrade may violate (`tail_emission > 0`, uniform
+//!   rings ≥ 16, well-formed endowment pricing).
 //!
 //! ## Canonical bytes
 //!
@@ -64,6 +67,7 @@ pub mod checkpoint_codec;
 pub mod claims;
 pub mod coinbase;
 pub mod consensus;
+pub mod constitution;
 pub mod emission;
 pub mod extra_codec;
 #[cfg(feature = "bls")]
@@ -131,6 +135,7 @@ pub use consensus::{
 pub use consensus::{
     validator_leaf_bytes, validator_leaf_hash, validator_set_root, Validator, ValidatorPayout,
 };
+pub use constitution::{validate_constitution, ConstitutionError, CONSTITUTIONAL_MIN_RING_SIZE};
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, block_coinbase_specs, cumulative_emission,
     emission_at_height, pre_tail_supply_cap, producer_coinbase_amount, producer_portion_amount,

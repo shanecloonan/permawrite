@@ -12,8 +12,8 @@ use std::path::Path;
 
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
-    ConsensusParams, GenesisConfig, GenesisOutput, Validator, ValidatorPayout,
-    DEFAULT_EMISSION_PARAMS,
+    validate_constitution, ConsensusParams, ConstitutionError, GenesisConfig, GenesisOutput,
+    Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
@@ -94,6 +94,13 @@ pub enum GenesisSpecError {
     /// `synthetic_decoy_utxos` exceeds the hard cap (local devnets only).
     #[error("synthetic_decoy_utxos {0} exceeds maximum {1}")]
     SyntheticDecoyCountTooLarge(u32, u32),
+
+    /// The spec's parameters violate a constitutional invariant
+    /// (**F5:PM13**): zero tail emission, sub-uniform or sub-16 rings,
+    /// or degenerate endowment pricing. No operator-supplied genesis may
+    /// start a chain that breaks the permanence/privacy floor.
+    #[error("genesis spec violates the constitution: {0}")]
+    Constitution(#[from] ConstitutionError),
 }
 
 fn parse_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
@@ -232,6 +239,10 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
 
     let base_consensus = ConsensusParams::default();
     let params = merge_consensus(base_consensus, file.consensus);
+    // Constitutional gate (F5:PM13): every operator-supplied genesis must
+    // satisfy the invariants reference clients refuse to fork away —
+    // permanent tail emission, uniform rings >= 16, sane endowment pricing.
+    validate_constitution(&params, &DEFAULT_EMISSION_PARAMS, &DEFAULT_ENDOWMENT_PARAMS)?;
 
     let mut rows = file.validators;
     rows.sort_by_key(|v| v.index);
@@ -341,6 +352,23 @@ mod tests {
         assert!(matches!(
             genesis_config_from_json_bytes(s.as_bytes()),
             Err(GenesisSpecError::SyntheticDecoyCountTooLarge(99999, _))
+        ));
+    }
+
+    #[test]
+    fn rejects_unconstitutional_ring_policy() {
+        // F5:PM13 — no operator-supplied genesis may lower the uniform
+        // ring floor below 16 or disable uniformity.
+        let low = r#"{"version":1,"timestamp":0,"consensus":{"min_ring_size":8,"uniform_ring_size":8},"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(low.as_bytes()),
+            Err(GenesisSpecError::Constitution(_))
+        ));
+        let non_uniform =
+            r#"{"version":1,"timestamp":0,"consensus":{"uniform_ring_size":0},"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(non_uniform.as_bytes()),
+            Err(GenesisSpecError::Constitution(_))
         ));
     }
 
