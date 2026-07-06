@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #669** in progress on `d063cdd` (code `c0e73eb`: M2.5.58 schema-python resolver). **CI #665–668** **cancelled** (rapid pushes). **Nightly #63** (B-06) after first green CI on M2.5.49–58 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #670** in progress on `b1c8e6a` (M2.5.59 invoke fix). **CI #669** cancelled. **Nightly #63** (B-06) after green CI on M2.5.49–59 stack.
 
-**RC push hold:** hold **code** pushes until CI #669 green.
+**RC push hold:** hold **code** pushes until CI #670 green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #669** on `d063cdd` | After green: Nightly #63 + B-05 soak |
-| **2** | M2.5.58 Windows schema-python resolver | **Done** - `c0e73eb` | Release evidence after green CI + Nightly #63 |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #670** on `b1c8e6a` | After green: Nightly #63 + B-05 soak |
+| **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
@@ -127,7 +127,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.59** (pending) - fix `powershell -File` invoke for resolve-schema-python; stage helper in archive dry-run; release evidence refresh (lane 2).
+- **M2.5.59** (`b1c8e6a`) - fix `powershell -File` invoke for resolve-schema-python; stage in archive dry-run; release evidence refresh (lane 2).
 - **M2.5.58** (`c0e73eb`) - `resolve-schema-python.ps1`; wire release-schema scripts + ci-check (lane 2).
 - **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure; debris purge; gitignore test logs (lane 2).
 - **M2.5.56** (`6fe1b18`) - B-10: pin workspace `anyhow` 1.0.103 (RUSTSEC-2026-0190); lane 6.

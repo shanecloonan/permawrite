@@ -9,13 +9,13 @@
 | --- | --- | --- |
 | **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
 | **M2.5.49–58** | **Done** | RC stack through schema-python resolver (`c0e73eb`) |
-| **M2.5.59** | **Done** (pending) | Invoke fix + release evidence prep |
-| **CI #669** | **In progress** | On `d063cdd` / code `c0e73eb` |
+| **M2.5.59** | **Done** | `b1c8e6a` — invoke fix + release evidence prep |
+| **CI #670** | **In progress** | On `b1c8e6a` |
 | **Nightly #63** | Waiting | After green CI #669 |
 
 ### RC push hold
 
-Hold **code** pushes until **CI #669** green.
+Hold **code** pushes until **CI #670** green.
 
 ---
 
