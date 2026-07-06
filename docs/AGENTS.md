@@ -159,9 +159,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **M2.5.48** (40d31d) - on-disk debris purge; light-follow quorum `expect` removal (B-08).
 - [x] **M2.5.52** (`2904ea3`) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
+- [x] **M2.5.53** (`5c246d5`; code `bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
 ### Next
 
-- [ ] B-07 `cli.rs` god-file split (idle until claimed).
+- [ ] Idle — B-07 god-file splits complete.
 
 ### Handoff to lane 3
 
@@ -181,7 +182,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] B-07 `cli.rs` god-file split (idle until claimed).
+- [ ] Idle — B-07 god-file splits complete.
 
 ### Do not start
 
@@ -213,7 +214,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
-- [ ] B-06 - Nightly #63 all three jobs green after M2.5.51 (lane 1 RC gate).
+- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-53 stack (lane 1 RC gate).
 
 ### Do not start
 

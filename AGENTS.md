@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #653** landing on `bd76bde` (M2.5.53 cli parse restore + hoist). **Nightly #63** (B-06) after green CI on M2.5.51 stack (`0d9646a`). **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #658** in progress on `5c246d5` (M2.5.53 B-07 cli parse stack: `bd76bde` hoist + board sync). **CI #657** **FAIL** on `4cf43b3` (clippy/tests before hoist). **Nightly #63** (B-06) after first green CI on M2.5.49–53 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #653 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #658 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.53 B-07 `cli/parse.rs` split | **Done** - `bd76bde` | B-10 anyhow path (lane 6) |
+| **4** | M2.5.53 B-07 `cli/parse.rs` split | **Done** - `bd76bde` | Idle — B-07 complete; lane 6 owns B-10 |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
 | **6** | M5.48 emission deep-sim tier closure | **Done** - `77f2fe1` | B-05 soak evidence |
 
@@ -104,7 +104,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.51 (`0d9646a`; M2.5.49–51 stack) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–53 stack (`bd76bde`) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52 dispatch split; M2.5.53 `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Mostly done** - mfn-net prod uses `Result`; M2.5.47 mfnd; M2.5.48 light-follow; frame/chunk done |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
