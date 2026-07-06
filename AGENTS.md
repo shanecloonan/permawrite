@@ -82,13 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #658** in progress on `5c246d5` (M2.5.53 B-07 cli parse stack: `bd76bde` hoist + board sync). **CI #657** **FAIL** on `4cf43b3` (clippy/tests before hoist). **Nightly #63** (B-06) after first green CI on M2.5.49–53 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #659** in progress on `770e7a9` (M2.5.54 board sync; code tip `bd76bde`). **CI #657** **FAIL** on `4cf43b3` (clippy/tests before hoist). **Nightly #63** (B-06) after first green CI on M2.5.49–53 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+
+**RC push hold:** no pushes while CI #659 runs.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #658 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #659 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.53 B-07 `cli/parse.rs` split | **Done** - `bd76bde` | Idle — B-07 complete; lane 6 owns B-10 |

@@ -159,6 +159,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **M2.5.48** (40d31d) - on-disk debris purge; light-follow quorum `expect` removal (B-08).
 - [x] **M2.5.52** (`2904ea3`) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
+- [x] **M2.5.55** (pending) - light-chain EvolutionFailed integration test; mempool test dead_code cleanup.
+- [x] **M2.5.54** (770e7a9) - cli.rs mod order + test imports.
 - [x] **M2.5.53** (`5c246d5`; code `bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
 ### Next
 
@@ -192,6 +194,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ---
 
 ## Lane 6 — Permanence depth (economics, SPoRA, treasury)
+
+### Done
+- [x] **M2.5.56** (pending) - B-10: anyhow 1.0.103 clears RUSTSEC-2026-0190.
+
 
 **Owns:** Long-run treasury/emission sims, SPoRA payout invariants, operator-bonding research.
 
