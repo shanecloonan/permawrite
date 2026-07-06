@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #666** in progress on `9fc2f4a`. **M2.5.58** landing (Windows schema-python resolver). **Nightly #63** (B-06) after green CI on M2.5.49–57 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #667** in progress on `70d97c6` (code `c0e73eb`: M2.5.58 schema-python resolver). **CI #665–666** **cancelled** (rapid pushes). **Nightly #63** (B-06) after first green CI on M2.5.49–58 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
-**RC push hold:** no pushes while CI #665 runs (`cancel-in-progress`).
+**RC push hold:** doc-only board sync OK; hold **code** pushes until CI #667 green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — CI #665 on `3e994b9` | After green: monitor Nightly #63 + Linux soak (B-05) |
-| **2** | M2.5.58 Windows schema-python resolver | **Done** - pending push | Release evidence after green Nightly |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #667** | After green: dispatch/monitor Nightly #63 + B-05 soak |
+| **2** | M2.5.58 Windows schema-python resolver | **Done** - `c0e73eb` | Release evidence after green CI + Nightly #63 |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
@@ -106,7 +106,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–57 stack (`3e994b9`) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–58 stack (code `c0e73eb`) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52–53 dispatch + `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |

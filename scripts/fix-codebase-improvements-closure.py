@@ -48,7 +48,7 @@ replacements = [
         "**Severity: Medium-High (maintainability, review quality, merge conflicts between lanes).**",
         "## Priority 4 - God files in RPC, CLI, and P2P\n\n"
         "**Status: done** - M2.5.46 `p2p_fanout` split; M2.5.52 `dispatch/` modules; "
-        "M2.5.53-54 `cli/parse.rs`.\n\n"
+        "M2.5.53 `cli/parse.rs`.\n\n"
         "**Severity: Medium-High (maintainability, review quality, merge conflicts between lanes).**",
     ),
     (
