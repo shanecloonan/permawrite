@@ -46,6 +46,19 @@ pub enum WalletError {
     #[error("cannot set both `extra` and `authorship_claims` on a storage upload")]
     UploadExtraConflictsWithAuthorshipClaims,
 
+    /// The claiming pubkey equals one of this wallet's financial pubkeys
+    /// (view or spend). A claim pubkey is public by design; signing with
+    /// financial key material would permanently link the wallet's
+    /// on-chain financial activity to a stable public label. The
+    /// canonical derivation
+    /// ([`mfn_crypto::authorship::derive_claiming_keypair`]) makes this
+    /// impossible for seed-derived identities — hitting this error means
+    /// key material crossed the authorship firewall (F5:P10).
+    #[error(
+        "claiming pubkey equals a wallet view/spend pubkey — authorship key firewall (F5:P10)"
+    )]
+    ClaimKeyReusesWalletKey,
+
     /// An authorship claim's `data_root` did not match this upload's
     /// [`mfn_storage::StorageCommitment::data_root`].
     #[error("authorship claim data_root does not match storage commitment data_root")]

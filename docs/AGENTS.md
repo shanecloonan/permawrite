@@ -187,11 +187,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.31-docs** — `mfn-wallet/README.md` quick-start uses ring-16 and cites `WALLET_MIN_RING_SIZE`.
 - [x] **M5.31-cli** — `mfn-cli wallet` help documents `--ring-size` default 16 (claim B-04).
 - [x] **PRIVACY cross-link** — wallet README links uniform-ring policy in [`PRIVACY.md`](./PRIVACY.md).
-- [x] **F5-P8** — `lsag` + unwired `oom` gated behind `cfg(test)` / non-default cargo features; release binaries accept CLSAG only (`PRIVACY_HARDENING.md` §B5 shipped).
+- [x] **F5-P8** (`23c14d6`) — `lsag` + unwired `oom` gated behind `cfg(test)` / non-default cargo features; release binaries accept CLSAG only (`PRIVACY_HARDENING.md` §B5 shipped).
+- [x] **F5-P10** — structural authorship-key firewall: canonical `derive_claiming_keypair` in `mfn-crypto`, closed `ClaimingIdentity` constructor, signing-time `ClaimKeyReusesWalletKey` rejection (`PRIVACY_HARDENING.md` §B10 shipped).
 
 ### Next
 
-- [ ] **F5-P10** — structural claiming-key derivation firewall (`PRIVACY_HARDENING.md` §B10).
 - [ ] **F5:B3** — canonical output ordering in reference wallets (`PRIVACY_HARDENING.md` §B3).
 
 ### Do not start

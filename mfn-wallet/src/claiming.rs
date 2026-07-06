@@ -5,16 +5,21 @@
 //! `data_root`. It is **not** the wallet's RingCT spend key — that
 //! separation keeps anonymous uploads the default while still letting
 //! publishers prove intent with a public `claim_pubkey`.
+//!
+//! ## Structural key firewall (F5:P10)
+//!
+//! The claiming scalar is derived by the canonical
+//! [`mfn_crypto::authorship::derive_claiming_keypair`] under a derivation
+//! domain disjoint from every financial-key domain, and this type's only
+//! constructor is [`ClaimingIdentity::from_seed`] — a wallet *cannot* wrap
+//! view/spend material in a `ClaimingIdentity`. The `Wallet` claim paths
+//! additionally refuse to sign if a claiming pubkey ever collides with the
+//! wallet's own view/spend pubkeys (defense in depth).
 
 use curve25519_dalek::edwards::EdwardsPoint;
-use curve25519_dalek::scalar::Scalar;
 
-use mfn_crypto::hash::hash_to_scalar;
-use mfn_crypto::point::generator_g;
+use mfn_crypto::authorship::derive_claiming_keypair;
 use mfn_crypto::schnorr::SchnorrKeypair;
-
-/// Domain tag for deriving the claiming private scalar from a wallet seed.
-const SEED_TAG_CLAIM: &[u8] = b"MFW_SEED_CLAIM_V1";
 
 /// Schnorr identity used exclusively for authorship claims.
 #[derive(Clone)]
@@ -30,12 +35,12 @@ impl std::fmt::Debug for ClaimingIdentity {
 
 impl ClaimingIdentity {
     /// Derive a deterministic claiming keypair from the same 32-byte seed
-    /// used for [`crate::wallet_from_seed`], using a separate domain tag
-    /// so the claiming scalar is independent of view/spend keys.
+    /// used for [`crate::wallet_from_seed`], via the canonical
+    /// domain-separated derivation in
+    /// [`mfn_crypto::authorship::derive_claiming_keypair`] — the claiming
+    /// scalar is computationally independent of view/spend keys.
     pub fn from_seed(seed: &[u8; 32]) -> Self {
-        let priv_key = derive_claim_scalar(seed);
-        let pub_key = generator_g() * priv_key;
-        Self(SchnorrKeypair { priv_key, pub_key })
+        Self(derive_claiming_keypair(seed))
     }
 
     /// Public key advertised in every [`mfn_crypto::authorship::AuthorshipClaim`].
@@ -51,6 +56,13 @@ impl ClaimingIdentity {
         &self.0
     }
 
+    /// Construct from an arbitrary keypair — **tests only**, used to
+    /// exercise the cross-domain reuse rejection in the claim paths.
+    #[cfg(test)]
+    pub(crate) fn from_keypair_for_tests(kp: SchnorrKeypair) -> Self {
+        Self(kp)
+    }
+
     /// Sign an MFCL authorship claim for a storage upload.
     #[cfg(any(feature = "full", feature = "wasm-full"))]
     pub fn sign_storage_claim(
@@ -64,11 +76,49 @@ impl ClaimingIdentity {
     }
 }
 
-fn derive_claim_scalar(seed: &[u8; 32]) -> Scalar {
-    let s = hash_to_scalar(&[SEED_TAG_CLAIM, seed]);
-    if s == Scalar::ZERO {
-        Scalar::ONE
-    } else {
-        s
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mfn_crypto::hash::hash_to_scalar;
+    use mfn_crypto::point::generator_g;
+
+    #[test]
+    fn from_seed_matches_legacy_derivation() {
+        // The pre-F5:P10 derivation lived in this module as
+        // `hash_to_scalar([b"MFW_SEED_CLAIM_V1", seed])` with a zero->one
+        // fallback. Moving it to mfn-crypto must not change any existing
+        // claiming identity, or published claims would orphan on restore.
+        for byte in [0u8, 3, 99, 0xff] {
+            let seed = [byte; 32];
+            let tag: &[u8] = b"MFW_SEED_CLAIM_V1";
+            let legacy = hash_to_scalar(&[tag, &seed]);
+            let id = ClaimingIdentity::from_seed(&seed);
+            assert_eq!(
+                (generator_g() * legacy).compress(),
+                id.claim_pubkey().compress(),
+                "derivation drifted for seed byte {byte}"
+            );
+        }
+    }
+
+    #[test]
+    fn claiming_key_is_independent_of_wallet_keys_for_same_seed() {
+        // F5:P10 — sharing one backup seed between the financial wallet
+        // and the claiming identity must never link the two key domains.
+        for byte in [0u8, 1, 42, 0xff] {
+            let seed = [byte; 32];
+            let id = ClaimingIdentity::from_seed(&seed);
+            let wallet = crate::keys::wallet_from_seed(&seed);
+            assert_ne!(
+                id.claim_pubkey().compress(),
+                wallet.view_pub().compress(),
+                "claim key equals view key for seed byte {byte}"
+            );
+            assert_ne!(
+                id.claim_pubkey().compress(),
+                wallet.spend_pub().compress(),
+                "claim key equals spend key for seed byte {byte}"
+            );
+        }
     }
 }

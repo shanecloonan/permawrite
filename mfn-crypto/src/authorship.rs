@@ -16,12 +16,47 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use thiserror::Error;
 
 use crate::domain::{AUTHORSHIP_CLAIM_DIGEST, AUTHORSHIP_CLAIM_DIGEST_V2};
-use crate::hash::dhash;
+use crate::hash::{dhash, hash_to_scalar};
+use crate::point::generator_g;
 use crate::schnorr::{
     decode_schnorr_signature, encode_schnorr_signature, schnorr_sign_with, schnorr_verify,
     SchnorrKeypair, SchnorrSignature, SCHNORR_SIGNATURE_BYTES,
 };
 use crate::{CryptoError, Result};
+
+/// Domain tag for [`derive_claiming_keypair`] — the **only** sanctioned
+/// seed → claiming-key path (F5:P10).
+///
+/// This tag is deliberately disjoint from every financial-key derivation
+/// domain (`MFW_SEED_VIEW_V1`, `MFW_SEED_SPEND_V1`,
+/// `MFN-1/stealth-wallet/*`), so a claiming key derived from a wallet
+/// seed is computationally independent of the wallet's view/spend keys:
+/// publishing the claim pubkey can never link back to financial activity,
+/// and reusing the financial seed for claims is structurally impossible
+/// rather than merely discouraged (`AUTHORSHIP.md`).
+pub const CLAIMING_KEY_DERIVE_TAG: &[u8] = b"MFW_SEED_CLAIM_V1";
+
+/// Derive the canonical **claiming** Schnorr keypair from a 32-byte
+/// wallet seed (F5:P10).
+///
+/// Hash-derives the private scalar under [`CLAIMING_KEY_DERIVE_TAG`],
+/// with the standard zero → one pathological-recovery rule so the
+/// function is total. All reference frontends (wallet, CLI, WASM) must
+/// funnel through this function; deriving a claiming key from view/spend
+/// material directly is a firewall violation.
+#[must_use]
+pub fn derive_claiming_keypair(seed: &[u8; 32]) -> SchnorrKeypair {
+    let s = hash_to_scalar(&[CLAIMING_KEY_DERIVE_TAG, seed]);
+    let priv_key = if s == curve25519_dalek::scalar::Scalar::ZERO {
+        curve25519_dalek::scalar::Scalar::ONE
+    } else {
+        s
+    };
+    SchnorrKeypair {
+        priv_key,
+        pub_key: generator_g() * priv_key,
+    }
+}
 
 /// Maximum opaque message length for a single claim (bytes).
 pub const MAX_CLAIM_MESSAGE_LEN: usize = 256;
@@ -550,6 +585,40 @@ mod tests {
         let claim = build_signed_claim([3u8; 32], [4u8; 32], b"z", &kp).expect("build");
         let wire = encode_authorship_claim(&claim).expect("enc");
         assert_eq!(mfcl_frame_wire_len(&wire).expect("len"), wire.len());
+    }
+
+    #[test]
+    fn claiming_key_domain_is_disjoint_from_stealth_seed_domains() {
+        // F5:P10 — the same 32-byte seed must yield a claiming key that
+        // is independent of every financial key derived from it. If any
+        // derivation tag ever collapses into another, the claim pubkey
+        // (public by design) would link to spendable material.
+        use crate::stealth::stealth_wallet_from_seed;
+        for byte in [0u8, 1, 7, 42, 0xff] {
+            let seed = [byte; 32];
+            let claim = derive_claiming_keypair(&seed);
+            let stealth = stealth_wallet_from_seed(&seed);
+            assert_ne!(
+                claim.pub_key.compress(),
+                stealth.view_pub.compress(),
+                "claiming key equals view key for seed byte {byte}"
+            );
+            assert_ne!(
+                claim.pub_key.compress(),
+                stealth.spend_pub.compress(),
+                "claiming key equals spend key for seed byte {byte}"
+            );
+        }
+    }
+
+    #[test]
+    fn derive_claiming_keypair_is_deterministic_and_seed_sensitive() {
+        let a = derive_claiming_keypair(&[7u8; 32]);
+        let b = derive_claiming_keypair(&[7u8; 32]);
+        let c = derive_claiming_keypair(&[8u8; 32]);
+        assert_eq!(a.pub_key.compress(), b.pub_key.compress());
+        assert_ne!(a.pub_key.compress(), c.pub_key.compress());
+        assert_eq!(generator_g() * a.priv_key, a.pub_key);
     }
 
     #[test]

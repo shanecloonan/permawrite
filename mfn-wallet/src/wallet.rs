@@ -108,6 +108,23 @@ impl Wallet {
         owned_balance(self.owned.values())
     }
 
+    /// Authorship key firewall (F5:P10): refuse to sign a claim whose
+    /// public claiming key equals this wallet's view or spend pubkey.
+    ///
+    /// [`ClaimingIdentity`] can only be built through the canonical
+    /// domain-separated derivation, so this cannot trigger for
+    /// seed-derived identities; it is defense in depth against any
+    /// future constructor (or foreign frontend) that lets financial key
+    /// material cross into the authorship domain, where it would become
+    /// a stable public label linking the wallet's on-chain activity.
+    fn assert_claim_key_firewall(&self, identity: &ClaimingIdentity) -> Result<(), WalletError> {
+        let claim_pub = identity.claim_pubkey();
+        if claim_pub == self.keys.view_pub() || claim_pub == self.keys.spend_pub() {
+            return Err(WalletError::ClaimKeyReusesWalletKey);
+        }
+        Ok(())
+    }
+
     /// Number of unspent owned outputs.
     #[inline]
     pub fn owned_count(&self) -> usize {
@@ -369,6 +386,7 @@ impl Wallet {
                 got: message.len(),
             });
         }
+        self.assert_claim_key_firewall(identity)?;
         let claim = build_signed_claim(data_root, commit_hash, message, identity.keypair())?;
         let extra = build_mfex_extra(std::slice::from_ref(&claim))?;
         let recipients = vec![TransferRecipient {
@@ -490,6 +508,7 @@ impl Wallet {
                 got: message.len(),
             });
         }
+        self.assert_claim_key_firewall(identity)?;
 
         let burden = required_endowment(
             data.len() as u64,
@@ -810,6 +829,42 @@ mod tests {
             storage_proofs: Vec::new(),
             bond_ops: Vec::new(),
         }
+    }
+
+    #[test]
+    fn claim_key_firewall_rejects_wallet_spend_key_reuse() {
+        // F5:P10 — an identity wrapping the wallet's own financial keys
+        // must be refused at signing time, even though the public
+        // constructor cannot produce one.
+        use mfn_crypto::schnorr::SchnorrKeypair;
+        let wallet = Wallet::from_seed(&[11u8; 32]);
+        let spend_kp = SchnorrKeypair {
+            priv_key: wallet.keys().inner().spend_priv,
+            pub_key: wallet.keys().spend_pub(),
+        };
+        let reused = ClaimingIdentity::from_keypair_for_tests(spend_kp);
+        assert!(matches!(
+            wallet.assert_claim_key_firewall(&reused),
+            Err(WalletError::ClaimKeyReusesWalletKey)
+        ));
+        let view_kp = SchnorrKeypair {
+            priv_key: wallet.keys().view_priv(),
+            pub_key: wallet.keys().view_pub(),
+        };
+        let reused_view = ClaimingIdentity::from_keypair_for_tests(view_kp);
+        assert!(matches!(
+            wallet.assert_claim_key_firewall(&reused_view),
+            Err(WalletError::ClaimKeyReusesWalletKey)
+        ));
+    }
+
+    #[test]
+    fn claim_key_firewall_accepts_seed_derived_identity() {
+        // Sharing the wallet's backup seed is the supported flow: the
+        // domain-separated derivation guarantees a disjoint keypair.
+        let wallet = Wallet::from_seed(&[12u8; 32]);
+        let identity = ClaimingIdentity::from_seed(&[12u8; 32]);
+        assert!(wallet.assert_claim_key_firewall(&identity).is_ok());
     }
 
     #[test]

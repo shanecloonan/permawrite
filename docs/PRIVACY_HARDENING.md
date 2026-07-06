@@ -338,17 +338,34 @@ light-client scan path; changes the output wire format, so version-gate it.
 
 **Effort:** moderate. **Risk:** medium (wire format).
 
-### B10. Structural authorship-key firewall (`F5:P10`)
+### B10. Structural authorship-key firewall (`F5:P10`) — **shipped**
 
 **Problem.** `AUTHORSHIP.md` *advises* not deriving the claiming key from the
 stealth seed path, but nothing enforces it — reuse would link financial
 activity to a stable public label.
 
-**Plan.** Give `ClaimingIdentity`
-([`mfn-crypto`](../mfn-crypto/src/stealth.rs) / the wallet keys module) a
-distinct, incompatible derivation domain so a wallet *cannot* reuse the
-financial seed, plus a test that rejects cross-domain key material. Cheap,
-structural, no consensus impact.
+**Shipped.** Three structural layers, no consensus impact:
+
+1. **Canonical derivation in `mfn-crypto`** —
+   [`authorship::derive_claiming_keypair`](../mfn-crypto/src/authorship.rs)
+   is now the only sanctioned seed → claiming-key path, hash-derived under
+   `CLAIMING_KEY_DERIVE_TAG` (`MFW_SEED_CLAIM_V1`, byte-compatible with the
+   previous wallet-local derivation so existing identities are unchanged).
+   The tag is disjoint from every financial-key domain
+   (`MFW_SEED_VIEW_V1`, `MFW_SEED_SPEND_V1`, `MFN-1/stealth-wallet/*`).
+2. **Closed constructor** — `ClaimingIdentity`'s only public constructor is
+   `from_seed`, which delegates to (1); wallet code *cannot* wrap view/spend
+   key material in a claiming identity.
+3. **Signing-time rejection** — `Wallet::publish_claim_tx` and
+   `build_storage_upload_with_authorship` refuse
+   (`WalletError::ClaimKeyReusesWalletKey`) any claiming pubkey equal to the
+   wallet's view or spend pubkey, as defense in depth against future
+   constructors or foreign frontends.
+
+Tests: cross-domain independence over sample seeds (crypto + wallet layers),
+byte-compatibility with the legacy derivation, firewall rejection of
+wrapped view/spend keypairs, and acceptance of the supported shared-seed
+flow.
 
 **Effort:** low. **Risk:** low.
 
@@ -410,8 +427,8 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds |
-| Cheap wins | B3 (canonical encoding / output sort), B10 (key firewall) |
+| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall |
+| Cheap wins | B3 (canonical encoding / output sort) |
 | High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
