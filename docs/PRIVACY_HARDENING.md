@@ -217,7 +217,7 @@ impact.
 
 **Effort:** moderate. **Risk:** low.
 
-### B3. Canonical-encoding conformance (`F5:P9`) — **output ordering shipped**
+### B3. Canonical-encoding conformance (`F5:P9`) — **shipped**
 
 **Problem.** Any wallet-controlled byte that differs between implementations
 partitions the anonymity set into "users of wallet X": output ordering, change
@@ -238,8 +238,24 @@ derivation it sorted by. Test:
 position varies across transactions and every shuffled tx verifies and
 scans.
 
-**Remaining.** `extra`-field defaults, decoy sampling RNG contract, and a
-cross-frontend conformance test (CLI + WASM byte-identical policy).
+**Shipped (conformance suite).**
+[`mfn-wallet/tests/canonical_conformance.rs`](../mfn-wallet/tests/canonical_conformance.rs)
+pins the wire-visible choices of `build_transfer` and
+`build_storage_upload` — the two constructors every reference frontend
+(wallet, WASM, CLI) funnels through, so the suite covers all frontends by
+construction: `version == TX_VERSION`; `extra` empty unless the caller
+supplies a memo (the wallet injects zero identifying bytes; caller memos
+are carried verbatim); every ring exactly `WALLET_MIN_RING_SIZE` — pinned
+equal to the consensus production uniform policy so they cannot drift;
+outputs at or above the two-output floor; every `enc_amount` a real
+ciphertext (never the all-zero decoy sentinel); and byte-canonical wire
+form (`encode(decode(encode(tx))) == encode(tx)`). The wire format has no
+unlock-time field at all — the strongest form of "remove the field if
+unused"; the suite documents that a future timelock field must add a
+canonical-default assertion here.
+
+**Remaining.** Decoy sampling RNG *entropy source* contract (production
+callers must use `crypto_random`; only tests may seed).
 
 **Effort:** low–moderate. **Risk:** low.
 
@@ -436,8 +452,8 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3 (partial)** output-order shuffle |
-| Cheap wins | B3 remainder (extra-field / RNG-contract conformance test) |
+| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
+| Cheap wins | B3 tail (decoy-RNG entropy-source contract) |
 | High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
