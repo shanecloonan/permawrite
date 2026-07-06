@@ -127,7 +127,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.58** (pending) - `resolve-schema-python.ps1`; ignore stale `PERMAWRITE_RELEASE_SCHEMA_PYTHON` on Windows; lane 2.
+- **M2.5.58** (`1a35c39`) - `resolve-schema-python.ps1`; wire release-schema scripts + ci-check (lane 2).
 - **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure; debris purge; gitignore test logs (lane 2).
 - **M2.5.56** (`6fe1b18`) - B-10: pin workspace `anyhow` 1.0.103 (RUSTSEC-2026-0190); lane 6.
 - **M2.5.55** (`6fe1b18`) - light-chain `EvolutionFailed` integration test; mempool test cleanup; lane 4.

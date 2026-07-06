@@ -195,6 +195,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## Lane 6 — Permanence depth (economics, SPoRA, treasury)
 
 ### Done
+- [x] **M2.5.58** (pending) - resolve-schema-python.ps1 wiring.
 - [x] **M2.5.57** (`3e994b9`) - debris purge + DOCS-QA-2 closure.
 - [x] **M2.5.56** (6fe1b18) - B-10: anyhow 1.0.103 clears RUSTSEC-2026-0190.
 

@@ -100,7 +100,7 @@ function Stage-ReleaseSchemaWheelhouse {
         return
     }
     New-Item -ItemType Directory -Force -Path $wheelhouseDir | Out-Null
-    $python = if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON) { $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON } else { "python" }
+    $python = (& (Join-Path $PSScriptRoot "resolve-schema-python.ps1")).Trim()
     & $python -m pip download --disable-pip-version-check --require-hashes `
         -r $requirementsSource -d $wheelhouseDir
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

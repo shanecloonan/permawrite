@@ -6,9 +6,13 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Req = Join-Path $ScriptDir "requirements-release-schema.txt"
-$Python = if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON) { $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON } else { "python" }
+$Python = if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON -and (Test-Path -LiteralPath $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON -PathType Leaf)) {
+    $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON
+} else {
+    (& (Join-Path $ScriptDir "resolve-schema-python.ps1")).Trim()
+}
 
-if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
+if (-not (Test-Path -LiteralPath $Python -PathType Leaf) -and -not (Get-Command $Python -ErrorAction SilentlyContinue)) {
     throw "release-schema-wheelhouse: python not found ($Python)"
 }
 
