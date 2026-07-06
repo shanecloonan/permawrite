@@ -12,8 +12,8 @@
 | **M2.5.52–53** | **Done** | B-07 dispatch + `cli/parse.rs` splits (`2904ea3` / `bd76bde`) |
 | **M2.5.55–56** | **Done** | Byzantine light test + anyhow 1.0.103 (`6fe1b18`) |
 | **M2.5.57** | **Done** | DOCS-QA-2 closure + debris purge (`3e994b9`) |
-| **M2.5.58** | **Done** (pending) | Windows `resolve-schema-python.ps1` for ci-check |
-| **CI #666** | **In progress** | M2.5.58 landing after `9fc2f4a` |
+| **M2.5.58** | **Done** | `c0e73eb` — resolve-schema-python wired into ci-check |
+| **CI #667** | **In progress** | On `c0e73eb` |
 | **Nightly #63** | Waiting | After green CI |
 
 ### RC push hold

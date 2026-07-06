@@ -215,7 +215,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.52** (`2904ea3`) — B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs` (lane 4).
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test (lane 4).
 - [x] **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure + debris purge (lane 2).
-- [x] **M2.5.58** (pending) - `resolve-schema-python.ps1` Windows ci-check hardening (lane 2).
+- [x] **M2.5.58** (`c0e73eb`) - `resolve-schema-python.ps1` Windows ci-check hardening (lane 2).
 - [x] **M2.5.56** (6fe1b18) - B-10 anyhow 1.0.103 (lane 6).
 - [x] **M2.5.53** (`bd76bde`) — B-07: extract `cli/parse.rs` from `cli.rs` + restore/hoist fix (lane 4).
 - [ ] **Nightly #63** after green CI on M2.5.49–57 stack (`3e994b9`) — all three green (B-06 gate).
