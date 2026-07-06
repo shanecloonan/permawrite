@@ -206,6 +206,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## Lane 6 — Permanence depth (economics, SPoRA, treasury)
 
 ### Done
+- [x] **F5-PM9** — `docs/PQ_MIGRATION.md`: committed consensus-versioned PQ migration path + wire-format headroom audit (soft fork today).
 - [x] **F5-PM10** — self-verifying chain+chunk archive: `mfnd archive-export` / `archive-verify` (`mfn-node/src/archive_export.rs`); replay-from-genesis + chunk Merkle re-derivation, no live network.
 - [x] **M2.5.59** - debris gitignore (*.utf8.bak, docs/*.test.md); resolve-schema-python invoke via powershell -NoProfile -File.
 - [x] **M2.5.58** (c0e73eb) - resolve-schema-python.ps1 wired into ci-check + release scripts.
