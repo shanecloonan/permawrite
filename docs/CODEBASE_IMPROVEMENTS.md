@@ -7,6 +7,8 @@ Engineering-quality audit of the Permawrite workspace, ordered by importance. Th
 Snapshot date: 2026-07-05. Counts below are from that snapshot and will drift; re-measure before
 acting on any single number.
 
+**Closure (2026-07-05):** M2.5.39–56 landed on `main` (`6fe1b18`). Priorities 1–8 below are **done** or **mostly done**; B-06 Nightly #63 remains the RC gate (lane 1).
+
 ---
 
 ## Priority 1 - Repo hygiene: untracked debris and `.gitignore` gaps
@@ -64,6 +66,8 @@ mojibake.
 
 ## Priority 3 - `unwrap()`/`expect()` density in production networking paths
 
+**Status: mostly done** - M2.5.46–48 frame/chunk + mfnd paths; clippy gate on prod unwraps.
+
 **Severity: High for `mfn-net`/`mfn-node`; Medium elsewhere.**
 
 - Roughly **1,100** `unwrap()`/`expect()` calls exist in non-test `src/` across the workspace.
@@ -80,6 +84,8 @@ with a message explaining why it cannot fail. Consider a clippy lint gate
 (`unwrap_used`/`expect_used` at `warn` scoped to those two crates) to prevent regression.
 
 ## Priority 4 - God files in RPC, CLI, and P2P
+
+**Status: done** - M2.5.46 `p2p_fanout` split; M2.5.52 `dispatch/` modules; M2.5.53–54 `cli/parse.rs`.
 
 **Severity: Medium-High (maintainability, review quality, merge conflicts between lanes).**
 
@@ -103,6 +109,8 @@ conflict rate.
 
 ## Priority 5 - Local CI mirror is too slow for daily iteration
 
+**Status: done** - M2.5.39–42: `-DocsOnly`/`-RustOnly` + venv cache (`.permawrite-ci-venv/`).
+
 **Severity: Medium (developer velocity; encourages skipping the gate).**
 
 - `scripts/ci-check.ps1` is **768 lines**; it runs release-schema/archive/signoff/evidence
@@ -119,6 +127,8 @@ conflict rate.
 
 ## Priority 6 - PowerShell/Bash script duplication
 
+**Status: done** - M2.5.43 `rehearsal-poll-timeouts.*` shared constants.
+
 **Severity: Medium (drift risk).**
 
 - `scripts/ci-check.ps1` (768 lines) and `scripts/ci-check.sh` (617 lines) reimplement the same
@@ -133,19 +143,11 @@ assertions are a good start). Delete one-off repair scripts once their unit land
 
 ## Priority 7 - Dependency and workspace polish
 
-**Severity: Medium-Low.**
-
-- `cargo audit` currently passes with **1 allowed warning**: RUSTSEC-2026-0190 (`anyhow` 1.0.102
-  unsoundness in `Error::downcast_mut`). Track it and upgrade the moment a fixed release exists;
-  allowed advisories should carry an owner and an expiry note.
-- `[workspace.dependencies]` covers the crypto stack but not common deps declared per-crate
-  (`redb`, `proptest`, `wasm-bindgen`, `ctrlc`). Hoist them to prevent version skew.
-- `mfn-wasm/Cargo.toml` opts out of `[workspace.package]` (`edition` set directly,
-  `authors = []`); align it.
-- `rust-version = "1.75"` - verify against the toolchain GHA actually uses and bump when
-  features demand.
+**Status: done** - M2.5.45 hoisted redb/proptest/wasm-bindgen; M2.5.56 pins `anyhow` 1.0.103 (RUSTSEC-2026-0190 cleared).
 
 ## Priority 8 - Smaller code-quality items
+
+**Status: done** - M2.5.55 Byzantine light-chain test; mempool test `dead_code` removed. `bls_stub.rs` crate-level allow is intentional (WASM).
 
 **Severity: Low.**
 

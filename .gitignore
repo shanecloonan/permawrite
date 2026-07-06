@@ -33,6 +33,9 @@ scripts/public-devnet-v1/participant-rehearsal-smoke/
 scripts/public-devnet-v1/support-bundle/
 scripts/ci-check-last.log
 test-count-run.log
+mfn-*-test.log
+scripts/public-devnet-v1/evidence/release-evidence-*.json
+scripts/public-devnet-v1/evidence/release-evidence-*.md
 .permawrite-ci-venv/
 scripts/public-devnet-v1/evidence/rc-audit-dry-run-*.json
 scripts/public-devnet-v1/evidence/participant-rehearsal-no-observer-*.txt
