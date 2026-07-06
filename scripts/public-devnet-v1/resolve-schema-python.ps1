@@ -4,6 +4,14 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
+function Normalize-ExecutablePath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+    return (Resolve-Path -LiteralPath $Path).Path
+}
+
 function Resolve-VenvPython {
     param([Parameter(Mandatory = $true)][string]$Root)
     $candidates = @(
@@ -11,20 +19,32 @@ function Resolve-VenvPython {
         (Join-Path $Root "bin\python.exe"),
         (Join-Path $Root "bin\python")
     )
-    return $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    foreach ($candidate in $candidates) {
+        $resolved = Normalize-ExecutablePath -Path $candidate
+        if ($resolved) {
+            return $resolved
+        }
+    }
+    return $null
 }
 
 if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON) {
-    $fromEnv = $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON
-    if (Test-Path -LiteralPath $fromEnv -PathType Leaf) {
-        Write-Output $fromEnv
-        exit 0
+    $fromEnv = $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON.Trim()
+    # Ignore stale relative paths left in the parent shell; only trust rooted executables.
+    if ([System.IO.Path]::IsPathRooted($fromEnv)) {
+        $resolvedEnv = Normalize-ExecutablePath -Path $fromEnv
+        if ($resolvedEnv) {
+            Write-Output $resolvedEnv
+            exit 0
+        }
     }
 }
 
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if (-not $VenvRoot) {
-    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
     $VenvRoot = Join-Path $repoRoot ".permawrite-ci-venv"
+} elseif (-not [System.IO.Path]::IsPathRooted($VenvRoot)) {
+    $VenvRoot = Join-Path $repoRoot $VenvRoot
 }
 
 if (Test-Path -LiteralPath $VenvRoot -PathType Container) {

@@ -86,6 +86,7 @@ function Stage-ReleaseSchemaWheelhouse {
     $requirementsSource = "scripts/public-devnet-v1/requirements-release-schema.txt"
     $requirementsDest = Join-Path $toolchainDir "requirements-release-schema.txt"
     foreach ($helper in @(
+        "scripts/public-devnet-v1/resolve-schema-python.ps1",
         "scripts/public-devnet-v1/release-schema-wheelhouse.ps1",
         "scripts/public-devnet-v1/release-schema-install-offline.ps1",
         "scripts/public-devnet-v1/release-json-schema-draft202012.ps1",
@@ -100,7 +101,7 @@ function Stage-ReleaseSchemaWheelhouse {
         return
     }
     New-Item -ItemType Directory -Force -Path $wheelhouseDir | Out-Null
-    $python = (& (Join-Path $PSScriptRoot "resolve-schema-python.ps1")).Trim()
+    $python = (& powershell -NoProfile -File (Join-Path $PSScriptRoot "resolve-schema-python.ps1")).Trim()
     & $python -m pip download --disable-pip-version-check --require-hashes `
         -r $requirementsSource -d $wheelhouseDir
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

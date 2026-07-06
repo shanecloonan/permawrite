@@ -68,7 +68,7 @@ if (-not (Test-Path -LiteralPath $schemaVenv -PathType Container)) {
     python -m venv $schemaVenv
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
-$schemaPython = (& (Join-Path $repoRoot "scripts/public-devnet-v1/resolve-schema-python.ps1") -VenvRoot $schemaVenv).Trim()
+$schemaPython = (& powershell -NoProfile -File (Join-Path $repoRoot "scripts/public-devnet-v1/resolve-schema-python.ps1") -VenvRoot $schemaVenv).Trim()
 if (-not (Test-Path -LiteralPath $schemaPython -PathType Leaf)) {
     [Console]::Error.WriteLine("release schema validator venv did not contain a Python executable")
     exit 1
@@ -481,7 +481,7 @@ try {
     $offlineVenv = Join-Path $archiveDir ("permawrite-release-schema-offline-" + [System.Guid]::NewGuid().ToString("N"))
     python -m venv $offlineVenv
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $offlinePython = (& (Join-Path $repoRoot "scripts/public-devnet-v1/resolve-schema-python.ps1") -VenvRoot $offlineVenv).Trim()
+    $offlinePython = (& powershell -NoProfile -File (Join-Path $repoRoot "scripts/public-devnet-v1/resolve-schema-python.ps1") -VenvRoot $offlineVenv).Trim()
     if (-not (Test-Path -LiteralPath $offlinePython -PathType Leaf)) {
         [Console]::Error.WriteLine("offline release-schema venv did not contain a Python executable")
         exit 1

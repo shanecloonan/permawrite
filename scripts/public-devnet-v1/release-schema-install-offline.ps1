@@ -9,7 +9,7 @@ $Req = Join-Path $ScriptDir "requirements-release-schema.txt"
 $Python = if ($env:PERMAWRITE_RELEASE_SCHEMA_PYTHON -and (Test-Path -LiteralPath $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON -PathType Leaf)) {
     $env:PERMAWRITE_RELEASE_SCHEMA_PYTHON
 } else {
-    (& (Join-Path $ScriptDir "resolve-schema-python.ps1")).Trim()
+    (& powershell -NoProfile -File (Join-Path $ScriptDir "resolve-schema-python.ps1")).Trim()
 }
 
 if (-not (Test-Path -LiteralPath $Wheelhouse -PathType Container)) {
