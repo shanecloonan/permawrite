@@ -82,15 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #668** in progress on `717a656` (code `c0e73eb`: M2.5.58 schema-python resolver). **CI #665–667** **cancelled** (rapid pushes). **Nightly #63** (B-06) after first green CI on M2.5.49–58 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #669** in progress on `d063cdd` (code `c0e73eb`: M2.5.58 schema-python resolver). **CI #665–668** **cancelled** (rapid pushes). **Nightly #63** (B-06) after first green CI on M2.5.49–58 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
-**RC push hold:** doc-only board sync OK; hold **code** pushes until CI #668 green.
+**RC push hold:** hold **code** pushes until CI #669 green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #668** on `717a656` | After green: Nightly #63 + B-05 soak |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #669** on `d063cdd` | After green: Nightly #63 + B-05 soak |
 | **2** | M2.5.58 Windows schema-python resolver | **Done** - `c0e73eb` | Release evidence after green CI + Nightly #63 |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
