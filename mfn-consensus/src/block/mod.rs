@@ -66,7 +66,7 @@ pub use header::{
 };
 pub use state::{
     ChainState, ConsensusParams, PendingUnbond, RingPolicy, StorageEntry, UtxoEntry,
-    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, TEST_CONSENSUS_PARAMS,
+    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
 };
 pub use wire::{
     decode_block, decode_block_body, encode_block, encode_block_body, storage_merkle_root,

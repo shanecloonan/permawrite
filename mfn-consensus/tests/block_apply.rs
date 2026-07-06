@@ -1375,11 +1375,19 @@ fn ring_member_not_in_utxo_set_rejected() {
             value: init_value,
             blinding: init_blinding,
         }],
-        vec![OutputSpec::ToRecipient {
-            recipient: r,
-            value: send_value,
-            storage: None,
-        }],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            },
+            // F5-P5 output floor: production params require >= 2 outputs.
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: 0,
+                storage: None,
+            },
+        ],
         1_000,
         b"attack".to_vec(),
     )
@@ -1499,11 +1507,19 @@ fn ring_member_with_wrong_commit_rejected() {
             value: init_value,
             blinding: init_blinding,
         }],
-        vec![OutputSpec::ToRecipient {
-            recipient: r,
-            value: send_value,
-            storage: None,
-        }],
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: send_value,
+                storage: None,
+            },
+            // F5-P5 output floor: production params require >= 2 outputs.
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: 0,
+                storage: None,
+            },
+        ],
         1_000,
         b"inflated-c".to_vec(),
     )
@@ -2682,14 +2698,25 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
             value: init_value,
             blinding: init_blinding,
         }],
-        vec![OutputSpec::ToRecipient {
-            recipient: Recipient {
-                view_pub: recipient_wallet.view_pub,
-                spend_pub: recipient_wallet.spend_pub,
+        vec![
+            OutputSpec::ToRecipient {
+                recipient: Recipient {
+                    view_pub: recipient_wallet.view_pub,
+                    spend_pub: recipient_wallet.spend_pub,
+                },
+                value: init_value - fee,
+                storage: Some(sc),
             },
-            value: init_value - fee,
-            storage: Some(sc),
-        }],
+            // F5-P5 output floor: production params require >= 2 outputs.
+            OutputSpec::ToRecipient {
+                recipient: Recipient {
+                    view_pub: recipient_wallet.view_pub,
+                    spend_pub: recipient_wallet.spend_pub,
+                },
+                value: 0,
+                storage: None,
+            },
+        ],
         fee,
         Vec::new(),
     )

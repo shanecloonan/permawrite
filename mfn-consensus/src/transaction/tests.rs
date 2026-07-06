@@ -77,6 +77,88 @@ fn sign_and_verify_round_trip_single_input_two_outputs() {
     assert_eq!(res.key_images.len(), 1);
 }
 
+/// F5-P5 / B1: under a policy with the output floor active, a
+/// single-output transaction is a consensus reject — the wallet-layer
+/// two-output pad is now network-wide law, not courtesy.
+#[test]
+fn single_output_tx_rejected_when_output_floor_active() {
+    let floor_only = RingPolicy {
+        min_output_count: crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER,
+        ..RingPolicy::TEST
+    };
+    let inputs = vec![make_input(1_000_000, 4)];
+    let (_w, r) = recipient();
+    let outputs = vec![OutputSpec::ToRecipient {
+        recipient: r,
+        value: 999_000,
+        storage: None,
+    }];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+
+    // Same tx, floor off: valid.
+    assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);
+
+    // Floor on: rejected with the specific diagnostic.
+    let res = verify_transaction(&signed.tx, &floor_only);
+    assert!(!res.ok, "single-output tx must fail the output floor");
+    assert!(
+        res.errors
+            .iter()
+            .any(|e| e.contains("anti-fingerprinting floor")),
+        "expected the floor diagnostic, got: {:?}",
+        res.errors
+    );
+}
+
+/// The output floor engages exactly when the uniform-ring tier is on:
+/// production params derive `min_output_count == 2`, test params derive 0.
+#[test]
+fn ring_policy_derivation_ties_output_floor_to_uniform_tier() {
+    use crate::block::{DEFAULT_CONSENSUS_PARAMS, TEST_CONSENSUS_PARAMS};
+    assert_eq!(
+        DEFAULT_CONSENSUS_PARAMS.ring_policy().min_output_count,
+        crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER
+    );
+    assert_eq!(TEST_CONSENSUS_PARAMS.ring_policy().min_output_count, 0);
+    assert_eq!(
+        RingPolicy::PRODUCTION.min_output_count,
+        crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER
+    );
+    assert_eq!(
+        DEFAULT_CONSENSUS_PARAMS.ring_policy(),
+        RingPolicy::PRODUCTION,
+        "derived production policy must equal the PRODUCTION constant"
+    );
+}
+
+/// A two-output tx passes the floor (and everything else) under a
+/// floor-active policy.
+#[test]
+fn two_output_tx_passes_output_floor() {
+    let floor_only = RingPolicy {
+        min_output_count: crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER,
+        ..RingPolicy::TEST
+    };
+    let inputs = vec![make_input(1_000_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 399_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+    let res = verify_transaction(&signed.tx, &floor_only);
+    assert!(res.ok, "errors: {:?}", res.errors);
+}
+
 #[test]
 fn multi_input_multi_output_balances() {
     let inputs = vec![

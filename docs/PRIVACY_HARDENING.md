@@ -133,16 +133,16 @@ inherits the guarantee:
 
 #### What this change does NOT cover (honest limits)
 
-- **It is a wallet-layer default, not consensus law.** `verify_transaction`
-  still accepts a one-output transaction. A non-reference wallet can emit one,
-  and that transaction would still be distinguishable — which shrinks the
-  *global* anonymity set for everyone. Closing this network-wide requires the
-  consensus change in [§B1](#b1-consensus-enforced-minimum-output-count-p5).
+- ~~**It is a wallet-layer default, not consensus law.**~~ Closed:
+  [§B1](#b1-consensus-enforced-minimum-output-count-p5--shipped) lifted the
+  floor into `verify_transaction`, so under production uniform-ring params a
+  one-output transaction is now a consensus reject network-wide.
 - **Input count still leaks.** `tx.inputs.len()` is public and reveals how
   many UTXOs were consumed; the largest-first coin selection
   ([§B2](#b2-age-band-coin-selection)) tends to correlate this over time.
-- **Output *ordering* and other wallet-chosen bytes are not yet
-  canonicalized** ([§B3](#b3-canonical-encoding-conformance-p9)).
+- ~~**Output *ordering* and other wallet-chosen bytes are not yet
+  canonicalized**~~ Closed:
+  [§B3](#b3-canonical-encoding-conformance-p9--shipped).
 - **Fees remain public plaintext** ([§B6](#b6-hidden-fees-p6)).
 - **Network origin is unprotected** ([§B7](#b7-dandelion-transaction-relay-p3)).
 
@@ -176,26 +176,33 @@ Ordered roughly cheapest-and-safest first. Each item names the exact file(s)
 and the concrete change. Items marked **consensus** need a version gate and
 M5-style proptests. Cross-references to the `F5.md` menu are given as `F5:Pn`.
 
-### B1. Consensus-enforced minimum output count (`F5:P5`) — **consensus**
+### B1. Consensus-enforced minimum output count (`F5:P5`) — **shipped**
 
 **Problem.** [§A1](#a1-two-output-floor-no-single-output-transactions-wallet-layer)
-is wallet-only; consensus still admits one-output txs, so the anonymity-set
-benefit is not network-wide.
+was wallet-only; consensus still admitted one-output txs, so the anonymity-set
+benefit was not network-wide.
 
-**Plan.** Add `min_output_count: u32` to
-[`RingPolicy`](../mfn-consensus/src/block/state.rs) (`PRODUCTION = 2`,
-`TEST = 0` so existing single-output test vectors keep passing). Enforce it in
-[`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) next to the
-ring-size checks (`tx.outputs.len() as u32 >= ring.min_output_count`).
-Derive the value in `ConsensusParams::ring_policy()` — either add a matching
-`ConsensusParams` field (touches `genesis_spec.rs` + `checkpoint_codec.rs`
-serialization and the WASM `header_verify_core.rs` mirror, so version-gate it)
-or, lower-blast-radius, gate on `min_ring_size >= 16`.
+**Shipped.** [`RingPolicy`](../mfn-consensus/src/block/state.rs) gained
+`min_output_count: u32` (`PRODUCTION = MIN_TX_OUTPUTS_UNIFORM_TIER = 2`,
+`TEST = 0` so existing small-ring test vectors keep passing).
+[`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) enforces it
+next to the ring-size checks, so the floor guards both mempool admission and
+`apply_block` through the shared ingress point. The value is **derived**, not
+stored: `ConsensusParams::ring_policy()` engages the floor exactly when the
+uniform-ring tier is active (`uniform_ring_size != 0`), which keeps the
+checkpoint serialization of `ConsensusParams` unchanged (no codec version
+bump) and ties the two uniformity guarantees — ring shape and output-count
+shape — together. Coinbase is exempt (verified by `verify_coinbase_outputs`,
+never `verify_transaction`).
 
-**Blast radius.** Production-params tests that build valid single-output txs
-must gain a second output. Rejection-path tests that use `any(...)` on the
-error list are unaffected. Estimate: a handful of tests in
-`mfn-consensus/tests/block_apply.rs` and `mfn-node/tests/mempool_integration.rs`.
+Tests: `single_output_tx_rejected_when_output_floor_active`,
+`two_output_tx_passes_output_floor`, and
+`ring_policy_derivation_ties_output_floor_to_uniform_tier` (including
+`DEFAULT_CONSENSUS_PARAMS.ring_policy() == RingPolicy::PRODUCTION`) in
+`mfn-consensus/src/transaction/tests.rs`. Production-params test fixtures
+(`apply_block_proptest`, `emission_simulation`,
+`producer_treasury_settlement`, `block_apply`, mempool unit helpers) now emit
+the reference two-output shape (change + zero-value pad).
 
 **Effort:** moderate. **Risk:** medium (consensus + test churn).
 
@@ -452,14 +459,14 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
 | Cheap wins | B3 tail (decoy-RNG entropy-source contract) |
-| High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
+| High impact, moderate effort | B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B1** (lift the two-output floor into consensus so the
-guarantee is network-wide), then **B2** (age-band coin selection).
+Natural next step: **B2** (age-band coin selection), then **B7**
+(Dandelion++ relay).
 
 ## See also
 

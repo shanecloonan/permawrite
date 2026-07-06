@@ -363,18 +363,31 @@ impl PropSpendState {
     }
 
     /// Self-transfer with public fee; next state uses deterministic change keys.
+    ///
+    /// Emits the reference two-output shape (change + zero-value pad):
+    /// these chains run production uniform-ring params, so the F5-P5
+    /// consensus output floor applies.
     fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
         assert!(fee < self.value, "fee must leave positive change");
         let change_value = self.value - fee;
         let next_spend = hash_to_scalar(&[b"M5.5/change-spend", &next_seed.to_le_bytes()]);
         let change_addr = generator_g() * next_spend;
+        let pad_spend = hash_to_scalar(&[b"B1/pad-spend", &next_seed.to_le_bytes()]);
+        let pad_addr = generator_g() * pad_spend;
         let signed = sign_transaction(
             vec![self.input_spec()],
-            vec![OutputSpec::Raw {
-                one_time_addr: change_addr,
-                value: change_value,
-                storage: None,
-            }],
+            vec![
+                OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                },
+                OutputSpec::Raw {
+                    one_time_addr: pad_addr,
+                    value: 0,
+                    storage: None,
+                },
+            ],
             fee,
             Vec::new(),
         )
@@ -399,13 +412,22 @@ impl PropSpendState {
         let anchor_value = self.value - fee;
         let next_spend = hash_to_scalar(&[b"M5.33/change-spend", &next_seed.to_le_bytes()]);
         let change_addr = generator_g() * next_spend;
+        let pad_spend = hash_to_scalar(&[b"B1/upload-pad-spend", &next_seed.to_le_bytes()]);
+        let pad_addr = generator_g() * pad_spend;
         let signed = sign_transaction(
             vec![self.input_spec()],
-            vec![OutputSpec::Raw {
-                one_time_addr: change_addr,
-                value: anchor_value,
-                storage: Some(storage),
-            }],
+            vec![
+                OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: anchor_value,
+                    storage: Some(storage),
+                },
+                OutputSpec::Raw {
+                    one_time_addr: pad_addr,
+                    value: 0,
+                    storage: None,
+                },
+            ],
             fee,
             Vec::new(),
         )

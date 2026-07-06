@@ -73,29 +73,51 @@ pub struct StorageEntry {
     pub pending_yield_ppb: u128,
 }
 
+/// Minimum output count enforced on regular transactions whenever the
+/// uniform-ring privacy tier is active (**F5-P5** first half / B1).
+///
+/// A single-output transaction reveals a no-change sweep or exact-amount
+/// payment — a fingerprint that partitions the anonymity set. The
+/// reference wallets have always padded to two outputs
+/// (`mfn_wallet::WALLET_MIN_TX_OUTPUTS`); this constant lifts that floor
+/// into consensus so the guarantee is network-wide, not
+/// wallet-by-courtesy. Tied to the uniform-ring tier by the same
+/// argument that justified uniform rings: any tx-shape degree of freedom
+/// the sender controls is a degree of freedom that distinguishes senders.
+pub const MIN_TX_OUTPUTS_UNIFORM_TIER: u32 = 2;
+
 /// Consensus-enforced CLSAG ring policy (privacy Tier 1).
 ///
 /// `uniform_ring_size > 0` requires every input ring to have exactly that
 /// many members; otherwise only `min_ring_size` is enforced.
+/// `min_output_count > 0` additionally requires every regular tx to carry
+/// at least that many outputs (coinbase is exempt — it is verified by
+/// `verify_coinbase_outputs`, never `verify_transaction`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RingPolicy {
     /// Minimum ring members per input (including the real spend).
     pub min_ring_size: u32,
     /// When non-zero, every input ring must have exactly this size.
     pub uniform_ring_size: u32,
+    /// When non-zero, every regular tx must have at least this many
+    /// outputs (**F5-P5** / B1 anti-fingerprinting floor).
+    pub min_output_count: u32,
 }
 
 impl RingPolicy {
-    /// Production defaults: Monero-parity uniform rings of 16.
+    /// Production defaults: Monero-parity uniform rings of 16 and the
+    /// two-output floor.
     pub const PRODUCTION: Self = Self {
         min_ring_size: 16,
         uniform_ring_size: 16,
+        min_output_count: MIN_TX_OUTPUTS_UNIFORM_TIER,
     };
 
-    /// Test harness: allow small rings; uniform not enforced.
+    /// Test harness: allow small rings; uniform + output floor not enforced.
     pub const TEST: Self = Self {
         min_ring_size: 2,
         uniform_ring_size: 0,
+        min_output_count: 0,
     };
 }
 
@@ -128,11 +150,23 @@ pub struct ConsensusParams {
 
 impl ConsensusParams {
     /// Ring policy derived from these consensus params.
+    ///
+    /// The output floor is derived, not stored: chains running the
+    /// uniform-ring privacy tier (`uniform_ring_size != 0`) also enforce
+    /// [`MIN_TX_OUTPUTS_UNIFORM_TIER`] outputs per regular tx. Deriving
+    /// keeps `ConsensusParams`' checkpoint serialization unchanged (no
+    /// codec version bump) and makes the two uniformity guarantees —
+    /// ring shape and output-count shape — engage together.
     #[inline]
     pub fn ring_policy(&self) -> RingPolicy {
         RingPolicy {
             min_ring_size: self.min_ring_size,
             uniform_ring_size: self.uniform_ring_size,
+            min_output_count: if self.uniform_ring_size != 0 {
+                MIN_TX_OUTPUTS_UNIFORM_TIER
+            } else {
+                0
+            },
         }
     }
 }

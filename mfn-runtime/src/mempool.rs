@@ -895,11 +895,19 @@ mod tests {
         let value = input.value - fee;
         sign_transaction(
             vec![input],
-            vec![OutputSpec::ToRecipient {
-                recipient: r,
-                value,
-                storage: None,
-            }],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value,
+                    storage: None,
+                },
+                // F5-P5 output floor: production params require >= 2 outputs.
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value: 0,
+                    storage: None,
+                },
+            ],
             fee,
             Vec::new(),
         )
@@ -1091,11 +1099,19 @@ mod tests {
         let value = input.value - fee;
         sign_transaction(
             vec![input],
-            vec![OutputSpec::ToRecipient {
-                recipient: recipient(),
-                value,
-                storage: Some(storage),
-            }],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value,
+                    storage: Some(storage),
+                },
+                // F5-P5 output floor: production params require >= 2 outputs.
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: 0,
+                    storage: None,
+                },
+            ],
             fee,
             Vec::new(),
         )

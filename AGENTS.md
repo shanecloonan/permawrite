@@ -96,7 +96,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | F5-P9 canonical-encoding conformance suite (`mfn-wallet/tests/canonical_conformance.rs`) | **Done** - `1c9d578` | B1 consensus min-output floor (needs version gate) |
+| **5** | F5-P5/B1 consensus min-output floor (`RingPolicy.min_output_count`, uniform-tier derived) | **Done** - this commit | B2 age-band coin selection |
 | **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
 
 ---
@@ -130,7 +130,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5-PM9** (this commit) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.
+- **F5-P5/B1** (this commit) - privacy surface (lane 5): consensus-enforced minimum output count — `RingPolicy.min_output_count` (2 under the uniform-ring tier, derived from `uniform_ring_size != 0` so no checkpoint codec change) enforced in `verify_transaction`; single-output txs are now a network-wide reject under production params; coinbase exempt; production-params test fixtures updated to the reference two-output shape.
+- **F5-PM9** (`eaecece`) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.
 - **F5-P9** (`1c9d578`) - privacy surface (lane 5): canonical-encoding conformance suite closes B3 — pins tx version, empty-`extra` default, uniform ring-16 (== consensus production policy), two-output floor, real `enc_amount` ciphertexts, and byte-canonical wire form for reference transfers + uploads; all frontends covered by construction via the two pinned constructors.
 - **F5-PM10** (`b260033`) - permanence depth (lane 6): self-verifying chain+chunk archive — `mfnd archive-export --archive-dir DIR` (canonical block log + Merkle-verified chunk sets + `manifest.json`), `mfnd archive-verify` replays from the genesis spec through the full consensus STF and re-derives chunk Merkle roots offline. Archive reuses `mfn-store` fs formats so it doubles as a cold-start bootstrap.
 - **F5:B3** (`d7ee698`) - privacy surface (lane 5): reference wallets shuffle output order with the plan RNG in `spend::build_transfer` — "last output is change" no longer holds for any reference tx; position-distribution test added.

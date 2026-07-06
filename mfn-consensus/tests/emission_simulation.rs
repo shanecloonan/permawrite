@@ -678,18 +678,30 @@ impl SpendState {
     }
 
     /// Self-transfer with public fee; returns the signed tx and the change UTXO state.
+    ///
+    /// Emits the reference two-output shape (change + zero-value pad):
+    /// these simulations run production uniform-ring params, so the
+    /// F5-P5 consensus output floor applies.
     fn sign_self_transfer(&self, fee: u64) -> (SignedTransaction, Self) {
         assert!(fee < self.value, "fee must leave positive change");
         let change_value = self.value - fee;
         let next_spend = random_scalar();
         let change_addr = generator_g() * next_spend;
+        let pad_addr = generator_g() * random_scalar();
         let signed = sign_transaction(
             vec![self.input_spec()],
-            vec![OutputSpec::Raw {
-                one_time_addr: change_addr,
-                value: change_value,
-                storage: None,
-            }],
+            vec![
+                OutputSpec::Raw {
+                    one_time_addr: change_addr,
+                    value: change_value,
+                    storage: None,
+                },
+                OutputSpec::Raw {
+                    one_time_addr: pad_addr,
+                    value: 0,
+                    storage: None,
+                },
+            ],
             fee,
             Vec::new(),
         )

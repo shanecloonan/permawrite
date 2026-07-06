@@ -46,6 +46,17 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
     if tx.outputs.is_empty() {
         errors.push("no outputs".to_string());
     }
+    // Anti-fingerprinting output floor (F5-P5 / B1): under the uniform-ring
+    // tier every regular tx must carry at least `min_output_count` outputs,
+    // so a no-change sweep is indistinguishable from payment + change
+    // network-wide (wallets already pad; this makes it consensus).
+    if ring.min_output_count != 0 && (tx.outputs.len() as u32) < ring.min_output_count {
+        errors.push(format!(
+            "output count {} < consensus minimum {} (uniform-tier anti-fingerprinting floor)",
+            tx.outputs.len(),
+            ring.min_output_count
+        ));
+    }
 
     // Range proofs: bound to the on-chain amount commitment.
     for (i, out) in tx.outputs.iter().enumerate() {
