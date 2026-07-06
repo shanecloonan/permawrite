@@ -8,14 +8,14 @@
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
-| **M2.5.49–58** | **Done** | RC stack through schema-python resolver (`c0e73eb`) |
-| **M2.5.59** | **Done** | `b1c8e6a` — invoke fix + release evidence prep |
-| **CI #670** | **In progress** | On `b1c8e6a` |
-| **Nightly #63** | Waiting | After green CI #669 |
+| **M2.5.49–59** | **Done** | RC stack through invoke fix (`b1c8e6a`) |
+| **M2.5.59** | **Done** | `b1c8e6a` — invoke fix + `.gitignore` debris patterns |
+| **CI #680** | **In progress** | On `e101f3a` (board sync) |
+| **Nightly #63** | Waiting | After green CI #680 on `b1c8e6a` |
 
 ### RC push hold
 
-Hold **code** pushes until **CI #670** green.
+Hold **code** pushes until **CI #680** green.
 
 ---
 
@@ -23,8 +23,8 @@ Hold **code** pushes until **CI #670** green.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–58 | Monitor **CI #669** | **Nightly #63** (B-06) |
-| **2** RC ops | M2.5.57–59 | — | Re-run release evidence when CI green |
+| **1** RC core | M2.5.49–59 | Monitor **CI #680** on `e101f3a` | **Nightly #63** (B-06) |
+| **2** RC ops | M2.5.57–59 | **M2.5.60** gitignore + audit doc closure | Release evidence when CI green |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
 ---
@@ -42,8 +42,8 @@ Hold **code** pushes until **CI #670** green.
 ## B-06 checklist
 
 - [x] Nightly #62 executed (FAIL ~16.3m)
-- [x] M2.5.49–58 on `main`
-- [x] Release evidence refresh (local; CI pending)
+- [x] M2.5.49–59 on `main` (code `b1c8e6a`)
+- [ ] Release evidence refresh for `b1c8e6a` after green CI
 - [ ] **Nightly #63** all three green
 - [ ] B-05 Linux soak evidence
 

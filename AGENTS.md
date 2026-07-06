@@ -82,15 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #670** in progress on `b1c8e6a` (M2.5.59 invoke fix). **CI #669** cancelled. **Nightly #63** (B-06) after green CI on M2.5.49–59 stack.
+**CI #680** in progress on `e101f3a` (board sync for M2.5.59). **CI #679** cancelled (rapid pushes). **Nightly #63** (B-06) after green CI on M2.5.49–59 stack (`b1c8e6a`).
 
-**RC push hold:** hold **code** pushes until CI #670 green.
+**RC push hold:** hold **code** pushes until CI #680 green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #670** on `b1c8e6a` | After green: Nightly #63 + B-05 soak |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #680** on `e101f3a` | After green: Nightly #63 + B-05 soak |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
@@ -106,7 +106,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–58 stack (code `c0e73eb`) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–59 stack (code `b1c8e6a`) |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52–53 dispatch + `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
@@ -127,7 +127,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M2.5.59** (`b1c8e6a`) - fix `powershell -File` invoke for resolve-schema-python; stage in archive dry-run; release evidence refresh (lane 2).
+- **M2.5.59** (`b1c8e6a`) - fix `powershell -NoProfile -File` invoke for resolve-schema-python; archive dry-run staging; `.gitignore` debris patterns (lane 2).
 - **M2.5.58** (`c0e73eb`) - `resolve-schema-python.ps1`; wire release-schema scripts + ci-check (lane 2).
 - **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure; debris purge; gitignore test logs (lane 2).
 - **M2.5.56** (`6fe1b18`) - B-10: pin workspace `anyhow` 1.0.103 (RUSTSEC-2026-0190); lane 6.
