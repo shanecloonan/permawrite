@@ -7,17 +7,17 @@
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` (pre M2.5.50 early P2P) |
-| **M2.5.49** | **Done** (`8650543`) | GHA health + hub_liveness soft gates at tip>=1 |
-| **M2.5.50** | **Done** (`dbf6067`) | Early `mfnd_p2p_listening`; POST_START health 120s |
-| **M2.5.51** | **Done** (`0d9646a`) | `hub_tip_wait` uses `MFN_POLL_HUB_MAX`; observer catchup soft gate |
+| **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
+| **M2.5.49–51** | **Done** | RC smoke soft gates + early P2P + hub_tip poll parity |
 | **M2.5.52** | **Done** (`2904ea3`) | B-07 dispatch params + method-meta split |
-| **CI #652** | **In progress** | On `bcf0bf5` (RC `0d9646a` + M2.5.52 `2904ea3`) |
-| **Nightly #63** | Waiting | After green CI #652 (do not push until green) |
+| **M2.5.53** | **Done** (`4cf43b3`) | B-07 `cli/parse.rs` split; restore accidental delete |
+| **CI #657** | **In progress** | On `4cf43b3` |
+| **M2.5.54** | **Landing** | cli.rs mod order + test import fix |
+| **Nightly #63** | Waiting | After green CI on RC stack |
 
 ### RC push embargo
 
-**No pushes to `main` until CI #652 green** — doc-only sync only after green or on CI failure fixes.
+Hold until **CI #657** result; M2.5.54 fix push only if #657 red on clippy/tests.
 
 ---
 
@@ -25,30 +25,27 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #652** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–51 | Monitor CI #657 | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
-| **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
+| **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS |
 
 ---
 
-## Nightly failure pattern (~16.3m)
+## Lanes 4–6 snapshot
 
-| Run | SHA | Stack | Result |
+| Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| #58–61 | partial fixes | pre-38 / wrong SHA | FAIL ~16.3m |
-| #62 | `3a1f213` | M2.5.38 + 43–45 | **FAIL** ~16.3m |
-| #63 | pending | M2.5.49–52 | pending |
-
-**Fix stack for #63:** M2.5.50 early P2P · M2.5.49 soft gates · M2.5.51 hub_tip poll · POST_START health trim.
+| **4** Protocol | M2.5.52–53 B-07 splits | M2.5.54 cli.rs hygiene | B-07 `cli.rs` remainder |
+| **5** Privacy | Wallet README ring-16 | — | Monitor Nightly #63 |
+| **6** Permanence | M5.48 emission tier | — | B-05 Linux soak |
 
 ---
 
 ## B-06 checklist
 
-- [x] M2.5.38 + M2.5.43–45 on `main`
-- [x] Nightly #62 executed (FAIL ~16.3m on `3a1f213`)
-- [x] M2.5.49–52 on `main` (RC stack through `2904ea3`)
-- [ ] **Nightly #63** all three green on M2.5.49–52 stack
+- [x] Nightly #62 executed (FAIL ~16.3m)
+- [x] M2.5.49–53 on `main`
+- [ ] **Nightly #63** all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 
