@@ -81,6 +81,51 @@ The headline: **almost all scheduled supply is issued in the first 24.35 years**
 | 500 | 1.041B MFN | 0.0493% |
 | 1000 | 1.298B MFN | 0.0396% |
 
+## Deep Time (Extended Horizon)
+
+Past year 24.35 the schedule is a straight line, so any future year is exact
+arithmetic, not a projection:
+
+```text
+supply(Y) = 796,875,000 MFN + 513,281.25 MFN x (Y - 24.3531)   for Y >= 24.3531
+```
+
+where `513,281.25 MFN/year = 0.19531250 MFN/block x 2,628,000 blocks/year`.
+Supply is unbounded but the growth is constant in absolute terms, so the
+annualized issuance rate decays like `1/Y` forever.
+
+| Year | Approx. height | Scheduled supply | Annualized subsidy rate |
+|---:|---:|---:|---:|
+| 2,000 | 5.256B | 1.811B MFN | 0.0283% |
+| 5,000 | 13.14B | 3.351B MFN | 0.0153% |
+| 10,000 | 26.28B | 5.917B MFN | 0.0087% |
+| 25,000 | 65.70B | 13.616B MFN | 0.0038% |
+| 50,000 | 131.40B | 26.448B MFN | 0.0019% |
+| 100,000 | 262.80B | 52.113B MFN | 0.00098% |
+| 250,000 | 657.00B | 129.105B MFN | 0.00040% |
+| 500,000 | 1.314T | 257.425B MFN | 0.00020% |
+| 1,000,000 | 2.628T | 514.066B MFN | 0.00010% |
+| 10,000,000 | 26.28T | 5.134T MFN | 0.00001% |
+
+### Milestone crossings
+
+| Milestone | Year (approx.) |
+|---|---:|
+| 1B MFN total supply | ~420 |
+| 2x the pre-tail cap (1.594B MFN) | ~1,577 |
+| 10B MFN | ~17,955 |
+| 100B MFN | ~193,297 |
+| 1T MFN | ~1,946,713 |
+
+### Deep-time implementation note
+
+Total supply expressed in base units (10^-8 MFN) crosses `u64::MAX`
+(~184.47B MFN) around year **~357,900**. This is why
+`mfn-consensus::emission::cumulative_emission` returns `u128`: individual
+coinbase outputs stay comfortably inside `u64`, but the running total is
+tracked in 128 bits so the schedule stays well-defined on any horizon a
+permanence chain cares about.
+
 ## Era Landmarks
 
 | Era | Block range | Reward | Cumulative supply at era end |
