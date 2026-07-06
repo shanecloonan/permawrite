@@ -30,7 +30,8 @@ mod stdout_timeout;
 
 use stdout_timeout::{
     p2p_line_timeout, p2p_sync_end_timeout, read_mfnd_serve_listening_addr,
-    read_stdout_line_with_prefix, read_stdout_until_p2p_sync_end, serve_listen_timeout,
+    read_stdout_line_with_prefix, read_stdout_lines_with_prefixes_any_order,
+    read_stdout_until_p2p_sync_end, serve_listen_timeout,
 };
 
 /// Seeds aligned with `testdata/devnet_one_validator.json` validator index 0.
@@ -224,7 +225,7 @@ fn spawn_mfnd_serve_with_store(
 }
 
 /// Spawns `mfnd serve` with `--rpc-listen` and `--p2p-listen` on ephemeral ports; reads
-/// `mfnd_serve_listening=` then `mfnd_p2p_listening=` from stdout. Returns stdout and stderr
+/// `mfnd_serve_listening=` and `mfnd_p2p_listening=` from stdout (any order). Returns stdout and stderr
 /// [`BufReader`]s so callers can read further lines (e.g. **`mfnd_p2p_peer_tip`** or
 /// **`mfnd_p2p_handshake_abort`**).
 fn spawn_mfnd_serve_with_p2p(
@@ -255,17 +256,25 @@ fn spawn_mfnd_serve_with_p2p(
     let stderr = child.stderr.take().expect("stderr pipe");
     let mut out_reader = BufReader::new(stdout);
     let err_reader = BufReader::new(stderr);
-    let rpc_addr = read_mfnd_serve_listening_addr(&mut out_reader, serve_listen_timeout());
-    let p2p_line = read_stdout_line_with_prefix(
+    // M2.5.50 announces `mfnd_p2p_listening=` before `mfnd_serve_listening=`;
+    // collect both order-independently so neither line is silently discarded.
+    let lines = read_stdout_lines_with_prefixes_any_order(
         &mut out_reader,
-        "mfnd_p2p_listening=",
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
         serve_listen_timeout(),
     );
-    let p2p_s = p2p_line
+    let rpc_addr: SocketAddr = lines[0]
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim()
+        .parse()
+        .expect("parse socket addr");
+    let p2p_addr: SocketAddr = lines[1]
         .strip_prefix("mfnd_p2p_listening=")
         .expect("p2p listening prefix")
-        .trim();
-    let p2p_addr: SocketAddr = p2p_s.parse().expect("parse p2p socket addr");
+        .trim()
+        .parse()
+        .expect("parse p2p socket addr");
     (child, out_reader, err_reader, rpc_addr, p2p_addr)
 }
 
@@ -1362,9 +1371,17 @@ fn mfnd_p2p_reconnects_saved_peers_on_restart() {
         .expect("spawn mfnd serve reconnect");
     let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
     let mut out_b2 = BufReader::new(stdout_b2);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", p2p_line_timeout());
-    let _ = read_mfnd_serve_listening_addr(&mut out_b2, serve_listen_timeout());
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", p2p_line_timeout());
+    // M2.5.50: p2p_listening now precedes serve_listening; read startup
+    // announcements order-independently before the reconnect handshake.
+    let _ = read_stdout_lines_with_prefixes_any_order(
+        &mut out_b2,
+        &[
+            "mfnd_peers_load_ok ",
+            "mfnd_serve_listening=",
+            "mfnd_p2p_listening=",
+        ],
+        p2p_line_timeout(),
+    );
     read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", p2p_line_timeout());
     read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     thread::spawn(move || {
@@ -1411,9 +1428,13 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("spawn peer A");
     let stdout_a = child_a.stdout.take().expect("stdout a");
     let mut out_a = BufReader::new(stdout_a);
-    let _rpc_a = read_mfnd_serve_listening_addr(&mut out_a, serve_listen_timeout());
-    let p2p_a_line =
-        read_stdout_line_with_prefix(&mut out_a, "mfnd_p2p_listening=", p2p_line_timeout());
+    // M2.5.50: p2p_listening now precedes serve_listening on stdout.
+    let startup_a = read_stdout_lines_with_prefixes_any_order(
+        &mut out_a,
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
+        serve_listen_timeout(),
+    );
+    let p2p_a_line = &startup_a[1];
     assert!(
         p2p_a_line.contains(&stable_p2p_a.to_string()),
         "peer A should bind stable P2P addr, got {p2p_a_line:?}"
@@ -1476,8 +1497,12 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("restart peer A at same P2P addr");
     let stdout_a2 = child_a2.stdout.take().expect("stdout a2");
     let mut out_a2 = BufReader::new(stdout_a2);
-    let _rpc_a2 = read_mfnd_serve_listening_addr(&mut out_a2, serve_listen_timeout());
-    read_stdout_line_with_prefix(&mut out_a2, "mfnd_p2p_listening=", p2p_line_timeout());
+    // M2.5.50: startup announcement order changed; collect both lines.
+    let _ = read_stdout_lines_with_prefixes_any_order(
+        &mut out_a2,
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
+        serve_listen_timeout(),
+    );
     thread::spawn(move || {
         let mut line = String::new();
         while let Ok(n) = out_a2.read_line(&mut line) {
@@ -1503,9 +1528,22 @@ fn mfnd_p2p_restart_reconnect_catches_up_from_saved_peer() {
         .expect("restart peer B saved reconnect");
     let stdout_b2 = child_b2.stdout.take().expect("stdout b2");
     let mut out_b2 = BufReader::new(stdout_b2);
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_peers_load_ok ", p2p_line_timeout());
-    let rpc_b2 = read_mfnd_serve_listening_addr(&mut out_b2, serve_listen_timeout());
-    read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_listening=", p2p_line_timeout());
+    // M2.5.50: startup announcement order changed; collect order-independently.
+    let startup = read_stdout_lines_with_prefixes_any_order(
+        &mut out_b2,
+        &[
+            "mfnd_peers_load_ok ",
+            "mfnd_serve_listening=",
+            "mfnd_p2p_listening=",
+        ],
+        p2p_line_timeout(),
+    );
+    let rpc_b2: SocketAddr = startup[1]
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim()
+        .parse()
+        .expect("parse socket addr");
     read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_reconnect_start ", p2p_line_timeout());
     read_stdout_line_with_prefix(&mut out_b2, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     let sync_b2 = read_stdout_until_p2p_sync_end(&mut out_b2, p2p_sync_end_timeout());
@@ -1555,12 +1593,21 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
         .expect("spawn relay mfnd serve");
     let stdout_b = child_b.stdout.take().expect("stdout b");
     let mut out_b = BufReader::new(stdout_b);
-    let rpc_b = read_mfnd_serve_listening_addr(&mut out_b, serve_listen_timeout());
-    let p2p_b_line =
-        read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_listening=", p2p_line_timeout());
-    let p2p_b: SocketAddr = p2p_b_line
+    // M2.5.50: p2p_listening now precedes serve_listening on stdout.
+    let startup_b = read_stdout_lines_with_prefixes_any_order(
+        &mut out_b,
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
+        serve_listen_timeout(),
+    );
+    let rpc_b: SocketAddr = startup_b[0]
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim()
+        .parse()
+        .expect("parse socket addr");
+    let p2p_b: SocketAddr = startup_b[1]
         .strip_prefix("mfnd_p2p_listening=")
-        .unwrap()
+        .expect("p2p listening prefix")
         .trim()
         .parse()
         .expect("parse p2p b");
@@ -1589,8 +1636,18 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
         .expect("spawn leaf mfnd serve");
     let stdout_c = child_c.stdout.take().expect("stdout c");
     let mut out_c = BufReader::new(stdout_c);
-    let rpc_c = read_mfnd_serve_listening_addr(&mut out_c, serve_listen_timeout());
-    read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_listening=", p2p_line_timeout());
+    // M2.5.50: p2p_listening now precedes serve_listening on stdout.
+    let startup_c = read_stdout_lines_with_prefixes_any_order(
+        &mut out_c,
+        &["mfnd_serve_listening=", "mfnd_p2p_listening="],
+        serve_listen_timeout(),
+    );
+    let rpc_c: SocketAddr = startup_c[0]
+        .strip_prefix("mfnd_serve_listening=")
+        .expect("listening prefix")
+        .trim()
+        .parse()
+        .expect("parse socket addr");
     read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     let sync_c = read_stdout_until_p2p_sync_end(&mut out_c, p2p_sync_end_timeout());
     assert!(

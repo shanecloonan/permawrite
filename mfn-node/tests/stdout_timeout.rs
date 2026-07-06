@@ -37,6 +37,54 @@ pub fn read_mfnd_serve_listening_addr(
         .expect("parse socket addr")
 }
 
+/// Read until every prefix in `prefixes` has been seen once (any order);
+/// returns the first matching line per prefix, in `prefixes` order.
+///
+/// M2.5.50 moved `mfnd_p2p_listening=` ahead of `mfnd_serve_listening=` on
+/// stdout, so sequential prefix reads that assume the old order silently
+/// discard the earlier line and then block forever. Startup announcements
+/// must be collected order-independently.
+pub fn read_stdout_lines_with_prefixes_any_order(
+    out: &mut BufReader<ChildStdout>,
+    prefixes: &[&str],
+    timeout: Duration,
+) -> Vec<String> {
+    let deadline = Instant::now() + timeout;
+    let mut found: Vec<Option<String>> = vec![None; prefixes.len()];
+    let mut line = String::new();
+    while found.iter().any(|f| f.is_none()) {
+        if Instant::now() >= deadline {
+            let missing: Vec<&str> = prefixes
+                .iter()
+                .zip(&found)
+                .filter(|(_, f)| f.is_none())
+                .map(|(p, _)| *p)
+                .collect();
+            panic!("timeout ({timeout:?}) waiting for {missing:?} (last line={line:?})");
+        }
+        line.clear();
+        let n = out.read_line(&mut line).expect("read mfnd stdout");
+        if n == 0 {
+            let missing: Vec<&str> = prefixes
+                .iter()
+                .zip(&found)
+                .filter(|(_, f)| f.is_none())
+                .map(|(p, _)| *p)
+                .collect();
+            panic!("mfnd exited before {missing:?} (last line={line:?})");
+        }
+        for (i, prefix) in prefixes.iter().enumerate() {
+            if found[i].is_none() && line.starts_with(prefix) {
+                found[i] = Some(line.clone());
+            }
+        }
+    }
+    found
+        .into_iter()
+        .map(|f| f.expect("collected line"))
+        .collect()
+}
+
 /// Read until a line starts with `prefix`, or panic on timeout / early exit.
 pub fn read_stdout_line_with_prefix(
     out: &mut BufReader<ChildStdout>,

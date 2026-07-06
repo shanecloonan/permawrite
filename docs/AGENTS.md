@@ -164,9 +164,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.60** - B-08 lock-in: `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts.
 - [x] **M5.49 + M7.12** (`890a56c`) - permanence hardening: `validate_storage_commitment_shape` consensus + mempool gate (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk data_root verify, no overwrite of held bytes); fan-out verifies inbox Merkle root against `data_root` before replicating.
 
-### Doing
-
-- [ ] **M2.5.61** - fix M2.5.50 stdout-order regression: `mfnd serve` now prints `mfnd_p2p_listening=` before `mfnd_serve_listening=`, so sequential prefix reads in `mfnd_smoke` consume the P2P line and hang (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — Windows ci-check red twice). New `read_stdout_lines_with_prefixes_any_order` harness helper; all `--p2p-listen` spawns collect startup announcements order-independently. Local ci-check in progress.
+- [x] **M2.5.61** - fix M2.5.50 stdout-order regression: `mfnd serve` prints `mfnd_p2p_listening=` before `mfnd_serve_listening=`, so sequential prefix reads in `mfnd_smoke` consumed the P2P line and hung (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — Windows ci-check red twice). New `read_stdout_lines_with_prefixes_any_order` harness helper; all `--p2p-listen` spawns collect startup announcements order-independently. Full smoke suite 46 pass / 0 fail locally.
 
 ### Next
 

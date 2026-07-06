@@ -82,9 +82,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #684** in progress on `890a56c` (M5.49 + M7.12). **CI #665–683** **cancelled** (rapid pushes; #681 had fmt/clippy/audit/scripts/wasm green before the test matrix was cancelled). **Nightly #63** (B-06) after first green CI on M2.5.49–61 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI on M2.5.61 commit** is the first run since M2.5.50 whose test matrix can pass (see below). **CI #665+ all cancelled** by rapid pushes (F5 stack through `b260033`); none reached a completed test matrix. **Nightly #63** (B-06) after first green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
-**Known red risk:** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consume the P2P line and hang (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener`). Fix is **M2.5.61** (order-independent startup reads) — land immediately after CI #684 resolves.
+**Red-CI root cause (fixed by M2.5.61):** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consumed the P2P line and hung forever (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — reproduced twice on Windows ci-check). Any CI test matrix on M2.5.50..M2.5.61 would hang to job timeout, so the M2.5.61 push intentionally supersedes those doomed runs.
 
 **RC push hold:** no pushes while CI runs on `main` (`cancel-in-progress`).
 
@@ -95,7 +95,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #682+** | After green: Nightly #63 + B-05 soak |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **In progress** — local ci-check running | Then B-11 endowment-opening consensus binding |
+| **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **Done** - this commit (full smoke suite 46 pass / 0 fail locally) | B-11 endowment-opening consensus binding |
 | **5** | F5:B3 output-order shuffle (change position carries no signal) | **Done** - `d7ee698` | B1 consensus min-output floor (needs version gate) |
 | **6** | F5-PM10 self-verifying archive export (`mfnd archive-export` / `archive-verify`) | **Done** - this commit | B-05 soak evidence |
 
