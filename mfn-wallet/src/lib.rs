@@ -75,6 +75,19 @@ pub mod wallet;
 /// Minimum CLSAG ring size enforced by reference wallets (matches consensus `min_ring_size`).
 pub const WALLET_MIN_RING_SIZE: usize = 16;
 
+/// Minimum number of outputs the reference wallet will place in a
+/// value-transfer transaction (privacy floor, Monero-parity).
+///
+/// A transaction with a single output leaks that it is a no-change
+/// sweep or an exact-amount payment — a strong fingerprint that lets an
+/// observer distinguish those spends from ordinary "payment + change"
+/// transfers and shrinks the plausible-recipient set. The reference
+/// wallet therefore never broadcasts a one-output transfer: it pads to
+/// two outputs with a zero-value output back to the sender. Output
+/// amounts are Pedersen-committed, so the padding output is
+/// indistinguishable on-chain from any other output.
+pub const WALLET_MIN_TX_OUTPUTS: usize = 2;
+
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use decoy::{
     build_decoy_pool, build_decoy_pool_from_sources, DecoyPoolBuilder, RingMember, UtxoDecoySource,

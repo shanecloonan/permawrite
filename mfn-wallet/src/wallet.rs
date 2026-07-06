@@ -294,6 +294,23 @@ impl Wallet {
             });
         }
 
+        // Privacy floor: never broadcast a single-output transfer. A lone
+        // output reveals a no-change sweep / exact-amount payment, which
+        // fingerprints the spend and shrinks its plausible-recipient set.
+        // Pad to `WALLET_MIN_TX_OUTPUTS` with zero-value outputs back to
+        // this wallet; amounts are Pedersen-committed, so the padding is
+        // indistinguishable on-chain and does not disturb the balance
+        // equation (it contributes value 0).
+        while all_recipients.len() < crate::WALLET_MIN_TX_OUTPUTS {
+            all_recipients.push(TransferRecipient {
+                recipient: mfn_consensus::Recipient {
+                    view_pub: self.keys.view_pub(),
+                    spend_pub: self.keys.spend_pub(),
+                },
+                value: 0,
+            });
+        }
+
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
 
         let pool = build_decoy_pool(

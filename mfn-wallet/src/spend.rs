@@ -200,7 +200,7 @@ where
         });
     }
 
-    let output_specs: Vec<OutputSpec> = plan
+    let mut output_specs: Vec<OutputSpec> = plan
         .recipients
         .iter()
         .map(|r| OutputSpec::ToRecipient {
@@ -210,10 +210,153 @@ where
         })
         .collect();
 
+    // Privacy floor (universal backstop for every reference caller —
+    // wallet, WASM, CLI): never sign a single-output transfer. A lone
+    // output reveals a no-change sweep or exact-amount payment and
+    // fingerprints the spend against ordinary "payment + change"
+    // transfers. Pad to `WALLET_MIN_TX_OUTPUTS` with zero-value outputs
+    // addressed to a recipient already on this tx (no new counterparty is
+    // exposed). Output amounts are Pedersen-committed, so the padding is
+    // indistinguishable on-chain, and value 0 leaves the balance equation
+    // (`Σ inputs == Σ outputs + fee`) untouched. `recipients` is
+    // non-empty (checked above), so indexing `[0]` is safe.
+    while output_specs.len() < crate::WALLET_MIN_TX_OUTPUTS {
+        output_specs.push(OutputSpec::ToRecipient {
+            recipient: plan.recipients[0].recipient,
+            value: 0,
+            storage: None,
+        });
+    }
+
     Ok(sign_transaction(
         input_specs,
         output_specs,
         plan.fee,
         plan.extra.to_vec(),
     )?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{wallet_from_seed, OwnedOutput};
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_consensus::{verify_transaction, RingPolicy};
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+
+    fn owned(value: u64) -> OwnedOutput {
+        let one_time_spend = random_scalar();
+        let blinding = random_scalar();
+        let one_time_addr = generator_g() * one_time_spend;
+        let commit = (generator_g() * blinding) + (generator_h() * Scalar::from(value));
+        let key_image =
+            crate::owned::key_image_for_owned(&one_time_addr, one_time_spend).expect("key image");
+        OwnedOutput {
+            one_time_addr,
+            commit,
+            value,
+            blinding,
+            one_time_spend,
+            key_image,
+            tx_id: [0u8; 32],
+            output_idx: 0,
+            height: 1,
+        }
+    }
+
+    fn pool(n: usize) -> Vec<DecoyCandidate<RingMember>> {
+        (0..n)
+            .map(|i| {
+                let p = generator_g() * random_scalar();
+                let c = (generator_g() * random_scalar())
+                    + (generator_h() * Scalar::from((i as u64) + 1));
+                DecoyCandidate {
+                    data: (p, c),
+                    height: 1,
+                }
+            })
+            .collect()
+    }
+
+    /// A single-recipient, exact-amount (no-change) transfer must be
+    /// padded up to the two-output privacy floor and still verify under
+    /// the production ring policy. This is the anti-fingerprinting
+    /// guarantee: no reference caller ever broadcasts a one-output tx.
+    #[test]
+    fn single_recipient_transfer_is_padded_to_two_outputs() {
+        let input = owned(1_000_000);
+        let refs = [&input];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[7u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let fee = 1_000u64;
+        // value == input - fee ⇒ zero change ⇒ naturally a single output.
+        let recipients = [TransferRecipient {
+            recipient,
+            value: 1_000_000 - fee,
+        }];
+        let mut r = mfn_crypto::seeded_rng(0x0abc_def0);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee,
+            extra: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        let signed = build_transfer(plan).expect("build transfer");
+        assert_eq!(
+            signed.tx.outputs.len(),
+            crate::WALLET_MIN_TX_OUTPUTS,
+            "no-change transfer must be padded to the two-output floor"
+        );
+        let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
+        assert!(v.ok, "padded transfer must verify: {:?}", v.errors);
+    }
+
+    /// A transfer that already has two outputs (payment + change) is left
+    /// untouched — the pad only fills up to the floor, never beyond.
+    #[test]
+    fn transfer_with_change_is_not_over_padded() {
+        let input = owned(1_000_000);
+        let refs = [&input];
+        let decoys = pool(20);
+        let keys = wallet_from_seed(&[9u8; 32]);
+        let recipient = Recipient {
+            view_pub: keys.view_pub(),
+            spend_pub: keys.spend_pub(),
+        };
+        let fee = 1_000u64;
+        let recipients = [
+            TransferRecipient {
+                recipient,
+                value: 600_000,
+            },
+            TransferRecipient {
+                recipient,
+                value: 1_000_000 - 600_000 - fee,
+            },
+        ];
+        let mut r = mfn_crypto::seeded_rng(0x1234_5678);
+        let plan = TransferPlan {
+            inputs: &refs,
+            recipients: &recipients,
+            fee,
+            extra: &[],
+            ring_size: crate::WALLET_MIN_RING_SIZE,
+            decoy_pool: &decoys,
+            current_height: 1,
+            rng: &mut r,
+        };
+        let signed = build_transfer(plan).expect("build transfer");
+        assert_eq!(signed.tx.outputs.len(), 2, "two outputs must be preserved");
+        let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
+        assert!(v.ok, "transfer must verify: {:?}", v.errors);
+    }
 }

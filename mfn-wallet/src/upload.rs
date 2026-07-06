@@ -455,6 +455,21 @@ where
         });
     }
 
+    // Privacy floor: never emit a single-output upload. A lone (anchor)
+    // output with no change reveals an exact-fee spend and fingerprints
+    // it against ordinary "anchor + change" uploads. Pad to
+    // `WALLET_MIN_TX_OUTPUTS` with zero-value outputs to the anchor
+    // recipient — who already appears on this tx, so no new counterparty
+    // is exposed. Pedersen-committed amounts make the padding
+    // indistinguishable, and value 0 leaves the balance equation intact.
+    while output_specs.len() < crate::WALLET_MIN_TX_OUTPUTS {
+        output_specs.push(OutputSpec::ToRecipient {
+            recipient: plan.anchor.recipient,
+            value: 0,
+            storage: None,
+        });
+    }
+
     // (8) RingCT ceremony.
     let extra_wire: Vec<u8> = if plan.authorship_claims.is_empty() {
         plan.extra.to_vec()
@@ -834,7 +849,9 @@ mod tests {
         let art = build_storage_upload(plan).expect("empty data must be accepted");
         assert_eq!(art.burden, 0);
         assert_eq!(art.min_fee, 0);
-        assert_eq!(art.signed.tx.outputs.len(), 1);
+        // No change output, so the builder pads to the two-output privacy
+        // floor: anchor + one zero-value output back to the anchor.
+        assert_eq!(art.signed.tx.outputs.len(), 2);
         assert_eq!(
             art.signed.tx.outputs[0]
                 .storage
@@ -842,6 +859,10 @@ mod tests {
                 .unwrap()
                 .size_bytes,
             0
+        );
+        assert!(
+            art.signed.tx.outputs[1].storage.is_none(),
+            "privacy-pad output must not carry a storage commitment"
         );
     }
 

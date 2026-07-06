@@ -31,9 +31,21 @@ The chain still verifies:
 
 What's **not** hidden:
 
-- **Transaction graph topology.** The mere fact that a transaction happened, and that it had N inputs and M outputs of unrevealed amounts, is public.
+- **Transaction graph topology.** The mere fact that a transaction happened, and that it had N inputs and M outputs of unrevealed amounts, is public. Reference wallets minimise the metadata this leaks by never emitting a one-output transaction (see § *Output-count uniformity* below).
 - **Block-level timing.** When you broadcast matters; Tor / Dandelion-style mixnet handling is the wallet layer's concern.
 - **Fee values.** Fees are public (must be, for the chain to verify the balance equation including fee deduction).
+
+### Output-count uniformity (no single-output transactions)
+
+A transaction's output *count* is public even though the amounts are not. A **one-output** transaction is therefore a strong fingerprint: it can only be a no-change sweep (spending an entire input set) or an exact-amount payment, which distinguishes it from an ordinary "payment + change" transfer and shrinks the set of plausible interpretations an observer must consider.
+
+Reference wallets close this gap by enforcing a **two-output floor** (`WALLET_MIN_TX_OUTPUTS = 2`, Monero parity). Whenever a transfer, authorship-claim, or storage-upload would otherwise produce a single output, the builder pads it with a **zero-value output** back to the sender (or, for uploads, to the anchor recipient already on the transaction — so no new counterparty is exposed):
+
+- The padding lives at the shared builder [`mfn_wallet::build_transfer`](../mfn-wallet/src/spend.rs), so **every** reference caller — the CLI, the WASM browser wallet, and the high-level `Wallet` API — inherits the guarantee.
+- Because output amounts are **Pedersen-committed**, a zero-value padding output is indistinguishable on-chain from any other output.
+- Value `0` leaves the balance equation (`Σ inputs = Σ outputs + fee`) untouched, and the extra output still carries a valid range proof, so the transaction verifies unchanged under the production ring policy.
+
+This is a wallet-layer privacy default (like ring-16 selection), complementing the consensus-enforced ring policy above.
 
 ### Authorship claims (optional) — key separation
 
