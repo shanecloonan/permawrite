@@ -138,8 +138,9 @@ inherits the guarantee:
   floor into `verify_transaction`, so under production uniform-ring params a
   one-output transaction is now a consensus reject network-wide.
 - **Input count still leaks.** `tx.inputs.len()` is public and reveals how
-  many UTXOs were consumed; the largest-first coin selection
-  ([§B2](#b2-age-band-coin-selection)) tends to correlate this over time.
+  many UTXOs were consumed. Age-band selection
+  ([§B2](#b2-age-band-coin-selection--shipped)) stops the input *set* from
+  mixing eras, but canonical N-in shapes remain open (P5 tail).
 - ~~**Output *ordering* and other wallet-chosen bytes are not yet
   canonicalized**~~ Closed:
   [§B3](#b3-canonical-encoding-conformance-p9--shipped).
@@ -206,21 +207,31 @@ the reference two-output shape (change + zero-value pad).
 
 **Effort:** moderate. **Risk:** medium (consensus + test churn).
 
-### B2. Age-band coin selection
+### B2. Age-band coin selection — **shipped**
 
 **Problem.** `Wallet::select_inputs`
-([`mfn-wallet/src/wallet.rs`](../mfn-wallet/src/wallet.rs), ~line 222) is
-largest-first greedy. It minimizes input count (good for size), but it
-correlates spends over time: it deterministically drains the biggest UTXOs
-first, so the *set* of consumed inputs and the input count leak a usage
-pattern. The doc comment already flags a future Knapsack selector.
+([`mfn-wallet/src/wallet.rs`](../mfn-wallet/src/wallet.rs)) was
+largest-first greedy. It minimized input count (good for size), but it
+correlated spends over time: it deterministically drained the biggest UTXOs
+first, and a tx mixing a very old with a very fresh output advertised a
+wallet consolidating across its history.
 
-**Plan.** Replace with an age-band / Knapsack-style selector that prefers
-inputs from the same age band (Monero's approach) to improve plausible
-deniability, with a deterministic tie-break only under the seeded test RNG.
-Keep the `select_inputs` signature; add unit tests asserting band cohesion and
-that the selection still balances. Pure `mfn-wallet` change, no consensus
+**Shipped.** `select_inputs` now groups spendable outputs into exponential
+age bands (`floor(log2(age + 1))` blocks since confirmation, relative to the
+scan height) and spends within one band: if any single band covers the
+target it uses the band that does so with the fewest inputs (ties prefer the
+newest band — recent outputs are the most plausible spends); only when no
+band suffices does it spill across bands, newest-first, draining each band
+before touching the next. The signature is unchanged (no RNG parameter —
+the selector is deterministic, with equal-value ties broken on UTXO key
+bytes so `HashMap` iteration order cannot leak into selection). Tests:
+`select_inputs_prefers_one_age_band_over_mixing_eras`,
+`select_inputs_prefers_fewest_inputs_across_bands`, plus the pre-existing
+coverage/insufficient-funds cases. Pure `mfn-wallet` change, no consensus
 impact.
+
+**Remaining.** Input *count* still leaks (`tx.inputs.len()` is public);
+canonical N-in shapes are the P5 tail.
 
 **Effort:** moderate. **Risk:** low.
 
@@ -459,14 +470,13 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
 | Cheap wins | B3 tail (decoy-RNG entropy-source contract) |
-| High impact, moderate effort | B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
+| High impact, moderate effort | B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B2** (age-band coin selection), then **B7**
-(Dandelion++ relay).
+Natural next step: **B7** (Dandelion++ relay), then **B9** (view tags).
 
 ## See also
 

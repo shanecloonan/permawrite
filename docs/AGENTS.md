@@ -191,7 +191,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5-PM13** (`df70b9c`) — `mfn_consensus::constitution` fork-legitimacy invariants enforced at genesis-spec load (`tail_emission > 0`, uniform rings >= 16, endowment pricing well-formed).
 - [x] **F5:B3 (output ordering)** (`d7ee698`) — `spend::build_transfer` shuffles output specs with the plan RNG; change position carries no signal (`PRIVACY_HARDENING.md` §B3).
 - [x] **F5-P9 (conformance suite)** (`1c9d578`) — `mfn-wallet/tests/canonical_conformance.rs` pins version / empty-extra / uniform ring-16 / output floor / enc_amount / byte-canonical encoding for transfers + uploads; closes §B3.
-- [x] **F5-P5/B1 (consensus output floor)** — `RingPolicy.min_output_count` = 2 under the uniform-ring tier (derived, no codec change); enforced in `verify_transaction`; closes §B1.
+- [x] **F5-P5/B1 (consensus output floor)** (`d583ea4`) — `RingPolicy.min_output_count` = 2 under the uniform-ring tier (derived, no codec change); enforced in `verify_transaction`; closes §B1.
+- [x] **B2 (age-band coin selection)** — `Wallet::select_inputs` spends within one exponential age band (fewest inputs, newest-band ties, cohesive spill); closes §B2.
 
 ### Next
 

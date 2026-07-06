@@ -224,18 +224,37 @@ impl Wallet {
         }
     }
 
-    /// Greedy coin-selection: pick the smallest set of owned outputs
-    /// whose values sum to `>= target`.
+    /// Age-band coin-selection (`PRIVACY_HARDENING.md` §B2): pick a small
+    /// set of owned outputs whose values sum to `>= target`, preferring
+    /// outputs from the **same age band**.
     ///
     /// Returns the selected outputs and the actual sum. Returns
     /// [`WalletError::InsufficientFunds`] if the wallet does not hold
     /// enough.
     ///
-    /// **Note**: this is a *largest-first* heuristic, which is
-    /// privacy-conservative — it minimises the number of inputs (and
-    /// therefore key images, ring construction work, and tx size). A
-    /// future milestone will add Knapsack-style selection that prefers
-    /// inputs in the same age band for stronger plausible deniability.
+    /// ## Why age bands
+    ///
+    /// The gamma decoy distribution makes each *ring* age-plausible, but
+    /// input *sets* leak too: a tx that consumes one very old and one very
+    /// fresh output advertises a wallet consolidating across its history,
+    /// and largest-first selection deterministically drains the biggest
+    /// UTXOs, correlating spends over time. Grouping candidates into
+    /// exponential age bands (`floor(log2(age + 1))` blocks since
+    /// confirmation) and spending within one band makes the consumed set
+    /// look like any other same-era spend.
+    ///
+    /// ## Algorithm (deterministic — no RNG in the signature)
+    ///
+    /// 1. Group spendable outputs by age band relative to `scan_height`.
+    /// 2. If any single band can cover `target`, use the band that does so
+    ///    with the fewest inputs (largest-first within the band; ties
+    ///    prefer the **newest** band — recent outputs are the most
+    ///    plausible spends).
+    /// 3. Otherwise spill across bands newest-first, draining each band
+    ///    before touching the next (band-cohesive consolidation).
+    ///
+    /// Within a band, equal-value ties break on the UTXO key bytes so the
+    /// choice is stable regardless of `HashMap` iteration order.
     pub fn select_inputs(&self, target: u64) -> Result<(Vec<&OwnedOutput>, u64), WalletError> {
         let total = self.balance();
         if total < target {
@@ -244,17 +263,56 @@ impl Wallet {
                 available: total,
             });
         }
-        let mut candidates: Vec<&OwnedOutput> = self.owned.values().collect();
-        candidates.sort_by_key(|c| std::cmp::Reverse(c.value));
+        let current = self.scan_height.unwrap_or(0);
 
+        // Group by age band; sort each band largest-first (key-byte tie-break).
+        let mut bands: std::collections::BTreeMap<u32, Vec<&OwnedOutput>> =
+            std::collections::BTreeMap::new();
+        for o in self.owned.values() {
+            let age = u64::from(current.saturating_sub(o.height));
+            let band = 63 - (age + 1).leading_zeros();
+            bands.entry(band).or_default().push(o);
+        }
+        for members in bands.values_mut() {
+            members.sort_by_key(|c| (std::cmp::Reverse(c.value), c.utxo_key()));
+        }
+
+        // Prefer a single band: fewest inputs, ties to the newest band.
+        // (BTreeMap iterates ascending band index == newest era first.)
+        let mut best: Option<(usize, Vec<&OwnedOutput>, u64)> = None;
+        for members in bands.values() {
+            let mut sum: u64 = 0;
+            let mut chosen: Vec<&OwnedOutput> = Vec::new();
+            for c in members {
+                if sum >= target {
+                    break;
+                }
+                sum = sum.saturating_add(c.value);
+                chosen.push(c);
+            }
+            let improves = match &best {
+                None => true,
+                Some((n, _, _)) => chosen.len() < *n,
+            };
+            if sum >= target && improves {
+                best = Some((chosen.len(), chosen, sum));
+            }
+        }
+        if let Some((_, chosen, sum)) = best {
+            return Ok((chosen, sum));
+        }
+
+        // No single band suffices: drain bands newest-first.
         let mut chosen: Vec<&OwnedOutput> = Vec::new();
         let mut sum: u64 = 0;
-        for c in candidates {
-            if sum >= target {
-                break;
+        'outer: for members in bands.values() {
+            for c in members {
+                if sum >= target {
+                    break 'outer;
+                }
+                sum = sum.saturating_add(c.value);
+                chosen.push(c);
             }
-            sum = sum.saturating_add(c.value);
-            chosen.push(c);
         }
         Ok((chosen, sum))
     }
@@ -916,7 +974,7 @@ mod tests {
     }
 
     #[test]
-    fn select_inputs_uses_largest_first() {
+    fn select_inputs_covers_with_single_output_when_possible() {
         let mut wallet = Wallet::from_seed(&[4u8; 32]);
         let payout = PayoutAddress {
             view_pub: wallet.keys().view_pub(),
@@ -948,9 +1006,83 @@ mod tests {
 
         let (chosen, sum) = wallet.select_inputs(450).expect("select");
         assert!(sum >= 450);
-        // Largest-first heuristic: 300 + 200 = 500.
+        // No single age band covers 450, so the selector spills
+        // newest-first: 300 (band 0) + 200 (band 1) = 500.
         assert_eq!(chosen.len(), 2);
         assert_eq!(sum, 500);
+    }
+
+    /// §B2 age-band cohesion: when both an old era and a recent era can
+    /// cover the target with the same input count, the selector must
+    /// spend entirely within the **newest** band instead of mixing eras
+    /// (largest-first would pick the old 600 + the new 550).
+    #[test]
+    fn select_inputs_prefers_one_age_band_over_mixing_eras() {
+        let mut wallet = Wallet::from_seed(&[8u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        // Old era (height 10/11 — ages ~90 at scan height 100).
+        wallet.ingest_block(&mk_block(
+            10,
+            vec![build_coinbase(10, 600, &payout).unwrap()],
+        ));
+        wallet.ingest_block(&mk_block(
+            11,
+            vec![build_coinbase(11, 500, &payout).unwrap()],
+        ));
+        // Recent era (heights 98/99 — ages 1..2).
+        wallet.ingest_block(&mk_block(
+            98,
+            vec![build_coinbase(98, 500, &payout).unwrap()],
+        ));
+        wallet.ingest_block(&mk_block(
+            99,
+            vec![build_coinbase(99, 550, &payout).unwrap()],
+        ));
+        // Advance the scan height without adding outputs.
+        wallet.ingest_block(&mk_block(100, Vec::new()));
+
+        let (chosen, sum) = wallet.select_inputs(1_000).expect("select");
+        assert_eq!(chosen.len(), 2, "both bands cover with two inputs");
+        assert_eq!(sum, 1_050, "newest band pays 550 + 500");
+        assert!(
+            chosen.iter().all(|o| o.height >= 98),
+            "selection must stay within the newest age band; got heights {:?}",
+            chosen.iter().map(|o| o.height).collect::<Vec<_>>()
+        );
+    }
+
+    /// §B2: a band that covers the target with fewer inputs beats a
+    /// newer band that needs more.
+    #[test]
+    fn select_inputs_prefers_fewest_inputs_across_bands() {
+        let mut wallet = Wallet::from_seed(&[9u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        // Old era: one big output covers the target alone.
+        wallet.ingest_block(&mk_block(
+            10,
+            vec![build_coinbase(10, 2_000, &payout).unwrap()],
+        ));
+        // Recent era: covering the target needs two outputs.
+        wallet.ingest_block(&mk_block(
+            98,
+            vec![build_coinbase(98, 600, &payout).unwrap()],
+        ));
+        wallet.ingest_block(&mk_block(
+            99,
+            vec![build_coinbase(99, 600, &payout).unwrap()],
+        ));
+        wallet.ingest_block(&mk_block(100, Vec::new()));
+
+        let (chosen, sum) = wallet.select_inputs(1_000).expect("select");
+        assert_eq!(chosen.len(), 1, "single old output beats two new ones");
+        assert_eq!(sum, 2_000);
+        assert_eq!(chosen[0].height, 10);
     }
 
     #[test]
