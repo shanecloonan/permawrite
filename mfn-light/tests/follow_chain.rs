@@ -19,7 +19,10 @@ use mfn_consensus::{
 use mfn_crypto::stealth::stealth_gen;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_light::{LightChain, LightChainConfig, LightChainError};
-use mfn_node::{produce_solo_block, BlockInputs, Chain, ChainConfig};
+use mfn_node::{
+    build_proposal, produce_solo_block, seal_proposal, vote_on_proposal, BlockInputs, Chain,
+    ChainConfig,
+};
 use mfn_storage::{test_operator_payout_keys, DEFAULT_ENDOWMENT_PARAMS};
 
 fn mk_validator(i: u32, stake: u64) -> (Validator, ValidatorSecrets) {
@@ -800,33 +803,72 @@ fn light_chain_rejects_tampered_bond_op_with_body_mismatch() {
 /// but `apply_bond_ops_evolution` rejects → `EvolutionFailed`. State
 /// preserved.
 ///
-/// To exercise this path we need a block whose header is signed by
-/// the chain's actual quorum but whose bond_ops contain a bad
-/// signature. `produce_solo_block` won't construct such a block
-/// (it goes through the same evolution check); we construct it by
-/// hand by producing a *valid* block with a bad-signature bond op
-/// and signing it — but `produce_solo_block` will fail to produce
-/// because the full chain rejects the bad op on its trial-apply.
-/// So we instead manually call the same low-level primitives the
-/// producer does and skip the trial-apply: this *is* the Byzantine
-/// scenario the light client guards against.
-///
-/// For this milestone, we use a simpler proxy: we hand-craft a block
-/// by re-signing the header with the bad bond_op already in place —
-/// since both `header.bond_root` and the body's `bond_op` agree
-/// byte-for-byte (we recompute the root over the bad bond_op list),
-/// body verify passes; the bad signature only trips when the
-/// light client runs `apply_bond_ops_evolution`.
-///
-/// Implementing this requires re-running the consensus signing pipeline
-/// with the corrupted body, which is heavyweight; instead we exercise
-/// the path via a unit test in `mfn-consensus` (already present).
-/// This integration test slot reserves space for that path to be
-/// fleshed out when we have a `mfn-test` fixture helper in M2.0.8.x.
+/// We hand-sign the header over a bond_op list that includes a forged
+/// register signature (valid fields, wrong signing key). Header verify
+/// and body verify both pass; only bond-op evolution rejects.
 #[test]
-#[ignore = "needs mfn-test fixture for hand-signed Byzantine blocks (M2.0.8.x)"]
 fn light_chain_rejects_invalid_bond_op_signature_via_evolution_failed() {
-    // Reserved for future M2.0.8.x — see test docs.
+    let (cfg, s0, params) = rotation_genesis();
+    let full = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis (full)");
+    let mut light = LightChain::from_genesis(LightChainConfig::new(cfg));
+
+    let (v1, _s1) = mk_validator(1, 100);
+    let v1_payout = v1.payout;
+    let attacker = bls_keygen_from_seed(&[200u8; 32]);
+    let forged_sig = sign_register(
+        v1.stake,
+        &v1.vrf_pk,
+        &v1.bls_pk,
+        v1_payout.as_ref(),
+        &attacker.sk,
+    );
+    let bad_op = BondOp::Register {
+        stake: v1.stake,
+        vrf_pk: v1.vrf_pk,
+        bls_pk: v1.bls_pk,
+        payout: v1_payout,
+        sig: forged_sig,
+    };
+
+    let producer = full.validators()[0].clone();
+    let payout = producer.payout.unwrap();
+    let cb_payout = PayoutAddress {
+        view_pub: payout.view_pub,
+        spend_pub: payout.spend_pub,
+    };
+    let emission = emission_at_height(1, &DEFAULT_EMISSION_PARAMS);
+    let cb = build_coinbase(1, emission, &cb_payout).expect("cb");
+    let inputs = BlockInputs {
+        height: 1,
+        slot: 1,
+        timestamp: 100,
+        txs: vec![cb],
+        bond_ops: vec![bad_op],
+        slashings: Vec::new(),
+        storage_proofs: Vec::new(),
+    };
+
+    let state = full.state();
+    let proposal = build_proposal(state, &producer, &s0, params, inputs).expect("build proposal");
+    let vote = vote_on_proposal(&proposal, state, &producer, &s0, &producer, params)
+        .expect("vote on proposal");
+    let block = seal_proposal(proposal, &[vote], 1, producer.stake).expect("seal proposal");
+
+    let pre_root = validator_set_root(light.trusted_validators());
+    let err = light.apply_block(&block).expect_err("must reject");
+    assert!(
+        matches!(
+            err,
+            LightChainError::EvolutionFailed {
+                height: 1,
+                index: 0,
+                ..
+            }
+        ),
+        "expected EvolutionFailed at bond op 0, got {err:?}"
+    );
+    assert_eq!(light.tip_height(), 0);
+    assert_eq!(validator_set_root(light.trusted_validators()), pre_root);
 }
 
 /* ----------------------------------------------------------------- *

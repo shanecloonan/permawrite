@@ -56,7 +56,8 @@ serde_json = { version = "1.0", default-features = false, features = ["std"] }
 redb = "2.4"
 proptest = "1.6"
 wasm-bindgen = "0.2"
-# Transitive via build tooling; track RUSTSEC-2026-0190 upgrade in B-10 (anyhow 1.0.102+).
+anyhow = "1.0.103"
+# Transitive via build tooling; pinned at 1.0.103 for RUSTSEC-2026-0190 (downcast_mut UB).
 
 [profile.release]
 opt-level = 3

@@ -769,8 +769,8 @@ mod tests {
     use curve25519_dalek::edwards::EdwardsPoint;
     use curve25519_dalek::scalar::Scalar;
     use mfn_consensus::{
-        sign_transaction, ApplyOutcome, ConsensusParams, GenesisConfig, GenesisOutput, InputSpec,
-        OutputSpec, Recipient, TransactionWire, Validator, DEFAULT_EMISSION_PARAMS,
+        sign_transaction, ConsensusParams, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
+        Recipient, TransactionWire, Validator, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::clsag::ClsagRing;
     use mfn_crypto::point::{generator_g, generator_h};
@@ -1710,9 +1710,4 @@ mod tests {
             bond_ops: Vec::new(),
         }
     }
-
-    // Silence unused-import warning when the helper isn't exercised
-    // by every test in this module.
-    #[allow(dead_code)]
-    fn _touch(_: &ApplyOutcome) {}
 }
