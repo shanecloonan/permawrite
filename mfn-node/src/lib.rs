@@ -21,6 +21,7 @@
 // Production daemon paths must never panic on peer input (B-08); tests are exempt.
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
+mod archive_export;
 mod mfnd_cli;
 mod mfnd_serve;
 mod node_store;
@@ -35,6 +36,10 @@ mod p2p_peer_quarantine;
 mod p2p_reconnect_plan;
 mod runner;
 
+pub use archive_export::{
+    export_archive, verify_archive, ArchiveCommitment, ArchiveError, ArchiveExportReport,
+    ArchiveManifest, ArchiveVerifyReport, ARCHIVE_FORMAT_V1, ARCHIVE_MANIFEST_FILE,
+};
 pub use node_store::{NodeStore, StoreBackend};
 
 pub mod network {

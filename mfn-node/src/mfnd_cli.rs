@@ -59,6 +59,10 @@ enum Cmd {
     Run,
     Step,
     Serve,
+    /// **F5-PM10**: export a self-verifying chain + chunk archive.
+    ArchiveExport,
+    /// **F5-PM10**: verify an archive offline against the genesis spec.
+    ArchiveVerify,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +90,8 @@ struct Parsed {
     committee_vote: bool,
     /// `serve --produce` / `--committee-vote` only: milliseconds between slot ticks (default 1000).
     slot_duration_ms: u64,
+    /// `archive-export` / `archive-verify` only: archive directory (**F5-PM10**).
+    archive_dir: Option<PathBuf>,
 }
 
 fn usage() -> &'static str {
@@ -114,6 +120,7 @@ fn usage() -> &'static str {
        --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\
                                   set MFND_VALIDATOR_INDEX + MFND_VRF_SEED_HEX + MFND_BLS_SEED_HEX\n\
                                   (or MFND_SOLO_* aliases) matching the JSON genesis validator row\n\
+       --archive-dir DIR        only for `archive-export` (output) / `archive-verify` (input)\n\
      \n\
      commands:\n\
        status  print tip height, ids, and whether a checkpoint existed on disk\n\
@@ -129,7 +136,11 @@ fn usage() -> &'static str {
                 submit_tx params: {\"tx_hex\":...} or [\"...\"] hex string;\n\
                 get_block / get_block_header params: {\"height\":N} or [N] for heights 1..=tip;\n\
                 get_mempool / clear_mempool / get_checkpoint / save_checkpoint params: omit, null, {}, or [];\n\
-                get_mempool_tx / remove_mempool_tx params: {\"tx_id\":...} or [\"...\"] 64-char hex (32-byte tx id))\n"
+                get_mempool_tx / remove_mempool_tx params: {\"tx_id\":...} or [\"...\"] 64-char hex (32-byte tx id))\n\
+       archive-export  write the canonical chain + locally-complete chunk sets to --archive-dir\n\
+                       as a self-verifying offline archive (manifest.json + chain.blocks + chunk-inbox/)\n\
+       archive-verify  replay --archive-dir from the genesis spec through the full consensus STF\n\
+                       and Merkle-verify every exported chunk set; no live network needed\n"
 }
 
 fn resolve_chain_config(parsed: &Parsed) -> Result<ChainConfig, String> {
@@ -441,6 +452,41 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 parsed.checkpoint_each_block,
             )?;
         }
+        Cmd::ArchiveExport => {
+            let out_dir = parsed
+                .archive_dir
+                .as_deref()
+                .ok_or_else(|| "archive-export requires --archive-dir <DIR>".to_string())?;
+            let report = crate::archive_export::export_archive(&store, cfg, out_dir)
+                .map_err(|e| format!("{e}"))?;
+            println!(
+                "mfnd_archive_export ok=1 blocks={} tip_height={} tip_id={} genesis_id={} commitments={} chunk_sets_exported={} path={}",
+                report.blocks,
+                report.tip_height,
+                report.tip_id,
+                report.genesis_id,
+                report.commitments_total,
+                report.chunk_sets_exported,
+                out_dir.display()
+            );
+        }
+        Cmd::ArchiveVerify => {
+            let archive_dir = parsed
+                .archive_dir
+                .as_deref()
+                .ok_or_else(|| "archive-verify requires --archive-dir <DIR>".to_string())?;
+            let report = crate::archive_export::verify_archive(archive_dir, cfg)
+                .map_err(|e| format!("{e}"))?;
+            println!(
+                "mfnd_archive_verify ok=1 blocks_verified={} tip_height={} tip_id={} commitments={} chunk_sets_verified={} path={}",
+                report.blocks_verified,
+                report.tip_height,
+                report.tip_id,
+                report.commitments_total,
+                report.chunk_sets_verified,
+                archive_dir.display()
+            );
+        }
         Cmd::Serve => {
             let listen = parsed.rpc_listen.as_deref().unwrap_or("127.0.0.1:18731");
             let rpc_api_key = parsed.rpc_api_key.or_else(|| {
@@ -533,6 +579,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut produce = false;
     let mut committee_vote = false;
     let mut slot_duration_ms = 1000u64;
+    let mut archive_dir: Option<PathBuf> = None;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -649,6 +696,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 1;
             continue;
         }
+        if a == "--archive-dir" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--archive-dir requires a directory path".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected path after --archive-dir".into());
+            }
+            archive_dir = Some(PathBuf::from(v));
+            i += 2;
+            continue;
+        }
         if a == "--slot-duration-ms" {
             let Some(v) = args.get(i + 1) else {
                 return Err("--slot-duration-ms requires a positive integer".into());
@@ -678,6 +736,8 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         "run" => Cmd::Run,
         "step" => Cmd::Step,
         "serve" => Cmd::Serve,
+        "archive-export" => Cmd::ArchiveExport,
+        "archive-verify" => Cmd::ArchiveVerify,
         other => return Err(format!("unknown command `{other}`\n{}", usage())),
     };
     let step_count = match (step_count, cmd) {
@@ -739,6 +799,18 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if archive_dir.is_some() && !matches!(cmd, Cmd::ArchiveExport | Cmd::ArchiveVerify) {
+        return Err(format!(
+            "--archive-dir is only valid with archive-export / archive-verify\n{}",
+            usage()
+        ));
+    }
+    if archive_dir.is_none() && matches!(cmd, Cmd::ArchiveExport | Cmd::ArchiveVerify) {
+        return Err(format!(
+            "archive-export / archive-verify require --archive-dir <DIR>\n{}",
+            usage()
+        ));
+    }
     Ok(Parsed {
         data_dir,
         genesis_toml,
@@ -753,6 +825,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         produce,
         committee_vote,
         slot_duration_ms,
+        archive_dir,
     })
 }
 
@@ -1044,6 +1117,56 @@ mod tests {
     #[test]
     fn parse_args_rejects_missing_data_dir() {
         assert!(parse_args(&["status".into()]).is_err());
+    }
+
+    #[test]
+    fn parse_args_archive_export() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--archive-dir".into(),
+            "/tmp/archive".into(),
+            "archive-export".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::ArchiveExport);
+        assert_eq!(p.archive_dir, Some(PathBuf::from("/tmp/archive")));
+    }
+
+    #[test]
+    fn parse_args_archive_verify() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--archive-dir".into(),
+            "/tmp/archive".into(),
+            "archive-verify".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::ArchiveVerify);
+        assert_eq!(p.archive_dir, Some(PathBuf::from("/tmp/archive")));
+    }
+
+    #[test]
+    fn parse_args_archive_export_requires_archive_dir() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "archive-export".into(),
+        ];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn parse_args_archive_dir_rejected_without_archive_cmd() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--archive-dir".into(),
+            "/tmp/archive".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]
