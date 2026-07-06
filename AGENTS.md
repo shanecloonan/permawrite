@@ -82,18 +82,18 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #680** in progress on `e101f3a` (board sync for M2.5.59). **CI #679** cancelled (rapid pushes). **Nightly #63** (B-06) after green CI on M2.5.49–59 stack (`b1c8e6a`).
+**CI #682** in progress on `990b81a` (SUPPLY_CURVE docs). **CI #665–681** **cancelled** (rapid pushes; #681 had fmt/clippy/audit/scripts/wasm green before the test matrix was cancelled). **Nightly #63** (B-06) after first green CI on M2.5.49–60 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
-**RC push hold:** hold **code** pushes until CI #680 green.
+**RC push hold:** no pushes while CI runs on `main` (`cancel-in-progress`).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #680** on `e101f3a` | After green: Nightly #63 + B-05 soak |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #682+** | After green: Nightly #63 + B-05 soak |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |
+| **4** | M5.49 + M7.12 storage permanence hardening (commitment-shape consensus gate; chunk-inbox gossip authentication; fan-out `data_root` verification) | **Done** - this commit | B-11 endowment-opening consensus binding |
 | **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
 | **6** | M2.5.56 B-10 anyhow 1.0.103 | **Done** - `6fe1b18` | B-05 soak evidence |
 
@@ -111,6 +111,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
 | B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | **Done** - M2.5.56 anyhow 1.0.103; M2.5.45 hoisted deps |
+| B-11 | Bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal; today only the fee-share gate is enforced) | 4 + 6 | Open — highest remaining permanence gap after M5.49/M7.12 |
 
 ---
 
@@ -127,6 +128,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M5.49 + M7.12** (this commit) - permanence hardening (lane 4): consensus + mempool reject storage commitments with inconsistent geometry (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip writes authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk `data_root` verify, no overwrite of held bytes); chunk fan-out verifies the inbox Merkle root against `data_root` before replicating.
+- **M2.5.60** (`49c8fb2`) - `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts `fix-m2527-boards.ps1` + `write-agents-boards-utf8.ps1` (lane 4).
 - **M2.5.59** (`b1c8e6a`) - fix `powershell -NoProfile -File` invoke for resolve-schema-python; archive dry-run staging; `.gitignore` debris patterns (lane 2).
 - **M2.5.58** (`c0e73eb`) - `resolve-schema-python.ps1`; wire release-schema scripts + ci-check (lane 2).
 - **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure; debris purge; gitignore test logs (lane 2).

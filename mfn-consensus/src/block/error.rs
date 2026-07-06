@@ -162,6 +162,20 @@ pub enum BlockError {
     /// UTXO accumulator root mismatch.
     #[error("utxo_root mismatch")]
     UtxoRootMismatch,
+    /// A NEW storage commitment declared an internally inconsistent
+    /// geometry (`chunk_size` not a positive power of two, or
+    /// `num_chunks != ceil(size_bytes / chunk_size)`). Anchoring it would
+    /// let the SPoRA audit surface diverge from the priced payload —
+    /// e.g. a gigabyte upload that only ever proves one chunk (M5.49).
+    #[error("tx[{tx}].outputs[{output}]: malformed storage commitment: {reason}")]
+    StorageCommitmentMalformed {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Position of the offending output within the tx.
+        output: usize,
+        /// Structured reason from the shape validator.
+        reason: mfn_storage::CommitmentShapeError,
+    },
     /// A storage commitment declared replication below the configured
     /// `min_replication`.
     #[error("tx[{tx}].outputs[{output}]: storage replication {got} < min {min}")]

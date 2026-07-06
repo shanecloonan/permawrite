@@ -161,9 +161,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.52** (`2904ea3`) - B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs`.
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test; mempool test dead_code cleanup.
 - [x] **M2.5.53** (`bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
+- [x] **M2.5.60** - B-08 lock-in: `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts.
+- [x] **M5.49 + M7.12** - permanence hardening: `validate_storage_commitment_shape` consensus + mempool gate (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk data_root verify, no overwrite of held bytes); fan-out verifies inbox Merkle root against `data_root` before replicating.
 ### Next
 
-- [ ] Idle — B-07 god-file splits complete.
+- [ ] **B-11** — bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal); today only the fee-share treasury gate is enforced. Highest remaining permanence gap after M5.49/M7.12.
 
 ### Handoff to lane 3
 

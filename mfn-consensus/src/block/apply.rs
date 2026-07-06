@@ -419,6 +419,19 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             if state.storage.contains_key(&h) || !seen_in_tx.insert(h) {
                 continue;
             }
+            // Geometry must be internally consistent before the anchor is
+            // even priced: SPoRA challenges are derived mod `num_chunks`
+            // and provers re-chunk with `chunk_size`, so a lying shape
+            // voids the audit that permanence rests on (M5.49).
+            if let Err(reason) = validate_storage_commitment_shape(sc) {
+                errors.push(BlockError::StorageCommitmentMalformed {
+                    tx: ti,
+                    output: oi,
+                    reason,
+                });
+                tx_storage_ok = false;
+                break;
+            }
             let repl = sc.replication;
             if repl < next.endowment_params.min_replication {
                 errors.push(BlockError::StorageReplicationTooLow {

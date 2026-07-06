@@ -72,6 +72,39 @@ impl BlockSyncApplier for P2pGossipHandler {
 
 impl GossipHandler for P2pGossipHandler {
     fn on_chunk_v1(&self, commit_hash: &[u8; 32], chunk_index: u32, chunk_bytes: &[u8]) -> String {
+        let mut hex = String::with_capacity(64);
+        for b in commit_hash {
+            use std::fmt::Write as _;
+            let _ = write!(hex, "{b:02x}");
+        }
+        // (M7.12) Peers are untrusted: only chunks for an anchored
+        // on-chain commitment, with an in-range index and the exact
+        // length the commitment's geometry implies, reach disk.
+        let commit = {
+            let chain = match self.chain.lock() {
+                Ok(g) => g,
+                Err(_) => return "rejected:chain_mutex".to_string(),
+            };
+            match chain.state().storage.get(commit_hash) {
+                Some(entry) => entry.commit.clone(),
+                None => return format!("rejected:unknown_commit:commit={hex}:index={chunk_index}"),
+            }
+        };
+        if let Err(reason) =
+            crate::p2p_chunk_inbox::validate_gossip_chunk(&commit, chunk_index, chunk_bytes)
+        {
+            return format!("rejected:chunk_invalid:commit={hex}:index={chunk_index}:{reason:?}");
+        }
+        // Never overwrite an existing same-length chunk: a malicious peer
+        // must not be able to corrupt bytes an operator already holds and
+        // will be challenged on. (A wrong-length leftover may be repaired.)
+        let expected_len = crate::p2p_chunk_inbox::expected_chunk_len(&commit, chunk_index);
+        let existing = mfn_store::chunk_inbox_path(self.store.root(), &hex, chunk_index);
+        if let Ok(meta) = std::fs::metadata(&existing) {
+            if meta.len() == expected_len {
+                return format!("skipped:already_present:commit={hex}:index={chunk_index}");
+            }
+        }
         match crate::p2p_chunk_inbox::save_chunk_inbox(
             self.store.root(),
             commit_hash,
@@ -79,11 +112,6 @@ impl GossipHandler for P2pGossipHandler {
             chunk_bytes,
         ) {
             Ok(path) => {
-                let mut hex = String::with_capacity(64);
-                for b in commit_hash {
-                    use std::fmt::Write as _;
-                    let _ = write!(hex, "{b:02x}");
-                }
                 format!(
                     "stored:commit={hex}:index={chunk_index}:bytes={}:path={}",
                     chunk_bytes.len(),
@@ -188,10 +216,16 @@ mod tests {
     use super::P2pGossipHandler;
 
     fn handler_at_height_1() -> (Arc<P2pGossipHandler>, Vec<u8>) {
+        handler_at_height_1_with_storage(Vec::new())
+    }
+
+    fn handler_at_height_1_with_storage(
+        initial_storage: Vec<mfn_consensus::storage::StorageCommitment>,
+    ) -> (Arc<P2pGossipHandler>, Vec<u8>) {
         let cfg = GenesisConfig {
             timestamp: 0,
             initial_outputs: Vec::new(),
-            initial_storage: Vec::new(),
+            initial_storage,
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,
@@ -251,19 +285,81 @@ mod tests {
     }
 
     #[test]
-    fn on_chunk_v1_writes_chunk_inbox_file() {
+    fn on_chunk_v1_rejects_unknown_commit_without_disk_write() {
+        // (M7.12) Untrusted peers cannot fill the inbox with bytes for
+        // commitments the chain never anchored.
         let (handler, _) = handler_at_height_1();
         let hash = [0x33u8; 32];
         let label = handler.on_chunk_v1(&hash, 1, b"chunk-bytes");
-        assert!(label.starts_with("stored:commit="), "got {label}");
+        assert!(label.starts_with("rejected:unknown_commit:"), "got {label}");
         let path = handler
             .store
             .root()
             .join(mfn_store::CHUNK_INBOX_DIR)
             .join(hex::encode(hash))
             .join("1.bin");
-        assert!(path.is_file(), "missing {}", path.display());
-        assert_eq!(std::fs::read(&path).expect("read"), b"chunk-bytes");
+        assert!(!path.exists(), "unexpected write at {}", path.display());
+    }
+
+    #[test]
+    fn on_chunk_v1_validates_anchored_chunks_and_protects_existing_bytes() {
+        // Anchor a real 3-chunk commitment at genesis, then exercise the
+        // full M7.12 gossip gate: true chunks store; bad index / bad
+        // length / (single-file) overwrite attempts are refused.
+        let payload: Vec<u8> = (0u32..2_500).map(|i| (i % 251) as u8).collect();
+        let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(1_024), 3, None)
+            .expect("build commitment");
+        let hash = mfn_storage::storage_commitment_hash(&built.commit);
+        let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
+        assert_eq!(chunks.len(), 3);
+
+        let (handler, _) = handler_at_height_1_with_storage(vec![built.commit.clone()]);
+
+        // True chunks are accepted.
+        for (i, c) in chunks.iter().enumerate() {
+            let label = handler.on_chunk_v1(&hash, i as u32, c);
+            assert!(label.starts_with("stored:commit="), "chunk {i}: {label}");
+        }
+        let path = handler
+            .store
+            .root()
+            .join(mfn_store::CHUNK_INBOX_DIR)
+            .join(hex::encode(hash))
+            .join("0.bin");
+        assert_eq!(std::fs::read(&path).expect("read"), chunks[0]);
+
+        // Out-of-range index is refused.
+        let label = handler.on_chunk_v1(&hash, 3, &vec![0u8; 1_024]);
+        assert!(label.starts_with("rejected:chunk_invalid:"), "got {label}");
+
+        // Wrong-length body is refused.
+        let label = handler.on_chunk_v1(&hash, 0, b"short");
+        assert!(label.starts_with("rejected:chunk_invalid:"), "got {label}");
+
+        // A correct-length resend cannot overwrite the bytes already held.
+        let forged = vec![0xffu8; 1_024];
+        let label = handler.on_chunk_v1(&hash, 0, &forged);
+        assert!(label.starts_with("skipped:already_present:"), "got {label}");
+        assert_eq!(std::fs::read(&path).expect("re-read"), chunks[0]);
+    }
+
+    #[test]
+    fn on_chunk_v1_fully_verifies_single_chunk_commitments() {
+        // With one chunk the Merkle root IS the leaf hash, so forged
+        // bytes of the right length are still refused outright.
+        let payload = vec![9u8; 500];
+        let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(1_024), 3, None)
+            .expect("build commitment");
+        let hash = mfn_storage::storage_commitment_hash(&built.commit);
+        let (handler, _) = handler_at_height_1_with_storage(vec![built.commit.clone()]);
+
+        let mut forged = payload.clone();
+        forged[0] ^= 0xff;
+        let label = handler.on_chunk_v1(&hash, 0, &forged);
+        assert!(label.starts_with("rejected:chunk_invalid:"), "got {label}");
+
+        let label = handler.on_chunk_v1(&hash, 0, &payload);
+        assert!(label.starts_with("stored:commit="), "got {label}");
     }
 
     #[test]

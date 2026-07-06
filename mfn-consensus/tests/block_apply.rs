@@ -2629,6 +2629,161 @@ fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
     }
 }
 
+/// Build a fresh single-signer genesis, sign one storage-anchoring tx
+/// carrying `sc`, and run `apply_block` on it (**M5.49**).
+fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutcome {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::clsag::ClsagRing;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+    use mfn_crypto::stealth::stealth_gen;
+
+    use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+    let init_value = 1_000_000u64;
+    let init_blinding = random_scalar();
+    let signer_spend = random_scalar();
+    let signer_p = generator_g() * signer_spend;
+    let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+    let mut initial_outputs = vec![GenesisOutput {
+        one_time_addr: signer_p,
+        amount: signer_c,
+    }];
+    let mut ring_p = vec![signer_p];
+    let mut ring_c = vec![signer_c];
+    for i in 0..PROD_RING_SIZE - 1 {
+        let d = genesis_decoy_output(i);
+        ring_p.push(d.one_time_addr);
+        ring_c.push(d.amount);
+        initial_outputs.push(d);
+    }
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs,
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let recipient_wallet = stealth_gen();
+    let signed = sign_transaction(
+        vec![InputSpec {
+            ring: ClsagRing {
+                p: ring_p,
+                c: ring_c,
+            },
+            signer_idx: 0,
+            spend_priv: signer_spend,
+            value: init_value,
+            blinding: init_blinding,
+        }],
+        vec![OutputSpec::ToRecipient {
+            recipient: Recipient {
+                view_pub: recipient_wallet.view_pub,
+                spend_pub: recipient_wallet.spend_pub,
+            },
+            value: init_value - fee,
+            storage: Some(sc),
+        }],
+        fee,
+        Vec::new(),
+    )
+    .expect("sign storage upload");
+
+    let unsealed = build_unsealed_header(
+        &state0,
+        std::slice::from_ref(&signed.tx),
+        &[],
+        &[],
+        &[],
+        1,
+        100,
+    );
+    let block = seal_block(
+        unsealed,
+        vec![signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    apply_block(&state0, &block)
+}
+
+#[test]
+fn apply_block_rejects_storage_commitment_with_lying_num_chunks() {
+    // The permanence-voiding shape (M5.49): 16 KiB priced by the
+    // endowment, but a single declared chunk — SPoRA would only ever
+    // audit chunk 0 and the other 63 chunks could vanish unnoticed.
+    let sc = StorageCommitment {
+        data_root: [7u8; 32],
+        size_bytes: 16 * 1024,
+        chunk_size: 256,
+        num_chunks: 1, // real: 64
+        replication: 3,
+        endowment: mfn_crypto::point::generator_g(),
+    };
+    match apply_block_with_storage_output(sc, 100_000) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageCommitmentMalformed { .. })),
+                "expected StorageCommitmentMalformed, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("lying num_chunks must reject the block"),
+    }
+}
+
+#[test]
+fn apply_block_rejects_storage_commitment_with_bad_chunk_size() {
+    let sc = StorageCommitment {
+        data_root: [7u8; 32],
+        size_bytes: 1024,
+        chunk_size: 300, // not a power of two
+        num_chunks: 4,
+        replication: 3,
+        endowment: mfn_crypto::point::generator_g(),
+    };
+    match apply_block_with_storage_output(sc, 100_000) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageCommitmentMalformed { .. })),
+                "expected StorageCommitmentMalformed, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("non-power-of-two chunk_size must reject the block"),
+    }
+}
+
+#[test]
+fn apply_block_accepts_storage_commitment_with_consistent_shape() {
+    // Control: the identical upload with an honest geometry anchors fine.
+    let sc = StorageCommitment {
+        data_root: [7u8; 32],
+        size_bytes: 1024,
+        chunk_size: 256,
+        num_chunks: 4,
+        replication: 3,
+        endowment: mfn_crypto::point::generator_g(),
+    };
+    let commit_hash = storage_commitment_hash(&sc);
+    match apply_block_with_storage_output(sc, 100_000) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert!(state.storage.contains_key(&commit_hash));
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("consistent shape must apply: {errors:?}"),
+    }
+}
+
 #[test]
 fn apply_block_rejects_ring_smaller_than_sixteen() {
     use curve25519_dalek::scalar::Scalar;

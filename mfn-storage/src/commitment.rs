@@ -42,6 +42,101 @@ pub struct StorageCommitment {
     pub endowment: EdwardsPoint,
 }
 
+/// Structural (shape) validation errors for a [`StorageCommitment`].
+///
+/// These are *consensus* rejections: a commitment whose declared geometry
+/// is inconsistent breaks the SPoRA audit surface (challenges are derived
+/// `mod num_chunks`, provers re-chunk with `chunk_size`), so the chain
+/// must never anchor one.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum CommitmentShapeError {
+    /// `chunk_size` was zero or not a power of two.
+    #[error("chunk_size {0} must be a positive power of two")]
+    InvalidChunkSize(u32),
+    /// `num_chunks` disagrees with `ceil(size_bytes / chunk_size)`
+    /// (or `1` for an empty payload).
+    #[error(
+        "num_chunks {got} != expected {expected} \
+         (size_bytes={size_bytes}, chunk_size={chunk_size})"
+    )]
+    NumChunksMismatch {
+        /// Declared chunk count.
+        got: u32,
+        /// Count implied by `size_bytes` / `chunk_size`.
+        expected: u32,
+        /// Declared payload size.
+        size_bytes: u64,
+        /// Declared chunk granularity.
+        chunk_size: u32,
+    },
+    /// The implied chunk count exceeds `u32::MAX` — the commitment could
+    /// never have been produced by [`crate::spora::build_storage_commitment`].
+    #[error(
+        "size_bytes {size_bytes} at chunk_size {chunk_size} implies more than u32::MAX chunks"
+    )]
+    TooManyChunks {
+        /// Declared payload size.
+        size_bytes: u64,
+        /// Declared chunk granularity.
+        chunk_size: u32,
+    },
+}
+
+/// Chunk count [`crate::spora::build_storage_commitment`] produces for a
+/// payload of `size_bytes` at `chunk_size` granularity.
+///
+/// An empty payload still yields one (empty) chunk so the Merkle tree has
+/// a leaf. Returns [`CommitmentShapeError`] when `chunk_size` is invalid
+/// or the count would overflow `u32`.
+pub fn expected_num_chunks(size_bytes: u64, chunk_size: u32) -> Result<u32, CommitmentShapeError> {
+    if chunk_size == 0 || !chunk_size.is_power_of_two() {
+        return Err(CommitmentShapeError::InvalidChunkSize(chunk_size));
+    }
+    if size_bytes == 0 {
+        return Ok(1);
+    }
+    let n = size_bytes.div_ceil(u64::from(chunk_size));
+    u32::try_from(n).map_err(|_| CommitmentShapeError::TooManyChunks {
+        size_bytes,
+        chunk_size,
+    })
+}
+
+/// Validate that a [`StorageCommitment`]'s declared geometry is
+/// internally consistent (**M5.49**).
+///
+/// SPoRA's per-block challenge is `H(...) mod num_chunks` and endowment
+/// pricing keys off `size_bytes` — a commitment that declares
+/// `num_chunks: 1` for a gigabyte payload would be "provable" while the
+/// network audits (and effectively stores) a single chunk, silently
+/// voiding the permanence guarantee. `apply_block` and the mempool call
+/// this before anchoring any NEW commitment.
+///
+/// Checks:
+///
+/// 1. `chunk_size` is a positive power of two,
+/// 2. `num_chunks == ceil(size_bytes / chunk_size)` (`1` when
+///    `size_bytes == 0`) — which also forces `num_chunks >= 1`, ruling
+///    out the degenerate zero-chunk challenge.
+///
+/// # Errors
+///
+/// [`CommitmentShapeError`] describing the first failed check.
+pub fn validate_storage_commitment_shape(
+    c: &StorageCommitment,
+) -> Result<(), CommitmentShapeError> {
+    let expected = expected_num_chunks(c.size_bytes, c.chunk_size)?;
+    if c.num_chunks != expected {
+        return Err(CommitmentShapeError::NumChunksMismatch {
+            got: c.num_chunks,
+            expected,
+            size_bytes: c.size_bytes,
+            chunk_size: c.chunk_size,
+        });
+    }
+    Ok(())
+}
+
 /// Canonical hash of a storage commitment. This is the storage's unique
 /// on-chain identity — the value transactions reference and that blocks
 /// merkleize.
@@ -193,6 +288,118 @@ mod tests {
             storage_commitment_hash(&recovered),
             storage_commitment_hash(&c)
         );
+    }
+
+    /* ------------------------- shape validation (M5.49) ------------- */
+
+    #[test]
+    fn shape_accepts_consistent_commitment() {
+        assert_eq!(validate_storage_commitment_shape(&sample_commit()), Ok(()));
+    }
+
+    #[test]
+    fn shape_accepts_empty_payload_single_chunk() {
+        let mut c = sample_commit();
+        c.size_bytes = 0;
+        c.num_chunks = 1;
+        assert_eq!(validate_storage_commitment_shape(&c), Ok(()));
+    }
+
+    #[test]
+    fn shape_accepts_builder_output() {
+        // Whatever build_storage_commitment produces must validate —
+        // including the short-tail and empty-payload cases.
+        for payload_len in [0usize, 1, 255, 256, 257, 1024, 100_000] {
+            let payload = vec![0xa5u8; payload_len];
+            let built = crate::spora::build_storage_commitment(&payload, 1_000, Some(256), 3, None)
+                .expect("build");
+            assert_eq!(
+                validate_storage_commitment_shape(&built.commit),
+                Ok(()),
+                "payload_len={payload_len}"
+            );
+        }
+    }
+
+    #[test]
+    fn shape_rejects_zero_chunk_size() {
+        let mut c = sample_commit();
+        c.chunk_size = 0;
+        assert_eq!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::InvalidChunkSize(0))
+        );
+    }
+
+    #[test]
+    fn shape_rejects_non_power_of_two_chunk_size() {
+        let mut c = sample_commit();
+        c.chunk_size = 65_537;
+        assert_eq!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::InvalidChunkSize(65_537))
+        );
+    }
+
+    #[test]
+    fn shape_rejects_zero_num_chunks() {
+        let mut c = sample_commit();
+        c.num_chunks = 0;
+        assert!(matches!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::NumChunksMismatch { got: 0, .. })
+        ));
+    }
+
+    #[test]
+    fn shape_rejects_understated_num_chunks() {
+        // The "1 GiB payload, 1 declared chunk" attack: SPoRA would only
+        // ever audit chunk 0 while pricing charges for the full size.
+        let mut c = sample_commit();
+        c.num_chunks = 1; // real: 16
+        assert!(matches!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::NumChunksMismatch {
+                got: 1,
+                expected: 16,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn shape_rejects_overstated_num_chunks() {
+        let mut c = sample_commit();
+        c.num_chunks = 17; // real: 16
+        assert!(matches!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::NumChunksMismatch {
+                got: 17,
+                expected: 16,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn shape_rejects_chunk_count_overflowing_u32() {
+        let mut c = sample_commit();
+        c.size_bytes = u64::MAX;
+        c.chunk_size = 1;
+        c.num_chunks = u32::MAX;
+        assert!(matches!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::TooManyChunks { .. })
+        ));
+    }
+
+    #[test]
+    fn expected_num_chunks_matches_ceiling_division() {
+        assert_eq!(expected_num_chunks(0, 256), Ok(1));
+        assert_eq!(expected_num_chunks(1, 256), Ok(1));
+        assert_eq!(expected_num_chunks(256, 256), Ok(1));
+        assert_eq!(expected_num_chunks(257, 256), Ok(2));
+        assert_eq!(expected_num_chunks(1_048_576, 65_536), Ok(16));
     }
 
     #[test]

@@ -231,6 +231,20 @@ pub enum AdmitError {
         max: u8,
     },
 
+    /// A NEW storage anchor declared an internally inconsistent geometry
+    /// (`chunk_size` not a positive power of two, or `num_chunks !=
+    /// ceil(size_bytes / chunk_size)`). Mirrors
+    /// `mfn_consensus::BlockError::StorageCommitmentMalformed` (M5.49).
+    #[error("malformed storage commitment in output {output} of tx {tx_id_hex}: {reason}")]
+    StorageCommitmentMalformed {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Which output carried the malformed anchor.
+        output: usize,
+        /// Structured reason from the shape validator.
+        reason: mfn_storage::CommitmentShapeError,
+    },
+
     /// `mfn_storage::required_endowment` returned an error when the
     /// mempool tried to compute the burden for a new storage anchor.
     /// Mirrors `mfn_consensus::BlockError::EndowmentMathFailed`.
@@ -484,6 +498,7 @@ impl Mempool {
         // and within-tx duplicate (`seen_in_tx`) hashes as *silent
         // skips* (matching `apply_block` byte-for-byte), and rejects
         // on:
+        //   - inconsistent commitment geometry (M5.49 shape validation)
         //   - replication outside `[min, max]` from `endowment_params`
         //   - `required_endowment(size_bytes, replication, params)` error
         //   - aggregate `required_endowment` exceeds the tx's
@@ -504,6 +519,16 @@ impl Mempool {
             // this same tx → inert (no burden, no error).
             if state.storage.contains_key(&h) || !seen_in_tx.insert(h) {
                 continue;
+            }
+            // Shape gate mirrors `apply_block` byte-for-byte (M5.49): a
+            // commitment whose declared geometry lies about the payload
+            // breaks the SPoRA audit, so it never enters the pool.
+            if let Err(reason) = mfn_storage::validate_storage_commitment_shape(sc) {
+                return Err(AdmitError::StorageCommitmentMalformed {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    output: oi,
+                    reason,
+                });
             }
             if sc.replication < state.endowment_params.min_replication {
                 return Err(AdmitError::StorageReplicationTooLow {
@@ -1223,6 +1248,64 @@ mod tests {
             }
             other => panic!("expected UploadUnderfunded, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_lying_num_chunks() {
+        // The permanence-voiding shape: a large payload that declares a
+        // single chunk. SPoRA would only ever audit chunk 0 while the
+        // endowment prices the full size (M5.49).
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut storage = storage_commit(0x4a, 16 * 1024, 3);
+        storage.num_chunks = 1; // real: 64
+        let tx = signed_storage_tx(inp, 200, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        match err {
+            AdmitError::StorageCommitmentMalformed { reason, .. } => {
+                assert!(matches!(
+                    reason,
+                    mfn_storage::CommitmentShapeError::NumChunksMismatch { got: 1, .. }
+                ));
+            }
+            other => panic!("expected StorageCommitmentMalformed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_non_power_of_two_chunk_size() {
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut storage = storage_commit(0x4b, 1024, 3);
+        storage.chunk_size = 300; // not a power of two
+        storage.num_chunks = 4;
+        let tx = signed_storage_tx(inp, 200, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                AdmitError::StorageCommitmentMalformed {
+                    reason: mfn_storage::CommitmentShapeError::InvalidChunkSize(300),
+                    ..
+                }
+            ),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn admit_storage_tx_rejects_zero_num_chunks() {
+        // num_chunks == 0 degenerates the challenge derivation to index 0.
+        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let mut storage = storage_commit(0x4c, 1024, 3);
+        storage.num_chunks = 0;
+        let tx = signed_storage_tx(inp, 200, storage);
+        let mut pool = Mempool::new(MempoolConfig::default());
+        let err = pool.admit(tx, chain.state()).unwrap_err();
+        assert!(
+            matches!(err, AdmitError::StorageCommitmentMalformed { .. }),
+            "got {err:?}"
+        );
     }
 
     #[test]

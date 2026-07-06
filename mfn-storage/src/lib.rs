@@ -33,7 +33,8 @@ pub mod endowment;
 pub mod spora;
 
 pub use commitment::{
-    decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
+    decode_storage_commitment, encode_storage_commitment, expected_num_chunks,
+    storage_commitment_hash, validate_storage_commitment_shape, CommitmentShapeError,
     StorageCommitment,
 };
 pub use endowment::{

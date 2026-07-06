@@ -131,13 +131,28 @@ storage_commitment_hash(c) = dhash(STORAGE_COMMIT, [
 
 This hash is the commitment's chain-level identity. The chain's `storage` registry is keyed by it.
 
+### Structural (shape) validation — M5.49
+
+Before anchoring any NEW commitment, `apply_block` (and the mempool, byte-for-byte) runs
+`validate_storage_commitment_shape`:
+
+- `chunk_size` must be a positive power of two,
+- `num_chunks` must equal `ceil(size_bytes / chunk_size)` (`1` for an empty payload).
+
+Without this, a commitment could declare `num_chunks: 1` for a gigabyte payload — SPoRA
+challenges are derived `mod num_chunks`, so the network would only ever audit chunk 0
+while the endowment prices the full size, silently voiding the permanence guarantee.
+
 ### Endowment is a Pedersen commitment
 
 The `endowment` field is **not** a plaintext amount — it's a Pedersen commitment, just like a transaction output. This means:
 
-- The chain knows the *expected* endowment (from `required_endowment(size_bytes, replication)`) and can reconstruct the expected commitment to verify.
 - An external observer cannot tell how much the user paid (they could have over-paid; their privacy).
-- The endowment is amount-private but consensus-verified.
+- What consensus enforces today is the *funding route*: the tx's treasury-bound fee share
+  (`fee × fee_to_treasury_bps / 10_000`) must cover `required_endowment(size_bytes, replication)`
+  or the block is rejected (`UploadUnderfunded`).
+- The Pedersen point itself is **not** opened or range-proved on-chain yet — binding it to
+  `required_endowment` in consensus is tracked as backlog **B-11** in [`AGENTS.md`](../AGENTS.md).
 
 ### Replication factor
 
