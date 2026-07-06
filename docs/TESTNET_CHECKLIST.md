@@ -214,10 +214,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.51** (`0d9646a`) — start-all GHA `hub_tip_wait` uses `MFN_POLL_HUB_MAX` (900s); observer catchup soft gate; ps1 health fast path (lane 1).
 - [x] **M2.5.52** (`2904ea3`) — B-07: extract `dispatch/rpc_params.rs` + `rpc_method_meta.rs` from `dispatch.rs` (lane 4).
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test (lane 4).
-- [x] **M2.5.57** (pending) - DOCS-QA-2 audit closure + debris purge (lane 2).
+- [x] **M2.5.57** (`3e994b9`) - DOCS-QA-2 audit closure + debris purge (lane 2).
 - [x] **M2.5.56** (6fe1b18) - B-10 anyhow 1.0.103 (lane 6).
 - [x] **M2.5.53** (`bd76bde`) — B-07: extract `cli/parse.rs` from `cli.rs` + restore/hoist fix (lane 4).
-- [ ] **Nightly #63** after green CI on M2.5.49–56 stack (`6fe1b18`) — all three green (B-06 gate).
+- [ ] **Nightly #63** after green CI on M2.5.49–57 stack (`3e994b9`) — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

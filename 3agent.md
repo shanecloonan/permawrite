@@ -9,15 +9,15 @@
 | --- | --- | --- |
 | **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
 | **M2.5.49–51** | **Done** | RC smoke soft gates + early P2P + hub_tip poll (`0d9646a`) |
-| **M2.5.52–54** | **Done** | B-07 god-file splits (`2904ea3` / `bd76bde` / `770e7a9`) |
+| **M2.5.52–53** | **Done** | B-07 dispatch + `cli/parse.rs` splits (`2904ea3` / `bd76bde`) |
 | **M2.5.55–56** | **Done** | Byzantine light test + anyhow 1.0.103 (`6fe1b18`) |
-| **CI #657** | **FAIL** | Pre-hoist clippy/tests on `4cf43b3` |
-| **CI #663** | **In progress** | On `6903413` (code `6fe1b18`) |
-| **Nightly #63** | Waiting | After green CI #663 |
+| **M2.5.57** | **Done** | DOCS-QA-2 closure + debris purge (`3e994b9`) |
+| **CI #665** | **In progress** | On `3e994b9` |
+| **Nightly #63** | Waiting | After green CI #665 |
 
 ### RC push hold
 
-No pushes while **CI #663** runs (`cancel-in-progress`).
+No pushes while **CI #665** runs (`cancel-in-progress`).
 
 ---
 
@@ -25,8 +25,8 @@ No pushes while **CI #663** runs (`cancel-in-progress`).
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–51 | Monitor **CI #663** | **Nightly #63** (B-06) |
-| **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
+| **1** RC core | M2.5.49–51 | Monitor **CI #665** | **Nightly #63** (B-06) |
+| **2** RC ops | M2.5.39–42; M2.5.57 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
 ---
@@ -44,7 +44,7 @@ No pushes while **CI #663** runs (`cancel-in-progress`).
 ## B-06 checklist
 
 - [x] Nightly #62 executed (FAIL ~16.3m)
-- [x] M2.5.49–56 on `main`
+- [x] M2.5.49–57 on `main`
 - [ ] **Nightly #63** all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
