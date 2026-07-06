@@ -64,17 +64,18 @@ echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
 HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX="$MFN_POLL_HUB_MAX"
-for _ in $(seq 1 "$HUB_POLL_MAX"); do
+for hub_poll_i in $(seq 1 "$HUB_POLL_MAX"); do
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
     HUB_P2P=$(grep -m1 mfnd_p2p_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
     HUB_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
     break
   fi
-  if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( _ % 30 == 0 )); then
+  # NOTE: not `for _ in ...` - bash resets `$_` after every command, breaking the modulo.
+  if [[ -n "${GITHUB_ACTIONS:-}" ]] && ((hub_poll_i % 30 == 0)); then
     if grep -q mfnd_serve_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
-      echo "start-all: hub RPC ready, waiting for P2P (${_}/${HUB_POLL_MAX}s)..."
+      echo "start-all: hub RPC ready, waiting for P2P (${hub_poll_i}/${HUB_POLL_MAX}s)..."
     else
-      echo "start-all: waiting for hub startup (${_}/${HUB_POLL_MAX}s)..."
+      echo "start-all: waiting for hub startup (${hub_poll_i}/${HUB_POLL_MAX}s)..."
     fi
   fi
   sleep 1
@@ -240,16 +241,17 @@ echo "Starting observer..."
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
 OBSERVER_POLL_MAX="$MFN_POLL_OBSERVER_MAX"
-for _ in $(seq 1 "$OBSERVER_POLL_MAX"); do
+for observer_poll_i in $(seq 1 "$OBSERVER_POLL_MAX"); do
   if grep -q mfnd_serve_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
     OBSERVER_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/observer.log" | sed 's/.*=//')
     break
   fi
-  if [[ -n "${GITHUB_ACTIONS:-}" ]] && (( _ % 30 == 0 )); then
+  # NOTE: not `for _ in ...` - bash resets `$_` after every command, breaking the modulo.
+  if [[ -n "${GITHUB_ACTIONS:-}" ]] && ((observer_poll_i % 30 == 0)); then
     if grep -q mfnd_p2p_listening= "$LOG_DIR/observer.log" 2>/dev/null; then
-      echo "start-all: observer P2P ready, waiting for RPC (${_}/${OBSERVER_POLL_MAX}s)..."
+      echo "start-all: observer P2P ready, waiting for RPC (${observer_poll_i}/${OBSERVER_POLL_MAX}s)..."
     else
-      echo "start-all: waiting for observer startup (${_}/${OBSERVER_POLL_MAX}s)..."
+      echo "start-all: waiting for observer startup (${observer_poll_i}/${OBSERVER_POLL_MAX}s)..."
     fi
   fi
   sleep 1
