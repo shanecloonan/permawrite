@@ -42,6 +42,11 @@ pub enum CliError {
     Operator(#[from] OperatorCmdError),
 }
 
+#[path = "cli/parse.rs"]
+mod parse;
+
+use parse::{parse_args, ClaimsSub, Cmd, OperatorSub, UploadsSub, WalletSub, MFN_RPC_API_KEY};
+
 /// Entry for the `mfn-cli` binary.
 pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
@@ -295,14 +300,11 @@ pub fn cli_main() -> ExitCode {
     }
 }
 
-#[path = "cli/parse.rs"]
-mod parse;
-
-use parse::{parse_args, ClaimsSub, Cmd, OperatorSub, UploadsSub, WalletSub, MFN_RPC_API_KEY};
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rpc::DEFAULT_RPC_ADDR;
+    use crate::wallet_store::KeyDerivation;
 
     #[test]
     fn parse_tip_defaults_rpc() {
