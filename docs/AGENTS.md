@@ -70,7 +70,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Nightly #63 all three jobs green after CI #652 on `bcf0bf5` stack (B-06; Nightly #62 FAIL ~16.3m).
+- [ ] Monitor **CI #663** on `6903413` (RC `6fe1b18`); then **Nightly #63** all three green (B-06; Nightly #62 FAIL ~16.3m on `3a1f213`).
 - [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
 
 ### Do not start (other lanes)
@@ -220,7 +220,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
-- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-53 stack (lane 1 RC gate).
+- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-56 stack (lane 1 RC gate).
 
 ### Do not start
 
@@ -236,7 +236,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
-| B-06 | Nightly #63 after M2.5.51 | 1 | M2.5.49-51 stack on `0d9646a` |
+| B-06 | Nightly #63 after M2.5.56 | 1 | M2.5.49-56 stack on `6fe1b18` |
 
 ---
 

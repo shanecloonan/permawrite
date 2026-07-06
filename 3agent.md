@@ -7,16 +7,17 @@
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` (pre M2.5.50 early P2P) |
-| **M2.5.49–51** | **Done** | Soft gates + early P2P + hub_tip poll (`0d9646a`) |
+| **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
+| **M2.5.49–51** | **Done** | RC smoke soft gates + early P2P + hub_tip poll (`0d9646a`) |
 | **M2.5.52–54** | **Done** | B-07 god-file splits (`2904ea3` / `bd76bde` / `770e7a9`) |
-| **CI #657** | **FAIL** | On `4cf43b3` (clippy path; fixed in M2.5.54) |
-| **CI #659** | **In progress** | On `770e7a9` (M2.5.54) |
-| **Nightly #63** | Waiting | After green CI on M2.5.49–54 stack |
+| **M2.5.55–56** | **Done** | Byzantine light test + anyhow 1.0.103 (`6fe1b18`) |
+| **CI #657** | **FAIL** | Pre-hoist clippy/tests on `4cf43b3` |
+| **CI #663** | **In progress** | On `6903413` (code `6fe1b18`) |
+| **Nightly #63** | Waiting | After green CI #663 |
 
-### RC push embargo
+### RC push hold
 
-Hold **code** pushes until **CI #659** green. Board sync only after green (avoids cancel-in-progress).
+No pushes while **CI #663** runs (`cancel-in-progress`).
 
 ---
 
@@ -24,31 +25,27 @@ Hold **code** pushes until **CI #659** green. Board sync only after green (avoid
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–51 (`0d9646a`) | Monitor **CI #659** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–51 | Monitor **CI #663** | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.48 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
-| **4** Protocol | M2.5.52–54 B-07 splits | Idle | B-10 lane 6 |
 
 ---
 
-## Nightly failure pattern (~16.3m)
+## Lanes 4–6 snapshot
 
-| Run | SHA | Stack | Result |
+| Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| #58–61 | partial / wrong SHA | pre-38 | FAIL ~16.3m |
-| #62 | `3a1f213` | M2.5.38 + 43–45 | **FAIL** ~16.3m |
-| #63 | pending | M2.5.49–54 | pending |
-
-**Fix stack for #63:** M2.5.50 early P2P announce · M2.5.49 soft gates · M2.5.51 hub_tip poll · POST_START health trim · M2.5.52–54 B-07 (compile hygiene only).
+| **4** Protocol | M2.5.52–55 B-07/B-08 | — | Idle |
+| **5** Privacy | Wallet README ring-16 | — | Monitor Nightly #63 |
+| **6** Permanence | M5.48; M2.5.56 B-10 | — | B-05 Linux soak |
 
 ---
 
 ## B-06 checklist
 
-- [x] M2.5.38 + M2.5.43–45 on `main`
-- [x] Nightly #62 executed (FAIL ~16.3m on `3a1f213`)
-- [x] M2.5.49–54 on `main`
-- [ ] **Nightly #63** all three green on M2.5.54 stack
+- [x] Nightly #62 executed (FAIL ~16.3m)
+- [x] M2.5.49–56 on `main`
+- [ ] **Nightly #63** all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

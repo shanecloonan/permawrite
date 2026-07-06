@@ -82,15 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #662** in progress on `db2330d` (code `6fe1b18`: M2.5.55–56 audit closure). **CI #657** **FAIL** on `4cf43b3` (pre-hoist). **Nightly #63** (B-06) after first green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #663** in progress on `6903413` (code `6fe1b18`: M2.5.55–56 audit closure). **CI #662** **cancelled** (board push). **Nightly #63** (B-06) after first green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
-**RC push hold:** no pushes while CI #662 runs (`cancel-in-progress`).
+**RC push hold:** no pushes while CI #663 runs (`cancel-in-progress`).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #662 → **Nightly #63** (B-06) |
+| **1** | M2.5.51 start-all hub tip poll parity | **Done** - `0d9646a` | Monitor CI #663 → **Nightly #63** (B-06) |
 | **2** | M2.5.39–42 DOCS-QA-2 + ci-check fast paths | **Done** - `4a1862b` | Release evidence after green Nightly |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.55 light-chain EvolutionFailed test | **Done** - `6fe1b18` | Idle — B-07/B-08 audit items closed |

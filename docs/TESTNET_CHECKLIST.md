@@ -216,7 +216,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test (lane 4).
 - [x] **M2.5.56** (6fe1b18) - B-10 anyhow 1.0.103 (lane 6).
 - [x] **M2.5.53** (`bd76bde`) — B-07: extract `cli/parse.rs` from `cli.rs` + restore/hoist fix (lane 4).
-- [ ] **Nightly #63** after green CI on M2.5.49–53 stack — all three green (B-06 gate).
+- [ ] **Nightly #63** after green CI on M2.5.49–56 stack (`6fe1b18`) — all three green (B-06 gate).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
