@@ -256,15 +256,27 @@ effort against that endgame.
 
 **Effort:** low (a, c) / research (b). **Risk:** low.
 
-### B5. Drop the LSAG legacy path from release builds (`F5:P8`)
+### B5. Drop the LSAG legacy path from release builds (`F5:P8`) — **shipped**
 
 **Problem.** [`mfn-crypto/src/lsag.rs`](../mfn-crypto/src/lsag.rs) predates
 CLSAG and is unused in the production tx path, but its presence is accepted
 surface area.
 
-**Plan.** Feature-gate `lsag` (and `oom` until wired) out of release binaries
-so no code path, test harness, or future RPC can accept the weaker/larger
-variant on a production chain. Cheap win.
+**Shipped.** `pub mod lsag` and `pub mod oom` (plus their re-exports) are
+now gated behind `#[cfg(any(test, feature = "lsag"))]` /
+`#[cfg(any(test, feature = "oom"))]` in
+[`mfn-crypto/src/lib.rs`](../mfn-crypto/src/lib.rs), with matching
+non-default cargo features in `mfn-crypto/Cargo.toml`. Consequences:
+
+- Dependent crates (consensus, wallet, node, WASM) build `mfn-crypto`
+  without `cfg(test)`, so neither module exists in any release binary —
+  verified by a clean workspace `clippy --all-targets -D warnings` with no
+  dependent referencing the symbols.
+- `mfn-crypto`'s own unit tests still compile and run both modules
+  (`cargo test -p mfn-crypto` — the `cfg(test)` arm), so the reference
+  implementations keep their coverage.
+- Anyone who deliberately wants the legacy surface must opt in with
+  `--features lsag` / `--features oom`, which cannot happen silently.
 
 **Effort:** low. **Risk:** low.
 
@@ -398,8 +410,8 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet) |
-| Cheap wins | B3 (canonical encoding / output sort), B5 (drop LSAG), B10 (key firewall) |
+| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds |
+| Cheap wins | B3 (canonical encoding / output sort), B10 (key firewall) |
 | High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

@@ -8,6 +8,16 @@ authors.workspace = true
 repository.workspace = true
 description = "MoneyFund Network — discrete-log primitives (ed25519): Schnorr, Pedersen, stealth addresses, encrypted amounts, key images."
 
+[features]
+# Legacy LSAG ring signatures (predates CLSAG; reference only). OFF by
+# default so no production binary, test harness, or future RPC can ever
+# accept the weaker/larger variant on a production chain (F5:P8). The
+# module still compiles for this crate's own unit tests via cfg(test).
+lsag = []
+# Groth–Kohlweiss One-out-of-Many proofs — tested but not yet wired into
+# transactions (F5:P2). Gated out of release binaries until then.
+oom = []
+
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"

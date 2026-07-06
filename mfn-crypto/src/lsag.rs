@@ -1,5 +1,11 @@
 //! LSAG — Linkable Spontaneous Anonymous Group signatures (Liu/Wei/Wong 2004).
 //!
+//! **Production status (F5:P8):** superseded by [`crate::clsag`] and kept as
+//! a reference implementation only. This module is compiled solely for this
+//! crate's own unit tests unless the non-default `lsag` cargo feature is
+//! requested, so no release binary, test harness, or RPC of a dependent
+//! crate can ever accept the weaker/larger variant on a production chain.
+//!
 //! Sign on behalf of a ring of `N` public keys without revealing which
 //! member signed. *Linkable*: the same signer always produces the same key
 //! image `I`, which lets the protocol detect double-spends without

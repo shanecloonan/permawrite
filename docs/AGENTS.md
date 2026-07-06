@@ -162,7 +162,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.55** (6fe1b18) - light-chain EvolutionFailed integration test; mempool test dead_code cleanup.
 - [x] **M2.5.53** (`bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
 - [x] **M2.5.60** - B-08 lock-in: `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts.
-- [x] **M5.49 + M7.12** - permanence hardening: `validate_storage_commitment_shape` consensus + mempool gate (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk data_root verify, no overwrite of held bytes); fan-out verifies inbox Merkle root against `data_root` before replicating.
+- [x] **M5.49 + M7.12** (`890a56c`) - permanence hardening: `validate_storage_commitment_shape` consensus + mempool gate (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk data_root verify, no overwrite of held bytes); fan-out verifies inbox Merkle root against `data_root` before replicating.
+
+### Doing
+
+- [ ] **M2.5.61** - fix M2.5.50 stdout-order regression: `mfnd serve` now prints `mfnd_p2p_listening=` before `mfnd_serve_listening=`, so sequential prefix reads in `mfnd_smoke` consume the P2P line and hang (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — Windows ci-check red twice). New `read_stdout_lines_with_prefixes_any_order` harness helper; all `--p2p-listen` spawns collect startup announcements order-independently. Local ci-check in progress.
+
 ### Next
 
 - [ ] **B-11** — bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal); today only the fee-share treasury gate is enforced. Highest remaining permanence gap after M5.49/M7.12.
@@ -182,10 +187,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.31-docs** — `mfn-wallet/README.md` quick-start uses ring-16 and cites `WALLET_MIN_RING_SIZE`.
 - [x] **M5.31-cli** — `mfn-cli wallet` help documents `--ring-size` default 16 (claim B-04).
 - [x] **PRIVACY cross-link** — wallet README links uniform-ring policy in [`PRIVACY.md`](./PRIVACY.md).
+- [x] **F5-P8** — `lsag` + unwired `oom` gated behind `cfg(test)` / non-default cargo features; release binaries accept CLSAG only (`PRIVACY_HARDENING.md` §B5 shipped).
 
 ### Next
 
-- [ ] Idle — B-07 god-file splits complete.
+- [ ] **F5-P10** — structural claiming-key derivation firewall (`PRIVACY_HARDENING.md` §B10).
+- [ ] **F5:B3** — canonical output ordering in reference wallets (`PRIVACY_HARDENING.md` §B3).
 
 ### Do not start
 

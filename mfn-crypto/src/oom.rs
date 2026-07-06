@@ -57,6 +57,12 @@
 //! ```
 //!
 //! Defines canonical Rust protocol behavior.
+//!
+//! **Production status (F5:P2):** implemented and tested but **not yet wired
+//! into transactions**. Compiled only for this crate's own unit tests unless
+//! the non-default `oom` cargo feature is requested, keeping the accepted-
+//! signature surface of release binaries limited to CLSAG until the
+//! UTXO-accumulator membership formulation ships.
 
 // Bit-decomposition + polynomial-coefficient indexing is fundamental to
 // this protocol; indexed loops are *clearer* than iterator chains here.

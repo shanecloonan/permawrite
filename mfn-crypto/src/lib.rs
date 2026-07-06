@@ -20,11 +20,13 @@
 //! - [`pedersen`] — Pedersen commitments (RingCT-style hiding+binding).
 //! - [`stealth`] — CryptoNote dual-key stealth addresses (basic + indexed).
 //! - [`encrypted_amount`] — RingCT-style encrypted (value, blinding) blobs.
-//! - [`lsag`] — Linkable Spontaneous Anonymous Group ring signatures.
+//! - `lsag` — legacy LSAG ring signatures (**feature `lsag`**, off by default;
+//!   predates CLSAG and is excluded from production builds — F5:P8).
 //! - [`clsag`] — Concise LSAG (the production ring sig, Monero's RingCTv3).
 //! - [`vrf`] — Verifiable Random Function (RFC 9381 ECVRF over ed25519).
 //! - [`range`] — O(N) bit-decomposition range proofs (Maxwell / pre-Bulletproofs).
-//! - [`oom`] — Groth–Kohlweiss one-out-of-many ZK (log-size ring proof, Triptych-grade).
+//! - `oom` — Groth–Kohlweiss one-out-of-many ZK (**feature `oom`**, off by
+//!   default until wired into transactions — F5:P2).
 //! - [`decoy`] — Gamma-distributed decoy selection (Monero v0.13 heuristic resistance).
 //! - [`bulletproofs`] — log-size range proofs (Bünz et al. 2017, no trusted setup).
 //! - [`utxo_tree`] — append-only UTXO accumulator (sparse Merkle, depth 32).
@@ -50,8 +52,15 @@ pub mod decoy;
 pub mod domain;
 pub mod encrypted_amount;
 pub mod hash;
+// Legacy pre-CLSAG ring signatures: reference/test surface only. Compiled
+// for this crate's own unit tests, but never into dependent (production)
+// builds unless the `lsag` feature is explicitly requested (F5:P8).
+#[cfg(any(test, feature = "lsag"))]
 pub mod lsag;
 pub mod merkle;
+// One-out-of-Many: tested but not yet wired into transactions (F5:P2).
+// Kept out of release binaries until it is.
+#[cfg(any(test, feature = "oom"))]
 pub mod oom;
 pub mod pedersen;
 pub mod point;
@@ -85,11 +94,13 @@ pub use decoy::{
 pub use domain::Domain;
 pub use encrypted_amount::{decrypt_output_amount, encrypt_output_amount, ENC_AMOUNT_BYTES};
 pub use hash::{dhash, dhash64, hash_to_point, hash_to_scalar};
+#[cfg(any(test, feature = "lsag"))]
 pub use lsag::{lsag_linked, lsag_sign, lsag_verify, LsagSignature};
 pub use merkle::{
     merkle_proof, merkle_root_or_zero, merkle_tree_from_leaves, verify_merkle_proof, MerkleError,
     MerkleProof, MerkleTree,
 };
+#[cfg(any(test, feature = "oom"))]
 pub use oom::{
     decode_oom_proof, encode_oom_proof, oom_proof_size, oom_prove, oom_verify, OomProof,
 };

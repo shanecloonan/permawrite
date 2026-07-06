@@ -82,7 +82,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI #682** in progress on `990b81a` (SUPPLY_CURVE docs). **CI #665–681** **cancelled** (rapid pushes; #681 had fmt/clippy/audit/scripts/wasm green before the test matrix was cancelled). **Nightly #63** (B-06) after first green CI on M2.5.49–60 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI #684** in progress on `890a56c` (M5.49 + M7.12). **CI #665–683** **cancelled** (rapid pushes; #681 had fmt/clippy/audit/scripts/wasm green before the test matrix was cancelled). **Nightly #63** (B-06) after first green CI on M2.5.49–61 stack. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+
+**Known red risk:** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consume the P2P line and hang (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener`). Fix is **M2.5.61** (order-independent startup reads) — land immediately after CI #684 resolves.
 
 **RC push hold:** no pushes while CI runs on `main` (`cancel-in-progress`).
 
@@ -93,8 +95,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #682+** | After green: Nightly #63 + B-05 soak |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M5.49 + M7.12 storage permanence hardening (commitment-shape consensus gate; chunk-inbox gossip authentication; fan-out `data_root` verification) | **Done** - this commit | B-11 endowment-opening consensus binding |
-| **5** | Wallet README + CLI ring-16 docs | **Done** - on `main` | Monitor Nightly #63 |
+| **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **In progress** — local ci-check running | Then B-11 endowment-opening consensus binding |
+| **5** | F5-P8: LSAG + unwired OoM feature-gated out of release builds | **Done** - this commit | F5-P10 claiming-key firewall; then F5:B3 canonical output ordering |
 | **6** | M2.5.56 B-10 anyhow 1.0.103 | **Done** - `6fe1b18` | B-05 soak evidence |
 
 ---
@@ -128,7 +130,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **M5.49 + M7.12** (this commit) - permanence hardening (lane 4): consensus + mempool reject storage commitments with inconsistent geometry (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip writes authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk `data_root` verify, no overwrite of held bytes); chunk fan-out verifies the inbox Merkle root against `data_root` before replicating.
+- **F5-P8** (this commit) - privacy surface (lane 5): `mfn_crypto::lsag` (pre-CLSAG legacy) and unwired `oom` compile only under `cfg(test)` or non-default `lsag`/`oom` features — release binaries accept CLSAG only. `PRIVACY_HARDENING.md` §B5 marked shipped.
+- **M5.49 + M7.12** (`890a56c`) - permanence hardening (lane 4): consensus + mempool reject storage commitments with inconsistent geometry (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip writes authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk `data_root` verify, no overwrite of held bytes); chunk fan-out verifies the inbox Merkle root against `data_root` before replicating.
 - **M2.5.60** (`49c8fb2`) - `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts `fix-m2527-boards.ps1` + `write-agents-boards-utf8.ps1` (lane 4).
 - **M2.5.59** (`b1c8e6a`) - fix `powershell -NoProfile -File` invoke for resolve-schema-python; archive dry-run staging; `.gitignore` debris patterns (lane 2).
 - **M2.5.58** (`c0e73eb`) - `resolve-schema-python.ps1`; wire release-schema scripts + ci-check (lane 2).
