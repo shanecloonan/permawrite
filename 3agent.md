@@ -12,12 +12,12 @@
 | **M2.5.52–53** | **Done** | B-07 dispatch + `cli/parse.rs` splits (`2904ea3` / `bd76bde`) |
 | **M2.5.55–56** | **Done** | Byzantine light test + anyhow 1.0.103 (`6fe1b18`) |
 | **M2.5.57–58** | **Done** | DOCS-QA-2 + schema-python resolver (`3e994b9` / `c0e73eb`) |
-| **CI #667** | **In progress** | On `70d97c6` (code `c0e73eb`) |
-| **Nightly #63** | Waiting | After green CI #667 |
+| **CI #668** | **In progress** | On `717a656` (code `c0e73eb`) |
+| **Nightly #63** | Waiting | After green CI #668 |
 
 ### RC push hold
 
-Doc-only board sync OK. Hold **code** pushes until **CI #667** green.
+Doc-only board sync OK. Hold **code** pushes until **CI #668** green.
 
 ---
 
@@ -25,7 +25,7 @@ Doc-only board sync OK. Hold **code** pushes until **CI #667** green.
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–53 (`bd76bde`) | Monitor **CI #667** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–53 (`bd76bde`) | Monitor **CI #668** | **Nightly #63** (B-06) |
 | **2** RC ops | M2.5.39–42; M2.5.57–58 | — | Release evidence after green CI + Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
