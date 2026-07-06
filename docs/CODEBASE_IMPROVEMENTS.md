@@ -7,7 +7,7 @@ Engineering-quality audit of the Permawrite workspace, ordered by importance. Th
 Snapshot date: 2026-07-05. Counts below are from that snapshot and will drift; re-measure before
 acting on any single number.
 
-**Closure (2026-07-05):** M2.5.39-56 landed on `main` (`6fe1b18`). Priorities 1-8 below are **done** or **mostly done**; B-06 Nightly #63 remains the RC gate (lane 1).
+**Closure (2026-07-05):** M2.5.39-59 landed on `main` (`2a3214f`). Priorities 1-8 below are **done**; B-06 Nightly #63 remains the RC gate (lane 1).
 
 ---
 
@@ -15,7 +15,7 @@ acting on any single number.
 ## Priority 1 - Repo hygiene: untracked debris and `.gitignore` gaps
 
 **Severity: High. Effort: low. Do this first.**
-**Status: done** - M2.5.32 (`.gitignore`), M2.5.39 (`purge-repo-debris.*`), M2.5.57 (on-disk `git clean -X` purge).
+**Status: done** - M2.5.32 (`.gitignore`), M2.5.39 (`purge-repo-debris.*`), M2.5.57-59 (on-disk purge + `*.utf8.bak` / `docs/*.test.md` gitignore).
 
 - At snapshot time `git status` showed **~300 untracked files** polluting the repo root and
   `docs/`: **177** `ci-check-*.log`, dozens of `ci-watch-*` / `participant-rehearsal-*` /
@@ -64,7 +64,7 @@ acting on any single number.
 
 ## Priority 3 - `unwrap()`/`expect()` density in production networking paths
 
-**Status: mostly done** - M2.5.46-48 frame/chunk + mfnd paths; clippy gate on prod unwraps.
+**Status: done** - M2.5.46-48 frame/chunk + mfnd paths; M2.5.60 adds the `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node` (both crates verified panic-free in production paths).
 
 **Severity: High for `mfn-net`/`mfn-node`; Medium elsewhere.**
 
@@ -132,8 +132,8 @@ conflict rate.
 - `scripts/ci-check.ps1` (768 lines) and `scripts/ci-check.sh` (617 lines) reimplement the same
   release-validation logic; `scripts/public-devnet-v1/` holds ~38 `.ps1` / ~37 `.sh` near-1:1
   pairs. Every timeout bump or logic fix has to be made twice (see the `start-all` 900s change).
-- One-off repair scripts (`fix-m2527-boards.ps1`, `write-agents-boards-utf8.ps1`) linger in
-  `scripts/` after their purpose passed.
+- One-off repair scripts (`fix-m2527-boards.ps1`, `write-agents-boards-utf8.ps1`) lingered in
+  `scripts/` after their purpose passed — deleted in M2.5.60.
 
 **Fix:** extract shared validation fixtures/vectors so one side is generated or thin; add a CI
 drift check that asserts each ps1/sh pair implements the same steps (the `--plan-only`
@@ -183,11 +183,13 @@ assertions are a good start). Delete one-off repair scripts once their unit land
   leak into watch output.
 - **Rich doc set** with reading paths and a cross-cut index (`docs/README.md`).
 
-## Suggested execution order
+## Suggested execution order (closed 2026-07-05)
 
-1. `.gitignore` + debris purge (mostly done in M2.5.32; finish the on-disk purge).
-2. One-shot encoding repair of remaining docs + extend the mojibake guard to all docs.
-3. `ci-check` fast-path flags + venv caching (makes everything after it cheaper).
-4. `mfn-net`/`mfn-node` unwrap audit (one crate per unit, clippy gate after).
-5. Split `dispatch.rs` / `cli.rs` / `p2p_fanout.rs` (one file per unit).
-6. Workspace dependency hoisting + `anyhow` advisory follow-up.
+All eight audit priorities landed on `main` (M2.5.39-59). **B-06 Nightly #63** is the remaining RC gate (lane 1), not an audit backlog item.
+
+1. `.gitignore` + debris purge - **done** (M2.5.32, M2.5.39, M2.5.57-59).
+2. Encoding repair + mojibake guard on all tracked `*.md` - **done** (M2.5.39-42).
+3. `ci-check` `-DocsOnly`/`-RustOnly` + venv cache - **done** (M2.5.39-42).
+4. `mfn-net`/`mfn-node` production unwrap audit - **done** (M2.5.46-48, B-08).
+5. God-file splits - **done** (M2.5.46, M2.5.52-53, B-07).
+6. Workspace dep hoist + `anyhow` 1.0.103 - **done** (M2.5.45, M2.5.56, B-10).

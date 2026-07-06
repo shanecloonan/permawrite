@@ -18,6 +18,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(clippy::all)]
+// Production daemon paths must never panic on peer input (B-08); tests are exempt.
+#![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
 mod mfnd_cli;
 mod mfnd_serve;
