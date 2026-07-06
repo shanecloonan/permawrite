@@ -23,6 +23,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🛠 [**PRIVACY_HARDENING.md**](./PRIVACY_HARDENING.md) — implementation-level log of shipped privacy hardening (the two-output floor) and file-and-function-level plans for the remaining privacy work.
 - 🪙 [**FUNGIBILITY.md**](./FUNGIBILITY.md) — why full anonymity makes MFN interchangeable (vs tainted coins on traceable ledgers).
 - 🗄 [**STORAGE.md**](./STORAGE.md) — the permanence half. Chunking, the SPoRA proof system, the endowment formula, the PPB-precision yield accumulator.
+- 🔩 [**PERMANENCE_HARDENING.md**](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (commitment-shape consensus gate, chunk-gossip authentication, fan-out root verification) and file-and-function-level plans for the remaining permanence work (endowment binding, replication accounting, repair, slashing).
 - 💻 [**STORAGE_ACCESSIBILITY.md**](./STORAGE_ACCESSIBILITY.md) — feasibility of consumer-grade storage (vs Arweave-style hardware), current gaps, and roadmap.
 - 👤 [**UX_ACCESSIBILITY.md**](./UX_ACCESSIBILITY.md) — normie UX assessment for mature mainnet: current friction, non-negotiable invariants, and privacy/permanence-preserving improvements.
 - 🌐 [**DECENTRALIZATION.md**](./DECENTRALIZATION.md) — hardware profiles for every network role, how they shape decentralization, and improvements that preserve the architecture.

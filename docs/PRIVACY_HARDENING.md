@@ -449,6 +449,8 @@ guarantee is network-wide), then **B2** (age-band coin selection).
 
 - [`PRIVACY.md`](./PRIVACY.md) — how the current privacy mechanisms work
   (includes the *Output-count uniformity* section for A1).
+- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — the permanence twin
+  of this document (shipped storage hardening + remaining permanence plans).
 - [`F5.md`](./F5.md) — the broader privacy/permanence frontier menu.
 - [`PROBLEMS.md`](./PROBLEMS.md) — the weaknesses these items answer.
 - [`ROADMAP.md`](./ROADMAP.md) — where scheduled items live.

@@ -95,7 +95,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — CI green on `1603e43`; Nightly #63 + Linux soak dispatched | After green: release evidence refresh (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
-| **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **Done** - this commit (full smoke suite 46 pass / 0 fail locally) | B-11 endowment-opening consensus binding |
+| **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
 | **5** | F5:B3 output-order shuffle (change position carries no signal) | **Done** - `d7ee698` | B1 consensus min-output floor (needs version gate) |
 | **6** | F5-PM10 self-verifying archive export (`mfnd archive-export` / `archive-verify`) | **Done** - this commit | B-05 soak evidence |
 

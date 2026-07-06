@@ -1,0 +1,597 @@
+# Permanence Hardening — shipped changes and the remaining work
+
+This document is the **implementation-level** companion to
+[`STORAGE.md`](./STORAGE.md) (how the storage/permanence mechanisms work) and
+[`F5.md`](./F5.md) (the high-level menu of future privacy/permanence
+frontiers). Where `STORAGE.md` explains the mechanism and `F5.md` says *what*
+to build and *why*, this file records **what has actually shipped** for
+permanence hardening and gives the **specific, file-and-function level** plan
+for the changes that have not — so the next contributor can pick an item up
+without re-deriving the design. It is the permanence twin of
+[`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md).
+
+Doctrine reminder (from [`AGENTS.md`](../AGENTS.md)): privacy and permanence
+over everything. Every item here either strengthens or leaves untouched ring
+policy, endowment enforcement, and SPoRA verification. Anything that changes
+consensus requires a version gate and the full M5-style test treatment before
+it touches `main`.
+
+Baseline being improved on: on-chain `StorageCommitment` anchors, deterministic
+per-block SPoRA challenges (`H(prev_id ‖ slot ‖ commit_hash) mod num_chunks`),
+Merkle-proof storage audits, endowment pricing via `required_endowment`,
+treasury-funded proof rewards, and best-effort chunk replication over P2P
+gossip (`ChunkV1` frames → `chunk-inbox/` → fan-out). Known weaknesses are
+catalogued in [`PROBLEMS.md`](./PROBLEMS.md) and
+[`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md).
+
+---
+
+## Part A — Shipped (M5.49 + M7.12, commit `890a56c`; M2.5.61, commit `1603e43`)
+
+The through-line of this batch: **every hop of a payload's life — anchoring,
+gossip, disk, re-broadcast — must be checkable against the on-chain
+commitment, and anything uncheckable must be refused.** Before these changes,
+the chain verified SPoRA *proofs* rigorously but trusted the *shape* of new
+commitments and trusted *peers* for replicated bytes.
+
+### A1. Commitment-shape consensus gate (M5.49)
+
+**Status:** shipped (`mfn-storage`, `mfn-consensus`, `mfn-runtime`).
+
+#### The attack this closes
+
+`StorageCommitment` declares its own geometry: `size_bytes`, `chunk_size`,
+`num_chunks`. Nothing previously checked that these fields were mutually
+consistent, and both the SPoRA audit and the endowment pricing *trust* them
+in different places:
+
+- The per-block challenge is derived `mod num_chunks`
+  ([`chunk_index_for_challenge`](../mfn-storage/src/spora.rs)).
+- The endowment price is derived from `size_bytes × replication`
+  ([`required_endowment`](../mfn-storage/src/endowment.rs)).
+
+So a commitment declaring `num_chunks: 1` for a **1 GiB** payload was
+perfectly anchorable: the uploader pays the full-size endowment (or is
+"paid" by whoever they defraud downstream), but the network only ever
+challenges chunk index `0` — an operator can keep 256 KiB, discard the other
+~4095 chunks, and pass every audit forever. The permanence guarantee is
+silently void while every proof "verifies". Variants: `chunk_size: 0` or a
+non-power-of-two (breaks prover/verifier re-chunking symmetry), and
+`num_chunks: 0` (degenerates the challenge derivation to index 0).
+
+#### What changed
+
+New structural validator in
+[`mfn-storage/src/commitment.rs`](../mfn-storage/src/commitment.rs), exported
+from the crate root:
+
+```91:103:mfn-storage/src/commitment.rs
+pub fn expected_num_chunks(size_bytes: u64, chunk_size: u32) -> Result<u32, CommitmentShapeError> {
+    if chunk_size == 0 || !chunk_size.is_power_of_two() {
+        return Err(CommitmentShapeError::InvalidChunkSize(chunk_size));
+    }
+    if size_bytes == 0 {
+        return Ok(1);
+    }
+    let n = size_bytes.div_ceil(u64::from(chunk_size));
+    u32::try_from(n).map_err(|_| CommitmentShapeError::TooManyChunks {
+        size_bytes,
+        chunk_size,
+    })
+}
+```
+
+```125:138:mfn-storage/src/commitment.rs
+pub fn validate_storage_commitment_shape(
+    c: &StorageCommitment,
+) -> Result<(), CommitmentShapeError> {
+    let expected = expected_num_chunks(c.size_bytes, c.chunk_size)?;
+    if c.num_chunks != expected {
+        return Err(CommitmentShapeError::NumChunksMismatch {
+            got: c.num_chunks,
+            expected,
+            size_bytes: c.size_bytes,
+            chunk_size: c.chunk_size,
+        });
+    }
+    Ok(())
+}
+```
+
+The rules, exactly:
+
+1. `chunk_size` must be a **positive power of two** — mirrors what
+   [`build_storage_commitment`](../mfn-storage/src/spora.rs) can produce and
+   what provers/verifiers re-chunk with.
+2. `num_chunks == ceil(size_bytes / chunk_size)`, with the canonical
+   **empty payload = 1 chunk** case (the Merkle tree always has a leaf).
+   This also forces `num_chunks ≥ 1`, killing the zero-chunk degenerate.
+3. A `size_bytes`/`chunk_size` pair implying more than `u32::MAX` chunks is
+   rejected as `TooManyChunks` (such a commitment could never have been
+   honestly built).
+
+The structured error type `CommitmentShapeError`
+(`InvalidChunkSize` / `NumChunksMismatch` / `TooManyChunks`, lines 51–83 of
+`commitment.rs`) is carried verbatim inside both rejection surfaces below, so
+operators see *why* in logs.
+
+#### Enforcement point 1 — consensus (`apply_block`)
+
+In the storage-anchoring walk of
+[`mfn-consensus/src/block/apply.rs`](../mfn-consensus/src/block/apply.rs),
+**before** replication bounds and endowment pricing, and only for NEW anchors
+(duplicates of an already-anchored commitment stay inert):
+
+```422:434:mfn-consensus/src/block/apply.rs
+            // Geometry must be internally consistent before the anchor is
+            // even priced: SPoRA challenges are derived mod `num_chunks`
+            // and provers re-chunk with `chunk_size`, so a lying shape
+            // voids the audit that permanence rests on (M5.49).
+            if let Err(reason) = validate_storage_commitment_shape(sc) {
+                errors.push(BlockError::StorageCommitmentMalformed {
+                    tx: ti,
+                    output: oi,
+                    reason,
+                });
+                tx_storage_ok = false;
+                break;
+            }
+```
+
+A block containing such a tx is rejected with the new
+[`BlockError::StorageCommitmentMalformed { tx, output, reason }`](../mfn-consensus/src/block/error.rs)
+(lines 165–178) and — like every other reject path — leaves state
+untouched.
+
+#### Enforcement point 2 — mempool (byte-for-byte mirror)
+
+The mempool's storage-anchoring gate in
+[`mfn-runtime/src/mempool.rs`](../mfn-runtime/src/mempool.rs) runs the *same*
+validator at the *same* position in the check order (after the
+already-anchored/duplicate skip, before replication and burden pricing), so a
+malformed anchor never enters the pool and never wastes a producer slot:
+
+```523:532:mfn-runtime/src/mempool.rs
+            // Shape gate mirrors `apply_block` byte-for-byte (M5.49): a
+            // commitment whose declared geometry lies about the payload
+            // breaks the SPoRA audit, so it never enters the pool.
+            if let Err(reason) = mfn_storage::validate_storage_commitment_shape(sc) {
+                return Err(AdmitError::StorageCommitmentMalformed {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    output: oi,
+                    reason,
+                });
+            }
+```
+
+Keeping consensus and mempool admission in lockstep matters: a check that
+exists only in the mempool is advisory (a hostile producer bypasses it), and
+a check that exists only in consensus lets garbage sit in every node's pool
+until block inclusion fails. This pairing is the same discipline the
+endowment (`UploadUnderfunded`) and replication-bounds checks already follow.
+
+#### Why genesis and already-anchored commitments are exempt
+
+The gate applies to **NEW** anchors only. Pre-existing anchored entries
+(including any genesis-spec storage) are grandfathered — re-validating them
+would make historical state re-application fragile, and downstream consumers
+(`expected_chunk_len`, below) are written to be total functions that clamp
+safely on any geometry.
+
+#### Test coverage
+
+- `mfn-storage/src/commitment.rs` unit tests: power-of-two acceptance/rejection
+  sweep, `ceil` boundary cases (exact multiple vs +1 byte), empty payload = 1
+  chunk, `u32` overflow → `TooManyChunks`, and validator round-trips on real
+  `build_storage_commitment` outputs.
+- [`mfn-consensus/tests/block_apply.rs`](../mfn-consensus/tests/block_apply.rs):
+  - `apply_block_rejects_storage_commitment_with_lying_num_chunks` — a signed,
+    sealed block anchoring a 16 KiB payload that declares `num_chunks: 1`
+    (honest: 64) is rejected with `StorageCommitmentMalformed`, state
+    unchanged.
+  - `apply_block_rejects_storage_commitment_with_bad_chunk_size` — non-power-
+    of-two `chunk_size` rejected end-to-end.
+  - `apply_block_accepts_storage_commitment_with_consistent_shape` — control:
+    the same flow with honest geometry anchors fine.
+- `mfn-runtime/src/mempool.rs`:
+  `admit_storage_tx_rejects_lying_num_chunks`,
+  `admit_storage_tx_rejects_non_power_of_two_chunk_size`,
+  `admit_storage_tx_rejects_zero_num_chunks`.
+
+### A2. Chunk-inbox gossip authentication (M7.12)
+
+**Status:** shipped (`mfn-node`).
+
+#### The attack surface this closes
+
+Replication rides on P2P gossip: peers push
+[`ChunkV1`](../mfn-net/src/chunk_v1.rs) frames
+(`tag ‖ commit_hash ‖ chunk_index ‖ raw bytes`), and the receiving node
+persists them under `chunk-inbox/<commit_hex>/<index>` for later assembly and
+fan-out. Before M7.12, `on_chunk_v1` wrote **whatever any peer sent** to disk:
+
+- chunks for commitments that don't exist on-chain (unbounded spam →
+  disk-fill DoS keyed by attacker-chosen 32-byte names);
+- out-of-range indices and wrong-length bodies for real commitments;
+- **overwrites** of chunks the operator already held — a malicious peer could
+  corrupt a stored replica *after* the fact, so a node that had the data and
+  would have passed its SPoRA audit suddenly wouldn't.
+
+#### What changed
+
+`on_chunk_v1` in
+[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs) now runs a
+gauntlet before any disk write (lines 74–123):
+
+1. **Anchored-commitment lookup.** The chain state's storage registry is
+   consulted under the chain mutex; an unknown `commit_hash` is
+   `rejected:unknown_commit` — nothing attacker-named ever touches disk.
+2. **Geometry validation** via the new
+   [`validate_gossip_chunk`](../mfn-node/src/p2p_chunk_inbox.rs) (line 52):
+   - `chunk_index < num_chunks` (`ChunkGossipReject::IndexOutOfRange`);
+   - byte length must equal
+     [`expected_chunk_len`](../mfn-node/src/p2p_chunk_inbox.rs) (line 41) —
+     full `chunk_size` for interior chunks, the exact remainder for the tail
+     chunk, computed with saturating arithmetic that clamps against
+     `size_bytes` so it stays total even for grandfathered pre-M5.49
+     geometries (`ChunkGossipReject::LengthMismatch`);
+   - **single-chunk commitments are fully verified outright**: a one-leaf
+     Merkle tree's root *is* the leaf hash, so
+     `chunk_hash(bytes) == data_root` is checked byte-for-byte
+     (`ChunkGossipReject::DataRootMismatch`). Multi-chunk frames carry no
+     Merkle path today, so their content check happens at assembly time
+     (A3) — closing that gap at gossip time is [§B2](#b2-merkle-path-carrying-chunk-gossip-full-per-chunk-verification).
+3. **First-write-wins.** If a file already exists at the inbox path with the
+   expected length, the frame is `skipped:already_present` — held bytes are
+   never overwritten by gossip. A wrong-length leftover (crash debris) may
+   still be repaired by a valid frame.
+
+Every reject path returns a structured label
+(`rejected:unknown_commit:…`, `rejected:chunk_invalid:…:IndexOutOfRange{…}`)
+that lands in the node's gossip log for operator forensics.
+
+#### Why "reject unknown commitments" is the right trade-off
+
+A chunk can legitimately arrive before its anchoring block on a lagging
+replica. Rejecting it costs one retransmission (the fan-out path re-offers
+chunks when uploads land; a node that syncs the block later will receive the
+chunks again from any peer with a complete inbox). Accepting it costs an
+unbounded, unauthenticated disk-write primitive. Permanence favors the
+network never storing bytes it cannot tie to an anchor.
+
+#### Test coverage
+
+- `mfn-node/src/p2p_chunk_inbox.rs` unit tests: `expected_chunk_len` over
+  full/tail/out-of-range indices; acceptance of every true chunk of a real
+  commitment; rejection of out-of-range index, wrong length, and forged
+  single-chunk bytes.
+- `mfn-node/src/p2p_gossip.rs` integration tests (against a real chain +
+  store):
+  - `on_chunk_v1_rejects_unknown_commit_without_disk_write` — unknown commit
+    leaves no `chunk-inbox/` entry at all;
+  - `on_chunk_v1_validates_anchored_chunks_and_protects_existing_bytes` —
+    valid chunk stored; bad index/length rejected; a second, different
+    same-length body for an already-held chunk is skipped and the original
+    bytes survive;
+  - `on_chunk_v1_fully_verifies_single_chunk_commitments` — forged bytes of
+    the right length are rejected for single-chunk commitments.
+
+### A3. Fan-out `data_root` verification (M7.12)
+
+**Status:** shipped (`mfn-node`).
+
+#### The propagation hazard this closes
+
+When a new upload lands on-chain, nodes with a **complete** inbox for that
+commitment fan the chunks out to peers
+([`mfn-node/src/p2p_chunk_fanout.rs`](../mfn-node/src/p2p_chunk_fanout.rs)).
+Completeness was previously *count*-based (`chunk_inbox_complete`): all
+`num_chunks` files present. Pre-M7.12 inboxes (or local disk corruption)
+could therefore contain a complete-but-wrong set of bytes, and the node would
+replicate the corruption **as if it were the anchored payload** — corrupted
+data spreading through the mesh wearing a valid commitment's name is the
+exact inversion of permanence.
+
+#### What changed
+
+`load_complete_inbox_chunks` now rebuilds the Merkle tree over the loaded
+chunks and requires the recomputed root to equal the anchored `data_root`
+before the set becomes eligible for fan-out:
+
+```46:61:mfn-node/src/p2p_chunk_fanout.rs
+    // (M7.12) Verify against the anchored data_root before fanning out:
+    // a node must never replicate bytes it cannot prove are the payload,
+    // or corrupted inboxes would spread through the mesh as if permanent.
+    let refs: Vec<&[u8]> = chunks.iter().map(|(_, b)| b.as_slice()).collect();
+    let tree = match mfn_storage::merkle_tree_from_chunks(&refs) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("mfnd_p2p_chunk_fanout_skip commit={commit_hex} merkle_err={e}");
+            return None;
+        }
+    };
+    if tree.root() != commit.data_root {
+        eprintln!("mfnd_p2p_chunk_fanout_skip commit={commit_hex} data_root_mismatch=1");
+        return None;
+    }
+    Some(chunks)
+```
+
+Combined with A2, the invariant across a payload's whole replication life is:
+**bytes enter the inbox only if they are consistent with the anchor, and
+leave the node only if they are *provably* the anchored payload.**
+
+#### Test coverage
+
+- `load_complete_inbox_chunks_refuses_corrupted_inbox` — a complete inbox
+  whose first byte was flipped (valid count, valid lengths) is refused for
+  fan-out.
+- `load_complete_inbox_chunks_round_trip` (pre-existing) — honest inboxes
+  still load, now additionally proving the verification passes on real data.
+
+### A4. Documentation honesty fix (`STORAGE.md`)
+
+[`STORAGE.md § Endowment is a Pedersen commitment`](./STORAGE.md#endowment-is-a-pedersen-commitment)
+previously implied the chain "verifies the endowment math" against the
+commitment point. It now states precisely what consensus enforces today —
+the **funding route** (`fee × fee_to_treasury_bps / 10_000 ≥
+required_endowment(size_bytes, replication)`, else `UploadUnderfunded`) —
+and that the Pedersen point itself is **not yet opened or range-proved
+on-chain**, with a pointer to the [§B1](#b1-bind-the-endowment-commitment-to-required_endowment-b-11--consensus)
+plan. A permanence chain must not document guarantees it does not enforce.
+A new `STORAGE.md § Structural (shape) validation — M5.49` section documents
+A1 for mechanism readers.
+
+### A5. CI trustworthiness: order-independent smoke-harness reads (M2.5.61, commit `1603e43`)
+
+Not a protocol change, but it is why the rest of this page is *verified*
+rather than merely written: M2.5.50 reordered `mfnd serve`'s startup
+announcements (`mfnd_p2p_listening=` now precedes `mfnd_serve_listening=`
+so devnet orchestration can poll the P2P listener early). The `mfnd_smoke`
+harness read those prefixes **sequentially in the old order**, silently
+discarded the P2P line, and then blocked forever on a stdout that would
+never speak again (`read_line` has no mid-read deadline) — hanging
+`mfnd_p2p_reconnects_saved_peers_on_restart` and
+`mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` on every platform,
+deterministically. Every CI run between M2.5.50 and M2.5.61 had its test
+matrix cancelled by rapid pushes before reaching the hang, so local `ci-check`
+was the first full run to hit it (twice, ~55 minutes each).
+
+The fix adds
+[`read_stdout_lines_with_prefixes_any_order`](../mfn-node/tests/stdout_timeout.rs)
+(line 47) — collects a set of startup prefixes in any order, panicking with
+the *missing* set on timeout/EOF — and converts all six `--p2p-listen` spawn
+sites in [`mfn-node/tests/mfnd_smoke.rs`](../mfn-node/tests/mfnd_smoke.rs)
+to it. CI run `28774283620` on `1603e43` was the first fully green test
+matrix (Ubuntu, Windows, macOS) since M2.5.50, and is the run that verifies
+A1–A3 cross-platform.
+
+Harness lesson recorded for future startup-log changes: tests must treat
+startup announcements as a *set*, not a *sequence*, because announcement
+order is an operational tuning knob (M2.5.50 changed it deliberately).
+
+### Related shipped work (other lanes, same doctrine)
+
+- **F5-PM10** (`b260033`) — `mfnd archive-export` / `archive-verify`
+  ([`mfn-node/src/archive_export.rs`](../mfn-node/src/archive_export.rs)):
+  self-verifying offline archives — full replay from genesis spec through the
+  STF plus chunk Merkle re-derivation against anchored `data_root`s. The
+  disaster-recovery complement to A2/A3's live-mesh integrity.
+- **F5-PM13** (`df70b9c`) — `validate_constitution` gates every operator
+  genesis spec (emission tail > 0, uniform ring ≥ 16, endowment pricing
+  sanity), so a mis-parameterized network can't be born claiming permanence
+  it can't fund.
+
+---
+
+## Part B — Remaining work (specific plans)
+
+Ordered roughly by permanence impact per unit risk. Items marked
+**consensus** need a version gate and M5-style proptests. Backlog IDs from
+[`AGENTS.md`](../AGENTS.md) are given where they exist.
+
+### B1. Bind the endowment commitment to `required_endowment` (B-11) — **consensus**
+
+**Problem.** The highest remaining permanence gap. `StorageCommitment.endowment`
+is a Pedersen point that consensus never opens, range-proves, or binds to
+anything. What actually funds permanence today is the *fee-share* gate in
+[`apply_block`](../mfn-consensus/src/block/apply.rs)
+(`UploadUnderfunded` when
+`fee × fee_to_treasury_bps / 10_000 < required_endowment(size, repl)`). The
+committed point is decorative: an uploader can commit to `0` (or to 2⁶⁴−1)
+with no consequence. That is *currently* safe only because the fee route is
+enforced — but it means the on-chain artifact that *looks* like the
+permanence bond is unverified, and any future logic that trusts it (e.g.
+per-endowment yield, endowment top-ups, B6 bucket pricing) inherits a hole.
+
+**Plan.** Two designs, in ascending strength:
+
+1. **Opening reveal (cheap, no new crypto).** Add `endowment_value: u64` and
+   `endowment_blinding: [u8; 32]` to the *transaction-level* storage
+   metadata (not the commitment struct — its hash is the chain identity and
+   must stay stable). `apply_block` checks
+   `commit(endowment_value, blinding) == sc.endowment` and
+   `endowment_value ≥ required_endowment(...)`. Costs 40 bytes per upload;
+   reveals the endowment amount (acceptable — `required_endowment` is
+   already public math over public `size_bytes`/`replication`; only
+   *over*-payment privacy is lost, and B6 restores it at the size level).
+2. **Range-proof binding (amount-private).** Require a Bulletproof that
+   `endowment − required_endowment(...) ∈ [0, 2^64)` over the homomorphic
+   difference `sc.endowment − commit(required, 0)`. Reuses the existing
+   [`bp_prove`](../mfn-crypto/src/bulletproofs.rs) machinery from tx outputs;
+   preserves over-payment privacy; costs ~700 bytes per upload.
+
+Start with (1) behind a params version gate; upgrade to (2) if endowment
+privacy proves to matter. Touches: `mfn-consensus/src/transaction/wire.rs`
+(new optional field, version-gated), `block/apply.rs` + `block/error.rs`
+(new reject variant), `mempool.rs` mirror, `mfn-wallet/src/upload.rs` (the
+wallet already holds `built.blinding` from
+[`build_storage_commitment`](../mfn-storage/src/spora.rs), so it can populate
+either design today), M5 proptests mixing valid/forged openings.
+
+**Effort:** moderate (1) / high (2). **Risk:** high (consensus + wire).
+
+### B2. Merkle-path-carrying chunk gossip — full per-chunk verification
+
+**Problem.** A2 verifies single-chunk commitments outright but can only
+length-gate the chunks of multi-chunk commitments at gossip time, because a
+[`ChunkV1`](../mfn-net/src/chunk_v1.rs) frame carries raw bytes with **no
+Merkle path**. Wrong-content-right-length bytes for an anchored multi-chunk
+commitment are accepted into the inbox and only caught at fan-out/assembly
+(A3). That wastes disk and retransmission on junk, and a first-write-wins
+inbox seeded with junk blocks the honest bytes until the wrong-length repair
+path or manual cleanup intervenes.
+
+**Plan.** Add a `ChunkV2` gossip frame:
+`tag 0x11 ‖ commit_hash ‖ chunk_index ‖ varint(path_len) ‖ [sibling ‖ side]* ‖ chunk_bytes`,
+reusing the exact `MerkleProof` encoding from
+[`encode_storage_proof`](../mfn-storage/src/spora.rs). `on_chunk_v2` verifies
+`verify_merkle_proof(chunk_hash(bytes), path, index, data_root)` before the
+inbox write — at which point **every** stored chunk is individually proven
+and the A2 first-write-wins rule becomes airtight (junk can never occupy a
+slot). Keep accepting `ChunkV1` for one release for mesh compatibility;
+senders can always produce the path because fan-out already loads the
+complete verified set (A3) and can rebuild the tree. Cost: ~`32·log₂(n)`
+bytes per chunk frame (320 bytes at a million chunks) — negligible against a
+256 KiB body. Pure `mfn-net`/`mfn-node` change, no consensus impact.
+
+**Effort:** moderate. **Risk:** low–medium (P2P compatibility window).
+
+### B3. Replication accounting — make `replication` mean something at audit time — **consensus**
+
+**Problem.** `replication` is priced (`required_endowment` multiplies by it)
+and bounds-checked, but **never audited**. `apply_block` accepts at most one
+SPoRA proof per commitment per block
+(`DuplicateStorageProof`, [`apply.rs`](../mfn-consensus/src/block/apply.rs)
+line ~554), and proofs carry operator payout keys but no operator *identity*
+that consensus tracks. The chain therefore cannot distinguish "3 independent
+replicas" from "one operator with one copy answering every challenge." The
+user pays for N replicas; the protocol proves ≥ 1.
+
+**Plan (incremental).**
+
+1. **Per-operator proof slots.** Allow up to `replication` proofs per
+   commitment per block, each bound to a registered operator identity (the
+   bonding registry from the lane-6 operator-bonding research is the natural
+   identity anchor). Distinct-operator proofs for the same challenge index
+   demonstrate independent possession *of that chunk*.
+2. **Operator-salted challenges.** Derive the challenge as
+   `H(prev_id ‖ slot ‖ commit_hash ‖ operator_id) mod num_chunks` so distinct
+   operators must answer **different** chunk indices each block — one shared
+   copy can no longer answer all slots without holding (close to) the whole
+   payload per operator. This is the piece that makes replication real.
+3. **Payout split.** Divide the per-commitment reward across the accepted
+   proof slots (or better: pay each slot from its own accrual) so honest
+   replicas don't race each other.
+
+Requires: proof wire format change (operator binding), `apply_block` proof
+loop rework, emission/treasury settlement update, and heavy M5 proptesting
+(mixed honest/missing/equivocating operators). Sequence *after* operator
+bonding exists; design doc first in `docs/` (this section is the seed).
+
+**Effort:** high. **Risk:** high (consensus + economics).
+
+### B4. Proactive replica repair (re-fan-out on staleness)
+
+**Problem.** Fan-out happens when an upload lands (and on inbox completion).
+If replicas later vanish — operators churn, disks die — nothing re-spreads
+the data. The chain *records* staleness (`StorageEntry.last_proven_height` /
+`last_proven_slot` go quiet) but nodes don't act on it.
+
+**Plan.** A periodic repair sweep in `mfnd` (alongside the existing
+committee catch-up loop in
+[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)): scan
+`chain.state().storage` for entries with
+`current_slot − last_proven_slot > repair_threshold_slots` where the local
+inbox is complete and verified (A3 path), and re-fan-out to current peers.
+Config knob `MFND_REPAIR_THRESHOLD_SLOTS` (default ~2× the anti-hoarding
+window, 14 400). Pure node-layer, no consensus change; observable via a
+`mfnd_p2p_repair_fanout commit=… stale_slots=…` log line for rehearsal
+assertions.
+
+**Effort:** low–moderate. **Risk:** low.
+
+### B5. Operator bonding + slashing for failed audits — **consensus**
+
+**Problem.** SPoRA is currently carrot-only: prove → get paid; vanish → the
+only loss is foregone reward. An operator who accepted endowment-funded
+rewards for a year and then deletes the data keeps everything earned. For
+permanence, absence needs a *stick*.
+
+**Plan.** Lane 6 owns the research
+([`AGENTS.md`](../AGENTS.md) lane registry). Sketch: operators register with
+a bonded stake (the `BondOp` machinery in
+[`mfn-consensus/src/bond_wire.rs`](../mfn-consensus/src/bond_wire.rs) and the
+existing bonding params are the substrate); commitments are assigned (or
+operators self-select into) replica slots (B3); missing `k` consecutive
+salted challenges for an assigned slot slashes a proportional bond fraction
+into the treasury (which funds repair incentives, closing the loop with B4).
+Needs careful griefing analysis — challenge availability must never depend on
+data a censoring producer can withhold.
+
+**Effort:** very high. **Risk:** high (consensus + economics + liveness).
+
+### B6. Size-bucketed commitments (`F5:P15`) — shared with privacy roadmap
+
+`size_bytes` is exact and public — a fingerprint against known documents
+(privacy) *and* the input to endowment pricing (permanence). Padding uploads
+to bucket boundaries and pricing on the bucket removes the fingerprint and
+simplifies B1's revealed-opening variant (the revealed value is a bucket
+price, not a document-unique number). Plan details live in
+[`PRIVACY_HARDENING.md § B13`](./PRIVACY_HARDENING.md#b13-size-bucketed-storage-commitments-f5p15--consensus-adjacent);
+listed here because its enforcement point is the same `apply_block` pricing
+walk that A1 hardened.
+
+**Effort:** moderate. **Risk:** medium (endowment pricing).
+
+### B7. Chunk-inbox disk quota (DoS depth)
+
+**Problem.** A2 killed the *unauthenticated* disk-write primitive, but a
+peer can still push valid-shaped junk for **anchored** commitments (until B2
+makes junk impossible) and, even post-B2, true bytes for many large anchored
+payloads a node never intended to replicate. `chunk-inbox/` has no size
+budget.
+
+**Plan.** Add `MFND_CHUNK_INBOX_MAX_BYTES` (default e.g. 64 GiB) enforced in
+`save_chunk_inbox`'s caller with an eviction policy that never evicts
+verified-complete sets pending fan-out, plus a
+`mfnd_chunk_inbox_evict commit=… bytes=…` log line. Node-layer only.
+Sequence after B2 so eviction decisions operate on proven bytes.
+
+**Effort:** low. **Risk:** low.
+
+### B8. Retrieval accessibility (tracked separately)
+
+Permanence without retrieval is a tombstone. The retrieval story —
+`get_chunk` RPC surface, HTTP gateway fetch, WASM prove-and-serve — is
+tracked in [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) (M7.11.x)
+and not duplicated here; note only that B2's `ChunkV2` path format is
+deliberately identical to the retrieval proof format, so gateway responses
+become self-verifying for free once B2 lands.
+
+---
+
+## Prioritization
+
+| Impact / effort | Items |
+|---|---|
+| Shipped | **A1** shape consensus gate, **A2** gossip authentication, **A3** fan-out root verification, **A4** doc honesty, **A5** CI harness fix |
+| Cheap wins | **B4** proactive repair, **B7** inbox quota |
+| High impact, moderate effort | **B1(1)** endowment opening reveal, **B2** Merkle-path gossip, **B6** size buckets |
+| High impact, high effort | **B1(2)** range-proof binding, **B3** replication accounting, **B5** bonding + slashing |
+
+Natural next step: **B1 design 1** (close the decorative-endowment gap with
+a revealed opening behind a version gate), with **B2** as the parallel
+node-layer track since it has no consensus risk.
+
+## See also
+
+- [`STORAGE.md`](./STORAGE.md) — how the storage/permanence mechanisms work
+  (includes the M5.49 shape-validation section).
+- [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) — the privacy twin of this
+  document.
+- [`F5.md`](./F5.md) — the broader privacy/permanence frontier menu.
+- [`PROBLEMS.md`](./PROBLEMS.md) /
+  [`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md) — the
+  weaknesses these items answer.
+- [`AGENTS.md`](../AGENTS.md) — backlog IDs (B-11) and lane ownership.

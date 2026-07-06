@@ -152,7 +152,9 @@ The `endowment` field is **not** a plaintext amount — it's a Pedersen commitme
   (`fee × fee_to_treasury_bps / 10_000`) must cover `required_endowment(size_bytes, replication)`
   or the block is rejected (`UploadUnderfunded`).
 - The Pedersen point itself is **not** opened or range-proved on-chain yet — binding it to
-  `required_endowment` in consensus is tracked as backlog **B-11** in [`AGENTS.md`](../AGENTS.md).
+  `required_endowment` in consensus is tracked as backlog **B-11** in [`AGENTS.md`](../AGENTS.md);
+  the concrete design options are in
+  [`PERMANENCE_HARDENING.md` §B1](./PERMANENCE_HARDENING.md#b1-bind-the-endowment-commitment-to-required_endowment-b-11--consensus).
 
 ### Replication factor
 
@@ -649,6 +651,7 @@ Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_
 
 ## See also
 
+- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip authentication + fan-out verification) and the specific plans for what remains (endowment binding, replication accounting, repair, slashing)
 - [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — can normal devices be storage operators? (feasibility vs Arweave-style hardware)
 - [`ECONOMICS.md`](./ECONOMICS.md) — full derivation of the endowment formula + parameter sensitivity
 - [`PRIVACY.md`](./PRIVACY.md) — the privacy half (which funds this half)
