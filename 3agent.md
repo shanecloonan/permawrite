@@ -8,9 +8,9 @@
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **Nightly #62** | **FAIL** | ~16.3m on `3a1f213` |
-| **M2.5.49–60** | **Done** | RC stack through clippy unwrap gate (M2.5.60, this commit) |
-| **CI #682+** | **In progress** | `cancel-in-progress` — latest push wins |
-| **Nightly #63** | Waiting | After first green CI on the stack |
+| **M2.5.49–61** | **Done** | RC stack through mfnd_smoke stdout-order fix (`1603e43`) |
+| **CI** | **GREEN** | On `1603e43` (run `28774283620`, 2026-07-06 10:05 UTC) — first green matrix since M2.5.50 |
+| **Nightly #63** | **In progress** | Auto-dispatched on green push, with Linux Soak Audit |
 
 ### RC push hold
 
@@ -22,7 +22,7 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–59 | Monitor **CI #682+** | **Nightly #63** (B-06) |
+| **1** RC core | M2.5.49–61; CI green `1603e43` | Monitor **Nightly #63** | Release evidence after green Nightly |
 | **2** RC ops | M2.5.57–59 | — | Release evidence after green Nightly |
 | **3** RC onboarding | M7.11.2 Phase B | — | Participant + observer PASS on #63 |
 
@@ -41,7 +41,8 @@
 ## B-06 checklist
 
 - [x] Nightly #62 executed (FAIL ~16.3m)
-- [x] M2.5.49–59 on `main`
+- [x] M2.5.49–61 on `main`
+- [x] First green CI on the stack (`1603e43`, run `28774283620`)
 - [ ] **Nightly #63** all three green
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence

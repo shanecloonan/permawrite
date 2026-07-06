@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI on M2.5.61 commit** is the first run since M2.5.50 whose test matrix can pass (see below). **CI #665+ all cancelled** by rapid pushes (F5 stack through `b260033`); none reached a completed test matrix. **Nightly #63** (B-06) after first green CI. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI GREEN** on `1603e43` (M2.5.61, run `28774283620`, 2026-07-06 10:05 UTC) — first green matrix since M2.5.50; all jobs passed (fmt, clippy, scripts, wasm, audit, test x3). Green push auto-dispatched **Nightly #63** (B-06) + **Linux Soak Audit** (B-05), both in progress. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 **Red-CI root cause (fixed by M2.5.61):** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consumed the P2P line and hung forever (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — reproduced twice on Windows ci-check). Any CI test matrix on M2.5.50..M2.5.61 would hang to job timeout, so the M2.5.61 push intentionally supersedes those doomed runs.
 
@@ -92,7 +92,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — monitor **CI #682+** | After green: Nightly #63 + B-05 soak |
+| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — CI green on `1603e43`; Nightly #63 + Linux soak dispatched | After green: release evidence refresh (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **Done** - this commit (full smoke suite 46 pass / 0 fail locally) | B-11 endowment-opening consensus binding |
