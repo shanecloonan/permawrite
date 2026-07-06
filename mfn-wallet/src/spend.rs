@@ -228,6 +228,21 @@ where
         });
     }
 
+    // Canonical output ordering (F5:P9 / PRIVACY_HARDENING B3): the
+    // construction order — recipients first, change/pad appended last —
+    // is itself a fingerprint ("the last output is the change") that
+    // partitions every reference-wallet tx. Fisher–Yates shuffle with the
+    // plan RNG so output position carries no information. One-time
+    // addresses are derived from the *final* index inside
+    // `sign_transaction`, so shuffling specs here is invisible to
+    // recipients and to the balance equation.
+    for i in (1..output_specs.len()).rev() {
+        let r = (plan.rng)();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let j = ((r * (i + 1) as f64) as usize).min(i);
+        output_specs.swap(i, j);
+    }
+
     Ok(sign_transaction(
         input_specs,
         output_specs,
@@ -358,5 +373,71 @@ mod tests {
         assert_eq!(signed.tx.outputs.len(), 2, "two outputs must be preserved");
         let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
         assert!(v.ok, "transfer must verify: {:?}", v.errors);
+    }
+
+    /// Canonical output ordering (F5:P9 / B3): the change output must not
+    /// sit at a fixed position. Across seeds, the second recipient (the
+    /// change-like output) must land at index 0 sometimes and index 1
+    /// sometimes — and every shuffled tx must still verify and scan.
+    #[test]
+    fn output_position_carries_no_change_signal() {
+        use std::collections::HashSet;
+
+        let payee_keys = wallet_from_seed(&[21u8; 32]);
+        let change_keys = wallet_from_seed(&[22u8; 32]);
+        let fee = 1_000u64;
+        let mut seen_positions = HashSet::new();
+
+        for seed in 0..16u32 {
+            let input = owned(1_000_000);
+            let refs = [&input];
+            let decoys = pool(20);
+            let recipients = [
+                TransferRecipient {
+                    recipient: Recipient {
+                        view_pub: payee_keys.view_pub(),
+                        spend_pub: payee_keys.spend_pub(),
+                    },
+                    value: 600_000,
+                },
+                TransferRecipient {
+                    recipient: Recipient {
+                        view_pub: change_keys.view_pub(),
+                        spend_pub: change_keys.spend_pub(),
+                    },
+                    value: 1_000_000 - 600_000 - fee,
+                },
+            ];
+            let mut r = mfn_crypto::seeded_rng(0x5EED_0000 + seed);
+            let plan = TransferPlan {
+                inputs: &refs,
+                recipients: &recipients,
+                fee,
+                extra: &[],
+                ring_size: crate::WALLET_MIN_RING_SIZE,
+                decoy_pool: &decoys,
+                current_height: 1,
+                rng: &mut r,
+            };
+            let signed = build_transfer(plan).expect("build transfer");
+            let v = verify_transaction(&signed.tx, &RingPolicy::PRODUCTION);
+            assert!(v.ok, "shuffled transfer must verify: {:?}", v.errors);
+
+            let scan = crate::scan::scan_transaction(
+                &signed.tx,
+                1,
+                &change_keys,
+                &std::collections::HashSet::new(),
+            );
+            assert_eq!(scan.recovered.len(), 1, "change wallet must own one output");
+            assert_eq!(scan.recovered[0].value, 1_000_000 - 600_000 - fee);
+            seen_positions.insert(scan.recovered[0].output_idx);
+        }
+
+        assert!(
+            seen_positions.len() > 1,
+            "change output position must vary across transactions; \
+             only saw {seen_positions:?}"
+        );
     }
 }

@@ -96,7 +96,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
 | **4** | M2.5.61 mfnd_smoke order-independent startup reads (fix M2.5.50 stdout-order hang) | **In progress** — local ci-check running | Then B-11 endowment-opening consensus binding |
-| **5** | F5-PM13: constitutional invariants (`validate_constitution` genesis gate) | **Done** - this commit | F5:B3 canonical output ordering |
+| **5** | F5:B3 output-order shuffle (change position carries no signal) | **Done** - this commit | B1 consensus min-output floor (needs version gate) |
 | **6** | M2.5.56 B-10 anyhow 1.0.103 | **Done** - `6fe1b18` | B-05 soak evidence |
 
 ---
@@ -130,7 +130,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5-PM13** (this commit) - permanence governance (lanes 4+6): `mfn_consensus::constitution` fork-legitimacy invariants (`tail_emission > 0`, uniform rings >= 16, well-formed endowment pricing) enforced on every operator-supplied genesis spec via `GenesisSpecError::Constitution`.
+- **F5:B3** (this commit) - privacy surface (lane 5): reference wallets shuffle output order with the plan RNG in `spend::build_transfer` — "last output is change" no longer holds for any reference tx; position-distribution test added.
+- **F5-PM13** (`df70b9c`) - permanence governance (lanes 4+6): `mfn_consensus::constitution` fork-legitimacy invariants (`tail_emission > 0`, uniform rings >= 16, well-formed endowment pricing) enforced on every operator-supplied genesis spec via `GenesisSpecError::Constitution`.
 - **F5-P10** (`3789e39`) - privacy surface (lane 5): structural authorship-key firewall — canonical `derive_claiming_keypair` in `mfn-crypto` (byte-compatible with the wallet-local derivation), closed `ClaimingIdentity` constructor, and signing-time `ClaimKeyReusesWalletKey` rejection when a claim pubkey collides with wallet view/spend keys.
 - **F5-P8** (`23c14d6`) - privacy surface (lane 5): `mfn_crypto::lsag` (pre-CLSAG legacy) and unwired `oom` compile only under `cfg(test)` or non-default `lsag`/`oom` features — release binaries accept CLSAG only. `PRIVACY_HARDENING.md` §B5 marked shipped.
 - **M5.49 + M7.12** (`890a56c`) - permanence hardening (lane 4): consensus + mempool reject storage commitments with inconsistent geometry (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip writes authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk `data_root` verify, no overwrite of held bytes); chunk fan-out verifies the inbox Merkle root against `data_root` before replicating.

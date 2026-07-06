@@ -217,20 +217,29 @@ impact.
 
 **Effort:** moderate. **Risk:** low.
 
-### B3. Canonical-encoding conformance (`F5:P9`)
+### B3. Canonical-encoding conformance (`F5:P9`) — **output ordering shipped**
 
 **Problem.** Any wallet-controlled byte that differs between implementations
 partitions the anonymity set into "users of wallet X": output ordering, change
 position, `extra`-field contents, decoy sampling seed handling.
 
-**Plan.** Define a canonical policy in `mfn-wallet` (e.g. sort outputs by
-one-time-address bytes so change position carries no signal; fix `extra`
-defaults to empty; document the RNG contract) and add a conformance test that
-the CLI and WASM frontends must pass. Today output order follows construction
-order (recipient, then change/pad) — that ordering itself is a signal. Sorting
-outputs is the highest-value sub-item and is a small, self-contained change to
-the `output_specs` assembly in
-[`spend.rs`](../mfn-wallet/src/spend.rs) / [`upload.rs`](../mfn-wallet/src/upload.rs).
+**Shipped (highest-value sub-item).** Output position no longer carries a
+change signal: [`spend::build_transfer`](../mfn-wallet/src/spend.rs) — the
+universal backstop every reference frontend (wallet, WASM, CLI) funnels
+through — Fisher–Yates-shuffles the output specs with the plan RNG after the
+two-output pad, so "the last output is the change" no longer holds for any
+reference-wallet transaction. One-time addresses are derived from the *final*
+index inside `sign_transaction`, so the shuffle is invisible to recipients
+and the balance equation. A shuffle (rather than a sort by one-time-address
+bytes) is used because the indexed stealth derivation computes the address
+*from* the output position — a post-derivation sort would invalidate the
+derivation it sorted by. Test:
+`output_position_carries_no_change_signal` asserts the change output's
+position varies across transactions and every shuffled tx verifies and
+scans.
+
+**Remaining.** `extra`-field defaults, decoy sampling RNG contract, and a
+cross-frontend conformance test (CLI + WASM byte-identical policy).
 
 **Effort:** low–moderate. **Risk:** low.
 
@@ -427,15 +436,14 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall |
-| Cheap wins | B3 (canonical encoding / output sort) |
+| Shipped | **A1** two-output floor (wallet), **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3 (partial)** output-order shuffle |
+| Cheap wins | B3 remainder (extra-field / RNG-contract conformance test) |
 | High impact, moderate effort | B1 (consensus min-outputs), B2 (age-band selection), B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step after A1: **B3** (sort outputs so change position carries no
-signal — small, self-contained, no consensus change) and then **B1** (lift the
-two-output floor into consensus so the guarantee is network-wide).
+Natural next step: **B1** (lift the two-output floor into consensus so the
+guarantee is network-wide), then **B2** (age-band coin selection).
 
 ## See also
 
