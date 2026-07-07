@@ -421,6 +421,7 @@ wait_for_mesh_production() {
         MFN_HEALTH_STALL_INTERVAL_SECONDS=0 \
         MFN_HEALTH_MIN_HEIGHT_DELTA=1 \
         MFN_HEALTH_REQUIRE_ALL_ROLES=0 \
+        MFN_HEALTH_MIN_P2P_SESSIONS=0 \
         "$SCRIPT_DIR/health-check.sh" 2>&1
     ); then
       hub_height="$(health_role_field "$health_output" hub tip_height)"
@@ -428,6 +429,17 @@ wait_for_mesh_production() {
         printf '%s\n' "$health_output"
         echo "soak: WARMUP phase=hub_produced hub_tip_height=$hub_height"
         break
+      fi
+    elif [[ -n "${GITHUB_ACTIONS:-}" ]] && [[ -f "$PORTS_FILE" ]]; then
+      # start-all already gated hub tip>=1; session_count may still be 0 on GHA (M2.5.65).
+      # shellcheck source=/dev/null
+      source "$PORTS_FILE"
+      if [[ -n "${HUB_RPC:-}" ]]; then
+        hub_height="$(query_tip_height "$HUB_RPC" "${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}" 2>/dev/null || true)"
+        if [[ "$hub_height" =~ ^[0-9]+$ ]] && (( hub_height >= 1 )); then
+          echo "soak: WARMUP phase=hub_produced hub_tip_height=$hub_height (tip poll fast path)"
+          break
+        fi
       fi
     fi
     sleep 5

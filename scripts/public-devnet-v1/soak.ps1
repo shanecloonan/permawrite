@@ -122,11 +122,13 @@ function Wait-ForMeshProduction {
     $oldInterval = [Environment]::GetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS")
     $oldDelta = [Environment]::GetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA")
     $oldRequireAll = [Environment]::GetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES")
+    $oldMinP2p = [Environment]::GetEnvironmentVariable("MFN_HEALTH_MIN_P2P_SESSIONS")
     try {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_SAMPLES", "1", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", "0", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", "1", "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES", "0", "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_P2P_SESSIONS", "0", "Process")
         while ((Get-Date) -lt $deadline) {
             $ports = Read-PortsFile
             Assert-ProcessAlive $ports "HUB_PID"
@@ -181,6 +183,7 @@ function Wait-ForMeshProduction {
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_STALL_INTERVAL_SECONDS", $oldInterval, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_HEIGHT_DELTA", $oldDelta, "Process")
         [Environment]::SetEnvironmentVariable("MFN_HEALTH_REQUIRE_ALL_ROLES", $oldRequireAll, "Process")
+        [Environment]::SetEnvironmentVariable("MFN_HEALTH_MIN_P2P_SESSIONS", $oldMinP2p, "Process")
     }
 }
 function Add-SoakSample {
