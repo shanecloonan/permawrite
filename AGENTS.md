@@ -93,9 +93,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
 | **2** | Release evidence refresh | **Done** — `release-evidence-837069a` + RC audit go | Idle |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
-| **4** | B-11 endowment opening binding | **In progress** — public devnet genesis enable + clippy fix | Monitor CI; release evidence refresh (lane 2) |
+| **4** | B-11 endowment opening binding | **Done** — `0fee187` public devnet genesis enable | Monitor CI + Nightly |
 | **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
-| **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening=1` on public devnet | Monitor CI |
+| **6** | B-11 endowment opening (with lane 4) | **Done** — `0fee187` | Monitor CI |
 
 ---
 
@@ -128,7 +128,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B-11 proptests** (this commit) - permanence (lane 4): `require_endowment_opening=1` — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO`.
+- **B-11 public devnet enable** (`0fee187`) - permanence (lanes 4+6): genesis spec `endowment` section; `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`); proptest clippy fix.
+- **B-11 proptests** (`9f0a0aa`) - permanence (lane 4): `require_endowment_opening=1` — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO`.
 - **Release evidence `837069a`** (`0a7e326`) - RC ops (lane 2): `release-evidence-refresh-for-head` + RC audit dry-run go on CI `28871239057`.
 - **CI #28871239057 GREEN** (`837069a`) - RC ops (lane 2 gate): full matrix after B-11/B7/B9/F7 stack; ends CI churn from parallel pushes.
 - **F7/B15** (`837069a`) - privacy surface (lane 5): canonical two-input wallet floor — `WALLET_MIN_TX_INPUTS` + `select_inputs_for_tx` pad real UTXOs into reference transfers/uploads when a second spendable output exists; same-band preference; single-UTXO wallets unchanged.
