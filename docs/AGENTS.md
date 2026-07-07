@@ -183,13 +183,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.61** (`1603e43`) - fix M2.5.50 stdout-order regression: `mfnd serve` prints `mfnd_p2p_listening=` before `mfnd_serve_listening=`, so sequential prefix reads in `mfnd_smoke` consumed the P2P line and hung (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — Windows ci-check red twice). New `read_stdout_lines_with_prefixes_any_order` harness helper; all `--p2p-listen` spawns collect startup announcements order-independently. First green CI matrix since M2.5.50 (run `28774283620`).
 - [x] **DOCS-PH-1** - `docs/PERMANENCE_HARDENING.md`: implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth + fan-out verify, M2.5.61 CI trustworthiness) with code citations and test inventory, plus file-and-function-level plans for the remainder — B-11 endowment binding (opening-reveal vs range-proof designs), ChunkV2 Merkle-path gossip, replication accounting via operator-salted challenges, proactive repair sweep, bonding + slashing, inbox quota. Cross-linked from `docs/README.md`, `STORAGE.md`, `PRIVACY_HARDENING.md`.
 
-### Doing
-
-- [ ] **B-11 phase 1** — `MFEO` wire + `apply_block`/mempool Pedersen opening verify; `require_endowment_opening` param (default off; claim base: `25098d9`).
+- [x] **B-11 phase 1** — `MFEO` wire + `apply_block`/mempool Pedersen opening verify; `require_endowment_opening` param (`3511346`).
+- [x] **B-11 proptests** — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO` (this commit).
 
 ### Next
 
-- [ ] M5 proptests with `require_endowment_opening=1`; enable on public devnet genesis.
+- [ ] Enable `require_endowment_opening=1` on public devnet genesis.
 
 ### Handoff to lane 3
 

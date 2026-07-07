@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**, **B-11**).
 //!
 //! CI runs a bounded case count; all deep chains are in default CI (**M5.36–M5.39**).
 
@@ -8,14 +8,14 @@ use curve25519_dalek::scalar::Scalar;
 use mfn_bls::{bls_keygen_from_seed, bls_sign, BlsSecretKey};
 use mfn_consensus::{
     apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
-    build_genesis, build_unsealed_header, cast_vote, emission_at_height, encode_chain_checkpoint,
-    encode_finality_proof, finalize, header_signing_hash, pick_winner, seal_block, sign_register,
-    sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, Block,
-    BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams, EmissionParams,
-    FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress,
-    ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout,
-    ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
-    TEST_CONSENSUS_PARAMS,
+    build_genesis, build_mfex_extra_v2, build_unsealed_header, cast_vote, emission_at_height,
+    encode_chain_checkpoint, encode_finality_proof, extra_codec::EndowmentOpening, finalize,
+    header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
+    storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, Block, BlockError, BondOp,
+    ChainCheckpoint, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
+    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, ProducerProof, SlashEvidence, SlotContext,
+    TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
+    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
@@ -23,7 +23,7 @@ use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     accrue_proof_reward, build_storage_commitment, build_test_storage_proof, required_endowment,
-    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, StorageCommitment,
+    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams,
     DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
@@ -48,6 +48,29 @@ const PROP_PPB_ENDOWMENT: EndowmentParams = EndowmentParams {
     real_yield_ppb: 40_000_000,
     ..DEFAULT_ENDOWMENT_PARAMS
 };
+
+/// B-11: consensus requires `MFEO` Pedersen openings in `tx.extra` for new anchors.
+const PROP_ENDOWMENT_REQUIRE_OPENING: EndowmentParams = EndowmentParams {
+    require_endowment_opening: 1,
+    ..DEFAULT_ENDOWMENT_PARAMS
+};
+
+const PROP_STORAGE_ENDOWMENT_AMOUNT: u64 = 1_000;
+
+fn prop_storage_upload_extra(
+    built: &BuiltCommitment,
+    endowment_amount: u64,
+    endowment_params: &EndowmentParams,
+) -> Vec<u8> {
+    if endowment_params.require_endowment_opening == 0 {
+        return Vec::new();
+    }
+    let opening = EndowmentOpening {
+        value: endowment_amount,
+        blinding: built.blinding,
+    };
+    build_mfex_extra_v2(&[], std::slice::from_ref(&opening)).expect("mfex v2")
+}
 
 fn genesis_state() -> ChainState {
     let cfg = GenesisConfig {
@@ -405,7 +428,9 @@ impl PropSpendState {
     fn sign_storage_upload(
         &self,
         fee: u64,
-        storage: StorageCommitment,
+        built: &BuiltCommitment,
+        endowment_amount: u64,
+        endowment_params: &EndowmentParams,
         next_seed: u32,
     ) -> (TransactionWire, Self) {
         assert!(fee < self.value, "fee must leave positive anchor output");
@@ -414,13 +439,14 @@ impl PropSpendState {
         let change_addr = generator_g() * next_spend;
         let pad_spend = hash_to_scalar(&[b"B1/upload-pad-spend", &next_seed.to_le_bytes()]);
         let pad_addr = generator_g() * pad_spend;
+        let extra = prop_storage_upload_extra(built, endowment_amount, endowment_params);
         let signed = sign_transaction(
             vec![self.input_spec()],
             vec![
                 OutputSpec::Raw {
                     one_time_addr: change_addr,
                     value: anchor_value,
-                    storage: Some(storage),
+                    storage: Some(built.commit.clone()),
                 },
                 OutputSpec::Raw {
                     one_time_addr: pad_addr,
@@ -429,7 +455,7 @@ impl PropSpendState {
                 },
             ],
             fee,
-            Vec::new(),
+            extra,
         )
         .expect("sign storage upload");
         let next = Self {
@@ -492,6 +518,28 @@ fn genesis_dual_spend_for_upload_proptest() -> PropDualSpendGenesis {
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    PropDualSpendGenesis {
+        state,
+        clsag_spend,
+        upload_spend,
+    }
+}
+
+fn genesis_dual_spend_for_upload_opening_proptest() -> PropDualSpendGenesis {
+    let clsag_spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let upload_spend = PropSpendState::from_seed(2, PROP_MIXED_SPEND_VALUE);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: prop_dual_spend_genesis_outputs(&clsag_spend, &upload_spend),
+        initial_storage: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: PROP_MIXED_EMISSION,
+        endowment_params: PROP_ENDOWMENT_REQUIRE_OPENING,
         bonding_params: None,
     };
     let g = build_genesis(&cfg);
@@ -1642,8 +1690,77 @@ proptest! {
 
             let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
             clsag_spend = next_clsag;
-            let (upload_tx, next_upload) =
-                upload_spend.sign_storage_upload(upload_fee, built.commit, h.wrapping_add(10_000));
+            let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+                upload_fee,
+                &built,
+                PROP_STORAGE_ENDOWMENT_AMOUNT,
+                &DEFAULT_ENDOWMENT_PARAMS,
+                h.wrapping_add(10_000),
+            );
+            upload_spend = next_upload;
+
+            let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
+            st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
+            model = treasury_after_block(model, fee_sum, 0, emission);
+            prop_assert_eq!(
+                st.treasury,
+                model,
+                "treasury mismatch at height {} (clsag_fee {} upload_fee {})",
+                h,
+                clsag_fee,
+                upload_fee
+            );
+            prop_assert!(st.storage.contains_key(&commit_hash));
+            prop_assert!(st.treasury < u128::MAX);
+        }
+    }
+
+    /// NEW storage upload with `MFEO` opening when `require_endowment_opening=1` (**B-11**).
+    #[test]
+    fn prop_mfeo_opening_storage_upload_treasury(
+        n_blocks in 1u32..=12u32,
+        clsag_fee_base in 1_000u64..=200_000u64,
+        upload_fee_extra in 0u64..=5_000u64,
+    ) {
+        const UPLOAD_PAYLOAD_LEN: usize = 1024;
+        let min_upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN);
+        let gen = genesis_dual_spend_for_upload_opening_proptest();
+        let mut st = gen.state;
+        let mut clsag_spend = gen.clsag_spend;
+        let mut upload_spend = gen.upload_spend;
+        let mut model = 0u128;
+        let emission = &PROP_MIXED_EMISSION;
+
+        for h in 1..=n_blocks {
+            let clsag_fee = clsag_fee_base.saturating_add(u64::from(h % 7_001));
+            let upload_fee = min_upload_fee.saturating_add(upload_fee_extra);
+            prop_assert!(clsag_fee < PROP_MIXED_SPEND_VALUE, "CLSAG fee must fit genesis UTXO");
+            prop_assert!(upload_fee < PROP_MIXED_SPEND_VALUE, "upload fee must fit genesis UTXO");
+
+            let payload: Vec<u8> = vec![h as u8; UPLOAD_PAYLOAD_LEN];
+            let built = build_storage_commitment(
+                &payload,
+                PROP_STORAGE_ENDOWMENT_AMOUNT,
+                Some(256),
+                DEFAULT_ENDOWMENT_PARAMS.min_replication,
+                None,
+            )
+            .expect("commitment");
+            let commit_hash = storage_commitment_hash(&built.commit);
+            prop_assert!(
+                !st.storage.contains_key(&commit_hash),
+                "upload must anchor a fresh commitment at height {h}"
+            );
+
+            let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+            clsag_spend = next_clsag;
+            let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+                upload_fee,
+                &built,
+                PROP_STORAGE_ENDOWMENT_AMOUNT,
+                &PROP_ENDOWMENT_REQUIRE_OPENING,
+                h.wrapping_add(10_000),
+            );
             upload_spend = next_upload;
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
@@ -3084,8 +3201,13 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
         let commit_hash = storage_commitment_hash(&built.commit);
         let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
         clsag_spend = next_clsag;
-        let (upload_tx, next_upload) =
-            upload_spend.sign_storage_upload(upload_fee, built.commit, h.wrapping_add(10_000));
+        let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+            upload_fee,
+            &built,
+            PROP_STORAGE_ENDOWMENT_AMOUNT,
+            &DEFAULT_ENDOWMENT_PARAMS,
+            h.wrapping_add(10_000),
+        );
         upload_spend = next_upload;
         let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
         st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
@@ -3121,4 +3243,50 @@ fn deep_alternating_register_storage_treasury_8() {
         assert_eq!(st.treasury, model);
     }
     assert_eq!(st.height, Some(n_pairs * 2));
+}
+
+/// Reject a new storage anchor when `require_endowment_opening=1` but `tx.extra` has no `MFEO` (**B-11**).
+#[test]
+fn reject_upload_without_mfeo_when_endowment_opening_required() {
+    const UPLOAD_PAYLOAD_LEN: usize = 1024;
+    let gen = genesis_dual_spend_for_upload_opening_proptest();
+    let upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN).saturating_add(100);
+    let payload: Vec<u8> = vec![7u8; UPLOAD_PAYLOAD_LEN];
+    let built = build_storage_commitment(
+        &payload,
+        PROP_STORAGE_ENDOWMENT_AMOUNT,
+        Some(256),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let (upload_tx, _) = gen.upload_spend.sign_storage_upload(
+        upload_fee,
+        &built,
+        PROP_STORAGE_ENDOWMENT_AMOUNT,
+        &DEFAULT_ENDOWMENT_PARAMS,
+        99,
+    );
+    let height = 1u32;
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(&gen.state, &[upload_tx.clone()], &[], &[], &[], height, ts);
+    let blk = seal_with_test_finality(&gen.state, unsealed, vec![upload_tx], vec![], vec![], vec![]);
+    match apply_block(&gen.state, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::EndowmentOpeningCountMismatch {
+                            expected: 1,
+                            got: 0,
+                            ..
+                        }
+                    )
+                }),
+                "expected EndowmentOpeningCountMismatch, got {errors:?}"
+            );
+        }
+        other => panic!("expected apply_block reject, got {other:?}"),
+    }
 }

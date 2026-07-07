@@ -82,9 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK. Evidence commit `234f0a8`.
-
-**CI #28871239057 GREEN** on `837069a` (full matrix: B-11 MFEO + B7 Dandelion++ + B9 view tags + F7/B15 wallet floor). Prior runs `#28867715352`–`#28867402908` cancelled by rapid parallel pushes, not test failures.
+**CI #28871239057 GREEN** on `837069a`. **Nightly #28877033241 GREEN** (all three jobs). **B-05 PASS** + release evidence `837069a` archived.
 
 **RC push hold:** lifted.
 
@@ -95,7 +93,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
 | **2** | Release evidence refresh | **Done** — `release-evidence-837069a` + RC audit go | Idle |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
-| **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
+| **4** | B-11 endowment opening binding | **In progress** — MFEO proptests landed | Enable on public devnet genesis |
 | **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
 | **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
 
@@ -113,7 +111,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
 | B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | **Done** - M2.5.56 anyhow 1.0.103; M2.5.45 hoisted deps |
-| B-11 | Bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal; today only the fee-share gate is enforced) | 4 + 6 | Open — highest remaining permanence gap after M5.49/M7.12 |
+| B-11 | Bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal; today only the fee-share gate is enforced) | 4 + 6 | Phase 1 + proptests landed; public devnet enable pending |
 
 ---
 
@@ -130,7 +128,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Release evidence `837069a`** (this commit) - RC ops (lane 2): `release-evidence-refresh-for-head` + RC audit dry-run go on CI `28871239057` GREEN stack.
+- **B-11 proptests** (this commit) - permanence (lane 4): `require_endowment_opening=1` — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO`.
+- **Release evidence `837069a`** (`0a7e326`) - RC ops (lane 2): `release-evidence-refresh-for-head` + RC audit dry-run go on CI `28871239057`.
 - **CI #28871239057 GREEN** (`837069a`) - RC ops (lane 2 gate): full matrix after B-11/B7/B9/F7 stack; ends CI churn from parallel pushes.
 - **F7/B15** (`837069a`) - privacy surface (lane 5): canonical two-input wallet floor — `WALLET_MIN_TX_INPUTS` + `select_inputs_for_tx` pad real UTXOs into reference transfers/uploads when a second spendable output exists; same-band preference; single-UTXO wallets unchanged.
 - **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
