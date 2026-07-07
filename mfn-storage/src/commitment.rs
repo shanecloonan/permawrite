@@ -80,6 +80,19 @@ pub enum CommitmentShapeError {
         /// Declared chunk granularity.
         chunk_size: u32,
     },
+    /// `size_bytes` is not a canonical power-of-two bucket (**F5-P15** /
+    /// B13). Non-reference uploaders must declare the same bucket the
+    /// reference wallet pads to — exact byte lengths leak file size.
+    #[error(
+        "size_bytes {got} is not a canonical bucket (expected {expected} \
+         from storage_size_bucket)"
+    )]
+    SizeNotCanonicalBucket {
+        /// Declared payload size.
+        got: u64,
+        /// Bucket implied by `got`.
+        expected: u64,
+    },
 }
 
 /// Chunk count [`crate::spora::build_storage_commitment`] produces for a
@@ -142,7 +155,9 @@ pub fn pad_to_storage_size_bucket(data: &[u8]) -> Vec<u8> {
 /// 1. `chunk_size` is a positive power of two,
 /// 2. `num_chunks == ceil(size_bytes / chunk_size)` (`1` when
 ///    `size_bytes == 0`) — which also forces `num_chunks >= 1`, ruling
-///    out the degenerate zero-chunk challenge.
+///    out the degenerate zero-chunk challenge,
+/// 3. `size_bytes == storage_size_bucket(size_bytes)` — on-chain length
+///    must be a power-of-two bucket (zero stays zero).
 ///
 /// # Errors
 ///
@@ -157,6 +172,13 @@ pub fn validate_storage_commitment_shape(
             expected,
             size_bytes: c.size_bytes,
             chunk_size: c.chunk_size,
+        });
+    }
+    let bucket = storage_size_bucket(c.size_bytes);
+    if c.size_bytes != bucket {
+        return Err(CommitmentShapeError::SizeNotCanonicalBucket {
+            got: c.size_bytes,
+            expected: bucket,
         });
     }
     Ok(())
@@ -352,7 +374,7 @@ mod tests {
         // Whatever build_storage_commitment produces must validate —
         // including the short-tail and empty-payload cases.
         for payload_len in [0usize, 1, 255, 256, 257, 1024, 100_000] {
-            let payload = vec![0xa5u8; payload_len];
+            let payload = pad_to_storage_size_bucket(&vec![0xa5u8; payload_len]);
             let built = crate::spora::build_storage_commitment(&payload, 1_000, Some(256), 3, None)
                 .expect("build");
             assert_eq!(
@@ -361,6 +383,21 @@ mod tests {
                 "payload_len={payload_len}"
             );
         }
+    }
+
+    #[test]
+    fn shape_rejects_non_bucket_size_bytes() {
+        let mut c = sample_commit();
+        c.size_bytes = 900; // bucket would be 1024
+        c.chunk_size = 256;
+        c.num_chunks = 4; // ceil(900/256)
+        assert_eq!(
+            validate_storage_commitment_shape(&c),
+            Err(CommitmentShapeError::SizeNotCanonicalBucket {
+                got: 900,
+                expected: 1024,
+            })
+        );
     }
 
     #[test]

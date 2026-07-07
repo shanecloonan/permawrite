@@ -138,13 +138,20 @@ pub fn rebuild_built_commitment(
 ) -> Result<BuiltCommitment, UploadArtifactRebuildError> {
     let commit = decode_storage_commitment(&meta.commitment_wire)
         .map_err(|e| UploadArtifactRebuildError::CommitmentWire(e.to_string()))?;
-    if u64::try_from(payload.len()).unwrap_or(u64::MAX) != commit.size_bytes {
-        return Err(UploadArtifactRebuildError::PayloadSize {
-            actual: payload.len(),
-            expected: commit.size_bytes,
-        });
-    }
-    let chunks = chunk_data(payload, commit.chunk_size as usize)?;
+    let payload = if u64::try_from(payload.len()).unwrap_or(u64::MAX) == commit.size_bytes {
+        payload.to_vec()
+    } else {
+        // Pre-B13 artifacts stored raw bytes; on-chain size_bytes is the bucket.
+        let padded = mfn_storage::pad_to_storage_size_bucket(payload);
+        if u64::try_from(padded.len()).unwrap_or(u64::MAX) != commit.size_bytes {
+            return Err(UploadArtifactRebuildError::PayloadSize {
+                actual: payload.len(),
+                expected: commit.size_bytes,
+            });
+        }
+        padded
+    };
+    let chunks = chunk_data(&payload, commit.chunk_size as usize)?;
     let chunk_refs: Vec<&[u8]> = chunks.iter().map(|c| &**c).collect();
     let tree = merkle_tree_from_chunks(&chunk_refs)?;
     if tree.root() != commit.data_root {
@@ -207,6 +214,24 @@ mod tests {
         w.blob(b"NOTMAGIC!");
         let err = decode_upload_artifact_meta(&w.into_bytes()).unwrap_err();
         assert_eq!(err, UploadArtifactMetaError::BadMagic);
+    }
+
+    #[test]
+    fn rebuild_pads_pre_b13_raw_payload_to_on_chain_bucket() {
+        let raw = b"mfn-storage-operator M6.1".as_slice();
+        let padded = mfn_storage::pad_to_storage_size_bucket(raw);
+        let built = build_storage_commitment(
+            &padded,
+            1_000,
+            Some(256),
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .expect("commit");
+        let meta = upload_artifact_meta_from_upload(&built, "payload.bin", None);
+        let rebuilt = rebuild_built_commitment(&meta, raw).expect("legacy raw payload pads");
+        assert_eq!(rebuilt.commit, built.commit);
+        assert_eq!(rebuilt.tree.root(), built.tree.root());
     }
 
     #[test]

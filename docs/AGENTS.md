@@ -196,11 +196,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B3 tail (production RNG contract)** (`4a4a9f1`) — `production_tx_rng` alias; CLI/WASM wired; conformance source-scan; closes §B3.
 - [x] **B4(a) decoy pool** (`b402db3`) — `build_decoy_pool` excludes only spent input keys; unspent owned outputs eligible.
 - [x] **B4(c) co-height randomization** (`297df7c`) — `select_gamma_decoys` uniform pick within height bucket.
-- [x] **B13 (wallet size buckets)** — power-of-two pad in `build_storage_upload`; closes §B13 wallet layer.
+- [x] **B13 (wallet size buckets)** (`4712811`) — power-of-two pad in `build_storage_upload`; closes §B13 wallet layer.
+- [x] **B13 (consensus size buckets)** — `validate_storage_commitment_shape` rejects non-bucket `size_bytes`; artifact saves padded payload.
 
 ### Next
 
-- [ ] **B1** — consensus-enforced minimum output count (`PRIVACY_HARDENING.md` §B1; needs version gate + M5 tests).
+- [ ] **B7** — Dandelion++ relay (`PRIVACY_HARDENING.md` §B7; multi-session P2P work).
 
 ### Do not start
 

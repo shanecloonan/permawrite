@@ -107,6 +107,9 @@ pub struct UploadArtifacts {
     /// Smallest `fee` value that satisfies the chain's UploadUnderfunded
     /// gate for this `burden`. Always ≤ caller's `fee` on success.
     pub min_fee: u64,
+    /// Payload bytes actually anchored (power-of-two padded per B13).
+    /// Persist this as `payload.bin` — it matches `built.commit.size_bytes`.
+    pub anchored_payload: Vec<u8>,
 }
 
 /// All inputs to [`build_storage_upload`].
@@ -488,6 +491,7 @@ where
         built,
         burden,
         min_fee,
+        anchored_payload: padded,
     })
 }
 

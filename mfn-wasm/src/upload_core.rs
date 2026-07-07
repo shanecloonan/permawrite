@@ -309,6 +309,7 @@ pub fn build_storage_proof_json(
         .map_err(|e| WasmCoreError::InvalidHex(format!("commitment_wire_hex: {e}")))?;
     let commit = decode_storage_commitment(&wire)
         .map_err(|e| WasmCoreError::Storage(format!("decode_storage_commitment: {e}")))?;
+    let data = mfn_storage::pad_to_storage_size_bucket(data);
     if u64::try_from(data.len()).unwrap_or(u64::MAX) != commit.size_bytes {
         return Err(WasmCoreError::Storage(format!(
             "data length {} != commitment size_bytes {}",

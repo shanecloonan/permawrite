@@ -675,7 +675,7 @@ pub fn wallet_upload(
     let artifact_save = mfn_storage_operator::upload_artifact_store::save_upload_artifact(
         path,
         &art.built,
-        &data,
+        &art.anchored_payload,
         &params.file_path,
         Some(&submit.tx_id),
     )

@@ -2792,6 +2792,31 @@ fn apply_block_rejects_storage_commitment_with_bad_chunk_size() {
 }
 
 #[test]
+fn apply_block_rejects_storage_commitment_with_non_bucket_size_bytes() {
+    // F5-P15 / B13: exact byte lengths must not anchor — only canonical
+    // power-of-two buckets (reference wallets pad before anchoring).
+    let sc = StorageCommitment {
+        data_root: [7u8; 32],
+        size_bytes: 900, // canonical bucket would be 1024
+        chunk_size: 256,
+        num_chunks: 4, // ceil(900/256)
+        replication: 3,
+        endowment: mfn_crypto::point::generator_g(),
+    };
+    match apply_block_with_storage_output(sc, 100_000) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageCommitmentMalformed { .. })),
+                "expected StorageCommitmentMalformed, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("non-bucket size_bytes must reject the block"),
+    }
+}
+
+#[test]
 fn apply_block_accepts_storage_commitment_with_consistent_shape() {
     // Control: the identical upload with an honest geometry anchors fine.
     let sc = StorageCommitment {
