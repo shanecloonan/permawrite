@@ -453,15 +453,22 @@ encapsulation (`s_shared = H(ECDH || ML-KEM secret)`) so unlinkability holds if
 
 **Effort:** high. **Risk:** high.
 
-### B13. Size-bucketed storage commitments (`F5:P15`) — **consensus-adjacent**
+### B13. Size-bucketed storage commitments (`F5:P15`) — **partial (wallet shipped)**
 
 **Problem.** `size_bytes` is public in every `StorageCommitment`
 ([`mfn-storage/src/commitment.rs`](../mfn-storage/src/commitment.rs)); exact
 file size is a strong fingerprint against known documents.
 
-**Plan.** Pad uploads to a small set of size buckets (powers of two, or 1.5×
-steps) at the chunking layer and price endowments on the bucket. Costs a few
-percent of storage; removes the highest-entropy public metadata field.
+**Shipped (wallet layer).** Reference uploads pad to the next power-of-two
+size bucket before anchoring: [`storage_size_bucket`](../mfn-storage/src/commitment.rs)
+/ [`pad_to_storage_size_bucket`](../mfn-storage/src/commitment.rs) in
+`mfn-storage`; [`build_storage_upload`](../mfn-wallet/src/upload.rs) and
+[`estimate_minimum_fee_for_upload`](../mfn-wallet/src/upload.rs) price endowment
+on the bucket. On-chain `size_bytes` now reveals at most one bit of length
+precision instead of the exact byte count.
+
+**Remaining.** Consensus-mandatory bucketing for non-reference uploaders;
+optional 1.5× step buckets if power-of-two waste is too high.
 
 **Effort:** moderate. **Risk:** medium (endowment pricing).
 
@@ -482,8 +489,8 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** canonical-encoding conformance suite + production RNG contract |
-| High impact, moderate effort | B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet) |
+| High impact, moderate effort | B7 (Dandelion++), B9 (view tags), B13 consensus bucket mandate |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 

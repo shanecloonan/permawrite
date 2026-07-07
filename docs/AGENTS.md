@@ -195,7 +195,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B2 (age-band coin selection)** (`85e5870`) — `Wallet::select_inputs` spends within one exponential age band (fewest inputs, newest-band ties, cohesive spill); closes §B2.
 - [x] **B3 tail (production RNG contract)** (`4a4a9f1`) — `production_tx_rng` alias; CLI/WASM wired; conformance source-scan; closes §B3.
 - [x] **B4(a) decoy pool** (`b402db3`) — `build_decoy_pool` excludes only spent input keys; unspent owned outputs eligible.
-- [x] **B4(c) co-height randomization** — `select_gamma_decoys` uniform pick within height bucket; closes §B4(c).
+- [x] **B4(c) co-height randomization** (`297df7c`) — `select_gamma_decoys` uniform pick within height bucket.
+- [x] **B13 (wallet size buckets)** — power-of-two pad in `build_storage_upload`; closes §B13 wallet layer.
 
 ### Next
 

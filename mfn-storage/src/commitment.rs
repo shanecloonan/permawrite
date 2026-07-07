@@ -102,6 +102,31 @@ pub fn expected_num_chunks(size_bytes: u64, chunk_size: u32) -> Result<u32, Comm
     })
 }
 
+/// Round a payload length up to the next power-of-two **size bucket**
+/// (**F5-P15** / B13). Zero-length payloads stay at zero (empty-commitment
+/// shape). Reference wallets pad to this bucket before anchoring so the
+/// on-chain `size_bytes` field does not leak exact file lengths.
+#[must_use]
+pub fn storage_size_bucket(size_bytes: u64) -> u64 {
+    if size_bytes == 0 {
+        0
+    } else {
+        size_bytes.next_power_of_two()
+    }
+}
+
+/// Pad `data` with trailing zero bytes up to [`storage_size_bucket`].
+#[must_use]
+pub fn pad_to_storage_size_bucket(data: &[u8]) -> Vec<u8> {
+    let bucket = storage_size_bucket(data.len() as u64) as usize;
+    if data.len() >= bucket {
+        return data.to_vec();
+    }
+    let mut out = data.to_vec();
+    out.resize(bucket, 0);
+    out
+}
+
 /// Validate that a [`StorageCommitment`]'s declared geometry is
 /// internally consistent (**M5.49**).
 ///
@@ -228,6 +253,23 @@ mod tests {
             replication: 3,
             endowment: generator_g() * Scalar::from(42u64),
         }
+    }
+
+    #[test]
+    fn storage_size_bucket_rounds_up_to_power_of_two() {
+        assert_eq!(storage_size_bucket(0), 0);
+        assert_eq!(storage_size_bucket(1), 1);
+        assert_eq!(storage_size_bucket(900), 1024);
+        assert_eq!(storage_size_bucket(1024), 1024);
+    }
+
+    #[test]
+    fn pad_to_storage_size_bucket_zero_fills() {
+        let data = b"hello";
+        let padded = pad_to_storage_size_bucket(data);
+        assert_eq!(padded.len(), 8);
+        assert_eq!(&padded[..5], data);
+        assert!(padded[5..].iter().all(|b| *b == 0));
     }
 
     #[test]

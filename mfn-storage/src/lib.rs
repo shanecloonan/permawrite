@@ -34,8 +34,8 @@ pub mod spora;
 
 pub use commitment::{
     decode_storage_commitment, encode_storage_commitment, expected_num_chunks,
-    storage_commitment_hash, validate_storage_commitment_shape, CommitmentShapeError,
-    StorageCommitment,
+    pad_to_storage_size_bucket, storage_commitment_hash, storage_size_bucket,
+    validate_storage_commitment_shape, CommitmentShapeError, StorageCommitment,
 };
 pub use endowment::{
     accrue_proof_reward, cumulative_payout, max_bytes_for_endowment, payout_per_slot,

@@ -96,7 +96,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 participant + observer PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | B4(c) co-height decoy randomization (`select_gamma_decoys`) | **Done** - this commit | B7 Dandelion++ relay (multi-session) |
+| **5** | B13 wallet upload size buckets (power-of-two pad before anchor) | **Done** - this commit | B7 Dandelion++ relay (multi-session) |
 | **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
 
 ---
@@ -130,7 +130,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B4(c)** (this commit) - privacy surface (lane 5): `select_gamma_decoys` picks uniformly among unchosen decoys at the target height instead of always taking the rightmost binary-search index; co-height selection no longer deterministic.
+- **B13 (wallet)** (this commit) - privacy surface (lane 5): upload size buckets — reference uploads pad to next power-of-two before anchoring; on-chain `size_bytes` is the bucket; endowment priced on bucket (`storage_size_bucket` / `pad_to_storage_size_bucket`).
+- **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.
+- **B4(c)** (`297df7c`) - privacy surface (lane 5): `select_gamma_decoys` picks uniformly among unchosen decoys at the target height instead of always taking the rightmost binary-search index; co-height selection no longer deterministic.
 - **B4(a)** (`b402db3`) - privacy surface (lane 5): `build_decoy_pool` excludes only real input keys; other owned UTXOs remain eligible decoys (B4 / `PRIVACY_HARDENING.md`).
 - **F5-PM9** (`eaecece`) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.
 - **F5-P9** (`1c9d578`) - privacy surface (lane 5): canonical-encoding conformance suite closes B3 — pins tx version, empty-`extra` default, uniform ring-16 (== consensus production policy), two-output floor, real `enc_amount` ciphertexts, and byte-canonical wire form for reference transfers + uploads; all frontends covered by construction via the two pinned constructors.

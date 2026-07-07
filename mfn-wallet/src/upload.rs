@@ -188,6 +188,9 @@ pub struct StorageUploadPlan<'a, R: FnMut() -> f64> {
 /// `UploadUnderfunded` gate for an upload of `data_len` bytes at the
 /// given replication factor.
 ///
+/// `data_len` is the logical payload length; endowment is priced on the
+/// reference wallet's power-of-two [`mfn_storage::storage_size_bucket`].
+///
 /// Formula: the chain requires
 ///
 /// ```text
@@ -228,7 +231,8 @@ pub fn estimate_minimum_fee_for_upload(
             max: endowment_params.max_replication,
         });
     }
-    let burden = required_endowment(data_len, replication, endowment_params)?;
+    let bucket_len = mfn_storage::storage_size_bucket(data_len);
+    let burden = required_endowment(bucket_len, replication, endowment_params)?;
     if burden == 0 {
         return Ok(0);
     }
@@ -281,7 +285,7 @@ where
         });
     }
 
-    // (1) Replication range — surface early so the caller never wastes
+    // (2) Replication range — surface early so the caller never wastes
     //     CLSAG work on a tx the chain would reject.
     if plan.replication < plan.endowment_params.min_replication
         || plan.replication > plan.endowment_params.max_replication
@@ -293,14 +297,15 @@ where
         });
     }
 
-    // (2) Compute burden (Σ required_endowment for this upload's
+    // Privacy bucket (F5-P15 / B13): pad to the next power-of-two size so
+    // the anchored `size_bytes` does not leak exact payload lengths.
+    let padded = mfn_storage::pad_to_storage_size_bucket(plan.data);
+    let data = padded.as_slice();
+
+    // (3) Compute burden (Σ required_endowment for this upload's
     //     newly-anchored commitments — always one, since we anchor
     //     exactly one commitment per upload tx).
-    let burden = required_endowment(
-        plan.data.len() as u64,
-        plan.replication,
-        plan.endowment_params,
-    )?;
+    let burden = required_endowment(data.len() as u64, plan.replication, plan.endowment_params)?;
 
     // (3) Endowment must fit in u64 to be Pedersen-committable in
     //     `StorageCommitment.endowment`.
@@ -364,7 +369,7 @@ where
 
     // (6) Build the storage commitment + ring CT inputs.
     let built = build_storage_commitment(
-        plan.data,
+        data,
         endowment_amount,
         plan.chunk_size,
         plan.replication,
@@ -557,7 +562,7 @@ mod tests {
         let replication: u8 = 3;
         let params = DEFAULT_ENDOWMENT_PARAMS;
         let fee_to_treasury_bps = 9000u16;
-        let burden = required_endowment(data.len() as u64, replication, &params).expect("burden");
+        let bucket_len = mfn_storage::storage_size_bucket(data.len() as u64);
         let min_fee = estimate_minimum_fee_for_upload(
             data.len() as u64,
             replication,
@@ -566,6 +571,7 @@ mod tests {
         )
         .expect("min_fee");
         let fee = min_fee.max(1);
+        let burden = required_endowment(bucket_len, replication, &params).expect("burden");
         // burden is small enough we can self-pay the anchor with most
         // of the input and route the rest to change.
         let anchor_value = 100_000u64;
@@ -620,6 +626,10 @@ mod tests {
             .storage
             .as_ref()
             .expect("storage present");
+        assert_eq!(
+            sc_on_tx.size_bytes, bucket_len,
+            "reference wallet must pad to the size bucket before anchoring"
+        );
         assert_eq!(
             storage_commitment_hash(sc_on_tx),
             storage_commitment_hash(&art.built.commit),
@@ -883,7 +893,8 @@ mod tests {
         let bps = 9000u16;
         for size in [10u64, 1_000, 100_000, 10_000_000] {
             for repl in [3u8, 5, 10, 32] {
-                let burden = required_endowment(size, repl, &params).unwrap();
+                let bucket = mfn_storage::storage_size_bucket(size);
+                let burden = required_endowment(bucket, repl, &params).unwrap();
                 let mf = estimate_minimum_fee_for_upload(size, repl, &params, bps).expect("mf");
                 let cleared = u128::from(mf) * u128::from(bps) / 10_000;
                 assert!(
