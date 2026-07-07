@@ -184,11 +184,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **DOCS-PH-1** - `docs/PERMANENCE_HARDENING.md`: implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth + fan-out verify, M2.5.61 CI trustworthiness) with code citations and test inventory, plus file-and-function-level plans for the remainder — B-11 endowment binding (opening-reveal vs range-proof designs), ChunkV2 Merkle-path gossip, replication accounting via operator-salted challenges, proactive repair sweep, bonding + slashing, inbox quota. Cross-linked from `docs/README.md`, `STORAGE.md`, `PRIVACY_HARDENING.md`.
 
 - [x] **B-11 phase 1** — `MFEO` wire + `apply_block`/mempool Pedersen opening verify; `require_endowment_opening` param (`3511346`).
-- [x] **B-11 proptests** — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO` (this commit).
+- [x] **B-11 proptests** — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO` (`9f0a0aa`).
+- [x] **B-11 public devnet enable** — genesis spec `endowment` section + `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`; operators must sync byte-identical JSON).
 
 ### Next
 
-- [ ] Enable `require_endowment_opening=1` on public devnet genesis.
+- [ ] Monitor CI + Nightly on B-11 stack; release evidence refresh (lane 2).
 
 ### Handoff to lane 3
 

@@ -8,6 +8,9 @@
     "liveness_max_consecutive_missed": 64,
     "liveness_slash_bps": 0
   },
+  "endowment": {
+    "require_endowment_opening": 1
+  },
   "validators": [
     {
       "index": 0,

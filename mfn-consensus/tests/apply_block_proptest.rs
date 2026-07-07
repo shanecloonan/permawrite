@@ -23,8 +23,8 @@ use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     accrue_proof_reward, build_storage_commitment, build_test_storage_proof, required_endowment,
-    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams,
-    DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS, PPB,
+    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE,
+    DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
 
@@ -3269,8 +3269,23 @@ fn reject_upload_without_mfeo_when_endowment_opening_required() {
     );
     let height = 1u32;
     let ts = u64::from(height) * 1_000;
-    let unsealed = build_unsealed_header(&gen.state, &[upload_tx.clone()], &[], &[], &[], height, ts);
-    let blk = seal_with_test_finality(&gen.state, unsealed, vec![upload_tx], vec![], vec![], vec![]);
+    let unsealed = build_unsealed_header(
+        &gen.state,
+        std::slice::from_ref(&upload_tx),
+        &[],
+        &[],
+        &[],
+        height,
+        ts,
+    );
+    let blk = seal_with_test_finality(
+        &gen.state,
+        unsealed,
+        vec![upload_tx],
+        vec![],
+        vec![],
+        vec![],
+    );
     match apply_block(&gen.state, &blk) {
         ApplyOutcome::Err { errors, .. } => {
             assert!(

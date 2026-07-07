@@ -19,7 +19,7 @@ use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
 use mfn_crypto::stealth_wallet_from_seed;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
-use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+use mfn_storage::{EndowmentParams, DEFAULT_ENDOWMENT_PARAMS};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -146,6 +146,8 @@ struct GenesisFile {
     #[serde(default)]
     consensus: Option<ConsensusSection>,
     #[serde(default)]
+    endowment: Option<EndowmentSection>,
+    #[serde(default)]
     validators: Vec<ValidatorSection>,
 }
 
@@ -158,6 +160,19 @@ struct ConsensusSection {
     liveness_slash_bps: Option<u32>,
     min_ring_size: Option<u32>,
     uniform_ring_size: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct EndowmentSection {
+    cost_per_byte_year_ppb: Option<u64>,
+    inflation_ppb: Option<u64>,
+    real_yield_ppb: Option<u64>,
+    min_replication: Option<u8>,
+    max_replication: Option<u8>,
+    slots_per_year: Option<u64>,
+    proof_reward_window_slots: Option<u64>,
+    require_endowment_opening: Option<u8>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -224,6 +239,28 @@ fn merge_consensus(base: ConsensusParams, file: Option<ConsensusSection>) -> Con
     }
 }
 
+fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> EndowmentParams {
+    let Some(e) = file else {
+        return base;
+    };
+    EndowmentParams {
+        cost_per_byte_year_ppb: e
+            .cost_per_byte_year_ppb
+            .unwrap_or(base.cost_per_byte_year_ppb),
+        inflation_ppb: e.inflation_ppb.unwrap_or(base.inflation_ppb),
+        real_yield_ppb: e.real_yield_ppb.unwrap_or(base.real_yield_ppb),
+        min_replication: e.min_replication.unwrap_or(base.min_replication),
+        max_replication: e.max_replication.unwrap_or(base.max_replication),
+        slots_per_year: e.slots_per_year.unwrap_or(base.slots_per_year),
+        proof_reward_window_slots: e
+            .proof_reward_window_slots
+            .unwrap_or(base.proof_reward_window_slots),
+        require_endowment_opening: e
+            .require_endowment_opening
+            .unwrap_or(base.require_endowment_opening),
+    }
+}
+
 /// Parse genesis configuration from UTF-8 JSON bytes (version 1).
 ///
 /// # Errors
@@ -239,10 +276,11 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
 
     let base_consensus = ConsensusParams::default();
     let params = merge_consensus(base_consensus, file.consensus);
+    let endowment_params = merge_endowment(DEFAULT_ENDOWMENT_PARAMS, file.endowment);
     // Constitutional gate (F5:PM13): every operator-supplied genesis must
     // satisfy the invariants reference clients refuse to fork away —
     // permanent tail emission, uniform rings >= 16, sane endowment pricing.
-    validate_constitution(&params, &DEFAULT_EMISSION_PARAMS, &DEFAULT_ENDOWMENT_PARAMS)?;
+    validate_constitution(&params, &DEFAULT_EMISSION_PARAMS, &endowment_params)?;
 
     let mut rows = file.validators;
     rows.sort_by_key(|v| v.index);
@@ -303,7 +341,7 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         validators,
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
-        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        endowment_params,
         bonding_params: None,
     })
 }
@@ -388,5 +426,12 @@ mod tests {
             genesis_config_from_json_bytes(s.as_bytes()),
             Err(GenesisSpecError::BadValidatorIndexOrder { pos: 0, got: 1 })
         ));
+    }
+
+    #[test]
+    fn endowment_section_overrides_defaults() {
+        let s = r#"{"version":1,"timestamp":0,"endowment":{"require_endowment_opening":1},"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.endowment_params.require_endowment_opening, 1);
     }
 }

@@ -4,7 +4,7 @@ Join the **public-devnet-v1** network only if your node's `genesis_id` matches t
 
 `454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`
 
-Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/testdata/public_devnet_v1.json). It includes deterministic synthetic test decoys so fresh devnet wallets can build initial privacy rings before organic transaction volume exists.
+Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/testdata/public_devnet_v1.json). It includes deterministic synthetic test decoys so fresh devnet wallets can build initial privacy rings before organic transaction volume exists. The spec sets `endowment.require_endowment_opening: 1`, so storage uploads must carry a verified Pedersen opening (`MFEO` in `tx.extra`); reference `mfn-cli wallet upload` attaches this automatically.
 
 ## Seed nodes
 

@@ -93,9 +93,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
 | **2** | Release evidence refresh | **Done** — `release-evidence-837069a` + RC audit go | Idle |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
-| **4** | B-11 endowment opening binding | **In progress** — MFEO proptests landed | Enable on public devnet genesis |
+| **4** | B-11 endowment opening binding | **In progress** — public devnet genesis enable + clippy fix | Monitor CI; release evidence refresh (lane 2) |
 | **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
-| **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
+| **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening=1` on public devnet | Monitor CI |
 
 ---
 
@@ -111,7 +111,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
 | B-10 | Workspace dep hoist + RUSTSEC-2026-0190 anyhow path | 6 | **Done** - M2.5.56 anyhow 1.0.103; M2.5.45 hoisted deps |
-| B-11 | Bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal; today only the fee-share gate is enforced) | 4 + 6 | Phase 1 + proptests landed; public devnet enable pending |
+| B-11 | Bind `StorageCommitment.endowment` Pedersen opening to `required_endowment` in consensus (range proof or opening reveal; today only the fee-share gate is enforced) | 4 + 6 | **Done** — phase 1 + proptests + public devnet genesis enable |
 
 ---
 
