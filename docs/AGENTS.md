@@ -72,13 +72,14 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.5.65 — soak WARMUP health-check uses mfn-cli `status` for P2P session counts (`76cc778`).
 - [x] M2.5.65 — GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` (`8ccda5d`; soak `28850304866` hub_produced then converge FAIL).
+- [x] **B-05 Linux soak PASS** — soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations).
 
 ### Next
 
 - [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
 - [x] Monitor green CI after B13 tail — **CI #28838850432 GREEN** on `934cc2f`.
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
-- [ ] **B-05 Linux soak PASS** — soak `28851202993` + CI `28851202034` on `8ccda5d`.
+- [ ] Release evidence refresh on green CI (lane 2).
 
 ### Do not start (other lanes)
 

@@ -82,15 +82,15 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**M2.5.65 stack** (`8ccda5d`) — `76cc778` mfn-cli status for P2P counts + `8ccda5d` GHA converge soft gate (`MFN_HEALTH_MIN_P2P_SESSIONS=0`). **CI #28851202034** in progress on `8ccda5d`. **Linux soak** run `28851202993` in progress on `8ccda5d` (prior `28850304866` FAIL at converge). **CI #28845429505 GREEN** on `5221dad`.
+**B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK; workflow failed only on evidence push race (fixed). **CI #28851202034** in progress on `8ccda5d`. **M2.5.65 stack** (`8ccda5d` + `76cc778`).
 
-**RC push hold:** CI in progress on `8ccda5d`.
+**RC push hold:** CI in progress — next push will restart matrix.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS (M2.5.65 stack) | **In progress** — soak `28851202993` + CI `28851202034` | Release evidence (lane 2) |
+| **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` PASS (evidence `20260707T083949Z`) | Release evidence refresh (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
@@ -105,7 +105,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
-| B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
+| B-05 | Linux 30s soak evidence | 2 + 6 | **Done** - soak `28851202993` PASS max_height=48 (`8ccda5d`) |
 | B-06 | Nightly #63 green (all three jobs) | 1 | **Done** - run `28792429191` on `85e5870` stack |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52–53 dispatch + `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
@@ -128,6 +128,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
 - **M2.5.65 (GHA converge)** (`8ccda5d`) - RC core (lane 1): soak GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` when `get_status` reports null sessions; soak `28850304866` passed hub_produced then failed converge.
 - **M2.5.65** (`76cc778`) - RC core (lane 1): soak WARMUP health-check — `query_get_status_compat_line` prefers mfn-cli `status` (real `p2p.session_count`) over tip synthesis that returned null sessions.
 - **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
