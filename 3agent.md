@@ -3,6 +3,22 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 (B7 dandelion rehearsal → CI GREEN on `0d28e4f`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **CI #28885223488** | **GREEN** | Run on `0d28e4f` (B7 dandelion evidence) |
+| **CI #28879533724** | **GREEN** | Run on `0fee187` (B-11 public devnet MFEO) |
+| **Nightly #28884769330** | **GREEN** | All three jobs on B-11 stack |
+| **Release evidence** | **Done** | `1bbc3af` + RC audit go |
+| **B7 dandelion rehearsal** | **Done** | `0d28e4f` — Windows PASS with MFEO upload |
+
+### RC push hold
+
+**Lifted** — full matrix green on B-11 + B7 evidence stack.
+
+---
+
 ## Session — 2026-07-07 (B-11 public devnet enable → CI on stack)
 
 | Gate | Status | Notes |
@@ -60,9 +76,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B-05 soak PASS (`28851202993`); M2.5.65 stack | — | Idle after evidence refresh |
-| **2** RC ops | B-05 evidence; CI `28871239057`; release evidence `837069a` | — | Idle |
-| **3** RC onboarding | M7.11.2; Nightly #63/#64/#65 PASS | — | B7 rehearsal soak (with lane 5) |
+| **1** RC core | Nightly `#28884769330`; CI `#28879533724` GREEN | — | Idle |
+| **2** RC ops | Release evidence `1bbc3af`; CI ancestor lookup | — | Idle |
+| **3** RC onboarding | B7 dandelion rehearsal PASS (`0d28e4f`) | — | Idle |
 
 ---
 
@@ -71,7 +87,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **4** Protocol | B-11 MFEO wire + proptests + public devnet enable | — | Idle |
-| **5** Privacy | B13; B4; B7; F7/B15 `837069a` | — | B7 rehearsal soak |
+| **5** Privacy | B13; B4; B7 dandelion rehearsal (`0d28e4f`) | — | B8 Tor transport (research) |
 | **6** Permanence | M5.48; B-05; B-11 complete | — | Idle |
 
 ---
