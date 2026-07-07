@@ -82,13 +82,46 @@ query_rpc_json_line() {
   printf '%s' "$line"
 }
 
-# Prefer mfn-cli tip (robust TCP client), then nc JSON-RPC. M2.5.38.
+# Compact JSON (pretty or JSON-RPC envelope) to one line for health-check sed parsers.
+compact_status_json_oneline() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys
+raw=json.load(sys.stdin)
+body=raw.get("result", raw) if isinstance(raw, dict) else raw
+print(json.dumps(body, separators=(",", ":")), end="")' 2>/dev/null
+    return
+  fi
+  tr -d '\n'
+}
+
+# Prefer full get_status (mfn-cli status or nc JSON-RPC), then legacy tip synthesis. M2.5.38 / M2.5.65.
 query_get_status_compat_line() {
   local rpc_addr="$1"
   local repo_root="${2:-}"
-  local req mfn_cli tip_out h id g
+  local req mfn_cli status_out line tip_out h id g
   if [[ -n "$repo_root" ]]; then
     mfn_cli="$(resolve_mfn_cli "$repo_root" 2>/dev/null || true)"
+  fi
+  if [[ -n "${mfn_cli:-}" ]]; then
+    if status_out="$("$mfn_cli" --rpc "$rpc_addr" status 2>/dev/null)"; then
+      line="$(printf '%s\n' "$status_out" | compact_status_json_oneline)"
+      if [[ -n "$line" && "$line" == *'"tip_id"'* ]]; then
+        printf '%s' "$line"
+        return 0
+      fi
+    fi
+  fi
+  req='{"jsonrpc":"2.0","method":"get_status","id":1}'
+  line="$(query_rpc_json_line "$rpc_addr" "$req")"
+  if [[ -n "$line" ]]; then
+    if compact="$(printf '%s' "$line" | compact_status_json_oneline)"; then
+      if [[ -n "$compact" && "$compact" == *'"tip_id"'* ]]; then
+        printf '%s' "$compact"
+        return 0
+      fi
+    fi
+    printf '%s' "$line"
+    return 0
   fi
   if [[ -n "${mfn_cli:-}" ]]; then
     if tip_out="$("$mfn_cli" --rpc "$rpc_addr" tip 2>/dev/null)"; then
@@ -104,8 +137,6 @@ query_get_status_compat_line() {
       fi
     fi
   fi
-  req='{"jsonrpc":"2.0","method":"get_status","id":1}'
-  query_rpc_json_line "$rpc_addr" "$req"
 }
 
 # Query hub tip height via mfn-cli, falling back to get_status JSON-RPC (M2.5.9).
