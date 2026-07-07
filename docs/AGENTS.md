@@ -111,9 +111,13 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.4.90 — `ci-check.sh` thread cap parity (`aae3097`).
 
+### Doing
+
+- [ ] **Release evidence refresh** — `release-evidence-refresh-for-head` after CI `28853929754` green on `234f0a8` (claim base: `234f0a8`).
+
 ### Next
 
-- [ ] `release-evidence-refresh-for-head` after green CI on B13 tail stack.
+- [ ] `release-evidence-refresh-for-head` + RC audit dry-run after green CI.
 
 ### Do not start
 
@@ -251,7 +255,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **Idle** - monitor B-05 Linux soak evidence (lane 2+6) after green CI.
+- [x] B-05 — Linux soak PASS transcript archived (`28851202993` / `234f0a8`).
 - [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-57 stack on `9fc2f4a` (lane 1 RC gate).
 
 ### Do not start
@@ -267,7 +271,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 | B-06 | Nightly #63 green | 1 | After M2.5.49-58 stack `c0e73eb` (CI #669) |
 | B-02 | Proptest CLSAG + storage upload same block | 4 | Done - extends M5.5 |
 | B-03 | CI emission sim with privacy fees | 6 | **Done** — 64-block validator mixed |
-| B-05 | Linux 30s soak evidence | 2 + 6 | Manual workflow |
+| B-05 | Linux 30s soak evidence | 2 + 6 | **Done** — soak `28851202993` PASS (`234f0a8`) |
 | B-06 | Nightly #63 after M2.5.57 | 1 | M2.5.49-57 stack on `3e994b9` |
 
 ---

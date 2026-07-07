@@ -227,7 +227,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B13 tail** (`96fe808`–`934cc2f`) — spora revert, authorship bucket parity, WASM + GHA timing.
 - [x] **M2.5.64** (`c5e69f6` + `c7420a2`) — Linux soak pre-build bootstrap (`mfnd` + `mfn-cli` for tip polls).
 - [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off).
-- [ ] **B-05 Linux soak** — fix `e448a79` M2.5.65 WARMUP; re-dispatch after `28849489102` FAIL.
+- [x] **B-05 Linux soak** — PASS soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt` (`234f0a8`).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
@@ -314,7 +314,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.4.89** — CI Linux test hardening (`--test-threads=2`, one retry, GHA stdout timeouts 120s/150s).
 - [x] Linux `soak.sh` success criteria, soak lock, and archive parity with PowerShell (**M2.4.73**).
 - [x] RC audit dry-run with M2.4.70 soak evidence archived (`release-rc-audit-dry-run.ps1`, decision=go) (**M2.4.73**).
-- [ ] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — auto-dispatched **Linux Soak Audit** after green CI when no linux transcript on `main`; PASS auto-commit; Windows evidence archived).
+- [x] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — PASS `28851202993`, max_height=48, `234f0a8`).
 
 ## Cross-Agent Notes
 

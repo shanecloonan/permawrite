@@ -17,7 +17,7 @@
 | **B13 authorship** | **Done** | `5d5cf64` CLI/wallet + `7821099` WASM — padded preview for MFCL `data_root` |
 | **GHA hub timing** | **Done** | `934cc2f` — `GITHUB_ACTIONS` detection for 20s mesh budget |
 | **Nightly #64** | **GREEN** | Run `28841761235` on `934cc2f` stack (auto-dispatched) |
-| **B-05 Linux soak** | **In progress** | Soak `28849489102` after CI #28845429505 GREEN |
+| **B-05 Linux soak** | **Done** | Soak `28851202993` PASS max_height=48 (`234f0a8`) |
 
 ### RC push hold
 
@@ -29,9 +29,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI #28838850432; Nightly #64 | **B-05 soak** re-dispatch after `c7420a2` | Release evidence refresh |
-| **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh on `934cc2f` |
-| **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor B-05 soak PASS |
+| **1** RC core | B-05 soak PASS; CI #28845429505 | — | Release evidence refresh |
+| **2** RC ops | M2.5.57–59; B-05 evidence | CI #720 on `234f0a8` | RC audit dry-run |
+| **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | — |
 
 ---
 
@@ -41,7 +41,7 @@
 | --- | --- | --- | --- |
 | **4** Protocol | B13 consensus gate `3d8574c` | — | B-11 endowment opening |
 | **5** Privacy | B13 full stack; B4 decoys; B7 `1cc9ead` | — | B7 rehearsal soak + B9 view tags |
-| **6** Permanence | M5.48; M2.5.56 B-10 | — | B-05 Linux soak evidence |
+| **6** Permanence | M5.48; B-05 soak evidence | — | B-11 endowment opening |
 
 ---
 
@@ -55,7 +55,7 @@
 - [x] B7 Dandelion++ phase 1 (`1cc9ead`)
 - [x] Green CI on B13 stack (CI #28838850432 on `934cc2f`)
 - [x] Nightly #64 green (`28841761235`)
-- [ ] B-05 Linux soak evidence (soak `28849489102` in progress)
+- [x] B-05 Linux soak evidence (soak `28851202993` PASS, `234f0a8`)
 
 ---
 
