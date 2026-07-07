@@ -79,6 +79,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
 - [x] Monitor green CI after B13 tail — **CI #28838850432 GREEN** on `934cc2f`.
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
+- [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
 - [ ] Release evidence refresh on green CI (lane 2).
 
 ### Do not start (other lanes)
@@ -113,11 +114,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **Release evidence refresh** — `release-evidence-refresh-for-head` after CI `28853929754` green on `234f0a8` (claim base: `234f0a8`).
+- [ ] **Release evidence refresh** — `release-evidence-refresh-for-head` on `837069a` (CI `28871239057` GREEN; claim base: `837069a`).
 
 ### Next
 
-- [ ] `release-evidence-refresh-for-head` + RC audit dry-run after green CI.
+- [ ] RC audit dry-run after evidence refresh.
 
 ### Do not start
 

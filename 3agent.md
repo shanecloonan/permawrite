@@ -45,7 +45,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | B-05 soak PASS (`28851202993`); M2.5.65 stack | — | Idle after evidence refresh |
-| **2** RC ops | B-05 evidence `234f0a8`; M2.5.57–59 | Release evidence refresh — await CI `28853929754` | RC audit dry-run |
+| **2** RC ops | B-05 evidence `234f0a8`; CI `28871239057` GREEN on `837069a` | Release evidence refresh on `837069a` | RC audit dry-run |
 | **3** RC onboarding | M7.11.2; Nightly #63/#64 PASS | — | B7 rehearsal soak (with lane 5) |
 
 ---
