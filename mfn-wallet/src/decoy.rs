@@ -3,9 +3,11 @@
 //! `mfn_crypto::select_gamma_decoys` works over an explicit
 //! `&[DecoyCandidate<T>]` that the *caller* assembles. This module
 //! provides the canonical builder that walks a [`ChainState`]'s UTXO
-//! set, drops anything we don't want a real input to anonymize with
-//! (our own UTXOs, the input we're spending right now), and returns a
-//! pool ready to feed the gamma sampler.
+//! set, drops the real input(s) of the current transaction (so a UTXO is
+//! never sampled as a decoy for its own spend), and returns a pool ready
+//! to feed the gamma sampler. Other owned outputs **remain eligible** —
+//! excluding every wallet UTXO globally under-represented them in rings
+//! network-wide (B4 / `PRIVACY_HARDENING.md`).
 //!
 //! The pool is parameterised over `T = (one_time_addr, amount_commit)`
 //! — that's exactly what each ring slot needs to fill `(P_i, C_i)`. The
@@ -75,10 +77,9 @@ impl DecoyPoolBuilder {
         self
     }
 
-    /// Bulk-exclude every owned output's `one_time_addr`. Use this to
-    /// avoid sampling our *own* UTXOs as decoys for our *own* spend —
-    /// not a soundness violation, but it slightly weakens the
-    /// anonymity set when we spend one of them later.
+    /// Bulk-exclude every owned output's `one_time_addr`. Prefer
+    /// [`build_decoy_pool`] with only the real input keys instead —
+    /// excluding all owned outputs weakens the global anonymity set.
     pub fn exclude_owned<'a, I>(&mut self, owned: I) -> &mut Self
     where
         I: IntoIterator<Item = &'a OwnedOutput>,
@@ -139,22 +140,20 @@ impl DecoyPoolBuilder {
     }
 }
 
-/// Free-function shorthand for the common case: build a pool from a
-/// `ChainState`, excluding the wallet's own outputs and a specific
-/// real input.
-pub fn build_decoy_pool<'a, I>(
+/// Free-function shorthand: build a pool from a `ChainState`, excluding
+/// only the real input(s) of this transaction.
+///
+/// Every key in `exclude_utxo_keys` is removed from the candidate set so
+/// a UTXO is never sampled as a decoy for its own spend. **Other owned
+/// outputs remain eligible** — excluding all wallet UTXOs globally
+/// under-represented them in rings network-wide (B4 /
+/// `PRIVACY_HARDENING.md`).
+pub fn build_decoy_pool(
     state: &ChainState,
-    owned: I,
-    real_input_utxo_key: Option<[u8; 32]>,
-) -> Vec<DecoyCandidate<RingMember>>
-where
-    I: IntoIterator<Item = &'a OwnedOutput>,
-{
+    exclude_utxo_keys: impl IntoIterator<Item = [u8; 32]>,
+) -> Vec<DecoyCandidate<RingMember>> {
     let mut b = DecoyPoolBuilder::new();
-    b.exclude_owned(owned);
-    if let Some(k) = real_input_utxo_key {
-        b.exclude_one_time_addr(k);
-    }
+    b.exclude_keys(exclude_utxo_keys);
     b.build(state)
 }
 
@@ -190,5 +189,59 @@ mod tests {
         let pool = build_decoy_pool_from_sources(&[s0, s1], [key0]);
         assert_eq!(pool.len(), 1);
         assert_eq!(pool[0].height, 2);
+    }
+
+    #[test]
+    fn build_decoy_pool_excludes_only_spent_inputs() {
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_consensus::{
+            apply_genesis, build_genesis, GenesisConfig, GenesisOutput, DEFAULT_EMISSION_PARAMS,
+            TEST_CONSENSUS_PARAMS,
+        };
+        use mfn_crypto::point::{generator_g, generator_h};
+        use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
+
+        let sp0 = random_scalar();
+        let sp1 = random_scalar();
+        let p0 = generator_g() * sp0;
+        let p1 = generator_g() * sp1;
+        let c0 = (generator_g() * random_scalar()) + (generator_h() * Scalar::from(100u64));
+        let c1 = (generator_g() * random_scalar()) + (generator_h() * Scalar::from(200u64));
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs: vec![
+                GenesisOutput {
+                    one_time_addr: p0,
+                    amount: c0,
+                },
+                GenesisOutput {
+                    one_time_addr: p1,
+                    amount: c1,
+                },
+            ],
+            initial_storage: Vec::new(),
+            validators: Vec::new(),
+            params: TEST_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+        };
+        let g = build_genesis(&cfg);
+        let state = apply_genesis(&g, &cfg).expect("genesis");
+        let key_spent = p0.compress().to_bytes();
+        let key_unspent = p1.compress().to_bytes();
+
+        let pool = build_decoy_pool(&state, [key_spent]);
+        assert!(
+            pool.iter()
+                .any(|c| c.data.0.compress().to_bytes() == key_unspent),
+            "unspent owned output must remain in the decoy pool"
+        );
+        assert!(
+            !pool
+                .iter()
+                .any(|c| c.data.0.compress().to_bytes() == key_spent),
+            "real input must be excluded"
+        );
     }
 }

@@ -388,11 +388,7 @@ impl Wallet {
 
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
 
-        let pool = build_decoy_pool(
-            chain_state,
-            self.owned.values(),
-            None, // we exclude *all* owned outputs already
-        );
+        let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
 
         let current_height = u64::from(self.scan_height.unwrap_or(0));
 
@@ -679,7 +675,7 @@ impl Wallet {
         }
 
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
-        let pool = build_decoy_pool(chain_state, self.owned.values(), None);
+        let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
         let current_height = u64::from(self.scan_height.unwrap_or(0));
 
         let plan = StorageUploadPlan {
@@ -777,7 +773,7 @@ impl Wallet {
         }
 
         let chosen_refs2: Vec<&OwnedOutput> = chosen_owned.iter().collect();
-        let pool = build_decoy_pool(chain_state, self.owned.values(), None);
+        let pool = build_decoy_pool(chain_state, chosen_keys.iter().copied());
         let current_height = u64::from(self.scan_height.unwrap_or(0));
 
         let plan = StorageUploadPlan {

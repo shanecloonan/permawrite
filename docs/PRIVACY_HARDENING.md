@@ -283,25 +283,27 @@ is test-only. The conformance suite source-scans every reference frontend
 
 **Effort:** low–moderate. **Risk:** low.
 
-### B4. Decoy-pool quality
+### B4. Decoy-pool quality — **partial (a shipped)**
 
 **Problem.** Two issues in the wallet decoy path:
-- `build_decoy_pool` excludes **all** owned outputs
-  ([`mfn-wallet/src/decoy.rs`](../mfn-wallet/src/decoy.rs), `exclude_owned`).
-  The comment concedes this "slightly weakens the anonymity set": your own
-  UTXOs never appear as decoys for others, so an active wallet's outputs are
+- `build_decoy_pool` excluded **all** owned outputs
+  ([`mfn-wallet/src/decoy.rs`](../mfn-wallet/src/decoy.rs)). The comment
+  conceded this "slightly weakens the anonymity set": your own UTXOs never
+  appeared as decoys for others, so an active wallet's outputs were
   under-represented in rings globally.
 - `DEFAULT_GAMMA_PARAMS`
   ([`mfn-crypto/src/decoy.rs`](../mfn-crypto/src/decoy.rs)) are Monero's
   empirically-tuned constants; Permawrite's spend-age distribution may differ,
   and the co-height binary-search pick is deterministic within a height bucket.
 
-**Plan.** (a) Reconsider excluding only the *real input* being spent rather
-than all owned outputs; (b) once mainnet has spend data, re-fit the gamma
-shape/scale; (c) randomize selection among co-height candidates. All are
-`mfn-crypto`/`mfn-wallet` changes with no consensus impact, but (b) needs real
-data. This item is **retired outright** by B8/B9 (membership proofs), so weigh
-effort against that endgame.
+**Shipped (a).** `build_decoy_pool` now excludes only the real input key(s)
+of the current transaction; other owned UTXOs remain eligible decoys.
+`Wallet::build_transfer` / storage-upload paths pass `chosen_keys` instead of
+`self.owned.values()`. Test: `build_decoy_pool_excludes_only_spent_inputs`.
+
+**Remaining.** (b) re-fit gamma shape/scale once mainnet has spend data;
+(c) randomize among co-height candidates. Item retired outright by B8/B9
+(membership proofs) for long-term effort vs. endgame.
 
 **Effort:** low (a, c) / research (b). **Risk:** low.
 
