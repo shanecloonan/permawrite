@@ -137,10 +137,12 @@ inherits the guarantee:
   [§B1](#b1-consensus-enforced-minimum-output-count-p5--shipped) lifted the
   floor into `verify_transaction`, so under production uniform-ring params a
   one-output transaction is now a consensus reject network-wide.
-- **Input count still leaks.** `tx.inputs.len()` is public and reveals how
-  many UTXOs were consumed. Age-band selection
+- **Input count still leaks when only one UTXO exists.** `tx.inputs.len()` is
+  public. Age-band selection
   ([§B2](#b2-age-band-coin-selection--shipped)) stops the input *set* from
-  mixing eras, but canonical N-in shapes remain open (P5 tail).
+  mixing eras; the reference wallet now pads to two inputs when a second
+  UTXO is available ([§B15](#b15-canonical-input-count-floor-f7--shipped-wallet-layer)).
+  Consensus-level N-in enforcement remains open (F7 tail).
 - ~~**Output *ordering* and other wallet-chosen bytes are not yet
   canonicalized**~~ Closed:
   [§B3](#b3-canonical-encoding-conformance-p9--shipped).
@@ -230,10 +232,11 @@ bytes so `HashMap` iteration order cannot leak into selection). Tests:
 coverage/insufficient-funds cases. Pure `mfn-wallet` change, no consensus
 impact.
 
-**Remaining.** Input *count* still leaks (`tx.inputs.len()` is public);
-canonical N-in shapes are the P5 tail.
+**Remaining.** Consensus-level N-in enforcement (dummy/padded inputs at
+`verify_transaction`) remains the F7 tail; wallet-layer two-input floor is
+[§B15](#b15-canonical-input-count-floor-f7--shipped-wallet-layer).
 
-**Effort:** moderate. **Risk:** low.
+**Effort:** moderate (wallet shipped) / high (consensus tail). **Risk:** low.
 
 ### B3. Canonical-encoding conformance (`F5:P9`) — **shipped**
 
@@ -487,6 +490,32 @@ precision instead of the exact byte count.
 
 **Effort:** moderate. **Risk:** medium (endowment pricing).
 
+### B15. Canonical input-count floor (`F7`) — **shipped (wallet layer)**
+
+**Problem.** Even with age-band cohesion, a lone input on-chain reveals
+that the wallet had a single UTXO large enough to cover the payment — a
+fingerprint distinct from the common two-input Monero default shape.
+
+**Shipped.** [`WALLET_MIN_TX_INPUTS`](../mfn-wallet/src/lib.rs) (= 2) and
+[`Wallet::select_inputs_for_tx`](../mfn-wallet/src/wallet.rs) pad coin
+selection after [`select_inputs`](../mfn-wallet/src/wallet.rs): when a
+second spendable UTXO exists, the wallet merges it into the spend and
+returns the excess as change. Pad selection prefers the same age band as
+the newest chosen input; ties break on smallest value. Applies to
+[`build_transfer`](../mfn-wallet/src/wallet.rs),
+[`build_storage_upload*`](../mfn-wallet/src/wallet.rs), and
+[`publish_claim_tx`](../mfn-wallet/src/wallet.rs) (via `build_transfer`).
+Wallets with only one UTXO stay at one input.
+
+**Remaining.** Consensus enforcement of allowed `(inputs, outputs)` shapes
+(F7 tail) — network-wide reject or mandatory dummy inputs at
+`verify_transaction`.
+
+**Tests.** `select_inputs_for_tx_pads_to_two_when_second_utxo_exists`,
+`select_inputs_for_tx_single_utxo_cannot_pad`.
+
+**Effort:** moderate (wallet) / high (consensus). **Risk:** medium.
+
 ### B14. Note: `list_utxos` RPC exposure (not a fix — a clarification)
 
 The public `list_utxos` RPC
@@ -504,7 +533,7 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet) |
 | High impact, moderate effort | B8 (Tor), P31 eclipse diversity |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

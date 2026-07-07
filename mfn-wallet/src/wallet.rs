@@ -317,6 +317,53 @@ impl Wallet {
         Ok((chosen, sum))
     }
 
+    /// Coin selection for reference transfers/uploads: [`Self::select_inputs`]
+    /// plus the [`crate::WALLET_MIN_TX_INPUTS`] privacy floor when possible.
+    fn select_inputs_for_tx(&self, target: u64) -> Result<(Vec<&OwnedOutput>, u64), WalletError> {
+        let (mut chosen, mut sum) = self.select_inputs(target)?;
+        self.pad_inputs_to_floor(&mut chosen, &mut sum);
+        Ok((chosen, sum))
+    }
+
+    /// Pad `chosen` up to [`crate::WALLET_MIN_TX_INPUTS`] with additional
+    /// real UTXOs from this wallet when available.
+    ///
+    /// Prefers a pad UTXO from the same age band as the newest input already
+    /// chosen; ties break on smallest value (minimises unnecessary change).
+    fn pad_inputs_to_floor<'a>(&'a self, chosen: &mut Vec<&'a OwnedOutput>, sum: &mut u64) {
+        if chosen.len() >= crate::WALLET_MIN_TX_INPUTS {
+            return;
+        }
+        let current = self.scan_height.unwrap_or(0);
+        let ref_band = chosen
+            .iter()
+            .map(|o| age_band(current, o.height))
+            .min()
+            .unwrap_or(0);
+
+        let mut chosen_keys: HashSet<[u8; 32]> = chosen.iter().map(|o| o.utxo_key()).collect();
+
+        while chosen.len() < crate::WALLET_MIN_TX_INPUTS {
+            let mut candidates: Vec<&OwnedOutput> = self
+                .owned
+                .values()
+                .filter(|o| !chosen_keys.contains(&o.utxo_key()))
+                .collect();
+            if candidates.is_empty() {
+                break;
+            }
+            candidates.sort_by_key(|o| {
+                let band = age_band(current, o.height);
+                let band_penalty = u8::from(band != ref_band);
+                (band_penalty, o.value, o.utxo_key())
+            });
+            let pad = candidates[0];
+            chosen_keys.insert(pad.utxo_key());
+            chosen.push(pad);
+            *sum = sum.saturating_add(pad.value);
+        }
+    }
+
     /// High-level transfer: pick inputs greedily, build a decoy pool
     /// from `chain_state`, and produce a signed transfer tx with one
     /// implicit change output back to the wallet.
@@ -350,7 +397,7 @@ impl Wallet {
             .fold(0u64, u64::saturating_add)
             .saturating_add(fee);
 
-        let (chosen_refs, input_sum) = self.select_inputs(target)?;
+        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
 
         // Clone the OwnedOutputs so we don't hold a borrow into
@@ -662,7 +709,7 @@ impl Wallet {
             let _ = build_mfex_extra(authorship_claims)?;
         }
         let target = anchor_value.saturating_add(fee);
-        let (chosen_refs, input_sum) = self.select_inputs(target)?;
+        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
@@ -760,7 +807,7 @@ impl Wallet {
         R: FnMut() -> f64,
     {
         let target = anchor_value.saturating_add(fee);
-        let (chosen_refs, input_sum) = self.select_inputs(target)?;
+        let (chosen_refs, input_sum) = self.select_inputs_for_tx(target)?;
         let chosen_keys: Vec<[u8; 32]> = chosen_refs.iter().map(|o| o.utxo_key()).collect();
         let chosen_owned: Vec<OwnedOutput> = chosen_refs.iter().map(|o| (*o).clone()).collect();
 
@@ -817,6 +864,12 @@ impl Clone for Wallet {
             scan_height: self.scan_height,
         }
     }
+}
+
+/// Exponential age band index for coin-selection cohesion (§B2).
+fn age_band(current: u32, output_height: u32) -> u32 {
+    let age = u64::from(current.saturating_sub(output_height));
+    63 - (age + 1).leading_zeros()
 }
 
 #[cfg(test)]
@@ -1101,6 +1154,45 @@ mod tests {
             }
             other => panic!("expected InsufficientFunds, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn select_inputs_for_tx_pads_to_two_when_second_utxo_exists() {
+        let mut wallet = Wallet::from_seed(&[10u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        wallet.ingest_block(&mk_block(
+            1,
+            vec![build_coinbase(1, 1_000, &payout).unwrap()],
+        ));
+        wallet.ingest_block(&mk_block(2, vec![build_coinbase(2, 10, &payout).unwrap()]));
+
+        let (chosen, sum) = wallet.select_inputs_for_tx(500).expect("select");
+        assert_eq!(
+            chosen.len(),
+            2,
+            "must pad to two inputs when a second UTXO exists"
+        );
+        assert_eq!(sum, 1_010);
+    }
+
+    #[test]
+    fn select_inputs_for_tx_single_utxo_cannot_pad() {
+        let mut wallet = Wallet::from_seed(&[11u8; 32]);
+        let payout = PayoutAddress {
+            view_pub: wallet.keys().view_pub(),
+            spend_pub: wallet.keys().spend_pub(),
+        };
+        wallet.ingest_block(&mk_block(
+            1,
+            vec![build_coinbase(1, 1_000, &payout).unwrap()],
+        ));
+
+        let (chosen, sum) = wallet.select_inputs_for_tx(500).expect("select");
+        assert_eq!(chosen.len(), 1, "only one UTXO — floor cannot be reached");
+        assert_eq!(sum, 1_000);
     }
 
     #[test]

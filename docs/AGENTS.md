@@ -225,6 +225,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B9 (view tags phase 2)** — tx v2 wire + wallet encode + scanner skip (~256× filter); legacy v1 accepted.
 - [x] **B7 (rehearsal soak)** — `--dandelion` on mesh scripts (default off); `dandelion-rehearsal-smoke` / `dandelion-soak` wrappers.
 - [x] **B7 (stem wire label)** — `TxStemV1` tag `0x11` on stem relay; fluff on `TxV1`.
+- [x] **F7/B15 (two-input wallet floor)** — `WALLET_MIN_TX_INPUTS` + `select_inputs_for_tx`; pad to two real inputs when possible.
 
 ### Next
 

@@ -88,6 +88,21 @@ pub const WALLET_MIN_RING_SIZE: usize = 16;
 /// indistinguishable on-chain from any other output.
 pub const WALLET_MIN_TX_OUTPUTS: usize = 2;
 
+/// Minimum number of inputs the reference wallet will spend in a
+/// value-transfer or storage-upload transaction when it holds enough
+/// distinct UTXOs (privacy floor, Monero-parity).
+///
+/// A one-input transaction leaks that the wallet had a single UTXO large
+/// enough to cover the payment — a fingerprint distinct from the common
+/// two-input "payment + change" shape. When a second spendable UTXO
+/// exists, the reference wallet merges it into the spend and folds the
+/// excess back into change rather than broadcasting a lone input.
+///
+/// Unlike the output floor, extra inputs are **real** spends (not
+/// zero-value padding): each input carries a CLSAG and key image.
+/// Wallets with only one UTXO cannot reach this floor.
+pub const WALLET_MIN_TX_INPUTS: usize = 2;
+
 /// Normative OS CSPRNG for transaction construction (**F5-P9** / B3 tail).
 ///
 /// Every reference frontend (CLI, WASM, native wallet) must pass this

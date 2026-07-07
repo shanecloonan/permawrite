@@ -47,6 +47,18 @@ Reference wallets close this gap by enforcing a **two-output floor** (`WALLET_MI
 
 This is a wallet-layer privacy default (like ring-16 selection), complementing the consensus-enforced ring policy above.
 
+### Input-count uniformity (two-input floor when possible)
+
+Input *count* is also public (`tx.inputs.len()`). A **one-input** transaction advertises that the sender had a single UTXO large enough to cover the payment — distinct from the common two-input shape where one input likely funded the payment and another supplied change.
+
+Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Monero parity) on the high-level `Wallet` API whenever a second spendable UTXO exists:
+
+- After age-band coin selection ([§B2 in `PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md)), the wallet merges an additional real UTXO into the spend and folds the excess back into change.
+- Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor.
+- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble `TransferPlan` manually are responsible for their own input-count policy; CLI and WASM route through `Wallet` and inherit the floor.
+
+This is a wallet-layer default today (consensus does not yet mandate N-in shapes).
+
 ### Authorship claims (optional) — key separation
 
 The optional **authorship claim** feature ([`AUTHORSHIP.md`](./AUTHORSHIP.md)) uses a **separate Schnorr keypair** (“claiming” / publishing identity) to sign a digest binding `(data_root, message)`. That signature is **intentionally** verifiable by everyone; it is **not** a ring signature and does **not** hide the claiming pubkey.
