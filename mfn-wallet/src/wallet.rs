@@ -564,8 +564,9 @@ impl Wallet {
         }
         self.assert_claim_key_firewall(identity)?;
 
+        let padded = mfn_storage::pad_to_storage_size_bucket(data);
         let burden = required_endowment(
-            data.len() as u64,
+            padded.len() as u64,
             replication,
             &chain_state.endowment_params,
         )?;
@@ -574,7 +575,7 @@ impl Wallet {
         }
         let endowment_amount = burden as u64;
         let preview =
-            build_storage_commitment(data, endowment_amount, chunk_size, replication, None)?;
+            build_storage_commitment(&padded, endowment_amount, chunk_size, replication, None)?;
         let commit_hash = storage_commitment_hash(&preview.commit);
         let claim = build_signed_claim(
             preview.commit.data_root,

@@ -3,20 +3,22 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-06 (B-06 closed → B13)
+## Session — 2026-07-06 (B-06 closed → B13 + B7 CI fix)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **Nightly #63** | **GREEN** | Run `28792429191` (all three jobs, 2026-07-06) |
+| **Nightly #63** | **GREEN** | Run `28792429191` (all three jobs) |
 | **B-06** | **Done** | CI `1603e43` + Nightly participant/observer PASS |
 | **B13 wallet** | **Done** | `4712811` — size buckets on upload |
 | **B13 consensus** | **Done** | `3d8574c` — bucket gate + `anchored_payload` artifacts |
-| **B13 compile fix** | **Landing** | spora pad + wasm `&data`; fixes CI #28833777805 |
-| **M2.5.64 soak** | **Landing** | workflow pre-build + `start-all --no-build` |
+| **M2.5.64 soak** | **Done** | `c5e69f6` — workflow pre-build + `start-all --no-build` |
+| **B7 Dandelion++** | **Done** | `1cc9ead` — opt-in `--dandelion` (default off) |
+| **B13 spora fix** | **Landing** | Revert auto-pad in `build_storage_commitment`; mfn-node tests use bucket payloads |
+| **CI #28834617488** | **FAIL** | `1cc9ead` — 8 mfn-node chunk tests (spora auto-pad vs test geometry) |
 
 ### RC push hold
 
-No pushes while CI in flight on `main` (`cancel-in-progress`).
+**Lifted** after CI #28834617488 completes. Next push: B13 spora fix + test parity (single coherent commit).
 
 ---
 
@@ -24,9 +26,9 @@ No pushes while CI in flight on `main` (`cancel-in-progress`).
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–61; Nightly #63; B13 | **M2.5.64** + compile fix push | B-05 soak after green CI |
-| **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh |
-| **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor soak |
+| **1** RC core | M2.5.49–64; Nightly #63; B13; B7 `1cc9ead` | **Monitor green CI** on B13 spora fix push | B-05 Linux soak dispatch |
+| **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh after green CI |
+| **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor B-05 soak PASS |
 
 ---
 
@@ -35,8 +37,8 @@ No pushes while CI in flight on `main` (`cancel-in-progress`).
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **4** Protocol | B13 consensus gate `3d8574c` | — | B-11 endowment opening |
-| **5** Privacy | B13 wallet `4712811`; B4 decoys | — | B7 Dandelion++ (WIP separate) |
-| **6** Permanence | M5.48; M2.5.56 B-10 | — | B-05 Linux soak |
+| **5** Privacy | B13 wallet/consensus; B4 decoys; B7 `1cc9ead` | **B13 test parity** (this push) | B7 rehearsal soak + B9 view tags |
+| **6** Permanence | M5.48; M2.5.56 B-10 | — | B-05 Linux soak evidence |
 
 ---
 
@@ -46,7 +48,9 @@ No pushes while CI in flight on `main` (`cancel-in-progress`).
 - [x] M2.5.49–61 on `main`
 - [x] **Nightly #63** all three green (`28792429191`)
 - [x] B13 wallet + consensus on `main`
-- [ ] B13 compile fix + M2.5.64 green CI
+- [x] M2.5.64 soak bootstrap (`c5e69f6`)
+- [x] B7 Dandelion++ phase 1 (`1cc9ead`)
+- [ ] Green CI on B13 spora fix (reverts `c5e69f6` auto-pad + test parity)
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 

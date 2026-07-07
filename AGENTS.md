@@ -80,24 +80,22 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-05)
+## CI gate (2026-07-06)
 
-**CI** red on `1cc9ead` (B7; run `28834617488` — mfn-node chunk tests broke by spora auto-pad; fix landing). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
+**CI #28834617488 FAIL** on `1cc9ead` (8 mfn-node chunk tests — spora auto-pad vs test geometry). **Fix stack** `bbcc231`–`96fe808` on `main`. **Authorship upload fix** landing this push. **Nightly #63 GREEN** (run `28792429191`).
 
-**Red-CI root cause (fixed by M2.5.61):** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consumed the P2P line and hung forever (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — reproduced twice on Windows ci-check). Any CI test matrix on M2.5.50..M2.5.61 would hang to job timeout, so the M2.5.61 push intentionally supersedes those doomed runs.
-
-**RC push hold:** no pushes while CI runs on `main` (`cancel-in-progress`).
+**RC push hold:** lifted after CI #28834617488 completed.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS after M2.5.64 | **In progress** — M2.5.64 + B13 compile fix landing this push | Release evidence refresh (lane 2) |
+| **1** | Green CI on B13 fix stack + authorship patch | **In progress** — monitor CI after push | B-05 Linux soak dispatch |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 participant + observer PASS (`28792429191`) |
-| **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | B7 Dandelion++ phase 1 (opt-in `--dandelion` stem/fluff relay) | **Done** - this commit | B7 rehearsal soak + B9 view tags |
-| **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
+| **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
+| **5** | B13 spora fix + authorship upload bucket parity | **In progress** — this push | B7 rehearsal soak + B9 view tags |
+| **6** | F5-PM9 `docs/PQ_MIGRATION.md` | **Done** - docs-only | B-05 soak evidence |
 
 ---
 
@@ -130,8 +128,9 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B7 (phase 1)** (this commit) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
-- **B13 spora fix** (this commit) - revert auto-pad inside `build_storage_commitment`; B13 bucket padding stays at wallet/WASM/consensus gates only (fixes mfn-node chunk gossip tests on `1cc9ead`).
+- **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
+- **B13 spora fix** (`96fe808`) - revert auto-pad inside `build_storage_commitment`; bucket padding at wallet/WASM/consensus only.
+- **B13 test parity** (`e98ff4f`) - mfn-node chunk/archive tests use canonical bucket payloads.
 - **B13 (consensus)** (`3d8574c`) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.
 - **B13 (wallet)** (`4712811`) - privacy surface (lane 5): upload size buckets — reference uploads pad to next power-of-two before anchoring; on-chain `size_bytes` is the bucket; endowment priced on bucket (`storage_size_bucket` / `pad_to_storage_size_bucket`).
 - **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `soak.sh` → `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.

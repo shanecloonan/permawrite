@@ -9,7 +9,7 @@ use mfn_consensus::{
 use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::point_from_bytes;
-use mfn_storage::storage_commitment_hash;
+use mfn_storage::{storage_commitment_hash, storage_size_bucket};
 use mfn_storage_operator::upload_artifact_store::{
     list_upload_artifacts, upload_artifacts_root, UploadArtifactSaveMeta,
 };
@@ -618,10 +618,11 @@ pub fn wallet_upload(
     let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
     let chain_state = fetch_chain_state(client)?;
 
+    let bucket_len = storage_size_bucket(data.len() as u64);
     let fee = match params.fee {
         Some(f) => f,
         None => wallet
-            .upload_min_fee(data.len() as u64, params.replication, &chain_state)?
+            .upload_min_fee(bucket_len, params.replication, &chain_state)?
             .saturating_add(DEFAULT_UPLOAD_FEE_TIP),
     };
 
