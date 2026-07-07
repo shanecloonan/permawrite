@@ -84,14 +84,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 **B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK. Evidence commit `234f0a8`.
 
-**RC push hold:** CI in progress on `e2f3f63` (run `28867402908`). Lane 2: release evidence after green.
+**RC push hold:** CI in progress on `dc8b53b` (run `28867715352`). Lane 2: release evidence after green. Prior runs cancelled by rapid parallel pushes (B-11/B7/B9 stack).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **In progress** — await CI `28867402908` green on `e2f3f63` | RC audit dry-run |
+| **2** | Release evidence refresh | **In progress** — await CI `28867715352` green on `dc8b53b` | RC audit dry-run |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
 | **5** | B7 Dandelion++ stem wire label (`TxStemV1`) | **Done** - this commit | B8 Tor transport (research) |
