@@ -17,7 +17,7 @@
 | **B13 authorship** | **Done** | `5d5cf64` CLI/wallet + `7821099` WASM — padded preview for MFCL `data_root` |
 | **GHA hub timing** | **Done** | `934cc2f` — `GITHUB_ACTIONS` detection for 20s mesh budget |
 | **Nightly #64** | **GREEN** | Run `28841761235` on `934cc2f` stack (auto-dispatched) |
-| **B-05 Linux soak** | **In progress** | Fixes `c7420a2` + `5221dad`; CI #716 in progress |
+| **B-05 Linux soak** | **In progress** | Soak `28849489102` after CI #28845429505 GREEN |
 
 ### RC push hold
 
@@ -55,7 +55,7 @@
 - [x] B7 Dandelion++ phase 1 (`1cc9ead`)
 - [x] Green CI on B13 stack (CI #28838850432 on `934cc2f`)
 - [x] Nightly #64 green (`28841761235`)
-- [ ] B-05 Linux soak evidence (run `28841761161` FAIL; fix `c7420a2` pushed)
+- [ ] B-05 Linux soak evidence (soak `28849489102` in progress)
 
 ---
 

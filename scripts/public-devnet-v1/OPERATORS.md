@@ -594,7 +594,8 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 
 1. Open **Actions → Linux Soak Audit → Run workflow** on `main`.
 2. Defaults: `SLOT_MS=30000`, 35 minutes, `--min-final-height 10`, observer restart once.
-3. Download artifact `linux-soak-evidence-slot-30000` and archive the transcript under `scripts/public-devnet-v1/evidence/`.
+3. The workflow pre-builds **`mfnd` + `mfn-cli`** before `soak.sh` → `start-all.sh --no-build` (`hub_tip_wait` tip polls require `mfn-cli` when `nc` JSON-RPC is empty on GHA).
+4. Download artifact `linux-soak-evidence-slot-30000` and archive the transcript under `scripts/public-devnet-v1/evidence/`.
 
 **Auto-dispatch (B-05):** After green **CI** on `main`, when no `soak-restart-linux-30s-slot-*.txt` exists on `main`, CI job `dispatch-linux-soak-rc` triggers **Linux Soak Audit** automatically. On PASS with `max_height >= 10`, the workflow commits the transcript to `main` with `[skip ci]` (does not re-dispatch Nightly/soak).
 

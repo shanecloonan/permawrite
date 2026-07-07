@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #716** in progress on `5221dad` (hub_tip_wait fail-fast + mfn-cli pre-build stack). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — fixed by `c7420a2` (pre-build mfn-cli) + `5221dad` (`start-all` hub_tip_wait diagnostics). **Nightly #63 GREEN** (run `28792429191`).
+**CI #28845429505 GREEN** on `5221dad` (B-05 fix stack). **Linux soak** run `28849489102` in progress (auto-dispatched). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`). **B-05 prior FAIL** run `28841761161` — fixed by `c7420a2` + `5221dad`. **Nightly #63 GREEN** (run `28792429191`).
 
 **RC push hold:** lifted.
 
@@ -90,7 +90,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS (mfn-cli pre-build fix) | **In progress** — re-dispatch soak after push | Release evidence on `934cc2f` (lane 2) |
+| **1** | B-05 Linux soak PASS (mfn-cli pre-build fix) | **In progress** — soak `28849489102` | Release evidence on `5221dad` (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
