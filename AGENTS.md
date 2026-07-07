@@ -86,14 +86,14 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 **CI #28871239057 GREEN** on `837069a` (full matrix: B-11 MFEO + B7 Dandelion++ + B9 view tags + F7/B15 wallet floor). Prior runs `#28867715352`–`#28867402908` cancelled by rapid parallel pushes, not test failures.
 
-**RC push hold:** lifted — lane 2: release evidence refresh on `837069a`.
+**RC push hold:** lifted.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **In progress** — `release-evidence-refresh-for-head` on `837069a` (CI `28871239057` GREEN) | RC audit dry-run |
+| **2** | Release evidence refresh | **Done** — `release-evidence-837069a` + RC audit go | Idle |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
 | **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
@@ -130,6 +130,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Release evidence `837069a`** (this commit) - RC ops (lane 2): `release-evidence-refresh-for-head` + RC audit dry-run go on CI `28871239057` GREEN stack.
 - **CI #28871239057 GREEN** (`837069a`) - RC ops (lane 2 gate): full matrix after B-11/B7/B9/F7 stack; ends CI churn from parallel pushes.
 - **F7/B15** (`837069a`) - privacy surface (lane 5): canonical two-input wallet floor — `WALLET_MIN_TX_INPUTS` + `select_inputs_for_tx` pad real UTXOs into reference transfers/uploads when a second spendable output exists; same-band preference; single-UTXO wallets unchanged.
 - **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
