@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI** in flight on `934cc2f` (B13 authorship + WASM bucket parity + GHA hub-timing fix). **Windows GREEN** on `5d5cf64` (run `28837107857`). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
+**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
 
-**RC push hold:** lifted after CI #28834617488 completed.
+**RC push hold:** lifted.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Green CI on B13 fix stack (`934cc2f`) | **In progress** — monitor run `28838850432` (Windows GREEN) | B-05 Linux soak dispatch |
-| **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
+| **1** | Green CI on B13 fix stack (`934cc2f`) | **Done** - CI #28838850432 | B-05 Linux soak dispatch |
+| **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
 | **5** | B13 size-bucket mandate + authorship parity | **Done** - `934cc2f` stack | B7 rehearsal soak + B9 view tags |

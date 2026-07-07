@@ -16,11 +16,11 @@
 | **B13 spora fix** | **Done** | `96fe808` — revert auto-pad in `build_storage_commitment`; test parity `e98ff4f` |
 | **B13 authorship** | **Done** | `5d5cf64` CLI/wallet + `7821099` WASM — padded preview for MFCL `data_root` |
 | **GHA hub timing** | **Done** | `934cc2f` — `GITHUB_ACTIONS` detection for 20s mesh budget |
-| **CI #28838850432** | **Monitor** | `934cc2f` stack — Windows GREEN; ubuntu/macos in flight |
+| **CI #28838850432** | **GREEN** | `934cc2f` stack — full matrix (linux/macOS/windows) |
 
 ### RC push hold
 
-**Lifted.** Monitor CI run `28838850432` on `934cc2f` before doc-only pushes.
+**Lifted.** CI #28838850432 GREEN on `934cc2f`.
 
 ---
 
@@ -28,8 +28,8 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–64; Nightly #63; B13; B7 | **Monitor CI** `28838850432` | B-05 Linux soak dispatch |
-| **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh after green CI |
+| **1** RC core | M2.5.49–64; Nightly #63; B13; B7; CI #28838850432 | — | B-05 Linux soak dispatch |
+| **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh on `934cc2f` |
 | **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor B-05 soak PASS |
 
 ---
@@ -52,7 +52,7 @@
 - [x] B13 wallet + consensus on `main`
 - [x] M2.5.64 soak bootstrap (`c5e69f6`)
 - [x] B7 Dandelion++ phase 1 (`1cc9ead`)
-- [x] Green CI fixes on B13 stack (`96fe808`–`934cc2f`; monitor run `28838850432`)
+- [x] Green CI fixes on B13 stack (`96fe808`–`934cc2f`; CI #28838850432 GREEN)
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 
