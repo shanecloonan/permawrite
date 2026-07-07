@@ -79,6 +79,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
 - [x] Monitor green CI after B13 tail — **CI #28838850432 GREEN** on `934cc2f`.
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
+- [x] **Nightly #28889931523** all three green on B-11/B7 stack (`b1072e3`).
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
 - [ ] Release evidence refresh on green CI (lane 2).
 

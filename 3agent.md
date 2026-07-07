@@ -7,6 +7,7 @@
 
 | Gate | Status | Notes |
 | --- | --- | --- |
+| **Nightly #28889931523** | **GREEN** | All three jobs on `b1072e3` stack |
 | **CI #28885223488** | **GREEN** | Run on `0d28e4f` (B7 dandelion evidence) |
 | **CI #28879533724** | **GREEN** | Run on `0fee187` (B-11 public devnet MFEO) |
 | **Nightly #28884769330** | **GREEN** | All three jobs on B-11 stack |
