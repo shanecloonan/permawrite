@@ -519,6 +519,7 @@ pub(crate) fn run_serve(
     committee_vote: bool,
     slot_duration_ms: u64,
     network_label: Option<&str>,
+    dandelion: bool,
 ) -> Result<(), String> {
     let genesis_timestamp = cfg.genesis.timestamp;
     let genesis_for_rpc = Arc::new(cfg.genesis.clone());
@@ -622,11 +623,20 @@ pub(crate) fn run_serve(
                 .map_err(|_| "mfnd serve: chain mutex poisoned".to_string())?;
             snapshot_chain_tip_for_p2p(&guard)
         }));
+        let dandelion_config = if dandelion {
+            crate::dandelion::DandelionConfig::enabled()
+        } else {
+            crate::dandelion::DandelionConfig::default()
+        };
+        if dandelion {
+            println!("mfnd_dandelion=enabled");
+        }
         let fanout = P2pPeerSet::new(
             genesis_id,
             Arc::clone(&tip_cell),
             store.root().to_path_buf(),
             Arc::clone(&chain),
+            dandelion_config,
         );
         let hook = P2pGossipHandler::new(
             Arc::clone(&chain),

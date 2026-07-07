@@ -438,7 +438,10 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
         .storage
         .get(&upload_hash)
         .expect("upload now anchored");
-    assert_eq!(entry.commit.size_bytes as usize, data.len());
+    assert_eq!(
+        entry.commit.size_bytes as usize,
+        mfn_storage::storage_size_bucket(data.len() as u64) as usize
+    );
     assert_eq!(entry.commit.replication, replication);
     assert_eq!(
         entry.last_proven_height, 4,

@@ -351,22 +351,22 @@ coinbase settlement path in
 
 **Effort:** high. **Risk:** high (consensus).
 
-### B7. Dandelion++ transaction relay (`F5:P3`) — network layer
+### B7. Dandelion++ transaction relay (`F5:P3`) — **partial (phase 1 shipped)**
 
 **Problem.** The single largest uncovered deanonymization surface. On RPC
 `submit_tx`, `mfnd` fans the fresh tx to **all peers in parallel**
 ([`mfn-node/src/p2p_fanout.rs`](../mfn-node/src/p2p_fanout.rs),
-`broadcast_fresh_tx`, always `except_peer = None`), so the first peers learn
-the origin node. `PRIVACY.md` explicitly punts network privacy to the wallet
-layer.
+`broadcast_fresh_tx`), so the first peers learn the origin node.
 
-**Plan.** Implement Dandelion++ stem/fluff routing across `mfn-net` and
-[`mfn-node/src/p2p_gossip.rs`](../mfn-node/src/p2p_gossip.rs): a stem phase
-that forwards to a single randomly-chosen peer with a per-node epoch mapping,
-then a randomized transition to diffusion (fluff). Add stem-phase state and
-timers; keep the existing fanout as the fluff transport. This is a substantial
-change that touches the rehearsal mesh CI — land it on its own with careful
-soak testing.
+**Shipped (phase 1).** Opt-in Dandelion++ stem/fluff routing in
+[`mfn-node/src/dandelion.rs`](../mfn-node/src/dandelion.rs) wired through
+[`P2pPeerSet::broadcast_fresh_tx`](../mfn-node/src/p2p_fanout.rs): stem phase
+forwards to one epoch-mapped peer; per-hop fluff probability + stem timeout
+transition to parallel fan-out. Enable with `mfnd serve --dandelion` (default
+off — legacy parallel fan-out unchanged for CI/rehearsal).
+
+**Remaining.** Rehearsal mesh soak with `--dandelion`, optional stem wire label,
+eclipse-resistance peer diversity (P31).
 
 **Effort:** high. **Risk:** high (network behavior + CI mesh).
 
@@ -491,8 +491,8 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus) |
-| High impact, moderate effort | B7 (Dandelion++), B9 (view tags) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ phase 1 (opt-in `--dandelion`) |
+| High impact, moderate effort | B7 soak + wire label, B9 (view tags) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 

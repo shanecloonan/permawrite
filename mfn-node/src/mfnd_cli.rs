@@ -82,6 +82,8 @@ struct Parsed {
     p2p_listen: Option<String>,
     /// Solo `serve` only: boot peer `HOST:PORT` list (repeat `--p2p-dial`; merged with genesis manifest `seed_nodes` when present — **M2.4.4**).
     p2p_dials: Vec<String>,
+    /// Solo `serve` only: Dandelion++ stem/fluff tx relay (**F5-P3** / B7).
+    dandelion: bool,
     /// Persistence backend (`fs` default, or `redb`).
     store_backend: StoreBackend,
     /// `serve` only: slot-driven multi-validator production (**M2.3.23**).
@@ -115,6 +117,7 @@ fn usage() -> &'static str {
                                   `--genesis` is set (M2.4.4). Each dial runs hello + ping/pong + ChainTipV1\n\
                                   + GoodbyeV1; on success prints mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip /\n\
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
+       --dandelion              only for `serve`: Dandelion++ stem/fluff tx relay (opt-in; default off)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
        --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\
@@ -525,6 +528,7 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 parsed.committee_vote,
                 parsed.slot_duration_ms,
                 network_label,
+                parsed.dandelion,
             )?;
         }
     }
@@ -580,6 +584,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut committee_vote = false;
     let mut slot_duration_ms = 1000u64;
     let mut archive_dir: Option<PathBuf> = None;
+    let mut dandelion = false;
     let mut positional: Vec<&str> = Vec::new();
     let mut i = 0usize;
     while i < args.len() {
@@ -684,6 +689,11 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             }
             p2p_dials.push(v.clone());
             i += 2;
+            continue;
+        }
+        if a == "--dandelion" {
+            dandelion = true;
+            i += 1;
             continue;
         }
         if a == "--produce" {
@@ -793,6 +803,12 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if dandelion && cmd != Cmd::Serve {
+        return Err(format!(
+            "--dandelion is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     if produce && committee_vote {
         return Err(format!(
             "--produce and --committee-vote are mutually exclusive\n{}",
@@ -826,6 +842,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         committee_vote,
         slot_duration_ms,
         archive_dir,
+        dandelion,
     })
 }
 

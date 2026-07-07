@@ -96,7 +96,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 participant + observer PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | B13 size-bucket mandate (wallet `4712811` + consensus `3d8574c` + compile fix) | **Done** - this push | B7 Dandelion++ relay (multi-session) |
+| **5** | B7 Dandelion++ phase 1 (opt-in `--dandelion` stem/fluff relay) | **Done** - this commit | B7 rehearsal soak + B9 view tags |
 | **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
 
 ---
@@ -130,7 +130,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B13 compile fix** (this commit) - privacy surface (lane 5): pad in `build_storage_commitment`; wasm `build_storage_proof_json` borrows padded `data` after move fix; spora/end_to_end test assertions on bucket `size_bytes`.
+- **B7 (phase 1)** (this commit) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
+- **B13 compile fix** (`c5e69f6`) - privacy surface (lane 5): pad in `build_storage_commitment`; wasm `build_storage_proof_json` borrows padded `data`.
 - **B13 (consensus)** (`3d8574c`) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.
 - **B13 (wallet)** (`4712811`) - privacy surface (lane 5): upload size buckets — reference uploads pad to next power-of-two before anchoring; on-chain `size_bytes` is the bucket; endowment priced on bucket (`storage_size_bucket` / `pad_to_storage_size_bucket`).
 - **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `soak.sh` → `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.

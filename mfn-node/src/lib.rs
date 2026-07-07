@@ -22,6 +22,7 @@
 #![cfg_attr(not(test), warn(clippy::unwrap_used, clippy::expect_used))]
 
 mod archive_export;
+mod dandelion;
 mod mfnd_cli;
 mod mfnd_serve;
 mod node_store;
@@ -83,6 +84,7 @@ pub mod store {
 pub use mfn_store::{ChainPersistence, ChainStore, RedbChainStore, StoreError, StoreSave};
 pub use network::NetworkConfig;
 
+pub use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
 pub use crate::p2p_fanout::P2pPeerSet;
 pub use crate::runner::{
     produce_config_from_env, ProduceConfig, ProductionEngine, ProductionEngineDeps,

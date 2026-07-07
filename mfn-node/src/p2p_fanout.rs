@@ -18,6 +18,7 @@ use mfn_net::{
 use mfn_runtime::Chain;
 use mfn_store::{load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
 
+use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
 use crate::p2p_peer_quarantine::{
     should_drop_persistent_peer_on_failure, PeerQuarantine, PEER_FAILURES_BEFORE_QUARANTINE,
     PEER_QUARANTINE_DURATION,
@@ -40,6 +41,7 @@ pub struct P2pPeerSet {
     production: Arc<Mutex<Option<ProductionHook>>>,
     fanout_lock: Arc<Mutex<()>>,
     chain: Arc<Mutex<Chain>>,
+    dandelion: Arc<Mutex<DandelionRelay>>,
     self_arc: Weak<Self>,
 }
 
@@ -50,6 +52,7 @@ impl P2pPeerSet {
         tip_cell: TipSnapshot,
         data_root: impl Into<PathBuf>,
         chain: Arc<Mutex<Chain>>,
+        dandelion_config: DandelionConfig,
     ) -> Arc<Self> {
         let data_root = data_root.into();
         let peer_report = load_peers_with_report(&data_root).unwrap_or_else(|e| {
@@ -91,6 +94,10 @@ impl P2pPeerSet {
             production: Arc::new(Mutex::new(None)),
             fanout_lock: Arc::new(Mutex::new(())),
             chain,
+            dandelion: Arc::new(Mutex::new(DandelionRelay::new(
+                dandelion_config,
+                genesis_id,
+            ))),
             self_arc: weak.clone(),
         })
     }
@@ -731,34 +738,67 @@ impl P2pPeerSet {
         self.send_on_session(peer, |sock| send_block_v1(sock, block_wire))
     }
 
-    /// Push `tx_wire` to every registered peer except `except_peer` (if any).
+    /// Push `tx_wire` to registered peers (**B7**: stem single-peer or fluff fan-out).
     fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
         let peers = self.snapshot_peers_except(except_peer);
         if peers.is_empty() {
             return;
         }
-        let tx_id = match decode_transaction(tx_wire) {
-            Ok(t) => tx_id(&t),
+        let tx = match decode_transaction(tx_wire) {
+            Ok(t) => t,
             Err(_) => return,
         };
+        let id = tx_id(&tx);
         let mut tx_id_hex = String::with_capacity(64);
-        for b in tx_id {
+        for b in id {
             use std::fmt::Write as _;
             let _ = write!(tx_id_hex, "{b:02x}");
         }
+        let (enabled, action) = match self.dandelion.lock() {
+            Ok(mut relay) => {
+                let enabled = relay.is_enabled();
+                let action = relay.decide(id, &peers, std::time::Instant::now());
+                (enabled, action)
+            }
+            Err(_) => (false, RelayAction::Fluff),
+        };
+        match (enabled, action) {
+            (true, RelayAction::Fluff) => {
+                println!(
+                    "mfnd_dandelion_fluff tx_id={tx_id_hex} peers={}",
+                    peers.len()
+                );
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                self.broadcast_fresh_tx_parallel(tx_wire, &peers, &tx_id_hex);
+            }
+            (false, RelayAction::Fluff) => {
+                self.broadcast_fresh_tx_parallel(tx_wire, &peers, &tx_id_hex);
+            }
+            (true, RelayAction::Stem { peer }) => {
+                println!("mfnd_dandelion_stem tx_id={tx_id_hex} peer={peer}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex);
+            }
+            (false, RelayAction::Stem { peer }) => {
+                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex);
+            }
+        }
+    }
+
+    fn broadcast_fresh_tx_parallel(&self, tx_wire: &[u8], peers: &[String], tx_id_hex: &str) {
         let wire = Arc::new(tx_wire.to_vec());
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
         for peer in peers {
             let wire = Arc::clone(&wire);
-            let tx_id_hex = tx_id_hex.clone();
+            let tx_id_hex = tx_id_hex.to_string();
             let peer_set = self.self_arc.clone();
+            let peer = peer.clone();
             thread::Builder::new()
                 .name("mfnd-p2p-tx-fanout".into())
                 .spawn(
                     move || match push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
                         Ok(()) => {
-                            // A successful fresh-tx dial proves the peer is reachable again.
                             if let Some(peer_set) = peer_set.upgrade() {
                                 peer_set.note_peer_success(&peer);
                             }
@@ -775,6 +815,35 @@ impl P2pPeerSet {
                 )
                 .ok();
         }
+    }
+
+    fn spawn_tx_push_to_peer(&self, peer: &str, tx_wire: &[u8], tx_id_hex: &str) {
+        let wire = Arc::new(tx_wire.to_vec());
+        let genesis_id = self.genesis_id;
+        let local = self.local_tip();
+        let peer = peer.to_string();
+        let tx_id_hex = tx_id_hex.to_string();
+        let peer_set = self.self_arc.clone();
+        thread::Builder::new()
+            .name("mfnd-p2p-tx-stem".into())
+            .spawn(
+                move || match push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
+                    Ok(()) => {
+                        if let Some(peer_set) = peer_set.upgrade() {
+                            peer_set.note_peer_success(&peer);
+                        }
+                        println!("mfnd_p2p_tx_fanout_ok peer={peer} tx_id={tx_id_hex}");
+                        let _ = std::io::Write::flush(&mut std::io::stdout());
+                    }
+                    Err(e) => {
+                        if let Some(peer_set) = peer_set.upgrade() {
+                            peer_set.note_peer_failure(&peer, &e.to_string());
+                        }
+                        eprintln!("mfnd_p2p_tx_fanout_abort peer={peer} tx_id={tx_id_hex} {e}");
+                    }
+                },
+            )
+            .ok();
     }
 }
 
@@ -1078,6 +1147,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         peer_set.note_peer_failure(&foreign, "genesis_mismatch expected=00 got=11");
@@ -1107,6 +1177,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         assert_eq!(
@@ -1144,6 +1215,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let connect_failure = "connection timed out";
@@ -1190,6 +1262,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let connect_failure = "connection timed out";
@@ -1239,6 +1312,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let catch_up_failure =
@@ -1285,6 +1359,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         peer_set.register_ephemeral(&ephemeral);
@@ -1324,6 +1399,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -1361,6 +1437,7 @@ mod tests {
             Arc::new(Mutex::new((1, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         assert!(!peer_set.periodic_catch_up_idle());
@@ -1400,6 +1477,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let gap_recovery_failure =
@@ -1438,6 +1516,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let gap_recovery_failure =
@@ -1475,6 +1554,7 @@ mod tests {
             Arc::new(Mutex::new((0, genesis_id))),
             dir.clone(),
             Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
         );
 
         let gap_recovery_failure =
