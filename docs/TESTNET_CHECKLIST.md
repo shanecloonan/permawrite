@@ -227,7 +227,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Nightly #64** on `934cc2f` — all three green (`28841761235`).
 - [x] **B13 tail** (`96fe808`–`934cc2f`) — spora revert, authorship bucket parity, WASM + GHA timing.
 - [x] **M2.5.64** (`c5e69f6` + `c7420a2`) — Linux soak pre-build bootstrap (`mfnd` + `mfn-cli` for tip polls).
-- [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off).
+- [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off); rehearsal PASS evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt` on B-11 MFEO genesis.
 - [x] **B-05 Linux soak** — PASS soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt` (`234f0a8`).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).

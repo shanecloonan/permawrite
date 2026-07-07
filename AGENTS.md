@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**CI #28879533724 GREEN** on `0fee187` (B-11 public devnet MFEO enable). **Release evidence `1bbc3af`** + RC audit dry-run **go** (CI via `gh-ancestor:0fee187`).
+**CI #28879533724 GREEN** on `0fee187`. **Nightly #28884769330 GREEN** (all three jobs). **Release evidence `1bbc3af`** + RC audit go.
 
 **RC push hold:** lifted.
 
@@ -90,11 +90,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **Done** — `release-evidence-1bbc3af` + RC audit go (CI `28879533724` on `0fee187`) | Monitor Nightly/soak auto-dispatch |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
-| **4** | B-11 endowment opening binding | **Done** — `0fee187` public devnet genesis enable | Monitor CI + Nightly |
-| **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
+| **1** | Nightly #28884769330 | **Done** — all three jobs green on B-11 stack | Idle |
+| **2** | Release evidence refresh | **Done** — `release-evidence-1bbc3af` + RC audit go | Idle |
+| **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (this commit) | Idle |
+| **4** | B-11 endowment opening binding | **Done** — `0fee187` | Idle |
+| **5** | B7 Dandelion++ rehearsal (with lane 3) | **Done** — evidence `-dandelion` archive tag | B8 Tor transport (research) |
 | **6** | B-11 endowment opening (with lane 4) | **Done** — `0fee187` | Monitor CI |
 
 ---
@@ -128,7 +128,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Release evidence `1bbc3af`** (this commit) - RC ops (lane 2): refresh + RC audit dry-run go on CI `28879533724` (`0fee187` B-11 stack).
+- **B7 dandelion rehearsal** (this commit) - privacy (lanes 3+5): Windows `dandelion-rehearsal-smoke` PASS with MFEO upload on B-11 genesis; evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt`; archive filenames tag `-dandelion`.
+- **Nightly #28884769330 GREEN** - RC core (lane 1): all three jobs on B-11 stack (`0fee187`).
 - **CI #28879533724 GREEN** (`0fee187`) - B-11 public devnet MFEO enable; full matrix pass.
 - **B-11 public devnet enable** (`0fee187`) - permanence (lanes 4+6): genesis spec `endowment` section; `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`); proptest clippy fix.
 - **B-11 proptests** (`9f0a0aa`) - permanence (lane 4): `require_endowment_opening=1` — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO`.

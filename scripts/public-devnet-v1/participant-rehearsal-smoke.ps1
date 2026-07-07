@@ -86,8 +86,9 @@ function Archive-RehearsalSmokeEvidence {
     $evidenceDir = Join-Path $ScriptDir "evidence"
     New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
     $observerLabel = if ($WithObserver) { "observer" } else { "no-observer" }
+    $dandelionLabel = if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq '1') { "-dandelion" } else { "" }
     $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
-    $path = Join-Path $evidenceDir "participant-rehearsal-$observerLabel-windows-$stamp.txt"
+    $path = Join-Path $evidenceDir "participant-rehearsal-$observerLabel$dandelionLabel-windows-$stamp.txt"
     $commit = ""
     try {
         Push-Location $RepoRoot
@@ -97,6 +98,7 @@ function Archive-RehearsalSmokeEvidence {
     }
     $cmd = "participant-rehearsal-smoke.ps1"
     if ($WithObserver) { $cmd += " -WithObserver" }
+    if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq '1') { $cmd += " -Dandelion" }
     if ($MinHubHeight -gt 0) { $cmd += " -MinHubHeight $MinHubHeight" }
     $lines = New-Object System.Collections.Generic.List[string]
     [void]$lines.Add("# Participant rehearsal smoke - $observerLabel (Windows)")
@@ -111,7 +113,7 @@ function Archive-RehearsalSmokeEvidence {
         [void]$lines.Add("Observer RPC=$ObserverRpc")
     }
     [void]$lines.Add("")
-    [void]$lines.Add("participant-rehearsal-smoke: PASS with_observer=$($WithObserver.IsPresent) hub_tip_height=$FinalHubHeight min_hub_height=$MinHubHeight")
+    [void]$lines.Add("participant-rehearsal-smoke: PASS with_observer=$($WithObserver.IsPresent) dandelion=$(if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq '1') { 'true' } else { 'false' }) hub_tip_height=$FinalHubHeight min_hub_height=$MinHubHeight")
     if ($WithObserver -and $ObserverHeight -ne "unknown") {
         [void]$lines.Add("participant-rehearsal-smoke: post_rehearsal observer_tip_height=$ObserverHeight observer_rpc=$ObserverRpc")
     }

@@ -374,10 +374,13 @@ archive_rehearsal_smoke_evidence() {
     MINGW*|MSYS*|CYGWIN*) platform="windows" ;;
   esac
   stamp="$(date -u +"%Y%m%dTHHmmssZ")"
-  path="$evidence_dir/participant-rehearsal-${observer_label}-${platform}-${stamp}.txt"
+  local dandelion_label=""
+  if (( DANDELION == 1 )); then dandelion_label="-dandelion"; fi
+  path="$evidence_dir/participant-rehearsal-${observer_label}${dandelion_label}-${platform}-${stamp}.txt"
   commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
   cmd="participant-rehearsal-smoke.sh"
   if (( WITH_OBSERVER == 1 )); then cmd+=" --with-observer"; fi
+  if (( DANDELION == 1 )); then cmd+=" --dandelion"; fi
   if (( MIN_HUB_HEIGHT > 0 )); then cmd+=" --min-hub-height $MIN_HUB_HEIGHT"; fi
   {
     echo "# Participant rehearsal smoke - $observer_label ($platform)"
@@ -392,7 +395,7 @@ archive_rehearsal_smoke_evidence() {
       echo "Observer RPC=$observer_rpc"
     fi
     echo ""
-    echo "participant-rehearsal-smoke: PASS with_observer=$WITH_OBSERVER hub_tip_height=$hub_height min_hub_height=$MIN_HUB_HEIGHT"
+    echo "participant-rehearsal-smoke: PASS with_observer=$WITH_OBSERVER dandelion=$([[ $DANDELION -eq 1 ]] && echo true || echo false) hub_tip_height=$hub_height min_hub_height=$MIN_HUB_HEIGHT"
     if (( WITH_OBSERVER == 1 )) && [[ "$observer_height" != "unknown" ]]; then
       echo "participant-rehearsal-smoke: post_rehearsal observer_tip_height=$observer_height observer_rpc=$observer_rpc"
     fi

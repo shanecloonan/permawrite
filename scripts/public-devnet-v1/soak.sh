@@ -311,7 +311,9 @@ archive_soak_evidence() {
     slot_label="${slot_ms}ms-slot"
   fi
   stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
-  path="$evidence_dir/soak-restart-linux-$slot_label-$stamp.txt"
+  local dandelion_label=""
+  if (( DANDELION == 1 )); then dandelion_label="-dandelion"; fi
+  path="$evidence_dir/soak-restart-linux${dandelion_label}-$slot_label-$stamp.txt"
   repo_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
   commit=""
   if commit=$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null); then
@@ -321,7 +323,7 @@ archive_soak_evidence() {
   fi
   {
     echo "# Linux soak evidence ($slot_label)"
-    echo "# Command: soak.sh --duration-minutes $DURATION_MINUTES$( (( RESTART_OBSERVER_ONCE == 1 )) && echo -n ' --restart-observer-once')$( (( ARCHIVE_EVIDENCE == 1 )) && echo -n ' --archive-evidence')"
+    echo "# Command: soak.sh --duration-minutes $DURATION_MINUTES$( (( RESTART_OBSERVER_ONCE == 1 )) && echo -n ' --restart-observer-once')$( (( DANDELION == 1 )) && echo -n ' --dandelion')$( (( ARCHIVE_EVIDENCE == 1 )) && echo -n ' --archive-evidence')"
     if [[ -n "$commit" ]]; then
       echo "# Commit: $commit"
     fi

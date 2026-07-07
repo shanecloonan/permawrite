@@ -393,7 +393,8 @@ function Archive-SoakEvidence {
     $slotMs = if ($env:SLOT_MS) { [int]$env:SLOT_MS } else { 10000 }
     $slotLabel = if ($slotMs -ge 30000) { "30s-slot" } else { "${slotMs}ms-slot" }
     $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
-    $path = Join-Path $evidenceDir "soak-restart-windows-$slotLabel-$stamp.txt"
+    $dandelionLabel = if ($Dandelion) { "-dandelion" } else { "" }
+    $path = Join-Path $evidenceDir "soak-restart-windows$dandelionLabel-$slotLabel-$stamp.txt"
     $commit = ""
     try {
         Push-Location (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
@@ -403,7 +404,7 @@ function Archive-SoakEvidence {
     }
     $lines = New-Object System.Collections.Generic.List[string]
     [void]$lines.Add("# Windows soak evidence ($slotLabel)")
-    [void]$lines.Add("# Command: soak.ps1 -DurationMinutes $DurationMinutes -RestartObserverOnce$(if ($ArchiveEvidence) { ' -ArchiveEvidence' })")
+    [void]$lines.Add("# Command: soak.ps1 -DurationMinutes $DurationMinutes -RestartObserverOnce$(if ($Dandelion) { ' -Dandelion' })$(if ($ArchiveEvidence) { ' -ArchiveEvidence' })")
     if ($commit) { [void]$lines.Add("# Commit: $commit") }
     [void]$lines.Add("# SLOT_MS=$slotMs StallIntervalSeconds=$StallIntervalSeconds")
     [void]$lines.Add("")
