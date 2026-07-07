@@ -94,7 +94,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | Release evidence refresh | **In progress** — await CI `28865550170` green on `d0d0bfb` | RC audit dry-run |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
-| **5** | B9 view tags (phase 2 wire + scan) | **Done** - this commit | B7 rehearsal soak with `--dandelion` |
+| **5** | B7 Dandelion++ rehearsal soak plumbing | **Done** - this commit | B7 wire label (optional) |
 | **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
 
 ---
@@ -131,7 +131,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 - **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
 - **M2.5.65 (GHA converge)** (`8ccda5d`) - RC core (lane 1): soak GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` when `get_status` reports null sessions; soak `28850304866` passed hub_produced then failed converge.
 - **M2.5.65** (`76cc778`) - RC core (lane 1): soak WARMUP health-check — `query_get_status_compat_line` prefers mfn-cli `status` (real `p2p.session_count`) over tip synthesis that returned null sessions.
-- **B9 (phase 2)** (this commit) - privacy surface (lane 5): tx v2 wire adds 1-byte `view_tag` per output (consensus-bound in preimage); reference wallet/coinbase set tags on send; scanner skips ~256× mismatches before stealth-detect; legacy v1 txs still decode/verify.
+- **B7 (rehearsal soak)** (this commit) - privacy surface (lane 5): `--dandelion` on `start-all` / `soak` / `participant-rehearsal-smoke` (default off); `dandelion-rehearsal-smoke` + `dandelion-soak` wrappers; mesh asserts `mfnd_dandelion=enabled` when enabled.
+- **B9 (phase 2)** (`366dfaf`) - privacy surface (lane 5): tx v2 wire adds 1-byte `view_tag` per output (consensus-bound in preimage); reference wallet/coinbase set tags on send; scanner skips ~256× mismatches before stealth-detect; legacy v1 txs still decode/verify.
 - **B9 (phase 1)** (`d0d0bfb`) - privacy surface (lane 5): `indexed_view_tag` / `indexed_view_tag_from_shared` in `mfn-crypto` stealth (F5-P7 prep for wire + scanner).
 - **B7 (phase 2)** (this commit) - privacy surface (lane 5): `MFND_DANDELION=1` env + `--dandelion` CLI parse tests.
 - **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`.

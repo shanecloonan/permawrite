@@ -25,6 +25,7 @@ NO_BUILD=0
 PLAN_ONLY=0
 ARCHIVE_EVIDENCE=0
 WITH_OBSERVER=0
+DANDELION=0
 MIN_HUB_HEIGHT=0
 WAIT_MIN_HUB_HEIGHT_SECONDS=180
 WAIT_OBSERVER_CATCHUP_SECONDS=180
@@ -46,6 +47,7 @@ Options:
   --wait-upload-seconds N     wait for upload discovery (default: 240)
   --wait-proof-seconds N      proof-list wait window (default: 240; 0 disables)
   --with-observer             start full mesh including non-validator observer (default: skip observer)
+  --dandelion                 enable Dandelion++ tx relay on all mfnd roles (default: off)
   --min-hub-height N          fail unless hub tip_height >= N after rehearsal (default: 0)
   --wait-min-hub-height-seconds N poll for min hub height after rehearsal (default: 180; 0 checks once)
   --wait-observer-catchup-seconds N poll for observer tip >= hub after rehearsal (default: 180)
@@ -69,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --wait-upload-seconds) WAIT_UPLOAD_SECONDS="${2:-}"; shift 2 ;;
     --wait-proof-seconds) WAIT_PROOF_SECONDS="${2:-}"; shift 2 ;;
     --with-observer) WITH_OBSERVER=1; shift ;;
+    --dandelion) DANDELION=1; shift ;;
     --min-hub-height) MIN_HUB_HEIGHT="${2:-}"; shift 2 ;;
     --wait-min-hub-height-seconds) WAIT_MIN_HUB_HEIGHT_SECONDS="${2:-}"; shift 2 ;;
     --wait-observer-catchup-seconds) WAIT_OBSERVER_CATCHUP_SECONDS="${2:-}"; shift 2 ;;
@@ -444,6 +447,11 @@ if (( PLAN_ONLY )); then
   echo "  min_hub_height=$MIN_HUB_HEIGHT"
   echo "  wait_min_hub_height_seconds=$WAIT_MIN_HUB_HEIGHT_SECONDS"
   echo "  wait_observer_catchup_seconds=$WAIT_OBSERVER_CATCHUP_SECONDS"
+  if (( DANDELION == 1 )) || [[ "${MFN_DEVNET_DANDELION:-}" == "1" ]]; then
+    echo "  dandelion=true"
+  else
+    echo "  dandelion=false"
+  fi
   echo "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
   echo "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
   exit 0
@@ -479,17 +487,13 @@ if (( NO_START == 0 )); then
   fi
   bash "$SCRIPT_DIR/stop-all.sh" --all-mfnd --remove-ports-file
   echo "participant-rehearsal-smoke: STAGE=start_mesh"
-  if (( NO_BUILD )); then
-    bash "$SCRIPT_DIR/start-all.sh" --no-build || {
-      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
-      exit 1
-    }
-  else
-    bash "$SCRIPT_DIR/start-all.sh" || {
-      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
-      exit 1
-    }
-  fi
+  start_all_args=()
+  if (( NO_BUILD )); then start_all_args+=(--no-build); fi
+  if (( DANDELION == 1 )); then start_all_args+=(--dandelion); fi
+  bash "$SCRIPT_DIR/start-all.sh" "${start_all_args[@]}" || {
+    echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
+    exit 1
+  }
   echo "participant-rehearsal-smoke: STAGE=start_mesh_done"
   STARTED_MESH=1
   if (( WAIT_AFTER_START_SECONDS > 0 )); then

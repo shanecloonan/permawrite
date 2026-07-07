@@ -22,6 +22,7 @@ NO_START=0
 RESTART_OBSERVER_ONCE=0
 RESTART_TIMEOUT_SECONDS=180
 ARCHIVE_EVIDENCE=0
+DANDELION=0
 P2P_LOG_TIMEOUT_SECONDS=120
 
 usage() {
@@ -31,6 +32,7 @@ usage: soak.sh [--duration-minutes N] [--check-interval-seconds N]
                [--min-height-delta N] [--min-final-height N]
                [--min-successful-iterations N] [--restart-observer-once]
                [--restart-timeout-seconds N] [--archive-evidence] [--no-start]
+               [--dandelion]
 USAGE
 }
 
@@ -86,6 +88,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-start)
       NO_START=1
+      shift
+      ;;
+    --dandelion)
+      DANDELION=1
       shift
       ;;
     -h|--help)
@@ -517,7 +523,11 @@ if (( NO_START == 0 )); then
   fi
   echo "soak: starting public-devnet-v1 mesh"
   export MFN_SOAK_BOOTSTRAP=1
-  bash "$SCRIPT_DIR/start-all.sh" --no-build
+  if (( DANDELION == 1 )); then
+    bash "$SCRIPT_DIR/start-all.sh" --no-build --dandelion
+  else
+    bash "$SCRIPT_DIR/start-all.sh" --no-build
+  fi
   unset MFN_SOAK_BOOTSTRAP
   read_ports
   soak_lock_new "$SCRIPT_DIR"

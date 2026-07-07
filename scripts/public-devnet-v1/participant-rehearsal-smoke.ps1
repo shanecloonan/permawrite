@@ -17,7 +17,8 @@ param(
     [switch]$NoStop,
     [switch]$NoBuild,
     [switch]$PlanOnly,
-    [switch]$ArchiveEvidence
+    [switch]$ArchiveEvidence,
+    [switch]$Dandelion
 )
 $ErrorActionPreference = "Stop"
 
@@ -314,6 +315,7 @@ if ($PlanOnly) {
     Write-Host "  min_hub_height=$MinHubHeight"
     Write-Host "  wait_min_hub_height_seconds=$WaitMinHubHeightSeconds"
     Write-Host "  wait_observer_catchup_seconds=$WaitObserverCatchUpSeconds"
+    Write-Host "  dandelion=$(if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq '1') { 'true' } else { 'false' })"
     Write-Host "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
     Write-Host "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
     exit 0
@@ -337,11 +339,10 @@ try {
             $env:MFN_DEVNET_NO_OBSERVER = "1"
         }
         powershell -NoProfile -File (Join-Path $ScriptDir "stop-all.ps1") -AllMfnd -RemovePortsFile
-        if ($NoBuild) {
-            . (Join-Path $ScriptDir "start-all.ps1") -NoBuild
-        } else {
-            . (Join-Path $ScriptDir "start-all.ps1")
-        }
+        $startArgs = @()
+        if ($NoBuild) { $startArgs += "-NoBuild" }
+        if ($Dandelion) { $startArgs += "-Dandelion" }
+        & (Join-Path $ScriptDir "start-all.ps1") @startArgs
         $startedMesh = $true
         if ($WaitAfterStartSeconds -gt 0) { Start-Sleep -Seconds $WaitAfterStartSeconds }
         if ($env:GITHUB_ACTIONS) {

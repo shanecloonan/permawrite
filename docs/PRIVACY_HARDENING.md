@@ -362,11 +362,17 @@ coinbase settlement path in
 [`mfn-node/src/dandelion.rs`](../mfn-node/src/dandelion.rs) wired through
 [`P2pPeerSet::broadcast_fresh_tx`](../mfn-node/src/p2p_fanout.rs): stem phase
 forwards to one epoch-mapped peer; per-hop fluff probability + stem timeout
-transition to parallel fan-out. Enable with `mfnd serve --dandelion` (default
-off — legacy parallel fan-out unchanged for CI/rehearsal).
+transition to parallel fan-out. Enable with `mfnd serve --dandelion` or
+`MFND_DANDELION=1` (default off — legacy parallel fan-out unchanged for CI).
 
-**Remaining.** Rehearsal mesh soak with `--dandelion`, optional stem wire label,
-eclipse-resistance peer diversity (P31).
+**Shipped (rehearsal soak).** Public-devnet mesh scripts accept `--dandelion`
+(`start-all`, `soak`, `participant-rehearsal-smoke`); wrappers
+[`dandelion-rehearsal-smoke.sh`](../scripts/public-devnet-v1/dandelion-rehearsal-smoke.sh)
+/ [`dandelion-soak.sh`](../scripts/public-devnet-v1/dandelion-soak.sh) for
+local rehearsal. Nightly/CI default remains off; enabled mesh asserts
+`mfnd_dandelion=enabled` on every role.
+
+**Remaining.** Optional stem wire label, eclipse-resistance peer diversity (P31).
 
 **Effort:** high. **Risk:** high (network behavior + CI mesh).
 
@@ -495,12 +501,12 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ phase 1 (opt-in `--dandelion`), **B9** view tags (v2 wire + scanner) |
-| High impact, moderate effort | B7 soak + wire label |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (opt-in relay + rehearsal soak plumbing), **B9** view tags (v2 wire + scanner) |
+| High impact, moderate effort | B7 wire label |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B7** rehearsal soak with `--dandelion`.
+Natural next step: **B7** optional stem wire label.
 
 ## See also
 

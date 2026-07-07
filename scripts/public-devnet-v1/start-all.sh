@@ -14,14 +14,16 @@ LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
 NO_BUILD=0
+DANDELION=0
 if [[ "${MFN_DEVNET_SKIP_BUILD:-}" == "1" ]]; then
   NO_BUILD=1
 fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-build) NO_BUILD=1; shift ;;
+    --dandelion) DANDELION=1; shift ;;
     -h|--help)
-      echo "usage: start-all.sh [--no-build]" >&2
+      echo "usage: start-all.sh [--no-build] [--dandelion]" >&2
       exit 0
       ;;
     *)
@@ -30,6 +32,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$DANDELION" == "1" || "${MFN_DEVNET_DANDELION:-}" == "1" ]]; then
+  export MFND_DANDELION=1
+  echo "start-all: dandelion relay enabled (MFND_DANDELION=1)"
+fi
 
 MFND="$REPO_ROOT/target/release/mfnd"
 if [[ ! -x "$MFND" ]]; then
@@ -291,6 +298,21 @@ for key in "${required_keys[@]}"; do
     exit 1
   fi
 done
+if [[ -n "${MFND_DANDELION:-}" ]]; then
+  for log in "$LOG_DIR/v0.log" "$LOG_DIR/v1.log" "$LOG_DIR/v2.log"; do
+    if ! grep -q mfnd_dandelion=enabled "$log" 2>/dev/null; then
+      echo "start-all: expected mfnd_dandelion=enabled in $(basename "$log")" >&2
+      exit 1
+    fi
+  done
+  if [[ "${MFN_DEVNET_NO_OBSERVER:-}" != "1" ]]; then
+    if ! grep -q mfnd_dandelion=enabled "$LOG_DIR/observer.log" 2>/dev/null; then
+      echo "start-all: expected mfnd_dandelion=enabled in observer.log" >&2
+      exit 1
+    fi
+  fi
+  echo "start-all: dandelion enabled on all mesh roles"
+fi
 HUB_TIP_WAIT=120
 HUB_TIP_MIN=1
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then

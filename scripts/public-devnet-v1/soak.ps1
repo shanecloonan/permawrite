@@ -10,7 +10,8 @@ param(
     [switch]$RestartObserverOnce,
     [int]$RestartTimeoutSeconds = 180,
     [switch]$NoStart,
-    [switch]$ArchiveEvidence
+    [switch]$ArchiveEvidence,
+    [switch]$Dandelion
 )
 $ErrorActionPreference = "Stop"
 
@@ -454,7 +455,11 @@ if (-not $NoStart) {
     Write-Host "soak: starting public-devnet-v1 mesh"
     $env:MFN_SOAK_BOOTSTRAP = "1"
     try {
-        & $StartAllScript
+        if ($Dandelion) {
+            & $StartAllScript -Dandelion
+        } else {
+            & $StartAllScript
+        }
     } finally {
         Remove-Item Env:MFN_SOAK_BOOTSTRAP -ErrorAction SilentlyContinue
     }

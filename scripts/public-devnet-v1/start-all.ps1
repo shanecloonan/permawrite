@@ -1,6 +1,7 @@
 # Build mfnd, start hub + two committee voters; write devnet-ports.env (M2.4.3).
 param(
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    [switch]$Dandelion
 )
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -10,6 +11,11 @@ $PortsFile = Join-Path $ScriptDir "devnet-ports.env"
 . (Join-Path $ScriptDir "ports-env-lib.ps1")
 . (Join-Path $ScriptDir "rehearsal-poll-timeouts.ps1")
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+
+if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq "1") {
+    $env:MFND_DANDELION = "1"
+    Write-Host "start-all: dandelion relay enabled (MFND_DANDELION=1)"
+}
 
 if ($env:MFN_DEVNET_SKIP_BUILD -eq "1") { $NoBuild = $true }
 $Mfnd = Join-Path $RepoRoot "target\release\mfnd.exe"
@@ -306,6 +312,18 @@ foreach ($key in $required) {
     if (-not $written[$key]) {
         throw "start-all: $key missing from $PortsFile after startup"
     }
+}
+
+if ($env:MFND_DANDELION -eq "1") {
+    $dandelionLogs = @($hubLog, $v1Log, $v2Log)
+    if ($env:MFN_DEVNET_NO_OBSERVER -ne "1") { $dandelionLogs += $obsLog }
+    foreach ($log in $dandelionLogs) {
+        if (-not (Test-Path $log)) { throw "start-all: missing dandelion log $log" }
+        if (-not (Select-String -Path $log -Pattern "mfnd_dandelion=enabled" -Quiet)) {
+            throw "start-all: expected mfnd_dandelion=enabled in $(Split-Path $log -Leaf)"
+        }
+    }
+    Write-Host "start-all: dandelion enabled on all mesh roles"
 }
 
 function Get-MfnCliPath {

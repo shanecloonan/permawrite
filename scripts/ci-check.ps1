@@ -107,8 +107,18 @@ if ($rehearsalPlan -notmatch "flow=fund-wallet -> permanence-demo upload/discove
     exit 1
 }
 $smokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
-if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten" -or $smokePlan -notmatch "evidence_dir=.*participant-rehearsal-smoke.*evidence") {
+if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten" -or $smokePlan -notmatch "evidence_dir=.*participant-rehearsal-smoke.*evidence" -or $smokePlan -notmatch "dandelion=false") {
     $smokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$dandelionSmokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Dandelion -Rpc 127.0.0.1:18731) -join "`n"
+if ($dandelionSmokePlan -notmatch "dandelion=true" -or $dandelionSmokePlan -notmatch "flow=stop stale mesh -> start-all") {
+    $dandelionSmokePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$dandelionWrapperPlan = (powershell -NoProfile -File scripts/public-devnet-v1/dandelion-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
+if ($dandelionWrapperPlan -notmatch "dandelion=true") {
+    $dandelionWrapperPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
