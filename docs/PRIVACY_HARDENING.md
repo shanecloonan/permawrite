@@ -301,9 +301,13 @@ of the current transaction; other owned UTXOs remain eligible decoys.
 `Wallet::build_transfer` / storage-upload paths pass `chosen_keys` instead of
 `self.owned.values()`. Test: `build_decoy_pool_excludes_only_spent_inputs`.
 
-**Remaining.** (b) re-fit gamma shape/scale once mainnet has spend data;
-(c) randomize among co-height candidates. Item retired outright by B8/B9
-(membership proofs) for long-term effort vs. endgame.
+**Shipped (c).** `select_gamma_decoys` binary-searches the target height, then
+picks uniformly among unchosen candidates at that height (`pick_uniform_among_co_height`)
+instead of always taking the rightmost index — co-height selection is no longer
+deterministic. Test: `select_randomizes_within_co_height_bucket`.
+
+**Remaining.** (b) re-fit gamma shape/scale once mainnet has spend data. Item
+retired outright by B8/B9 (membership proofs) for long-term effort vs. endgame.
 
 **Effort:** low (a, c) / research (b). **Risk:** low.
 

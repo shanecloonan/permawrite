@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI GREEN** on `1603e43` (M2.5.61, run `28774283620`, 2026-07-06 10:05 UTC) — first green matrix since M2.5.50; all jobs passed (fmt, clippy, scripts, wasm, audit, test x3). Green push auto-dispatched **Nightly #63** (B-06) + **Linux Soak Audit** (B-05), both in progress. **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI GREEN** on `85e5870` (B2, run `28787826557`, 2026-07-06). **Nightly #63 GREEN** (run `28792429191`, all three jobs, 2026-07-06 12:44 UTC). **Linux soak** last run FAIL (empty hub log during inline `cargo build`; fix in M2.5.64). **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
 
 **Red-CI root cause (fixed by M2.5.61):** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consumed the P2P line and hung forever (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — reproduced twice on Windows ci-check). Any CI test matrix on M2.5.50..M2.5.61 would hang to job timeout, so the M2.5.61 push intentionally supersedes those doomed runs.
 
@@ -92,11 +92,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-06 Nightly #63 green (all three jobs) | **In progress** — CI green on `1603e43`; Nightly #63 + Linux soak dispatched | After green: release evidence refresh (lane 2) |
+| **1** | B-05 Linux soak PASS after M2.5.64 | **In progress** — Nightly #63 green (`28792429191`); soak fix landing | Release evidence refresh (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Monitor Nightly #63 participant + observer PASS |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 participant + observer PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | B4(a) decoy pool excludes only real inputs (unspent owned UTXOs eligible) | **Done** - this commit | B7 Dandelion++ relay (multi-session) |
+| **5** | B4(c) co-height decoy randomization (`select_gamma_decoys`) | **Done** - this commit | B7 Dandelion++ relay (multi-session) |
 | **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
 
 ---
@@ -108,7 +108,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
 | B-05 | Linux 30s soak evidence | 2 + 6 | Dispatch shipped `9537c7b`; awaiting PASS transcript |
-| B-06 | Nightly #63 green (all three jobs) | 1 | RC gate after M2.5.49–59 stack (code `b1c8e6a`) |
+| B-06 | Nightly #63 green (all three jobs) | 1 | **Done** - run `28792429191` on `85e5870` stack |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52–53 dispatch + `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
 | B-09 | ps1/sh dedup generator or shared timeout constants | 2 | **Done** - M2.5.43 `rehearsal-poll-timeouts.*` |
@@ -122,7 +122,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 2 | 1 | Green CI on M2.5.43–45 stack before Nightly #62 dispatch | **Done** - CI #636 |
-| 3 | 1 | Nightly #63 participant + observer PASS | Waiting |
+| 3 | 1 | Nightly #63 participant + observer PASS | **Done** - run `28792429191` |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
@@ -130,8 +130,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B4(a)** (this commit) - privacy surface (lane 5): decoy pool quality — `build_decoy_pool` excludes only real input UTXO keys; unspent owned outputs remain eligible decoys so active wallets no longer under-represent their outputs in rings globally.
-- **B3 tail** (`4a4a9f1`) - privacy surface (lane 5): consensus-enforced minimum output count — `RingPolicy.min_output_count` (2 under the uniform-ring tier, derived from `uniform_ring_size != 0` so no checkpoint codec change) enforced in `verify_transaction`; single-output txs are now a network-wide reject under production params; coinbase exempt; production-params test fixtures updated to the reference two-output shape.
+- **B4(c)** (this commit) - privacy surface (lane 5): `select_gamma_decoys` picks uniformly among unchosen decoys at the target height instead of always taking the rightmost binary-search index; co-height selection no longer deterministic.
+- **B4(a)** (`b402db3`) - privacy surface (lane 5): `build_decoy_pool` excludes only real input keys; other owned UTXOs remain eligible decoys (B4 / `PRIVACY_HARDENING.md`).
 - **F5-PM9** (`eaecece`) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.
 - **F5-P9** (`1c9d578`) - privacy surface (lane 5): canonical-encoding conformance suite closes B3 — pins tx version, empty-`extra` default, uniform ring-16 (== consensus production policy), two-output floor, real `enc_amount` ciphertexts, and byte-canonical wire form for reference transfers + uploads; all frontends covered by construction via the two pinned constructors.
 - **F5-PM10** (`b260033`) - permanence depth (lane 6): self-verifying chain+chunk archive — `mfnd archive-export --archive-dir DIR` (canonical block log + Merkle-verified chunk sets + `manifest.json`), `mfnd archive-verify` replays from the genesis spec through the full consensus STF and re-derives chunk Merkle roots offline. Archive reuses `mfn-store` fs formats so it doubles as a cold-start bootstrap.

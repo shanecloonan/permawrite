@@ -235,7 +235,9 @@ where
         if target < lo_h || target > hi_h {
             continue;
         }
-        // 3) Binary search for largest index with height ≤ target.
+        // 3) Binary search for largest index with height ≤ target, then
+        // pick uniformly among unchosen candidates at that height (B4(c):
+        // the raw index alone is deterministic within a co-height bucket).
         let target_u = target as u64;
         let mut lo = 0usize;
         let mut hi = pool.len() - 1;
@@ -247,11 +249,11 @@ where
                 hi = mid - 1;
             }
         }
-        if chosen[lo] {
+        let Some(pick) = pick_uniform_among_co_height(pool, &chosen, lo, rand) else {
             continue;
-        }
-        chosen[lo] = true;
-        out.push(pool[lo].clone());
+        };
+        chosen[pick] = true;
+        out.push(pool[pick].clone());
     }
 
     // 4) Uniform-fallback top-up.
@@ -266,6 +268,36 @@ where
     }
 
     Ok(out)
+}
+
+/// Among every pool index sharing `pool[anchor].height`, pick one uniformly
+/// at random that is not yet in `chosen`.
+fn pick_uniform_among_co_height<T, R>(
+    pool: &[DecoyCandidate<T>],
+    chosen: &[bool],
+    anchor: usize,
+    rand: &mut R,
+) -> Option<usize>
+where
+    T: Clone,
+    R: FnMut() -> f64,
+{
+    let h = pool[anchor].height;
+    let mut start = anchor;
+    while start > 0 && pool[start - 1].height == h {
+        start -= 1;
+    }
+    let mut end = anchor;
+    while end + 1 < pool.len() && pool[end + 1].height == h {
+        end += 1;
+    }
+    let candidates: Vec<usize> = (start..=end).filter(|i| !chosen[*i]).collect();
+    if candidates.is_empty() {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let j = ((rand() * candidates.len() as f64) as usize).min(candidates.len() - 1);
+    Some(candidates[j])
 }
 
 /* ----------------------------------------------------------------------- *
@@ -460,5 +492,38 @@ mod tests {
         let mut r = seeded_rng(0);
         let v = select_gamma_decoys(&pool, 0, 100, &mut r, &DEFAULT_GAMMA_PARAMS).unwrap();
         assert!(v.is_empty());
+    }
+
+    /// B4(c): many decoys share a height; selection must not always pick
+    /// the same index (rightmost binary-search hit).
+    #[test]
+    fn select_randomizes_within_co_height_bucket() {
+        let mut pool: Vec<DecoyCandidate<usize>> = (0..100)
+            .map(|i| DecoyCandidate {
+                height: 50,
+                data: i,
+            })
+            .collect();
+        for i in 0..50usize {
+            pool.push(DecoyCandidate {
+                height: i as u64,
+                data: 1000 + i,
+            });
+        }
+        pool.sort_by_key(|c| c.height);
+
+        let mut seen = std::collections::HashSet::new();
+        for seed in 0..48u32 {
+            let mut r = seeded_rng(seed);
+            let picks = select_gamma_decoys(&pool, 1, 100, &mut r, &DEFAULT_GAMMA_PARAMS).unwrap();
+            assert_eq!(picks.len(), 1);
+            if picks[0].height == 50 {
+                seen.insert(picks[0].data);
+            }
+        }
+        assert!(
+            seen.len() > 1,
+            "co-height bucket should yield varied decoys; only saw {seen:?}"
+        );
     }
 }
