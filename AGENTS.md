@@ -90,11 +90,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Green CI on B13 fix stack + authorship patch | **In progress** — monitor CI after push | B-05 Linux soak dispatch |
+| **1** | Green CI on B13 fix stack (`934cc2f`) | **In progress** — monitor run `28838850432` (Windows GREEN) | B-05 Linux soak dispatch |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
-| **5** | B13 spora fix + authorship upload bucket parity | **In progress** — this push | B7 rehearsal soak + B9 view tags |
+| **5** | B13 size-bucket mandate + authorship parity | **Done** - `934cc2f` stack | B7 rehearsal soak + B9 view tags |
 | **6** | F5-PM9 `docs/PQ_MIGRATION.md` | **Done** - docs-only | B-05 soak evidence |
 
 ---

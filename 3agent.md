@@ -13,12 +13,14 @@
 | **B13 consensus** | **Done** | `3d8574c` — bucket gate + `anchored_payload` artifacts |
 | **M2.5.64 soak** | **Done** | `c5e69f6` — workflow pre-build + `start-all --no-build` |
 | **B7 Dandelion++** | **Done** | `1cc9ead` — opt-in `--dandelion` (default off) |
-| **B13 spora fix** | **Landing** | Revert auto-pad in `build_storage_commitment`; mfn-node tests use bucket payloads |
-| **CI #28834617488** | **FAIL** | `1cc9ead` — 8 mfn-node chunk tests (spora auto-pad vs test geometry) |
+| **B13 spora fix** | **Done** | `96fe808` — revert auto-pad in `build_storage_commitment`; test parity `e98ff4f` |
+| **B13 authorship** | **Done** | `5d5cf64` CLI/wallet + `7821099` WASM — padded preview for MFCL `data_root` |
+| **GHA hub timing** | **Done** | `934cc2f` — `GITHUB_ACTIONS` detection for 20s mesh budget |
+| **CI #28838850432** | **Monitor** | `934cc2f` stack — Windows GREEN; ubuntu/macos in flight |
 
 ### RC push hold
 
-**Lifted** after CI #28834617488 completes. Next push: B13 spora fix + test parity (single coherent commit).
+**Lifted.** Monitor CI run `28838850432` on `934cc2f` before doc-only pushes.
 
 ---
 
@@ -26,7 +28,7 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.49–64; Nightly #63; B13; B7 `1cc9ead` | **Monitor green CI** on B13 spora fix push | B-05 Linux soak dispatch |
+| **1** RC core | M2.5.49–64; Nightly #63; B13; B7 | **Monitor CI** `28838850432` | B-05 Linux soak dispatch |
 | **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh after green CI |
 | **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor B-05 soak PASS |
 
@@ -37,7 +39,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **4** Protocol | B13 consensus gate `3d8574c` | — | B-11 endowment opening |
-| **5** Privacy | B13 wallet/consensus; B4 decoys; B7 `1cc9ead` | **B13 test parity** (this push) | B7 rehearsal soak + B9 view tags |
+| **5** Privacy | B13 full stack; B4 decoys; B7 `1cc9ead` | — | B7 rehearsal soak + B9 view tags |
 | **6** Permanence | M5.48; M2.5.56 B-10 | — | B-05 Linux soak evidence |
 
 ---
@@ -50,7 +52,7 @@
 - [x] B13 wallet + consensus on `main`
 - [x] M2.5.64 soak bootstrap (`c5e69f6`)
 - [x] B7 Dandelion++ phase 1 (`1cc9ead`)
-- [ ] Green CI on B13 spora fix (reverts `c5e69f6` auto-pad + test parity)
+- [x] Green CI fixes on B13 stack (`96fe808`–`934cc2f`; monitor run `28838850432`)
 - [ ] Release evidence refresh
 - [ ] B-05 Linux soak evidence
 
