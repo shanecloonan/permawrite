@@ -217,8 +217,9 @@ pub fn build_storage_upload_json(
             ));
         }
         let msg = decode_extra_hex(&plan.message_hex)?;
+        let padded = mfn_storage::pad_to_storage_size_bucket(data);
         let endowment = mfn_storage::required_endowment(
-            data.len() as u64,
+            padded.len() as u64,
             plan.replication,
             &DEFAULT_ENDOWMENT_PARAMS,
         )
@@ -227,7 +228,7 @@ pub fn build_storage_upload_json(
             WasmCoreError::Storage(format!("required_endowment {endowment} exceeds u64::MAX"))
         })?;
         let built = mfn_storage::build_storage_commitment(
-            data,
+            &padded,
             endowment_u64,
             plan.chunk_size.map(|c| c as usize),
             plan.replication,
