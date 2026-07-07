@@ -17,6 +17,8 @@
 //!    "no recipient" sentinel used by decoy/test constructions).
 //! 6. Wire bytes are byte-canonical: `encode(decode(encode(tx))) ==
 //!    encode(tx)` — there is exactly one serialization of a reference tx.
+//! 7. Production RNG: reference frontends wire [`mfn_wallet::production_tx_rng`]
+//!    (OS CSPRNG); only this test suite may use [`mfn_crypto::seeded_rng`].
 //!
 //! There is deliberately no unlock-time assertion: the wire format has no
 //! such field (`TransactionWire` is `version/r_pub/inputs/outputs/fee/extra`),
@@ -275,4 +277,37 @@ fn caller_supplied_extra_is_verbatim() {
     };
     let tx = build_transfer(plan).expect("transfer with memo").tx;
     assert_eq!(tx.extra, memo, "memo must be carried verbatim");
+}
+
+/// B3 tail: reference frontends must wire the normative production RNG,
+/// never a seeded PRNG. Source-scan so the contract survives refactors.
+#[test]
+fn reference_frontends_wire_production_tx_rng_not_seeded_rng() {
+    for (label, src) in [
+        (
+            "cli-wallet-cmd",
+            include_str!("../../mfn-cli/src/wallet_cmd.rs"),
+        ),
+        (
+            "wasm-transfer",
+            include_str!("../../mfn-wasm/src/transfer_core.rs"),
+        ),
+        (
+            "wasm-upload",
+            include_str!("../../mfn-wasm/src/upload_core.rs"),
+        ),
+    ] {
+        assert!(
+            src.contains("production_tx_rng"),
+            "{label}: must import and use mfn_wallet::production_tx_rng"
+        );
+        assert!(
+            !src.contains("seeded_rng"),
+            "{label}: production path must not reference seeded_rng"
+        );
+        assert!(
+            !src.contains("crypto_random"),
+            "{label}: use production_tx_rng alias, not mfn_crypto::crypto_random directly"
+        );
+    }
 }

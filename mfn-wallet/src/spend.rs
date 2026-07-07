@@ -54,7 +54,7 @@ pub struct TransferRecipient {
 ///
 /// The RNG type is `FnMut() -> f64`, matching the
 /// [`mfn_crypto::Random`] trait used by `select_gamma_decoys`. For
-/// production use [`mfn_crypto::crypto_random`]; for deterministic
+/// production use [`crate::production_tx_rng`]; for deterministic
 /// tests use [`mfn_crypto::seeded_rng`].
 pub struct TransferPlan<'a, R: FnMut() -> f64> {
     /// Outputs being spent. The wallet picks them via coin-selection

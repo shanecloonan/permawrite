@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_consensus::{encode_transaction, tx_id, Recipient};
-use mfn_crypto::crypto_random;
 use mfn_crypto::point::point_from_bytes;
+use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_transfer, StoredOwnedOutput, TransferPlan,
     TransferRecipient, UtxoDecoySource,
@@ -161,7 +161,7 @@ pub fn build_transfer_json(plan_json: &str) -> Result<String, WasmCoreError> {
 
     let extra = decode_extra_hex(&plan.extra_hex)?;
 
-    let mut rng = crypto_random;
+    let mut rng = production_tx_rng;
     let transfer = TransferPlan {
         inputs: &input_refs,
         recipients: &recipients,

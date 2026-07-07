@@ -272,8 +272,14 @@ unlock-time field at all — the strongest form of "remove the field if
 unused"; the suite documents that a future timelock field must add a
 canonical-default assertion here.
 
-**Remaining.** Decoy sampling RNG *entropy source* contract (production
-callers must use `crypto_random`; only tests may seed).
+**Shipped (production RNG contract).** [`production_tx_rng`](../mfn-wallet/src/lib.rs)
+is the normative OS CSPRNG alias re-exported from `mfn-wallet`; CLI
+(`wallet_cmd.rs`), WASM (`transfer_core.rs`, `upload_core.rs`), and the
+documented production path all wire it for decoy sampling, signer-slot
+selection, and output shuffling. [`seeded_rng`](../mfn-crypto/src/decoy.rs)
+is test-only. The conformance suite source-scans every reference frontend
+(`reference_frontends_wire_production_tx_rng_not_seeded_rng` in
+[`canonical_conformance.rs`](../mfn-wallet/tests/canonical_conformance.rs)).
 
 **Effort:** low–moderate. **Risk:** low.
 
@@ -470,8 +476,7 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** output-order shuffle + canonical-encoding conformance suite |
-| Cheap wins | B3 tail (decoy-RNG entropy-source contract) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B5** LSAG/OoM feature-gated out of release builds, **B10** structural authorship-key firewall, **B3** canonical-encoding conformance suite + production RNG contract |
 | High impact, moderate effort | B7 (Dandelion++), B9 (view tags), B13 (size buckets) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

@@ -88,6 +88,18 @@ pub const WALLET_MIN_RING_SIZE: usize = 16;
 /// indistinguishable on-chain from any other output.
 pub const WALLET_MIN_TX_OUTPUTS: usize = 2;
 
+/// Normative OS CSPRNG for transaction construction (**F5-P9** / B3 tail).
+///
+/// Every reference frontend (CLI, WASM, native wallet) must pass this
+/// function (or an equivalent OS-backed CSPRNG with the same `[0, 1)`
+/// contract) as the `rng` argument to [`Wallet::build_transfer`],
+/// [`build_transfer`], and [`build_storage_upload`]. It drives decoy
+/// sampling, signer-slot selection, and output-order shuffling — a
+/// predictable or reused seed collapses all three to a fingerprint.
+///
+/// [`mfn_crypto::seeded_rng`] is for unit/integration tests only.
+pub use mfn_crypto::crypto_random as production_tx_rng;
+
 #[cfg(any(feature = "full", feature = "wasm-full"))]
 pub use decoy::{
     build_decoy_pool, build_decoy_pool_from_sources, DecoyPoolBuilder, RingMember, UtxoDecoySource,

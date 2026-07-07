@@ -8,11 +8,12 @@ use mfn_consensus::{
 };
 use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
-use mfn_crypto::{crypto_random, point_from_bytes};
+use mfn_crypto::point_from_bytes;
 use mfn_storage::storage_commitment_hash;
 use mfn_storage_operator::upload_artifact_store::{
     list_upload_artifacts, upload_artifacts_root, UploadArtifactSaveMeta,
 };
+use mfn_wallet::production_tx_rng;
 use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
@@ -467,7 +468,7 @@ pub fn wallet_send(
     let chain_state = fetch_chain_state(client)?;
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
-    let mut rng = crypto_random;
+    let mut rng = production_tx_rng;
     let signed = wallet.build_transfer(
         &[TransferRecipient {
             recipient,
@@ -627,7 +628,7 @@ pub fn wallet_upload(
     let anchor = anchor_recipient.unwrap_or_else(|| wallet.recipient());
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
-    let mut rng = crypto_random;
+    let mut rng = production_tx_rng;
     let art = if let Some(message) = &params.message {
         let seed = file.seed_bytes()?;
         let identity = ClaimingIdentity::from_seed(&seed);
@@ -838,7 +839,7 @@ pub fn wallet_claim(
     let chain_state = fetch_chain_state(client)?;
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
-    let mut rng = crypto_random;
+    let mut rng = production_tx_rng;
     let signed = wallet.publish_claim_tx(
         &claiming,
         data_root,

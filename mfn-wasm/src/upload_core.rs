@@ -4,13 +4,13 @@ use std::collections::HashSet;
 
 use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_consensus::{encode_transaction, tx_id, Recipient};
-use mfn_crypto::crypto_random;
 use mfn_crypto::point::point_from_bytes;
 use mfn_storage::{
     build_storage_proof, chunk_data, decode_storage_commitment, encode_storage_proof,
     merkle_tree_from_chunks, storage_commitment_hash, verify_storage_proof,
     DEFAULT_ENDOWMENT_PARAMS,
 };
+use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
     build_decoy_pool_from_sources, build_storage_upload, estimate_minimum_fee_for_upload,
     wallet_from_seed, ClaimingIdentity, StorageUploadPlan, StoredOwnedOutput, TransferRecipient,
@@ -242,7 +242,7 @@ pub fn build_storage_upload_json(
         authorship_claims.push(claim);
     }
 
-    let mut rng = crypto_random;
+    let mut rng = production_tx_rng;
     let upload_plan = StorageUploadPlan {
         inputs: &input_refs,
         anchor,
