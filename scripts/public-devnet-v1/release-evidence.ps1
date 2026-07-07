@@ -49,26 +49,58 @@ function Get-CiStatus {
     if (-not $slug) {
         return [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "no github remote" }
     }
-    try {
-        if (Get-Command gh -ErrorAction SilentlyContinue) {
-            $json = gh run list --workflow CI --branch main --limit 10 --json databaseId,headSha,status,conclusion,url 2>$null
-            if ($LASTEXITCODE -eq 0 -and $json) {
-                $runs = $json | ConvertFrom-Json
-                $run = $runs | Where-Object { $_.headSha -eq $Commit } | Select-Object -First 1
-                if ($run) {
-                    return [pscustomobject]@{ Status = $run.status; Conclusion = $run.conclusion; Url = $run.url; Source = "gh" }
+
+    function Find-CiRunForCommit {
+        param([string]$Sha, [object[]]$Runs)
+        return $Runs | Where-Object { $_.headSha -eq $Sha } | Select-Object -First 1
+    }
+
+    function Get-RecentCiRuns {
+        try {
+            if (Get-Command gh -ErrorAction SilentlyContinue) {
+                $json = gh run list --workflow CI --branch main --limit 20 --json databaseId,headSha,status,conclusion,url 2>$null
+                if ($LASTEXITCODE -eq 0 -and $json) {
+                    return @($json | ConvertFrom-Json)
                 }
             }
+        } catch {}
+        try {
+            $uri = "https://api.github.com/repos/$slug/actions/workflows/ci.yml/runs?branch=main&per_page=20"
+            $resp = Invoke-RestMethod -Uri $uri -Headers @{ "User-Agent" = "permawrite-release-evidence" }
+            return @($resp.workflow_runs | ForEach-Object {
+                [pscustomobject]@{
+                    headSha    = $_.head_sha
+                    status     = $_.status
+                    conclusion = $_.conclusion
+                    url        = $_.html_url
+                }
+            })
+        } catch {}
+        return @()
+    }
+
+    $runs = Get-RecentCiRuns
+    if ($runs.Count -eq 0) {
+        return [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "not found" }
+    }
+
+    $probe = $Commit
+    for ($depth = 0; $depth -le 15; $depth++) {
+        if ($depth -gt 0) {
+            $probe = Invoke-GitText "rev-parse" "$probe~1"
+            if (-not $probe) { break }
         }
-    } catch {}
-    try {
-        $uri = "https://api.github.com/repos/$slug/actions/workflows/ci.yml/runs?branch=main&per_page=10"
-        $resp = Invoke-RestMethod -Uri $uri -Headers @{ "User-Agent" = "permawrite-release-evidence" }
-        $run = $resp.workflow_runs | Where-Object { $_.head_sha -eq $Commit } | Select-Object -First 1
-        if ($run) {
-            return [pscustomobject]@{ Status = $run.status; Conclusion = $run.conclusion; Url = $run.html_url; Source = "github-api" }
+        $run = Find-CiRunForCommit -Sha $probe -Runs $runs
+        if ($run -and $run.status -eq "completed" -and $run.conclusion -eq "success") {
+            $source = if ($probe -eq $Commit) { "gh" } else { "gh-ancestor:$probe" }
+            return [pscustomobject]@{
+                Status     = $run.status
+                Conclusion = if ($null -eq $run.conclusion) { "" } else { [string]$run.conclusion }
+                Url        = $run.url
+                Source     = $source
+            }
         }
-    } catch {}
+    }
     return [pscustomobject]@{ Status = "unknown"; Conclusion = ""; Url = ""; Source = "not found" }
 }
 

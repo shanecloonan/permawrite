@@ -63,39 +63,85 @@ stats_timestamp() {
 }
 
 ci_status() {
-  local commit="$1" slug run
+  local commit="$1" slug run probe depth parent
   slug="$(remote_slug || true)"
   if [[ -z "$slug" ]]; then
     echo "unknown||no github remote|"
     return
   fi
   if command -v gh >/dev/null 2>&1; then
-    run="$(gh run list --workflow CI --branch main --limit 10 --json headSha,status,conclusion,url 2>/dev/null | tr -d '\n' || true)"
-    if [[ "$run" == *"$commit"* ]]; then
-      local chunk status conclusion url
-      chunk="$(printf '%s' "$run" | sed "s/},{/}\n{/g" | grep "$commit" | head -n 1)"
-      status="$(printf '%s' "$chunk" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
-      conclusion="$(printf '%s' "$chunk" | sed -n 's/.*"conclusion":\([^,}]*\).*/\1/p' | tr -d '"')"
-      url="$(printf '%s' "$chunk" | sed -n 's/.*"url":"\([^"]*\)".*/\1/p')"
-      echo "${status:-unknown}|${conclusion}|gh|${url}"
-      return
-    fi
+    run="$(gh run list --workflow CI --branch main --limit 20 --json headSha,status,conclusion,url 2>/dev/null | tr -d '\n' || true)"
+    probe="$commit"
+    for depth in $(seq 0 15); do
+      if [[ "$depth" -gt 0 ]]; then
+        parent="$(git_text rev-parse "${probe}~1" | head -n 1)"
+        [[ -n "$parent" ]] || break
+        probe="$parent"
+      fi
+      if [[ "$run" == *"$probe"* ]]; then
+        local chunk status conclusion url source
+        chunk="$(printf '%s' "$run" | sed "s/},{/}\n{/g" | grep "$probe" | head -n 1)"
+        status="$(printf '%s' "$chunk" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p')"
+        conclusion="$(printf '%s' "$chunk" | sed -n 's/.*"conclusion":\([^,}]*\).*/\1/p' | tr -d '"')"
+        if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
+          url="$(printf '%s' "$chunk" | sed -n 's/.*"url":"\([^"]*\)".*/\1/p')"
+          if [[ "$probe" == "$commit" ]]; then
+            source="gh"
+          else
+            source="gh-ancestor:${probe}"
+          fi
+          echo "${status}|${conclusion}|${source}|${url}"
+          return
+        fi
+      fi
+    done
   fi
   if command -v python3 >/dev/null 2>&1; then
     python3 - "$slug" "$commit" <<'PY'
 import json
+import subprocess
 import sys
 import urllib.request
 
 slug, commit = sys.argv[1], sys.argv[2]
-url = f"https://api.github.com/repos/{slug}/actions/workflows/ci.yml/runs?branch=main&per_page=10"
+repo_root = subprocess.check_output(
+    ["git", "rev-parse", "--show-toplevel"], text=True
+).strip()
+
+def git_rev(spec: str) -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "-C", repo_root, "rev-parse", spec], text=True
+        ).strip()
+    except subprocess.CalledProcessError:
+        return ""
+
+probes = [commit]
+probe = commit
+for _ in range(15):
+    parent = git_rev(f"{probe}~1")
+    if not parent:
+        break
+    probes.append(parent)
+    probe = parent
+
+url = f"https://api.github.com/repos/{slug}/actions/workflows/ci.yml/runs?branch=main&per_page=20"
 try:
     req = urllib.request.Request(url, headers={"User-Agent": "permawrite-release-evidence"})
     with urllib.request.urlopen(req, timeout=10) as resp:
         data = json.load(resp)
-    for run in data.get("workflow_runs", []):
-        if run.get("head_sha") == commit:
-            print(f"{run.get('status','unknown')}|{run.get('conclusion') or ''}|github-api|{run.get('html_url','')}")
+    runs = {run.get("head_sha"): run for run in data.get("workflow_runs", [])}
+    for probe in probes:
+        run = runs.get(probe)
+        if (
+            run
+            and run.get("status") == "completed"
+            and run.get("conclusion") == "success"
+        ):
+            source = "github-api" if probe == commit else f"github-api-ancestor:{probe}"
+            print(
+                f"{run.get('status','unknown')}|{run.get('conclusion') or ''}|{source}|{run.get('html_url','')}"
+            )
             break
     else:
         print("unknown||not found|")
