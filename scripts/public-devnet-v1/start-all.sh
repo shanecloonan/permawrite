@@ -123,12 +123,21 @@ poll_voter_p2p() {
 
 wait_hub_tip_at_least() {
   local hub_rpc="$1" min_height="$2" timeout_seconds="$3"
-  local deadline tip_height i=0
+  local deadline tip_height i=0 hub_pid=""
+  hub_pid="$(grep -m1 '^HUB_PID=' "$PORTS_FILE" 2>/dev/null | sed 's/HUB_PID=//' || true)"
   deadline=$(( $(date +%s) + timeout_seconds ))
   while :; do
     i=$(( i + 1 ))
+    if [[ -n "$hub_pid" ]] && ! kill -0 "$hub_pid" 2>/dev/null; then
+      echo "start-all: hub pid=$hub_pid exited during hub_tip_wait; tail $LOG_DIR/v0.log:" >&2
+      tail -n 100 "$LOG_DIR/v0.log" 2>/dev/null >&2 || echo "(no v0.log)" >&2
+      exit 1
+    fi
     tip_height="$(query_tip_height "$hub_rpc" "$REPO_ROOT")"
     echo "start-all: hub_tip_wait tip_height=$tip_height min_height=$min_height"
+    if [[ "$tip_height" == "unknown" ]] && ! resolve_mfn_cli "$REPO_ROOT" >/dev/null 2>&1; then
+      echo "start-all: hint: build target/release/mfn-cli for hub tip polls (nc get_status fallback may be empty on GHA)" >&2
+    fi
     if [[ "$tip_height" =~ ^[0-9]+$ ]] && (( tip_height >= min_height )); then
       return
     fi

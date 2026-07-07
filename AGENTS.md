@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #28842655841** in progress on `c7420a2` (mfn-cli soak pre-build fix). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — `hub_tip_wait` `tip_height=unknown` (mfnd-only pre-build; fixed `c7420a2`). **Nightly #63 GREEN** (run `28792429191`).
+**CI #28842655841** on `c7420a2` (mfn-cli soak pre-build fix; monitor after push). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — fixed by `c7420a2` (pre-build mfn-cli) + `start-all` hub_tip_wait diagnostics. **Nightly #63 GREEN** (run `28792429191`).
 
 **RC push hold:** lifted.
 
