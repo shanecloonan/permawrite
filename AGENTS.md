@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #28834617488 FAIL** on `1cc9ead` (8 mfn-node chunk tests — spora auto-pad vs test geometry). **Fix stack** `bbcc231`–`96fe808` on `main`. **Authorship upload fix** landing this push. **Nightly #63 GREEN** (run `28792429191`).
+**CI** in flight on `934cc2f` (B13 authorship + WASM bucket parity + GHA hub-timing fix). **Windows GREEN** on `5d5cf64` (run `28837107857`). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
 
 **RC push hold:** lifted after CI #28834617488 completed.
 
