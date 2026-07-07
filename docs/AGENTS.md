@@ -112,11 +112,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.4.90 — `ci-check.sh` thread cap parity (`aae3097`).
 
-- [x] **Release evidence refresh** — `release-evidence-837069a` + RC audit dry-run go (CI `28871239057` GREEN on `837069a`).
+- [x] **Release evidence refresh** — `release-evidence-1bbc3af` + RC audit dry-run go (CI `28879533724` on `0fee187` via ancestor lookup).
 
 ### Next
 
-- [ ] Idle — monitor Nightly/soak auto-dispatch after next code push.
+- [ ] Monitor Nightly/soak auto-dispatch after B-11 stack.
 
 ### Do not start
 
