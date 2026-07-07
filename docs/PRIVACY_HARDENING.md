@@ -380,22 +380,22 @@ RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
 
 **Effort:** moderate–high. **Risk:** medium.
 
-### B9. View tags for cheap light-client scanning (`F5:P7`) — **partial (phase 1 shipped)**
+### B9. View tags for cheap light-client scanning (`F5:P7`) — **shipped**
 
 **Problem.** Light wallets do `O(outputs_per_block)` curve multiplications to
 scan. Expensive scanning pushes users toward handing view keys to third-party
 scanners — a privacy regression.
 
-**Shipped (phase 1).** Canonical 1-byte view tag derivation in
-[`mfn-crypto/src/stealth.rs`](../mfn-crypto/src/stealth.rs):
-[`indexed_view_tag`](../mfn-crypto/src/stealth.rs) /
-[`indexed_view_tag_from_shared`](../mfn-crypto/src/stealth.rs) — first byte of
-the indexed shared hash (same domain as stealth detect).
+**Shipped.** Tx wire **v2** adds a 1-byte `view_tag` per output (after
+`enc_amount`, before the storage flag), bound in the CLSAG preimage. Reference
+wallet + coinbase builders set tags via
+[`indexed_view_tag_from_shared`](../mfn-crypto/src/stealth.rs); the scanner
+([`mfn-wallet/src/scan.rs`](../mfn-wallet/src/scan.rs)) skips mismatched tags
+before `indexed_stealth_detect` (~256× filter). Legacy **v1** txs (no tag byte)
+still decode and verify.
 
-**Remaining.** Attach tag to each output on the wire (tx version gate), wallet
-encode on send, scanner/WASM skip on mismatch (~256× filter factor).
-
-**Effort:** moderate. **Risk:** medium (wire format).
+**Effort:** moderate. **Risk:** medium (wire format) — mitigated by dual-version
+acceptance at ingress.
 
 ### B10. Structural authorship-key firewall (`F5:P10`) — **shipped**
 
@@ -495,12 +495,12 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ phase 1 (opt-in `--dandelion`) |
-| High impact, moderate effort | B9 wire + scan path, B7 soak + wire label |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ phase 1 (opt-in `--dandelion`), **B9** view tags (v2 wire + scanner) |
+| High impact, moderate effort | B7 soak + wire label |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B9** phase 2 (wire + scanner), **B7** rehearsal soak with `--dandelion`.
+Natural next step: **B7** rehearsal soak with `--dandelion`.
 
 ## See also
 

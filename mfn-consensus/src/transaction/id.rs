@@ -4,6 +4,7 @@
 
 use super::internal::*;
 use super::wire::TransactionWire;
+use super::{TX_VERSION, TX_VERSION_LEGACY};
 
 /* ----------------------------------------------------------------------- *
  *  Encoding                                                                *
@@ -33,6 +34,11 @@ pub fn tx_preimage(tx: &TransactionWire) -> [u8; 32] {
         w.point(&out.amount);
         w.blob(&encode_bulletproof(&out.range_proof));
         w.push(&out.enc_amount);
+        if tx.version >= TX_VERSION {
+            w.u8(out.view_tag.expect("v2 output missing view_tag"));
+        } else if out.view_tag.is_some() {
+            debug_assert_eq!(tx.version, TX_VERSION_LEGACY);
+        }
         match &out.storage {
             Some(c) => {
                 w.u8(1);

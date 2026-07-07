@@ -5,7 +5,9 @@
 use super::build::placeholder_clsag;
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire};
-use super::{tx_id, tx_preimage, TX_RANGE_BITS, TX_VERSION};
+use super::{
+    tx_id, tx_preimage, tx_version_supported, TX_RANGE_BITS, TX_VERSION, TX_VERSION_LEGACY,
+};
 use crate::block::RingPolicy;
 
 /* ----------------------------------------------------------------------- *
@@ -34,11 +36,25 @@ pub struct VerifyResult {
 pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResult {
     let mut errors = Vec::new();
 
-    if tx.version != TX_VERSION {
+    if !tx_version_supported(tx.version) {
         errors.push(format!(
-            "bad version {} (expected {})",
-            tx.version, TX_VERSION
+            "bad version {} (expected {} or {})",
+            tx.version, TX_VERSION_LEGACY, TX_VERSION
         ));
+    }
+    if tx.version == TX_VERSION {
+        for (i, out) in tx.outputs.iter().enumerate() {
+            if out.view_tag.is_none() {
+                errors.push(format!("v2 output {i} missing view_tag"));
+            }
+        }
+    }
+    if tx.version == TX_VERSION_LEGACY {
+        for (i, out) in tx.outputs.iter().enumerate() {
+            if out.view_tag.is_some() {
+                errors.push(format!("v1 output {i} must not carry view_tag"));
+            }
+        }
     }
     if tx.inputs.is_empty() {
         errors.push("no inputs".to_string());

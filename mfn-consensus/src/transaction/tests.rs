@@ -627,4 +627,54 @@ fn raw_one_time_addr_outputs_supported() {
     assert!(res.ok, "errors: {:?}", res.errors);
     // Raw outputs get zero enc_amount blob (no recipient view-key).
     assert_eq!(signed.tx.outputs[0].enc_amount, [0u8; ENC_AMOUNT_BYTES]);
+    assert!(signed.tx.outputs[0].view_tag.is_some());
+}
+
+#[test]
+fn v2_outputs_carry_view_tags() {
+    let inputs = vec![make_input(1_000_000, 4)];
+    let (w, r) = recipient();
+    let signed = sign_transaction(
+        inputs,
+        vec![OutputSpec::ToRecipient {
+            recipient: r,
+            value: 999_000,
+            storage: None,
+        }],
+        1_000,
+        Vec::new(),
+    )
+    .expect("sign");
+    assert_eq!(signed.tx.version, TX_VERSION);
+    let expected = mfn_crypto::stealth::indexed_view_tag(&signed.tx.r_pub, 0, &w.view_priv);
+    assert_eq!(signed.tx.outputs[0].view_tag, Some(expected));
+}
+
+#[test]
+fn legacy_v1_wire_decodes_without_view_tag_byte() {
+    use super::TX_VERSION_LEGACY;
+
+    let signed = sign_transaction(
+        vec![make_input(500_000, 4)],
+        vec![OutputSpec::ToRecipient {
+            recipient: recipient().1,
+            value: 499_000,
+            storage: None,
+        }],
+        1_000,
+        Vec::new(),
+    )
+    .expect("sign");
+    let v2_bytes = encode_transaction(&signed.tx);
+    // Strip the per-output view_tag byte(s) and downgrade version to v1.
+    let mut v1_tx = signed.tx.clone();
+    v1_tx.version = TX_VERSION_LEGACY;
+    for out in &mut v1_tx.outputs {
+        out.view_tag = None;
+    }
+    let v1_bytes = encode_transaction(&v1_tx);
+    assert_ne!(v1_bytes, v2_bytes);
+    let decoded = decode_transaction(&v1_bytes).expect("legacy v1 decode");
+    assert_eq!(decoded.version, TX_VERSION_LEGACY);
+    assert!(decoded.outputs.iter().all(|o| o.view_tag.is_none()));
 }

@@ -84,17 +84,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 **B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK. Evidence commit `234f0a8`.
 
-**RC push hold:** CI in progress on `3511346` (B-11 phase 1). Lane 2: release evidence after green.
+**RC push hold:** CI in progress on `d0d0bfb` (run `28865550170`). Lane 2: release evidence after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **In progress** — await CI `28862978628` green on `3511346` | RC audit dry-run |
+| **2** | Release evidence refresh | **In progress** — await CI `28865550170` green on `d0d0bfb` | RC audit dry-run |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
-| **5** | B9 view-tag crypto (phase 1) + B7 MFND_DANDELION env | **Done** - this commit | B9 wire + scan; B7 rehearsal soak |
+| **5** | B9 view tags (phase 2 wire + scan) | **Done** - this commit | B7 rehearsal soak with `--dandelion` |
 | **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
 
 ---
@@ -131,7 +131,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 - **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
 - **M2.5.65 (GHA converge)** (`8ccda5d`) - RC core (lane 1): soak GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` when `get_status` reports null sessions; soak `28850304866` passed hub_produced then failed converge.
 - **M2.5.65** (`76cc778`) - RC core (lane 1): soak WARMUP health-check — `query_get_status_compat_line` prefers mfn-cli `status` (real `p2p.session_count`) over tip synthesis that returned null sessions.
-- **B9 (phase 1)** (this commit) - privacy surface (lane 5): `indexed_view_tag` / `indexed_view_tag_from_shared` in `mfn-crypto` stealth (F5-P7 prep for wire + scanner).
+- **B9 (phase 2)** (this commit) - privacy surface (lane 5): tx v2 wire adds 1-byte `view_tag` per output (consensus-bound in preimage); reference wallet/coinbase set tags on send; scanner skips ~256× mismatches before stealth-detect; legacy v1 txs still decode/verify.
+- **B9 (phase 1)** (`d0d0bfb`) - privacy surface (lane 5): `indexed_view_tag` / `indexed_view_tag_from_shared` in `mfn-crypto` stealth (F5-P7 prep for wire + scanner).
 - **B7 (phase 2)** (this commit) - privacy surface (lane 5): `MFND_DANDELION=1` env + `--dandelion` CLI parse tests.
 - **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`.
 - **B13 authorship + GHA timing** (`5d5cf64`–`934cc2f`) - privacy surface (lane 5): MFCL claim preview uses padded bucket payload; WASM parity (`7821099`); `GITHUB_ACTIONS` hub-timing budget for three-validator smoke; **CI #28838850432 GREEN**.

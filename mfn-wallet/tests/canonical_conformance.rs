@@ -194,6 +194,10 @@ fn assert_canonical(tx: &TransactionWire, kind: &str) {
             "{kind}: output {i} carries the all-zero enc_amount sentinel — \
              reference wallets must always encrypt to a real recipient"
         );
+        assert!(
+            out.view_tag.is_some(),
+            "{kind}: output {i} missing v2 view_tag scan hint"
+        );
     }
 
     // Byte-canonical wire form: one and only one serialization.

@@ -222,10 +222,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B7 (Dandelion++ phase 1)** (`1cc9ead`) — opt-in `--dandelion` stem/fluff relay.
 - [x] **B7 (phase 2)** — `MFND_DANDELION=1` env + CLI parse tests.
 - [x] **B9 (view tags phase 1)** — `indexed_view_tag` in `mfn-crypto` stealth.
+- [x] **B9 (view tags phase 2)** — tx v2 wire + wallet encode + scanner skip (~256× filter); legacy v1 accepted.
 
 ### Next
 
-- [ ] **B9 phase 2** — wire tag on outputs + scanner skip path.
 - [ ] **B7 soak** — rehearsal mesh with `--dandelion` after green CI.
 
 ### Do not start

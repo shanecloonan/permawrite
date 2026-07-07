@@ -29,7 +29,7 @@ use mfn_consensus::{
 };
 use mfn_crypto::encrypted_amount::decrypt_output_amount;
 use mfn_crypto::point::generator_g;
-use mfn_crypto::stealth::{indexed_stealth_detect, indexed_stealth_spend_key};
+use mfn_crypto::stealth::{indexed_stealth_detect, indexed_stealth_spend_key, indexed_view_tag};
 
 use crate::keys::WalletKeys;
 use crate::owned::{key_image_for_owned, verify_pedersen_open, OwnedOutput};
@@ -146,6 +146,13 @@ pub fn scan_transaction(
             // Not our coinbase. Don't even try to scan further outputs
             // — coinbase always has exactly one output anyway.
             break;
+        }
+
+        if let Some(tag) = output.view_tag {
+            let expected = indexed_view_tag(&tx.r_pub, idx, &keys.inner().view_priv);
+            if tag != expected {
+                continue;
+            }
         }
 
         if !indexed_stealth_detect(&tx.r_pub, &output.one_time_addr, idx, keys.inner()) {
@@ -485,6 +492,36 @@ mod tests {
 
         let scan = scan_transaction(&signed.tx, 3, &me, &owned);
         assert_eq!(scan.spent_key_images, vec![ki]);
+    }
+
+    #[test]
+    fn scan_view_tag_skips_mismatched_outputs_before_stealth_detect() {
+        let me = WalletKeys::from_stealth(stealth_gen());
+        let r_me = Recipient {
+            view_pub: me.view_pub(),
+            spend_pub: me.spend_pub(),
+        };
+        let signed = sign_transaction(
+            vec![fake_input(1_000_000, 4)],
+            vec![OutputSpec::ToRecipient {
+                recipient: r_me,
+                value: 999_000,
+                storage: None,
+            }],
+            1_000,
+            Vec::new(),
+        )
+        .expect("sign");
+
+        let mut wrong_tag = signed.tx.clone();
+        wrong_tag.outputs[0].view_tag =
+            Some(wrong_tag.outputs[0].view_tag.unwrap().wrapping_add(1));
+
+        let scan = scan_transaction(&wrong_tag, 1, &me, &HashSet::new());
+        assert!(
+            scan.recovered.is_empty(),
+            "wrong view_tag must skip output before stealth-detect"
+        );
     }
 
     #[test]

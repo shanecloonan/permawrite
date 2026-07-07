@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! Transaction
-//! ├── version              codec version (currently 1)
+//! ├── version              codec version (2 current; 1 legacy)
 //! ├── R                    tx-level public key (R = r·G; recipients scan with it)
 //! ├── fee                  public u64 (the producer claims this)
 //! ├── extra                opaque payload (memo, hint), bound by the preimage
@@ -21,6 +21,7 @@
 //!     ├── amount           Pedersen commitment C_i = γ_i·G + v_i·H
 //!     ├── range_proof      Bulletproof for v_i ∈ [0, 2^TX_RANGE_BITS)
 //!     ├── enc_amount       40-byte RingCT-style encrypted (value, blinding)
+//!     ├── view_tag         optional 1-byte scan hint (v2 only)
 //!     └── storage          optional StorageCommitment (permanence binding)
 //! ```
 //!
@@ -37,7 +38,16 @@
 //!    two transactions is a global double-spend.
 
 /// Current consensus version of the transaction wire format.
-pub const TX_VERSION: u32 = 1;
+pub const TX_VERSION: u32 = 2;
+
+/// Legacy wire format without per-output view tags.
+pub const TX_VERSION_LEGACY: u32 = 1;
+
+/// Whether `version` is accepted at transaction ingress.
+#[must_use]
+pub fn tx_version_supported(version: u32) -> bool {
+    version == TX_VERSION || version == TX_VERSION_LEGACY
+}
 
 /// Canonical bit width of output range proofs. Amounts are 64-bit unsigned.
 pub const TX_RANGE_BITS: u32 = 64;

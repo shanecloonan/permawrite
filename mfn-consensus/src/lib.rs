@@ -158,9 +158,9 @@ pub use storage::{
 };
 pub use transaction::{
     decode_transaction, encode_transaction, sign_transaction, tx_id, tx_preimage,
-    verify_transaction, InputSpec, OutputSpec, Recipient, SignedTransaction, TransactionWire,
-    TxBuildError, TxDecodeError, TxInputWire, TxOutputWire, VerifyResult, TX_RANGE_BITS,
-    TX_VERSION,
+    tx_version_supported, verify_transaction, InputSpec, OutputSpec, Recipient, SignedTransaction,
+    TransactionWire, TxBuildError, TxDecodeError, TxInputWire, TxOutputWire, VerifyResult,
+    TX_RANGE_BITS, TX_VERSION, TX_VERSION_LEGACY,
 };
 #[cfg(feature = "bls")]
 pub use validator_evolution::{

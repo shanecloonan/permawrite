@@ -6,6 +6,7 @@ use super::id::tx_preimage;
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire, TxOutputWire};
 use super::{TX_RANGE_BITS, TX_VERSION};
+use mfn_crypto::stealth::indexed_view_tag_from_shared;
 
 /* ----------------------------------------------------------------------- *
  *  Builder                                                                 *
@@ -267,12 +268,21 @@ pub fn sign_transaction(
     let outputs_wire: Vec<TxOutputWire> = outputs
         .iter()
         .enumerate()
-        .map(|(i, o)| TxOutputWire {
-            one_time_addr: one_time_addrs[i],
-            amount: output_commits[i],
-            range_proof: range_proofs[i].clone(),
-            enc_amount: enc_amounts[i],
-            storage: o.storage().cloned(),
+        .map(|(i, o)| {
+            let view_tag = match o {
+                OutputSpec::ToRecipient { recipient, .. } => {
+                    indexed_view_tag_from_shared(&(recipient.view_pub * tx_priv), i as u32)
+                }
+                OutputSpec::Raw { .. } => one_time_addrs[i].compress().to_bytes()[0],
+            };
+            TxOutputWire {
+                one_time_addr: one_time_addrs[i],
+                amount: output_commits[i],
+                range_proof: range_proofs[i].clone(),
+                enc_amount: enc_amounts[i],
+                view_tag: Some(view_tag),
+                storage: o.storage().cloned(),
+            }
         })
         .collect();
 

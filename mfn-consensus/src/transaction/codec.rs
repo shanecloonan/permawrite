@@ -4,6 +4,7 @@
 
 use super::internal::*;
 use super::wire::{TransactionWire, TxInputWire, TxOutputWire};
+use super::{TX_VERSION, TX_VERSION_LEGACY};
 
 /* ----------------------------------------------------------------------- *
  *  Wire codec (M2.0.10) — full transaction encode / decode                *
@@ -37,6 +38,7 @@ use super::wire::{TransactionWire, TxInputWire, TxOutputWire};
 ///   point(amount)            // == bulletproof.v
 ///   blob(encode_bulletproof(range_proof))
 ///   push(enc_amount)         // raw 40 bytes (fixed width)
+///   u8(view_tag)             // v2 only — 1-byte scan hint
 ///   u8(0|1)                  // storage-some flag
 ///   if 1: blob(encode_storage_commitment(c))
 /// ```
@@ -62,6 +64,9 @@ pub fn encode_transaction(tx: &TransactionWire) -> Vec<u8> {
         w.point(&out.amount);
         w.blob(&encode_bulletproof(&out.range_proof));
         w.push(&out.enc_amount);
+        if tx.version >= TX_VERSION {
+            w.u8(out.view_tag.expect("v2 output missing view_tag"));
+        }
         match &out.storage {
             None => {
                 w.u8(0);
@@ -231,6 +236,11 @@ pub(crate) fn read_transaction(r: &mut Reader<'_>) -> Result<TransactionWire, Tx
         let enc_slice = r.bytes(ENC_AMOUNT_BYTES)?;
         let mut enc_amount = [0u8; ENC_AMOUNT_BYTES];
         enc_amount.copy_from_slice(enc_slice);
+        let view_tag = if version >= TX_VERSION {
+            Some(r.u8()?)
+        } else {
+            None
+        };
         let storage_flag = r.u8()?;
         let storage = match storage_flag {
             0 => None,
@@ -247,6 +257,7 @@ pub(crate) fn read_transaction(r: &mut Reader<'_>) -> Result<TransactionWire, Tx
             amount,
             range_proof,
             enc_amount,
+            view_tag,
             storage,
         });
     }

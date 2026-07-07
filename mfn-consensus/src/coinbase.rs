@@ -34,7 +34,7 @@ use mfn_crypto::domain::{COINBASE_BLIND, COINBASE_TX_KEY};
 use mfn_crypto::encrypted_amount::ENC_AMOUNT_BYTES;
 use mfn_crypto::hash::hash_to_scalar;
 use mfn_crypto::point::{generator_g, generator_h};
-use mfn_crypto::stealth::{indexed_stealth_address, StealthPubKeys};
+use mfn_crypto::stealth::{indexed_stealth_address, indexed_view_tag_from_shared, StealthPubKeys};
 
 use crate::transaction::{TransactionWire, TxOutputWire, TX_RANGE_BITS, TX_VERSION};
 
@@ -163,6 +163,10 @@ pub fn build_coinbase_outputs(
             amount: amount_commit,
             range_proof: bp.proof,
             enc_amount,
+            view_tag: Some(indexed_view_tag_from_shared(
+                &(spec.payout.view_pub * tx_priv),
+                i as u32,
+            )),
             storage: None,
         });
     }

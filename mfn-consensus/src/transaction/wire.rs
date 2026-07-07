@@ -39,6 +39,10 @@ pub struct TxOutputWire {
     /// RingCT-style encrypted (value, blinding) blob, always
     /// [`ENC_AMOUNT_BYTES`] long.
     pub enc_amount: [u8; ENC_AMOUNT_BYTES],
+    /// Monero-style 1-byte scan hint for the recipient view key.
+    ///
+    /// Present on v2 transactions (`Some`); absent on legacy v1 wire (`None`).
+    pub view_tag: Option<u8>,
     /// Optional permanence binding — `Some` if this output anchors data.
     pub storage: Option<StorageCommitment>,
 }
