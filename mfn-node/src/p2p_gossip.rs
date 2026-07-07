@@ -306,12 +306,14 @@ mod tests {
         // Anchor a real 3-chunk commitment at genesis, then exercise the
         // full M7.12 gossip gate: true chunks store; bad index / bad
         // length / (single-file) overwrite attempts are refused.
-        let payload: Vec<u8> = (0u32..2_500).map(|i| (i % 251) as u8).collect();
+        let payload: Vec<u8> = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..2_500).map(|i| (i % 251) as u8).collect::<Vec<u8>>(),
+        );
         let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(1_024), 3, None)
             .expect("build commitment");
         let hash = mfn_storage::storage_commitment_hash(&built.commit);
         let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
-        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks.len(), 4);
 
         let (handler, _) = handler_at_height_1_with_storage(vec![built.commit.clone()]);
 
@@ -329,7 +331,7 @@ mod tests {
         assert_eq!(std::fs::read(&path).expect("read"), chunks[0]);
 
         // Out-of-range index is refused.
-        let label = handler.on_chunk_v1(&hash, 3, &vec![0u8; 1_024]);
+        let label = handler.on_chunk_v1(&hash, 4, &vec![0u8; 1_024]);
         assert!(label.starts_with("rejected:chunk_invalid:"), "got {label}");
 
         // Wrong-length body is refused.
@@ -347,7 +349,7 @@ mod tests {
     fn on_chunk_v1_fully_verifies_single_chunk_commitments() {
         // With one chunk the Merkle root IS the leaf hash, so forged
         // bytes of the right length are still refused outright.
-        let payload = vec![9u8; 500];
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![9u8; 500]);
         let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(1_024), 3, None)
             .expect("build commitment");
         let hash = mfn_storage::storage_commitment_hash(&built.commit);

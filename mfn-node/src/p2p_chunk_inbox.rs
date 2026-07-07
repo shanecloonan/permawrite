@@ -81,24 +81,28 @@ mod tests {
     use mfn_storage::build_storage_commitment;
 
     fn built_for(payload: &[u8], chunk_size: usize) -> mfn_storage::BuiltCommitment {
-        build_storage_commitment(payload, 1_000, Some(chunk_size), 3, None).expect("build")
+        let padded = mfn_storage::pad_to_storage_size_bucket(payload);
+        build_storage_commitment(&padded, 1_000, Some(chunk_size), 3, None).expect("build")
     }
 
     #[test]
     fn expected_chunk_len_covers_full_and_tail_chunks() {
-        let payload = vec![7u8; 2_500];
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 2_500]);
         let built = built_for(&payload, 1_024);
-        assert_eq!(built.commit.num_chunks, 3);
+        assert_eq!(built.commit.num_chunks, 4);
         assert_eq!(expected_chunk_len(&built.commit, 0), 1_024);
         assert_eq!(expected_chunk_len(&built.commit, 1), 1_024);
-        assert_eq!(expected_chunk_len(&built.commit, 2), 452);
+        assert_eq!(expected_chunk_len(&built.commit, 2), 1_024);
+        assert_eq!(expected_chunk_len(&built.commit, 3), 1_024);
         // Out-of-range index clamps to zero rather than under/overflowing.
-        assert_eq!(expected_chunk_len(&built.commit, 3), 0);
+        assert_eq!(expected_chunk_len(&built.commit, 4), 0);
     }
 
     #[test]
     fn validate_accepts_true_chunks() {
-        let payload: Vec<u8> = (0u32..2_500).map(|i| (i % 251) as u8).collect();
+        let payload = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..2_500).map(|i| (i % 251) as u8).collect::<Vec<u8>>(),
+        );
         let built = built_for(&payload, 1_024);
         let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
         for (i, c) in chunks.iter().enumerate() {
@@ -112,20 +116,20 @@ mod tests {
 
     #[test]
     fn validate_rejects_out_of_range_index() {
-        let payload = vec![7u8; 2_500];
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 2_500]);
         let built = built_for(&payload, 1_024);
         assert_eq!(
-            validate_gossip_chunk(&built.commit, 3, &[0u8; 1_024]),
+            validate_gossip_chunk(&built.commit, 4, &[0u8; 1_024]),
             Err(ChunkGossipReject::IndexOutOfRange {
-                got: 3,
-                num_chunks: 3
+                got: 4,
+                num_chunks: 4
             })
         );
     }
 
     #[test]
     fn validate_rejects_wrong_length() {
-        let payload = vec![7u8; 2_500];
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 2_500]);
         let built = built_for(&payload, 1_024);
         assert_eq!(
             validate_gossip_chunk(&built.commit, 0, &[0u8; 100]),
@@ -138,7 +142,7 @@ mod tests {
 
     #[test]
     fn validate_fully_verifies_single_chunk_commitments() {
-        let payload = vec![9u8; 500];
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![9u8; 500]);
         let built = built_for(&payload, 1_024);
         assert_eq!(built.commit.num_chunks, 1);
         assert_eq!(validate_gossip_chunk(&built.commit, 0, &payload), Ok(()));

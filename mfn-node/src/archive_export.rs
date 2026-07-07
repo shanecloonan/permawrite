@@ -450,7 +450,9 @@ mod tests {
     fn export_then_verify_round_trip_with_chunks() {
         let src = temp_root("src");
         let out = temp_root("out");
-        let payload: Vec<u8> = (0u32..1500).map(|i| (i % 251) as u8).collect();
+        let payload: Vec<u8> = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..1500).map(|i| (i % 251) as u8).collect::<Vec<u8>>(),
+        );
         let built = build_storage_commitment(
             &payload,
             1_000,
@@ -494,7 +496,7 @@ mod tests {
     fn export_marks_incomplete_chunk_sets_and_verify_still_passes() {
         let src = temp_root("src-partial");
         let out = temp_root("out-partial");
-        let payload: Vec<u8> = vec![7u8; 900];
+        let payload: Vec<u8> = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 900]);
         let built = build_storage_commitment(
             &payload,
             1_000,
@@ -525,7 +527,9 @@ mod tests {
     fn verify_rejects_tampered_chunk_bytes() {
         let src = temp_root("src-tamper-chunk");
         let out = temp_root("out-tamper-chunk");
-        let payload: Vec<u8> = (0u32..1200).map(|i| (i % 199) as u8).collect();
+        let payload: Vec<u8> = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..1200).map(|i| (i % 199) as u8).collect::<Vec<u8>>(),
+        );
         let built = build_storage_commitment(
             &payload,
             1_000,
