@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #64 GREEN** (run `28841761235`, auto-dispatched on green CI). **Nightly #63 GREEN** (run `28792429191`). **B-05 Linux soak** in progress (run `28841761161`, M2.5.64 bootstrap).
+**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — hub_tip_wait `tip_height=unknown` (soak pre-built mfnd only; fix: also build mfn-cli for tip polls). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
 
 **RC push hold:** lifted.
 
@@ -90,7 +90,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS (M2.5.64 bootstrap) | **In progress** — run `28841761161` | Release evidence on `934cc2f` (lane 2) |
+| **1** | B-05 Linux soak PASS (mfn-cli pre-build fix) | **In progress** — re-dispatch soak after push | Release evidence on `934cc2f` (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |

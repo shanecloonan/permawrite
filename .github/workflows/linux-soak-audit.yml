@@ -47,9 +47,11 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-      - name: Pre-build mfnd for soak bootstrap
+      - name: Pre-build public-devnet binaries for soak bootstrap
         shell: bash
-        run: cargo build -p mfn-node --release --bin mfnd
+        run: |
+          cargo build -p mfn-node --release --bin mfnd
+          cargo build -p mfn-cli --bin mfn-cli --release
       - name: Run Linux soak with archive evidence
         shell: bash
         env:
