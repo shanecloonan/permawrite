@@ -58,13 +58,18 @@ fi
 rm -rf "$REPO_ROOT/$DATA_ROOT"
 echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
-"$SCRIPT_DIR/start-hub.sh" >"$LOG_DIR/v0.log" 2>&1 &
+bash "$SCRIPT_DIR/start-hub.sh" >"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!
 echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
 HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX="$MFN_POLL_HUB_MAX"
 for hub_poll_i in $(seq 1 "$HUB_POLL_MAX"); do
+  if ! kill -0 "$HUB_PID" 2>/dev/null; then
+    echo "start-all: hub process $HUB_PID exited before P2P listen; tail $LOG_DIR/v0.log:" >&2
+    tail -n 100 "$LOG_DIR/v0.log" 2>/dev/null >&2 || echo "(no v0.log)" >&2
+    exit 1
+  fi
   if grep -q mfnd_p2p_listening= "$LOG_DIR/v0.log" 2>/dev/null; then
     HUB_P2P=$(grep -m1 mfnd_p2p_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
     HUB_RPC=$(grep -m1 mfnd_serve_listening= "$LOG_DIR/v0.log" | sed 's/.*=//')
@@ -91,11 +96,11 @@ export HUB_P2P
 echo "Hub P2P=$HUB_P2P RPC=$HUB_RPC"
 sleep 2
 echo "Starting voter 1..."
-"$SCRIPT_DIR/start-voter.sh" 1 >"$LOG_DIR/v1.log" 2>&1 &
+bash "$SCRIPT_DIR/start-voter.sh" 1 >"$LOG_DIR/v1.log" 2>&1 &
 echo "V1_PID=$!" >>"$PORTS_FILE"
 sleep 2
 echo "Starting voter 2..."
-"$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
+bash "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
 poll_voter_p2p() {
@@ -237,7 +242,7 @@ if [[ -n "$EXTRA_P2P_DIALS" ]]; then
   export EXTRA_P2P_DIALS
 fi
 echo "Starting observer..."
-"$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
+bash "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""
 OBSERVER_POLL_MAX="$MFN_POLL_OBSERVER_MAX"

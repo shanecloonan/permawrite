@@ -482,7 +482,7 @@ if (( NO_START == 0 )); then
   fi
   echo "soak: starting public-devnet-v1 mesh"
   export MFN_SOAK_BOOTSTRAP=1
-  "$SCRIPT_DIR/start-all.sh"
+  bash "$SCRIPT_DIR/start-all.sh" --no-build
   unset MFN_SOAK_BOOTSTRAP
   read_ports
   soak_lock_new "$SCRIPT_DIR"

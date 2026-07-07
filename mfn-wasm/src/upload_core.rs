@@ -317,7 +317,7 @@ pub fn build_storage_proof_json(
             commit.size_bytes
         )));
     }
-    let chunks = chunk_data(data, commit.chunk_size as usize)
+    let chunks = chunk_data(&data, commit.chunk_size as usize)
         .map_err(|e| WasmCoreError::Storage(format!("chunk_data: {e}")))?;
     let chunk_refs: Vec<&[u8]> = chunks.iter().map(|c| &c[..]).collect();
     let tree =
@@ -332,7 +332,7 @@ pub fn build_storage_proof_json(
         &commit,
         &prev,
         slot,
-        data,
+        &data,
         &tree,
         keys.view_pub(),
         keys.spend_pub(),

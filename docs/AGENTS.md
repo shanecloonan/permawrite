@@ -70,8 +70,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Monitor **CI #669** on `f9ab1b7` (code `c0e73eb`); then **Nightly #63** all three green (B-06; Nightly #62 FAIL ~16.3m on `3a1f213`).
-- [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow).
+- [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
+- [ ] Monitor green CI after B13 tail + M2.5.64 soak fix.
+- [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow after M2.5.64).
 
 ### Do not start (other lanes)
 
@@ -105,7 +106,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] `release-evidence-refresh-for-head` after green CI + Nightly #63.
+- [ ] `release-evidence-refresh-for-head` after green CI on B13 tail stack.
 
 ### Do not start
 

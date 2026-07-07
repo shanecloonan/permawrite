@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-05)
 
-**CI GREEN** on `85e5870` (B2, run `28787826557`, 2026-07-06). **Nightly #63 GREEN** (run `28792429191`, all three jobs, 2026-07-06 12:44 UTC). **Linux soak** last run FAIL (empty hub log during inline `cargo build`; fix in M2.5.64). **Nightly #62** **FAIL** ~16.3m on `3a1f213`.
+**CI** monitoring `3d8574c` tail fix (run `28833777805` FAIL: wasm move-after-pad). **Nightly #63 GREEN** (run `28792429191`, all three jobs, 2026-07-06 12:44 UTC). **Linux soak** last run FAIL (empty hub log during inline `cargo build`; M2.5.64 landing this push).
 
 **Red-CI root cause (fixed by M2.5.61):** M2.5.50 reordered `mfnd_p2p_listening=` before `mfnd_serve_listening=` on `mfnd serve` stdout; `mfnd_smoke` sequential prefix reads consumed the P2P line and hung forever (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — reproduced twice on Windows ci-check). Any CI test matrix on M2.5.50..M2.5.61 would hang to job timeout, so the M2.5.61 push intentionally supersedes those doomed runs.
 
@@ -92,11 +92,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS after M2.5.64 | **In progress** — Nightly #63 green (`28792429191`); soak fix landing | Release evidence refresh (lane 2) |
+| **1** | B-05 Linux soak PASS after M2.5.64 | **In progress** — M2.5.64 + B13 compile fix landing this push | Release evidence refresh (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence when CI green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 participant + observer PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` — shipped M5.49/M7.12/M2.5.61 log + file-level plans (B-11 designs, ChunkV2 gossip, replication accounting, repair, slashing) | **Done** - this commit (docs-only) | B-11 endowment-opening consensus binding |
-| **5** | B13 consensus size-bucket mandate (reject non-bucket `size_bytes` at apply_block + mempool) | **Done** - this commit | B7 Dandelion++ relay (multi-session) |
+| **5** | B13 size-bucket mandate (wallet `4712811` + consensus `3d8574c` + compile fix) | **Done** - this push | B7 Dandelion++ relay (multi-session) |
 | **6** | F5-PM9 committed PQ migration plan (`docs/PQ_MIGRATION.md`) | **Done** - this commit | B-05 soak evidence |
 
 ---
@@ -130,9 +130,10 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **B13 (consensus)** (this commit) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.
+- **B13 compile fix** (this commit) - privacy surface (lane 5): pad in `build_storage_commitment`; wasm `build_storage_proof_json` borrows padded `data` after move fix; spora/end_to_end test assertions on bucket `size_bytes`.
+- **B13 (consensus)** (`3d8574c`) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.
 - **B13 (wallet)** (`4712811`) - privacy surface (lane 5): upload size buckets — reference uploads pad to next power-of-two before anchoring; on-chain `size_bytes` is the bucket; endowment priced on bucket (`storage_size_bucket` / `pad_to_storage_size_bucket`).
-- **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.
+- **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `soak.sh` → `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.
 - **B4(c)** (`297df7c`) - privacy surface (lane 5): `select_gamma_decoys` picks uniformly among unchosen decoys at the target height instead of always taking the rightmost binary-search index; co-height selection no longer deterministic.
 - **B4(a)** (`b402db3`) - privacy surface (lane 5): `build_decoy_pool` excludes only real input keys; other owned UTXOs remain eligible decoys (B4 / `PRIVACY_HARDENING.md`).
 - **F5-PM9** (`eaecece`) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.

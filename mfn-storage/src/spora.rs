@@ -139,8 +139,9 @@ pub fn build_storage_commitment(
     if replication == 0 {
         return Err(SporaError::InvalidReplication);
     }
+    let data = crate::commitment::pad_to_storage_size_bucket(data);
     let cs = chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE);
-    let chunks = chunk_data(data, cs)?;
+    let chunks = chunk_data(&data, cs)?;
     let tree = merkle_tree_from_chunks(&chunks)?;
     let ped = mfn_crypto::pedersen::pedersen_commit(
         curve25519_dalek::scalar::Scalar::from(endowment_amount),
@@ -557,7 +558,10 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         assert_eq!(built.commit.num_chunks, 4);
-        assert_eq!(built.commit.size_bytes, d.len() as u64);
+        assert_eq!(
+            built.commit.size_bytes,
+            crate::commitment::storage_size_bucket(d.len() as u64)
+        );
         assert_eq!(built.commit.replication, 3);
         // Endowment opens.
         assert!(verify_endowment_opening(
