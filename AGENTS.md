@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — hub_tip_wait `tip_height=unknown` (soak pre-built mfnd only; fix: also build mfn-cli for tip polls). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
+**CI #28842655841** in progress on `c7420a2` (mfn-cli soak pre-build fix). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`). **B-05 Linux soak** run `28841761161` FAIL — `hub_tip_wait` `tip_height=unknown` (mfnd-only pre-build; fixed `c7420a2`). **Nightly #63 GREEN** (run `28792429191`).
 
 **RC push hold:** lifted.
 
@@ -134,7 +134,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 - **B13 test parity** (`e98ff4f`) - mfn-node chunk/archive tests use canonical bucket payloads.
 - **B13 (consensus)** (`3d8574c`) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.
 - **B13 (wallet)** (`4712811`) - privacy surface (lane 5): upload size buckets — reference uploads pad to next power-of-two before anchoring; on-chain `size_bytes` is the bucket; endowment priced on bucket (`storage_size_bucket` / `pad_to_storage_size_bucket`).
-- **M2.5.64** (this commit) - RC ops (lanes 1+2): Linux soak bootstrap uses pre-built `mfnd` (workflow `cargo build` + `soak.sh` → `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen.
+- **M2.5.64** (`c5e69f6` + `c7420a2`) - RC ops (lanes 1+2): Linux soak bootstrap pre-builds `mfnd` + `mfn-cli` (workflow `cargo build` + `soak.sh` → `start-all.sh --no-build`); `start-all` invokes child scripts via `bash` and fails fast when hub PID exits before P2P listen; `mfn-cli` required for `query_tip_height` during `hub_tip_wait`.
 - **B4(c)** (`297df7c`) - privacy surface (lane 5): `select_gamma_decoys` picks uniformly among unchosen decoys at the target height instead of always taking the rightmost binary-search index; co-height selection no longer deterministic.
 - **B4(a)** (`b402db3`) - privacy surface (lane 5): `build_decoy_pool` excludes only real input keys; other owned UTXOs remain eligible decoys (B4 / `PRIVACY_HARDENING.md`).
 - **F5-PM9** (`eaecece`) - permanence depth (lane 6, docs-only): `docs/PQ_MIGRATION.md` — committed consensus-versioned PQ migration path (retroactive-privacy hybrid first, operator-key hybrid second, research-gated CLSAG successor third) + wire-format headroom audit proving each phase is a soft fork today.

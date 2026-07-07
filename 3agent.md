@@ -17,7 +17,7 @@
 | **B13 authorship** | **Done** | `5d5cf64` CLI/wallet + `7821099` WASM — padded preview for MFCL `data_root` |
 | **GHA hub timing** | **Done** | `934cc2f` — `GITHUB_ACTIONS` detection for 20s mesh budget |
 | **Nightly #64** | **GREEN** | Run `28841761235` on `934cc2f` stack (auto-dispatched) |
-| **B-05 Linux soak** | **In progress** | Run `28841761161` (M2.5.64 pre-build bootstrap) |
+| **B-05 Linux soak** | **In progress** | Run `28841761161` FAIL; fix `c7420a2` (mfn-cli pre-build); CI #28842655841 |
 
 ### RC push hold
 
@@ -29,7 +29,7 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI #28838850432; Nightly #64 | **B-05 soak** run `28841761161` | Release evidence refresh |
+| **1** RC core | CI #28838850432; Nightly #64 | **B-05 soak** re-dispatch after `c7420a2` | Release evidence refresh |
 | **2** RC ops | M2.5.57–59; Nightly #63 | — | Release evidence refresh on `934cc2f` |
 | **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | Monitor B-05 soak PASS |
 
@@ -55,7 +55,7 @@
 - [x] B7 Dandelion++ phase 1 (`1cc9ead`)
 - [x] Green CI on B13 stack (CI #28838850432 on `934cc2f`)
 - [x] Nightly #64 green (`28841761235`)
-- [ ] B-05 Linux soak evidence (run `28841761161` in progress)
+- [ ] B-05 Linux soak evidence (run `28841761161` FAIL; fix `c7420a2` pushed)
 
 ---
 
