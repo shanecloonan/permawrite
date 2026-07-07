@@ -3,6 +3,22 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 (B-11 public devnet enable → CI on stack)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **CI #726** | **GREEN** | Run `28871239057` on `837069a` (full matrix) |
+| **Nightly #65** | **GREEN** | Run `28877033241` on `837069a` (all three jobs) |
+| **B-11 proptests** | **Done** | `9f0a0aa` — MFEO opening + reject without `MFEO` |
+| **B-11 public devnet** | **This commit** | `require_endowment_opening: 1` in genesis JSON + spec parser |
+| **Release evidence** | **Done** | `837069a` artifacts + ancestor CI lookup fix |
+
+### RC push hold
+
+**Lifted** — CI `28871239057` GREEN; Nightly `28877033241` GREEN.
+
+---
+
 ## Session — 2026-07-07 (B-05 soak PASS → release evidence refresh)
 
 | Gate | Status | Notes |
@@ -45,8 +61,8 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | B-05 soak PASS (`28851202993`); M2.5.65 stack | — | Idle after evidence refresh |
-| **2** RC ops | B-05 evidence `234f0a8`; CI `28871239057` GREEN on `837069a` | Release evidence refresh on `837069a` | RC audit dry-run |
-| **3** RC onboarding | M7.11.2; Nightly #63/#64 PASS | — | B7 rehearsal soak (with lane 5) |
+| **2** RC ops | B-05 evidence; CI `28871239057`; release evidence `837069a` | — | Idle |
+| **3** RC onboarding | M7.11.2; Nightly #63/#64/#65 PASS | — | B7 rehearsal soak (with lane 5) |
 
 ---
 
@@ -54,9 +70,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **4** Protocol | B-11 MFEO wire + consensus gate (in progress) | B-11 opening verify in `apply_block` | M5 proptests flag=1 |
-| **5** Privacy | B13 full stack; B4 decoys; B7 `1cc9ead` | — | B7 rehearsal soak |
-| **6** Permanence | M5.48; B-05 soak; B-11 param gate | `require_endowment_opening` + genesis | Public devnet enable |
+| **4** Protocol | B-11 MFEO wire + proptests + public devnet enable | — | Idle |
+| **5** Privacy | B13; B4; B7; F7/B15 `837069a` | — | B7 rehearsal soak |
+| **6** Permanence | M5.48; B-05; B-11 complete | — | Idle |
 
 ---
 
