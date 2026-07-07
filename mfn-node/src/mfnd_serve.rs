@@ -505,6 +505,17 @@ fn rpc_public_bind_warning(rpc_listen: &str, auth_enabled: bool) -> Option<Strin
     ))
 }
 
+/// True when `--dandelion` was passed or `MFND_DANDELION` is set to a truthy value.
+fn dandelion_enabled(cli_flag: bool) -> bool {
+    if cli_flag {
+        return true;
+    }
+    matches!(
+        std::env::var("MFND_DANDELION").ok().as_deref(),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
+}
+
 /// Run a blocking TCP loop: load chain + mempool snapshot, print bound address, then
 /// serve one JSON line per connection until the process exits.
 #[allow(clippy::too_many_arguments)]
@@ -521,6 +532,7 @@ pub(crate) fn run_serve(
     network_label: Option<&str>,
     dandelion: bool,
 ) -> Result<(), String> {
+    let dandelion = dandelion_enabled(dandelion);
     let genesis_timestamp = cfg.genesis.timestamp;
     let genesis_for_rpc = Arc::new(cfg.genesis.clone());
     let (loaded_chain, replay_stats) =

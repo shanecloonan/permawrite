@@ -118,6 +118,7 @@ fn usage() -> &'static str {
                                   + GoodbyeV1; on success prints mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip /\n\
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
        --dandelion              only for `serve`: Dandelion++ stem/fluff tx relay (opt-in; default off)\n\
+                                  or set env MFND_DANDELION=1\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
        --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\
@@ -951,6 +952,30 @@ mod tests {
         assert_eq!(p.rpc_listen.as_deref(), Some("127.0.0.1:18731"));
         assert_eq!(p.p2p_listen.as_deref(), Some("127.0.0.1:0"));
         assert!(p.p2p_dials.is_empty());
+    }
+
+    #[test]
+    fn parse_args_serve_dandelion() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--dandelion".into(),
+            "serve".into(),
+        ];
+        let p = parse_args(&args).unwrap();
+        assert_eq!(p.cmd, Cmd::Serve);
+        assert!(p.dandelion);
+    }
+
+    #[test]
+    fn parse_args_dandelion_rejected_without_serve() {
+        let args = vec![
+            "--data-dir".into(),
+            "/tmp/x".into(),
+            "--dandelion".into(),
+            "status".into(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]

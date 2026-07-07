@@ -196,6 +196,25 @@ pub fn indexed_stealth_spend_key(
     hs + wallet.spend_priv
 }
 
+/// Monero-style 1-byte **view tag** for cheap wallet scanning (**F5-P7** / B9).
+///
+/// Derived from the same indexed shared secret as [`indexed_stealth_detect`],
+/// so a recipient can compare `tag` against the on-wire hint before running
+/// the full stealth check. Phase 2 will attach this byte to each tx output on
+/// the wire (version-gated); until then reference senders may compute it
+/// locally for tests and future encoders.
+#[must_use]
+pub fn indexed_view_tag(r_point: &EdwardsPoint, output_index: u32, view_priv: &Scalar) -> u8 {
+    let shared = r_point * view_priv;
+    indexed_view_tag_from_shared(&shared, output_index)
+}
+
+/// View tag when the shared secret `a·R` is already known.
+#[must_use]
+pub fn indexed_view_tag_from_shared(shared: &EdwardsPoint, output_index: u32) -> u8 {
+    indexed_shared_hash(shared, output_index).to_bytes()[0]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +279,22 @@ mod tests {
         let x1 = indexed_stealth_spend_key(&r_point, 1, &alice);
         assert_eq!(generator_g() * x0, p0);
         assert_eq!(generator_g() * x1, p1);
+    }
+
+    #[test]
+    fn indexed_view_tag_matches_recipient_and_varies_by_index() {
+        let alice = stealth_gen();
+        let tx_priv = random_scalar();
+        let r_point = generator_g() * tx_priv;
+
+        let t0 = indexed_view_tag(&r_point, 0, &alice.view_priv);
+        let t1 = indexed_view_tag(&r_point, 1, &alice.view_priv);
+        let t0_again = indexed_view_tag(&r_point, 0, &alice.view_priv);
+        assert_eq!(t0, t0_again);
+        assert_ne!(t0, t1);
+
+        let bob = stealth_gen();
+        assert_ne!(t0, indexed_view_tag(&r_point, 0, &bob.view_priv));
     }
 
     #[test]

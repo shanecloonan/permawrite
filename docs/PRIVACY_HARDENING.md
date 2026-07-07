@@ -380,16 +380,20 @@ RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
 
 **Effort:** moderate–high. **Risk:** medium.
 
-### B9. View tags for cheap light-client scanning (`F5:P7`)
+### B9. View tags for cheap light-client scanning (`F5:P7`) — **partial (phase 1 shipped)**
 
 **Problem.** Light wallets do `O(outputs_per_block)` curve multiplications to
 scan. Expensive scanning pushes users toward handing view keys to third-party
 scanners — a privacy regression.
 
-**Plan.** Add a Monero-style 1-byte **view tag** derived from the shared
-secret to each output so scanners skip ~99% of work. Lands in
-[`mfn-crypto/src/stealth.rs`](../mfn-crypto/src/stealth.rs) and the WASM
-light-client scan path; changes the output wire format, so version-gate it.
+**Shipped (phase 1).** Canonical 1-byte view tag derivation in
+[`mfn-crypto/src/stealth.rs`](../mfn-crypto/src/stealth.rs):
+[`indexed_view_tag`](../mfn-crypto/src/stealth.rs) /
+[`indexed_view_tag_from_shared`](../mfn-crypto/src/stealth.rs) — first byte of
+the indexed shared hash (same domain as stealth detect).
+
+**Remaining.** Attach tag to each output on the wire (tx version gate), wallet
+encode on send, scanner/WASM skip on mismatch (~256× filter factor).
 
 **Effort:** moderate. **Risk:** medium (wire format).
 
@@ -492,11 +496,11 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 | Impact / effort | Items |
 |---|---|
 | Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ phase 1 (opt-in `--dandelion`) |
-| High impact, moderate effort | B7 soak + wire label, B9 (view tags) |
+| High impact, moderate effort | B9 wire + scan path, B7 soak + wire label |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B7** (Dandelion++ relay), then **B9** (view tags).
+Natural next step: **B9** phase 2 (wire + scanner), **B7** rehearsal soak with `--dandelion`.
 
 ## See also
 

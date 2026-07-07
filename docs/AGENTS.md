@@ -219,12 +219,14 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B4(c) co-height randomization** (`297df7c`) — `select_gamma_decoys` uniform pick within height bucket.
 - [x] **B13 (wallet size buckets)** (`4712811`) — power-of-two pad in `build_storage_upload`; closes §B13 wallet layer.
 - [x] **B13 (consensus size buckets)** (`3d8574c`) — reject non-bucket `size_bytes`; artifact saves padded payload.
-- [x] **B7 (Dandelion++ phase 1)** — opt-in `--dandelion` stem/fluff relay.
+- [x] **B7 (Dandelion++ phase 1)** (`1cc9ead`) — opt-in `--dandelion` stem/fluff relay.
+- [x] **B7 (phase 2)** — `MFND_DANDELION=1` env + CLI parse tests.
+- [x] **B9 (view tags phase 1)** — `indexed_view_tag` in `mfn-crypto` stealth.
 
 ### Next
 
+- [ ] **B9 phase 2** — wire tag on outputs + scanner skip path.
 - [ ] **B7 soak** — rehearsal mesh with `--dandelion` after green CI.
-- [ ] **B9** — view tags for light-wallet scanning.
 
 ### Do not start
 
