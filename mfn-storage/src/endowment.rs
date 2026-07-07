@@ -100,6 +100,10 @@ pub struct EndowmentParams {
     /// claim a year's yield in one proof. Default `7_200` (≈ 1 day at
     /// 12-second slots).
     pub proof_reward_window_slots: u64,
+    /// When non-zero, new storage anchors must carry a Pedersen opening
+    /// (`MFEO` in `tx.extra`) that consensus verifies against
+    /// `StorageCommitment.endowment` and `required_endowment` (B-11).
+    pub require_endowment_opening: u8,
 }
 
 /// Canonical defaults.
@@ -111,6 +115,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     max_replication: 32,
     slots_per_year: 2_629_800,
     proof_reward_window_slots: 7_200,
+    require_endowment_opening: 0,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -143,6 +148,11 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     }
     if p.proof_reward_window_slots == 0 {
         return Err(EndowmentError::ProofWindowZero);
+    }
+    if p.require_endowment_opening > 1 {
+        return Err(EndowmentError::InvalidRequireEndowmentOpening {
+            got: p.require_endowment_opening,
+        });
     }
     Ok(())
 }
@@ -487,6 +497,12 @@ pub enum EndowmentError {
     /// `proof_reward_window_slots` was zero.
     #[error("proof_reward_window_slots must be > 0")]
     ProofWindowZero,
+    /// `require_endowment_opening` must be 0 or 1.
+    #[error("require_endowment_opening must be 0 or 1, got {got}")]
+    InvalidRequireEndowmentOpening {
+        /// Caller-supplied flag.
+        got: u8,
+    },
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,

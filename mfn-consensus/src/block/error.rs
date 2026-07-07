@@ -230,6 +230,52 @@ pub enum BlockError {
         /// Stringified upstream error.
         reason: String,
     },
+    /// B-11: new storage anchor requires `MFEO` opening in `tx.extra`.
+    #[error("tx[{tx}]: endowment opening required for new storage anchor at output {output}")]
+    EndowmentOpeningRequired {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Output index carrying the new storage commitment.
+        output: usize,
+    },
+    /// B-11: `MFEO` count does not match new storage anchors in this tx.
+    #[error("tx[{tx}]: expected {expected} endowment opening(s) in extra, got {got}")]
+    EndowmentOpeningCountMismatch {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Number of new storage anchors.
+        expected: usize,
+        /// Parsed `MFEO` frames.
+        got: usize,
+    },
+    /// B-11: `tx.extra` MFEX/MFEO parse failure.
+    #[error("tx[{tx}]: endowment opening parse: {reason}")]
+    EndowmentOpeningParse {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Parse error detail.
+        reason: String,
+    },
+    /// B-11: Pedersen opening does not verify against `StorageCommitment.endowment`.
+    #[error("tx[{tx}].outputs[{output}]: endowment opening does not verify")]
+    EndowmentOpeningInvalid {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Output index.
+        output: usize,
+    },
+    /// B-11: opened endowment value is below `required_endowment`.
+    #[error("tx[{tx}].outputs[{output}]: opened endowment {opened} < required {required}")]
+    EndowmentOpeningUnderfund {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Output index.
+        output: usize,
+        /// Opened amount (base units).
+        opened: u64,
+        /// Protocol-required minimum.
+        required: u64,
+    },
     /// Two storage proofs in the block target the same commitment.
     #[error("storage_proofs[{index}]: duplicate proof for {commit_hash}")]
     DuplicateStorageProof {

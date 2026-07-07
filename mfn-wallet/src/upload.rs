@@ -69,7 +69,11 @@
 //! be wired up at a higher layer without re-running the chunking step.
 
 use curve25519_dalek::scalar::Scalar;
-use mfn_consensus::{build_mfex_extra, sign_transaction, InputSpec, OutputSpec, SignedTransaction};
+use mfn_consensus::extra_codec::EndowmentOpening;
+use mfn_consensus::{
+    build_mfex_extra, build_mfex_extra_v2, sign_transaction, InputSpec, OutputSpec,
+    SignedTransaction,
+};
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::{select_gamma_decoys, DecoyCandidate, DEFAULT_GAMMA_PARAMS};
 use mfn_storage::{build_storage_commitment, required_endowment, BuiltCommitment, EndowmentParams};
@@ -479,10 +483,23 @@ where
     }
 
     // (8) RingCT ceremony.
-    let extra_wire: Vec<u8> = if plan.authorship_claims.is_empty() {
-        plan.extra.to_vec()
+    let require_opening = plan.endowment_params.require_endowment_opening != 0;
+    let opening = EndowmentOpening {
+        value: endowment_amount,
+        blinding: built.blinding,
+    };
+    let extra_wire: Vec<u8> = if !plan.authorship_claims.is_empty() {
+        if require_opening {
+            build_mfex_extra_v2(plan.authorship_claims, std::slice::from_ref(&opening))?
+        } else {
+            build_mfex_extra(plan.authorship_claims)?
+        }
+    } else if require_opening {
+        build_mfex_extra_v2(&[], std::slice::from_ref(&opening))?
+    } else if plan.extra.is_empty() {
+        Vec::new()
     } else {
-        build_mfex_extra(plan.authorship_claims)?
+        plan.extra.to_vec()
     };
     let signed = sign_transaction(input_specs, output_specs, plan.fee, extra_wire)?;
 

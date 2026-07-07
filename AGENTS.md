@@ -82,20 +82,20 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK; workflow failed only on evidence push race (fixed). **CI #28851202034** in progress on `8ccda5d`. **M2.5.65 stack** (`8ccda5d` + `76cc778`).
+**B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK. Evidence commit `234f0a8`.
 
-**RC push hold:** CI in progress — next push will restart matrix.
+**RC push hold:** CI in progress on `234f0a8` (run `28853929754`, CI #720). Lane 2 queued: `release-evidence-refresh-for-head -RunRcAuditDryRun` after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` PASS (evidence `20260707T083949Z`) | Release evidence refresh (lane 2) |
-| **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
-| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
-| **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
+| **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
+| **2** | Release evidence refresh | **In progress** — await CI `28853929754` green on `234f0a8` | RC audit dry-run |
+| **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
+| **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
 | **5** | B13 size-bucket mandate + authorship parity | **Done** - `934cc2f` stack | B7 rehearsal soak + B9 view tags |
-| **6** | F5-PM9 `docs/PQ_MIGRATION.md` | **Done** - docs-only | B-05 soak evidence |
+| **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
 
 ---
 

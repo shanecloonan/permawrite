@@ -278,6 +278,45 @@ pub enum AdmitError {
         /// Chain's `emission_params.fee_to_treasury_bps`.
         fee_to_treasury_bps: u16,
     },
+
+    /// B-11: `MFEO` count does not match new storage anchors.
+    #[error("tx {tx_id_hex}: expected {expected} endowment opening(s), got {got}")]
+    EndowmentOpeningCountMismatch {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Expected openings.
+        expected: usize,
+        /// Parsed openings.
+        got: usize,
+    },
+    /// B-11: `tx.extra` MFEX/MFEO parse failure.
+    #[error("tx {tx_id_hex}: endowment opening parse: {reason}")]
+    EndowmentOpeningParse {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Parse detail.
+        reason: String,
+    },
+    /// B-11: Pedersen opening does not verify.
+    #[error("tx {tx_id_hex} output {output}: endowment opening invalid")]
+    EndowmentOpeningInvalid {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Output index.
+        output: usize,
+    },
+    /// B-11: opened value below `required_endowment`.
+    #[error("tx {tx_id_hex} output {output}: opened {opened} < required {required}")]
+    EndowmentOpeningUnderfund {
+        /// Hex prefix of the offending tx id.
+        tx_id_hex: String,
+        /// Output index.
+        output: usize,
+        /// Opened amount.
+        opened: u64,
+        /// Required minimum.
+        required: u64,
+    },
 }
 
 /* ----------------------------------------------------------------------- *
@@ -568,6 +607,77 @@ impl Mempool {
                     fee: tx.fee,
                     fee_to_treasury_bps: state.emission_params.fee_to_treasury_bps,
                 });
+            }
+        }
+
+        // (6b) B-11: Pedersen endowment opening binding (mirrors `apply_block`).
+        if state.endowment_params.require_endowment_opening != 0 {
+            let mut new_anchors: Vec<(usize, mfn_storage::StorageCommitment, u64)> = Vec::new();
+            let mut seen_opening: HashSet<[u8; 32]> = HashSet::new();
+            for (oi, out) in tx.outputs.iter().enumerate() {
+                let sc = match &out.storage {
+                    Some(s) => s,
+                    None => continue,
+                };
+                let h = storage_commitment_hash(sc);
+                if state.storage.contains_key(&h) || !seen_opening.insert(h) {
+                    continue;
+                }
+                let required = match required_endowment(
+                    sc.size_bytes,
+                    sc.replication,
+                    &state.endowment_params,
+                ) {
+                    Ok(b) => {
+                        if b > u128::from(u64::MAX) {
+                            return Err(AdmitError::EndowmentMathFailed {
+                                tx_id_hex: hex_prefix(&tx_id),
+                                output: oi,
+                                reason: "required endowment exceeds u64".into(),
+                            });
+                        }
+                        b as u64
+                    }
+                    Err(e) => {
+                        return Err(AdmitError::EndowmentMathFailed {
+                            tx_id_hex: hex_prefix(&tx_id),
+                            output: oi,
+                            reason: format!("{e}"),
+                        });
+                    }
+                };
+                new_anchors.push((oi, sc.clone(), required));
+            }
+            let parsed = mfn_consensus::extra_codec::parse_mfex_extra(&tx.extra).map_err(|e| {
+                AdmitError::EndowmentOpeningParse {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    reason: e.to_string(),
+                }
+            })?;
+            if new_anchors.len() != parsed.endowment_openings.len() {
+                return Err(AdmitError::EndowmentOpeningCountMismatch {
+                    tx_id_hex: hex_prefix(&tx_id),
+                    expected: new_anchors.len(),
+                    got: parsed.endowment_openings.len(),
+                });
+            }
+            for ((oi, sc, required), opening) in
+                new_anchors.iter().zip(parsed.endowment_openings.iter())
+            {
+                if !mfn_storage::verify_endowment_opening(sc, opening.value, &opening.blinding) {
+                    return Err(AdmitError::EndowmentOpeningInvalid {
+                        tx_id_hex: hex_prefix(&tx_id),
+                        output: *oi,
+                    });
+                }
+                if opening.value < *required {
+                    return Err(AdmitError::EndowmentOpeningUnderfund {
+                        tx_id_hex: hex_prefix(&tx_id),
+                        output: *oi,
+                        opened: opening.value,
+                        required: *required,
+                    });
+                }
             }
         }
 

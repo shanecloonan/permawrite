@@ -480,6 +480,89 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             }
         }
 
+        // ---- B-11: Pedersen endowment opening binding ----
+        if tx_storage_ok && next.endowment_params.require_endowment_opening != 0 {
+            let mut new_anchors: Vec<(usize, StorageCommitment, u64)> = Vec::new();
+            let mut seen_opening: HashSet<[u8; 32]> = HashSet::new();
+            for (oi, out) in tx.outputs.iter().enumerate() {
+                let sc = match &out.storage {
+                    Some(s) => s,
+                    None => continue,
+                };
+                let h = storage_commitment_hash(sc);
+                if state.storage.contains_key(&h) || !seen_opening.insert(h) {
+                    continue;
+                }
+                let required =
+                    match required_endowment(sc.size_bytes, sc.replication, &next.endowment_params)
+                    {
+                        Ok(b) => {
+                            if b > u128::from(u64::MAX) {
+                                errors.push(BlockError::EndowmentMathFailed {
+                                    tx: ti,
+                                    output: oi,
+                                    reason: "required endowment exceeds u64".into(),
+                                });
+                                tx_storage_ok = false;
+                                break;
+                            }
+                            b as u64
+                        }
+                        Err(e) => {
+                            errors.push(BlockError::EndowmentMathFailed {
+                                tx: ti,
+                                output: oi,
+                                reason: format!("{e}"),
+                            });
+                            tx_storage_ok = false;
+                            break;
+                        }
+                    };
+                new_anchors.push((oi, sc.clone(), required));
+            }
+            if tx_storage_ok {
+                match crate::extra_codec::parse_mfex_extra(&tx.extra) {
+                    Ok(parsed) => {
+                        if new_anchors.len() != parsed.endowment_openings.len() {
+                            errors.push(BlockError::EndowmentOpeningCountMismatch {
+                                tx: ti,
+                                expected: new_anchors.len(),
+                                got: parsed.endowment_openings.len(),
+                            });
+                        } else {
+                            for ((oi, sc, required), opening) in
+                                new_anchors.iter().zip(parsed.endowment_openings.iter())
+                            {
+                                if !mfn_storage::verify_endowment_opening(
+                                    sc,
+                                    opening.value,
+                                    &opening.blinding,
+                                ) {
+                                    errors.push(BlockError::EndowmentOpeningInvalid {
+                                        tx: ti,
+                                        output: *oi,
+                                    });
+                                } else if opening.value < *required {
+                                    errors.push(BlockError::EndowmentOpeningUnderfund {
+                                        tx: ti,
+                                        output: *oi,
+                                        opened: opening.value,
+                                        required: *required,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(BlockError::EndowmentOpeningParse {
+                            tx: ti,
+                            reason: e.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
         if !(ti == 0 && is_coinbase_shaped(tx)) {
             if let Ok((clist, _leaves)) = &per_tx_claims[ti] {
                 let tid = tx_id(tx);

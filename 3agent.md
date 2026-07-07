@@ -3,6 +3,21 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 (B-05 soak PASS → release evidence refresh)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **B-05 Linux soak** | **PASS** | Soak `28851202993` max_height=48 (`234f0a8`) |
+| **CI #720** | **In progress** | Run `28853929754` on `234f0a8` |
+| **Nightly #63/#64** | **GREEN** | `28792429191` / `28841761235` |
+| **B13 stack** | **Done** | `934cc2f` — CI #28838850432 GREEN |
+
+### RC push hold
+
+**Active** — CI `28853929754` in progress on `234f0a8`. Lane 2 runs `release-evidence-refresh-for-head -RunRcAuditDryRun` after green.
+
+---
+
 ## Session — 2026-07-06 (B-06 closed → B13 + B7 CI fix)
 
 | Gate | Status | Notes |
@@ -29,9 +44,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B-05 soak PASS; CI #28845429505 | — | Release evidence refresh |
-| **2** RC ops | M2.5.57–59; B-05 evidence | CI #720 on `234f0a8` | RC audit dry-run |
-| **3** RC onboarding | M7.11.2; Nightly #63 PASS | — | — |
+| **1** RC core | B-05 soak PASS (`28851202993`); M2.5.65 stack | — | Idle after evidence refresh |
+| **2** RC ops | B-05 evidence `234f0a8`; M2.5.57–59 | Release evidence refresh — await CI `28853929754` | RC audit dry-run |
+| **3** RC onboarding | M7.11.2; Nightly #63/#64 PASS | — | B7 rehearsal soak (with lane 5) |
 
 ---
 
@@ -39,9 +54,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **4** Protocol | B13 consensus gate `3d8574c` | — | B-11 endowment opening |
-| **5** Privacy | B13 full stack; B4 decoys; B7 `1cc9ead` | — | B7 rehearsal soak + B9 view tags |
-| **6** Permanence | M5.48; B-05 soak evidence | — | B-11 endowment opening |
+| **4** Protocol | B-11 MFEO wire + consensus gate (in progress) | B-11 opening verify in `apply_block` | M5 proptests flag=1 |
+| **5** Privacy | B13 full stack; B4 decoys; B7 `1cc9ead` | — | B7 rehearsal soak |
+| **6** Permanence | M5.48; B-05 soak; B-11 param gate | `require_endowment_opening` + genesis | Public devnet enable |
 
 ---
 

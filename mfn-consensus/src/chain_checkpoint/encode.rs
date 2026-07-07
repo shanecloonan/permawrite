@@ -18,7 +18,11 @@ pub(crate) fn encode_emission_params(w: &mut Writer, p: &EmissionParams) {
     w.push(&p.fee_to_treasury_bps.to_be_bytes());
 }
 
-pub(crate) fn encode_endowment_params(w: &mut Writer, p: &EndowmentParams) {
+pub(crate) fn encode_endowment_params(
+    w: &mut Writer,
+    p: &EndowmentParams,
+    checkpoint_version: u32,
+) {
     w.u64(p.cost_per_byte_year_ppb);
     w.u64(p.inflation_ppb);
     w.u64(p.real_yield_ppb);
@@ -26,6 +30,9 @@ pub(crate) fn encode_endowment_params(w: &mut Writer, p: &EndowmentParams) {
     w.u8(p.max_replication);
     w.u64(p.slots_per_year);
     w.u64(p.proof_reward_window_slots);
+    if checkpoint_version >= 4 {
+        w.u8(p.require_endowment_opening);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {
@@ -104,7 +111,11 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     encode_consensus_params(&mut w, &parts.state.params);
     encode_bonding_params(&mut w, &parts.state.bonding_params);
     encode_emission_params(&mut w, &parts.state.emission_params);
-    encode_endowment_params(&mut w, &parts.state.endowment_params);
+    encode_endowment_params(
+        &mut w,
+        &parts.state.endowment_params,
+        CHAIN_CHECKPOINT_VERSION,
+    );
 
     // ---- Treasury ----
     encode_u128(&mut w, parts.state.treasury);

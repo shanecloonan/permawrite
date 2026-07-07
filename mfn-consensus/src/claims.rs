@@ -212,11 +212,29 @@ pub fn collect_claim_merkle_leaves_for_txs(
 
 /// Pack `MFEX` ‖ v1 ‖ concatenated [`encode_authorship_claim`] outputs.
 pub fn build_mfex_extra(claims: &[AuthorshipClaim]) -> mfn_crypto::Result<Vec<u8>> {
+    build_mfex_extra_v2(claims, &[])
+}
+
+/// Pack `MFEX` ‖ v2 ‖ MFCL claims ‖ optional `MFEO` endowment openings (B-11).
+pub fn build_mfex_extra_v2(
+    claims: &[AuthorshipClaim],
+    openings: &[crate::extra_codec::EndowmentOpening],
+) -> mfn_crypto::Result<Vec<u8>> {
     let mut out = Vec::new();
     out.extend_from_slice(crate::extra_codec::MFEX_MAGIC);
-    out.push(crate::extra_codec::MFEX_VERSION);
+    out.push(if openings.is_empty() {
+        crate::extra_codec::MFEX_VERSION
+    } else {
+        crate::extra_codec::MFEX_VERSION_V2
+    });
     for c in claims {
         out.extend_from_slice(&encode_authorship_claim(c)?);
+    }
+    for o in openings {
+        out.extend_from_slice(&crate::extra_codec::encode_mfeo_opening(
+            o.value,
+            &o.blinding,
+        ));
     }
     Ok(out)
 }

@@ -395,7 +395,7 @@ fn rejects_duplicate_validator_index() {
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
     encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
-    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS);
+    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0); // bond_epoch_id
     w.u32(0);
@@ -438,7 +438,7 @@ fn rejects_stats_validators_mismatch() {
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
     encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
-    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS);
+    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0);
     w.u32(0);
@@ -484,7 +484,7 @@ fn rejects_next_index_at_or_below_max_assigned() {
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
     encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
-    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS);
+    encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0);
     w.u32(0);
