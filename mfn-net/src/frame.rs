@@ -27,6 +27,9 @@
 //! [`crate::light_follow::LightFollowV1`] (`0x0f`) for batched header + evolution rows.
 //!
 //! **M7** adds [`crate::chunk_v1::ChunkV1`] (`0x10`) for permanence chunk replication gossip.
+//!
+//! **B7** adds [`TxStemV1`] (`0x11`): Dandelion++ stem-phase tx gossip — same body as [`TxV1`],
+//! distinct tag so fluff fan-out stays on `0x06`.
 
 use std::io::{Read, Write};
 
@@ -47,6 +50,8 @@ const GOODBYE_V1_TAG: u8 = 0x05;
 const TX_V1_TAG: u8 = 0x06;
 const BLOCK_V1_TAG: u8 = 0x07;
 const GOSSIP_END_V1_TAG: u8 = 0x08;
+/// Dandelion++ stem-phase tx gossip tag (`0x11`, **B7**).
+pub const TX_STEM_V1_TAG: u8 = 0x11;
 
 /// First gossip handshake: advertises which chain instance the peer expects.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -305,6 +310,46 @@ impl TxV1 {
     pub fn tx_wire(&self) -> &[u8] {
         &self.0
     }
+}
+
+/// Dandelion++ stem-phase transaction gossip: tag [`TX_STEM_V1_TAG`] + consensus tx wire bytes (**B7**).
+///
+/// Same payload shape as [`TxV1`]; stem relays use this tag when `--dandelion` is enabled so
+/// fluff fan-out remains on [`TxV1`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TxStemV1(pub Vec<u8>);
+
+impl TxStemV1 {
+    /// Wrap consensus `encode_transaction` bytes for a length-prefixed frame.
+    pub fn encode_payload(tx_wire: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(1 + tx_wire.len());
+        out.push(TX_STEM_V1_TAG);
+        out.extend_from_slice(tx_wire);
+        out
+    }
+
+    /// Decode a frame body from [`read_frame`].
+    pub fn decode_payload(payload: &[u8]) -> Result<Self, GossipPayloadDecodeError> {
+        if payload.is_empty() {
+            return Err(GossipPayloadDecodeError::Empty);
+        }
+        if payload[0] != TX_STEM_V1_TAG {
+            return Err(GossipPayloadDecodeError::UnknownTag(payload[0]));
+        }
+        Ok(Self(payload[1..].to_vec()))
+    }
+
+    /// Consensus transaction wire bytes (without the tag byte).
+    #[must_use]
+    pub fn tx_wire(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Whether `tag` is a post-goodbye transaction gossip label ([`TxV1`] or [`TxStemV1`]).
+#[must_use]
+pub fn is_tx_gossip_tag(tag: u8) -> bool {
+    tag == TX_V1_TAG || tag == TX_STEM_V1_TAG
 }
 
 /// Post-goodbye block gossip: tag `0x07` + consensus block wire bytes (**M2.3.16**).
@@ -625,6 +670,9 @@ mod tests {
         let block_wire = vec![0xccu8; 128];
         let block = BlockV1::decode_payload(&BlockV1::encode_payload(&block_wire)).unwrap();
         assert_eq!(block.block_wire(), block_wire.as_slice());
+        let stem = TxStemV1::decode_payload(&TxStemV1::encode_payload(&tx_wire)).unwrap();
+        assert_eq!(stem.tx_wire(), tx_wire.as_slice());
+        assert_ne!(TxStemV1::encode_payload(&tx_wire)[0], TX_V1_TAG);
     }
 
     #[test]

@@ -8,7 +8,8 @@ use std::io::{Read, Write};
 
 use crate::chunk_v1::CHUNK_V1_TAG;
 use crate::frame::{
-    read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
+    is_tx_gossip_tag, read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError,
+    TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
 };
 use crate::gossip::{
     recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
@@ -250,7 +251,8 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
             BLOCKS_V1_TAG => {
                 return BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode);
             }
-            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | 0x07 | 0x08 | 0x0b => continue,
+            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | TX_STEM_V1_TAG | 0x07 | 0x08
+            | 0x0b => continue,
             tag => {
                 return Err(BlockSyncRecvError::Decode(
                     BlockSyncDecodeError::UnknownTag(tag),
@@ -342,7 +344,7 @@ pub fn pull_blocks_to_tip<S: Read + Write>(
 /// Read post-handshake frames until the peer closes or sends gossip.
 ///
 /// Handles zero or more [`GetBlocksByHeightV1`] requests (each answered with [`BlocksV1`]),
-/// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`–`0x08`, `0x10`) arrives.
+/// then delegates to [`recv_gossip_v1`] when a gossip tag (`0x06`/`0x11`, `0x07`–`0x08`, `0x10`) arrives.
 #[allow(clippy::too_many_arguments)]
 pub fn serve_post_handshake_v1(
     stream: &mut std::net::TcpStream,
@@ -454,7 +456,7 @@ pub fn serve_post_handshake_v1(
                     let _ = h.on_vote_v1(&payload[1..]);
                 }
             }
-            tag if matches!(tag, 0x06..=0x08 | CHUNK_V1_TAG) => {
+            tag if matches!(tag, 0x07 | 0x08 | CHUNK_V1_TAG) || is_tx_gossip_tag(tag) => {
                 recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
                 // Keep the duplex session alive for later producer fan-out (**M7.5**).
             }
@@ -472,9 +474,13 @@ fn recv_gossip_v1_from_first<R: Read>(
     let mut stats = GossipRecvStats::default();
     let mut handle_first = |payload: &[u8]| -> Result<(), GossipRecvError> {
         match payload[0] {
-            0x06 => {
-                let tx = crate::frame::TxV1::decode_payload(payload)?;
-                let _ = handler.on_tx_v1(tx.tx_wire());
+            tag if is_tx_gossip_tag(tag) => {
+                let tx_wire = if tag == TX_STEM_V1_TAG {
+                    TxStemV1::decode_payload(payload)?.tx_wire().to_vec()
+                } else {
+                    TxV1::decode_payload(payload)?.tx_wire().to_vec()
+                };
+                let _ = handler.on_tx_v1(&tx_wire);
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
             0x07 => {

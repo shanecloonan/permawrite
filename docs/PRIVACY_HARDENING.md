@@ -351,30 +351,33 @@ coinbase settlement path in
 
 **Effort:** high. **Risk:** high (consensus).
 
-### B7. Dandelion++ transaction relay (`F5:P3`) — **partial (phase 1 shipped)**
+### B7. Dandelion++ transaction relay (`F5:P3`) — **shipped**
 
 **Problem.** The single largest uncovered deanonymization surface. On RPC
 `submit_tx`, `mfnd` fans the fresh tx to **all peers in parallel**
 ([`mfn-node/src/p2p_fanout.rs`](../mfn-node/src/p2p_fanout.rs),
 `broadcast_fresh_tx`), so the first peers learn the origin node.
 
-**Shipped (phase 1).** Opt-in Dandelion++ stem/fluff routing in
+**Shipped.** Opt-in Dandelion++ stem/fluff routing in
 [`mfn-node/src/dandelion.rs`](../mfn-node/src/dandelion.rs) wired through
 [`P2pPeerSet::broadcast_fresh_tx`](../mfn-node/src/p2p_fanout.rs): stem phase
 forwards to one epoch-mapped peer; per-hop fluff probability + stem timeout
 transition to parallel fan-out. Enable with `mfnd serve --dandelion` or
 `MFND_DANDELION=1` (default off — legacy parallel fan-out unchanged for CI).
 
-**Shipped (rehearsal soak).** Public-devnet mesh scripts accept `--dandelion`
+**Stem wire label.** Stem relays use [`TxStemV1`](../mfn-net/src/frame.rs) (P2P
+tag `0x11`); fluff fan-out stays on [`TxV1`](../mfn-net/src/frame.rs) (`0x06`).
+Both decode to the same mempool ingress path.
+
+**Rehearsal soak.** Public-devnet mesh scripts accept `--dandelion`
 (`start-all`, `soak`, `participant-rehearsal-smoke`); wrappers
 [`dandelion-rehearsal-smoke.sh`](../scripts/public-devnet-v1/dandelion-rehearsal-smoke.sh)
 / [`dandelion-soak.sh`](../scripts/public-devnet-v1/dandelion-soak.sh) for
-local rehearsal. Nightly/CI default remains off; enabled mesh asserts
-`mfnd_dandelion=enabled` on every role.
+local rehearsal. Nightly/CI default remains off.
 
-**Remaining.** Optional stem wire label, eclipse-resistance peer diversity (P31).
+**Remaining.** Eclipse-resistance peer diversity (P31).
 
-**Effort:** high. **Risk:** high (network behavior + CI mesh).
+**Effort:** high. **Risk:** high (network behavior + CI mesh) — mitigated by opt-in default off.
 
 ### B8. Optional Tor/arti transport (`F5:P4`) — network layer
 
@@ -501,12 +504,12 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (opt-in relay + rehearsal soak plumbing), **B9** view tags (v2 wire + scanner) |
-| High impact, moderate effort | B7 wire label |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner) |
+| High impact, moderate effort | B8 (Tor), P31 eclipse diversity |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B7** optional stem wire label.
+Natural next step: **B8** optional Tor transport or **P31** peer diversity.
 
 ## See also
 

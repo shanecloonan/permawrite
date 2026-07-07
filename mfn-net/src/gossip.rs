@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use crate::chunk_v1::{ChunkV1, ChunkV1DecodeError, CHUNK_V1_TAG};
 use crate::frame::{
-    read_frame, write_frame_io, BlockV1, ChainTipV1, FrameReadError, FrameWriteError, GossipEndV1,
-    GossipPayloadDecodeError, TxV1,
+    is_tx_gossip_tag, read_frame, write_frame_io, BlockV1, ChainTipV1, FrameReadError,
+    FrameWriteError, GossipEndV1, GossipPayloadDecodeError, TxStemV1, TxV1,
 };
 use crate::handshake::{tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError};
 
@@ -120,9 +120,13 @@ pub fn recv_gossip_v1<R: Read>(
             return Err(GossipPayloadDecodeError::Empty.into());
         }
         match payload[0] {
-            0x06 => {
-                let tx = TxV1::decode_payload(&payload)?;
-                let _ = handler.on_tx_v1(tx.tx_wire());
+            tag if is_tx_gossip_tag(tag) => {
+                let tx_wire = if tag == crate::frame::TX_STEM_V1_TAG {
+                    TxStemV1::decode_payload(&payload)?.tx_wire().to_vec()
+                } else {
+                    TxV1::decode_payload(&payload)?.tx_wire().to_vec()
+                };
+                let _ = handler.on_tx_v1(&tx_wire);
                 stats.tx_frames = stats.tx_frames.saturating_add(1);
             }
             0x07 => {
@@ -145,9 +149,15 @@ pub fn recv_gossip_v1<R: Read>(
     }
 }
 
-/// Send one [`TxV1`] frame.
+/// Send one [`TxV1`] frame (fluff / legacy fan-out).
 pub fn send_tx_v1<W: Write>(w: &mut W, tx_wire: &[u8]) -> Result<(), FrameWriteError> {
     write_frame_io(w, &TxV1::encode_payload(tx_wire))?;
+    Ok(())
+}
+
+/// Send one [`TxStemV1`] frame (Dandelion++ stem phase, **B7**).
+pub fn send_tx_stem_v1<W: Write>(w: &mut W, tx_wire: &[u8]) -> Result<(), FrameWriteError> {
+    write_frame_io(w, &TxStemV1::encode_payload(tx_wire))?;
     Ok(())
 }
 
@@ -320,11 +330,35 @@ pub fn push_tx_gossip_to_peer(
     local_tip: &ChainTipV1,
     tx_wire: &[u8],
 ) -> Result<(), PushTxGossipError> {
+    push_tx_labeled_gossip_to_peer(peer_addr, genesis_id, local_tip, tx_wire, false)
+}
+
+/// Dial a peer, handshake, send one [`TxStemV1`], then [`GossipEndV1`] (**B7** stem wire).
+pub fn push_tx_stem_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    tx_wire: &[u8],
+) -> Result<(), PushTxGossipError> {
+    push_tx_labeled_gossip_to_peer(peer_addr, genesis_id, local_tip, tx_wire, true)
+}
+
+fn push_tx_labeled_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    tx_wire: &[u8],
+    stem_wire: bool,
+) -> Result<(), PushTxGossipError> {
     let (mut sock, _remote) =
         tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
-    send_tx_v1(&mut sock, tx_wire)?;
+    if stem_wire {
+        send_tx_stem_v1(&mut sock, tx_wire)?;
+    } else {
+        send_tx_v1(&mut sock, tx_wire)?;
+    }
     send_gossip_end_v1(&mut sock)?;
     Ok(())
 }
@@ -422,6 +456,18 @@ mod tests {
         let handler = ChunkHandler { expected };
         let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
         assert_eq!(stats.chunk_frames, 1);
+    }
+
+    #[test]
+    fn recv_gossip_v1_stem_tx_then_end() {
+        let tx_wire = vec![4u8, 5, 6];
+        let mut wire = Vec::new();
+        send_tx_stem_v1(&mut wire, &tx_wire).unwrap();
+        send_gossip_end_v1(&mut wire).unwrap();
+        let handler = MockHandler::new();
+        let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
+        assert_eq!(stats.tx_frames, 1);
+        assert_eq!(handler.tx.lock().unwrap()[0], tx_wire);
     }
 
     #[test]

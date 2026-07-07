@@ -10,10 +10,11 @@ use std::time::Duration;
 use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
-    push_tx_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v1,
-    send_gossip_end_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial,
-    BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
-    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
+    push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply,
+    send_block_v1, send_chunk_v1, send_gossip_end_v1, send_proposal_v1, send_vote_v1,
+    spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1,
+    FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook,
+    TipSnapshot,
 };
 use mfn_runtime::Chain;
 use mfn_store::{load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
@@ -777,10 +778,10 @@ impl P2pPeerSet {
             (true, RelayAction::Stem { peer }) => {
                 println!("mfnd_dandelion_stem tx_id={tx_id_hex} peer={peer}");
                 let _ = std::io::Write::flush(&mut std::io::stdout());
-                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex);
+                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex, true);
             }
             (false, RelayAction::Stem { peer }) => {
-                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex);
+                self.spawn_tx_push_to_peer(&peer, tx_wire, &tx_id_hex, false);
             }
         }
     }
@@ -817,7 +818,7 @@ impl P2pPeerSet {
         }
     }
 
-    fn spawn_tx_push_to_peer(&self, peer: &str, tx_wire: &[u8], tx_id_hex: &str) {
+    fn spawn_tx_push_to_peer(&self, peer: &str, tx_wire: &[u8], tx_id_hex: &str, stem_wire: bool) {
         let wire = Arc::new(tx_wire.to_vec());
         let genesis_id = self.genesis_id;
         let local = self.local_tip();
@@ -825,14 +826,27 @@ impl P2pPeerSet {
         let tx_id_hex = tx_id_hex.to_string();
         let peer_set = self.self_arc.clone();
         thread::Builder::new()
-            .name("mfnd-p2p-tx-stem".into())
-            .spawn(
-                move || match push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire) {
+            .name(if stem_wire {
+                "mfnd-p2p-tx-stem".into()
+            } else {
+                "mfnd-p2p-tx-fanout".into()
+            })
+            .spawn(move || {
+                let push = if stem_wire {
+                    push_tx_stem_gossip_to_peer(&peer, &genesis_id, &local, &wire)
+                } else {
+                    push_tx_gossip_to_peer(&peer, &genesis_id, &local, &wire)
+                };
+                match push {
                     Ok(()) => {
                         if let Some(peer_set) = peer_set.upgrade() {
                             peer_set.note_peer_success(&peer);
                         }
-                        println!("mfnd_p2p_tx_fanout_ok peer={peer} tx_id={tx_id_hex}");
+                        if stem_wire {
+                            println!("mfnd_p2p_tx_stem_ok peer={peer} tx_id={tx_id_hex}");
+                        } else {
+                            println!("mfnd_p2p_tx_fanout_ok peer={peer} tx_id={tx_id_hex}");
+                        }
                         let _ = std::io::Write::flush(&mut std::io::stdout());
                     }
                     Err(e) => {
@@ -841,8 +855,8 @@ impl P2pPeerSet {
                         }
                         eprintln!("mfnd_p2p_tx_fanout_abort peer={peer} tx_id={tx_id_hex} {e}");
                     }
-                },
-            )
+                }
+            })
             .ok();
     }
 }

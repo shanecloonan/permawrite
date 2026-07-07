@@ -262,7 +262,14 @@ pub fn recv_light_follow_v1<R: Read>(r: &mut R) -> Result<LightFollowV1, LightFo
                 return LightFollowV1::decode_payload(&payload)
                     .map_err(LightFollowRecvError::Decode);
             }
-            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | 0x07 | 0x08 | 0x0b => continue,
+            PROPOSAL_V1_TAG
+            | VOTE_V1_TAG
+            | CHUNK_V1_TAG
+            | 0x06
+            | crate::frame::TX_STEM_V1_TAG
+            | 0x07
+            | 0x08
+            | 0x0b => continue,
             tag => {
                 return Err(LightFollowRecvError::Decode(
                     LightFollowDecodeError::UnknownTag(tag),

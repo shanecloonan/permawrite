@@ -44,16 +44,17 @@ pub use chunk_v1::{
     ChunkV1, ChunkV1DecodeError, CHUNK_V1_HEADER_LEN, CHUNK_V1_TAG, MAX_CHUNK_V1_BODY_LEN,
 };
 pub use frame::{
-    decode_frame_prefix, encode_frame, read_frame, write_frame_io, BlockV1, ChainTipV1,
-    FrameDecodeError, FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1,
+    decode_frame_prefix, encode_frame, is_tx_gossip_tag, read_frame, write_frame_io, BlockV1,
+    ChainTipV1, FrameDecodeError, FrameEncodeError, FrameReadError, FrameWriteError, GoodbyeV1,
     GoodbyeV1DecodeError, GossipEndV1, GossipPayloadDecodeError, HelloDecodeError, HelloV1,
-    PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxV1, MAX_FRAME_PAYLOAD_LEN,
+    PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN,
+    TX_STEM_V1_TAG,
 };
 pub use gossip::{
     push_block_gossip_to_peer, push_chunk_gossip_to_peer, push_chunks_gossip_to_peer,
-    push_tx_gossip_to_peer, recv_gossip_v1, send_block_v1, send_chunk_v1, send_gossip_end_v1,
-    send_tx_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats, PushTxGossipError,
-    P2P_GOSSIP_IO_TIMEOUT,
+    push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer, recv_gossip_v1, send_block_v1,
+    send_chunk_v1, send_gossip_end_v1, send_tx_stem_v1, send_tx_v1, FanoutPeerSet, GossipHandler,
+    GossipRecvError, GossipRecvStats, PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,

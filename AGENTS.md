@@ -84,17 +84,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 **B-05 PASS** — soak run `28851202993` on `8ccda5d`: 8 iterations, max_height=48, observer restart OK. Evidence commit `234f0a8`.
 
-**RC push hold:** CI in progress on `d0d0bfb` (run `28865550170`). Lane 2: release evidence after green.
+**RC push hold:** CI in progress on `e2f3f63` (run `28867402908`). Lane 2: release evidence after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **In progress** — await CI `28865550170` green on `d0d0bfb` | RC audit dry-run |
+| **2** | Release evidence refresh | **In progress** — await CI `28867402908` green on `e2f3f63` | RC audit dry-run |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **In progress** — MFEO wire + consensus/mempool gate | M5 proptests with flag=1 |
-| **5** | B7 Dandelion++ rehearsal soak plumbing | **Done** - this commit | B7 wire label (optional) |
+| **5** | B7 Dandelion++ stem wire label (`TxStemV1`) | **Done** - this commit | B8 Tor transport (research) |
 | **6** | B-11 endowment opening (with lane 4) | **In progress** — `require_endowment_opening` param | Enable on public devnet genesis |
 
 ---
@@ -131,7 +131,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 - **B-05 Linux soak PASS** (`28851202993` on `8ccda5d`) - RC core (lane 1): 35m / 30s-slot soak — 8 iterations, max_height=48, observer restart; evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt`.
 - **M2.5.65 (GHA converge)** (`8ccda5d`) - RC core (lane 1): soak GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` when `get_status` reports null sessions; soak `28850304866` passed hub_produced then failed converge.
 - **M2.5.65** (`76cc778`) - RC core (lane 1): soak WARMUP health-check — `query_get_status_compat_line` prefers mfn-cli `status` (real `p2p.session_count`) over tip synthesis that returned null sessions.
-- **B7 (rehearsal soak)** (this commit) - privacy surface (lane 5): `--dandelion` on `start-all` / `soak` / `participant-rehearsal-smoke` (default off); `dandelion-rehearsal-smoke` + `dandelion-soak` wrappers; mesh asserts `mfnd_dandelion=enabled` when enabled.
+- **B7 (stem wire label)** (this commit) - privacy surface (lane 5): `TxStemV1` P2P tag `0x11` for Dandelion++ stem relays; fluff stays on `TxV1` (`0x06`); recv path accepts both.
+- **B7 (rehearsal soak)** (`e2f3f63`) - privacy surface (lane 5): `--dandelion` on `start-all` / `soak` / `participant-rehearsal-smoke` (default off); `dandelion-rehearsal-smoke` + `dandelion-soak` wrappers; mesh asserts `mfnd_dandelion=enabled` when enabled.
 - **B9 (phase 2)** (`366dfaf`) - privacy surface (lane 5): tx v2 wire adds 1-byte `view_tag` per output (consensus-bound in preimage); reference wallet/coinbase set tags on send; scanner skips ~256× mismatches before stealth-detect; legacy v1 txs still decode/verify.
 - **B9 (phase 1)** (`d0d0bfb`) - privacy surface (lane 5): `indexed_view_tag` / `indexed_view_tag_from_shared` in `mfn-crypto` stealth (F5-P7 prep for wire + scanner).
 - **B7 (phase 2)** (this commit) - privacy surface (lane 5): `MFND_DANDELION=1` env + `--dandelion` CLI parse tests.
