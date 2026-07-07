@@ -80,17 +80,17 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-06)
+## CI gate (2026-07-07)
 
-**CI #28845429505 GREEN** on `5221dad`. **Linux soak** run `28849489102` FAIL — hub tip reached 1 in `start-all` but WARMUP health-check required P2P sessions (fixed M2.5.65). **CI #28838850432 GREEN** on `934cc2f`. **Nightly #64 GREEN** (run `28841761235`).
+**M2.5.65** (`76cc778`) — soak WARMUP fix: `query_get_status_compat_line` prefers mfn-cli `status` for real P2P counts. **CI #28845429505 GREEN** on `5221dad`. **Linux soak** run `28849489102` **FAIL** (null session_count; fixed above). **Nightly #64 GREEN** (run `28841761235`).
 
-**RC push hold:** lifted.
+**RC push hold:** CI in progress on `76cc778`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B-05 Linux soak PASS (M2.5.65 WARMUP fix) | **In progress** — re-dispatch soak | Release evidence on green stack (lane 2) |
+| **1** | B-05 Linux soak PASS (M2.5.65 WARMUP fix) | **In progress** — CI on `76cc778`; soak after green | Release evidence (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
@@ -128,6 +128,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M2.5.65** (`76cc778`) - RC core (lane 1): soak WARMUP health-check — `query_get_status_compat_line` prefers mfn-cli `status` (real `p2p.session_count`) over tip synthesis that returned null sessions.
 - **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
 - **B13 authorship + GHA timing** (`5d5cf64`–`934cc2f`) - privacy surface (lane 5): MFCL claim preview uses padded bucket payload; WASM parity (`7821099`); `GITHUB_ACTIONS` hub-timing budget for three-validator smoke; **CI #28838850432 GREEN**.
 - **B13 spora fix** (`96fe808`) - revert auto-pad inside `build_storage_commitment`; bucket padding at wallet/WASM/consensus only.

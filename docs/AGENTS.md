@@ -68,16 +68,16 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.51 (`0d9646a`) - start-all GHA hub_tip_wait uses MFN_POLL_HUB_MAX; observer catchup soft gate.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
 
-### Doing
+### Done
 
-- [ ] **M2.5.65** — `query_get_status_compat_line` prefers mfn-cli `status` (real P2P counts) over tip synthesis (claim base: `5802e7f`).
+- [x] M2.5.65 — soak WARMUP health-check uses mfn-cli `status` for P2P session counts (`76cc778`).
 
 ### Next
 
 - [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
 - [x] Monitor green CI after B13 tail — **CI #28838850432 GREEN** on `934cc2f`.
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
-- [ ] **B-05 Linux soak PASS** — run `28849489102` FAIL (null session_count); M2.5.65 fix pending push.
+- [ ] **B-05 Linux soak PASS** — await CI green on `76cc778`, then auto-dispatch soak.
 
 ### Do not start (other lanes)
 
