@@ -502,11 +502,12 @@ fn public_devnet_hub_reaches_height_one_within_one_slot_duration() {
     drain_stdout(out2);
 
     let mesh_ready = Instant::now();
-    // Local dev: keep the one-slot SLA tight. GHA ubuntu runners under the
-    // full workspace test matrix routinely need multiple slot periods before
-    // the three-validator mesh seals block 1; use the same budget as
+    // Local dev: keep the one-slot SLA tight. GHA runners under the full
+    // workspace test matrix routinely need multiple slot periods before the
+    // three-validator mesh seals block 1; use the same budget as
     // `wait_first_block` so we still catch genesis stalls without flaky CI.
-    let within_one_slot = if std::env::var("CI").is_ok() {
+    let gha_runner = std::env::var("GITHUB_ACTIONS").is_ok() || std::env::var("CI").is_ok();
+    let within_one_slot = if gha_runner {
         Duration::from_secs(20)
     } else {
         Duration::from_millis(slot_ms + 1_500)
