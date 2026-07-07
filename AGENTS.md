@@ -91,7 +91,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | B-05 Linux soak PASS | **Done** — soak `28851202993` + evidence `234f0a8` | Idle |
-| **2** | Release evidence refresh | **Done** — `release-evidence-837069a` + RC audit go | Idle |
+| **2** | Release evidence refresh | **In progress** — CI ancestor lookup (`61a3145`); awaiting green CI | Archive `release-evidence-0fee187` after green |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | B7 rehearsal soak (with lane 5) |
 | **4** | B-11 endowment opening binding | **Done** — `0fee187` public devnet genesis enable | Monitor CI + Nightly |
 | **5** | F7/B15 two-input wallet floor (`WALLET_MIN_TX_INPUTS`) | **Done** - `837069a` | B8 Tor transport (research) |
