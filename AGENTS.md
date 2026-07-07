@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-06)
 
-**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #63 GREEN** (run `28792429191`). **M2.5.64** landed `c5e69f6`.
+**CI #28838850432 GREEN** on `934cc2f` (full matrix: B13 authorship + WASM bucket parity + GHA hub-timing fix). **Nightly #64 GREEN** (run `28841761235`, auto-dispatched on green CI). **Nightly #63 GREEN** (run `28792429191`). **B-05 Linux soak** in progress (run `28841761161`, M2.5.64 bootstrap).
 
 **RC push hold:** lifted.
 
@@ -90,7 +90,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Green CI on B13 fix stack (`934cc2f`) | **Done** - CI #28838850432 | B-05 Linux soak dispatch |
+| **1** | B-05 Linux soak PASS (M2.5.64 bootstrap) | **In progress** — run `28841761161` | Release evidence on `934cc2f` (lane 2) |
 | **2** | M2.5.59 schema-python invoke + release evidence | **Done** - `b1c8e6a` | Re-run evidence on `934cc2f` |
 | **3** | M7.11.2 STORAGE_ACCESSIBILITY Phase B | **Done** - `0650ad6` | Nightly #63 PASS (`28792429191`) |
 | **4** | DOCS-PH-1 `docs/PERMANENCE_HARDENING.md` | **Done** - docs-only | B-11 endowment-opening consensus binding |
@@ -129,6 +129,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 ## Recently completed
 
 - **B7 (phase 1)** (`1cc9ead`) - privacy surface (lane 5): Dandelion++ stem/fluff tx relay — `dandelion.rs` + opt-in `mfnd serve --dandelion`; default off preserves legacy parallel fan-out for CI.
+- **B13 authorship + GHA timing** (`5d5cf64`–`934cc2f`) - privacy surface (lane 5): MFCL claim preview uses padded bucket payload; WASM parity (`7821099`); `GITHUB_ACTIONS` hub-timing budget for three-validator smoke; **CI #28838850432 GREEN**.
 - **B13 spora fix** (`96fe808`) - revert auto-pad inside `build_storage_commitment`; bucket padding at wallet/WASM/consensus only.
 - **B13 test parity** (`e98ff4f`) - mfn-node chunk/archive tests use canonical bucket payloads.
 - **B13 (consensus)** (`3d8574c`) - privacy surface (lane 5): consensus-mandatory upload size buckets — `validate_storage_commitment_shape` rejects NEW anchors whose `size_bytes` is not a canonical power-of-two bucket; CLI persists `UploadArtifacts.anchored_payload`; legacy artifact rebuild pads raw payloads.

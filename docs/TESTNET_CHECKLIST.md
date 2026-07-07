@@ -222,6 +222,12 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Nightly #63** after green CI on M2.5.49–59 stack — all three green (`28792429191`; B-06 gate closed).
 - [x] **B13 wallet** (`4712811`) — upload size buckets (wallet layer).
 - [x] **B13 consensus** (`3d8574c`) — reject non-bucket `size_bytes`; `anchored_payload` artifacts.
+- [x] **CI #28838850432 GREEN** on `934cc2f` (B13 authorship + GHA timing fix stack).
+- [x] **Nightly #64** on `934cc2f` — all three green (`28841761235`).
+- [x] **B13 tail** (`96fe808`–`934cc2f`) — spora revert, authorship bucket parity, WASM + GHA timing.
+- [x] **M2.5.64** (`c5e69f6`) — Linux soak pre-build bootstrap.
+- [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off).
+- [ ] **B-05 Linux soak** — run `28841761161` in progress (M2.5.64).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

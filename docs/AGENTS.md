@@ -71,8 +71,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **Nightly #63** all three green (`28792429191` on `85e5870` stack; B-06 gate closed).
-- [ ] Monitor green CI after B13 tail + M2.5.64 soak fix.
-- [ ] Linux 30s-slot soak (manual **Linux Soak Audit** workflow after M2.5.64).
+- [x] Monitor green CI after B13 tail — **CI #28838850432 GREEN** on `934cc2f`.
+- [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
+- [ ] **B-05 Linux soak** — run `28841761161` in progress (auto-dispatched after green CI).
 
 ### Do not start (other lanes)
 
