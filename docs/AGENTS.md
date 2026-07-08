@@ -295,9 +295,35 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ---
 
+## Lane 7 — Testnet launch (internet-facing go-live)
+
+**Owns:** [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) TL phases, VPS deployment runbook, `seed_nodes` publication, launch ceremony tracking, `launch-status.*`.
+
+**Does not own:** M5/F7 protocol (lane 4), release-evidence generators (lane 2), Nightly/CI fixes (lane 1).
+
+### Done
+
+- (none yet)
+
+### Doing
+
+- [ ] **TL-1** — charter + ordered playbook + `launch-status` helper (claim base: `a6aebab`)
+
+### Next
+
+- [ ] **TL-2** — green CI on head + `release-ci-watch` (blocked: CI `#28917267975`)
+- [ ] **TL-3** — `release-evidence` + RC audit dry-run go on head
+
+### Do not start
+
+- B3 replication accounting — lanes 4+6.
+- F7 / consensus tail — lanes 4+5.
+
+---
+
 ## TESTNET_CHECKLIST mirror
 
-RC lanes 1–3 must keep [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) in sync when they land units. Lanes 4–6 add a one-line note under **Agent coordination** when they ship protocol or privacy-surface changes.
+RC lanes 1–3 must keep [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) in sync when they land units. Lanes 4–6 add a one-line note under **Agent coordination** when they ship protocol or privacy-surface changes. Lane 7 mirrors TL units into [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md).
 
 ---
 

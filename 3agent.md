@@ -3,6 +3,35 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-08 (Lane 7 testnet launch — TL-1)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Lane 7 charter** | **In progress** | `docs/TESTNET_LAUNCH.md`, `launch-status.*`, `.cursor/rules/lane-7-testnet-launch.mdc` |
+| **TL-2** | **Blocked** | CI `#28917267975` on `a6aebab` must green before release-evidence refresh |
+
+**Lane 7 — Done:** (prior units none) **Doing:** TL-1 **Next:** TL-2 after green CI
+
+---
+
+## Session — 2026-07-08 AM (F7 stack CI `#28917267975` on `a6aebab`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 full test tail** | **Done** — `a6aebab` | smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17` + clippy fix |
+| **CI #28917267975** | **In progress** | clippy/rustfmt/audit/wasm/scripts **GREEN**; matrix tests running |
+| **Prior CI #28915985296** | **Failed** | pre-`4a320ad` single-input proptests (fixed) |
+
+### RC push hold
+
+**Active** — monitor CI `#28917267975`; lane 2 evidence after green.
+
+### Next priority
+
+**Lane 1:** CI green → optional Nightly on head. **Lane 2:** release evidence refresh. **Lane 4+6:** B3 replication accounting.
+
+---
+
 ## Session — 2026-07-07 PM (F7 block_apply pad inputs → CI `#28917060257`)
 
 | Gate | Status | Notes |

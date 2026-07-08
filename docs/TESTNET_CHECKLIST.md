@@ -34,6 +34,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **M7.11.2** (lane 3) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md` (`0650ad6`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
+- [ ] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (in progress).
 - [x] **B-11** (lanes 4+6) — `MFEO` endowment opening in `tx.extra`; `require_endowment_opening` param; phase 1 + proptests (`9f0a0aa`); public devnet genesis enable (`endowment.require_endowment_opening: 1` in `public_devnet_v1.json`, same `genesis_id`).
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

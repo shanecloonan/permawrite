@@ -75,27 +75,29 @@ Update **all applicable** surfaces in the same session  -  do not rely on chat a
 | **4** | Protocol hardening | M5 privacy + permanence tests, `apply_block` invariants, ring/SPoRA consensus guards | RC Nightly fixes, `push-all-chunks` |
 | **5** | Privacy surface | Wallet/CLI/WASM ring defaults, privacy doc accuracy, no silent downgrade UX | M7.10 replication, GHA rehearsal |
 | **6** | Permanence depth | Treasury/emission sims, SPoRA payout invariants, operator-bonding research | RC Nightly, `push-all-chunks` |
+| **7** | Testnet launch | Internet-facing go-live (`docs/TESTNET_LAUNCH.md`), VPS runbook, `seed_nodes` publication, launch ceremony | Protocol tests (4/6), CI/Nightly fixes (1), evidence tooling (2) |
 
-Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes before they exceed ~2 active units.
+Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes before they exceed ~2 active units.
 
 ---
 
-## CI gate (2026-07-07)
+## CI gate (2026-07-08)
 
-**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17`. **CI `#28917060257` in progress** on `668cf17`.
+**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `a6aebab`. **CI `#28917267975` in progress** — clippy/rustfmt/audit/wasm GREEN; matrix tests running.
 
-**RC push hold:** monitor CI `#28917060257`; no code pushes until green.
+**RC push hold:** monitor `#28917267975`; lane 2 evidence after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28917060257` on `668cf17` | **Monitor** — F7 test tail | Nightly on green head |
-| **2** | F7 full test alignment | **Waiting** — evidence after CI green | Human sign-off packet |
+| **1** | CI `#28917267975` on `a6aebab` | **Monitor** — F7 test tail | Nightly on green head |
+| **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 `min_input_count` at `verify_transaction` | **Done** — `3933cf0` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
+| **7** | TL-1 launch charter + playbook | **In progress** — `docs/TESTNET_LAUNCH.md` + `launch-status` | TL-2 after CI green on head |
 
 ---
 
@@ -122,6 +124,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | 2 | 1 | Green CI on M2.5.43–45 stack before Nightly #62 dispatch | **Done** - CI #636 |
 | 3 | 1 | Nightly #63 participant + observer PASS | **Done** - run `28792429191` |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
+| 7 | 1 | Green CI on head before TL-2 release-evidence refresh | **Open** — CI `#28917267975` on `a6aebab` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
 ---

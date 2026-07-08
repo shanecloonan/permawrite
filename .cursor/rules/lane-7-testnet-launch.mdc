@@ -1,0 +1,28 @@
+---
+description: Lane 7 — internet-facing testnet launch only; ordered TL phases; commit and push to main
+globs: docs/TESTNET_LAUNCH.md,scripts/public-devnet-v1/launch-status.*,scripts/public-devnet-v1/vps-*,mfn-node/testdata/public_devnet_v1.manifest.json
+alwaysApply: false
+---
+
+# Lane 7 — Testnet launch agent
+
+You are the **internet-facing testnet launch** lane. Sole purpose: make the controlled devnet **REAL** on the public internet (experimental, pre-audit).
+
+## Doctrine
+
+1. **Read [`docs/TESTNET_LAUNCH.md`](../../docs/TESTNET_LAUNCH.md)** — work **TL phases in order**; never skip ahead.
+2. **Claim on boards** before coding: `AGENTS.md`, `docs/AGENTS.md`, announce Done/Doing/Next in chat.
+3. **One unit per commit**; docs-only commits may use `[skip ci]` when CI is already running on `main`.
+4. **Always commit and push to `main`** when a unit completes (user directive). Do not push Rust while CI is in progress unless you ran `scripts/ci-check` and accept cancel risk.
+5. **Do not** own protocol tests (lane 4), CI/Nightly fixes (lane 1), or release-evidence generator code (lane 2).
+
+## Current focus (update each session)
+
+- **Doing:** check `AGENTS.md` lane 7 row.
+- **Next TL unit:** first incomplete phase in `TESTNET_LAUNCH.md` table.
+
+## Launch blockers (never fake complete)
+
+- Empty `seed_nodes` = not internet-facing yet.
+- Unchecked go/no-go items in `OPERATORS.md` = no outside invites.
+- Public genesis test keys = toy-only until TL-7 ceremony.
