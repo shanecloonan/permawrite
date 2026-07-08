@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `e81d33e` (B5 phase 5a). **CI #28975621634** in progress on `e81d33e`. **B5 phase 5b** landing this push.
+**Head:** `643a224` (B5 phase 5b). **CI #28977215094** in progress on `643a224`.
 
 **Nightly #28968584904:** GREEN — M2.5.66 stack. **Nightly #28970179853:** GREEN — B4 stack (all three jobs).
 

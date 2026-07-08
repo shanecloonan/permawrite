@@ -20,8 +20,7 @@
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **B5 phase 5b** | **This push** | Retained register bond; `StorageOperatorStats`; checkpoint **v9**; pre-proof stale challenge gate |
-| **Local CI** | **GREEN** | `ci-check-b5.log` on 5b stack |
-| **CI #28975621634** | **In progress** | `e81d33e` B5 5a (superseded by 5b push) |
+| **CI #28977215094** | **In progress** | `643a224` B5 5b stack |
 
 **Lane 4+6 — Done:** B5 5a `e81d33e` **Doing:** B5 5b push **Next:** B5 5c slash → treasury  
 **Lane 1 — Done:** full RC stack **Doing:** CI on B5 stack **Next:** Nightly re-dispatch
