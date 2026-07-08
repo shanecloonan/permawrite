@@ -7,7 +7,8 @@
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **CI / Nightly / RC** | **GREEN** | No open failures on `44b25b6` stack |
+| **CI / Nightly / RC** | **GREEN** | No open failures on `96462aa` stack |
+| **Release evidence** | **Done** | `96462aa` + RC audit dry-run **go** |
 | **Doc fix** | **This commit** | `STORAGE.md` + `PERMANENCE_HARDENING.md` §A6/B1: MFEO opening shipped; stale lane checkboxes cleared |
 | **B-11 + B7 stack** | **Done** | MFEO genesis + dandelion rehearsal PASS |
 
@@ -112,7 +113,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | Nightly `#28889931523`; CI `#28885223488` GREEN | — | B2 Merkle-path gossip (lane 4) |
-| **2** RC ops | Release evidence `44b25b6` + RC audit **go** | — | Human sign-off packet |
+| **2** RC ops | Release evidence `96462aa` + RC audit **go** | — | Human sign-off packet |
 | **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---

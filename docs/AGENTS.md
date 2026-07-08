@@ -81,7 +81,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
 - [x] **Nightly #28889931523** all three green on B-11/B7 stack (`b1072e3`).
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
-- [x] Release evidence refresh on green CI (lane 2) — `release-evidence-1bbc3af` (`c8e6cc1`).
+- [x] Release evidence refresh on green CI (lane 2) — `release-evidence-96462aa` (this commit).
 
 ### Do not start (other lanes)
 
@@ -113,11 +113,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.4.90 — `ci-check.sh` thread cap parity (`aae3097`).
 
-- [x] **Release evidence refresh** — `release-evidence-44b25b6` + RC audit dry-run go (CI `28885223488` on `0d28e4f`).
+- [x] **Release evidence refresh** — `release-evidence-96462aa` + RC audit dry-run go (CI `28885223488` on `0d28e4f`).
 
 ### Next
 
-- [ ] Linux 30s-slot soak re-run (B-05 maintenance).
+- [x] Idle — RC gates green; periodic B-05 soak re-run is maintenance only (not blocking).
 
 ### Do not start
 
