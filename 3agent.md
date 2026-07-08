@@ -11,7 +11,7 @@
 | **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
 | **4+6** Protocol | B3 phase 1 `eea59aa` | **B3 phase 2** `apply_block` wire (this push) | Bonding registry + M5 proptests |
-| **7** Testnet | TL-1–TL-5 tooling `5a74d57` | Await VPS provision | `vps-internet-soak.sh` + archive evidence |
+| **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
 

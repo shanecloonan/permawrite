@@ -97,7 +97,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **4** | B3 phase 2 `apply_block` wire | **Done** — this push | Bonding registry + M5 proptests |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B3 phase 2 with lane 4 | **Done** — this push | Operator bonding research |
-| **7** | TL-6 VPS participant rehearsal tooling | **In progress** — `vps-participant-rehearsal.sh` | TL-5/6 execution on VPS |
+| **7** | TL-6 VPS participant rehearsal tooling | **Done** — `ef3cbc4` | TL-5/6 execution on VPS |
 
 ---
 

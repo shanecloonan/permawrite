@@ -311,9 +311,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-4** — single-VPS runbook (`2f77eb4`: `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`)
 - [x] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps` (`5a74d57`)
 
+- [x] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps` (`ef3cbc4`)
+
 ### Doing
 
-- [ ] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps`
+- [ ] *(idle — awaiting VPS provision for TL-5/6 execution)*
 
 ### Next
 
