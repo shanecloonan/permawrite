@@ -679,6 +679,208 @@ fn duplicate_storage_proof_in_one_block_rejected() {
     }
 }
 
+fn b3_test_endowment_params() -> EndowmentParams {
+    EndowmentParams {
+        operator_salted_challenges: 1,
+        min_replication: 1,
+        real_yield_ppb: 50_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    }
+}
+
+fn genesis_with_b3_storage(built: &BuiltCommitment) -> ChainState {
+    let ep = b3_test_endowment_params();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    apply_genesis(&g, &cfg).unwrap()
+}
+
+#[test]
+fn b3_two_operator_proofs_same_block_accepted() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b3_storage(&built);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let p1 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v1,
+        s1,
+    )
+    .unwrap();
+    let proofs = vec![p0, p1];
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, 5_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => {
+            let ch = storage_commitment_hash(&built.commit);
+            let entry = state.storage.get(&ch).expect("storage entry");
+            assert_eq!(entry.last_proven_slot, 5_000);
+            assert!(entry.pending_yield_ppb > 0);
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+#[test]
+fn b3_duplicate_operator_proof_rejected() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b3_storage(&built);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let proofs = vec![p.clone(), p];
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, 5_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProofOperator { .. })),
+                "expected DuplicateStorageProofOperator, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate operator must reject the block"),
+    }
+}
+
+#[test]
+fn b3_replication_cap_exceeded_rejected() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 2, None).unwrap();
+    let state0 = genesis_with_b3_storage(&built);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let p1 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v1,
+        s1,
+    )
+    .unwrap();
+    use curve25519_dalek::constants::ED25519_BASEPOINT_POINT as G;
+    let v2 = G * Scalar::from(7u64);
+    let s2 = G * Scalar::from(11u64);
+    let p2 = mfn_storage::build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+        v2,
+        s2,
+    )
+    .unwrap();
+    let proofs = vec![p0, p1, p2];
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, 5_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofReplicationExceeded { .. })),
+                "expected StorageProofReplicationExceeded, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("replication cap must reject the block"),
+    }
+}
+
+#[test]
+fn b3_legacy_challenge_rejected_when_enabled() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b3_storage(&built);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
+    let p = mfn_storage::build_test_storage_proof(
+        &built.commit,
+        &scratch.prev_hash,
+        5_000,
+        &payload,
+        &built.tree,
+    );
+    let proofs = vec![p];
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, 5_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofInvalid { .. })),
+                "expected StorageProofInvalid for legacy proof under B3, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("legacy challenge must reject when B3 enabled"),
+    }
+}
+
 #[test]
 fn storage_proof_for_unknown_commit_rejected() {
     let state0 = empty_genesis_with_endowment(DEFAULT_ENDOWMENT_PARAMS);

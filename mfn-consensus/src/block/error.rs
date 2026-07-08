@@ -301,4 +301,26 @@ pub enum BlockError {
         /// Structured reason from the SPoRA verifier.
         reason: StorageProofCheck,
     },
+    /// Two operator-salted proofs in the block target the same commitment
+    /// and operator identity (B3).
+    #[error("storage_proofs[{index}]: duplicate operator {operator_id} for commit {commit_hash}")]
+    DuplicateStorageProofOperator {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Hex prefix of the commitment hash.
+        commit_hash: String,
+        /// Hex prefix of the operator identity.
+        operator_id: String,
+    },
+    /// A block carried more distinct operator proofs for one commitment than
+    /// its replication factor allows (B3).
+    #[error("storage_proofs[{index}]: replication cap exceeded for {commit_hash} (max {max})")]
+    StorageProofReplicationExceeded {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Hex prefix of the commitment hash.
+        commit_hash: String,
+        /// Configured replication for the commitment.
+        max: u8,
+    },
 }

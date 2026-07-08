@@ -173,6 +173,7 @@ struct EndowmentSection {
     slots_per_year: Option<u64>,
     proof_reward_window_slots: Option<u64>,
     require_endowment_opening: Option<u8>,
+    operator_salted_challenges: Option<u8>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -258,6 +259,9 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
         require_endowment_opening: e
             .require_endowment_opening
             .unwrap_or(base.require_endowment_opening),
+        operator_salted_challenges: e
+            .operator_salted_challenges
+            .unwrap_or(base.operator_salted_challenges),
     }
 }
 

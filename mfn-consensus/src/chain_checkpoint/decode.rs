@@ -36,6 +36,11 @@ fn decode_endowment_params(
         } else {
             0
         },
+        operator_salted_challenges: if checkpoint_version >= 5 {
+            read_u8(r, "endowment_params.operator_salted_challenges")?
+        } else {
+            0
+        },
     })
 }
 
@@ -239,7 +244,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if version != 1 && version != 2 && version != 3 && version != 4 {
+    if version != 1 && version != 2 && version != 3 && version != 4 && version != 5 {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -355,7 +360,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3 | 4 => decode_claims_state_v3(&mut r)?,
+        3 | 4 | 5 => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }

@@ -566,6 +566,37 @@ pub fn test_operator_payout_keys() -> (EdwardsPoint, EdwardsPoint) {
     (generator_g(), generator_g() * Scalar::from(2u64))
 }
 
+/// Deterministic alternate operator payout keys for multi-operator tests.
+pub fn test_operator_payout_keys_alt() -> (EdwardsPoint, EdwardsPoint) {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::point::generator_g;
+    (
+        generator_g() * Scalar::from(3u64),
+        generator_g() * Scalar::from(5u64),
+    )
+}
+
+/// Build a valid operator-salted storage proof with deterministic test keys.
+pub fn build_test_storage_proof_operator_salted(
+    commit: &StorageCommitment,
+    prev_block_id: &[u8; 32],
+    slot: u32,
+    data: &[u8],
+    tree: &MerkleTree,
+) -> StorageProof {
+    let (operator_view_pub, operator_spend_pub) = test_operator_payout_keys();
+    build_storage_proof_operator_salted(
+        commit,
+        prev_block_id,
+        slot,
+        data,
+        tree,
+        operator_view_pub,
+        operator_spend_pub,
+    )
+    .expect("build_test_storage_proof_operator_salted")
+}
+
 /// Build a valid storage proof with deterministic test operator keys.
 pub fn build_test_storage_proof(
     commit: &StorageCommitment,
@@ -839,31 +870,38 @@ mod tests {
         let d = data_1mib();
         let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
         let prev = [2u8; 32];
-        let slot = 7u32;
         let c_hash = storage_commitment_hash(&built.commit);
         let (v0, s0) = test_operator_payout_keys();
-        use curve25519_dalek::scalar::Scalar;
-        use mfn_crypto::point::generator_g;
-        let v1 = generator_g() * Scalar::from(3u64);
-        let s1 = generator_g() * Scalar::from(5u64);
+        let (v1, s1) = test_operator_payout_keys_alt();
         let id0 = operator_identity_from_payout(&v0, &s0);
         let id1 = operator_identity_from_payout(&v1, &s1);
         assert_ne!(id0, id1);
-        let idx0 =
-            chunk_index_for_operator_challenge(&prev, slot, &c_hash, &id0, built.commit.num_chunks);
-        let idx1 =
-            chunk_index_for_operator_challenge(&prev, slot, &c_hash, &id1, built.commit.num_chunks);
-        // With 16 chunks, collision probability is low; if equal, perturb slot.
-        if idx0 == idx1 {
-            let idx1b = chunk_index_for_operator_challenge(
+        // Per-slot index collision is possible; scan slots until operators diverge.
+        let mut found = false;
+        for slot in 0u32..512 {
+            let idx0 = chunk_index_for_operator_challenge(
                 &prev,
-                slot.wrapping_add(1),
+                slot,
+                &c_hash,
+                &id0,
+                built.commit.num_chunks,
+            );
+            let idx1 = chunk_index_for_operator_challenge(
+                &prev,
+                slot,
                 &c_hash,
                 &id1,
                 built.commit.num_chunks,
             );
-            assert_ne!(idx0, idx1b, "expected distinct operator challenges");
+            if idx0 != idx1 {
+                found = true;
+                break;
+            }
         }
+        assert!(
+            found,
+            "expected distinct operator challenges within 512 slots"
+        );
     }
 
     #[test]

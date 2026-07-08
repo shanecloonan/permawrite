@@ -33,6 +33,9 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 4 {
         w.u8(p.require_endowment_opening);
     }
+    if checkpoint_version >= 5 {
+        w.u8(p.operator_salted_challenges);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {

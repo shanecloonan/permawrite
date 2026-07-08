@@ -192,8 +192,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; this commit).
-- [ ] **B3 phase 2** — per-operator proof slots + `apply_block` wire (PERMANENCE_HARDENING §B3; with lane 6).
+- [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
+- [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
 
 ### Handoff to lane 3
 
@@ -313,7 +313,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **B3 phase 2** — wire operator-salted challenges into `apply_block` (with lane 4)
+- [x] **B3 phase 2** — wire operator-salted challenges into `apply_block` (with lane 4)
 
 ### Done (B3)
 

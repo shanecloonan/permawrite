@@ -7,15 +7,26 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F7 CI `#28924060054` GREEN; `dc22cb7` + `b70b3ec` Nightly fixes | Monitor CI on `5a74d57` stack | Nightly re-dispatch after green |
-| **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on `5a74d57` green head |
+| **1** RC core | F7 CI `#28924060054` GREEN; B3 phase 1 `eea59aa` | Monitor CI on B3 phase 2 stack | Nightly after green |
+| **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | B3 phase 1 operator-salted challenges | **B3 phase 2** `apply_block` wire | Per-operator proof slots |
+| **4+6** Protocol | B3 phase 1 `eea59aa` | **B3 phase 2** `apply_block` wire (this push) | Bonding registry + M5 proptests |
 | **7** Testnet | TL-1–TL-5 tooling `5a74d57` | Await VPS provision | `vps-internet-soak.sh` + archive evidence |
 
 ---
 
-## Session — 2026-07-08 (Lane 7 TL-5 — VPS internet soak tooling)
+## Session — 2026-07-08 (B3 phase 2 — apply_block replication accounting)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 2** | **Done** — this push | `operator_salted_challenges` flag; per-operator dedup; replication cap; payout split; checkpoint v5 |
+| **B3 tests** | **Done** | 4× `block_apply` B3 tests; clippy + fmt green |
+| **CI** | **Monitor** | Prior `#28930546797` on `eea59aa`; this push dispatches new matrix |
+
+**Lane 4+6 — Done:** B3 phase 2 **Doing:** — **Next:** operator bonding registry + M5 proptests
+
+---
+
 
 | Unit | Status | Notes |
 | --- | --- | --- |

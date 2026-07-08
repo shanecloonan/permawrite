@@ -628,13 +628,56 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
 
     // ---- Storage proofs: per-block SPoRA audit + endowment-proportional
     //      reward accrual via the PPB accumulator ----
+    let b3_operator_salted = next.endowment_params.operator_salted_challenges != 0;
     let mut seen_proofs: HashSet<[u8; 32]> = HashSet::new();
+    let mut seen_operator_proofs: HashSet<[u8; 64]> = HashSet::new();
+    let mut commit_proof_count: HashMap<[u8; 32], u8> = HashMap::new();
+    let mut commit_baseline: HashMap<[u8; 32], (u64, u128)> = HashMap::new();
+    let mut commit_state_updated: HashSet<[u8; 32]> = HashSet::new();
     let mut accepted_storage_proofs: u128 = 0;
     let mut storage_bonus_total: u128 = 0;
     let mut accepted_proof_settlements: Vec<(mfn_storage::StorageProof, u128)> = Vec::new();
     let current_slot = u64::from(block.header.slot);
     for (pi, proof) in block.storage_proofs.iter().enumerate() {
-        if !seen_proofs.insert(proof.commit_hash) {
+        if b3_operator_salted {
+            let count = commit_proof_count
+                .get(&proof.commit_hash)
+                .copied()
+                .unwrap_or(0);
+            let entry = match next.storage.get(&proof.commit_hash) {
+                Some(e) => e,
+                None => {
+                    errors.push(BlockError::StorageProofUnknownCommit {
+                        index: pi,
+                        commit_hash: hex_short(&proof.commit_hash),
+                    });
+                    continue;
+                }
+            };
+            if count >= entry.commit.replication {
+                errors.push(BlockError::StorageProofReplicationExceeded {
+                    index: pi,
+                    commit_hash: hex_short(&proof.commit_hash),
+                    max: entry.commit.replication,
+                });
+                continue;
+            }
+            let operator_id =
+                operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+            let dedup_key = proof_operator_dedup_key(&proof.commit_hash, &operator_id);
+            if !seen_operator_proofs.insert(dedup_key) {
+                errors.push(BlockError::DuplicateStorageProofOperator {
+                    index: pi,
+                    commit_hash: hex_short(&proof.commit_hash),
+                    operator_id: hex_short(&operator_id),
+                });
+                continue;
+            }
+            commit_proof_count
+                .entry(proof.commit_hash)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
+        } else if !seen_proofs.insert(proof.commit_hash) {
             errors.push(BlockError::DuplicateStorageProof {
                 index: pi,
                 commit_hash: hex_short(&proof.commit_hash),
@@ -651,12 +694,21 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                 continue;
             }
         };
-        let verdict = verify_storage_proof(
-            &entry.commit,
-            &block.header.prev_hash,
-            block.header.slot,
-            proof,
-        );
+        let verdict = if b3_operator_salted {
+            verify_storage_proof_operator_salted(
+                &entry.commit,
+                &block.header.prev_hash,
+                block.header.slot,
+                proof,
+            )
+        } else {
+            verify_storage_proof(
+                &entry.commit,
+                &block.header.prev_hash,
+                block.header.slot,
+                proof,
+            )
+        };
         if !verdict.is_valid() {
             errors.push(BlockError::StorageProofInvalid {
                 index: pi,
@@ -664,27 +716,70 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             });
             continue;
         }
+        let (baseline_slot, baseline_pending) = if b3_operator_salted {
+            *commit_baseline
+                .entry(proof.commit_hash)
+                .or_insert((entry.last_proven_slot, entry.pending_yield_ppb))
+        } else {
+            (entry.last_proven_slot, entry.pending_yield_ppb)
+        };
+        let payout_replication = if b3_operator_salted {
+            1
+        } else {
+            entry.commit.replication
+        };
         match accrue_proof_reward(AccrueArgs {
             size_bytes: entry.commit.size_bytes,
-            replication: entry.commit.replication,
-            pending_ppb: entry.pending_yield_ppb,
-            last_proven_slot: entry.last_proven_slot,
+            replication: payout_replication,
+            pending_ppb: baseline_pending,
+            last_proven_slot: baseline_slot,
             current_slot,
             params: &next.endowment_params,
         }) {
-            Ok(accrual) => {
-                next.storage.insert(
-                    proof.commit_hash,
-                    StorageEntry {
-                        commit: entry.commit,
-                        last_proven_height: block.header.height,
-                        last_proven_slot: current_slot,
-                        pending_yield_ppb: accrual.new_pending_ppb,
-                    },
-                );
-                accepted_storage_proofs += 1;
-                storage_bonus_total = storage_bonus_total.saturating_add(accrual.payout);
-                accepted_proof_settlements.push((proof.clone(), accrual.payout));
+            Ok(payout_accrual) => {
+                if b3_operator_salted && commit_state_updated.contains(&proof.commit_hash) {
+                    accepted_storage_proofs += 1;
+                    storage_bonus_total = storage_bonus_total.saturating_add(payout_accrual.payout);
+                    accepted_proof_settlements.push((proof.clone(), payout_accrual.payout));
+                } else {
+                    let state_accrual = if b3_operator_salted {
+                        match accrue_proof_reward(AccrueArgs {
+                            size_bytes: entry.commit.size_bytes,
+                            replication: entry.commit.replication,
+                            pending_ppb: baseline_pending,
+                            last_proven_slot: baseline_slot,
+                            current_slot,
+                            params: &next.endowment_params,
+                        }) {
+                            Ok(a) => a,
+                            Err(e) => {
+                                errors.push(BlockError::EndowmentMathFailed {
+                                    tx: 0,
+                                    output: pi,
+                                    reason: format!("accrue state: {e}"),
+                                });
+                                continue;
+                            }
+                        }
+                    } else {
+                        payout_accrual
+                    };
+                    next.storage.insert(
+                        proof.commit_hash,
+                        StorageEntry {
+                            commit: entry.commit,
+                            last_proven_height: block.header.height,
+                            last_proven_slot: current_slot,
+                            pending_yield_ppb: state_accrual.new_pending_ppb,
+                        },
+                    );
+                    if b3_operator_salted {
+                        commit_state_updated.insert(proof.commit_hash);
+                    }
+                    accepted_storage_proofs += 1;
+                    storage_bonus_total = storage_bonus_total.saturating_add(payout_accrual.payout);
+                    accepted_proof_settlements.push((proof.clone(), payout_accrual.payout));
+                }
             }
             Err(e) => errors.push(BlockError::EndowmentMathFailed {
                 tx: 0,
@@ -870,6 +965,13 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         state: next,
         block_id: proposed_id,
     }
+}
+
+fn proof_operator_dedup_key(commit_hash: &[u8; 32], operator_id: &[u8; 32]) -> [u8; 64] {
+    let mut key = [0u8; 64];
+    key[..32].copy_from_slice(commit_hash);
+    key[32..].copy_from_slice(operator_id);
+    key
 }
 
 fn hex_short(b: &[u8]) -> String {

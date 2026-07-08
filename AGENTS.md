@@ -83,20 +83,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `eea59aa` (B3 phase 1 operator-salted challenges). **Prior:** TL-5 `5a74d57`, F7 stack GREEN `#28924060054`. **CI:** monitor latest run on `eea59aa`.
+**Head:** B3 phase 2 `apply_block` wire (this push). **Prior:** B3 phase 1 `eea59aa`, F7 stack GREEN `#28924060054`. **CI:** monitor latest run after push.
 
-**RC push hold:** monitor CI; Nightly re-dispatch after green on `dc22cb7`/`b70b3ec` stack.
+**RC push hold:** avoid stacking pushes while matrix runs (`cancel-in-progress`).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on `5a74d57` stack (`b70b3ec`/`dc22cb7`) | **Monitor** — F7 + Nightly closure | Nightly re-dispatch after green |
+| **1** | CI on B3 phase 2 stack | **Monitor** | Nightly re-dispatch after green |
 | **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | B3 phase 1 operator-salted challenges | **Done** — this commit | B3 phase 2 `apply_block` |
+| **4** | B3 phase 2 `apply_block` wire | **Done** — this push | Bonding registry + M5 proptests |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 phase 2 with lane 4 |
+| **6** | B3 phase 2 with lane 4 | **Done** — this push | Operator bonding research |
 | **7** | TL-5 VPS internet soak | **Done** tooling `5a74d57` | TL-5 execution on provisioned VPS |
 
 ---

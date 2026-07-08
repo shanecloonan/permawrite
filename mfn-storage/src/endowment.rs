@@ -104,6 +104,9 @@ pub struct EndowmentParams {
     /// (`MFEO` in `tx.extra`) that consensus verifies against
     /// `StorageCommitment.endowment` and `required_endowment` (B-11).
     pub require_endowment_opening: u8,
+    /// When non-zero, `apply_block` accepts up to `commit.replication`
+    /// distinct operator-salted SPoRA proofs per commitment per block (B3).
+    pub operator_salted_challenges: u8,
 }
 
 /// Canonical defaults.
@@ -116,6 +119,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     slots_per_year: 2_629_800,
     proof_reward_window_slots: 7_200,
     require_endowment_opening: 0,
+    operator_salted_challenges: 0,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -152,6 +156,11 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     if p.require_endowment_opening > 1 {
         return Err(EndowmentError::InvalidRequireEndowmentOpening {
             got: p.require_endowment_opening,
+        });
+    }
+    if p.operator_salted_challenges > 1 {
+        return Err(EndowmentError::InvalidOperatorSaltedChallenges {
+            got: p.operator_salted_challenges,
         });
     }
     Ok(())
@@ -500,6 +509,12 @@ pub enum EndowmentError {
     /// `require_endowment_opening` must be 0 or 1.
     #[error("require_endowment_opening must be 0 or 1, got {got}")]
     InvalidRequireEndowmentOpening {
+        /// Caller-supplied flag.
+        got: u8,
+    },
+    /// `operator_salted_challenges` must be 0 or 1.
+    #[error("operator_salted_challenges must be 0 or 1, got {got}")]
+    InvalidOperatorSaltedChallenges {
         /// Caller-supplied flag.
         got: u8,
     },

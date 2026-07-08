@@ -94,7 +94,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 4;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 5;
 
 /// Errors produced by the chain-checkpoint codec.
 ///

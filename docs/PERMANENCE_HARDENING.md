@@ -512,13 +512,13 @@ proptests mixing valid/forged proofs.
 on the `ChunkV2` (`0x12`) path; `ChunkV1` remains accepted inbound for mesh
 compatibility. Fan-out and operator chunk push emit `ChunkV2` exclusively.
 
-### B3. Replication accounting — make `replication` mean something at audit time — **consensus (phase 1 shipped in `mfn-storage`)**
+### B3. Replication accounting — make `replication` mean something at audit time — **consensus (phase 2 shipped; genesis flag off)**
 
 **Problem.** `replication` is priced (`required_endowment` multiplies by it)
-and bounds-checked, but **never audited**. `apply_block` accepts at most one
+and bounds-checked, but **never audited** in legacy mode. `apply_block` accepts at most one
 SPoRA proof per commitment per block
-(`DuplicateStorageProof`, [`apply.rs`](../mfn-consensus/src/block/apply.rs)
-line ~554), and proofs carry operator payout keys but no operator *identity*
+(`DuplicateStorageProof`, [`apply.rs`](../mfn-consensus/src/block/apply.rs)),
+and proofs carry operator payout keys but no operator *identity*
 that consensus tracks. The chain therefore cannot distinguish "3 independent
 replicas" from "one operator with one copy answering every challenge." The
 user pays for N replicas; the protocol proves ≥ 1.
@@ -531,26 +531,29 @@ tags `STORAGE_OPERATOR_ID` + `SPORA_OPERATOR_CHALLENGE` in
 [`domain.rs`](../mfn-crypto/src/domain.rs). Unit tests prove distinct payout
 keys yield independent challenge indices.
 
-**Plan (incremental — consensus wire + `apply_block` next).**
+**Phase 2 shipped (`mfn-consensus`):** gated by
+`EndowmentParams.operator_salted_challenges` (default `0`; checkpoint v5).
+When enabled, `apply_block`:
 
-1. **Per-operator proof slots.** Allow up to `replication` proofs per
-   commitment per block, each bound to a registered operator identity (the
-   bonding registry from the lane-6 operator-bonding research is the natural
-   identity anchor). Distinct-operator proofs for the same challenge index
-   demonstrate independent possession *of that chunk*.
-2. **Operator-salted challenges.** Derive the challenge as
-   `H(prev_id ‖ slot ‖ commit_hash ‖ operator_id) mod num_chunks` so distinct
-   operators must answer **different** chunk indices each block — one shared
-   copy can no longer answer all slots without holding (close to) the whole
-   payload per operator. This is the piece that makes replication real.
-3. **Payout split.** Divide the per-commitment reward across the accepted
-   proof slots (or better: pay each slot from its own accrual) so honest
-   replicas don't race each other.
+1. Accepts up to `commit.replication` distinct operator proofs per commitment
+   per block (`DuplicateStorageProofOperator`,
+   `StorageProofReplicationExceeded`).
+2. Verifies with [`verify_storage_proof_operator_salted`](../mfn-storage/src/spora.rs).
+3. Pays each operator from a per-block frozen baseline with `replication: 1`
+   while advancing commitment state once via full-replication accrual.
 
-Requires: proof wire format change (operator binding), `apply_block` proof
-loop rework, emission/treasury settlement update, and heavy M5 proptesting
-(mixed honest/missing/equivocating operators). Sequence *after* operator
-bonding exists; design doc first in `docs/` (this section is the seed).
+Public devnet genesis keeps the flag off until bonding registry + M5 proptests
+land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply.rs).
+
+**Plan (incremental — bonding + proptests next).**
+
+1. **Operator registry binding.** Tie `operator_id` to the bonding registry
+   (lane-6 research) so proofs must come from registered operators.
+2. **Proactive repair + staleness** (B4) once replication is audited on-chain.
+
+Requires: emission/treasury settlement audit under multi-operator blocks, and
+heavy M5 proptesting (mixed honest/missing/equivocating operators). Sequence
+*after* operator bonding exists.
 
 **Effort:** high. **Risk:** high (consensus + economics).
 
