@@ -3,14 +3,15 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-08 (F7 mfnd_smoke tail)
+## Session — 2026-07-08 (F7 mfnd_smoke tail → CI `#28921758809`)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **mfnd_smoke F7** | **Fix pending push** | `synth_decoy_*` fixture: `step --blocks 2` → two UTXOs → two-input transfer |
-| **CI #28919128030** | **Failed** | `996f60f` — 5 mfnd_smoke tests: 1-input txs rejected at mempool admit |
+| **mfnd_smoke F7** | **Done** — `0825385` | `synth_decoy_*` fixture: `step --blocks 2` → two UTXOs → two-input transfer |
+| **CI #28921758809** | **In progress** | `0825385` — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running |
+| **Prior CI #28919128030** | **Failed** | `996f60f` — 5 mfnd_smoke mempool/P2P tests: 1-input txs rejected |
 
-**Lanes 1–3 — Done:** settlement `996f60f` **Doing:** mfnd_smoke F7 tail **Next:** green CI → release evidence (lane 2)
+**Lanes 1–3 — Done:** settlement `996f60f`, mfnd_smoke `0825385` **Doing:** CI monitor `#28921758809` **Next:** release evidence (lane 2) → Nightly (lane 1) → B3 (lanes 4+6)
 
 ---
 
@@ -23,6 +24,18 @@
 | **Prior CI #28917267975** | **Failed** | `a6aebab` — settlement still 1-input (fixed by `996f60f`) |
 
 **Lanes 1–3 — Done:** F7 settlement `996f60f`, TL-1 charter `8661106` **Doing:** CI monitor `#28919128030` **Next:** release evidence (lane 2) → Nightly (lane 1) → B3 (lanes 4+6)
+
+---
+
+## Session — 2026-07-08 (Lane 7 TL-2 — mempool F7 two-input pad)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **TL-2 mempool fix** | **This commit** | `mfn-runtime` test helpers: companion pad + two-input `signed_tx` |
+| **Prior** | **Done** | `996f60f` settlement + `0825385` mfnd_smoke on main |
+| **CI** | **Pending** | Push then `release-ci-watch` |
+
+**Lane 7 — Done:** TL-1 (`8661106`) **Doing:** TL-2 CI gate **Next:** TL-3 evidence on green head
 
 ---
 

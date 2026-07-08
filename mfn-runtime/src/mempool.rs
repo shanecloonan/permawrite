@@ -915,13 +915,53 @@ mod tests {
 
     use crate::{Chain, ChainConfig};
 
-    /// One real-spendable input plus `ring_size - 1` decoys, all
-    /// anchored at genesis so `ChainState::utxo` contains them. Mirrors
-    /// the pattern used by `mfn-consensus`'s integration tests.
+    const MEMPOOL_INPUT_PAD_VALUE: u64 = 1_000_000;
+
+    fn build_companion_pad(
+        signer_idx: usize,
+        decoy_p: &[EdwardsPoint],
+        decoy_c: &[EdwardsPoint],
+        ring_size: usize,
+    ) -> InputSpec {
+        let pad_spend = random_scalar();
+        let pad_blinding = random_scalar();
+        let pad_p = generator_g() * pad_spend;
+        let pad_c = (generator_g() * pad_blinding)
+            + (generator_h() * Scalar::from(MEMPOOL_INPUT_PAD_VALUE));
+        let mut p = Vec::with_capacity(ring_size);
+        let mut c = Vec::with_capacity(ring_size);
+        let mut di = 0usize;
+        for i in 0..ring_size {
+            if i == signer_idx {
+                p.push(pad_p);
+                c.push(pad_c);
+            } else {
+                p.push(decoy_p[di]);
+                c.push(decoy_c[di]);
+                di += 1;
+            }
+        }
+        InputSpec {
+            ring: ClsagRing { p, c },
+            signer_idx,
+            spend_priv: pad_spend,
+            value: MEMPOOL_INPUT_PAD_VALUE,
+            blinding: pad_blinding,
+        }
+    }
+
+    /// One real-spendable input plus companion pad and `ring_size - 1`
+    /// decoys, all anchored at genesis so `ChainState::utxo` contains them.
     fn build_genesis_with_spendable_input(
         ring_size: usize,
         signer_value: u64,
-    ) -> (Chain, InputSpec, Vec<EdwardsPoint>, Vec<EdwardsPoint>) {
+    ) -> (
+        Chain,
+        InputSpec,
+        InputSpec,
+        Vec<EdwardsPoint>,
+        Vec<EdwardsPoint>,
+    ) {
         assert!(ring_size >= 16, "production consensus requires ring-16");
         let signer_spend = random_scalar();
         let signer_blinding = random_scalar();
@@ -952,6 +992,13 @@ mod tests {
 
         // Mempool tests do not exercise consensus, so validators can be
         // empty (the chain runs in legacy/centralized mode).
+        let signer_idx = ring_size / 2;
+        let pad_inp = build_companion_pad(signer_idx, &decoy_p, &decoy_c, ring_size);
+        initial_outputs.push(GenesisOutput {
+            one_time_addr: pad_inp.ring.p[signer_idx],
+            amount: pad_inp.ring.c[signer_idx],
+        });
+
         let cfg = GenesisConfig {
             timestamp: 0,
             initial_outputs,
@@ -965,7 +1012,6 @@ mod tests {
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
         // Assemble the ring with the real input at slot `ring_size/2`.
-        let signer_idx = ring_size / 2;
         let mut p = Vec::with_capacity(ring_size);
         let mut c = Vec::with_capacity(ring_size);
         let mut di = 0usize;
@@ -986,7 +1032,7 @@ mod tests {
             value: signer_value,
             blinding: signer_blinding,
         };
-        (chain, inp, decoy_p, decoy_c)
+        (chain, inp, pad_inp, decoy_p, decoy_c)
     }
 
     fn recipient() -> Recipient {
@@ -997,23 +1043,25 @@ mod tests {
         }
     }
 
-    /// Sign a single-input single-output tx paying `recipient` from
-    /// `input` with the given fee. The output value is `input.value -
-    /// fee` so the balance equation is satisfied exactly.
-    fn signed_tx(input: InputSpec, fee: u64) -> TransactionWire {
-        let r = recipient();
-        let value = input.value - fee;
+    /// Sign a two-input reference tx paying `recipient` from `primary` +
+    /// `pad` with the given fee (F7 input floor + F5-P5 output floor).
+    fn signed_tx(primary: InputSpec, pad: InputSpec, fee: u64) -> TransactionWire {
+        let value = primary.value - fee;
         sign_transaction(
-            vec![input],
+            vec![primary, pad],
             vec![
                 OutputSpec::ToRecipient {
-                    recipient: r,
+                    recipient: recipient(),
                     value,
                     storage: None,
                 },
-                // F5-P5 output floor: production params require >= 2 outputs.
                 OutputSpec::ToRecipient {
-                    recipient: r,
+                    recipient: recipient(),
+                    value: MEMPOOL_INPUT_PAD_VALUE,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
                     value: 0,
                     storage: None,
                 },
@@ -1137,8 +1185,8 @@ mod tests {
 
     #[test]
     fn admit_happy_path_fresh() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         let outcome = pool.admit(tx, chain.state()).expect("admit");
         assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
@@ -1202,20 +1250,25 @@ mod tests {
     /// Decoy outputs aren't relevant to the storage gates so we
     /// always point the anchor at a fresh stealth recipient.
     fn signed_storage_tx(
-        input: InputSpec,
+        primary: InputSpec,
+        pad: InputSpec,
         fee: u64,
         storage: mfn_storage::StorageCommitment,
     ) -> TransactionWire {
-        let value = input.value - fee;
+        let value = primary.value - fee;
         sign_transaction(
-            vec![input],
+            vec![primary, pad],
             vec![
                 OutputSpec::ToRecipient {
                     recipient: recipient(),
                     value,
                     storage: Some(storage),
                 },
-                // F5-P5 output floor: production params require >= 2 outputs.
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: MEMPOOL_INPUT_PAD_VALUE,
+                    storage: None,
+                },
                 OutputSpec::ToRecipient {
                     recipient: recipient(),
                     value: 0,
@@ -1236,8 +1289,8 @@ mod tests {
         ring_size: usize,
         signer_value: u64,
         initial_storage: Vec<mfn_storage::StorageCommitment>,
-    ) -> (Chain, InputSpec) {
-        let (chain_throwaway, _, _, _) =
+    ) -> (Chain, InputSpec, InputSpec) {
+        let (chain_throwaway, _, _, _, _) =
             build_genesis_with_spendable_input(ring_size, signer_value);
         let _ = chain_throwaway;
         // We can't easily extract the genesis config back out of a
@@ -1270,6 +1323,13 @@ mod tests {
         }];
         initial_outputs.extend(decoy_outputs.iter().cloned());
 
+        let signer_idx = ring_size / 2;
+        let pad_inp = build_companion_pad(signer_idx, &decoy_p, &decoy_c, ring_size);
+        initial_outputs.push(GenesisOutput {
+            one_time_addr: pad_inp.ring.p[signer_idx],
+            amount: pad_inp.ring.c[signer_idx],
+        });
+
         let cfg = GenesisConfig {
             timestamp: 0,
             initial_outputs,
@@ -1282,7 +1342,6 @@ mod tests {
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
-        let signer_idx = ring_size / 2;
         let mut p = Vec::with_capacity(ring_size);
         let mut c = Vec::with_capacity(ring_size);
         let mut di = 0usize;
@@ -1303,7 +1362,7 @@ mod tests {
             value: signer_value,
             blinding: signer_blinding,
         };
-        (chain, inp)
+        (chain, inp, pad_inp)
     }
 
     /* ----------------------------- storage-tx tests -------------------- */
@@ -1313,9 +1372,9 @@ mod tests {
         // size=1024, replication=3 → required_endowment ≈ 32 atomic
         // units. fee=100, fee_to_treasury_bps=9000 → treasury_share=90.
         // 90 >= 32 → admit.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let storage = storage_commit(0x42, 1024, 3);
-        let tx = signed_storage_tx(inp, 100, storage);
+        let tx = signed_storage_tx(inp, pad, 100, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let outcome = pool.admit(tx, chain.state()).expect("admit");
         assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
@@ -1324,10 +1383,10 @@ mod tests {
 
     #[test]
     fn admit_storage_tx_rejects_replication_too_low() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         // Default min_replication = 3; ask for 2.
         let storage = storage_commit(0x43, 1024, 2);
-        let tx = signed_storage_tx(inp, 200, storage);
+        let tx = signed_storage_tx(inp, pad, 200, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         match err {
@@ -1338,10 +1397,10 @@ mod tests {
 
     #[test]
     fn admit_storage_tx_rejects_replication_too_high() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         // Default max_replication = 32; ask for 33.
         let storage = storage_commit(0x44, 1024, 33);
-        let tx = signed_storage_tx(inp, 200, storage);
+        let tx = signed_storage_tx(inp, pad, 200, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         match err {
@@ -1356,9 +1415,9 @@ mod tests {
     fn admit_storage_tx_rejects_underfunded() {
         // Same upload, but fee=1. treasury_share = 1 * 9000 / 10_000 = 0
         // (integer division) < burden ≈ 32. UploadUnderfunded.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let storage = storage_commit(0x45, 1024, 3);
-        let tx = signed_storage_tx(inp, 1, storage);
+        let tx = signed_storage_tx(inp, pad, 1, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         match err {
@@ -1381,10 +1440,10 @@ mod tests {
         // The permanence-voiding shape: a large payload that declares a
         // single chunk. SPoRA would only ever audit chunk 0 while the
         // endowment prices the full size (M5.49).
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let mut storage = storage_commit(0x4a, 16 * 1024, 3);
         storage.num_chunks = 1; // real: 64
-        let tx = signed_storage_tx(inp, 200, storage);
+        let tx = signed_storage_tx(inp, pad, 200, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         match err {
@@ -1400,11 +1459,11 @@ mod tests {
 
     #[test]
     fn admit_storage_tx_rejects_non_power_of_two_chunk_size() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let mut storage = storage_commit(0x4b, 1024, 3);
         storage.chunk_size = 300; // not a power of two
         storage.num_chunks = 4;
-        let tx = signed_storage_tx(inp, 200, storage);
+        let tx = signed_storage_tx(inp, pad, 200, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(
@@ -1422,10 +1481,10 @@ mod tests {
     #[test]
     fn admit_storage_tx_rejects_zero_num_chunks() {
         // num_chunks == 0 degenerates the challenge derivation to index 0.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let mut storage = storage_commit(0x4c, 1024, 3);
         storage.num_chunks = 0;
-        let tx = signed_storage_tx(inp, 200, storage);
+        let tx = signed_storage_tx(inp, pad, 200, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(
@@ -1440,8 +1499,8 @@ mod tests {
         // anchor. Now the same commitment is "already anchored" and
         // contributes zero burden — so even a tiny fee admits.
         let storage = storage_commit(0x46, 1024, 3);
-        let (chain, inp) = build_genesis_with_storage(16, 1_000, vec![storage.clone()]);
-        let tx = signed_storage_tx(inp, 1, storage);
+        let (chain, inp, pad) = build_genesis_with_storage(16, 1_000, vec![storage.clone()]);
+        let tx = signed_storage_tx(inp, pad, 1, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let outcome = pool.admit(tx, chain.state()).expect("admit (silent skip)");
         assert!(matches!(outcome, AdmitOutcome::Fresh { .. }));
@@ -1458,11 +1517,11 @@ mod tests {
         // would still pass this assertion). The stronger guarantee
         // is in apply_block's `seen_in_tx` semantics, which we mirror
         // exactly.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let storage = storage_commit(0x47, 1024, 3);
         let value = inp.value - 100;
         let tx = sign_transaction(
-            vec![inp],
+            vec![inp, pad],
             vec![
                 OutputSpec::ToRecipient {
                     recipient: recipient(),
@@ -1473,6 +1532,16 @@ mod tests {
                     recipient: recipient(),
                     value: value - value / 2,
                     storage: Some(storage),
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: MEMPOOL_INPUT_PAD_VALUE,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: 0,
+                    storage: None,
                 },
             ],
             100,
@@ -1489,11 +1558,11 @@ mod tests {
         // One storage anchor + one plain payment in the same tx.
         // Burden ≈ 32 (just the storage one). fee=100 → treasury share
         // = 90 > 32 → admit.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let storage = storage_commit(0x48, 1024, 3);
         let value = inp.value - 100;
         let tx = sign_transaction(
-            vec![inp],
+            vec![inp, pad],
             vec![
                 OutputSpec::ToRecipient {
                     recipient: recipient(),
@@ -1503,6 +1572,16 @@ mod tests {
                 OutputSpec::ToRecipient {
                     recipient: recipient(),
                     value: value - value / 2,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: MEMPOOL_INPUT_PAD_VALUE,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: recipient(),
+                    value: 0,
                     storage: None,
                 },
             ],
@@ -1520,9 +1599,9 @@ mod tests {
         // A 16 KB upload at replication=3 has a much bigger burden
         // than a 1 KB one. fee=100 was fine for 1 KB; for 16 KB it
         // is not.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let storage = storage_commit(0x49, 16 * 1024, 3);
-        let tx = signed_storage_tx(inp, 100, storage);
+        let tx = signed_storage_tx(inp, pad, 100, storage);
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(matches!(err, AdmitError::UploadUnderfunded { .. }));
@@ -1530,8 +1609,8 @@ mod tests {
 
     #[test]
     fn admit_rejects_below_min_fee() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 100);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 100);
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 100,
             min_fee: 500,
@@ -1550,7 +1629,7 @@ mod tests {
     fn admit_rejects_unbalanced_tx() {
         // Build a tx whose balance equation fails — easiest way: hand
         // sign_transaction inputs whose Σ value doesn't match outputs.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp, _pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
         let result = sign_transaction(
             vec![inp],
             vec![OutputSpec::ToRecipient {
@@ -1566,20 +1645,23 @@ mod tests {
 
         // We can still exercise the mempool's "TxInvalid" path by
         // mutating a properly-signed tx after the fact.
-        let mut tx = signed_tx(inp_clone_from_chain(&chain), 200);
+        let mut tx = {
+            let (inp, pad) = inp_pair_clone_from_chain(&chain);
+            signed_tx(inp, pad, 200)
+        };
         tx.fee = 999; // breaks the balance equation
         let mut pool = Mempool::new(MempoolConfig::default());
         let err = pool.admit(tx, chain.state()).unwrap_err();
         assert!(matches!(err, AdmitError::TxInvalid { .. }));
     }
 
-    fn inp_clone_from_chain(_chain: &Chain) -> InputSpec {
+    fn inp_pair_clone_from_chain(_chain: &Chain) -> (InputSpec, InputSpec) {
         // The helper rebuilds a fresh signer + decoys against a *new*
         // chain so that mutation-based tests don't accidentally
         // double-spend. We only consume `chain` to keep the lifetime
         // ergonomic.
-        let (_c, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        inp
+        let (_c, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        (inp, pad)
     }
 
     #[test]
@@ -1588,8 +1670,8 @@ mod tests {
         // admit it into a mempool driven by a DIFFERENT chain whose
         // genesis does not contain those decoys. Every ring member
         // should miss.
-        let (_, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (_, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
 
         let cfg = GenesisConfig {
             timestamp: 0,
@@ -1609,11 +1691,11 @@ mod tests {
 
     #[test]
     fn rbf_accepts_strictly_higher_fee() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 10_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 10_000);
         // Two signed txs spending the same input but paying different
         // recipients/fees. They will share key images, triggering RBF.
-        let tx_a = signed_tx(inp.clone(), 1_000);
-        let tx_b = signed_tx(inp, 1_500);
+        let tx_a = signed_tx(inp.clone(), pad.clone(), 1_000);
+        let tx_b = signed_tx(inp, pad, 1_500);
 
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx_a.clone(), chain.state()).expect("admit a");
@@ -1629,12 +1711,12 @@ mod tests {
 
     #[test]
     fn rbf_rejects_equal_or_lower_fee() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 10_000);
-        let tx_a = signed_tx(inp.clone(), 2_000);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 10_000);
+        let tx_a = signed_tx(inp.clone(), pad.clone(), 2_000);
         // Same input, same fee — RBF requires strictly higher.
         // Use a different recipient so the bytes differ; same key
         // images (since they come from the same input).
-        let tx_b = signed_tx(inp, 2_000);
+        let tx_b = signed_tx(inp, pad, 2_000);
 
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx_a, chain.state()).expect("admit a");
@@ -1651,8 +1733,8 @@ mod tests {
 
     #[test]
     fn duplicate_tx_id_is_rejected() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx.clone(), chain.state()).expect("first");
         let err = pool.admit(tx, chain.state()).unwrap_err();
@@ -1663,7 +1745,7 @@ mod tests {
     fn size_cap_evicts_lowest_fee_when_pool_full() {
         // Build a chain whose UTXO set contains BOTH spendable inputs
         // plus enough decoys for two rings.
-        let (chain, inp1, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let (chain, inp1, pad1, _, _) = build_genesis_with_spendable_input(16, 1_000);
 
         let signer_spend2 = random_scalar();
         let signer_blinding2 = random_scalar();
@@ -1691,6 +1773,24 @@ mod tests {
             one_time_addr: signer_p2,
             amount: signer_c2,
         });
+
+        // Build the ring for the second input before finalizing genesis2.
+        let ring_size = 16usize;
+        let signer_idx = 1usize;
+        let utxo_items: Vec<(EdwardsPoint, EdwardsPoint)> = all_outputs
+            .iter()
+            .filter(|o| o.one_time_addr != signer_p2)
+            .map(|o| (o.one_time_addr, o.amount))
+            .take(ring_size - 1)
+            .collect();
+        let decoy_p: Vec<EdwardsPoint> = utxo_items.iter().map(|(p, _)| *p).collect();
+        let decoy_c: Vec<EdwardsPoint> = utxo_items.iter().map(|(_, c)| *c).collect();
+        let pad2 = build_companion_pad(signer_idx, &decoy_p, &decoy_c, ring_size);
+        all_outputs.push(GenesisOutput {
+            one_time_addr: pad2.ring.p[signer_idx],
+            amount: pad2.ring.c[signer_idx],
+        });
+
         let cfg2 = GenesisConfig {
             timestamp: 0,
             initial_outputs: all_outputs,
@@ -1703,25 +1803,8 @@ mod tests {
         };
         let chain2 = Chain::from_genesis(ChainConfig::new(cfg2)).expect("genesis2");
 
-        // Build the ring for the second input.
-        let ring_size = 16usize;
-        let signer_idx = 1usize;
         let mut p2 = Vec::with_capacity(ring_size);
         let mut c2 = Vec::with_capacity(ring_size);
-        let utxo_items: Vec<(EdwardsPoint, EdwardsPoint)> = chain2
-            .state()
-            .utxo
-            .iter()
-            .filter_map(|(k, e)| {
-                let mut buf = [0u8; 32];
-                buf.copy_from_slice(k);
-                curve25519_dalek::edwards::CompressedEdwardsY(buf)
-                    .decompress()
-                    .map(|p| (p, e.commit))
-            })
-            .filter(|(p, _)| *p != signer_p2)
-            .take(ring_size - 1)
-            .collect();
         let mut di = 0usize;
         for i in 0..ring_size {
             if i == signer_idx {
@@ -1742,8 +1825,8 @@ mod tests {
             blinding: signer_blinding2,
         };
 
-        let tx_low = signed_tx(inp1, 100);
-        let tx_high = signed_tx(inp2, 500);
+        let tx_low = signed_tx(inp1, pad1, 100);
+        let tx_high = signed_tx(inp2, pad2, 500);
 
         let mut pool = Mempool::new(MempoolConfig {
             max_entries: 1,
@@ -1762,16 +1845,16 @@ mod tests {
     fn drain_orders_by_fee_descending_then_tx_id() {
         // Three independent inputs admitted with fees 100, 500, 300.
         // drain(3) should return 500, 300, 100.
-        let (_, inp1, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx1 = signed_tx(inp1.clone(), 100);
-        let (_, inp2, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx2 = signed_tx(inp2.clone(), 500);
-        let (_, inp3, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx3 = signed_tx(inp3.clone(), 300);
+        let (_, inp1, pad1, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx1 = signed_tx(inp1.clone(), pad1.clone(), 100);
+        let (_, inp2, pad2, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx2 = signed_tx(inp2.clone(), pad2.clone(), 500);
+        let (_, inp3, pad3, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx3 = signed_tx(inp3.clone(), pad3.clone(), 300);
 
         // Build a chain whose utxo contains every needed ring member.
         let mut all_outputs: Vec<GenesisOutput> = Vec::new();
-        for inp in [&inp1, &inp2, &inp3] {
+        for inp in [&inp1, &inp2, &inp3, &pad1, &pad2, &pad3] {
             for (p, c) in inp.ring.p.iter().zip(inp.ring.c.iter()) {
                 all_outputs.push(GenesisOutput {
                     one_time_addr: *p,
@@ -1803,13 +1886,13 @@ mod tests {
 
     #[test]
     fn select_for_block_orders_without_draining() {
-        let (_, inp1, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx1 = signed_tx(inp1.clone(), 100);
-        let (_, inp2, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx2 = signed_tx(inp2.clone(), 500);
+        let (_, inp1, pad1, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx1 = signed_tx(inp1.clone(), pad1.clone(), 100);
+        let (_, inp2, pad2, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx2 = signed_tx(inp2.clone(), pad2.clone(), 500);
 
         let mut all_outputs: Vec<GenesisOutput> = Vec::new();
-        for inp in [&inp1, &inp2] {
+        for inp in [&inp1, &inp2, &pad1, &pad2] {
             for (p, c) in inp.ring.p.iter().zip(inp.ring.c.iter()) {
                 all_outputs.push(GenesisOutput {
                     one_time_addr: *p,
@@ -1840,8 +1923,8 @@ mod tests {
 
     #[test]
     fn remove_mined_evicts_txs_with_block_key_images() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx.clone(), chain.state()).expect("admit");
         assert_eq!(pool.len(), 1);
@@ -1855,13 +1938,13 @@ mod tests {
 
     #[test]
     fn remove_mined_is_idempotent_when_unrelated() {
-        let (chain, inp1, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp1, 200);
+        let (chain, inp1, pad1, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp1, pad1, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx, chain.state()).expect("admit");
 
-        let (_, inp2, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let other_tx = signed_tx(inp2, 200);
+        let (_, inp2, pad2, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let other_tx = signed_tx(inp2, pad2, 200);
         let block = synthetic_block_with(vec![other_tx]);
         assert_eq!(pool.remove_mined(&block), 0);
         assert_eq!(pool.len(), 1);
@@ -1869,8 +1952,8 @@ mod tests {
 
     #[test]
     fn evict_by_id_returns_true_when_present() {
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         let outcome = pool.admit(tx, chain.state()).expect("admit");
         let id = outcome.admitted_tx_id();
@@ -1884,8 +1967,8 @@ mod tests {
         // Sanity: a tx admitted to the mempool and then drained is
         // *the same bytes* and applies to the chain via apply_block
         // when wrapped in a coinbase-less block.
-        let (chain, inp, _, _) = build_genesis_with_spendable_input(16, 1_000);
-        let tx = signed_tx(inp, 200);
+        let (chain, inp, pad, _, _) = build_genesis_with_spendable_input(16, 1_000);
+        let tx = signed_tx(inp, pad, 200);
         let mut pool = Mempool::new(MempoolConfig::default());
         pool.admit(tx.clone(), chain.state()).expect("admit");
         let drained = pool.drain(10);

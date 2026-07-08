@@ -307,7 +307,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **TL-2** — monitor CI `#28919128030` on `996f60f` (F7 settlement tail)
+- [ ] **TL-2** — monitor CI `#28921758809` on `0825385` (F7 mfnd_smoke two-UTXO tail)
 
 ### Next
 
