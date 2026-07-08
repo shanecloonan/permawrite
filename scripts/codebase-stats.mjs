@@ -29,7 +29,11 @@ const SKIP_DIR_NAMES = new Set([
 ]);
 
 function isSkippedDirName(name) {
-  return SKIP_DIR_NAMES.has(name) || name.startsWith("target-");
+  return (
+    SKIP_DIR_NAMES.has(name) ||
+    name.startsWith("target-") ||
+    name.startsWith(".permawrite-")
+  );
 }
 
 function isSkippedDirPath(fullPath) {
