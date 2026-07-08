@@ -3652,3 +3652,113 @@ fn b5_operator_miss_counter_resets_when_operator_proves() {
         ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
     }
 }
+
+fn b5_slash_test_endowment_params() -> EndowmentParams {
+    EndowmentParams {
+        operator_salted_challenges: 1,
+        require_registered_operators: 1,
+        operator_audit_missed_cap: 2,
+        operator_slash_bps: 1_000,
+        proof_reward_window_slots: 100,
+        min_replication: 1,
+        real_yield_ppb: 50_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    }
+}
+
+fn genesis_with_b5_slash_single_operator(built: &BuiltCommitment) -> ChainState {
+    let ep = b5_slash_test_endowment_params();
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![GenesisStorageOperator {
+            operator_view_pub: v0,
+            operator_spend_pub: s0,
+            bond_amount: 1_000_000,
+        }],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    apply_genesis(&g, &cfg).unwrap()
+}
+
+fn apply_empty_block_at_slot(st: &ChainState, slot: u32) -> ChainState {
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &[], slot, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(st, &block) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+#[test]
+fn b5_operator_slash_on_cap_miss_credits_treasury() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b5_slash_single_operator(&built);
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let id0 = mfn_storage::operator_identity_from_payout(&v0, &s0);
+    assert_eq!(state0.treasury, 0);
+
+    let state1 = apply_empty_block_at_slot(&state0, 10_000);
+    assert_eq!(state1.treasury, 0);
+    assert_eq!(state1.storage_operators[&id0].bond_amount, 1_000_000);
+    assert_eq!(
+        state1.storage_operator_stats[&id0].consecutive_missed_audits,
+        1
+    );
+
+    let state2 = apply_empty_block_at_slot(&state1, 10_001);
+    assert_eq!(state2.treasury, 100_000);
+    assert_eq!(state2.storage_operators[&id0].bond_amount, 900_000);
+    assert_eq!(
+        state2.storage_operator_stats[&id0].consecutive_missed_audits,
+        0
+    );
+}
+
+#[test]
+fn b5_operator_full_slash_deregisters_operator() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let mut ep = b5_slash_test_endowment_params();
+    ep.operator_audit_missed_cap = 1;
+    ep.operator_slash_bps = 10_000;
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let id0 = mfn_storage::operator_identity_from_payout(&v0, &s0);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![GenesisStorageOperator {
+            operator_view_pub: v0,
+            operator_spend_pub: s0,
+            bond_amount: 500_000,
+        }],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state0 = apply_genesis(&g, &cfg).unwrap();
+
+    let state1 = apply_empty_block_at_slot(&state0, 10_000);
+    assert_eq!(state1.treasury, 500_000);
+    assert!(!state1.storage_operators.contains_key(&id0));
+    assert!(!state1.storage_operator_stats.contains_key(&id0));
+}

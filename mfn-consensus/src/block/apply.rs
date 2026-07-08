@@ -897,12 +897,14 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
     }
 
-    crate::storage_operator_evolution::apply_storage_operator_audit_evolution(
+    let _audit_outcome = crate::storage_operator_evolution::apply_storage_operator_audit_evolution(
         block.header.height,
         audit_challenge_active,
-        &next.storage_operators,
+        &next.endowment_params,
+        &mut next.storage_operators,
         &mut next.storage_operator_stats,
         &proved_operators,
+        &mut next.treasury,
     );
 
     // ---- Unbond settlements (M1): scan pending_unbonds in deterministic

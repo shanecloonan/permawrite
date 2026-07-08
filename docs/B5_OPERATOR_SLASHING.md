@@ -11,8 +11,8 @@ SPoRA today is carrot-only: prove → get paid; vanish → forego future reward.
 | Phase | Scope | Status |
 | --- | --- | --- |
 | **5a** | Inert `EndowmentParams` slash knobs + checkpoint **v8** + validation | **Shipped** (`e81d33e`) |
-| **5b** | Retained slashable bond + per-operator miss stats + checkpoint **v9** | **Shipped** (this commit) |
-| **5c** | Bond slash execution → treasury; operator deregistration on zero bond | Planned |
+| **5b** | Retained slashable bond + per-operator miss stats + checkpoint **v9** | **Shipped** (`643a224`) |
+| **5c** | Bond slash execution → treasury; operator deregistration on zero bond | **Shipped** (this commit) |
 | **5d** | Public devnet enable + M5 proptests (honest / missing / equivocating operators) | Planned |
 
 ## Protocol parameters (5a — inert until 5b)
@@ -37,7 +37,7 @@ No consensus behavior changes in 5a — params round-trip in checkpoints and gen
 1. **Registration (B3 + B5 phase 5b).** Operators register with bonded stake (`StorageOperatorOp::Register`, `min_storage_operator_bond`). `bond_amount` is **retained** in `StorageOperatorEntry` as slashable collateral (no treasury burn on register).
 2. **Challenge window.** Each block height defines a deterministic operator-salted SPoRA challenge from public chain state (block id, data root, operator payout key, replication slot index). No payload bytes required on-chain.
 3. **Accounting.** For each registered operator, consensus tracks `consecutive_missed_audits`. A valid proof in a block resets the counter; absence increments it.
-4. **Slash.** When `consecutive_missed_audits >= operator_audit_missed_cap`, slash `bond_amount * operator_slash_bps / 10000` to `ChainState::treasury`, reduce bond, reset or deregister if bond hits zero.
+4. **Slash (5c).** When `consecutive_missed_audits >= operator_audit_missed_cap`, slash `bond_amount * operator_slash_bps / 10000` to `ChainState::treasury`, reduce bond, reset the counter; zero bond removes the registry entry.
 5. **Repair loop.** Treasury inflows fund B4 repair incentives and future operator recruitment.
 
 ## Griefing analysis

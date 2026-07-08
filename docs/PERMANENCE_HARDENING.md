@@ -594,13 +594,13 @@ Observable log: `mfnd_p2p_repair_fanout commit=… stale_slots=…`.
 
 **Effort:** low–moderate. **Risk:** low.
 
-### B5. Operator bonding + slashing for failed audits — **5a shipped, 5b in flight**
+### B5. Operator bonding + slashing for failed audits — **5a–5c shipped**
 
 **Problem.** SPoRA is carrot-only without a stick. See [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md).
 
-**Shipped.** Phase **5a** (`e81d33e`): inert `operator_audit_missed_cap` / `operator_slash_bps`, checkpoint **v8**. Phase **5b** (this commit): register retains slashable bond (no treasury burn); `StorageOperatorStats` + checkpoint **v9**; per-block miss accounting in `apply_block` with pre-proof stale challenge gate.
+**Shipped.** Phase **5a** (`e81d33e`): inert slash params, checkpoint **v8**. Phase **5b** (`643a224`): retained bond + miss stats, checkpoint **v9**. Phase **5c** (this commit): auto-slash to treasury + zero-bond deregister in `apply_block`.
 
-**Next.** Phase **5c**: slash bond slice → treasury when `consecutive_missed_audits >= cap`.
+**Next.** Phase **5d**: public devnet enable + M5 proptests.
 
 ### B6. Size-bucketed commitments (`F5:P15`) — shared with privacy roadmap
 

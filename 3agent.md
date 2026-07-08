@@ -10,8 +10,32 @@
 | **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Doing** — CI B5 5a/5b | Nightly re-dispatch |
 | **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Refresh evidence on 5b green |
 | **3** Onboarding | Nightly participant+observer PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 5a+5b `643a224` | **Doing** — CI `#28977215094` | B5 5c slash execution |
+| **4+6** Protocol | B5 5a+5b `643a224` | **Doing** — B5 5c slash push | B5 5d proptests + devnet |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B5 phase 5c — slash → treasury + deregister)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B5 phase 5c** | **This push** | Auto-slash on miss cap; treasury credit; zero-bond deregister; unit + `block_apply` tests |
+| **CI #28977215094** | **In progress** | `643a224` B5 5b — wait before push |
+
+**Lane 4+6 — Done:** B5 5b `643a224` **Doing:** B5 5c push **Next:** B5 5d M5 proptests + devnet  
+**Lane 1 — Done:** dual Nightly GREEN **Doing:** CI `#28977215094` **Next:** Nightly on 5c stack
+
+---
+
+## Session — 2026-07-08 (B5 phase 5c — slash execution + clippy fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B5 phase 5c** | **This push** | Slash on miss cap → treasury; zero-bond deregister; clippy `or_default` |
+| **CI #28977215094** | **FAIL** | clippy on `643a224` — fixed locally |
+
+**Lane 4+6 — Done:** B5 5b `643a224` **Doing:** 5c push **Next:** B5 5d devnet enable  
+**Lane 1 — Doing:** CI re-run on 5c head **Next:** Nightly dispatch
 
 ---
 
