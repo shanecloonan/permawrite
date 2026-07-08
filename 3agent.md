@@ -3,6 +3,18 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-08 (F7 mempool tail → CI `#28924060054`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **mempool F7** | **Done** — `e7d74f7` | `mfn-runtime` test helpers: companion pad + two-input `signed_tx` / `signed_storage_tx` |
+| **CI #28924060054** | **In progress** | `e7d74f7` — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running |
+| **Prior CI #28921758809** | **Cancelled** | `0825385` — superseded by mempool fix push |
+
+**Lanes 1–3 — Done:** settlement `996f60f`, mfnd_smoke `0825385`, mempool `e7d74f7` **Doing:** CI monitor `#28924060054` **Next:** release evidence (lane 2) → Nightly (lane 1) → B3 (lanes 4+6)
+
+---
+
 ## Session — 2026-07-08 (F7 mfnd_smoke tail → CI `#28921758809`)
 
 | Gate | Status | Notes |
@@ -31,11 +43,11 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **TL-2 mempool fix** | **This commit** | `mfn-runtime` test helpers: companion pad + two-input `signed_tx` |
-| **Prior** | **Done** | `996f60f` settlement + `0825385` mfnd_smoke on main |
-| **CI** | **Pending** | Push then `release-ci-watch` |
+| **TL-2 mempool fix** | **Done** — `e7d74f7` | `mfn-runtime` test helpers: companion pad + two-input `signed_tx` |
+| **CI #28924060054** | **In progress** | `e7d74f7` full matrix |
+| **Prior** | **Done** | `996f60f` settlement + `0825385` mfnd_smoke |
 
-**Lane 7 — Done:** TL-1 (`8661106`) **Doing:** TL-2 CI gate **Next:** TL-3 evidence on green head
+**Lane 7 — Done:** TL-1 (`8661106`), mempool `e7d74f7` **Doing:** TL-2 CI monitor **Next:** TL-3 release evidence on green head
 
 ---
 

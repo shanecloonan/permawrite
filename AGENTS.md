@@ -83,21 +83,21 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17` + settlement `996f60f` + mfnd_smoke `0825385`. **CI `#28921758809` in progress** — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running.
+**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17` + settlement `996f60f` + mfnd_smoke `0825385` + mempool `e7d74f7`. **CI `#28924060054` in progress** on `e7d74f7` — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running.
 
-**RC push hold:** monitor `#28921758809`; lane 2 evidence after green. No pushes until matrix completes.
+**RC push hold:** monitor `#28924060054`; lane 2 evidence after green. No pushes until matrix completes.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28921758809` on `0825385` | **Monitor** — F7 mfnd_smoke tail | Nightly on green head |
+| **1** | CI `#28924060054` on `e7d74f7` | **Monitor** — F7 mempool tail | Nightly on green head |
 | **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-2 CI green + release evidence | **Monitor** — blocked on F7 mfnd_smoke CI | TL-3 launch ceremony prep |
+| **7** | TL-2 CI green + release evidence | **Monitor** — `e7d74f7` mempool pad | TL-3 launch ceremony prep |
 
 ---
 
