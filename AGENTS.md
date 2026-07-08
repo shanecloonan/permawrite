@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**CI #28885223488 GREEN** on `0d28e4f` (B7 dandelion rehearsal evidence). **CI #28879533724 GREEN** on `0fee187`. **Nightly #28889931523 GREEN** (all three jobs on `b1072e3` stack). **Release evidence `1bbc3af`** + RC audit go.
+**CI #28885223488 GREEN** on `0d28e4f`. **Nightly #28889931523 GREEN** (all three jobs on `b1072e3`). **Release evidence `44b25b6`** refresh + RC audit go (this session).
 
 **RC push hold:** lifted.
 
@@ -90,12 +90,12 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly #28889931523 | **Done** — all three jobs green on B-11/B7 stack (`b1072e3`) | Idle |
-| **2** | Release evidence refresh | **Done** — `release-evidence-1bbc3af` + RC audit go | Idle |
-| **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (this commit) | Idle |
-| **4** | B-11 endowment opening binding | **Done** — `0fee187` | Idle |
+| **1** | Nightly #28889931523 | **Done** — all three jobs green on B-11/B7 stack | Idle |
+| **2** | Release evidence `44b25b6` | **Done** — RC audit dry-run **go** (this session) | Human sign-off packet |
+| **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
+| **4** | B-11 endowment opening binding | **Done** — `0fee187` + proptests | B2 Merkle-path chunk gossip |
 | **5** | B7 Dandelion++ rehearsal (with lane 3) | **Done** — evidence `-dandelion` archive tag | B8 Tor transport (research) |
-| **6** | B-11 endowment opening (with lane 4) | **Done** — `0fee187` | Idle |
+| **6** | B-11 endowment opening (with lane 4) | **Done** — `0fee187` | B2 with lane 4 |
 
 ---
 
@@ -128,6 +128,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Release evidence `44b25b6`** (this session) - RC ops (lane 2): refresh + RC audit dry-run go on CI `28885223488` (`0d28e4f`).
 - **Nightly #28889931523 GREEN** - RC core (lane 1): all three jobs on B-11/B7 stack (`b1072e3`); auto-dispatched after CI `#28885223488`.
 - **CI #28885223488 GREEN** (`0d28e4f`) - B7 dandelion rehearsal evidence commit; full matrix pass.
 - **B7 dandelion rehearsal** (this commit) - privacy (lanes 3+5): Windows `dandelion-rehearsal-smoke` PASS with MFEO upload on B-11 genesis; evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt`; archive filenames tag `-dandelion`.

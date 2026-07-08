@@ -229,10 +229,13 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.64** (`c5e69f6` + `c7420a2`) — Linux soak pre-build bootstrap (`mfnd` + `mfn-cli` for tip polls).
 - [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off); rehearsal PASS evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt` on B-11 MFEO genesis.
 - [x] **B-05 Linux soak** — PASS soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt` (`234f0a8`).
+- [x] **Nightly #28889931523** — all three green on B-11/B7 stack (`b1072e3`).
+- [x] **CI #28885223488 GREEN** on `0d28e4f` (B7 dandelion rehearsal evidence).
+- [x] **Release evidence `44b25b6`** — RC audit dry-run go (refresh this session).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
-- [ ] Nightly #49/#50 — **FAIL** (pre-fix ring-size 8).
+- [x] Nightly #49/#50 — historical FAIL (pre ring-16 fix); superseded by #63+.
 
 ## Agent 3 — Wallet, Storage, Faucet/Test Funding, Onboarding
 

@@ -26,7 +26,7 @@ catalogued in [`PROBLEMS.md`](./PROBLEMS.md) and
 
 ---
 
-## Part A — Shipped (M5.49 + M7.12, commit `890a56c`; M2.5.61, commit `1603e43`)
+## Part A — Shipped (M5.49 + M7.12, commit `890a56c`; M2.5.61, commit `1603e43`; B-11 phase 1, commits `3511346` / `9f0a0aa` / `0fee187`)
 
 The through-line of this batch: **every hop of a payload's life — anchoring,
 gossip, disk, re-broadcast — must be checkable against the on-chain
@@ -333,12 +333,12 @@ leave the node only if they are *provably* the anchored payload.**
 
 [`STORAGE.md § Endowment is a Pedersen commitment`](./STORAGE.md#endowment-is-a-pedersen-commitment)
 previously implied the chain "verifies the endowment math" against the
-commitment point. It now states precisely what consensus enforces today —
-the **funding route** (`fee × fee_to_treasury_bps / 10_000 ≥
+commitment point. It now states precisely what consensus enforces — the
+**funding route** (`fee × fee_to_treasury_bps / 10_000 ≥
 required_endowment(size_bytes, replication)`, else `UploadUnderfunded`) —
-and that the Pedersen point itself is **not yet opened or range-proved
-on-chain**, with a pointer to the [§B1](#b1-bind-the-endowment-commitment-to-required_endowment-b-11--consensus)
-plan. A permanence chain must not document guarantees it does not enforce.
+and, when `require_endowment_opening = 1`, the **MFEO opening binding**
+(§A6). Range-proof over-payment privacy remains in [§B1](#b1-range-proof-endowment-binding-b-11-phase-2--consensus).
+A permanence chain must not document guarantees it does not enforce.
 A new `STORAGE.md § Structural (shape) validation — M5.49` section documents
 A1 for mechanism readers.
 
@@ -370,6 +370,68 @@ Harness lesson recorded for future startup-log changes: tests must treat
 startup announcements as a *set*, not a *sequence*, because announcement
 order is an operational tuning knob (M2.5.50 changed it deliberately).
 
+### A6. Pedersen endowment opening binding (B-11 phase 1, commits `3511346` / `9f0a0aa` / `0fee187`)
+
+**Status:** shipped (`mfn-consensus`, `mfn-storage`, `mfn-wallet`, public devnet genesis).
+
+#### The attack this closes
+
+Before B-11, `StorageCommitment.endowment` was a Pedersen point that
+consensus never opened. Uploads were funded only via the treasury fee-share
+gate (`UploadUnderfunded`). The on-chain bond artifact was unverified — an
+uploader could commit to `0` (or any point) with no consensus consequence
+as long as fees covered `required_endowment`. Any future logic trusting the
+committed point (per-endowment yield, top-ups, B6 bucket pricing) inherited
+that hole.
+
+#### What changed
+
+**Opening reveal (design option 1 from the original B-11 plan)** is now
+consensus-enforced when `endowment_params.require_endowment_opening != 0`:
+
+1. **`MFEO` wire frames** in `tx.extra` (MFEX v2) carry `value: u64` +
+   `blinding: [u8; 32]` per new storage output
+   ([`extra_codec.rs`](../mfn-consensus/src/extra_codec.rs)).
+2. **`apply_block`** parses openings, verifies
+   `verify_endowment_opening(sc, value, blinding)` and
+   `value ≥ required_endowment(size, replication)`
+   ([`block/apply.rs`](../mfn-consensus/src/block/apply.rs) B-11 block).
+3. **Mempool** mirrors the gate so invalid openings never enter blocks.
+4. **Public devnet v1** sets `require_endowment_opening: 1` in
+   [`public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json)
+   (same `genesis_id`; operators must sync byte-identical JSON).
+5. **Wallet** `mfn-cli wallet upload` attaches `MFEO` automatically when the
+   network requires it.
+
+Verifier helper:
+
+```166:177:mfn-storage/src/spora.rs
+pub fn verify_endowment_opening(
+    c: &StorageCommitment,
+    amount: u64,
+    blinding: &curve25519_dalek::scalar::Scalar,
+) -> bool {
+    let recomputed = mfn_crypto::pedersen::PedersenCommitment {
+        c: c.endowment,
+        value: curve25519_dalek::scalar::Scalar::from(amount),
+        blinding: *blinding,
+    };
+    mfn_crypto::pedersen::pedersen_verify(&recomputed)
+}
+```
+
+**Trade-off (accepted for phase 1):** the opened endowment amount is visible
+on-chain when the gate is on. `required_endowment` is already public math over
+public `size_bytes`/`replication`; only *over*-payment privacy is lost. B6 size
+buckets and [§B1 range-proof binding](#b1-range-proof-endowment-binding-b-11-phase-2--consensus)
+are the upgrade path if amount privacy matters.
+
+#### Test coverage
+
+- `prop_mfeo_opening_storage_upload_treasury` — valid opening + treasury path.
+- Reject without `MFEO` when `require_endowment_opening = 1`.
+- `public_devnet_manifest` — genesis spec asserts `require_endowment_opening: 1`.
+
 ### Related shipped work (other lanes, same doctrine)
 
 - **F5-PM10** (`b260033`) — `mfnd archive-export` / `archive-verify`
@@ -390,46 +452,24 @@ Ordered roughly by permanence impact per unit risk. Items marked
 **consensus** need a version gate and M5-style proptests. Backlog IDs from
 [`AGENTS.md`](../AGENTS.md) are given where they exist.
 
-### B1. Bind the endowment commitment to `required_endowment` (B-11) — **consensus**
+### B1. Range-proof endowment binding (B-11 phase 2) — **consensus**
 
-**Problem.** The highest remaining permanence gap. `StorageCommitment.endowment`
-is a Pedersen point that consensus never opens, range-proves, or binds to
-anything. What actually funds permanence today is the *fee-share* gate in
-[`apply_block`](../mfn-consensus/src/block/apply.rs)
-(`UploadUnderfunded` when
-`fee × fee_to_treasury_bps / 10_000 < required_endowment(size, repl)`). The
-committed point is decorative: an uploader can commit to `0` (or to 2⁶⁴−1)
-with no consequence. That is *currently* safe only because the fee route is
-enforced — but it means the on-chain artifact that *looks* like the
-permanence bond is unverified, and any future logic that trusts it (e.g.
-per-endowment yield, endowment top-ups, B6 bucket pricing) inherits a hole.
+**Status:** not shipped. **Phase 1 (`MFEO` opening reveal) shipped** — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187).
 
-**Plan.** Two designs, in ascending strength:
+**Problem (remaining).** When `require_endowment_opening = 1`, the opened endowment
+amount is visible on-chain. Networks with `require_endowment_opening = 0` still
+rely on the fee route only (no Pedersen binding). The strongest fix is a range
+proof that the committed point opens to at least `required_endowment(...)` without
+revealing over-payment.
 
-1. **Opening reveal (cheap, no new crypto).** Add `endowment_value: u64` and
-   `endowment_blinding: [u8; 32]` to the *transaction-level* storage
-   metadata (not the commitment struct — its hash is the chain identity and
-   must stay stable). `apply_block` checks
-   `commit(endowment_value, blinding) == sc.endowment` and
-   `endowment_value ≥ required_endowment(...)`. Costs 40 bytes per upload;
-   reveals the endowment amount (acceptable — `required_endowment` is
-   already public math over public `size_bytes`/`replication`; only
-   *over*-payment privacy is lost, and B6 restores it at the size level).
-2. **Range-proof binding (amount-private).** Require a Bulletproof that
-   `endowment − required_endowment(...) ∈ [0, 2^64)` over the homomorphic
-   difference `sc.endowment − commit(required, 0)`. Reuses the existing
-   [`bp_prove`](../mfn-crypto/src/bulletproofs.rs) machinery from tx outputs;
-   preserves over-payment privacy; costs ~700 bytes per upload.
+**Plan.** Require a Bulletproof that `endowment − required_endowment(...) ∈ [0, 2^64)`
+over the homomorphic difference `sc.endowment − commit(required, 0)`. Reuses
+[`bp_prove`](../mfn-crypto/src/bulletproofs.rs) from tx outputs; preserves
+over-payment privacy; ~700 bytes per upload. Touches: version-gated wire fields,
+`block/apply.rs` + `block/error.rs`, `mempool.rs`, `mfn-wallet/src/upload.rs`, M5
+proptests mixing valid/forged proofs.
 
-Start with (1) behind a params version gate; upgrade to (2) if endowment
-privacy proves to matter. Touches: `mfn-consensus/src/transaction/wire.rs`
-(new optional field, version-gated), `block/apply.rs` + `block/error.rs`
-(new reject variant), `mempool.rs` mirror, `mfn-wallet/src/upload.rs` (the
-wallet already holds `built.blinding` from
-[`build_storage_commitment`](../mfn-storage/src/spora.rs), so it can populate
-either design today), M5 proptests mixing valid/forged openings.
-
-**Effort:** moderate (1) / high (2). **Risk:** high (consensus + wire).
+**Effort:** high. **Risk:** high (consensus + wire).
 
 ### B2. Merkle-path-carrying chunk gossip — full per-chunk verification
 

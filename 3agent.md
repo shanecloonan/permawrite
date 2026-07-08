@@ -3,6 +3,40 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 PM (revisions — B-11 doc accuracy + gate sync)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **CI / Nightly / RC** | **GREEN** | No open failures on `44b25b6` stack |
+| **Doc fix** | **This commit** | `STORAGE.md` + `PERMANENCE_HARDENING.md` §A6/B1: MFEO opening shipped; stale lane checkboxes cleared |
+| **B-11 + B7 stack** | **Done** | MFEO genesis + dandelion rehearsal PASS |
+
+### RC push hold
+
+**Lifted** — full matrix + Nightly green on B-11/B7 stack.
+
+---
+
+## Session — 2026-07-07 (RC stack complete → F7 tail next)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **Release evidence** | **Done** | `44b25b6` + RC audit dry-run **go** |
+| **Nightly #28889931523** | **GREEN** | All three jobs on `b1072e3` stack |
+| **CI #28885223488** | **GREEN** | `0d28e4f` B7 dandelion rehearsal evidence |
+| **B-11 MFEO** | **Done** | Public devnet genesis `require_endowment_opening: 1` |
+| **B-05 soak** | **Done** | `28851202993` max_height=48 |
+
+### RC push hold
+
+**Lifted** — full matrix + Nightly green on B-11/B7 stack.
+
+### Next priority (lane 4+5)
+
+**F7 consensus tail** — `min_input_count` enforcement at `verify_transaction` (network-wide Monero-default tx shape closure).
+
+---
+
 ## Session — 2026-07-07 (B7 dandelion rehearsal → CI GREEN on `0d28e4f`)
 
 | Gate | Status | Notes |
@@ -77,9 +111,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#28884769330`; CI `#28879533724` GREEN | — | Idle |
-| **2** RC ops | Release evidence `1bbc3af`; CI ancestor lookup | — | Idle |
-| **3** RC onboarding | B7 dandelion rehearsal PASS (`0d28e4f`) | — | Idle |
+| **1** RC core | Nightly `#28889931523`; CI `#28885223488` GREEN | — | B2 Merkle-path gossip (lane 4) |
+| **2** RC ops | Release evidence `44b25b6` + RC audit **go** | — | Human sign-off packet |
+| **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---
 
@@ -87,9 +121,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **4** Protocol | B-11 MFEO wire + proptests + public devnet enable | — | Idle |
-| **5** Privacy | B13; B4; B7 dandelion rehearsal (`0d28e4f`) | — | B8 Tor transport (research) |
-| **6** Permanence | M5.48; B-05; B-11 complete | — | Idle |
+| **4** Protocol | B-11 complete (MFEO + proptests + genesis) | — | B2 Merkle-path chunk gossip |
+| **5** Privacy | B7 dandelion rehearsal; B9 view tags | — | B8 Tor transport (research) |
+| **6** Permanence | B-11 complete; B-05 soak PASS | — | B2 with lane 4 |
 
 ---
 

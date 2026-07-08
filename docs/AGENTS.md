@@ -71,7 +71,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Done
 
 - [x] M2.5.65 — soak WARMUP health-check uses mfn-cli `status` for P2P session counts (`76cc778`).
-- [x] M2.5.65 — GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` (`8ccda5d`; soak `28850304866` hub_produced then converge FAIL).
+- [x] M2.5.65 — GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` (`8ccda5d`; intermediate soak `28850304866` converge FAIL → final PASS `28851202993`).
 - [x] **B-05 Linux soak PASS** — soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations).
 
 ### Next
@@ -81,7 +81,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f` stack).
 - [x] **Nightly #28889931523** all three green on B-11/B7 stack (`b1072e3`).
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
-- [ ] Release evidence refresh on green CI (lane 2).
+- [x] Release evidence refresh on green CI (lane 2) — `release-evidence-1bbc3af` (`c8e6cc1`).
 
 ### Do not start (other lanes)
 
@@ -113,11 +113,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] M2.4.90 — `ci-check.sh` thread cap parity (`aae3097`).
 
-- [x] **Release evidence refresh** — `release-evidence-1bbc3af` + RC audit dry-run go (CI `28879533724` on `0fee187` via ancestor lookup).
+- [x] **Release evidence refresh** — `release-evidence-44b25b6` + RC audit dry-run go (CI `28885223488` on `0d28e4f`).
 
 ### Next
 
-- [ ] Monitor Nightly/soak auto-dispatch after B-11 stack.
+- [ ] Linux 30s-slot soak re-run (B-05 maintenance).
 
 ### Do not start
 
@@ -190,7 +190,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Monitor CI + Nightly on B-11 stack; release evidence refresh (lane 2).
+- [ ] **B2** — Merkle-path-carrying chunk gossip (PERMANENCE_HARDENING §B2; with lane 6).
 
 ### Handoff to lane 3
 
@@ -266,12 +266,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M5.46** - combined-inflow emission CI tier complete; 2048-block CLSAG fee mix timed nightly-only (~13 min release).
 - [x] **M5.45** - 512-block PPB + equivocation combined-inflow emission sims in default CI (66a697a).
 - [x] **M5.43** - 256-block PPB combined-inflow emission sim in default CI (7ffcdac).
-- [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; awaiting first PASS transcript).
+- [x] B-05 — Linux soak auto-dispatch + workflow evidence commit (`9537c7b`; PASS `28851202993` / `234f0a8`).
 
 ### Next
 
 - [x] B-05 — Linux soak PASS transcript archived (`28851202993` / `234f0a8`).
-- [ ] B-06 - Nightly #63 all three jobs green after M2.5.49-57 stack on `9fc2f4a` (lane 1 RC gate).
+- [x] B-06 — Nightly #63 all three jobs green (`28792429191` on `85e5870` stack; lane 1 RC gate closed).
 
 ### Do not start
 

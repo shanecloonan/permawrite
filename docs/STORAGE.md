@@ -148,13 +148,17 @@ while the endowment prices the full size, silently voiding the permanence guaran
 The `endowment` field is **not** a plaintext amount — it's a Pedersen commitment, just like a transaction output. This means:
 
 - An external observer cannot tell how much the user paid (they could have over-paid; their privacy).
-- What consensus enforces today is the *funding route*: the tx's treasury-bound fee share
+- What consensus always enforces is the *funding route*: the tx's treasury-bound fee share
   (`fee × fee_to_treasury_bps / 10_000`) must cover `required_endowment(size_bytes, replication)`
   or the block is rejected (`UploadUnderfunded`).
-- The Pedersen point itself is **not** opened or range-proved on-chain yet — binding it to
-  `required_endowment` in consensus is tracked as backlog **B-11** in [`AGENTS.md`](../AGENTS.md);
-  the concrete design options are in
-  [`PERMANENCE_HARDENING.md` §B1](./PERMANENCE_HARDENING.md#b1-bind-the-endowment-commitment-to-required_endowment-b-11--consensus).
+- When `endowment_params.require_endowment_opening = 1` (public devnet v1 since B-11), each new
+  storage output must also carry a matching **`MFEO`** opening in `tx.extra`: consensus verifies
+  `commit(opened_value, blinding) == sc.endowment` and `opened_value ≥ required_endowment(...)`
+  ([`PERMANENCE_HARDENING.md` §A6](./PERMANENCE_HARDENING.md#a6-pedersen-endowment-opening-binding-b-11-phase-1)).
+  The opened amount is visible on-chain (over-payment privacy is not range-proved yet).
+- Networks with `require_endowment_opening = 0` still rely on the fee route only; the Pedersen
+  point is not opened. Optional **range-proof** binding (amount-private over-payment) remains in
+  [`PERMANENCE_HARDENING.md` §B1](./PERMANENCE_HARDENING.md#b1-range-proof-endowment-binding-b-11-phase-2--consensus).
 
 ### Replication factor
 
@@ -651,7 +655,7 @@ Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_
 
 ## See also
 
-- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip authentication + fan-out verification) and the specific plans for what remains (endowment binding, replication accounting, repair, slashing)
+- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth, B-11 MFEO opening binding) and the specific plans for what remains (range-proof endowment binding, replication accounting, repair, slashing)
 - [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — can normal devices be storage operators? (feasibility vs Arweave-style hardware)
 - [`ECONOMICS.md`](./ECONOMICS.md) — full derivation of the endowment formula + parameter sensitivity
 - [`PRIVACY.md`](./PRIVACY.md) — the privacy half (which funds this half)
