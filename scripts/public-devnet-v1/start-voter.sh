@@ -24,5 +24,5 @@ else
   export MFND_BLS_SEED_HEX=8787878787878787878787878787878787878787878787878787878787878787
 fi
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
-  --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
+  --rpc-listen "${MFN_RPC_LISTEN:-127.0.0.1:0}" --p2p-listen "${MFN_P2P_LISTEN:-127.0.0.1:0}" \
   --p2p-dial "$HUB_P2P" --slot-duration-ms "$SLOT_MS" serve --committee-vote

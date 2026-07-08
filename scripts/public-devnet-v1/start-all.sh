@@ -13,6 +13,40 @@ PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
+vps_export_binds() {
+  local role="$1"
+  unset MFN_RPC_LISTEN MFN_P2P_LISTEN
+  case "$role" in
+    hub)
+      [[ -n "${MFN_RPC_LISTEN_HUB:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_HUB"
+      [[ -n "${MFN_P2P_LISTEN_HUB:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_HUB"
+      ;;
+    v1)
+      [[ -n "${MFN_RPC_LISTEN_V1:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V1"
+      [[ -n "${MFN_P2P_LISTEN_V1:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V1"
+      ;;
+    v2)
+      [[ -n "${MFN_RPC_LISTEN_V2:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V2"
+      [[ -n "${MFN_P2P_LISTEN_V2:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V2"
+      ;;
+    observer)
+      [[ -n "${MFN_RPC_LISTEN_OBSERVER:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_OBSERVER"
+      [[ -n "${MFN_P2P_LISTEN_OBSERVER:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_OBSERVER"
+      ;;
+  esac
+}
+
+if [[ "${MFN_VPS_MODE:-}" == "1" ]]; then
+  BIND="${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
+  if [[ ! -f "$BIND" ]]; then
+    echo "start-all: MFN_VPS_MODE=1 requires bind file at $BIND (copy vps-bind.env.example)" >&2
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  source "$BIND"
+  echo "start-all: VPS mode — public P2P binds from $BIND"
+fi
+
 NO_BUILD=0
 DANDELION=0
 if [[ "${MFN_DEVNET_SKIP_BUILD:-}" == "1" ]]; then
@@ -65,6 +99,7 @@ fi
 rm -rf "$REPO_ROOT/$DATA_ROOT"
 echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
+vps_export_binds hub
 bash "$SCRIPT_DIR/start-hub.sh" >"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!
 echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
@@ -103,10 +138,12 @@ export HUB_P2P
 echo "Hub P2P=$HUB_P2P RPC=$HUB_RPC"
 sleep 2
 echo "Starting voter 1..."
+vps_export_binds v1
 bash "$SCRIPT_DIR/start-voter.sh" 1 >"$LOG_DIR/v1.log" 2>&1 &
 echo "V1_PID=$!" >>"$PORTS_FILE"
 sleep 2
 echo "Starting voter 2..."
+vps_export_binds v2
 bash "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
@@ -258,6 +295,7 @@ if [[ -n "$EXTRA_P2P_DIALS" ]]; then
   export EXTRA_P2P_DIALS
 fi
 echo "Starting observer..."
+vps_export_binds observer
 bash "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""

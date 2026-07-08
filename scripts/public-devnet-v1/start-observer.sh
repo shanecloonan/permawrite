@@ -31,5 +31,5 @@ if [[ -n "${EXTRA_P2P_DIALS:-}" ]]; then
 fi
 
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
-  --rpc-listen 127.0.0.1:0 --p2p-listen 127.0.0.1:0 \
+  --rpc-listen "${MFN_RPC_LISTEN:-127.0.0.1:0}" --p2p-listen "${MFN_P2P_LISTEN:-127.0.0.1:0}" \
   "${DIAL_ARGS[@]}" --slot-duration-ms "$SLOT_MS" serve
