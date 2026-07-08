@@ -563,6 +563,7 @@ fn genesis_validator_with_funded_utxo(
         initial_storage: storage
             .map(|s| vec![s.built.commit.clone()])
             .unwrap_or_default(),
+        initial_storage_operators: Vec::new(),
         validators: fixture.validators.clone(),
         params: fixture.params,
         emission_params: emission,
@@ -840,6 +841,7 @@ fn fee_only_block_credits_treasury_ninety_percent() {
             timestamp: 0,
             initial_outputs,
             initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: TEST_EMISSION,

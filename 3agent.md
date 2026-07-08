@@ -10,12 +10,22 @@
 | **1** RC core | B3 3b `8b4e163` pushed; local CI green | **Monitor** CI `#28952620476` | Nightly re-dispatch |
 | **2** RC ops | Evidence `1b6caba` draft | **Await** CI green on `8b4e163` | Release evidence refresh + RC audit |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
-| **4+6** Protocol | B3 phase 3b `8b4e163` | Idle — landed | Genesis operator seeding (3c) |
+| **4+6** Protocol | B3 phase 3b `8b4e163` | **B3 phase 3c** — genesis operator seeding | Public devnet B3 enable + rehearsal wallet align |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
 
-## Session — 2026-07-08 (B3 phase 3b — pushed `8b4e163`)
+## Session — 2026-07-08 (B3 phase 3c — genesis operator seeding)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3c** | **In progress** | `GenesisConfig.initial_storage_operators`; JSON `storage_operators[]`; `apply_genesis` seed; public devnet B3 flags |
+| **CI #28952620476** | **In progress** | `8b4e163` matrix (monitor lane 1) |
+| **Board sync** | **Done** — `567da3d` local | Push after CI green |
+
+**Lane 4+6 — Done:** 3b `8b4e163` **Doing:** 3c genesis seeding **Next:** M5 proptest duplicate-operator reject
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |

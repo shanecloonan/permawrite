@@ -4,8 +4,11 @@ use super::internal::*;
 
 use super::error::BlockError;
 use super::header::{block_id, Block, BlockHeader, HEADER_VERSION};
-use super::state::{ChainState, ConsensusParams, StorageEntry, UtxoEntry, ValidatorStats};
+use super::state::{
+    ChainState, ConsensusParams, StorageEntry, StorageOperatorEntry, UtxoEntry, ValidatorStats,
+};
 use super::wire::storage_merkle_root;
+use mfn_storage::{operator_identity_from_payout, operator_payout_is_valid};
 
 /* ----------------------------------------------------------------------- *
  *  Genesis                                                                 *
@@ -21,6 +24,17 @@ pub struct GenesisOutput {
     pub amount: EdwardsPoint,
 }
 
+/// One genesis-seeded storage operator (trusted setup; no wire op or burn).
+#[derive(Clone, Debug)]
+pub struct GenesisStorageOperator {
+    /// Operator payout view public key.
+    pub operator_view_pub: EdwardsPoint,
+    /// Operator payout spend public key.
+    pub operator_spend_pub: EdwardsPoint,
+    /// Escrowed bond in base units (`0` = bondless tier).
+    pub bond_amount: u64,
+}
+
 /// Configuration for the genesis block (height 0).
 #[derive(Clone, Debug)]
 pub struct GenesisConfig {
@@ -30,6 +44,8 @@ pub struct GenesisConfig {
     pub initial_outputs: Vec<GenesisOutput>,
     /// Initial storage commitments.
     pub initial_storage: Vec<StorageCommitment>,
+    /// Storage operators registered at genesis (B3 phase 3c).
+    pub initial_storage_operators: Vec<GenesisStorageOperator>,
     /// Validator set at genesis. Empty ⇒ chain runs without consensus
     /// validation (tests only).
     pub validators: Vec<Validator>,
@@ -122,6 +138,44 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
                 pending_yield_ppb: 0,
             },
         );
+    }
+
+    let mut prev_op_id: Option<[u8; 32]> = None;
+    for (index, op) in cfg.initial_storage_operators.iter().enumerate() {
+        if !operator_payout_is_valid(&op.operator_view_pub, &op.operator_spend_pub) {
+            return Err(BlockError::GenesisStorageOperatorInvalid { index });
+        }
+        if cfg.endowment_params.min_storage_operator_bond > 0
+            && op.bond_amount < cfg.endowment_params.min_storage_operator_bond
+        {
+            return Err(BlockError::GenesisStorageOperatorBondTooLow {
+                index,
+                bond_amount: op.bond_amount,
+                min_bond: cfg.endowment_params.min_storage_operator_bond,
+            });
+        }
+        let id = operator_identity_from_payout(&op.operator_view_pub, &op.operator_spend_pub);
+        if let Some(prev) = prev_op_id {
+            if id <= prev {
+                return Err(BlockError::GenesisStorageOperatorsNotSorted { index });
+            }
+        }
+        prev_op_id = Some(id);
+        if state
+            .storage_operators
+            .insert(
+                id,
+                StorageOperatorEntry {
+                    operator_view_pub: op.operator_view_pub,
+                    operator_spend_pub: op.operator_spend_pub,
+                    registration_height: 0,
+                    bond_amount: op.bond_amount,
+                },
+            )
+            .is_some()
+        {
+            return Err(BlockError::GenesisDuplicateStorageOperator { index });
+        }
     }
 
     state.height = Some(0);

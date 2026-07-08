@@ -13,7 +13,7 @@ use std::path::Path;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_consensus::{
     validate_constitution, ConsensusParams, ConstitutionError, GenesisConfig, GenesisOutput,
-    Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
+    GenesisStorageOperator, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
@@ -91,6 +91,45 @@ pub enum GenesisSpecError {
     #[error("validator index {0}: omit_payout conflicts with payout_seed_hex")]
     ConflictingPayoutOptions(u32),
 
+    /// Storage-operator indices must be `0 .. N-1` in ascending order without gaps.
+    #[error(
+        "storage_operators must use contiguous indices 0..N-1 in order; got index {got} at position {pos}"
+    )]
+    BadStorageOperatorIndexOrder {
+        /// Position in the spec file array.
+        pos: usize,
+        /// Index field read from JSON.
+        got: u32,
+    },
+
+    /// Duplicate operator payout identity in the genesis spec.
+    #[error("storage_operators[{index}]: duplicate operator payout identity")]
+    DuplicateStorageOperatorIdentity {
+        /// Position in the spec file array.
+        index: usize,
+    },
+
+    /// Operator bond below `min_storage_operator_bond` in the endowment section.
+    #[error(
+        "storage_operators[{index}]: bond_amount {bond_amount} below min_storage_operator_bond {min_bond}"
+    )]
+    StorageOperatorBondTooLow {
+        /// Position in the spec file array.
+        index: usize,
+        /// Bond amount from JSON.
+        bond_amount: u64,
+        /// Required minimum from merged endowment params.
+        min_bond: u64,
+    },
+
+    /// `require_registered_operators` requires `operator_salted_challenges`.
+    #[error("endowment.require_registered_operators requires operator_salted_challenges = 1")]
+    RegisteredOperatorsRequiresSaltedChallenges,
+
+    /// `storage_operators` entries require `require_registered_operators` when non-empty.
+    #[error("storage_operators requires endowment.require_registered_operators = 1")]
+    StorageOperatorsRequireRegisteredFlag,
+
     /// `synthetic_decoy_utxos` exceeds the hard cap (local devnets only).
     #[error("synthetic_decoy_utxos {0} exceeds maximum {1}")]
     SyntheticDecoyCountTooLarge(u32, u32),
@@ -149,6 +188,8 @@ struct GenesisFile {
     endowment: Option<EndowmentSection>,
     #[serde(default)]
     validators: Vec<ValidatorSection>,
+    #[serde(default)]
+    storage_operators: Vec<StorageOperatorSection>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -190,6 +231,15 @@ struct ValidatorSection {
     /// When true, on-chain `payout` is `None` (coinbase burns).
     #[serde(default)]
     omit_payout: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StorageOperatorSection {
+    index: u32,
+    payout_seed_hex: String,
+    #[serde(default)]
+    bond_amount: u64,
 }
 
 /// Upper bound for [`GenesisFile::synthetic_decoy_utxos`] (devnet / tests).
@@ -346,10 +396,59 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         Some(n) => synthetic_genesis_outputs(file.timestamp, n)?,
     };
 
+    if !file.storage_operators.is_empty() {
+        if endowment_params.require_registered_operators == 0 {
+            return Err(GenesisSpecError::StorageOperatorsRequireRegisteredFlag);
+        }
+        if endowment_params.operator_salted_challenges == 0 {
+            return Err(GenesisSpecError::RegisteredOperatorsRequiresSaltedChallenges);
+        }
+    }
+
+    let mut op_rows = file.storage_operators;
+    op_rows.sort_by_key(|o| o.index);
+    for (pos, o) in op_rows.iter().enumerate() {
+        if o.index != pos as u32 {
+            return Err(GenesisSpecError::BadStorageOperatorIndexOrder { pos, got: o.index });
+        }
+    }
+
+    let mut initial_storage_operators = Vec::with_capacity(op_rows.len());
+    let mut prev_op_id: Option<[u8; 32]> = None;
+    for o in op_rows {
+        let field = format!("storage_operators[{}].payout_seed_hex", o.index);
+        let pseed = parse_seed32(&field, &o.payout_seed_hex)?;
+        let w = stealth_wallet_from_seed(&pseed);
+        if endowment_params.min_storage_operator_bond > 0
+            && o.bond_amount < endowment_params.min_storage_operator_bond
+        {
+            return Err(GenesisSpecError::StorageOperatorBondTooLow {
+                index: o.index as usize,
+                bond_amount: o.bond_amount,
+                min_bond: endowment_params.min_storage_operator_bond,
+            });
+        }
+        let id = mfn_storage::operator_identity_from_payout(&w.view_pub, &w.spend_pub);
+        if let Some(prev) = prev_op_id {
+            if id <= prev {
+                return Err(GenesisSpecError::DuplicateStorageOperatorIdentity {
+                    index: o.index as usize,
+                });
+            }
+        }
+        prev_op_id = Some(id);
+        initial_storage_operators.push(GenesisStorageOperator {
+            operator_view_pub: w.view_pub,
+            operator_spend_pub: w.spend_pub,
+            bond_amount: o.bond_amount,
+        });
+    }
+
     Ok(GenesisConfig {
         timestamp: file.timestamp,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators,
         validators,
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -445,5 +544,39 @@ mod tests {
         let s = r#"{"version":1,"timestamp":0,"endowment":{"require_endowment_opening":1},"validators":[]}"#;
         let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
         assert_eq!(g.endowment_params.require_endowment_opening, 1);
+    }
+
+    #[test]
+    fn storage_operators_section_loads() {
+        let s = r#"{"version":1,"timestamp":0,"endowment":{"operator_salted_challenges":1,"require_registered_operators":1},"storage_operators":[{"index":0,"payout_seed_hex":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","bond_amount":0}],"validators":[]}"#;
+        let g = genesis_config_from_json_bytes(s.as_bytes()).expect("parse");
+        assert_eq!(g.initial_storage_operators.len(), 1);
+        assert_eq!(g.endowment_params.require_registered_operators, 1);
+    }
+
+    #[test]
+    fn rejects_storage_operators_without_registered_flag() {
+        let s = r#"{"version":1,"timestamp":0,"endowment":{"operator_salted_challenges":1},"storage_operators":[{"index":0,"payout_seed_hex":"c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3","bond_amount":0}],"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::StorageOperatorsRequireRegisteredFlag)
+        ));
+    }
+
+    #[test]
+    fn public_devnet_v1_genesis_id_unchanged() {
+        use mfn_consensus::{apply_genesis, block_id, build_genesis};
+        let json = include_str!("../../mfn-node/testdata/public_devnet_v1.json");
+        let cfg = genesis_config_from_json_bytes(json.as_bytes()).expect("parse");
+        let genesis = build_genesis(&cfg);
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../mfn-node/testdata/public_devnet_v1.manifest.json"
+        ))
+        .expect("manifest");
+        let want = manifest["genesis_id"].as_str().expect("genesis_id");
+        assert_eq!(hex::encode(block_id(&genesis.header)), want);
+        let state = apply_genesis(&genesis, &cfg).expect("apply");
+        assert_eq!(state.storage_operators.len(), 2);
+        assert_eq!(cfg.endowment_params.require_registered_operators, 1);
     }
 }

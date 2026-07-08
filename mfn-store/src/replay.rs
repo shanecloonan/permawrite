@@ -99,6 +99,7 @@ mod tests {
             timestamp,
             initial_outputs: Vec::new(),
             initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
             validators: Vec::new(),
             params: ConsensusParams::default(),
             emission_params: DEFAULT_EMISSION_PARAMS,

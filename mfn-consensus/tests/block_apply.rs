@@ -24,6 +24,7 @@ fn genesis_state() -> ChainState {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -40,6 +41,7 @@ fn build_apply_genesis_matches() {
         timestamp: 42,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -63,6 +65,7 @@ fn apply_genesis_sets_optional_bonding_params() {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -528,6 +531,7 @@ fn empty_genesis_with_endowment(ep: EndowmentParams) -> ChainState {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -567,6 +571,7 @@ fn genesis_with_storage_commit(
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -610,6 +615,7 @@ fn twin_storage_genesis(
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built_a.commit.clone(), built_b.commit.clone()],
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -636,6 +642,7 @@ fn duplicate_storage_proof_in_one_block_rejected() {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -695,36 +702,13 @@ fn b3_registered_test_endowment_params() -> EndowmentParams {
     }
 }
 
-fn register_storage_operator(
-    state: &mut ChainState,
-    view: curve25519_dalek::edwards::EdwardsPoint,
-    spend: curve25519_dalek::edwards::EdwardsPoint,
-) {
-    let id = mfn_storage::operator_identity_from_payout(&view, &spend);
-    state.storage_operators.insert(
-        id,
-        StorageOperatorEntry {
-            operator_view_pub: view,
-            operator_spend_pub: spend,
-            registration_height: state.height.unwrap_or(0),
-            bond_amount: 0,
-        },
-    );
-}
-
-fn register_b3_test_operators(state: &mut ChainState) {
-    let (v0, s0) = mfn_storage::test_operator_payout_keys();
-    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
-    register_storage_operator(state, v0, s0);
-    register_storage_operator(state, v1, s1);
-}
-
 fn genesis_with_b3_storage(built: &BuiltCommitment) -> ChainState {
     let ep = b3_test_endowment_params();
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -914,10 +898,24 @@ fn b3_legacy_challenge_rejected_when_enabled() {
 
 fn genesis_with_b3_registered_storage(built: &BuiltCommitment) -> ChainState {
     let ep = b3_registered_test_endowment_params();
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![
+            GenesisStorageOperator {
+                operator_view_pub: v0,
+                operator_spend_pub: s0,
+                bond_amount: 0,
+            },
+            GenesisStorageOperator {
+                operator_view_pub: v1,
+                operator_spend_pub: s1,
+                bond_amount: 0,
+            },
+        ],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -925,9 +923,7 @@ fn genesis_with_b3_registered_storage(built: &BuiltCommitment) -> ChainState {
         bonding_params: None,
     };
     let g = build_genesis(&cfg);
-    let mut state = apply_genesis(&g, &cfg).unwrap();
-    register_b3_test_operators(&mut state);
-    state
+    apply_genesis(&g, &cfg).unwrap()
 }
 
 #[test]
@@ -1184,6 +1180,7 @@ fn storage_proof_with_wrong_chunk_rejected() {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -1828,6 +1825,7 @@ fn ring_member_not_in_utxo_set_rejected() {
         timestamp: 0,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -1970,6 +1968,7 @@ fn ring_member_with_wrong_commit_rejected() {
         timestamp: 0,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -2334,6 +2333,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: vec![fake_validator(0, 7_500), fake_validator(1, 2_500)],
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -2987,6 +2987,7 @@ fn consensus_rejects_non_uniform_ring_sizes_across_inputs() {
         timestamp: 0,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -3103,6 +3104,7 @@ fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
         timestamp: 0,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -3210,6 +3212,7 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
         timestamp: 0,
         initial_outputs,
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -3397,6 +3400,7 @@ fn apply_block_rejects_ring_smaller_than_sixteen() {
             amount: signer_c,
         }],
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
         emission_params: DEFAULT_EMISSION_PARAMS,

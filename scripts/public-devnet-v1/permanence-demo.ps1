@@ -24,6 +24,8 @@ $DemoRoot = if ($WalletDir) {
 }
 $UploaderWallet = Join-Path $DemoRoot "uploader.json"
 $ReplicaWallet = Join-Path $DemoRoot "replica.json"
+# Public devnet genesis operator 0 payout seed (matches public_devnet_v1.json storage_operators[0]).
+$PublicDevnetOperator0Seed = "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
 $RestoredPath = Join-Path $DemoRoot "restored.bin"
 $ChunkLog = Join-Path $LogDir "permanence-demo-chunks.log"
 $ChunkErrLog = Join-Path $LogDir "permanence-demo-chunks.err.log"
@@ -206,6 +208,14 @@ function Ensure-Wallet {
     Write-Host "permanence-demo: created $Label wallet at $Path"
 }
 
+function Ensure-RegisteredOperatorWallet {
+    param([string]$MfnCli, [string]$Path, [string]$Seed, [string]$Label)
+    $parent = Split-Path -Parent $Path
+    if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+    Invoke-Checked $MfnCli @("--wallet", $Path, "--force", "wallet", "restore", $Seed, "--key-derivation", "payout_stealth_v1") "$Label wallet restore" | Out-Null
+    Write-Host "permanence-demo: restored $Label wallet from public devnet operator seed"
+}
+
 if ($WaitUploadSeconds -lt 1) { throw "WaitUploadSeconds must be >= 1" }
 if ($WaitProofSeconds -lt 0) { throw "WaitProofSeconds must be >= 0" }
 
@@ -241,7 +251,7 @@ try {
     $Payload = Ensure-SamplePayload
 
     Ensure-Wallet $MfnCli $UploaderWallet "uploader"
-    Ensure-Wallet $MfnCli $ReplicaWallet "replica"
+    Ensure-RegisteredOperatorWallet $MfnCli $ReplicaWallet $PublicDevnetOperator0Seed "replica"
 
     $upload = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $UploaderWallet, "wallet", "upload", $Payload, "--replication", "3") "wallet upload"
     $commit = Parse-Field $upload "storage_commitment_hash"

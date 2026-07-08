@@ -9,8 +9,23 @@
     "liveness_slash_bps": 0
   },
   "endowment": {
-    "require_endowment_opening": 1
+    "require_endowment_opening": 1,
+    "operator_salted_challenges": 1,
+    "require_registered_operators": 1,
+    "min_storage_operator_bond": 0
   },
+  "storage_operators": [
+    {
+      "index": 0,
+      "payout_seed_hex": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "bond_amount": 0
+    },
+    {
+      "index": 1,
+      "payout_seed_hex": "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+      "bond_amount": 0
+    }
+  ],
   "validators": [
     {
       "index": 0,

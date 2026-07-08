@@ -259,6 +259,7 @@ mod tests {
             timestamp: 0,
             initial_outputs: Vec::new(),
             initial_storage: vec![built.commit.clone()],
+            initial_storage_operators: Vec::new(),
             validators: Vec::new(),
             params: DEFAULT_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,

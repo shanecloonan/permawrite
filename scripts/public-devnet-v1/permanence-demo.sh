@@ -9,6 +9,8 @@ source "$SCRIPT_DIR/ports-env-lib.sh"
 PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 DEMO_ROOT="$SCRIPT_DIR/permanence-demo"
+# Public devnet genesis operator 0 payout seed (matches public_devnet_v1.json storage_operators[0]).
+PUBLIC_DEVNET_OPERATOR0_SEED="c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
 PAYLOAD_PATH=""
 CHUNK_LISTEN="127.0.0.1:18780"
 WAIT_UPLOAD_SECONDS=180
@@ -162,6 +164,13 @@ ensure_wallet() {
   mkdir -p "$(dirname "$wallet_path")"
   run_checked "$label wallet new" "$mfn_cli" --wallet "$wallet_path" wallet new >/dev/null
   echo "permanence-demo: created $label wallet at $wallet_path"
+}
+
+ensure_registered_operator_wallet() {
+  local mfn_cli="$1" wallet_path="$2" seed="$3" label="$4"
+  mkdir -p "$(dirname "$wallet_path")"
+  run_checked "$label wallet restore" "$mfn_cli" --wallet "$wallet_path" --force wallet restore "$seed" --key-derivation payout_stealth_v1
+  echo "permanence-demo: restored $label wallet from public devnet operator seed"
 }
 
 ensure_payload() {
@@ -367,7 +376,7 @@ STORAGE_OPERATOR="$(resolve_bin mfn-storage-operator)"
 PAYLOAD="$(ensure_payload)"
 
 ensure_wallet "$MFN_CLI" "$UPLOADER_WALLET" uploader
-ensure_wallet "$MFN_CLI" "$REPLICA_WALLET" replica
+ensure_registered_operator_wallet "$MFN_CLI" "$REPLICA_WALLET" "$PUBLIC_DEVNET_OPERATOR0_SEED" replica
 
 UPLOAD_OUT="$(run_checked "wallet upload" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$UPLOADER_WALLET" wallet upload "$PAYLOAD" --replication 3)"
 COMMIT_HASH="$(parse_field "$UPLOAD_OUT" storage_commitment_hash)"

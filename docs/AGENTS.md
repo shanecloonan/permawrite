@@ -196,7 +196,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
 - [x] **B3 phase 3a** — operator registry in chain state + `require_registered_operators` gate (checkpoint v6; genesis off).
 - [x] **B3 phase 3b** — `StorageOperatorOp::Register` Schnorr wire + bond escrow (checkpoint v7 `min_storage_operator_bond`).
-- [ ] **B3 phase 3c** — genesis spec `storage_operators` seeding + public devnet enable.
+- [x] **B3 phase 3c** — genesis spec `storage_operators` seeding + public devnet enable.
 
 ### Handoff to lane 3
 

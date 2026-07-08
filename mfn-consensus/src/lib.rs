@@ -89,9 +89,9 @@ pub use block::{
     decode_block_header, encode_block, encode_block_body, header_signing_bytes,
     header_signing_hash, storage_merkle_root, tx_merkle_root, Block, BlockBody, BlockDecodeError,
     BlockError, BlockHeader, ChainState, ConsensusParams, GenesisConfig, GenesisOutput,
-    HeaderDecodeError, PendingUnbond, RingPolicy, StorageOperatorEntry, UtxoEntry, ValidatorStats,
-    DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION, MIN_TX_INPUTS_UNIFORM_TIER,
-    MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
+    GenesisStorageOperator, HeaderDecodeError, PendingUnbond, RingPolicy, StorageOperatorEntry,
+    UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS, HEADER_VERSION,
+    MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,

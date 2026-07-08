@@ -21,6 +21,7 @@ pub fn empty_local_dev_genesis() -> GenesisConfig {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: Vec::new(),
         params: ConsensusParams {
             expected_proposers_per_slot: 1.0,

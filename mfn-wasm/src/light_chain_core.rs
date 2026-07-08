@@ -136,6 +136,7 @@ pub fn light_chain_from_trust_json(trust_json: &str) -> Result<LightChain, WasmC
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators,
         params,
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,

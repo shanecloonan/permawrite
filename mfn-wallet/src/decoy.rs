@@ -220,6 +220,7 @@ mod tests {
                 },
             ],
             initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
             validators: Vec::new(),
             params: TEST_CONSENSUS_PARAMS,
             emission_params: DEFAULT_EMISSION_PARAMS,

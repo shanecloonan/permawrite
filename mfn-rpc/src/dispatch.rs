@@ -1478,6 +1478,7 @@ mod tests {
             timestamp: 0,
             initial_outputs: Vec::new(),
             initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
             validators: vec![v0.clone()],
             params,
             emission_params: DEFAULT_EMISSION_PARAMS,

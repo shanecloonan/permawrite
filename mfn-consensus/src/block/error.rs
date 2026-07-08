@@ -13,6 +13,36 @@ pub enum BlockError {
     /// Genesis block must have `height == 0`.
     #[error("genesis height must be 0")]
     GenesisHeightNotZero,
+    /// A genesis-seeded storage operator has invalid payout keys.
+    #[error("genesis storage_operators[{index}]: invalid payout keys")]
+    GenesisStorageOperatorInvalid {
+        /// Position in `GenesisConfig::initial_storage_operators`.
+        index: usize,
+    },
+    /// Duplicate operator identity in genesis seeding.
+    #[error("genesis storage_operators[{index}]: duplicate operator identity")]
+    GenesisDuplicateStorageOperator {
+        /// Position in `GenesisConfig::initial_storage_operators`.
+        index: usize,
+    },
+    /// Genesis operator entries must be strictly ascending by identity key.
+    #[error("genesis storage_operators not strictly ascending at index {index}")]
+    GenesisStorageOperatorsNotSorted {
+        /// Position in `GenesisConfig::initial_storage_operators`.
+        index: usize,
+    },
+    /// Genesis operator bond below `min_storage_operator_bond`.
+    #[error(
+        "genesis storage_operators[{index}]: bond_amount {bond_amount} below min_storage_operator_bond {min_bond}"
+    )]
+    GenesisStorageOperatorBondTooLow {
+        /// Position in `GenesisConfig::initial_storage_operators`.
+        index: usize,
+        /// Bond amount in the genesis spec.
+        bond_amount: u64,
+        /// Required minimum from endowment params.
+        min_bond: u64,
+    },
     /// Header height didn't match `state.height + 1`.
     #[error("bad height: expected {expected}, got {got}")]
     BadHeight {

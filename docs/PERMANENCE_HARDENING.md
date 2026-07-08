@@ -560,9 +560,11 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
    treasury; leaves extend `bond_root` via [`bond_section_merkle_root`](../mfn-consensus/src/storage_operator_wire.rs).
    Block body section is backward-compatible on decode (optional tail).
    `min_storage_operator_bond` in endowment params (checkpoint **v7**).
-3. **M5 proptests** — `prop_b3_two_operator_proof_chain_treasury` shipped
-   (`apply_block_proptest.rs`, **M5.41**); extend with duplicate-operator reject +
-   replication-cap fuzz.
+3. **Genesis operator seeding (phase 3c — shipped).** JSON `storage_operators[]`
+   with `payout_seed_hex`; [`apply_genesis`](../mfn-consensus/src/block/genesis.rs)
+   inserts `StorageOperatorEntry` at height 0 (no treasury burn). Public devnet
+   enables B3 endowment flags with two deterministic operator seeds; rehearsal
+   replica wallet restores from operator-0 seed.
 3. **Proactive repair + staleness** (B4) once replication is audited on-chain.
 
 Requires: emission/treasury settlement audit under multi-operator blocks, and

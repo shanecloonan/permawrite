@@ -60,6 +60,7 @@ fn build_signed_block_1() -> (
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: vec![v0.clone()],
         params,
         emission_params: DEFAULT_EMISSION_PARAMS,
@@ -359,6 +360,7 @@ fn verify_block_body_accepts_genesis() {
         timestamp: 0,
         initial_outputs: Vec::new(),
         initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
         validators: vec![v0],
         params: ConsensusParams {
             expected_proposers_per_slot: 10.0,

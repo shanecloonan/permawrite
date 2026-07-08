@@ -61,7 +61,9 @@ pub use builder::{
     build_unsealed_header, build_unsealed_header_storage_ops, seal_block, seal_block_storage_ops,
 };
 pub use error::BlockError;
-pub use genesis::{apply_genesis, build_genesis, GenesisConfig, GenesisOutput};
+pub use genesis::{
+    apply_genesis, build_genesis, GenesisConfig, GenesisOutput, GenesisStorageOperator,
+};
 pub use header::{
     block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_hash,
     Block, BlockHeader, HeaderDecodeError, HEADER_VERSION,
