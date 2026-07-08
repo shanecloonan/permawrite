@@ -9,9 +9,9 @@
 | --- | --- | --- |
 | **CI #28924060054** | **GREEN** | `e7d74f7` — full matrix ~48m; closes TL-2 |
 | **TL-3 evidence** | **Done** | `release-evidence-46677ad` + RC audit dry-run `go` |
-| **TL-4 VPS runbook** | **In progress** | `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`, P2P bind env |
+| **TL-4 VPS runbook** | **Done** — `2f77eb4` | `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`, P2P bind env |
 
-**Lane 7 — Done:** TL-1–TL-3 **Doing:** TL-4 VPS runbook **Next:** TL-5 internet soak (VPS provisioned)
+**Lane 7 — Done:** TL-1–TL-4 **Doing:** *(idle — VPS provision)* **Next:** TL-5 internet soak
 
 ---
 

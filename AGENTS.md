@@ -97,7 +97,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-4 single-VPS runbook | **In progress** — public P2P binds + `VPS_SINGLE_BOX_LAUNCH.md` | TL-5 VPS soak |
+| **7** | TL-4 single-VPS runbook | **Done** — `2f77eb4` | TL-5 VPS soak (provision host) |
 
 ---
 

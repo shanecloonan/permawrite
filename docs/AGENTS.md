@@ -307,9 +307,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-2** — green CI `#28924060054` on `e7d74f7` (F7 mempool two-input pad)
 - [x] **TL-3** — `release-evidence-46677ad` + RC audit dry-run `go` (CI `#28924060054`)
 
+- [x] **TL-4** — single-VPS runbook (`2f77eb4`: `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`)
+
 ### Doing
 
-- [ ] **TL-4** — single-VPS runbook (`vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`)
+- [ ] *(idle — awaiting VPS provision for TL-5)*
 
 ### Next
 
