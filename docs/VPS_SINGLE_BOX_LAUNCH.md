@@ -151,6 +151,29 @@ bash scripts/public-devnet-v1/vps-internet-soak.sh --no-start
 
 ---
 
+## TL-6 — Participant rehearsal on VPS
+
+After TL-5 PASS evidence is archived, run the full fund → upload → restore → prove flow on the same host:
+
+```bash
+# Mesh still up from TL-5 soak (recommended):
+bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop
+
+# Cold start (stops any stale mesh, runs vps-preflight + vps-start-all):
+bash scripts/public-devnet-v1/vps-participant-rehearsal.sh
+```
+
+Evidence archives to `scripts/public-devnet-v1/evidence/vps-participant-rehearsal-observer-linux-*.txt`. Commit on PASS before TL-7.
+
+From your laptop, tunnel observer RPC if running wallet commands remotely:
+
+```bash
+ssh -N -L 18734:127.0.0.1:18734 user@YOUR_VPS_PUBLIC_IP
+export MFN_RPC_URL=http://127.0.0.1:18734
+```
+
+---
+
 ## Publish seed nodes (TL-8)
 
 After TL-5 soak and TL-6 participant rehearsal on this host, add reachable P2P seeds to [`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json):
@@ -183,7 +206,7 @@ Use the addresses printed in `devnet-ports.env` / logs, substituting the public 
 | Phase | Action |
 | --- | --- |
 | TL-5 | `vps-preflight.sh` then `vps-internet-soak.sh` — archive PASS evidence |
-| TL-6 | Participant rehearsal — fund → upload → restore → prove |
+| TL-6 | `vps-participant-rehearsal.sh` — fund → upload → prove on VPS |
 | TL-7 | Toy keys vs fresh genesis decision (human) |
 | TL-8 | Publish `seed_nodes` + invite packet |
 | TL-9 | Launch go/no-go sign-off |

@@ -26,6 +26,7 @@ PLAN_ONLY=0
 ARCHIVE_EVIDENCE=0
 WITH_OBSERVER=0
 DANDELION=0
+VPS=0
 MIN_HUB_HEIGHT=0
 WAIT_MIN_HUB_HEIGHT_SECONDS=180
 WAIT_OBSERVER_CATCHUP_SECONDS=180
@@ -48,6 +49,7 @@ Options:
   --wait-proof-seconds N      proof-list wait window (default: 240; 0 disables)
   --with-observer             start full mesh including non-validator observer (default: skip observer)
   --dandelion                 enable Dandelion++ tx relay on all mfnd roles (default: off)
+  --vps                       start mesh via vps-start-all.sh (public P2P; TL-6 on VPS)
   --min-hub-height N          fail unless hub tip_height >= N after rehearsal (default: 0)
   --wait-min-hub-height-seconds N poll for min hub height after rehearsal (default: 180; 0 checks once)
   --wait-observer-catchup-seconds N poll for observer tip >= hub after rehearsal (default: 180)
@@ -72,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --wait-proof-seconds) WAIT_PROOF_SECONDS="${2:-}"; shift 2 ;;
     --with-observer) WITH_OBSERVER=1; shift ;;
     --dandelion) DANDELION=1; shift ;;
+    --vps) VPS=1; shift ;;
     --min-hub-height) MIN_HUB_HEIGHT="${2:-}"; shift 2 ;;
     --wait-min-hub-height-seconds) WAIT_MIN_HUB_HEIGHT_SECONDS="${2:-}"; shift 2 ;;
     --wait-observer-catchup-seconds) WAIT_OBSERVER_CATCHUP_SECONDS="${2:-}"; shift 2 ;;
@@ -376,14 +379,20 @@ archive_rehearsal_smoke_evidence() {
   stamp="$(date -u +"%Y%m%dTHHmmssZ")"
   local dandelion_label=""
   if (( DANDELION == 1 )); then dandelion_label="-dandelion"; fi
-  path="$evidence_dir/participant-rehearsal-${observer_label}${dandelion_label}-${platform}-${stamp}.txt"
+  local prefix="participant-rehearsal"
+  if (( VPS == 1 )); then prefix="vps-participant-rehearsal"; fi
+  path="$evidence_dir/${prefix}-${observer_label}${dandelion_label}-${platform}-${stamp}.txt"
   commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
   cmd="participant-rehearsal-smoke.sh"
+  if (( VPS == 1 )); then cmd+=" --vps"; fi
   if (( WITH_OBSERVER == 1 )); then cmd+=" --with-observer"; fi
   if (( DANDELION == 1 )); then cmd+=" --dandelion"; fi
   if (( MIN_HUB_HEIGHT > 0 )); then cmd+=" --min-hub-height $MIN_HUB_HEIGHT"; fi
   {
     echo "# Participant rehearsal smoke - $observer_label ($platform)"
+    if (( VPS == 1 )); then
+      echo "# TL-6 internet-facing VPS participant rehearsal"
+    fi
     echo "# Generated: $stamp"
     echo "# Command: $cmd"
     if [[ -n "$commit" ]]; then echo "# Commit: $commit"; fi
@@ -455,7 +464,14 @@ if (( PLAN_ONLY )); then
   else
     echo "  dandelion=false"
   fi
-  echo "  flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
+  if (( VPS == 1 )); then
+    echo "  vps=true"
+  else
+    echo "  vps=false"
+  fi
+  start_cmd="start-all.sh"
+  if (( VPS == 1 )); then start_cmd="vps-start-all.sh"; fi
+  echo "  flow=stop stale mesh -> $start_cmd -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
   echo "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
   exit 0
 fi
@@ -493,10 +509,18 @@ if (( NO_START == 0 )); then
   start_all_args=()
   if (( NO_BUILD )); then start_all_args+=(--no-build); fi
   if (( DANDELION == 1 )); then start_all_args+=(--dandelion); fi
-  bash "$SCRIPT_DIR/start-all.sh" "${start_all_args[@]}" || {
-    echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
-    exit 1
-  }
+  if (( VPS == 1 )); then
+    "$SCRIPT_DIR/vps-preflight.sh"
+    bash "$SCRIPT_DIR/vps-start-all.sh" "${start_all_args[@]}" || {
+      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail (vps)" >&2
+      exit 1
+    }
+  else
+    bash "$SCRIPT_DIR/start-all.sh" "${start_all_args[@]}" || {
+      echo "participant-rehearsal-smoke: STAGE=start_mesh_fail" >&2
+      exit 1
+    }
+  fi
   echo "participant-rehearsal-smoke: STAGE=start_mesh_done"
   STARTED_MESH=1
   if (( WAIT_AFTER_START_SECONDS > 0 )); then

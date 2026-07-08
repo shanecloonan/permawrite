@@ -26,8 +26,10 @@ done
 phase="TL-5 (provision VPS — see docs/VPS_SINGLE_BOX_LAUNCH.md)"
 if [[ "$seed_count" -gt 0 ]]; then
   phase="TL-8+"
+elif compgen -G "$SCRIPT_DIR/evidence/vps-participant-rehearsal-*" >/dev/null 2>&1; then
+  phase="TL-7+ (VPS participant rehearsal done; genesis/key ceremony)"
 elif compgen -G "$SCRIPT_DIR/evidence/vps-internet-soak-linux-*" >/dev/null 2>&1; then
-  phase="TL-6+ (VPS soak evidence archived; run participant rehearsal)"
+  phase="TL-6 (VPS soak done; run vps-participant-rehearsal.sh)"
 elif [[ ${#missing_bins[@]} -eq 0 ]]; then
   phase="TL-5 (VPS ready — vps-preflight.sh then vps-internet-soak.sh)"
 fi

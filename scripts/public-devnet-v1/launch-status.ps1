@@ -66,9 +66,13 @@ foreach ($b in $binaries) {
 $phase = 'TL-5 (provision VPS - see docs/VPS_SINGLE_BOX_LAUNCH.md)'
 if ($seedCount -gt 0) { $phase = 'TL-8+' }
 else {
-    $vpsEvidence = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-internet-soak-linux-*" -ErrorAction SilentlyContinue
-    if ($vpsEvidence) { $phase = 'TL-6+ (VPS soak evidence archived; run participant rehearsal)' }
-    elseif ($missingBins.Count -eq 0) { $phase = 'TL-5 (VPS ready - vps-preflight.sh then vps-internet-soak.sh)' }
+    $vpsRehearsal = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-participant-rehearsal-*" -ErrorAction SilentlyContinue
+    if ($vpsRehearsal) { $phase = 'TL-7+ (VPS participant rehearsal done; genesis/key ceremony)' }
+    else {
+        $vpsSoak = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-internet-soak-linux-*" -ErrorAction SilentlyContinue
+        if ($vpsSoak) { $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)' }
+        elseif ($missingBins.Count -eq 0) { $phase = 'TL-5 (VPS ready - vps-preflight.sh then vps-internet-soak.sh)' }
+    }
 }
 
 $ci = Get-CiSummary

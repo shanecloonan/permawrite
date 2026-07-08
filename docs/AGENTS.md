@@ -313,15 +313,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [x] **B3 phase 2** — wire operator-salted challenges into `apply_block` (with lane 4)
-
-### Done (B3)
-
-- [x] **B3 phase 1** — operator-salted SPoRA challenge derivation in `mfn-storage` (this commit)
+- [ ] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps`
 
 ### Next
 
 - [ ] **TL-5 execution** — run soak on provisioned VPS; archive PASS evidence (height ≥ 10)
+- [ ] **TL-6 execution** — `vps-participant-rehearsal.sh` on same VPS after TL-5
 
 ### Do not start
 
