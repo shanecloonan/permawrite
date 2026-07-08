@@ -85,7 +85,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 **Head:** `89f3498` (B4 repair sweep). **CI #28968642140** GREEN on `89f3498`.
 
-**Nightly #28968584904:** GREEN — all three jobs on M2.5.66 stack (`0ede433`/`ebfcba5`). **Nightly #28970179853:** in progress on B4 head.
+**Nightly #28968584904:** GREEN — M2.5.66 stack. **Nightly #28970179853:** GREEN — B4 stack (all three jobs).
 
 **Release evidence:** `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140`).
 

@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#28968584904` GREEN, CI `#28968642140` GREEN | **Monitor** Nightly `#28970179853` (B4) | Idle after Nightly green |
+| **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Idle** | B-05 soak maintenance |
 | **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Human sign-off packet |
-| **3** Onboarding | Nightly participant PASS `#28968584904` | Idle | OPERATORS B3/B4 docs landed |
-| **4+6** Protocol | B4 `89f3498`, CI green | **Idle** | B5 slashing research |
+| **3** Onboarding | Nightly participant+observer PASS | **Idle** | TL-6 rehearsal evidence |
+| **4+6** Protocol | B4 `89f3498`, full RC stack green | **Idle** | B5 slashing research |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
