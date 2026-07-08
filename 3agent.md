@@ -3,6 +3,25 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 PM (F7 block_apply pad inputs → CI `#28917060257`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 block_apply** | **Done** — `668cf17` | `block_apply.rs` companion pad for ring + storage shape tests |
+| **F7 proptest tail** | **Done** — `4a320ad` | `apply_block_proptest` + `emission_simulation` two-input recycle |
+| **F7 smoke/wallet** | **Done** — `81849c8` | Two-block fund + `owned_count>=2` poll |
+| **CI #28917060257** | **In progress** | `668cf17` full matrix |
+
+### RC push hold
+
+**Active** — monitor CI `#28917060257`; no pushes until green.
+
+### Next priority
+
+**Lane 2:** release evidence on green head. **Lane 4+6:** B3 replication accounting.
+
+---
+
 ## Session — 2026-07-07 PM (F7 proptest + emission sim two-input alignment)
 
 | Gate | Status | Notes |
