@@ -334,8 +334,8 @@ fn push_chunks_inbox_assemble_then_prove() {
         "stdout={list_stdout}"
     );
     assert!(
-        list_stdout.contains("last_proven_height=3"),
-        "expected mined SPoRA proof at height 3:\n{list_stdout}"
+        list_stdout.contains("last_proven_height=4"),
+        "expected mined SPoRA proof at height 4:\n{list_stdout}"
     );
 
     shutdown_child(&mut serve3);
