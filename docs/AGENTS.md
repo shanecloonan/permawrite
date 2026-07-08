@@ -194,6 +194,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
+- [x] **B3 phase 3a** — operator registry in chain state + `require_registered_operators` gate (checkpoint v6; genesis off).
+- [ ] **B3 phase 3b** — signed `StorageOperatorRegister` bond wire + genesis seeding.
 
 ### Handoff to lane 3
 
