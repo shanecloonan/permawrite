@@ -94,9 +94,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | CI on `5a74d57` stack (`b70b3ec`/`dc22cb7`) | **Monitor** — F7 + Nightly closure | Nightly re-dispatch after green |
 | **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
+| **4** | B3 phase 1 operator-salted challenges | **Done** — this commit | B3 phase 2 `apply_block` |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
+| **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 phase 2 with lane 4 |
 | **7** | TL-5 VPS internet soak | **Done** tooling `5a74d57` | TL-5 execution on provisioned VPS |
 
 ---

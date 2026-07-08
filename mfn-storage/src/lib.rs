@@ -43,11 +43,12 @@ pub use endowment::{
     EndowmentParams, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 pub use spora::{
-    build_storage_commitment, build_storage_proof, build_test_storage_proof,
-    challenge_index_from_seed, chunk_data, chunk_hash, chunk_index_for_challenge,
-    decode_merkle_proof_wire, decode_storage_proof, encode_merkle_proof_wire, encode_storage_proof,
-    merkle_tree_from_chunks, operator_payout_is_valid, storage_proof_leaf_hash,
+    build_storage_commitment, build_storage_proof, build_storage_proof_operator_salted,
+    build_test_storage_proof, challenge_index_from_seed, chunk_data, chunk_hash,
+    chunk_index_for_challenge, chunk_index_for_operator_challenge, decode_merkle_proof_wire,
+    decode_storage_proof, encode_merkle_proof_wire, encode_storage_proof, merkle_tree_from_chunks,
+    operator_identity_from_payout, operator_payout_is_valid, storage_proof_leaf_hash,
     storage_proof_merkle_root, test_operator_payout_keys, verify_endowment_opening,
-    verify_storage_proof, BuiltCommitment, SporaError, StorageProof, StorageProofCheck,
-    DEFAULT_CHUNK_SIZE,
+    verify_storage_proof, verify_storage_proof_operator_salted, BuiltCommitment, SporaError,
+    StorageProof, StorageProofCheck, DEFAULT_CHUNK_SIZE,
 };

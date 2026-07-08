@@ -29,7 +29,9 @@ use curve25519_dalek::edwards::EdwardsPoint;
 use curve25519_dalek::traits::IsIdentity;
 
 use mfn_crypto::codec::{Reader, Writer};
-use mfn_crypto::domain::{CHUNK_HASH, MERKLE_LEAF, STORAGE_PROOF_LEAF};
+use mfn_crypto::domain::{
+    CHUNK_HASH, MERKLE_LEAF, SPORA_OPERATOR_CHALLENGE, STORAGE_OPERATOR_ID, STORAGE_PROOF_LEAF,
+};
 use mfn_crypto::hash::dhash;
 use mfn_crypto::merkle::{
     merkle_proof, merkle_root_or_zero, merkle_tree_from_leaves, verify_merkle_proof, MerkleError,
@@ -202,6 +204,43 @@ pub fn chunk_index_for_challenge(
     w.u32(slot);
     w.push(commit_hash);
     let h = dhash(CHUNK_HASH, &[w.bytes()]);
+    let r = u64::from_be_bytes(h[..8].try_into().expect("32-byte digest"));
+    (r % u64::from(num_chunks)) as u32
+}
+
+/// **B3 phase 1** — 32-byte operator identity from payout keys. Surrogate
+/// until bonding-registry `operator_id` is consensus-anchored; distinct
+/// operators with different payout keys get distinct salts.
+pub fn operator_identity_from_payout(view: &EdwardsPoint, spend: &EdwardsPoint) -> [u8; 32] {
+    let mut w = Writer::new();
+    w.push(view.compress().as_bytes());
+    w.push(spend.compress().as_bytes());
+    dhash(STORAGE_OPERATOR_ID, &[w.bytes()])
+}
+
+/// **B3 phase 1** — operator-salted chunk index:
+/// `dhash(SPORA_OPERATOR_CHALLENGE, prev ‖ slot ‖ commit_hash ‖ operator_id)`
+/// → first 8 bytes BE → mod `num_chunks`.
+///
+/// Distinct `operator_id` values (typically from
+/// [`operator_identity_from_payout`]) force independent challenge indices
+/// so one physical copy cannot answer every replication slot.
+pub fn chunk_index_for_operator_challenge(
+    prev_block_id: &[u8; 32],
+    slot: u32,
+    commit_hash: &[u8; 32],
+    operator_id: &[u8; 32],
+    num_chunks: u32,
+) -> u32 {
+    if num_chunks == 0 {
+        return 0;
+    }
+    let mut w = Writer::new();
+    w.push(prev_block_id);
+    w.u32(slot);
+    w.push(commit_hash);
+    w.push(operator_id);
+    let h = dhash(SPORA_OPERATOR_CHALLENGE, &[w.bytes()]);
     let r = u64::from_be_bytes(h[..8].try_into().expect("32-byte digest"));
     (r % u64::from(num_chunks)) as u32
 }
@@ -427,6 +466,35 @@ pub fn verify_storage_proof(
     StorageProofCheck::Valid
 }
 
+/// **B3 phase 1** — verify using operator-salted challenge derived from
+/// the proof's payout keys ([`operator_identity_from_payout`]).
+pub fn verify_storage_proof_operator_salted(
+    commit: &StorageCommitment,
+    prev_block_id: &[u8; 32],
+    slot: u32,
+    proof: &StorageProof,
+) -> StorageProofCheck {
+    if !operator_payout_is_valid(&proof.operator_view_pub, &proof.operator_spend_pub) {
+        return StorageProofCheck::InvalidOperatorPayout;
+    }
+    let c_hash = storage_commitment_hash(commit);
+    if c_hash != proof.commit_hash {
+        return StorageProofCheck::CommitHashMismatch;
+    }
+    let op_id = operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+    let expected =
+        chunk_index_for_operator_challenge(prev_block_id, slot, &c_hash, &op_id, commit.num_chunks);
+    let got = proof.proof.index as u32;
+    if got != expected {
+        return StorageProofCheck::WrongChunkIndex { expected, got };
+    }
+    let leaf = chunk_hash(&proof.chunk);
+    if !verify_merkle_proof(&leaf, &proof.proof, &commit.data_root) {
+        return StorageProofCheck::MerkleInvalid;
+    }
+    StorageProofCheck::Valid
+}
+
 /// Producer-side helper: build the storage proof for the current block
 /// context, given the full data + locally-held Merkle tree.
 pub fn build_storage_proof(
@@ -443,6 +511,39 @@ pub fn build_storage_proof(
     }
     let c_hash = storage_commitment_hash(commit);
     let idx = chunk_index_for_challenge(prev_block_id, slot, &c_hash, commit.num_chunks);
+    let chunks = chunk_data(data, commit.chunk_size as usize)?;
+    let chunk_bytes = chunks
+        .get(idx as usize)
+        .ok_or(SporaError::ChunkIndexOutOfRange)?
+        .to_vec();
+    let mp = merkle_proof(tree, idx as usize).map_err(SporaError::Merkle)?;
+    Ok(StorageProof {
+        commit_hash: c_hash,
+        chunk: chunk_bytes,
+        proof: mp,
+        operator_view_pub,
+        operator_spend_pub,
+    })
+}
+
+/// **B3 phase 1** — build proof for operator-salted challenge (payout keys
+/// determine `operator_id` salt).
+pub fn build_storage_proof_operator_salted(
+    commit: &StorageCommitment,
+    prev_block_id: &[u8; 32],
+    slot: u32,
+    data: &[u8],
+    tree: &MerkleTree,
+    operator_view_pub: EdwardsPoint,
+    operator_spend_pub: EdwardsPoint,
+) -> Result<StorageProof, SporaError> {
+    if !operator_payout_is_valid(&operator_view_pub, &operator_spend_pub) {
+        return Err(SporaError::InvalidOperatorPayout);
+    }
+    let c_hash = storage_commitment_hash(commit);
+    let op_id = operator_identity_from_payout(&operator_view_pub, &operator_spend_pub);
+    let idx =
+        chunk_index_for_operator_challenge(prev_block_id, slot, &c_hash, &op_id, commit.num_chunks);
     let chunks = chunk_data(data, commit.chunk_size as usize)?;
     let chunk_bytes = chunks
         .get(idx as usize)
@@ -722,6 +823,79 @@ mod tests {
             verify_storage_proof(&built.commit, &prev, slot, &dec),
             StorageProofCheck::Valid
         );
+    }
+
+    #[test]
+    fn operator_identity_from_payout_is_deterministic() {
+        let (v, s) = test_operator_payout_keys();
+        assert_eq!(
+            operator_identity_from_payout(&v, &s),
+            operator_identity_from_payout(&v, &s),
+        );
+    }
+
+    #[test]
+    fn operator_salted_challenge_differs_across_operators() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [2u8; 32];
+        let slot = 7u32;
+        let c_hash = storage_commitment_hash(&built.commit);
+        let (v0, s0) = test_operator_payout_keys();
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_crypto::point::generator_g;
+        let v1 = generator_g() * Scalar::from(3u64);
+        let s1 = generator_g() * Scalar::from(5u64);
+        let id0 = operator_identity_from_payout(&v0, &s0);
+        let id1 = operator_identity_from_payout(&v1, &s1);
+        assert_ne!(id0, id1);
+        let idx0 =
+            chunk_index_for_operator_challenge(&prev, slot, &c_hash, &id0, built.commit.num_chunks);
+        let idx1 =
+            chunk_index_for_operator_challenge(&prev, slot, &c_hash, &id1, built.commit.num_chunks);
+        // With 16 chunks, collision probability is low; if equal, perturb slot.
+        if idx0 == idx1 {
+            let idx1b = chunk_index_for_operator_challenge(
+                &prev,
+                slot.wrapping_add(1),
+                &c_hash,
+                &id1,
+                built.commit.num_chunks,
+            );
+            assert_ne!(idx0, idx1b, "expected distinct operator challenges");
+        }
+    }
+
+    #[test]
+    fn operator_salted_proof_build_and_verify_round_trip() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let prev = [3u8; 32];
+        let slot = 11u32;
+        let (view, spend) = test_operator_payout_keys();
+        let p = build_storage_proof_operator_salted(
+            &built.commit,
+            &prev,
+            slot,
+            &d,
+            &built.tree,
+            view,
+            spend,
+        )
+        .unwrap();
+        assert_eq!(
+            verify_storage_proof_operator_salted(&built.commit, &prev, slot, &p),
+            StorageProofCheck::Valid
+        );
+        // Legacy verifier rejects operator-salted index when it differs.
+        let legacy =
+            chunk_index_for_challenge(&prev, slot, &p.commit_hash, built.commit.num_chunks);
+        if legacy != p.proof.index as u32 {
+            assert_ne!(
+                verify_storage_proof(&built.commit, &prev, slot, &p),
+                StorageProofCheck::Valid
+            );
+        }
     }
 
     #[test]

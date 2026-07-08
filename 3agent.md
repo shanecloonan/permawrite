@@ -10,7 +10,7 @@
 | **1** RC core | F7 CI `#28924060054` GREEN; `dc22cb7` + `b70b3ec` Nightly fixes | Monitor CI on `5a74d57` stack | Nightly re-dispatch after green |
 | **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on `5a74d57` green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | F7 test tail complete | **B3** replication accounting (design) | Operator-salted challenges |
+| **4+6** Protocol | B3 phase 1 operator-salted challenges | **B3 phase 2** `apply_block` wire | Per-operator proof slots |
 | **7** Testnet | TL-1–TL-5 tooling `5a74d57` | Await VPS provision | `vps-internet-soak.sh` + archive evidence |
 
 ---

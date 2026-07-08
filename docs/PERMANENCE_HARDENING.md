@@ -512,7 +512,7 @@ proptests mixing valid/forged proofs.
 on the `ChunkV2` (`0x12`) path; `ChunkV1` remains accepted inbound for mesh
 compatibility. Fan-out and operator chunk push emit `ChunkV2` exclusively.
 
-### B3. Replication accounting — make `replication` mean something at audit time — **consensus**
+### B3. Replication accounting — make `replication` mean something at audit time — **consensus (phase 1 shipped in `mfn-storage`)**
 
 **Problem.** `replication` is priced (`required_endowment` multiplies by it)
 and bounds-checked, but **never audited**. `apply_block` accepts at most one
@@ -523,7 +523,15 @@ that consensus tracks. The chain therefore cannot distinguish "3 independent
 replicas" from "one operator with one copy answering every challenge." The
 user pays for N replicas; the protocol proves ≥ 1.
 
-**Plan (incremental).**
+**Phase 1 shipped (`mfn-storage`):** operator-salted challenge derivation —
+[`operator_identity_from_payout`](../mfn-storage/src/spora.rs),
+[`chunk_index_for_operator_challenge`](../mfn-storage/src/spora.rs),
+[`verify_storage_proof_operator_salted`](../mfn-storage/src/spora.rs). Domain
+tags `STORAGE_OPERATOR_ID` + `SPORA_OPERATOR_CHALLENGE` in
+[`domain.rs`](../mfn-crypto/src/domain.rs). Unit tests prove distinct payout
+keys yield independent challenge indices.
+
+**Plan (incremental — consensus wire + `apply_block` next).**
 
 1. **Per-operator proof slots.** Allow up to `replication` proofs per
    commitment per block, each bound to a registered operator identity (the

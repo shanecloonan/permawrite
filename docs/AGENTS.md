@@ -192,7 +192,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B3** — replication accounting (PERMANENCE_HARDENING §B3; with lane 6).
+- [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; this commit).
+- [ ] **B3 phase 2** — per-operator proof slots + `apply_block` wire (PERMANENCE_HARDENING §B3; with lane 6).
 
 ### Handoff to lane 3
 
@@ -312,7 +313,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **B3** — replication accounting design + phase-1 challenge salt (with lane 4)
+- [ ] **B3 phase 2** — wire operator-salted challenges into `apply_block` (with lane 4)
+
+### Done (B3)
+
+- [x] **B3 phase 1** — operator-salted SPoRA challenge derivation in `mfn-storage` (this commit)
 
 ### Next
 

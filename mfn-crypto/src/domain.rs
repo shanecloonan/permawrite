@@ -147,6 +147,14 @@ pub const SLASHING_LEAF: Domain = b"MFBN-1/slashing-leaf";
 /// per commitment, so canonical sorting is unnecessary).
 pub const STORAGE_PROOF_LEAF: Domain = b"MFBN-1/storage-proof-leaf";
 
+/// Operator identity surrogate derived from payout keys until bonding
+/// registry anchors exist (**B3** replication accounting).
+pub const STORAGE_OPERATOR_ID: Domain = b"MFBN-1/storage-operator-id";
+
+/// Per-block SPoRA challenge with operator salt (**B3**). Distinct from
+/// [`CHUNK_HASH`] so legacy single-replica challenges cannot collide.
+pub const SPORA_OPERATOR_CHALLENGE: Domain = b"MFBN-1/spora-operator-challenge";
+
 /// Merkle leaf for an authorship claim record under the block header's
 /// `claims_root` (M2.2.x).
 pub const CLAIM_LEAF: Domain = b"MFBN-1/claim-leaf";
