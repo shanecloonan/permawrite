@@ -9,11 +9,12 @@
 | --- | --- | --- |
 | **F7 tail** | **Done** — `3933cf0` | `RingPolicy.min_input_count = 2` at `verify_transaction` (uniform tier) |
 | **B2 ChunkV2** | **Done** | `20954b0` on `main` |
-| **CI #28914787002** | **Failed** — ubuntu/macos smokes (F7 single-input funding) | Fix: `FUND_WALLET_BLOCKS=2` in mfn-cli integration smokes |
+| **CI #28915343380** | **Failed** — `last_proven_height` off-by-one after fund fix | **Fixed** — `b00b7dd` |
+| **CI (next)** | **In progress** | `b00b7dd` height asserts |
 
 ### RC push hold
 
-**Active** — CI `#28914787002` failed on F7 smoke funding; fix landing now.
+**Active** — monitor CI on `b00b7dd` (F7 smoke height tail fix).
 
 ### Next priority
 
