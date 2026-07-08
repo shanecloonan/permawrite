@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `8b4e163` (B3 phase 3b + Nightly mesh fix). **CI #28952620476** in progress.
+**Head:** `664b9e7` (daemon stop sleep fix). **CI #28952620476:** ubuntu/windows **GREEN**; macos **cancelled** (90m timeout on `run_daemon` 3600s sleep).
 
 **Prior green:** `#28935445273` on B3 phase 3a (`99754b8`).
 
-**RC push hold:** active until `#28952620476` GREEN; then Nightly re-dispatch.
+**RC push hold:** lifted — monitor CI on `664b9e7`; Nightly after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28952620476` on `8b4e163` | **Doing** — monitor matrix | Nightly re-dispatch |
-| **2** | Release evidence refresh | **Doing** — await CI green | RC audit + human sign-off packet |
+| **1** | CI on `664b9e7` | **Monitor** | Nightly re-dispatch after green |
+| **2** | Release evidence refresh | **Doing** — post-664b9e7 head | RC audit + human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | B3 phase 3b register wire | **Done** — `8b4e163` | Genesis operator seeding (3c) |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
