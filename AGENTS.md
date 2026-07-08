@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `89f3498` (B4 repair sweep). **CI #28968642140** in progress on `89f3498`.
+**Head:** `89f3498` (B4 repair sweep). **CI #28968642140** GREEN on `89f3498`.
 
-**Prior green:** `#28966851917` on `0ede433` (M2.5.66 + M5.50).
+**Nightly #28968584904:** GREEN — all three jobs on M2.5.66 stack (`0ede433`/`ebfcba5`). **Nightly #28970179853:** in progress on B4 head.
 
-**Nightly #28968584904 GREEN** on `0ede433` — all 3 jobs (~7m); closes `start_mesh_fail`.
+**Release evidence:** `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140`).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly `#28968584904` | **Done** — GREEN | Monitor B4 CI `#28968642140` |
-| **2** | Release evidence refresh | **Doing** — post-Nightly green | RC audit on head after B4 CI |
+| **1** | CI + Nightly on M2.5.66/B4 stack | **Done** — CI `#28968642140`, Nightly `#28968584904` | Monitor `#28970179853` |
+| **2** | Release evidence refresh | **Done** — `1c633e7` RC audit **go** | Human sign-off packet |
 | **3** | Nightly participant PASS | **Done** — `#28968584904` | Idle |
 | **4** | B4 proactive repair sweep | **Done** — `89f3498` | B5 operator slashing research |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |

@@ -237,8 +237,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off); rehearsal PASS evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt` on B-11 MFEO genesis.
 - [x] **B-05 Linux soak** — PASS soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt` (`234f0a8`).
 - [x] **Nightly #28889931523** — all three green on B-11/B7 stack (`b1072e3`).
-- [x] **CI #28885223488 GREEN** on `0d28e4f` (B7 dandelion rehearsal evidence).
-- [x] **Release evidence `96462aa`** — RC audit dry-run go (archived this commit).
+- [x] **Nightly #28968584904** — all three green on M2.5.66 mesh-fix stack (`0ede433`; closes `start_mesh_fail`).
+- [x] **CI #28968642140 GREEN** on `89f3498` (B4 proactive repair sweep).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

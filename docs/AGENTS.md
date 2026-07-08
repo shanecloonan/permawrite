@@ -83,7 +83,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #28889931523** all three green on B-11/B7 stack (`b1072e3`).
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
 - [x] Release evidence refresh on green CI (lane 2) — `release-evidence-96462aa` (this commit).
-- [ ] Nightly re-dispatch after M2.5.66 CI green (closes `#28961041302` start_mesh_fail).
+- [x] Nightly re-dispatch after M2.5.66 — **Nightly #28968584904** all three green (~7m; closes `start_mesh_fail`).
 
 ### Do not start (other lanes)
 
@@ -117,9 +117,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **Release evidence refresh** — `release-evidence-96462aa` + RC audit dry-run go (CI `28885223488` on `0d28e4f`).
 
+- [x] **Release evidence refresh** — `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140` on `89f3498`).
+
 ### Next
 
-- [x] Idle — RC gates green; periodic B-05 soak re-run is maintenance only (not blocking).
+- [x] Idle — RC gates green on B4 stack; periodic B-05 soak re-run is maintenance only.
 
 ### Do not start
 

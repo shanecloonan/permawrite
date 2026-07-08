@@ -876,6 +876,24 @@ Hardware roles and decentralization context: [docs/DECENTRALIZATION.md](../../do
 
 Permawrite separates **on-chain anchors** (private `StorageCommitment` in a block) from **off-chain bytes** (chunk payloads). Validators only mine SPoRA proofs when they can read the challenged chunk. Operators run replication and proving on devnet today via `mfn-cli` and `mfn-storage-operator`.
 
+**Public devnet B3 registry (genesis).** `public_devnet_v1.json` enables `operator_salted_challenges`, `require_registered_operators`, and seeds two genesis storage operators (deterministic payout seeds — **testnet funds only**):
+
+| Index | `payout_seed_hex` (64 hex chars) | Role |
+|-------|----------------------------------|------|
+| 0 | `c3c3c3…c3` (32 bytes) | Rehearsal replica wallet (`permanence-demo` restores operator-0) |
+| 1 | `d4d4d4…d4` (32 bytes) | Second registered operator for multi-replica B3 proofs |
+
+Bond at genesis is `0` (`min_storage_operator_bond: 0`); post-genesis registration uses `StorageOperatorOp::Register` + bond escrow. `genesis_id` is unchanged from pre-B3 public devnet.
+
+**Proactive repair (B4).** Every `mfnd serve` node with P2P runs a background repair sweep when `MFND_REPAIR_THRESHOLD_SLOTS` is non-zero (default `14400` ≈ 2× anti-hoarding window). Stale on-chain storage (`current_slot − last_proven_slot` above threshold) with a **complete Merkle-verified** local `chunk-inbox/` is re-fan-out to peers. Tune with:
+
+| Env | Default | Meaning |
+|-----|---------|---------|
+| `MFND_REPAIR_THRESHOLD_SLOTS` | `14400` | Staleness before repair (`0` disables) |
+| `MFND_REPAIR_INTERVAL_MS` | `300000` | Sweep interval (ms) |
+
+Boot log: `mfnd_repair_sweep_start threshold_slots=… interval_ms=…`. Repair action log: `mfnd_p2p_repair_fanout commit=<hex> stale_slots=<n>`.
+
 Build both CLIs after `mfnd`:
 
 ```bash
