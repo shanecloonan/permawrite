@@ -7,9 +7,9 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M2.5.66 `0ede433`, CI `#28966851917` GREEN | **Monitor** CI on `89f3498` | Nightly auto-dispatch |
-| **2** RC ops | CI green on `0ede433` | **Await** B4 CI + evidence refresh | RC audit on head |
-| **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant PASS |
+| **1** RC core | Nightly `#28968584904` **GREEN** | **Monitor** CI `#28968642140` on `89f3498` | Release evidence |
+| **2** RC ops | Nightly green on `0ede433` | **Doing** — evidence refresh | RC audit on head |
+| **3** Onboarding | Nightly participant PASS | Idle | TL-6 rehearsal evidence |
 | **4+6** Protocol | B4 `89f3498` repair sweep | **Monitor** CI | B5 slashing research |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
@@ -22,6 +22,7 @@
 | **B4 phase 1** | **Done** — `89f3498` | `p2p_repair_sweep.rs`; stale inbox re-fan-out; `MFND_REPAIR_*` env |
 | **CI #28966851917** | **GREEN** | `0ede433` M2.5.66 + M5.50 (~28m) |
 | **CI #28968642140** | **In progress** | `89f3498` B4 matrix |
+| **Nightly #28968584904** | **GREEN** | All 3 jobs on `0ede433` M2.5.66 stack (~7m) |
 
 **Lane 4+6 — Done:** B4 `89f3498` **Doing:** CI monitor **Next:** B5 slashing research  
 **Lane 1 — Done:** M2.5.66 `0ede433` **Doing:** CI on B4 **Next:** Nightly on green head
