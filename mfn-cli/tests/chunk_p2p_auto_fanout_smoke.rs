@@ -1,6 +1,8 @@
 //! Two-node smoke: hub has on-chain storage + complete `chunk-inbox/`; replica receives
 //! chunks via **M7.5** session fan-out (no `push-chunks`) when it dials the hub (**M7.8**).
 
+mod f7_wallet_fund;
+
 use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -339,6 +341,13 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let mut hub_prep = spawn_serve(&hub_dir, &spec, None);
     let (hub_rpc_prep, _) = read_serve_addrs(&mut hub_prep);
     let hub_rpc_prep = hub_rpc_prep.to_string();
+
+    f7_wallet_fund::wait_wallet_f7_ready(
+        &mfn_cli,
+        &hub_rpc_prep,
+        &hub_wallet,
+        Duration::from_secs(60),
+    );
 
     let upload_out = wallet_upload_with_transport_retry(
         &hub_rpc_prep,
