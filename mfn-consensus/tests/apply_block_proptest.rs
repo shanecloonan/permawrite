@@ -1508,6 +1508,46 @@ fn apply_valid_proof_at(
     apply_with_storage_proofs_at_slot(st, height, slot, vec![proof])
 }
 
+fn apply_b3_two_operator_proofs_at(
+    built: &BuiltCommitment,
+    payload: &[u8],
+    st: &ChainState,
+    height: u32,
+) -> ChainState {
+    let ts = u64::from(height) * 1_000;
+    let scratch = build_unsealed_header(st, &[], &[], &[], &[], height, ts);
+    let p0 = build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        height,
+        payload,
+        &built.tree,
+    );
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let p1 = build_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        height,
+        payload,
+        &built.tree,
+        v1,
+        s1,
+    )
+    .expect("b3 proof");
+    apply_with_storage_proofs_at_slot(st, height, height, vec![p0, p1])
+}
+
+fn treasury_after_b3_two_operator_block(
+    treasury: u128,
+    bonus_total: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let storage_reward_total = u128::from(params.storage_proof_reward)
+        .saturating_mul(2)
+        .saturating_add(bonus_total);
+    treasury.saturating_sub(storage_reward_total.min(treasury))
+}
+
 fn seal_empty(st: &ChainState, header: mfn_consensus::BlockHeader) -> mfn_consensus::Block {
     seal_with_test_finality(st, header, Vec::new(), Vec::new(), Vec::new(), Vec::new())
 }
@@ -1729,6 +1769,52 @@ proptest! {
             st = apply_with_bond_ops(&st, h_reg, vec![register_op((i + 1) as u8)]);
             model = treasury_after_register(model, stake);
             prop_assert_eq!(st.treasury, model);
+        }
+    }
+
+    /// B3: two-operator blocks drain treasury as `2 × storage_proof_reward + Σ bonuses`
+    /// (**M5.41**).
+    #[test]
+    fn prop_b3_two_operator_proof_chain_treasury(n_blocks in 1u32..=8u32) {
+        let gen = genesis_with_b3_storage();
+        let mut st = gen.state;
+        let mut model = 0u128;
+        let emission = &DEFAULT_EMISSION_PARAMS;
+
+        for h in 1..=n_blocks {
+            let ts = u64::from(h) * 1_000;
+            let scratch = build_unsealed_header(&st, &[], &[], &[], &[], h, ts);
+            let p0 = build_test_storage_proof_operator_salted(
+                &gen.built.commit,
+                &scratch.prev_hash,
+                h,
+                &gen.payload,
+                &gen.built.tree,
+            );
+            let (v1, s1) = test_operator_payout_keys_alt();
+            let p1 = build_storage_proof_operator_salted(
+                &gen.built.commit,
+                &scratch.prev_hash,
+                h,
+                &gen.payload,
+                &gen.built.tree,
+                v1,
+                s1,
+            )
+            .expect("b3 proof");
+            let proofs = vec![p0, p1];
+            let bonus_total: u128 = storage_proof_operator_settlements(
+                &proofs,
+                &st.storage,
+                h,
+                &PROP_ENDOWMENT_B3,
+            )
+            .into_iter()
+            .map(|(_, b)| b)
+            .fold(0, u128::saturating_add);
+            st = apply_b3_two_operator_proofs_at(&gen.built, &gen.payload, &st, h);
+            model = treasury_after_b3_two_operator_block(model, bonus_total, emission);
+            prop_assert_eq!(st.treasury, model, "B3 treasury mismatch");
         }
     }
 

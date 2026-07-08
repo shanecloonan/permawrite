@@ -469,8 +469,8 @@ if (( PLAN_ONLY )); then
   else
     echo "  vps=false"
   fi
-  start_cmd="start-all.sh"
-  if (( VPS == 1 )); then start_cmd="vps-start-all.sh"; fi
+  start_cmd="start-all"
+  if (( VPS == 1 )); then start_cmd="vps-start-all"; fi
   echo "  flow=stop stale mesh -> $start_cmd -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh"
   echo "  warning=default wallet uses public validator-0 test payout seed only for local/public devnet rehearsal; custom faucet wallets are never overwritten"
   exit 0

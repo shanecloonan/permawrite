@@ -7,11 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B3 phase 2 `7a427fa` | **CI fix** clippy + treasury mirror (this push) | Nightly after green |
+| **1** RC core | B3 treasury `88457df` | **CI #28934047182** + script fix (this push) | Nightly after green |
 | **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | B3 phase 2 `7a427fa` | **B3 treasury** settlement mirror (this push) | Bonding registry + M5 proptests |
+| **4+6** Protocol | B3 treasury `88457df` | **CI script fix** + M5.41 proptest (this push) | Operator registry phase 3 |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (CI script fix + B3 M5.40 proptest)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Ubuntu scripts CI** | **Fix** — this push | `participant-rehearsal-smoke.sh` plan flow `start-all` not `start-all.sh` |
+| **M5.41** | **Done** — this push | `prop_b3_two_operator_proof_chain_treasury` (1–8 blocks) |
+| **B3 phase 3 design** | **Seed** | Operator registry sketch in `PERMANENCE_HARDENING.md` |
+
+**Lane 4+6 — Done:** M5.41 proptest **Next:** operator registry wire
 
 ---
 

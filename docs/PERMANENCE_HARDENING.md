@@ -547,9 +547,20 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
 
 **Plan (incremental — bonding + proptests next).**
 
-1. **Operator registry binding.** Tie `operator_id` to the bonding registry
-   (lane-6 research) so proofs must come from registered operators.
-2. **Proactive repair + staleness** (B4) once replication is audited on-chain.
+1. **Operator registry binding (phase 3 — design).** Separate from validator
+   [`BondOp`](../mfn-consensus/src/bond_wire.rs) bonding. Proposed shape:
+   - `StorageOperatorRegister { operator_id, payout_view, payout_spend, bond_amount }`
+     signed wire op; `operator_id = operator_identity_from_payout(view, spend)`.
+   - Chain state: `operators: BTreeMap<[u8;32], OperatorEntry>` (bond escrow,
+     registration height, optional slash counter).
+   - When `operator_salted_challenges = 1`, `apply_block` rejects proofs whose
+     payout keys hash to an unregistered `operator_id`.
+   - Bondless tier remains default on public devnet; bonded tier is optional
+     fork for premium replication SLAs ([`DECENTRALIZATION.md`](./DECENTRALIZATION.md)).
+2. **M5 proptests** — `prop_b3_two_operator_proof_chain_treasury` shipped
+   (`apply_block_proptest.rs`, **M5.41**); extend with duplicate-operator reject +
+   replication-cap fuzz.
+3. **Proactive repair + staleness** (B4) once replication is audited on-chain.
 
 Requires: emission/treasury settlement audit under multi-operator blocks, and
 heavy M5 proptesting (mixed honest/missing/equivocating operators). Sequence
