@@ -83,9 +83,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** … + fund-wallet `dc22cb7` + fanout `b70b3ec` + TL-5 tooling `5a74d57`. **CI `#28924060054` GREEN** on `e7d74f7`. **Push pending:** `5a74d57` (scripts-only TL-5). Nightly `#28928716414` failed pre-`dc22cb7`/`b70b3ec` (1-input upload + fanout `applied=1`).
+**Head:** `eea59aa` (B3 phase 1 operator-salted challenges). **Prior:** TL-5 `5a74d57`, F7 stack GREEN `#28924060054`. **CI:** monitor latest run on `eea59aa`.
 
-**RC push hold:** push `5a74d57` + board sync; monitor resulting CI; Nightly re-dispatch after green.
+**RC push hold:** monitor CI; Nightly re-dispatch after green on `dc22cb7`/`b70b3ec` stack.
 
 ## Current board
 
