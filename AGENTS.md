@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**B2 ChunkV2** `20954b0` + **F7 tail** `3933cf0` on `main`. **Nightly #28889931523 GREEN** (B-11/B7 stack).
+**B2 ChunkV2** `20954b0` + **F7 tail** `3933cf0` + smoke fixes `7a68cc5`/`b00b7dd` on `main`. **CI `#28915800187` in progress** on `b00b7dd`.
 
-**RC push hold:** active — landing F7 smoke funding fix after `#28914787002` ubuntu/macos failure.
+**RC push hold:** active — monitor CI `#28915800187`; no pushes until green or failure triage.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly #28889931523 | **Done** — all three jobs green on B-11/B7 stack | Nightly on F7 commit |
-| **2** | F7 `3933cf0` + B2 `20954b0` | **Done** | Release evidence refresh after CI `#28914787002` green |
+| **1** | CI `#28915800187` on `b00b7dd` | **Monitor** — F7 smoke tail | Nightly on green stack |
+| **2** | F7+B2 stack + smoke fixes | **Waiting** — evidence after CI green | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 `min_input_count` at `verify_transaction` | **Done** — `3933cf0` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |

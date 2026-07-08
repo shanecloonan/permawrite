@@ -3,14 +3,33 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 PM (F7 smoke CI tail → monitor `#28915800187`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 smoke fund** | **Done** — `7a68cc5` | `FUND_WALLET_BLOCKS=2` across mfn-cli smokes |
+| **F7 smoke heights** | **Done** — `b00b7dd` | `last_proven_height=4` in chunk/operator smokes |
+| **CI #28915800187** | **In progress** | `b00b7dd` full matrix (rustfmt/clippy green) |
+| **B2 + F7 stack** | **Done** | `20954b0` + `3933cf0` on `main` |
+
+### RC push hold
+
+**Active** — no code pushes while CI `#28915800187` runs (`cancel-in-progress`).
+
+### Next priority
+
+**Lane 1:** Nightly dispatch after CI green. **Lane 2:** release evidence on `b00b7dd`. **Lane 6:** B3 replication accounting seed.
+
+---
+
 ## Session — 2026-07-07 PM (F7 consensus min-input floor)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **F7 tail** | **Done** — `3933cf0` | `RingPolicy.min_input_count = 2` at `verify_transaction` (uniform tier) |
 | **B2 ChunkV2** | **Done** | `20954b0` on `main` |
-| **CI #28915343380** | **Failed** — `last_proven_height` off-by-one after fund fix | **Fixed** — `b00b7dd` |
-| **CI (next)** | **In progress** | `b00b7dd` height asserts |
+| **CI #28915343380** | **Failed** — `last_proven_height` off-by-one | **Fixed** — `b00b7dd` |
+| **CI #28915800187** | **Superseded** | Cancelled by `b00b7dd` push |
 
 ### RC push hold
 
@@ -149,8 +168,8 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly green; F7 CI `#28914787002` | **Monitor** | Nightly dispatch after green |
-| **2** RC ops | F7 `3933cf0` + B2 `20954b0` | **Waiting** — CI green → evidence refresh | Human sign-off packet |
+| **1** RC core | Nightly green; smoke fixes `7a68cc5`/`b00b7dd` | **Monitor** CI `#28915800187` | Nightly after green |
+| **2** RC ops | F7+B2 on `main` | **Waiting** — evidence after CI green | Human sign-off packet |
 | **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---
