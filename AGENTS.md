@@ -83,9 +83,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `0ede433` (M2.5.66 mesh `set -e` + M5.50 B3 proptests). **CI #28966851917** in progress.
+**Head:** `89f3498` (B4 proactive repair sweep). **CI #28966851917** GREEN on `0ede433` (M2.5.66 + M5.50). New CI on `89f3498` in progress.
 
-**Nightly #28962813486:** FAIL — pre-M2.5.66 `start_mesh_fail`; re-dispatch after green CI on `0ede433`.
+**Nightly:** re-dispatch expected after green CI on `89f3498` (closes `start_mesh_fail` on M2.5.66 stack).
 
 ## Current board
 
@@ -94,9 +94,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | M2.5.66 `vps_export_binds` set -e fix | **Done** — `0ede433` | Nightly re-dispatch after CI green |
 | **2** | Release evidence refresh | **Doing** — await CI `#28966851917` | RC audit on `0ede433` |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — `0d28e4f` | Idle |
-| **4** | M5.50 B3 duplicate-operator proptest | **Done** — `0ede433` | B4 proactive repair research |
+| **4** | B4 proactive repair sweep | **Done** — `89f3498` | B5 operator slashing research |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | M5.50 with lane 4 | **Done** — `0ede433` | B4 proactive repair research |
+| **6** | B4 with lane 4 | **Done** — `89f3498` | B5 operator slashing research |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
