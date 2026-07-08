@@ -3,7 +3,41 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-07 PM (F7 smoke CI tail → monitor `#28915800187`)
+## Session — 2026-07-07 PM (F7 proptest + emission sim two-input alignment)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 proptest tail** | **This commit** | `apply_block_proptest` + `emission_simulation` recycle companion pad input (F7 floor) |
+| **F7 smoke/wallet** | **Done** — `81849c8` | Two-block fund + `owned_count>=2` poll before upload |
+| **CI #28915985296** | **Monitor** | Prior push `81849c8`; proptest fix follows |
+
+### RC push hold
+
+**Lift after green** — one proptest commit landing now; wait for matrix on head before further pushes.
+
+### Next priority
+
+**Lane 2:** release evidence on green head. **Lane 4+6:** B3 replication accounting.
+
+---
+
+## Session — 2026-07-07 PM (F7 auto-fanout wallet sync → CI `#28915985296`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 wallet sync** | **Done** — `81849c8` | `f7_wallet_fund.rs` polls `owned_count>=2` before auto-fanout upload |
+| **CI #28915800187** | **Cancelled** | Superseded by `81849c8` push |
+| **CI #28915985296** | **In progress** | `81849c8` full matrix |
+
+### RC push hold
+
+**Active** — monitor CI `#28915985296`; no code pushes until green.
+
+### Next priority
+
+**Lane 2:** release evidence on `81849c8` after green. **Lane 6:** B3 replication accounting seed.
+
+---
 
 | Gate | Status | Notes |
 | --- | --- | --- |

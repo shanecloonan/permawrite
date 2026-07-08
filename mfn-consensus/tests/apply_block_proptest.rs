@@ -41,6 +41,9 @@ const PROP_MIXED_EMISSION: EmissionParams = EmissionParams {
 /// Genesis UTXO value large enough for many fee-bearing self-transfers.
 const PROP_MIXED_SPEND_VALUE: u64 = 10_000_000_000;
 
+/// Companion input recycled each block so F7 `min_input_count = 2` is satisfied.
+const PROP_INPUT_PAD_VALUE: u64 = 1_000_000;
+
 /// Ring width for proptest CLSAG spends under production `DEFAULT_CONSENSUS_PARAMS`.
 const PROP_RING_SIZE: usize = 16;
 
@@ -387,18 +390,24 @@ impl PropSpendState {
 
     /// Self-transfer with public fee; next state uses deterministic change keys.
     ///
-    /// Emits the reference two-output shape (change + zero-value pad):
-    /// these chains run production uniform-ring params, so the F5-P5
-    /// consensus output floor applies.
-    fn sign_self_transfer(&self, fee: u64, next_seed: u32) -> (TransactionWire, Self) {
+    /// Spends `pad` as the second real input (F7 floor) and emits change,
+    /// recycled pad, and zero-value output (F5 output floor).
+    fn sign_self_transfer(
+        &self,
+        pad: &PropSpendState,
+        fee: u64,
+        next_seed: u32,
+    ) -> (TransactionWire, Self, PropSpendState) {
         assert!(fee < self.value, "fee must leave positive change");
         let change_value = self.value - fee;
         let next_spend = hash_to_scalar(&[b"M5.5/change-spend", &next_seed.to_le_bytes()]);
         let change_addr = generator_g() * next_spend;
-        let pad_spend = hash_to_scalar(&[b"B1/pad-spend", &next_seed.to_le_bytes()]);
-        let pad_addr = generator_g() * pad_spend;
+        let next_pad_spend = hash_to_scalar(&[b"F7/pad-spend", &next_seed.to_le_bytes()]);
+        let pad_addr = generator_g() * next_pad_spend;
+        let zero_spend = hash_to_scalar(&[b"B1/pad-spend", &next_seed.to_le_bytes()]);
+        let zero_addr = generator_g() * zero_spend;
         let signed = sign_transaction(
-            vec![self.input_spec()],
+            vec![self.input_spec(), pad.input_spec()],
             vec![
                 OutputSpec::Raw {
                     one_time_addr: change_addr,
@@ -407,6 +416,11 @@ impl PropSpendState {
                 },
                 OutputSpec::Raw {
                     one_time_addr: pad_addr,
+                    value: pad.value,
+                    storage: None,
+                },
+                OutputSpec::Raw {
+                    one_time_addr: zero_addr,
                     value: 0,
                     storage: None,
                 },
@@ -421,27 +435,36 @@ impl PropSpendState {
             value: change_value,
             one_time_addr: change_addr,
         };
-        (signed.tx, next)
+        let next_pad = Self {
+            spend_priv: next_pad_spend,
+            blinding: signed.output_blindings[1],
+            value: pad.value,
+            one_time_addr: pad_addr,
+        };
+        (signed.tx, next, next_pad)
     }
 
     /// Storage-anchoring spend with a NEW commitment; next state uses deterministic change keys.
     fn sign_storage_upload(
         &self,
+        pad: &PropSpendState,
         fee: u64,
         built: &BuiltCommitment,
         endowment_amount: u64,
         endowment_params: &EndowmentParams,
         next_seed: u32,
-    ) -> (TransactionWire, Self) {
+    ) -> (TransactionWire, Self, PropSpendState) {
         assert!(fee < self.value, "fee must leave positive anchor output");
         let anchor_value = self.value - fee;
         let next_spend = hash_to_scalar(&[b"M5.33/change-spend", &next_seed.to_le_bytes()]);
         let change_addr = generator_g() * next_spend;
-        let pad_spend = hash_to_scalar(&[b"B1/upload-pad-spend", &next_seed.to_le_bytes()]);
-        let pad_addr = generator_g() * pad_spend;
+        let next_pad_spend = hash_to_scalar(&[b"F7/upload-pad-spend", &next_seed.to_le_bytes()]);
+        let pad_addr = generator_g() * next_pad_spend;
+        let zero_spend = hash_to_scalar(&[b"B1/upload-pad-spend", &next_seed.to_le_bytes()]);
+        let zero_addr = generator_g() * zero_spend;
         let extra = prop_storage_upload_extra(built, endowment_amount, endowment_params);
         let signed = sign_transaction(
-            vec![self.input_spec()],
+            vec![self.input_spec(), pad.input_spec()],
             vec![
                 OutputSpec::Raw {
                     one_time_addr: change_addr,
@@ -450,6 +473,11 @@ impl PropSpendState {
                 },
                 OutputSpec::Raw {
                     one_time_addr: pad_addr,
+                    value: pad.value,
+                    storage: None,
+                },
+                OutputSpec::Raw {
+                    one_time_addr: zero_addr,
                     value: 0,
                     storage: None,
                 },
@@ -464,13 +492,23 @@ impl PropSpendState {
             value: anchor_value,
             one_time_addr: change_addr,
         };
-        (signed.tx, next)
+        let next_pad = Self {
+            spend_priv: next_pad_spend,
+            blinding: signed.output_blindings[1],
+            value: pad.value,
+            one_time_addr: pad_addr,
+        };
+        (signed.tx, next, next_pad)
     }
 }
 
-/// Genesis UTXOs: signer output plus deterministic decoys for ring-16 spends.
-fn prop_spend_genesis_outputs(spend: &PropSpendState) -> Vec<GenesisOutput> {
-    let mut outputs = Vec::with_capacity(PROP_RING_SIZE);
+fn prop_input_pad_for(spend_seed: u32) -> PropSpendState {
+    PropSpendState::from_seed(spend_seed.wrapping_add(0xF7_0000), PROP_INPUT_PAD_VALUE)
+}
+
+/// Genesis UTXOs: signer output, F7 pad, plus deterministic decoys for ring-16 spends.
+fn prop_spend_genesis_outputs(spend: &PropSpendState, pad: &PropSpendState) -> Vec<GenesisOutput> {
+    let mut outputs = Vec::with_capacity(PROP_RING_SIZE + 1);
     for i in 0..PROP_RING_SIZE - 1 {
         outputs.push(PropSpendState::genesis_decoy_at(i));
     }
@@ -478,15 +516,21 @@ fn prop_spend_genesis_outputs(spend: &PropSpendState) -> Vec<GenesisOutput> {
         one_time_addr: spend.one_time_addr,
         amount: spend.commitment(),
     });
+    outputs.push(GenesisOutput {
+        one_time_addr: pad.one_time_addr,
+        amount: pad.commitment(),
+    });
     outputs
 }
 
 /// Genesis UTXOs for two independent ring-16 spenders (CLSAG fee + upload).
 fn prop_dual_spend_genesis_outputs(
     clsag: &PropSpendState,
+    clsag_pad: &PropSpendState,
     upload: &PropSpendState,
+    upload_pad: &PropSpendState,
 ) -> Vec<GenesisOutput> {
-    let mut outputs = Vec::with_capacity(PROP_RING_SIZE + 1);
+    let mut outputs = Vec::with_capacity(PROP_RING_SIZE + 3);
     for i in 0..PROP_RING_SIZE - 1 {
         outputs.push(PropSpendState::genesis_decoy_at(i));
     }
@@ -495,8 +539,16 @@ fn prop_dual_spend_genesis_outputs(
         amount: clsag.commitment(),
     });
     outputs.push(GenesisOutput {
+        one_time_addr: clsag_pad.one_time_addr,
+        amount: clsag_pad.commitment(),
+    });
+    outputs.push(GenesisOutput {
         one_time_addr: upload.one_time_addr,
         amount: upload.commitment(),
+    });
+    outputs.push(GenesisOutput {
+        one_time_addr: upload_pad.one_time_addr,
+        amount: upload_pad.commitment(),
     });
     outputs
 }
@@ -504,15 +556,24 @@ fn prop_dual_spend_genesis_outputs(
 struct PropDualSpendGenesis {
     state: ChainState,
     clsag_spend: PropSpendState,
+    clsag_pad: PropSpendState,
     upload_spend: PropSpendState,
+    upload_pad: PropSpendState,
 }
 
 fn genesis_dual_spend_for_upload_proptest() -> PropDualSpendGenesis {
     let clsag_spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let clsag_pad = prop_input_pad_for(1);
     let upload_spend = PropSpendState::from_seed(2, PROP_MIXED_SPEND_VALUE);
+    let upload_pad = prop_input_pad_for(2);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_dual_spend_genesis_outputs(&clsag_spend, &upload_spend),
+        initial_outputs: prop_dual_spend_genesis_outputs(
+            &clsag_spend,
+            &clsag_pad,
+            &upload_spend,
+            &upload_pad,
+        ),
         initial_storage: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -525,16 +586,25 @@ fn genesis_dual_spend_for_upload_proptest() -> PropDualSpendGenesis {
     PropDualSpendGenesis {
         state,
         clsag_spend,
+        clsag_pad,
         upload_spend,
+        upload_pad,
     }
 }
 
 fn genesis_dual_spend_for_upload_opening_proptest() -> PropDualSpendGenesis {
     let clsag_spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let clsag_pad = prop_input_pad_for(1);
     let upload_spend = PropSpendState::from_seed(2, PROP_MIXED_SPEND_VALUE);
+    let upload_pad = prop_input_pad_for(2);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_dual_spend_genesis_outputs(&clsag_spend, &upload_spend),
+        initial_outputs: prop_dual_spend_genesis_outputs(
+            &clsag_spend,
+            &clsag_pad,
+            &upload_spend,
+            &upload_pad,
+        ),
         initial_storage: Vec::new(),
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -547,7 +617,9 @@ fn genesis_dual_spend_for_upload_opening_proptest() -> PropDualSpendGenesis {
     PropDualSpendGenesis {
         state,
         clsag_spend,
+        clsag_pad,
         upload_spend,
+        upload_pad,
     }
 }
 
@@ -576,6 +648,7 @@ fn prop_min_upload_fee(payload_len: usize) -> u64 {
 struct PropPrivacyStorageGenesis {
     state: ChainState,
     spend: PropSpendState,
+    input_pad: PropSpendState,
     built: BuiltCommitment,
     payload: Vec<u8>,
 }
@@ -591,9 +664,10 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
     )
     .expect("commitment");
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let input_pad = prop_input_pad_for(1);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_spend_genesis_outputs(&spend),
+        initial_outputs: prop_spend_genesis_outputs(&spend, &input_pad),
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -606,6 +680,7 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
     PropPrivacyStorageGenesis {
         state,
         spend,
+        input_pad,
         built,
         payload,
     }
@@ -622,9 +697,10 @@ fn genesis_privacy_storage_bonding_for_proptest() -> PropPrivacyStorageGenesis {
     )
     .expect("commitment");
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let input_pad = prop_input_pad_for(1);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_spend_genesis_outputs(&spend),
+        initial_outputs: prop_spend_genesis_outputs(&spend, &input_pad),
         initial_storage: vec![built.commit.clone()],
         validators: Vec::new(),
         params: DEFAULT_CONSENSUS_PARAMS,
@@ -637,6 +713,7 @@ fn genesis_privacy_storage_bonding_for_proptest() -> PropPrivacyStorageGenesis {
     PropPrivacyStorageGenesis {
         state,
         spend,
+        input_pad,
         built,
         payload,
     }
@@ -814,6 +891,7 @@ fn prop_coinbase_for_block(
 struct PropValidatorPrivacyStorageGenesis {
     state: ChainState,
     spend: PropSpendState,
+    input_pad: PropSpendState,
     built: BuiltCommitment,
     payload: Vec<u8>,
     fixture: PropValidatorFixture,
@@ -831,9 +909,10 @@ fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStora
     )
     .expect("commitment");
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let input_pad = prop_input_pad_for(1);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_spend_genesis_outputs(&spend),
+        initial_outputs: prop_spend_genesis_outputs(&spend, &input_pad),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -846,6 +925,7 @@ fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStora
     PropValidatorPrivacyStorageGenesis {
         state,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -864,9 +944,10 @@ fn genesis_validator_combined_inflow_ppb_for_proptest() -> PropValidatorPrivacyS
     )
     .expect("commitment");
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let input_pad = prop_input_pad_for(1);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_spend_genesis_outputs(&spend),
+        initial_outputs: prop_spend_genesis_outputs(&spend, &input_pad),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -879,6 +960,7 @@ fn genesis_validator_combined_inflow_ppb_for_proptest() -> PropValidatorPrivacyS
     PropValidatorPrivacyStorageGenesis {
         state,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -976,9 +1058,10 @@ fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStora
     )
     .expect("commitment");
     let spend = PropSpendState::from_seed(1, PROP_MIXED_SPEND_VALUE);
+    let input_pad = prop_input_pad_for(1);
     let cfg = GenesisConfig {
         timestamp: 0,
-        initial_outputs: prop_spend_genesis_outputs(&spend),
+        initial_outputs: prop_spend_genesis_outputs(&spend, &input_pad),
         initial_storage: vec![built.commit.clone()],
         validators: fixture.validators.clone(),
         params: fixture.params,
@@ -991,6 +1074,7 @@ fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStora
     PropValidatorPrivacyStorageGenesis {
         state,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -1084,8 +1168,10 @@ fn apply_validator_mixed_clsag_fee_and_storage_proof(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn validator_mixed_block_material(
     spend: &PropSpendState,
+    pad: &PropSpendState,
     built: &BuiltCommitment,
     payload: &[u8],
     payout: &PayoutAddress,
@@ -1093,7 +1179,7 @@ fn validator_mixed_block_material(
     height: u32,
     fee: u64,
 ) -> (Vec<TransactionWire>, mfn_storage::StorageProof) {
-    let (tx, _) = spend.sign_self_transfer(fee, height);
+    let (tx, _, _) = spend.sign_self_transfer(pad, fee, height);
     let fee_sum = u128::from(fee);
     let prev = *st.tip_id().expect("tip");
     let proof = build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
@@ -1137,15 +1223,17 @@ fn assert_reject_preserves_state<F>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn legacy_mixed_block_material(
     spend: &PropSpendState,
+    pad: &PropSpendState,
     built: &BuiltCommitment,
     payload: &[u8],
     st: &ChainState,
     height: u32,
     fee: u64,
 ) -> (Vec<TransactionWire>, mfn_storage::StorageProof) {
-    let (tx, _) = spend.sign_self_transfer(fee, height);
+    let (tx, _, _) = spend.sign_self_transfer(pad, fee, height);
     let txs = vec![tx];
     let prev = *st.tip_id().expect("tip");
     let proof = build_test_storage_proof(&built.commit, &prev, height, payload, &built.tree);
@@ -1628,14 +1716,16 @@ proptest! {
         let gen = genesis_privacy_storage_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
 
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 7_001));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let prev = *st.tip_id().expect("tip");
             let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
             st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
@@ -1663,7 +1753,9 @@ proptest! {
         let gen = genesis_dual_spend_for_upload_proptest();
         let mut st = gen.state;
         let mut clsag_spend = gen.clsag_spend;
+        let mut clsag_pad = gen.clsag_pad;
         let mut upload_spend = gen.upload_spend;
+        let mut upload_pad = gen.upload_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
 
@@ -1688,9 +1780,12 @@ proptest! {
                 "upload must anchor a fresh commitment at height {h}"
             );
 
-            let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+            let (clsag_tx, next_clsag, next_clsag_pad) =
+                clsag_spend.sign_self_transfer(&clsag_pad, clsag_fee, h);
             clsag_spend = next_clsag;
-            let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+            clsag_pad = next_clsag_pad;
+            let (upload_tx, next_upload, next_upload_pad) = upload_spend.sign_storage_upload(
+                &upload_pad,
                 upload_fee,
                 &built,
                 PROP_STORAGE_ENDOWMENT_AMOUNT,
@@ -1698,6 +1793,7 @@ proptest! {
                 h.wrapping_add(10_000),
             );
             upload_spend = next_upload;
+            upload_pad = next_upload_pad;
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
             st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
@@ -1727,7 +1823,9 @@ proptest! {
         let gen = genesis_dual_spend_for_upload_opening_proptest();
         let mut st = gen.state;
         let mut clsag_spend = gen.clsag_spend;
+        let mut clsag_pad = gen.clsag_pad;
         let mut upload_spend = gen.upload_spend;
+        let mut upload_pad = gen.upload_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
 
@@ -1752,9 +1850,12 @@ proptest! {
                 "upload must anchor a fresh commitment at height {h}"
             );
 
-            let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+            let (clsag_tx, next_clsag, next_clsag_pad) =
+                clsag_spend.sign_self_transfer(&clsag_pad, clsag_fee, h);
             clsag_spend = next_clsag;
-            let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+            clsag_pad = next_clsag_pad;
+            let (upload_tx, next_upload, next_upload_pad) = upload_spend.sign_storage_upload(
+                &upload_pad,
                 upload_fee,
                 &built,
                 PROP_STORAGE_ENDOWMENT_AMOUNT,
@@ -1762,6 +1863,7 @@ proptest! {
                 h.wrapping_add(10_000),
             );
             upload_spend = next_upload;
+            upload_pad = next_upload_pad;
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
             st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
@@ -1788,14 +1890,16 @@ proptest! {
         let gen = genesis_validator_privacy_storage_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
 
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 7_001));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let prev = *st.tip_id().expect("tip");
             let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
@@ -1833,6 +1937,7 @@ proptest! {
         let gen = genesis_privacy_storage_bonding_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let stake = u128::from(DEFAULT_BONDING_PARAMS.min_validator_stake);
@@ -1847,8 +1952,9 @@ proptest! {
             let h = next_height(&st);
             let fee = fee_base.saturating_add(u64::from((i + h) % 5_001));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             st = apply_mixed_clsag_fee_and_storage_proof(
                 &st,
                 h,
@@ -1882,6 +1988,7 @@ proptest! {
         let gen = genesis_validator_combined_inflow_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -1892,8 +1999,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == 4;
             let with_proof = h % 4 == 0;
@@ -1973,6 +2081,7 @@ proptest! {
         let gen = genesis_validator_combined_inflow_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -1984,8 +2093,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == 4;
             let with_proof = h % 4 == 0;
@@ -2092,6 +2202,7 @@ proptest! {
         let gen = genesis_validator_combined_inflow_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -2112,8 +2223,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == bond_h;
             let with_proof = h % proof_stride == 0;
@@ -2199,6 +2311,7 @@ proptest! {
         let gen = genesis_validator_combined_inflow_for_proptest();
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -2218,8 +2331,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == bond_h;
             let with_proof = h % proof_stride == 0;
@@ -2331,6 +2445,7 @@ proptest! {
         let ep = &PROP_PPB_ENDOWMENT;
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -2351,8 +2466,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == bond_h;
             let with_proof = h % proof_stride == 0;
@@ -2452,6 +2568,7 @@ proptest! {
         let ep = &PROP_PPB_ENDOWMENT;
         let mut st = gen.state;
         let mut spend = gen.spend;
+        let mut input_pad = gen.input_pad;
         let mut model = 0u128;
         let emission = &PROP_MIXED_EMISSION;
         let voters = [0u32, 2];
@@ -2471,8 +2588,9 @@ proptest! {
         for h in 1..=n_blocks {
             let fee = fee_base.saturating_add(u64::from(h % 4_501));
             prop_assert!(fee < PROP_MIXED_SPEND_VALUE, "fee must fit genesis UTXO");
-            let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+            let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
             spend = next_spend;
+            input_pad = next_pad;
             let fee_sum = u128::from(fee);
             let with_bond = h == bond_h;
             let with_proof = h % proof_stride == 0;
@@ -2594,7 +2712,7 @@ fn reject_duplicate_storage_proof_in_mixed_block_without_state_change() {
     let before_bytes = checkpoint_bytes(&st);
 
     let h = next_height(&st);
-    let (tx, _) = gen.spend.sign_self_transfer(25_000, h);
+    let (tx, _, _) = gen.spend.sign_self_transfer(&gen.input_pad, 25_000, h);
     let txs = vec![tx];
     let prev = *st.tip_id().expect("tip");
     let proof =
@@ -2627,13 +2745,15 @@ fn reject_mixed_tampered_storage_proof_root_without_state_change() {
     let PropPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
     } = gen;
     let before_snap = snap(&st);
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
-    let (txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, 50_000);
+    let (txs, proof) =
+        legacy_mixed_block_material(&spend, &input_pad, &built, &payload, &st, h, 50_000);
     let unsealed = build_unsealed_header(
         &st,
         &txs,
@@ -2663,13 +2783,15 @@ fn reject_mixed_invalid_clsag_without_state_change() {
     let PropPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
     } = gen;
     let before_snap = snap(&st);
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
-    let (mut txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, 50_000);
+    let (mut txs, proof) =
+        legacy_mixed_block_material(&spend, &input_pad, &built, &payload, &st, h, 50_000);
     txs[0].fee = txs[0].fee.wrapping_add(1);
     let unsealed = build_unsealed_header(
         &st,
@@ -2699,6 +2821,7 @@ fn reject_mixed_after_partial_chain_without_state_change() {
     let PropPrivacyStorageGenesis {
         state: mut st,
         mut spend,
+        mut input_pad,
         built,
         payload,
     } = gen;
@@ -2706,8 +2829,9 @@ fn reject_mixed_after_partial_chain_without_state_change() {
 
     for h in 1..=PREFIX_LEN {
         let fee = 10_000u64 + u64::from(h) * 1_000;
-        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
         spend = next_spend;
+        input_pad = next_pad;
         let prev = *st.tip_id().expect("tip");
         let proof = build_test_storage_proof(&built.commit, &prev, h, &payload, &built.tree);
         st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
@@ -2718,7 +2842,8 @@ fn reject_mixed_after_partial_chain_without_state_change() {
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
     let fee = 10_000u64 + u64::from(h) * 1_000;
-    let (mut txs, proof) = legacy_mixed_block_material(&spend, &built, &payload, &st, h, fee);
+    let (mut txs, proof) =
+        legacy_mixed_block_material(&spend, &input_pad, &built, &payload, &st, h, fee);
     txs[0].fee = txs[0].fee.wrapping_add(1);
     let unsealed = build_unsealed_header(
         &st,
@@ -2751,7 +2876,7 @@ fn reject_duplicate_storage_proof_in_validator_mixed_block_without_state_change(
 
     let h = next_height(&st);
     let fee = 25_000u64;
-    let (tx, _) = gen.spend.sign_self_transfer(fee, h);
+    let (tx, _, _) = gen.spend.sign_self_transfer(&gen.input_pad, fee, h);
     let prev = *st.tip_id().expect("tip");
     let proof =
         build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
@@ -2840,6 +2965,7 @@ fn reject_validator_mixed_tampered_storage_proof_root_without_state_change() {
     let PropValidatorPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -2847,8 +2973,16 @@ fn reject_validator_mixed_tampered_storage_proof_root_without_state_change() {
     let before_snap = snap(&st);
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
-    let (txs, proof) =
-        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    let (txs, proof) = validator_mixed_block_material(
+        &spend,
+        &input_pad,
+        &built,
+        &payload,
+        &fixture.payout,
+        &st,
+        h,
+        50_000,
+    );
     let mut blk = build_validator_mixed_block(
         &fixture,
         &st,
@@ -2876,6 +3010,7 @@ fn reject_validator_mixed_invalid_coinbase_without_state_change() {
     let PropValidatorPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -2884,8 +3019,16 @@ fn reject_validator_mixed_invalid_coinbase_without_state_change() {
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
     let fee = 50_000u64;
-    let (mut txs, proof) =
-        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, fee);
+    let (mut txs, proof) = validator_mixed_block_material(
+        &spend,
+        &input_pad,
+        &built,
+        &payload,
+        &fixture.payout,
+        &st,
+        h,
+        fee,
+    );
     let correct = expected_coinbase_amount(h, u128::from(fee), 1, &PROP_MIXED_EMISSION);
     let wrong = emission_at_height(u64::from(h), &PROP_MIXED_EMISSION);
     assert_ne!(wrong, correct);
@@ -2916,6 +3059,7 @@ fn reject_validator_mixed_subquorum_finality_without_state_change() {
     let PropValidatorPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -2923,8 +3067,16 @@ fn reject_validator_mixed_subquorum_finality_without_state_change() {
     let before_snap = snap(&st);
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
-    let (txs, proof) =
-        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    let (txs, proof) = validator_mixed_block_material(
+        &spend,
+        &input_pad,
+        &built,
+        &payload,
+        &fixture.payout,
+        &st,
+        h,
+        50_000,
+    );
     // Two of three validators → 200/300 stake; quorum at 6667 bps requires 201.
     let blk =
         build_validator_mixed_block(&fixture, &st, h, txs, std::slice::from_ref(&proof), &[0, 1]);
@@ -2946,6 +3098,7 @@ fn reject_validator_mixed_invalid_clsag_without_state_change() {
     let PropValidatorPrivacyStorageGenesis {
         state: st,
         spend,
+        input_pad,
         built,
         payload,
         fixture,
@@ -2953,8 +3106,16 @@ fn reject_validator_mixed_invalid_clsag_without_state_change() {
     let before_snap = snap(&st);
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
-    let (mut txs, proof) =
-        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, 50_000);
+    let (mut txs, proof) = validator_mixed_block_material(
+        &spend,
+        &input_pad,
+        &built,
+        &payload,
+        &fixture.payout,
+        &st,
+        h,
+        50_000,
+    );
     txs[1].fee = txs[1].fee.wrapping_add(1);
     let blk = build_validator_mixed_block(
         &fixture,
@@ -2982,6 +3143,7 @@ fn reject_validator_mixed_after_partial_chain_without_state_change() {
     let PropValidatorPrivacyStorageGenesis {
         state: mut st,
         mut spend,
+        mut input_pad,
         built,
         payload,
         fixture,
@@ -2990,8 +3152,9 @@ fn reject_validator_mixed_after_partial_chain_without_state_change() {
 
     for h in 1..=PREFIX_LEN {
         let fee = 10_000u64 + u64::from(h) * 1_000;
-        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
         spend = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let prev = *st.tip_id().expect("tip");
         let proof = build_test_storage_proof(&built.commit, &prev, h, &payload, &built.tree);
@@ -3013,8 +3176,16 @@ fn reject_validator_mixed_after_partial_chain_without_state_change() {
     let before_bytes = checkpoint_bytes(&st);
     let h = next_height(&st);
     let fee = 10_000u64 + u64::from(h) * 1_000;
-    let (mut txs, proof) =
-        validator_mixed_block_material(&spend, &built, &payload, &fixture.payout, &st, h, fee);
+    let (mut txs, proof) = validator_mixed_block_material(
+        &spend,
+        &input_pad,
+        &built,
+        &payload,
+        &fixture.payout,
+        &st,
+        h,
+        fee,
+    );
     txs[1].fee = txs[1].fee.wrapping_add(1);
     let blk = build_validator_mixed_block(
         &fixture,
@@ -3123,13 +3294,15 @@ fn deep_validator_mixed_clsag_fee_and_storage_proof_treasury_32() {
     let gen = genesis_validator_privacy_storage_for_proptest();
     let mut st = gen.state;
     let mut spend = gen.spend;
+    let mut input_pad = gen.input_pad;
     let mut model = 0u128;
     let emission = &PROP_MIXED_EMISSION;
 
     for h in 1..=32u32 {
         let fee = 2_000u64 + u64::from(h % 5_001);
-        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
         spend = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let prev = *st.tip_id().expect("tip");
         let proof =
@@ -3157,13 +3330,15 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
     let gen = genesis_privacy_storage_for_proptest();
     let mut st = gen.state;
     let mut spend = gen.spend;
+    let mut input_pad = gen.input_pad;
     let mut model = 0u128;
     let emission = &PROP_MIXED_EMISSION;
 
     for h in 1..=64u32 {
         let fee = 2_000u64 + u64::from(h % 5_001);
-        let (tx, next_spend) = spend.sign_self_transfer(fee, h);
+        let (tx, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee, h);
         spend = next_spend;
+        input_pad = next_pad;
         let prev = *st.tip_id().expect("tip");
         let proof =
             build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
@@ -3182,7 +3357,9 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
     let gen = genesis_dual_spend_for_upload_proptest();
     let mut st = gen.state;
     let mut clsag_spend = gen.clsag_spend;
+    let mut clsag_pad = gen.clsag_pad;
     let mut upload_spend = gen.upload_spend;
+    let mut upload_pad = gen.upload_pad;
     let mut model = 0u128;
     let emission = &PROP_MIXED_EMISSION;
 
@@ -3199,9 +3376,12 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
         )
         .expect("commitment");
         let commit_hash = storage_commitment_hash(&built.commit);
-        let (clsag_tx, next_clsag) = clsag_spend.sign_self_transfer(clsag_fee, h);
+        let (clsag_tx, next_clsag, next_clsag_pad) =
+            clsag_spend.sign_self_transfer(&clsag_pad, clsag_fee, h);
         clsag_spend = next_clsag;
-        let (upload_tx, next_upload) = upload_spend.sign_storage_upload(
+        clsag_pad = next_clsag_pad;
+        let (upload_tx, next_upload, next_upload_pad) = upload_spend.sign_storage_upload(
+            &upload_pad,
             upload_fee,
             &built,
             PROP_STORAGE_ENDOWMENT_AMOUNT,
@@ -3209,6 +3389,7 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
             h.wrapping_add(10_000),
         );
         upload_spend = next_upload;
+        upload_pad = next_upload_pad;
         let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
         st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
         model = treasury_after_block(model, fee_sum, 0, emission);
@@ -3260,7 +3441,8 @@ fn reject_upload_without_mfeo_when_endowment_opening_required() {
         None,
     )
     .expect("commitment");
-    let (upload_tx, _) = gen.upload_spend.sign_storage_upload(
+    let (upload_tx, _, _) = gen.upload_spend.sign_storage_upload(
+        &gen.upload_pad,
         upload_fee,
         &built,
         PROP_STORAGE_ENDOWMENT_AMOUNT,

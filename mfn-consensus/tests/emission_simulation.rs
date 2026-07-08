@@ -379,7 +379,7 @@ fn genesis_validator_with_funded_utxo(
     initial_storage: Vec<StorageCommitment>,
     endowment_params: EndowmentParams,
     bonding_params: Option<mfn_consensus::BondingParams>,
-) -> (ChainState, SpendState) {
+) -> (ChainState, SpendState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
     let ring_size = ring_size_for(&fixture.params);
@@ -392,9 +392,14 @@ fn genesis_validator_with_funded_utxo(
         initial_outputs.push(decoy);
     }
     let spend = SpendState::with_ring(spend_priv, blinding, spend_value, decoys, signer_idx);
+    let pad = genesis_input_pad(&spend);
     initial_outputs.push(GenesisOutput {
         one_time_addr: spend.one_time_addr,
         amount: spend.commitment(),
+    });
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: pad.one_time_addr,
+        amount: pad.commitment(),
     });
     let cfg = GenesisConfig {
         timestamp: 0,
@@ -408,7 +413,7 @@ fn genesis_validator_with_funded_utxo(
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
-    (st, spend)
+    (st, spend, pad)
 }
 
 fn apply_validator_block(
@@ -560,7 +565,7 @@ fn apply_validator_block_with_voters(
 fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     let fixture = ValidatorFixture::three_validators();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         initial,
         &fixture,
@@ -572,8 +577,9 @@ fn run_validator_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee);
         spend = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let coinbase = build_validator_coinbase(
             u64::from(h),
@@ -677,19 +683,21 @@ impl SpendState {
         }
     }
 
-    /// Self-transfer with public fee; returns the signed tx and the change UTXO state.
-    ///
-    /// Emits the reference two-output shape (change + zero-value pad):
-    /// these simulations run production uniform-ring params, so the
-    /// F5-P5 consensus output floor applies.
-    fn sign_self_transfer(&self, fee: u64) -> (SignedTransaction, Self) {
+    /// F7: spends primary + companion pad; recycles pad UTXO across blocks.
+    fn sign_self_transfer(
+        &self,
+        pad: &SpendState,
+        fee: u64,
+    ) -> (SignedTransaction, Self, SpendState) {
         assert!(fee < self.value, "fee must leave positive change");
         let change_value = self.value - fee;
         let next_spend = random_scalar();
         let change_addr = generator_g() * next_spend;
-        let pad_addr = generator_g() * random_scalar();
+        let next_pad_spend = random_scalar();
+        let pad_addr = generator_g() * next_pad_spend;
+        let zero_addr = generator_g() * random_scalar();
         let signed = sign_transaction(
-            vec![self.input_spec()],
+            vec![self.input_spec(), pad.input_spec()],
             vec![
                 OutputSpec::Raw {
                     one_time_addr: change_addr,
@@ -698,6 +706,11 @@ impl SpendState {
                 },
                 OutputSpec::Raw {
                     one_time_addr: pad_addr,
+                    value: pad.value,
+                    storage: None,
+                },
+                OutputSpec::Raw {
+                    one_time_addr: zero_addr,
                     value: 0,
                     storage: None,
                 },
@@ -714,11 +727,34 @@ impl SpendState {
             ring_decoys: self.ring_decoys.clone(),
             signer_idx: self.signer_idx,
         };
-        (signed, next)
+        let next_pad = Self {
+            spend_priv: next_pad_spend,
+            blinding: signed.output_blindings[1],
+            value: pad.value,
+            one_time_addr: pad_addr,
+            ring_decoys: pad.ring_decoys.clone(),
+            signer_idx: pad.signer_idx,
+        };
+        (signed, next, next_pad)
     }
 }
 
-fn genesis_with_funded_utxo(emission: EmissionParams, value: u64) -> (ChainState, SpendState) {
+const SIM_INPUT_PAD_VALUE: u64 = 1_000_000;
+
+fn genesis_input_pad(main: &SpendState) -> SpendState {
+    SpendState::with_ring(
+        random_scalar(),
+        random_scalar(),
+        SIM_INPUT_PAD_VALUE,
+        main.ring_decoys.clone(),
+        main.signer_idx,
+    )
+}
+
+fn genesis_with_funded_utxo(
+    emission: EmissionParams,
+    value: u64,
+) -> (ChainState, SpendState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
     let ring_size = ring_size_for(&DEFAULT_CONSENSUS_PARAMS);
@@ -731,9 +767,14 @@ fn genesis_with_funded_utxo(emission: EmissionParams, value: u64) -> (ChainState
         initial_outputs.push(decoy);
     }
     let spend = SpendState::with_ring(spend_priv, blinding, value, decoys, signer_idx);
+    let pad = genesis_input_pad(&spend);
     initial_outputs.push(GenesisOutput {
         one_time_addr: spend.one_time_addr,
         amount: spend.commitment(),
+    });
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: pad.one_time_addr,
+        amount: pad.commitment(),
     });
     let cfg = GenesisConfig {
         timestamp: 0,
@@ -747,7 +788,7 @@ fn genesis_with_funded_utxo(emission: EmissionParams, value: u64) -> (ChainState
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
-    (st, spend)
+    (st, spend, pad)
 }
 
 fn apply_legacy_block(st: &ChainState, height: u32, txs: &[TransactionWire]) -> ChainState {
@@ -791,7 +832,7 @@ fn genesis_with_funded_utxo_and_storage(
     emission: EmissionParams,
     spend_value: u64,
     storage: &StorageFixture,
-) -> (ChainState, SpendState) {
+) -> (ChainState, SpendState, SpendState) {
     let spend_priv = random_scalar();
     let blinding = random_scalar();
     let ring_size = ring_size_for(&DEFAULT_CONSENSUS_PARAMS);
@@ -804,9 +845,14 @@ fn genesis_with_funded_utxo_and_storage(
         initial_outputs.push(decoy);
     }
     let spend = SpendState::with_ring(spend_priv, blinding, spend_value, decoys, signer_idx);
+    let pad = genesis_input_pad(&spend);
     initial_outputs.push(GenesisOutput {
         one_time_addr: spend.one_time_addr,
         amount: spend.commitment(),
+    });
+    initial_outputs.push(GenesisOutput {
+        one_time_addr: pad.one_time_addr,
+        amount: pad.commitment(),
     });
     let cfg = GenesisConfig {
         timestamp: 0,
@@ -820,7 +866,7 @@ fn genesis_with_funded_utxo_and_storage(
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
-    (st, spend)
+    (st, spend, pad)
 }
 
 fn apply_legacy_block_mixed(
@@ -850,13 +896,15 @@ fn apply_legacy_block_mixed(
 fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
     let storage = StorageFixture::sample_4k();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) = genesis_with_funded_utxo_and_storage(emission, initial, &storage);
+    let (mut st, mut spend, mut input_pad) =
+        genesis_with_funded_utxo_and_storage(emission, initial, &storage);
     let mut model_treasury = 0u128;
 
     for h in 1..=blocks {
         let fee = 2_000u64 + u64::from(h % 7_001);
-        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee);
         spend = next_spend;
+        input_pad = next_pad;
         let prev = *st.tip_id().expect("tip");
         let proof = build_test_storage_proof(
             &storage.built.commit,
@@ -880,7 +928,7 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
     let fixture = ValidatorFixture::three_validators();
     let storage = StorageFixture::sample_4k();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         initial,
         &fixture,
@@ -892,8 +940,9 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
 
     for h in 1..=blocks {
         let fee = 2_000u64 + u64::from(h % 5_001);
-        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee);
         spend = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let prev = *st.tip_id().expect("tip");
         let proof = build_test_storage_proof(
@@ -926,12 +975,13 @@ fn run_validator_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) 
 
 fn run_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend) = genesis_with_funded_utxo(emission, initial);
+    let (mut st, mut spend, mut input_pad) = genesis_with_funded_utxo(emission, initial);
     let mut model_treasury = 0u128;
     for h in 1..=blocks {
         let fee = 1_000u64 + u64::from(h % 9_001);
-        let (signed, next_spend) = spend.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend.sign_self_transfer(&input_pad, fee);
         spend = next_spend;
+        input_pad = next_pad;
         st = apply_legacy_block(&st, h, std::slice::from_ref(&signed.tx));
         model_treasury = treasury_after_block(model_treasury, u128::from(fee), 0, &emission);
         assert_eq!(
@@ -949,7 +999,7 @@ fn sim_emission_params_validate() {
 
 #[test]
 fn debug_genesis_ring_size_is_sixteen() {
-    let (_, spend) = genesis_with_funded_utxo(SIM_EMISSION, 1_000);
+    let (_, spend, _) = genesis_with_funded_utxo(SIM_EMISSION, 1_000);
     assert_eq!(ring_size_for(&DEFAULT_CONSENSUS_PARAMS), 16);
     assert_eq!(spend.ring_decoys.len(), 15);
     assert_eq!(spend.input_spec().ring.p.len(), 16);
@@ -1114,7 +1164,7 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
 
     let fixture = ValidatorFixture::liveness_absentee_three_validators();
     let initial = 50_000_000_000u64;
-    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend_state, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         initial,
         &fixture,
@@ -1128,8 +1178,9 @@ fn run_liveness_slash_mixed_treasury_sim(emission: EmissionParams) {
 
     for h in 1..=4u32 {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend_state.sign_self_transfer(&input_pad, fee);
         spend_state = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let proofs = if h == 3 { 1u128 } else { 0 };
         let storage_proofs = if h == 3 {
@@ -1214,7 +1265,7 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
     let storage = StorageFixture { payload, built };
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend_state, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         50_000_000_000,
         &fixture,
@@ -1231,8 +1282,9 @@ fn run_combined_inflow_treasury_sim(blocks: u32, emission: EmissionParams, initi
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend_state.sign_self_transfer(&input_pad, fee);
         spend_state = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let with_bond = h == 8;
         let with_proof = h % 4 == 0;
@@ -1358,7 +1410,7 @@ fn run_combined_inflow_ppb_treasury_sim(
     let commit_hash = storage_commitment_hash(&storage.built.commit);
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend_state, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         50_000_000_000,
         &fixture,
@@ -1375,8 +1427,9 @@ fn run_combined_inflow_ppb_treasury_sim(
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend_state.sign_self_transfer(&input_pad, fee);
         spend_state = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let with_bond = h == 8;
         let with_proof = h % 4 == 0;
@@ -1660,7 +1713,7 @@ fn run_equivocation_combined_inflow_treasury_sim(
     let storage = StorageFixture { payload, built };
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend_state, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         50_000_000_000,
         &fixture,
@@ -1679,8 +1732,9 @@ fn run_equivocation_combined_inflow_treasury_sim(
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend_state.sign_self_transfer(&input_pad, fee);
         spend_state = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let with_bond = h == 8;
         let with_proof = h % 4 == 0;
@@ -1833,7 +1887,7 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
     let commit_hash = storage_commitment_hash(&storage.built.commit);
 
     let fixture = ValidatorFixture::liveness_absentee_long_sim();
-    let (mut st, mut spend_state) = genesis_validator_with_funded_utxo(
+    let (mut st, mut spend_state, mut input_pad) = genesis_validator_with_funded_utxo(
         emission,
         50_000_000_000,
         &fixture,
@@ -1852,8 +1906,9 @@ fn run_equivocation_combined_inflow_ppb_treasury_sim(
 
     for h in 1..=blocks {
         let fee = 2_500u64 + u64::from(h % 4_501);
-        let (signed, next_spend) = spend_state.sign_self_transfer(fee);
+        let (signed, next_spend, next_pad) = spend_state.sign_self_transfer(&input_pad, fee);
         spend_state = next_spend;
+        input_pad = next_pad;
         let fee_sum = u128::from(fee);
         let with_bond = h == 8;
         let with_proof = h % 4 == 0;
