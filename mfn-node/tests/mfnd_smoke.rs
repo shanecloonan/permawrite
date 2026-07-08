@@ -1620,8 +1620,8 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
     read_stdout_line_with_prefix(&mut out_b, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     let sync_b = read_stdout_until_p2p_sync_end(&mut out_b, p2p_sync_end_timeout());
     assert!(
-        sync_b.contains("applied=1"),
-        "relay B should sync one block from A, got {sync_b:?}"
+        sync_b.contains("applied=2"),
+        "relay B should sync two blocks from A, got {sync_b:?}"
     );
 
     let dir_c = unique_data_dir("p2p_tx_fanout_c");
@@ -1657,8 +1657,8 @@ fn mfnd_p2p_tx_fanout_reaches_third_hop_peer() {
     read_stdout_line_with_prefix(&mut out_c, "mfnd_p2p_dial_ok=", p2p_line_timeout());
     let sync_c = read_stdout_until_p2p_sync_end(&mut out_c, p2p_sync_end_timeout());
     assert!(
-        sync_c.contains("applied=1"),
-        "leaf C should sync one block from B, got {sync_c:?}"
+        sync_c.contains("applied=2"),
+        "leaf C should sync two blocks from B, got {sync_c:?}"
     );
 
     let submit = format!(
