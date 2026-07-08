@@ -63,37 +63,43 @@ foreach ($b in $binaries) {
     if (-not (Test-Path $p)) { $missingBins += $b }
 }
 
+$tl5Evidence = [bool](Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-internet-soak-linux-*" -ErrorAction SilentlyContinue)
+$tl6Evidence = [bool](Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-participant-rehearsal-*" -ErrorAction SilentlyContinue)
+
 $phase = 'TL-5 (provision VPS - see docs/VPS_SINGLE_BOX_LAUNCH.md)'
-if ($seedCount -gt 0) { $phase = 'TL-8+' }
-else {
-    $vpsRehearsal = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-participant-rehearsal-*" -ErrorAction SilentlyContinue
-    if ($vpsRehearsal) { $phase = 'TL-7+ (VPS participant rehearsal done; genesis/key ceremony)' }
-    else {
-        $vpsSoak = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-internet-soak-linux-*" -ErrorAction SilentlyContinue
-        if ($vpsSoak) { $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)' }
-        elseif ($missingBins.Count -eq 0) { $phase = 'TL-5 (VPS ready - vps-preflight.sh then vps-internet-soak.sh)' }
-    }
+$nextAction = 'bash scripts/public-devnet-v1/vps-preflight.sh'
+if ($seedCount -gt 0) {
+    $phase = 'TL-9+ (seed_nodes published - run launch-go-no-go.sh before invite)'
+    $nextAction = 'bash scripts/public-devnet-v1/launch-go-no-go.sh'
+} elseif ($tl6Evidence) {
+    $phase = 'TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)'
+    $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh'
+} elseif ($tl5Evidence) {
+    $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)'
+    $nextAction = 'bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop'
+} elseif ($missingBins.Count -eq 0) {
+    $phase = 'TL-5 (VPS ready - vps-internet-soak.sh)'
+    $nextAction = 'bash scripts/public-devnet-v1/vps-internet-soak.sh'
 }
 
 $ci = Get-CiSummary
 $head = Get-HeadSha
 
 $report = [ordered]@{
-    schema_version = "launch-status.v1"
+    schema_version = "launch-status.v2"
     lane           = 7
     playbook       = $Playbook
+    invite_packet  = "docs/TESTNET_INVITE.md"
     suggested_phase = $phase
+    next_action    = $nextAction
     head_sha       = $head
     genesis_id     = $genesisId
     seed_nodes_count = $seedCount
     internet_facing = ($seedCount -gt 0)
+    vps_soak_evidence = $tl5Evidence
+    vps_rehearsal_evidence = $tl6Evidence
     release_binaries_missing = $missingBins
     ci             = $ci
-    next_actions   = @(
-        "Complete TL phases in order: $Playbook",
-        "TL-5 on VPS: vps-preflight.sh then vps-internet-soak.sh",
-        "TL-7-9: TESTNET_GENESIS_CEREMONY.md, publish-seed-nodes, launch-go-no-go"
-    )
 }
 
 if ($Json) {
@@ -103,6 +109,7 @@ if ($Json) {
 
 Write-Host "launch-status: lane=7 phase=$phase head=$head"
 Write-Host "launch-status: genesis_id=$genesisId seed_nodes=$seedCount internet_facing=$($report.internet_facing)"
+Write-Host "launch-status: vps_soak_evidence=$tl5Evidence vps_rehearsal_evidence=$tl6Evidence"
 if ($missingBins.Count -gt 0) {
     Write-Host "launch-status: missing_release_binaries=$($missingBins -join ',')"
 }
@@ -111,4 +118,5 @@ if ($ci.available) {
 } else {
     Write-Host "launch-status: ci=$($ci.message)"
 }
-Write-Host "launch-status: playbook=$Playbook"
+Write-Host "launch-status: next_action=$nextAction"
+Write-Host "launch-status: playbook=$Playbook invite=docs/TESTNET_INVITE.md"

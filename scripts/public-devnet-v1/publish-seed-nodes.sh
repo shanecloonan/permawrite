@@ -114,4 +114,4 @@ with open(path, "w", encoding="utf-8", newline="\n") as f:
 print(f"publish-seed-nodes: applied seed_nodes to {path}", file=sys.stderr)
 PY
 
-echo "publish-seed-nodes: OK applied — commit manifest + run launch-go-no-go.sh"
+echo "publish-seed-nodes: OK applied - commit manifest + share docs/TESTNET_INVITE.md + run launch-go-no-go.sh"

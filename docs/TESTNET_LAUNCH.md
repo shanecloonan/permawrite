@@ -21,7 +21,7 @@ Complete each phase before starting the next. A phase may have multiple commits;
 | **4** | TL-5 | Internet soak on VPS (multi-sample health, height ≥ 10) | Lane 7 | TL-4 + VPS provisioned |
 | **5** | TL-6 | Participant rehearsal on VPS (fund → upload → restore → prove → bundle) | Lane 7 | TL-5 |
 | **6** | TL-7 | Genesis/key decision — [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | Lane 7 + human | TL-6 |
-| **7** | TL-8 | Publish `seed_nodes` — `publish-seed-nodes.sh` + operator invite | Lane 7 | TL-7 |
+| **7** | TL-8 | Publish `seed_nodes` + [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) invite packet | Lane 7 | TL-7 |
 | **8** | TL-9 | Launch go/no-go — `launch-go-no-go.sh` + named sign-offs | Lane 7 + human | TL-8 |
 
 Phase 0 is **documentation and status tooling only**. Phases 4–8 require a reachable host (minimum: one Linux VPS).
@@ -61,7 +61,7 @@ bash scripts/public-devnet-v1/launch-status.sh
 powershell -File scripts/public-devnet-v1/launch-status.ps1
 ```
 
-Prints TL phase hints, `seed_nodes` posture, release binary presence, and CI watcher summary when `gh` is available.
+Prints TL phase hints, `seed_nodes` posture, VPS evidence presence, release binary presence, and CI watcher summary when `gh` is available.
 
 ---
 
