@@ -82,16 +82,16 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**F7 stack:** `3933cf0` consensus + smoke `7a68cc5`/`81849c8` + **proptest tail** (this commit). **CI `#28915985296`** on `81849c8` — monitor; proptest fix pushes after prior run completes or fails.
+**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17`. **CI `#28917060257` in progress** on `668cf17`.
 
-**RC push hold:** one coherent proptest commit landing; no further pushes until head CI green.
+**RC push hold:** monitor CI `#28917060257`; no code pushes until green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on F7 stack | **Monitor** — `#28915985296` + proptest follow-up | Nightly on green head |
-| **2** | F7+B2 + smoke + proptest | **Waiting** — evidence after CI green | Human sign-off packet |
+| **1** | CI `#28917060257` on `668cf17` | **Monitor** — F7 test tail | Nightly on green head |
+| **2** | F7 full test alignment | **Waiting** — evidence after CI green | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 `min_input_count` at `verify_transaction` | **Done** — `3933cf0` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
