@@ -187,11 +187,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B-11 phase 1** — `MFEO` wire + `apply_block`/mempool Pedersen opening verify; `require_endowment_opening` param (`3511346`).
 - [x] **B-11 proptests** — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO` (`9f0a0aa`).
 - [x] **B-11 public devnet enable** — genesis spec `endowment` section + `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`; operators must sync byte-identical JSON).
-- [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained.
+- [x] **B2 ChunkV2** (`20954b0`) — Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained.
+- [x] **F7 consensus tail** (this commit) — `RingPolicy.min_input_count` at `verify_transaction` (with lane 5).
 
 ### Next
 
-- [ ] **F7 consensus tail** — `min_input_count` at `verify_transaction` (with lane 5).
+- [ ] **B3** — replication accounting (PERMANENCE_HARDENING §B3; with lane 6).
 
 ### Handoff to lane 3
 
@@ -228,6 +229,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B7 (rehearsal soak)** — `--dandelion` on mesh scripts (default off); `dandelion-rehearsal-smoke` / `dandelion-soak` wrappers.
 - [x] **B7 (stem wire label)** — `TxStemV1` tag `0x11` on stem relay; fluff on `TxV1`.
 - [x] **F7/B15 (two-input wallet floor)** — `WALLET_MIN_TX_INPUTS` + `select_inputs_for_tx`; pad to two real inputs when possible.
+- [x] **F7 consensus tail** (this commit) — `RingPolicy.min_input_count` at `verify_transaction` (with lane 4).
 
 ### Next
 

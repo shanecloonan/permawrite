@@ -38,7 +38,7 @@ use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
 use mfn_wallet::{
     build_storage_upload, build_transfer, estimate_minimum_fee_for_upload, wallet_from_seed,
     OwnedOutput, RingMember, StorageUploadPlan, TransferPlan, TransferRecipient,
-    WALLET_MIN_RING_SIZE, WALLET_MIN_TX_OUTPUTS,
+    WALLET_MIN_RING_SIZE, WALLET_MIN_TX_INPUTS, WALLET_MIN_TX_OUTPUTS,
 };
 
 fn owned(value: u64) -> OwnedOutput {
@@ -76,8 +76,9 @@ fn pool(n: usize) -> Vec<DecoyCandidate<RingMember>> {
 }
 
 fn reference_transfer(seed: u32) -> TransactionWire {
-    let input = owned(1_000_000);
-    let refs = [&input];
+    let input_a = owned(600_000);
+    let input_b = owned(500_000);
+    let refs = [&input_a, &input_b];
     let decoys = pool(40);
     let keys = wallet_from_seed(&[0x51u8; 32]);
     let recipient = Recipient {
@@ -92,7 +93,7 @@ fn reference_transfer(seed: u32) -> TransactionWire {
         },
         TransferRecipient {
             recipient,
-            value: 1_000_000 - 600_000 - fee,
+            value: 1_100_000 - 600_000 - fee,
         },
     ];
     let mut r = seeded_rng(seed);
@@ -124,8 +125,9 @@ fn reference_upload(seed: u32) -> TransactionWire {
     let fee = min_fee.max(1);
     let input_value = 50_000_000_000u64;
     let anchor_value = 100_000u64;
-    let input = owned(input_value);
-    let refs = [&input];
+    let input_a = owned(input_value / 2);
+    let input_b = owned(input_value - input_value / 2);
+    let refs = [&input_a, &input_b];
     let decoys = pool(40);
     let keys = wallet_from_seed(&[0x52u8; 32]);
     let recipient = Recipient {
@@ -175,6 +177,10 @@ fn assert_canonical(tx: &TransactionWire, kind: &str) {
     assert!(
         tx.outputs.len() >= WALLET_MIN_TX_OUTPUTS,
         "{kind}: below the {WALLET_MIN_TX_OUTPUTS}-output privacy floor"
+    );
+    assert!(
+        tx.inputs.len() >= WALLET_MIN_TX_INPUTS,
+        "{kind}: below the {WALLET_MIN_TX_INPUTS}-input privacy floor"
     );
     for (i, input) in tx.inputs.iter().enumerate() {
         assert_eq!(
@@ -247,6 +253,10 @@ fn wallet_ring_floor_matches_consensus_uniform_policy() {
     assert_eq!(
         WALLET_MIN_RING_SIZE,
         RingPolicy::PRODUCTION.min_ring_size as usize
+    );
+    assert_eq!(
+        WALLET_MIN_TX_INPUTS,
+        RingPolicy::PRODUCTION.min_input_count as usize
     );
 }
 

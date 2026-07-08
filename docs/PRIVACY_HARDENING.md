@@ -141,8 +141,8 @@ inherits the guarantee:
   public. Age-band selection
   ([§B2](#b2-age-band-coin-selection--shipped)) stops the input *set* from
   mixing eras; the reference wallet now pads to two inputs when a second
-  UTXO is available ([§B15](#b15-canonical-input-count-floor-f7--shipped-wallet-layer)).
-  Consensus-level N-in enforcement remains open (F7 tail).
+  UTXO is available ([§B15](#b15-canonical-input-count-floor-f7--shipped)).
+  Consensus enforces `min_input_count = 2` on the uniform-ring tier (**F7 tail shipped**).
 - ~~**Output *ordering* and other wallet-chosen bytes are not yet
   canonicalized**~~ Closed:
   [§B3](#b3-canonical-encoding-conformance-p9--shipped).
@@ -232,11 +232,11 @@ bytes so `HashMap` iteration order cannot leak into selection). Tests:
 coverage/insufficient-funds cases. Pure `mfn-wallet` change, no consensus
 impact.
 
-**Remaining.** Consensus-level N-in enforcement (dummy/padded inputs at
-`verify_transaction`) remains the F7 tail; wallet-layer two-input floor is
-[§B15](#b15-canonical-input-count-floor-f7--shipped-wallet-layer).
+**Shipped (consensus tail).** `RingPolicy.min_input_count`
+(`MIN_TX_INPUTS_UNIFORM_TIER = 2`) at `verify_transaction` when the
+uniform-ring tier is active — see [§B15](#b15-canonical-input-count-floor-f7--shipped).
 
-**Effort:** moderate (wallet shipped) / high (consensus tail). **Risk:** low.
+**Effort:** moderate (wallet) + moderate (consensus). **Risk:** low.
 
 ### B3. Canonical-encoding conformance (`F5:P9`) — **shipped**
 
@@ -490,7 +490,7 @@ precision instead of the exact byte count.
 
 **Effort:** moderate. **Risk:** medium (endowment pricing).
 
-### B15. Canonical input-count floor (`F7`) — **shipped (wallet layer)**
+### B15. Canonical input-count floor (`F7`) — **shipped**
 
 **Problem.** Even with age-band cohesion, a lone input on-chain reveals
 that the wallet had a single UTXO large enough to cover the payment — a
@@ -507,12 +507,19 @@ the newest chosen input; ties break on smallest value. Applies to
 [`publish_claim_tx`](../mfn-wallet/src/wallet.rs) (via `build_transfer`).
 Wallets with only one UTXO stay at one input.
 
-**Remaining.** Consensus enforcement of allowed `(inputs, outputs)` shapes
+**Remaining.** ~~Consensus enforcement of allowed `(inputs, outputs)` shapes
 (F7 tail) — network-wide reject or mandatory dummy inputs at
-`verify_transaction`.
+`verify_transaction`.~~ **Shipped (F7 tail):** `RingPolicy.min_input_count`
+(`MIN_TX_INPUTS_UNIFORM_TIER = 2`) enforced in `verify_transaction`
+whenever the uniform-ring tier is active, mirroring the output floor.
+Wallets with only one spendable UTXO cannot broadcast until they hold a
+second (fund with multi-output faucet or receive a second payment).
 
 **Tests.** `select_inputs_for_tx_pads_to_two_when_second_utxo_exists`,
-`select_inputs_for_tx_single_utxo_cannot_pad`.
+`select_inputs_for_tx_single_utxo_cannot_pad`,
+`single_input_tx_rejected_when_input_floor_active`,
+`two_input_tx_passes_input_floor`,
+`ring_policy_derivation_ties_shape_floors_to_uniform_tier`.
 
 **Effort:** moderate (wallet) / high (consensus). **Risk:** medium.
 
@@ -533,7 +540,7 @@ not "fixed" by mistake. Private *reads* are a real problem addressed by
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**) |
 | High impact, moderate effort | B8 (Tor), P31 eclipse diversity |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

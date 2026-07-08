@@ -54,10 +54,9 @@ Input *count* is also public (`tx.inputs.len()`). A **one-input** transaction ad
 Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Monero parity) on the high-level `Wallet` API whenever a second spendable UTXO exists:
 
 - After age-band coin selection ([§B2 in `PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md)), the wallet merges an additional real UTXO into the spend and folds the excess back into change.
-- Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor.
-- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble `TransferPlan` manually are responsible for their own input-count policy; CLI and WASM route through `Wallet` and inherit the floor.
-
-This is a wallet-layer default today (consensus does not yet mandate N-in shapes).
+- Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor until they receive a second spendable output.
+- On networks running the uniform-ring tier, **consensus** also enforces `RingPolicy.min_input_count = 2` (**F7**): single-input regular txs are rejected at mempool ingress and `apply_block`, matching the two-output floor.
+- Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble `TransferPlan` manually must supply at least two inputs when broadcasting on production policy; CLI and WASM route through `Wallet` and inherit the floor when possible.
 
 ### Authorship claims (optional) — key separation
 

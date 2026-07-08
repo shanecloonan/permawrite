@@ -112,17 +112,27 @@ fn single_output_tx_rejected_when_output_floor_active() {
 
 /// The output floor engages exactly when the uniform-ring tier is on:
 /// production params derive `min_output_count == 2`, test params derive 0.
+/// The input floor (**F7**) engages under the same condition.
 #[test]
-fn ring_policy_derivation_ties_output_floor_to_uniform_tier() {
+fn ring_policy_derivation_ties_shape_floors_to_uniform_tier() {
     use crate::block::{DEFAULT_CONSENSUS_PARAMS, TEST_CONSENSUS_PARAMS};
     assert_eq!(
         DEFAULT_CONSENSUS_PARAMS.ring_policy().min_output_count,
         crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER
     );
+    assert_eq!(
+        DEFAULT_CONSENSUS_PARAMS.ring_policy().min_input_count,
+        crate::block::MIN_TX_INPUTS_UNIFORM_TIER
+    );
     assert_eq!(TEST_CONSENSUS_PARAMS.ring_policy().min_output_count, 0);
+    assert_eq!(TEST_CONSENSUS_PARAMS.ring_policy().min_input_count, 0);
     assert_eq!(
         RingPolicy::PRODUCTION.min_output_count,
         crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER
+    );
+    assert_eq!(
+        RingPolicy::PRODUCTION.min_input_count,
+        crate::block::MIN_TX_INPUTS_UNIFORM_TIER
     );
     assert_eq!(
         DEFAULT_CONSENSUS_PARAMS.ring_policy(),
@@ -151,6 +161,71 @@ fn two_output_tx_passes_output_floor() {
         OutputSpec::ToRecipient {
             recipient: rb,
             value: 399_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+    let res = verify_transaction(&signed.tx, &floor_only);
+    assert!(res.ok, "errors: {:?}", res.errors);
+}
+
+/// F7 / B15 consensus tail: under a policy with the input floor active, a
+/// single-input transaction is a consensus reject.
+#[test]
+fn single_input_tx_rejected_when_input_floor_active() {
+    let floor_only = RingPolicy {
+        min_input_count: crate::block::MIN_TX_INPUTS_UNIFORM_TIER,
+        min_output_count: crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER,
+        ..RingPolicy::TEST
+    };
+    let inputs = vec![make_input(1_000_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 399_000,
+            storage: None,
+        },
+    ];
+    let signed = sign_transaction(inputs, outputs, 1_000, Vec::new()).expect("sign");
+
+    assert!(verify_transaction(&signed.tx, &RingPolicy::TEST).ok);
+
+    let res = verify_transaction(&signed.tx, &floor_only);
+    assert!(!res.ok, "single-input tx must fail the input floor");
+    assert!(
+        res.errors.iter().any(|e| e.contains("input count")),
+        "expected the input-floor diagnostic, got: {:?}",
+        res.errors
+    );
+}
+
+/// A two-input tx passes both shape floors under a floor-active policy.
+#[test]
+fn two_input_tx_passes_input_floor() {
+    let floor_only = RingPolicy {
+        min_input_count: crate::block::MIN_TX_INPUTS_UNIFORM_TIER,
+        min_output_count: crate::block::MIN_TX_OUTPUTS_UNIFORM_TIER,
+        ..RingPolicy::TEST
+    };
+    let inputs = vec![make_input(600_000, 4), make_input(500_000, 4)];
+    let (_w_a, ra) = recipient();
+    let (_w_b, rb) = recipient();
+    let outputs = vec![
+        OutputSpec::ToRecipient {
+            recipient: ra,
+            value: 600_000,
+            storage: None,
+        },
+        OutputSpec::ToRecipient {
+            recipient: rb,
+            value: 499_000,
             storage: None,
         },
     ];

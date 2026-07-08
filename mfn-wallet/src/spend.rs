@@ -300,8 +300,9 @@ mod tests {
     /// guarantee: no reference caller ever broadcasts a one-output tx.
     #[test]
     fn single_recipient_transfer_is_padded_to_two_outputs() {
-        let input = owned(1_000_000);
-        let refs = [&input];
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
         let decoys = pool(20);
         let keys = wallet_from_seed(&[7u8; 32]);
         let recipient = Recipient {
@@ -309,10 +310,9 @@ mod tests {
             spend_pub: keys.spend_pub(),
         };
         let fee = 1_000u64;
-        // value == input - fee ⇒ zero change ⇒ naturally a single output.
         let recipients = [TransferRecipient {
             recipient,
-            value: 1_000_000 - fee,
+            value: 1_100_000 - fee,
         }];
         let mut r = mfn_crypto::seeded_rng(0x0abc_def0);
         let plan = TransferPlan {
@@ -339,8 +339,9 @@ mod tests {
     /// untouched — the pad only fills up to the floor, never beyond.
     #[test]
     fn transfer_with_change_is_not_over_padded() {
-        let input = owned(1_000_000);
-        let refs = [&input];
+        let input_a = owned(600_000);
+        let input_b = owned(500_000);
+        let refs = [&input_a, &input_b];
         let decoys = pool(20);
         let keys = wallet_from_seed(&[9u8; 32]);
         let recipient = Recipient {
@@ -355,7 +356,7 @@ mod tests {
             },
             TransferRecipient {
                 recipient,
-                value: 1_000_000 - 600_000 - fee,
+                value: 1_100_000 - 600_000 - fee,
             },
         ];
         let mut r = mfn_crypto::seeded_rng(0x1234_5678);
@@ -389,8 +390,9 @@ mod tests {
         let mut seen_positions = HashSet::new();
 
         for seed in 0..16u32 {
-            let input = owned(1_000_000);
-            let refs = [&input];
+            let input_a = owned(600_000);
+            let input_b = owned(500_000);
+            let refs = [&input_a, &input_b];
             let decoys = pool(20);
             let recipients = [
                 TransferRecipient {
@@ -405,7 +407,7 @@ mod tests {
                         view_pub: change_keys.view_pub(),
                         spend_pub: change_keys.spend_pub(),
                     },
-                    value: 1_000_000 - 600_000 - fee,
+                    value: 1_100_000 - 600_000 - fee,
                 },
             ];
             let mut r = mfn_crypto::seeded_rng(0x5EED_0000 + seed);
@@ -430,7 +432,7 @@ mod tests {
                 &std::collections::HashSet::new(),
             );
             assert_eq!(scan.recovered.len(), 1, "change wallet must own one output");
-            assert_eq!(scan.recovered[0].value, 1_000_000 - 600_000 - fee);
+            assert_eq!(scan.recovered[0].value, 1_100_000 - 600_000 - fee);
             seen_positions.insert(scan.recovered[0].output_idx);
         }
 

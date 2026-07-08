@@ -73,6 +73,18 @@ pub fn verify_transaction(tx: &TransactionWire, ring: &RingPolicy) -> VerifyResu
             ring.min_output_count
         ));
     }
+    // Anti-fingerprinting input floor (F7 / B15 consensus tail): under the
+    // uniform-ring tier every regular tx must carry at least
+    // `min_input_count` inputs, matching the common two-input Monero
+    // default shape network-wide (wallets pad when possible; this makes
+    // it consensus law).
+    if ring.min_input_count != 0 && (tx.inputs.len() as u32) < ring.min_input_count {
+        errors.push(format!(
+            "input count {} < consensus minimum {} (uniform-tier anti-fingerprinting floor)",
+            tx.inputs.len(),
+            ring.min_input_count
+        ));
+    }
 
     // Range proofs: bound to the on-chain amount commitment.
     for (i, out) in tx.outputs.iter().enumerate() {
