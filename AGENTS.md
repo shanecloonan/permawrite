@@ -83,22 +83,22 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `359a485` (boards). **B5 phase 5c** landing after CI `#28977215094` on `643a224`.
+**Head:** `8bdb4ab` (B5 phase 5c). **CI #28979369780** GREEN on `8bdb4ab` (~31m).
 
 **Nightly #28968584904:** GREEN — M2.5.66 stack. **Nightly #28970179853:** GREEN — B4 stack (all three jobs).
 
-**Release evidence:** `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140`).
+**Release evidence:** refresh on `8bdb4ab` after this board sync (lane 2).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on B5 stack | **Doing** — CI `#28977215094` on `643a224` | Nightly after 5c green |
-| **2** | Release evidence refresh | **Done** — `1c633e7` RC audit **go** | Refresh on B5 5c green head |
+| **1** | CI + Nightly on B5 stack | **Done** — CI `#28979369780` GREEN | Nightly re-dispatch |
+| **2** | Release evidence refresh | **Doing** — `8bdb4ab` head | Human sign-off packet |
 | **3** | Nightly participant PASS | **Done** — `#28970179853` | Idle |
-| **4** | B5 phase 5c slash execution | **In progress** — push after 5b CI | B5 phase 5d proptests |
+| **4** | B5 operator slashing | **Done** — `8bdb4ab` (5a–5c) | B5 phase 5d proptests |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B5 phase 5c with lane 4 | **In progress** — treasury slash + deregister | B5 phase 5d devnet enable |
+| **6** | B5 with lane 4 | **Done** — `8bdb4ab` | B5 phase 5d devnet enable |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
