@@ -3,7 +3,17 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
-## Session — 2026-07-08 (Lane 7 TL-3 — CI green + release evidence)
+## Session — 2026-07-08 (F7 fund-wallet top-up → Nightly rehearsal fix)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **fund-wallet F7** | **This commit** | `--min-owned-count 2` default; top-up send until recipient `owned_count>=2` |
+| **Nightly #28928716414** | **Failed** | permanence-demo upload: 1-input tx rejected at mempool admit |
+| **CI #28924060054** | **GREEN** | `e7d74f7` full F7 test tail |
+
+**Lanes 1+3 — Done:** CI green, TL-4 VPS `2f77eb4` **Doing:** fund-wallet F7 top-up **Next:** push → Nightly re-dispatch → TL-5 VPS soak
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |
