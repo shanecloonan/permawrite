@@ -7,11 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F7 CI `#28924060054` GREEN; B3 phase 1 `eea59aa` | Monitor CI on B3 phase 2 stack | Nightly after green |
+| **1** RC core | B3 phase 2 `7a427fa` | **CI fix** clippy + treasury mirror (this push) | Nightly after green |
 | **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | B3 phase 1 `eea59aa` | **B3 phase 2** `apply_block` wire (this push) | Bonding registry + M5 proptests |
+| **4+6** Protocol | B3 phase 2 `7a427fa` | **B3 treasury** settlement mirror (this push) | Bonding registry + M5 proptests |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B3 treasury settlement + clippy fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Clippy** | **Fix** — this push | `manual-range-patterns` in checkpoint decode (`3..=5`) |
+| **B3 treasury** | **Done** — this push | `storage_proof_operator_settlements` mirrors `apply_block`; proptest treasury identity |
+| **CI #28933248309** | **Failed** clippy | Superseded by this push |
+
+**Lane 4+6 — Done:** B3 treasury mirror **Doing:** — **Next:** operator bonding registry
 
 ---
 

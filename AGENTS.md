@@ -83,9 +83,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `7a427fa` (B3 phase 2). **CI #28933248309** queued on push.
+**Head:** B3 treasury settlement fix (this push). **Prior:** `7a427fa` B3 phase 2. **CI #28933248309** failed clippy — superseded.
 
-**RC push hold:** monitor CI #28933248309 (`cancel-in-progress`).
+**RC push hold:** monitor new CI after this push.
 
 ## Current board
 

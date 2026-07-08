@@ -220,12 +220,81 @@ pub fn annualized_inflation_ppb(
     year_ahead * 1_000_000_000 / supply
 }
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use mfn_storage::{accrue_proof_reward, AccrueArgs, EndowmentParams, StorageProof};
+use mfn_storage::{
+    accrue_proof_reward, operator_identity_from_payout, AccrueArgs, EndowmentParams, StorageProof,
+};
 
 use crate::block::StorageEntry;
 use crate::coinbase::{CoinbaseOutputSpec, PayoutAddress};
+
+fn proof_operator_dedup_key(commit_hash: &[u8; 32], operator_id: &[u8; 32]) -> [u8; 64] {
+    let mut key = [0u8; 64];
+    key[..32].copy_from_slice(commit_hash);
+    key[32..].copy_from_slice(operator_id);
+    key
+}
+
+/// Per-operator PPB bonuses mirroring `apply_block` settlement (including B3
+/// frozen-baseline + `replication: 1` payout split when
+/// `operator_salted_challenges` is enabled).
+pub fn storage_proof_operator_settlements(
+    proofs: &[StorageProof],
+    storage: &HashMap<[u8; 32], StorageEntry>,
+    slot: u32,
+    endowment_params: &EndowmentParams,
+) -> Vec<(StorageProof, u128)> {
+    let b3 = endowment_params.operator_salted_challenges != 0;
+    let mut commit_baseline: HashMap<[u8; 32], (u64, u128)> = HashMap::new();
+    let mut seen_operator_proofs: HashSet<[u8; 64]> = HashSet::new();
+    let mut commit_proof_count: HashMap<[u8; 32], u8> = HashMap::new();
+    let current_slot = u64::from(slot);
+    let mut settlements = Vec::with_capacity(proofs.len());
+    for proof in proofs {
+        let Some(entry) = storage.get(&proof.commit_hash) else {
+            continue;
+        };
+        if b3 {
+            let count = commit_proof_count
+                .get(&proof.commit_hash)
+                .copied()
+                .unwrap_or(0);
+            if count >= entry.commit.replication {
+                continue;
+            }
+            let operator_id =
+                operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+            let dedup_key = proof_operator_dedup_key(&proof.commit_hash, &operator_id);
+            if !seen_operator_proofs.insert(dedup_key) {
+                continue;
+            }
+            commit_proof_count
+                .entry(proof.commit_hash)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
+        }
+        let (baseline_slot, baseline_pending) = if b3 {
+            *commit_baseline
+                .entry(proof.commit_hash)
+                .or_insert((entry.last_proven_slot, entry.pending_yield_ppb))
+        } else {
+            (entry.last_proven_slot, entry.pending_yield_ppb)
+        };
+        let payout_replication = if b3 { 1 } else { entry.commit.replication };
+        if let Ok(accrual) = accrue_proof_reward(AccrueArgs {
+            size_bytes: entry.commit.size_bytes,
+            replication: payout_replication,
+            pending_ppb: baseline_pending,
+            last_proven_slot: baseline_slot,
+            current_slot,
+            params: endowment_params,
+        }) {
+            settlements.push((proof.clone(), accrual.payout));
+        }
+    }
+    settlements
+}
 
 /// PPB endowment yield bonus for storage proofs about to be mined (mirrors
 /// `apply_block` `storage_bonus_total`).
@@ -235,24 +304,10 @@ pub fn storage_proof_coinbase_bonus(
     slot: u32,
     endowment_params: &EndowmentParams,
 ) -> u128 {
-    let mut bonus = 0u128;
-    let current_slot = u64::from(slot);
-    for proof in proofs {
-        let Some(entry) = storage.get(&proof.commit_hash) else {
-            continue;
-        };
-        if let Ok(accrual) = accrue_proof_reward(AccrueArgs {
-            size_bytes: entry.commit.size_bytes,
-            replication: entry.commit.replication,
-            pending_ppb: entry.pending_yield_ppb,
-            last_proven_slot: entry.last_proven_slot,
-            current_slot,
-            params: endowment_params,
-        }) {
-            bonus = bonus.saturating_add(accrual.payout);
-        }
-    }
-    bonus
+    storage_proof_operator_settlements(proofs, storage, slot, endowment_params)
+        .into_iter()
+        .map(|(_, bonus)| bonus)
+        .fold(0u128, u128::saturating_add)
 }
 
 /// Producer coinbase portion only: block subsidy + producer fee share.

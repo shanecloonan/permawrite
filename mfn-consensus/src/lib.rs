@@ -140,8 +140,9 @@ pub use constitution::{validate_constitution, ConstitutionError, CONSTITUTIONAL_
 pub use emission::{
     annual_tail_emission, annualized_inflation_ppb, block_coinbase_specs, cumulative_emission,
     emission_at_height, pre_tail_supply_cap, producer_coinbase_amount, producer_portion_amount,
-    storage_payout_amount, storage_proof_coinbase_bonus, validate_emission_params, EmissionError,
-    EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE, MFN_DECIMALS,
+    storage_payout_amount, storage_proof_coinbase_bonus, storage_proof_operator_settlements,
+    validate_emission_params, EmissionError, EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE,
+    MFN_DECIMALS,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

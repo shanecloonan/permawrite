@@ -11,20 +11,22 @@ use mfn_consensus::{
     build_genesis, build_mfex_extra_v2, build_unsealed_header, cast_vote, emission_at_height,
     encode_chain_checkpoint, encode_finality_proof, extra_codec::EndowmentOpening, finalize,
     header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
-    storage_proof_coinbase_bonus, try_produce_slot, ApplyOutcome, Block, BlockError, BondOp,
-    ChainCheckpoint, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
-    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, ProducerProof, SlashEvidence, SlotContext,
-    TransactionWire, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS,
-    DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
+    storage_proof_coinbase_bonus, storage_proof_operator_settlements, try_produce_slot,
+    ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams,
+    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
+    PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator,
+    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::hash::hash_to_scalar;
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
-    accrue_proof_reward, build_storage_commitment, build_test_storage_proof, required_endowment,
-    storage_commitment_hash, AccrueArgs, BuiltCommitment, EndowmentParams, DEFAULT_CHUNK_SIZE,
-    DEFAULT_ENDOWMENT_PARAMS, PPB,
+    accrue_proof_reward, build_storage_commitment, build_storage_proof_operator_salted,
+    build_test_storage_proof, build_test_storage_proof_operator_salted, required_endowment,
+    storage_commitment_hash, test_operator_payout_keys_alt, AccrueArgs, BuiltCommitment,
+    EndowmentParams, DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
 
@@ -55,6 +57,14 @@ const PROP_PPB_ENDOWMENT: EndowmentParams = EndowmentParams {
 /// B-11: consensus requires `MFEO` Pedersen openings in `tx.extra` for new anchors.
 const PROP_ENDOWMENT_REQUIRE_OPENING: EndowmentParams = EndowmentParams {
     require_endowment_opening: 1,
+    ..DEFAULT_ENDOWMENT_PARAMS
+};
+
+/// B3: operator-salted replication accounting at consensus (test genesis only).
+const PROP_ENDOWMENT_B3: EndowmentParams = EndowmentParams {
+    operator_salted_challenges: 1,
+    real_yield_ppb: 40_000_000,
+    min_replication: 1,
     ..DEFAULT_ENDOWMENT_PARAMS
 };
 
@@ -188,6 +198,28 @@ fn genesis_with_storage_and_bonding() -> StorageGenesis {
     let g = build_genesis(&cfg);
     gen.state = apply_genesis(&g, &cfg).expect("genesis");
     gen
+}
+
+fn genesis_with_b3_storage() -> StorageGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(&payload, 1_000, Some(256), 3, None).expect("commitment");
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: PROP_ENDOWMENT_B3,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    StorageGenesis {
+        state,
+        built,
+        payload,
+    }
 }
 
 /// Mirrors `apply_block` treasury settlement for fee + storage-proof tranche.
@@ -852,14 +884,7 @@ fn prop_build_coinbase(
     proofs: &[mfn_storage::StorageProof],
 ) -> TransactionWire {
     let ep = &st.endowment_params;
-    let accepted: Vec<_> = proofs
-        .iter()
-        .map(|p| {
-            let bonus =
-                storage_proof_coinbase_bonus(std::slice::from_ref(p), &st.storage, slot, ep);
-            (p.clone(), bonus)
-        })
-        .collect();
+    let accepted = storage_proof_operator_settlements(proofs, &st.storage, slot, ep);
     let specs = block_coinbase_specs(u64::from(height), emission, fee_sum, *payout, &accepted);
     build_coinbase_outputs(u64::from(height), &payout.spend_pub, &specs).expect("coinbase")
 }
@@ -3263,6 +3288,65 @@ fn reject_duplicate_storage_proof_without_state_change() {
             assert_eq!(snap(&st), before);
         }
         ApplyOutcome::Ok { .. } => panic!("duplicate proof must reject"),
+    }
+}
+
+/// B3: two operator proofs settle with frozen-baseline payout split; treasury
+/// drain matches `storage_proof_reward × 2 + Σ operator bonuses`.
+#[test]
+fn b3_two_operator_proof_treasury_and_settlements_match_apply_block() {
+    let gen = genesis_with_b3_storage();
+    let st = &gen.state;
+    let h = 8_000u32;
+    let prev = *st.tip_id().expect("tip");
+    let p0 = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let p1 = build_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+        v1,
+        s1,
+    )
+    .expect("proof");
+    let proofs = vec![p0, p1];
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, h, &PROP_ENDOWMENT_B3);
+    assert_eq!(settlements.len(), 2, "expected two operator settlements");
+    let bonus_total: u128 = settlements
+        .iter()
+        .map(|(_, b)| *b)
+        .fold(0, u128::saturating_add);
+
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            let storage_drain = u128::from(DEFAULT_EMISSION_PARAMS.storage_proof_reward)
+                .saturating_mul(2)
+                .saturating_add(bonus_total);
+            let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+            assert_eq!(state.treasury, expected_treasury);
+            let ch = storage_commitment_hash(&gen.built.commit);
+            let entry = state.storage.get(&ch).expect("entry");
+            assert_eq!(entry.last_proven_slot, u64::from(h));
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
     }
 }
 
