@@ -303,16 +303,15 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Done
 
-- (none yet)
+- [x] **TL-1** — charter + [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` (`8661106`)
 
 ### Doing
 
-- [ ] **TL-1** — charter + ordered playbook + `launch-status` helper (claim base: `a6aebab`)
+- [ ] **TL-2** — monitor CI `#28919128030` on `996f60f` (F7 settlement tail)
 
 ### Next
 
-- [ ] **TL-2** — green CI on head + `release-ci-watch` (blocked: CI `#28917267975`)
-- [ ] **TL-3** — `release-evidence` + RC audit dry-run go on head
+- [ ] **TL-3** — `release-evidence-refresh-for-head` + RC audit dry-run go on green head
 
 ### Do not start
 

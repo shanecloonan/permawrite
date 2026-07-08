@@ -390,9 +390,10 @@ fn append_solo_blocks_without_checkpoint(data_dir: &Path, spec: &Path, blocks: u
     }
 }
 
-/// One `mfnd step` on `devnet_one_validator_synth_decoys.json`, then build a signed transfer from
-/// the post-step chain state. Caller uses `data_dir` + `spec` for `serve` and `tx_hex` for
-/// `submit_tx`; `tx_id_hex` matches `get_mempool` wire ids (64-char lowercase hex).
+/// Two `mfnd step` blocks on `devnet_one_validator_synth_decoys.json`, then build a signed
+/// two-input transfer from the post-step chain state (F7 uniform-tier input floor). Caller uses
+/// `data_dir` + `spec` for `serve` and `tx_hex` for `submit_tx`; `tx_id_hex` matches
+/// `get_mempool` wire ids (64-char lowercase hex).
 fn synth_decoy_one_step_signed_transfer_fixture(test: &str) -> (PathBuf, PathBuf, String, String) {
     synth_decoy_one_step_signed_transfer_fixture_with_store(test, None)
 }
@@ -414,7 +415,10 @@ fn synth_decoy_one_step_signed_transfer_fixture_with_store(
     if let Some(s) = store {
         step.arg("--store").arg(s);
     }
-    let step_out = step.arg("step").output().expect("spawn mfnd step");
+    let step_out = step
+        .args(["step", "--blocks", "2"])
+        .output()
+        .expect("spawn mfnd step --blocks 2");
     assert!(
         step_out.status.success(),
         "stderr={}",
@@ -425,8 +429,8 @@ fn synth_decoy_one_step_signed_transfer_fixture_with_store(
     let blocks = store.read_block_log().expect("read blocks");
     assert_eq!(
         blocks.len(),
-        1,
-        "expected one block log record after one step"
+        2,
+        "expected two block log records after step --blocks 2"
     );
 
     let gc = genesis_config_from_json_path(&spec).expect("genesis");
@@ -441,7 +445,9 @@ fn synth_decoy_one_step_signed_transfer_fixture_with_store(
     let bob = Wallet::from_seed(&[0xC0u8; 32]);
 
     alice.ingest_block(&genesis_block);
-    alice.ingest_block(&blocks[0]);
+    for block in &blocks {
+        alice.ingest_block(block);
+    }
 
     let chain = store
         .load_or_genesis(chain_cfg.clone())

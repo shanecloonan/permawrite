@@ -3,14 +3,37 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-08 (F7 mfnd_smoke tail)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **mfnd_smoke F7** | **Fix pending push** | `synth_decoy_*` fixture: `step --blocks 2` → two UTXOs → two-input transfer |
+| **CI #28919128030** | **Failed** | `996f60f` — 5 mfnd_smoke tests: 1-input txs rejected at mempool admit |
+
+**Lanes 1–3 — Done:** settlement `996f60f` **Doing:** mfnd_smoke F7 tail **Next:** green CI → release evidence (lane 2)
+
+---
+
+## Session — 2026-07-08 (F7 settlement tail → CI `#28919128030`)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **F7 settlement tests** | **Done** — `996f60f` | `producer_treasury_settlement.rs` two-input pad recycle across all call sites |
+| **CI #28919128030** | **In progress** | `996f60f` — clippy/rustfmt/scripts GREEN; matrix tests running |
+| **Prior CI #28917267975** | **Failed** | `a6aebab` — settlement still 1-input (fixed by `996f60f`) |
+
+**Lanes 1–3 — Done:** F7 settlement `996f60f`, TL-1 charter `8661106` **Doing:** CI monitor `#28919128030` **Next:** release evidence (lane 2) → Nightly (lane 1) → B3 (lanes 4+6)
+
+---
+
 ## Session — 2026-07-08 (Lane 7 testnet launch — TL-1)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **Lane 7 charter** | **In progress** | `docs/TESTNET_LAUNCH.md`, `launch-status.*`, `.cursor/rules/lane-7-testnet-launch.mdc` |
-| **TL-2** | **Blocked** | CI `#28917267975` on `a6aebab` must green before release-evidence refresh |
+| **Lane 7 charter** | **Done** — `8661106` | `docs/TESTNET_LAUNCH.md`, `launch-status.*`, `.cursor/rules/lane-7-testnet-launch.mdc` |
+| **TL-2** | **In progress** | CI `#28919128030` on `996f60f` must green before release-evidence refresh |
 
-**Lane 7 — Done:** (prior units none) **Doing:** TL-1 **Next:** TL-2 after green CI
+**Lane 7 — Done:** TL-1 **Doing:** TL-2 CI monitor **Next:** TL-3 release evidence + RC audit dry-run
 
 ---
 

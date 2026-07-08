@@ -83,21 +83,21 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `a6aebab`. **CI `#28917267975` in progress** — clippy/rustfmt/audit/wasm GREEN; matrix tests running.
+**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17` + settlement `996f60f` + mfnd_smoke (pending). **CI pending** on next push — closes `#28919128030` mfnd_smoke F7 failures.
 
-**RC push hold:** monitor `#28917267975`; lane 2 evidence after green.
+**RC push hold:** monitor next CI run; lane 2 evidence after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28917267975` on `a6aebab` | **Monitor** — F7 test tail | Nightly on green head |
+| **1** | CI on F7 mfnd_smoke tail | **Monitor** — push mfnd_smoke two-UTXO fixture | Nightly on green head |
 | **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | F7 `min_input_count` at `verify_transaction` | **Done** — `3933cf0` | B3 replication accounting |
+| **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-1 launch charter + playbook | **In progress** — `docs/TESTNET_LAUNCH.md` + `launch-status` | TL-2 after CI green on head |
+| **7** | TL-2 CI green + release evidence | **Monitor** — blocked on F7 mfnd_smoke CI | TL-3 launch ceremony prep |
 
 ---
 
@@ -124,13 +124,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | 2 | 1 | Green CI on M2.5.43–45 stack before Nightly #62 dispatch | **Done** - CI #636 |
 | 3 | 1 | Nightly #63 participant + observer PASS | **Done** - run `28792429191` |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
-| 7 | 1 | Green CI on head before TL-2 release-evidence refresh | **Open** — CI `#28917267975` on `a6aebab` |
+| 7 | 1 | Green CI on head before TL-2 release-evidence refresh | **In progress** — CI `#28919128030` on `996f60f` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
 ---
 
 ## Recently completed
 
+- **F7 settlement test tail** (`996f60f`) - permanence (lane 6): `producer_treasury_settlement.rs` two-input companion pad across genesis + all `sign_self_transfer` call sites; closes CI `#28917267975` failure on `fee_only_block_credits_treasury_ninety_percent`.
 - **F7 consensus tail** (`3933cf0`) - protocol (lanes 4+5): `RingPolicy.min_input_count` (`MIN_TX_INPUTS_UNIFORM_TIER = 2`) at `verify_transaction` when uniform-ring tier active; mirrors output floor; conformance + spend tests use two inputs under production policy.
 - **B2 ChunkV2** (`20954b0`) - permanence (lanes 4+6): Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained for mesh compatibility.
 - **Release evidence `96462aa`** - RC ops (lane 2): pre-B2 stack evidence + RC audit dry-run go on CI `28885223488` (`0d28e4f`); refresh after B2 CI green.
