@@ -5,6 +5,7 @@
 
 #![allow(unused_imports)]
 
+use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::bond_wire::*;
 use mfn_consensus::bonding::*;
 use mfn_consensus::consensus::*;
@@ -1271,6 +1272,57 @@ fn storage_proof_body_tamper_rejects_without_state_change() {
 
 const PROD_RING_SIZE: usize = 16;
 
+/// Companion UTXO value for F7 `min_input_count = 2` in production-policy block_apply tests.
+const F7_INPUT_PAD_VALUE: u64 = 1_000_000;
+
+struct F7InputPad {
+    genesis: GenesisOutput,
+    spend_priv: Scalar,
+    blinding: Scalar,
+}
+
+fn f7_input_pad() -> F7InputPad {
+    use curve25519_dalek::scalar::Scalar;
+    use mfn_crypto::point::{generator_g, generator_h};
+    use mfn_crypto::scalar::random_scalar;
+
+    let spend_priv = random_scalar();
+    let blinding = random_scalar();
+    let p = generator_g() * spend_priv;
+    let c = (generator_g() * blinding) + (generator_h() * Scalar::from(F7_INPUT_PAD_VALUE));
+    F7InputPad {
+        genesis: GenesisOutput {
+            one_time_addr: p,
+            amount: c,
+        },
+        spend_priv,
+        blinding,
+    }
+}
+
+fn f7_pad_input(decoys: &[GenesisOutput], pad: &F7InputPad) -> InputSpec {
+    use mfn_crypto::clsag::ClsagRing;
+
+    let mut ring_p = Vec::with_capacity(PROD_RING_SIZE);
+    let mut ring_c = Vec::with_capacity(PROD_RING_SIZE);
+    ring_p.push(pad.genesis.one_time_addr);
+    ring_c.push(pad.genesis.amount);
+    for d in decoys.iter().take(PROD_RING_SIZE - 1) {
+        ring_p.push(d.one_time_addr);
+        ring_c.push(d.amount);
+    }
+    InputSpec {
+        ring: ClsagRing {
+            p: ring_p,
+            c: ring_c,
+        },
+        signer_idx: 0,
+        spend_priv: pad.spend_priv,
+        value: F7_INPUT_PAD_VALUE,
+        blinding: pad.blinding,
+    }
+}
+
 fn genesis_decoy_output(i: usize) -> GenesisOutput {
     use curve25519_dalek::scalar::Scalar;
     use mfn_crypto::point::{generator_g, generator_h};
@@ -1326,6 +1378,9 @@ fn ring_member_not_in_utxo_set_rejected() {
         decoys.push((d.one_time_addr, d.amount));
         initial_outputs.push(d);
     }
+    let decoy_genesis: Vec<GenesisOutput> = initial_outputs[1..].to_vec();
+    let pad = f7_input_pad();
+    initial_outputs.push(pad.genesis.clone());
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs,
@@ -1365,20 +1420,28 @@ fn ring_member_not_in_utxo_set_rejected() {
     };
     let send_value = init_value - 1_000;
     let signed = sign_transaction(
-        vec![InputSpec {
-            ring: ClsagRing {
-                p: ring_p,
-                c: ring_c,
+        vec![
+            InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
             },
-            signer_idx,
-            spend_priv: signer_spend,
-            value: init_value,
-            blinding: init_blinding,
-        }],
+            f7_pad_input(&decoy_genesis, &pad),
+        ],
         vec![
             OutputSpec::ToRecipient {
                 recipient: r,
                 value: send_value,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: F7_INPUT_PAD_VALUE,
                 storage: None,
             },
             // F5-P5 output floor: production params require >= 2 outputs.
@@ -1456,6 +1519,9 @@ fn ring_member_with_wrong_commit_rejected() {
         decoys.push((d.one_time_addr, d.amount));
         initial_outputs.push(d);
     }
+    let decoy_genesis: Vec<GenesisOutput> = initial_outputs[1..].to_vec();
+    let pad = f7_input_pad();
+    initial_outputs.push(pad.genesis.clone());
 
     let cfg = GenesisConfig {
         timestamp: 0,
@@ -1497,20 +1563,28 @@ fn ring_member_with_wrong_commit_rejected() {
     };
     let send_value = init_value - 1_000;
     let signed = sign_transaction(
-        vec![InputSpec {
-            ring: ClsagRing {
-                p: ring_p,
-                c: ring_c,
+        vec![
+            InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
             },
-            signer_idx,
-            spend_priv: signer_spend,
-            value: init_value,
-            blinding: init_blinding,
-        }],
+            f7_pad_input(&decoy_genesis, &pad),
+        ],
         vec![
             OutputSpec::ToRecipient {
                 recipient: r,
                 value: send_value,
+                storage: None,
+            },
+            OutputSpec::ToRecipient {
+                recipient: r,
+                value: F7_INPUT_PAD_VALUE,
                 storage: None,
             },
             // F5-P5 output floor: production params require >= 2 outputs.
@@ -2673,6 +2747,9 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
         ring_c.push(d.amount);
         initial_outputs.push(d);
     }
+    let decoy_genesis: Vec<GenesisOutput> = initial_outputs[1..].to_vec();
+    let pad = f7_input_pad();
+    initial_outputs.push(pad.genesis.clone());
     let cfg = GenesisConfig {
         timestamp: 0,
         initial_outputs,
@@ -2687,32 +2764,38 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
     let state0 = apply_genesis(&g, &cfg).unwrap();
 
     let recipient_wallet = stealth_gen();
+    let recipient = Recipient {
+        view_pub: recipient_wallet.view_pub,
+        spend_pub: recipient_wallet.spend_pub,
+    };
     let signed = sign_transaction(
-        vec![InputSpec {
-            ring: ClsagRing {
-                p: ring_p,
-                c: ring_c,
+        vec![
+            InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx: 0,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
             },
-            signer_idx: 0,
-            spend_priv: signer_spend,
-            value: init_value,
-            blinding: init_blinding,
-        }],
+            f7_pad_input(&decoy_genesis, &pad),
+        ],
         vec![
             OutputSpec::ToRecipient {
-                recipient: Recipient {
-                    view_pub: recipient_wallet.view_pub,
-                    spend_pub: recipient_wallet.spend_pub,
-                },
+                recipient: recipient.clone(),
                 value: init_value - fee,
                 storage: Some(sc),
             },
+            OutputSpec::ToRecipient {
+                recipient: recipient.clone(),
+                value: F7_INPUT_PAD_VALUE,
+                storage: None,
+            },
             // F5-P5 output floor: production params require >= 2 outputs.
             OutputSpec::ToRecipient {
-                recipient: Recipient {
-                    view_pub: recipient_wallet.view_pub,
-                    spend_pub: recipient_wallet.spend_pub,
-                },
+                recipient,
                 value: 0,
                 storage: None,
             },
