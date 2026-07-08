@@ -315,7 +315,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps` (`5a74d57`)
 
 - [x] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps` (`ef3cbc4`)
-- [x] **TL-7–TL-9 tooling** — `TESTNET_GENESIS_CEREMONY.md`, `publish-seed-nodes.*`, `launch-go-no-go.*` (this commit)
+- [x] **TL-7–TL-9 tooling** — `TESTNET_GENESIS_CEREMONY.md`, `publish-seed-nodes.*`, `launch-go-no-go.*` (`03de79a`)
 
 ### Doing
 
