@@ -323,4 +323,12 @@ pub enum BlockError {
         /// Configured replication for the commitment.
         max: u8,
     },
+    /// Operator-salted proof from an unregistered operator (B3 phase 3).
+    #[error("storage_proofs[{index}]: unregistered operator {operator_id}")]
+    StorageProofUnregisteredOperator {
+        /// Index in `block.storage_proofs`.
+        index: usize,
+        /// Hex prefix of the operator identity.
+        operator_id: String,
+    },
 }

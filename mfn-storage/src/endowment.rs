@@ -107,6 +107,9 @@ pub struct EndowmentParams {
     /// When non-zero, `apply_block` accepts up to `commit.replication`
     /// distinct operator-salted SPoRA proofs per commitment per block (B3).
     pub operator_salted_challenges: u8,
+    /// When non-zero (requires `operator_salted_challenges`), storage proofs
+    /// must come from payout keys registered in `ChainState::storage_operators`.
+    pub require_registered_operators: u8,
 }
 
 /// Canonical defaults.
@@ -120,6 +123,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     proof_reward_window_slots: 7_200,
     require_endowment_opening: 0,
     operator_salted_challenges: 0,
+    require_registered_operators: 0,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -162,6 +166,14 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
         return Err(EndowmentError::InvalidOperatorSaltedChallenges {
             got: p.operator_salted_challenges,
         });
+    }
+    if p.require_registered_operators > 1 {
+        return Err(EndowmentError::InvalidRequireRegisteredOperators {
+            got: p.require_registered_operators,
+        });
+    }
+    if p.require_registered_operators != 0 && p.operator_salted_challenges == 0 {
+        return Err(EndowmentError::RegisteredOperatorsRequiresB3);
     }
     Ok(())
 }
@@ -518,6 +530,15 @@ pub enum EndowmentError {
         /// Caller-supplied flag.
         got: u8,
     },
+    /// `require_registered_operators` must be 0 or 1.
+    #[error("require_registered_operators must be 0 or 1, got {got}")]
+    InvalidRequireRegisteredOperators {
+        /// Caller-supplied flag.
+        got: u8,
+    },
+    /// `require_registered_operators` without `operator_salted_challenges`.
+    #[error("require_registered_operators requires operator_salted_challenges")]
+    RegisteredOperatorsRequiresB3,
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,
@@ -534,6 +555,24 @@ mod tests {
     #[test]
     fn default_params_validate() {
         validate_endowment_params(&p()).unwrap();
+    }
+
+    #[test]
+    fn rejects_require_registered_operators_without_b3() {
+        let mut bad = p();
+        bad.require_registered_operators = 1;
+        assert!(matches!(
+            validate_endowment_params(&bad),
+            Err(EndowmentError::RegisteredOperatorsRequiresB3)
+        ));
+    }
+
+    #[test]
+    fn accepts_require_registered_operators_with_b3() {
+        let mut ok = p();
+        ok.operator_salted_challenges = 1;
+        ok.require_registered_operators = 1;
+        assert!(validate_endowment_params(&ok).is_ok());
     }
 
     #[test]

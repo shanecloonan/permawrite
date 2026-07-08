@@ -73,6 +73,20 @@ pub struct StorageEntry {
     pub pending_yield_ppb: u128,
 }
 
+/// Registered storage-operator record (B3 phase 3). Keyed by
+/// [`operator_identity_from_payout`] in [`ChainState::storage_operators`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StorageOperatorEntry {
+    /// Operator payout view public key (must match proof).
+    pub operator_view_pub: EdwardsPoint,
+    /// Operator payout spend public key (must match proof).
+    pub operator_spend_pub: EdwardsPoint,
+    /// Height at which this operator was registered (genesis = 0).
+    pub registration_height: u32,
+    /// Escrowed bond in base units (`0` = bondless tier).
+    pub bond_amount: u64,
+}
+
 /// Minimum output count enforced on regular transactions whenever the
 /// uniform-ring privacy tier is active (**F5-P5** first half / B1).
 ///
@@ -246,6 +260,8 @@ pub struct ChainState {
     /// (last-proven slot, pending PPB yield) updated by each accepted
     /// SPoRA proof.
     pub storage: HashMap<[u8; 32], StorageEntry>,
+    /// Registered storage operators (B3), keyed by operator identity hash.
+    pub storage_operators: BTreeMap<[u8; 32], StorageOperatorEntry>,
     /// Authorship claims indexed by (`data_root`, `claim_pubkey` bytes).
     pub claims: BTreeMap<crate::claims::AuthorshipClaimKey, crate::claims::AuthorshipClaimRecord>,
     /// Block-id chain: `[genesis_id, block1_id, ...]`.
@@ -298,6 +314,7 @@ impl ChainState {
             utxo: HashMap::new(),
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
+            storage_operators: BTreeMap::new(),
             claims: BTreeMap::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),

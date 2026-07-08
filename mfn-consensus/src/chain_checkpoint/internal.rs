@@ -16,7 +16,8 @@ pub(crate) use mfn_storage::{
 };
 
 pub(crate) use crate::block::{
-    ChainState, PendingUnbond, StorageEntry, UtxoEntry, DEFAULT_CONSENSUS_PARAMS,
+    ChainState, PendingUnbond, StorageEntry, StorageOperatorEntry, UtxoEntry,
+    DEFAULT_CONSENSUS_PARAMS,
 };
 pub(crate) use crate::bonding::DEFAULT_BONDING_PARAMS;
 pub(crate) use crate::checkpoint_codec::{

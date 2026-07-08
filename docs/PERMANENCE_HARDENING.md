@@ -512,7 +512,7 @@ proptests mixing valid/forged proofs.
 on the `ChunkV2` (`0x12`) path; `ChunkV1` remains accepted inbound for mesh
 compatibility. Fan-out and operator chunk push emit `ChunkV2` exclusively.
 
-### B3. Replication accounting — make `replication` mean something at audit time — **consensus (phase 2 shipped; genesis flag off)**
+### B3. Replication accounting — make `replication` mean something at audit time — **consensus (phases 1–3 shipped; genesis flags off)**
 
 **Problem.** `replication` is priced (`required_endowment` multiplies by it)
 and bounds-checked, but **never audited** in legacy mode. `apply_block` accepts at most one
@@ -547,16 +547,16 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
 
 **Plan (incremental — bonding + proptests next).**
 
-1. **Operator registry binding (phase 3 — design).** Separate from validator
-   [`BondOp`](../mfn-consensus/src/bond_wire.rs) bonding. Proposed shape:
-   - `StorageOperatorRegister { operator_id, payout_view, payout_spend, bond_amount }`
-     signed wire op; `operator_id = operator_identity_from_payout(view, spend)`.
-   - Chain state: `operators: BTreeMap<[u8;32], OperatorEntry>` (bond escrow,
-     registration height, optional slash counter).
-   - When `operator_salted_challenges = 1`, `apply_block` rejects proofs whose
-     payout keys hash to an unregistered `operator_id`.
-   - Bondless tier remains default on public devnet; bonded tier is optional
-     fork for premium replication SLAs ([`DECENTRALIZATION.md`](./DECENTRALIZATION.md)).
+1. **Operator registry binding (phase 3 — shipped, genesis off).** Optionally
+   gated by `EndowmentParams.require_registered_operators` (requires B3
+   `operator_salted_challenges`). Chain state holds
+   `storage_operators: BTreeMap<[u8;32], StorageOperatorEntry>` (payout keys,
+   registration height, `bond_amount`). Checkpoint **v6**. When the flag is
+   set, `apply_block` rejects proofs whose
+   `operator_identity_from_payout` is missing from the map
+   (`StorageProofUnregisteredOperator`). Registration for tests is in-memory
+   today; a signed `StorageOperatorRegister` wire op + bond escrow is the
+   next bonding step ([`DECENTRALIZATION.md`](./DECENTRALIZATION.md) / B5).
 2. **M5 proptests** — `prop_b3_two_operator_proof_chain_treasury` shipped
    (`apply_block_proptest.rs`, **M5.41**); extend with duplicate-operator reject +
    replication-cap fuzz.

@@ -41,6 +41,11 @@ fn decode_endowment_params(
         } else {
             0
         },
+        require_registered_operators: if checkpoint_version >= 6 {
+            read_u8(r, "endowment_params.require_registered_operators")?
+        } else {
+            0
+        },
     })
 }
 
@@ -79,6 +84,38 @@ fn decode_storage_entry(
         last_proven_height,
         last_proven_slot,
         pending_yield_ppb,
+    })
+}
+
+fn decode_storage_operator_entry(
+    r: &mut Reader<'_>,
+    index: usize,
+) -> Result<StorageOperatorEntry, ChainCheckpointError> {
+    let operator_view_pub =
+        read_edwards_point(r, "storage_operators[i].view").map_err(|e| match e {
+            EdwardsReadError::Truncated { field, needed } => {
+                ChainCheckpointError::Read(CheckpointReadError::Truncated { field, needed })
+            }
+            EdwardsReadError::InvalidPoint => {
+                ChainCheckpointError::InvalidStorageOperatorPoint { index }
+            }
+        })?;
+    let operator_spend_pub =
+        read_edwards_point(r, "storage_operators[i].spend").map_err(|e| match e {
+            EdwardsReadError::Truncated { field, needed } => {
+                ChainCheckpointError::Read(CheckpointReadError::Truncated { field, needed })
+            }
+            EdwardsReadError::InvalidPoint => {
+                ChainCheckpointError::InvalidStorageOperatorPoint { index }
+            }
+        })?;
+    let registration_height = read_u32(r, "storage_operators[i].registration_height")?;
+    let bond_amount = read_u64(r, "storage_operators[i].bond_amount")?;
+    Ok(StorageOperatorEntry {
+        operator_view_pub,
+        operator_spend_pub,
+        registration_height,
+        bond_amount,
     })
 }
 
@@ -244,7 +281,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if !(1..=5).contains(&version) {
+    if !(1..=6).contains(&version) {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -357,10 +394,30 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         storage.insert(key, entry);
     }
 
+    let storage_operators = if version >= 6 {
+        let op_n = read_len(&mut r, "storage_operators.len")?;
+        let mut storage_operators: BTreeMap<[u8; 32], StorageOperatorEntry> = BTreeMap::new();
+        let mut prev_op_key: Option<[u8; 32]> = None;
+        for i in 0..op_n {
+            let key: [u8; 32] = read_fixed(&mut r, "storage_operators[i].key")?;
+            if let Some(prev) = prev_op_key {
+                if key <= prev {
+                    return Err(ChainCheckpointError::StorageOperatorsNotSorted { index: i });
+                }
+            }
+            prev_op_key = Some(key);
+            let entry = decode_storage_operator_entry(&mut r, i)?;
+            storage_operators.insert(key, entry);
+        }
+        storage_operators
+    } else {
+        BTreeMap::new()
+    };
+
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3..=5 => decode_claims_state_v3(&mut r)?,
+        3..=6 => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }
@@ -407,6 +464,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         utxo,
         spent_key_images,
         storage,
+        storage_operators,
         claims,
         block_ids,
         validators,

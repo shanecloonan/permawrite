@@ -7,11 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B3 treasury `88457df` | **CI #28934047182** + script fix (this push) | Nightly after green |
+| **1** RC core | B3 M5.41 `3de427b` | **CI #28934551469** (matrix tests) | Nightly after green |
 | **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | B3 treasury `88457df` | **CI script fix** + M5.41 proptest (this push) | Operator registry phase 3 |
+| **4+6** Protocol | B3 treasury `88457df`, M5.41 `3de427b` | **B3 phase 3a** (this push) | `StorageOperatorRegister` bond wire (3b) |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B3 phase 3a — operator registry + apply_block gate)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3a** | **Done** — this push | `require_registered_operators`; `storage_operators` map; checkpoint **v6**; `StorageProofUnregisteredOperator`; 2× `block_apply` registry tests |
+| **CI #28934551469** | **In progress** | `3de427b` — clippy/scripts GREEN; matrix tests running |
+| **B3 phase 3b** | **Next** | Signed `StorageOperatorRegister` + bond escrow wire |
+
+**Lane 4+6 — Done:** B3 phase 3a **Doing:** push + CI **Next:** operator register bond op (3b)
 
 ---
 

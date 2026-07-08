@@ -83,20 +83,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `3de427b` (CI script fix + M5.41). **CI:** monitor latest run after push.
+**Head:** B3 phase 3a (this push). **Prior:** `3de427b` — **CI #28934551469** matrix in progress (clippy/scripts GREEN).
 
-**RC push hold:** monitor CI (`cancel-in-progress`).
+**RC push hold:** superseded by B3 phase 3a push (user-requested); monitor new CI after land.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on B3 phase 2 stack | **Monitor** | Nightly re-dispatch after green |
+| **1** | CI on B3 stack | **Monitor** | Nightly re-dispatch after green |
 | **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | B3 phase 2 `apply_block` wire | **Done** — this push | Bonding registry + M5 proptests |
+| **4** | B3 phase 3a operator registry | **Done** — this push | `StorageOperatorRegister` bond wire (3b) |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B3 phase 2 with lane 4 | **Done** — this push | Operator bonding research |
+| **6** | B3 phase 3a with lane 4 | **Done** — this push | Operator bonding research + 3b wire |
 | **7** | TL-6 VPS participant rehearsal tooling | **Done** — `ef3cbc4` | TL-5/6 execution on VPS |
 
 ---

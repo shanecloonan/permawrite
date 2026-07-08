@@ -36,6 +36,9 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 5 {
         w.u8(p.operator_salted_challenges);
     }
+    if checkpoint_version >= 6 {
+        w.u8(p.require_registered_operators);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {
@@ -45,6 +48,13 @@ pub(crate) fn encode_u128(w: &mut Writer, v: u128) {
 fn encode_utxo_entry(w: &mut Writer, e: &UtxoEntry) {
     w.push(&e.commit.compress().to_bytes());
     w.u32(e.height);
+}
+
+fn encode_storage_operator_entry(w: &mut Writer, e: &StorageOperatorEntry) {
+    w.push(&e.operator_view_pub.compress().to_bytes());
+    w.push(&e.operator_spend_pub.compress().to_bytes());
+    w.u32(e.registration_height);
+    w.u64(e.bond_amount);
 }
 
 fn encode_storage_entry(w: &mut Writer, e: &StorageEntry) {
@@ -171,6 +181,16 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     for k in storage_keys {
         w.push(k);
         encode_storage_entry(&mut w, &parts.state.storage[k]);
+    }
+
+    if CHAIN_CHECKPOINT_VERSION >= 6 {
+        let mut op_keys: Vec<&[u8; 32]> = parts.state.storage_operators.keys().collect();
+        op_keys.sort();
+        w.varint(op_keys.len() as u64);
+        for k in op_keys {
+            w.push(k);
+            encode_storage_operator_entry(&mut w, &parts.state.storage_operators[k]);
+        }
     }
 
     encode_claims_state(&mut w, &parts.state);

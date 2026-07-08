@@ -664,6 +664,15 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             }
             let operator_id =
                 operator_identity_from_payout(&proof.operator_view_pub, &proof.operator_spend_pub);
+            if next.endowment_params.require_registered_operators != 0
+                && !next.storage_operators.contains_key(&operator_id)
+            {
+                errors.push(BlockError::StorageProofUnregisteredOperator {
+                    index: pi,
+                    operator_id: hex_short(&operator_id),
+                });
+                continue;
+            }
             let dedup_key = proof_operator_dedup_key(&proof.commit_hash, &operator_id);
             if !seen_operator_proofs.insert(dedup_key) {
                 errors.push(BlockError::DuplicateStorageProofOperator {

@@ -65,8 +65,8 @@ pub use header::{
     Block, BlockHeader, HeaderDecodeError, HEADER_VERSION,
 };
 pub use state::{
-    ChainState, ConsensusParams, PendingUnbond, RingPolicy, StorageEntry, UtxoEntry,
-    ValidatorStats, DEFAULT_CONSENSUS_PARAMS, MIN_TX_INPUTS_UNIFORM_TIER,
+    ChainState, ConsensusParams, PendingUnbond, RingPolicy, StorageEntry, StorageOperatorEntry,
+    UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS, MIN_TX_INPUTS_UNIFORM_TIER,
     MIN_TX_OUTPUTS_UNIFORM_TIER, TEST_CONSENSUS_PARAMS,
 };
 pub use wire::{
