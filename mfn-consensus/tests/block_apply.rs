@@ -2784,12 +2784,12 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
         ],
         vec![
             OutputSpec::ToRecipient {
-                recipient: recipient.clone(),
+                recipient,
                 value: init_value - fee,
                 storage: Some(sc),
             },
             OutputSpec::ToRecipient {
-                recipient: recipient.clone(),
+                recipient,
                 value: F7_INPUT_PAD_VALUE,
                 storage: None,
             },
