@@ -523,6 +523,33 @@ impl GossipHandler for InboundGossip {
         }
         label
     }
+
+    fn on_chunk_v2(
+        &self,
+        commit_hash: &[u8; 32],
+        chunk_index: u32,
+        chunk_bytes: &[u8],
+        merkle_proof_wire: &[u8],
+    ) -> String {
+        let label =
+            self.inner
+                .on_chunk_v2(commit_hash, chunk_index, chunk_bytes, merkle_proof_wire);
+        if label.starts_with("stored:") {
+            println!(
+                "mfnd_p2p_chunk_v2_stored hid={} peer={} index={chunk_index} bytes={}",
+                self.hid,
+                self.peer,
+                chunk_bytes.len()
+            );
+            let _ = std::io::stdout().flush();
+        } else if label.starts_with("rejected:") {
+            eprintln!(
+                "mfnd_p2p_chunk_v2_rejected hid={} peer={} index={chunk_index} {label}",
+                self.hid, self.peer
+            );
+        }
+        label
+    }
 }
 
 fn log_blocks_reply(hid: u64, peer: &str, start_height: u32, requested: u32, returned: usize) {

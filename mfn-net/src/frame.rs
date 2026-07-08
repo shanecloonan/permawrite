@@ -30,6 +30,8 @@
 //!
 //! **B7** adds [`TxStemV1`] (`0x11`): Dandelion++ stem-phase tx gossip — same body as [`TxV1`],
 //! distinct tag so fluff fan-out stays on `0x06`.
+//!
+//! **B2** adds [`crate::chunk_v2::ChunkV2`] (`0x12`): chunk gossip with Merkle inclusion proof.
 
 use std::io::{Read, Write};
 

@@ -31,6 +31,17 @@ pub enum ChunkGossipReject {
     /// Single-chunk commitment whose leaf hash is the `data_root` itself —
     /// full verification is possible and the bytes failed it.
     DataRootMismatch,
+    /// Merkle proof index does not match the gossip chunk index (**B2**).
+    ProofIndexMismatch {
+        /// Index in the proof wire.
+        proof_index: u32,
+        /// Index in the frame header.
+        chunk_index: u32,
+    },
+    /// Merkle proof does not anchor chunk bytes to `data_root` (**B2**).
+    MerkleProofMismatch,
+    /// Merkle proof wire could not be decoded (**B2**).
+    InvalidProofWire,
 }
 
 /// Exact byte length the anchored commitment implies for `chunk_index`.
@@ -71,6 +82,31 @@ pub fn validate_gossip_chunk(
     // outright without a Merkle path (which ChunkV1 frames don't carry).
     if commit.num_chunks == 1 && mfn_storage::chunk_hash(chunk_bytes) != commit.data_root {
         return Err(ChunkGossipReject::DataRootMismatch);
+    }
+    Ok(())
+}
+
+/// Validate inbound [`ChunkV2`] gossip before any disk write (**B2**).
+pub fn validate_gossip_chunk_v2(
+    commit: &StorageCommitment,
+    chunk_index: u32,
+    chunk_bytes: &[u8],
+    merkle_proof_wire: &[u8],
+) -> Result<(), ChunkGossipReject> {
+    validate_gossip_chunk(commit, chunk_index, chunk_bytes)?;
+    let proof = mfn_storage::decode_merkle_proof_wire(merkle_proof_wire)
+        .map_err(|_| ChunkGossipReject::InvalidProofWire)?;
+    let proof_index =
+        u32::try_from(proof.index).map_err(|_| ChunkGossipReject::InvalidProofWire)?;
+    if proof_index != chunk_index {
+        return Err(ChunkGossipReject::ProofIndexMismatch {
+            proof_index,
+            chunk_index,
+        });
+    }
+    let leaf = mfn_storage::chunk_hash(chunk_bytes);
+    if !mfn_crypto::merkle::verify_merkle_proof(&leaf, &proof, &commit.data_root) {
+        return Err(ChunkGossipReject::MerkleProofMismatch);
     }
     Ok(())
 }
@@ -151,6 +187,53 @@ mod tests {
         assert_eq!(
             validate_gossip_chunk(&built.commit, 0, &forged),
             Err(ChunkGossipReject::DataRootMismatch)
+        );
+    }
+
+    #[test]
+    fn validate_v2_accepts_true_multi_chunk_proofs() {
+        let payload = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..2_500).map(|i| (i % 251) as u8).collect::<Vec<u8>>(),
+        );
+        let built = built_for(&payload, 1_024);
+        let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
+        for (i, c) in chunks.iter().enumerate() {
+            let proof = mfn_crypto::merkle::merkle_proof(&built.tree, i).expect("proof");
+            let wire = mfn_storage::encode_merkle_proof_wire(&proof);
+            assert_eq!(
+                validate_gossip_chunk_v2(&built.commit, i as u32, c, &wire),
+                Ok(()),
+                "chunk {i}"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_v2_rejects_forged_multi_chunk_bytes() {
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 2_500]);
+        let built = built_for(&payload, 1_024);
+        let proof = mfn_crypto::merkle::merkle_proof(&built.tree, 0).expect("proof");
+        let wire = mfn_storage::encode_merkle_proof_wire(&proof);
+        let forged = vec![0xffu8; 1_024];
+        assert_eq!(
+            validate_gossip_chunk_v2(&built.commit, 0, &forged, &wire),
+            Err(ChunkGossipReject::MerkleProofMismatch)
+        );
+    }
+
+    #[test]
+    fn validate_v2_rejects_proof_index_mismatch() {
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![7u8; 2_500]);
+        let built = built_for(&payload, 1_024);
+        let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
+        let proof = mfn_crypto::merkle::merkle_proof(&built.tree, 1).expect("proof");
+        let wire = mfn_storage::encode_merkle_proof_wire(&proof);
+        assert_eq!(
+            validate_gossip_chunk_v2(&built.commit, 0, chunks[0], &wire),
+            Err(ChunkGossipReject::ProofIndexMismatch {
+                proof_index: 1,
+                chunk_index: 0
+            })
         );
     }
 }

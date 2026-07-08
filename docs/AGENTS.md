@@ -187,10 +187,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B-11 phase 1** — `MFEO` wire + `apply_block`/mempool Pedersen opening verify; `require_endowment_opening` param (`3511346`).
 - [x] **B-11 proptests** — `prop_mfeo_opening_storage_upload_treasury` + reject without `MFEO` (`9f0a0aa`).
 - [x] **B-11 public devnet enable** — genesis spec `endowment` section + `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`; operators must sync byte-identical JSON).
+- [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained.
 
 ### Next
 
-- [ ] **B2** — Merkle-path-carrying chunk gossip (PERMANENCE_HARDENING §B2; with lane 6).
+- [ ] **F7 consensus tail** — `min_input_count` at `verify_transaction` (with lane 5).
 
 ### Handoff to lane 3
 
@@ -272,6 +273,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] B-05 — Linux soak PASS transcript archived (`28851202993` / `234f0a8`).
 - [x] B-06 — Nightly #63 all three jobs green (`28792429191` on `85e5870` stack; lane 1 RC gate closed).
+- [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip with lane 4.
 
 ### Do not start
 

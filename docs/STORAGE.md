@@ -655,7 +655,7 @@ Signed-block adversarial coverage: `integration.rs` — `tampered_storage_proof_
 
 ## See also
 
-- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth, B-11 MFEO opening binding) and the specific plans for what remains (range-proof endowment binding, replication accounting, repair, slashing)
+- [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) — implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth, B-11 MFEO opening binding, B2 ChunkV2 Merkle-path gossip) and the specific plans for what remains (range-proof endowment binding, replication accounting, repair, slashing)
 - [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — can normal devices be storage operators? (feasibility vs Arweave-style hardware)
 - [`ECONOMICS.md`](./ECONOMICS.md) — full derivation of the endowment formula + parameter sensitivity
 - [`PRIVACY.md`](./PRIVACY.md) — the privacy half (which funds this half)

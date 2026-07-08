@@ -8,6 +8,7 @@ use std::io::{Read, Write};
 
 use crate::block_sync::MAX_BLOCKS_PER_GET_V1;
 use crate::chunk_v1::CHUNK_V1_TAG;
+use crate::chunk_v2::CHUNK_V2_TAG;
 use crate::frame::{
     read_frame, write_frame_io, FrameReadError, FrameWriteError, MAX_FRAME_PAYLOAD_LEN,
 };
@@ -265,6 +266,7 @@ pub fn recv_light_follow_v1<R: Read>(r: &mut R) -> Result<LightFollowV1, LightFo
             PROPOSAL_V1_TAG
             | VOTE_V1_TAG
             | CHUNK_V1_TAG
+            | CHUNK_V2_TAG
             | 0x06
             | crate::frame::TX_STEM_V1_TAG
             | 0x07

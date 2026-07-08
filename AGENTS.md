@@ -82,7 +82,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**CI #28885223488 GREEN** on `0d28e4f`. **Nightly #28889931523 GREEN** (all three jobs on `b1072e3`). **Release evidence `96462aa`** + RC audit go.
+**CI #28885223488 GREEN** on `0d28e4f`. **Nightly #28889931523 GREEN** (all three jobs on `b1072e3`). **B2 ChunkV2** landing this push; release evidence refresh follows green CI.
 
 **RC push hold:** lifted.
 
@@ -91,11 +91,11 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | Nightly #28889931523 | **Done** — all three jobs green on B-11/B7 stack | Idle |
-| **2** | Release evidence `96462aa` | **Done** — RC audit dry-run **go** | Human sign-off packet |
+| **2** | B2 ChunkV2 ship | **Done** — this commit; release evidence refresh after green CI | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | B-11 endowment opening binding | **Done** — `0fee187` + proptests | B2 Merkle-path chunk gossip |
+| **4** | B2 ChunkV2 Merkle-path gossip | **Done** — Merkle-path chunk gossip tag `0x12` (this commit) | F7 `min_input_count` tail (lanes 4+5) |
 | **5** | B7 Dandelion++ rehearsal (with lane 3) | **Done** — evidence `-dandelion` archive tag | B8 Tor transport (research) |
-| **6** | B-11 endowment opening (with lane 4) | **Done** — `0fee187` | B2 with lane 4 |
+| **6** | B2 ChunkV2 (with lane 4) | **Done** — fan-out + operator push emit v2 proofs | B3 replication accounting |
 
 ---
 
@@ -128,7 +128,8 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Release evidence `96462aa`** - RC ops (lane 2): evidence archived + RC audit dry-run go on CI `28885223488` (`0d28e4f`).
+- **B2 ChunkV2** (this commit) - permanence (lanes 4+6): Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained for mesh compatibility.
+- **Release evidence `96462aa`** - RC ops (lane 2): pre-B2 stack evidence + RC audit dry-run go on CI `28885223488` (`0d28e4f`); refresh after B2 CI green.
 - **Nightly #28889931523 GREEN** - RC core (lane 1): all three jobs on B-11/B7 stack (`b1072e3`); auto-dispatched after CI `#28885223488`.
 - **CI #28885223488 GREEN** (`0d28e4f`) - B7 dandelion rehearsal evidence commit; full matrix pass.
 - **B7 dandelion rehearsal** (this commit) - privacy (lanes 3+5): Windows `dandelion-rehearsal-smoke` PASS with MFEO upload on B-11 genesis; evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt`; archive filenames tag `-dandelion`.

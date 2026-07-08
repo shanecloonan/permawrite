@@ -245,33 +245,37 @@ pub struct StorageProof {
     pub operator_spend_pub: EdwardsPoint,
 }
 
-/// Encode a [`StorageProof`] to bytes (consensus-critical).
-pub fn encode_storage_proof(p: &StorageProof) -> Vec<u8> {
+/// Encode a [`MerkleProof`] for chunk-gossip / storage-proof wire (**B2**).
+pub fn encode_merkle_proof_wire(p: &MerkleProof) -> Vec<u8> {
     let mut w = Writer::new();
-    w.push(&p.commit_hash);
-    w.blob(&p.chunk);
-    w.varint(p.proof.index as u64);
-    w.varint(p.proof.siblings.len() as u64);
-    for (sib, right) in p.proof.siblings.iter().zip(p.proof.right_side.iter()) {
+    w.varint(p.index as u64);
+    w.varint(p.siblings.len() as u64);
+    for (sib, right) in p.siblings.iter().zip(p.right_side.iter()) {
         w.push(sib);
         w.u8(if *right { 1 } else { 0 });
     }
-    w.point(&p.operator_view_pub);
-    w.point(&p.operator_spend_pub);
     w.into_bytes()
 }
 
-/// Decode bytes produced by [`encode_storage_proof`].
-pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
+/// Decode a [`MerkleProof`] from chunk-gossip / storage-proof wire (**B2**).
+pub fn decode_merkle_proof_wire(bytes: &[u8]) -> Result<MerkleProof, SporaError> {
     let mut r = Reader::new(bytes);
-    let mut commit_hash = [0u8; 32];
-    commit_hash.copy_from_slice(r.bytes(32).map_err(SporaError::Codec)?);
-    let chunk = r.blob().map_err(SporaError::Codec)?.to_vec();
+    let proof = decode_merkle_proof_reader(&mut r)?;
+    if !r.end() {
+        return Err(SporaError::Codec(mfn_crypto::CryptoError::TrailingBytes {
+            remaining: r.remaining(),
+        }));
+    }
+    Ok(proof)
+}
+
+/// Decode a [`MerkleProof`] from `r` (used inside [`decode_storage_proof`] and chunk gossip).
+pub fn decode_merkle_proof_reader(r: &mut Reader<'_>) -> Result<MerkleProof, SporaError> {
     let index = r.varint().map_err(SporaError::Codec)?;
     let n = r.varint().map_err(SporaError::Codec)?;
     let n_usize: usize = usize::try_from(n).map_err(|_| SporaError::TooManyChunks)?;
-    let mut siblings: Vec<[u8; 32]> = Vec::new();
-    let mut right_side: Vec<bool> = Vec::new();
+    let mut siblings: Vec<[u8; 32]> = Vec::with_capacity(n_usize);
+    let mut right_side: Vec<bool> = Vec::with_capacity(n_usize);
     for _ in 0..n_usize {
         let mut s = [0u8; 32];
         s.copy_from_slice(r.bytes(32).map_err(SporaError::Codec)?);
@@ -283,6 +287,31 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
             got => return Err(SporaError::InvalidProofSideFlag(got)),
         }
     }
+    Ok(MerkleProof {
+        siblings,
+        right_side,
+        index: usize::try_from(index).map_err(|_| SporaError::TooManyChunks)?,
+    })
+}
+
+/// Encode a [`StorageProof`] to bytes (consensus-critical).
+pub fn encode_storage_proof(p: &StorageProof) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.push(&p.commit_hash);
+    w.blob(&p.chunk);
+    w.push(&encode_merkle_proof_wire(&p.proof));
+    w.point(&p.operator_view_pub);
+    w.point(&p.operator_spend_pub);
+    w.into_bytes()
+}
+
+/// Decode bytes produced by [`encode_storage_proof`].
+pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
+    let mut r = Reader::new(bytes);
+    let mut commit_hash = [0u8; 32];
+    commit_hash.copy_from_slice(r.bytes(32).map_err(SporaError::Codec)?);
+    let chunk = r.blob().map_err(SporaError::Codec)?.to_vec();
+    let proof = decode_merkle_proof_reader(&mut r)?;
     let operator_view_pub = r.point().map_err(SporaError::Codec)?;
     let operator_spend_pub = r.point().map_err(SporaError::Codec)?;
     if !r.end() {
@@ -293,11 +322,7 @@ pub fn decode_storage_proof(bytes: &[u8]) -> Result<StorageProof, SporaError> {
     Ok(StorageProof {
         commit_hash,
         chunk,
-        proof: MerkleProof {
-            siblings,
-            right_side,
-            index: usize::try_from(index).map_err(|_| SporaError::TooManyChunks)?,
-        },
+        proof,
         operator_view_pub,
         operator_spend_pub,
     })
@@ -664,6 +689,18 @@ mod tests {
             verify_storage_proof(&built.commit, &prev, slot, &p),
             StorageProofCheck::CommitHashMismatch
         );
+    }
+
+    #[test]
+    fn merkle_proof_wire_round_trip() {
+        let d = data_1mib();
+        let built = build_storage_commitment(&d, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None).unwrap();
+        let mp = merkle_proof(&built.tree, 2).unwrap();
+        let wire = encode_merkle_proof_wire(&mp);
+        let dec = decode_merkle_proof_wire(&wire).unwrap();
+        assert_eq!(dec.index, mp.index);
+        assert_eq!(dec.siblings, mp.siblings);
+        assert_eq!(dec.right_side, mp.right_side);
     }
 
     #[test]

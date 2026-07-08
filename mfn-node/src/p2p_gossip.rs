@@ -51,35 +51,22 @@ impl P2pGossipHandler {
             *g = (height, tip_id);
         }
     }
-}
 
-impl BlockSyncApplier for P2pGossipHandler {
-    fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
-        let label = self.on_block_v1(block_wire);
-        if let Some(rest) = label.strip_prefix("applied:") {
-            let height = rest
-                .split(':')
-                .next()
-                .ok_or_else(|| label.clone())?
-                .parse::<u32>()
-                .map_err(|_| label.clone())?;
-            Ok(height)
-        } else {
-            Err(label)
-        }
-    }
-}
-
-impl GossipHandler for P2pGossipHandler {
-    fn on_chunk_v1(&self, commit_hash: &[u8; 32], chunk_index: u32, chunk_bytes: &[u8]) -> String {
+    fn store_gossip_chunk(
+        &self,
+        commit_hash: &[u8; 32],
+        chunk_index: u32,
+        chunk_bytes: &[u8],
+        merkle_proof_wire: Option<&[u8]>,
+    ) -> String {
         let mut hex = String::with_capacity(64);
         for b in commit_hash {
             use std::fmt::Write as _;
             let _ = write!(hex, "{b:02x}");
         }
-        // (M7.12) Peers are untrusted: only chunks for an anchored
-        // on-chain commitment, with an in-range index and the exact
-        // length the commitment's geometry implies, reach disk.
+        // (M7.12 / B2) Peers are untrusted: only chunks for an anchored
+        // on-chain commitment, with geometry checks and (for v2) Merkle
+        // inclusion against `data_root`, reach disk.
         let commit = {
             let chain = match self.chain.lock() {
                 Ok(g) => g,
@@ -90,9 +77,18 @@ impl GossipHandler for P2pGossipHandler {
                 None => return format!("rejected:unknown_commit:commit={hex}:index={chunk_index}"),
             }
         };
-        if let Err(reason) =
-            crate::p2p_chunk_inbox::validate_gossip_chunk(&commit, chunk_index, chunk_bytes)
-        {
+        let validation = match merkle_proof_wire {
+            Some(proof_wire) => crate::p2p_chunk_inbox::validate_gossip_chunk_v2(
+                &commit,
+                chunk_index,
+                chunk_bytes,
+                proof_wire,
+            ),
+            None => {
+                crate::p2p_chunk_inbox::validate_gossip_chunk(&commit, chunk_index, chunk_bytes)
+            }
+        };
+        if let Err(reason) = validation {
             return format!("rejected:chunk_invalid:commit={hex}:index={chunk_index}:{reason:?}");
         }
         // Never overwrite an existing same-length chunk: a malicious peer
@@ -120,6 +116,44 @@ impl GossipHandler for P2pGossipHandler {
             }
             Err(e) => format!("rejected:chunk_inbox:{e}"),
         }
+    }
+}
+
+impl BlockSyncApplier for P2pGossipHandler {
+    fn apply_synced_block(&self, block_wire: &[u8]) -> Result<u32, String> {
+        let label = self.on_block_v1(block_wire);
+        if let Some(rest) = label.strip_prefix("applied:") {
+            let height = rest
+                .split(':')
+                .next()
+                .ok_or_else(|| label.clone())?
+                .parse::<u32>()
+                .map_err(|_| label.clone())?;
+            Ok(height)
+        } else {
+            Err(label)
+        }
+    }
+}
+
+impl GossipHandler for P2pGossipHandler {
+    fn on_chunk_v1(&self, commit_hash: &[u8; 32], chunk_index: u32, chunk_bytes: &[u8]) -> String {
+        self.store_gossip_chunk(commit_hash, chunk_index, chunk_bytes, None)
+    }
+
+    fn on_chunk_v2(
+        &self,
+        commit_hash: &[u8; 32],
+        chunk_index: u32,
+        chunk_bytes: &[u8],
+        merkle_proof_wire: &[u8],
+    ) -> String {
+        self.store_gossip_chunk(
+            commit_hash,
+            chunk_index,
+            chunk_bytes,
+            Some(merkle_proof_wire),
+        )
     }
 
     fn on_tx_v1(&self, tx_wire: &[u8]) -> String {
@@ -362,6 +396,39 @@ mod tests {
 
         let label = handler.on_chunk_v1(&hash, 0, &payload);
         assert!(label.starts_with("stored:commit="), "got {label}");
+    }
+
+    #[test]
+    fn on_chunk_v2_validates_merkle_proofs_for_multi_chunk_commitments() {
+        let payload: Vec<u8> = mfn_storage::pad_to_storage_size_bucket(
+            &(0u32..2_500).map(|i| (i % 251) as u8).collect::<Vec<u8>>(),
+        );
+        let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(1_024), 3, None)
+            .expect("build commitment");
+        let hash = mfn_storage::storage_commitment_hash(&built.commit);
+        let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
+        let (handler, _) = handler_at_height_1_with_storage(vec![built.commit.clone()]);
+
+        for (i, c) in chunks.iter().enumerate() {
+            let proof = mfn_crypto::merkle::merkle_proof(&built.tree, i).expect("proof");
+            let wire = mfn_storage::encode_merkle_proof_wire(&proof);
+            let label = handler.on_chunk_v2(&hash, i as u32, c, &wire);
+            assert!(label.starts_with("stored:commit="), "chunk {i}: {label}");
+        }
+
+        let proof = mfn_crypto::merkle::merkle_proof(&built.tree, 0).expect("proof");
+        let wire = mfn_storage::encode_merkle_proof_wire(&proof);
+        let forged = vec![0xffu8; 1_024];
+        let label = handler.on_chunk_v2(&hash, 0, &forged, &wire);
+        assert!(label.starts_with("rejected:chunk_invalid:"), "got {label}");
+
+        let path = handler
+            .store
+            .root()
+            .join(mfn_store::CHUNK_INBOX_DIR)
+            .join(hex::encode(hash))
+            .join("0.bin");
+        assert_eq!(std::fs::read(&path).expect("read"), chunks[0]);
     }
 
     #[test]

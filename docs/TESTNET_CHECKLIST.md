@@ -241,6 +241,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 
 - [x] Add wallet-local upload retrieval UX so participants can export anchored payload bytes after `wallet upload`, HTTP/P2P backfill, or inbox assembly.
 - [x] Extend P2P ChunkV1 smoke coverage to verify `uploads retrieve` after inbox assembly.
+- [x] B2 ChunkV2 Merkle-path gossip: multi-chunk inbox writes require Merkle inclusion proof on tag `0x12`; fan-out and operator `push-chunks` emit v2; v1 inbound retained for mesh compatibility.
 - [x] Add permanence-operator troubleshooting for bad RPC auth, missing chunks, failed proofs, and chain divergence.
 - [x] Add a role-based "join the testnet" path for observers, wallet users, and storage operators.
 - [x] Add public test-key replacement guidance before shared or incentivized deployments.

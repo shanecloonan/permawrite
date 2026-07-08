@@ -1,12 +1,15 @@
-//! Push wallet upload chunks to peers over P2P `ChunkV1` gossip (**M7.1**).
+//! Push wallet upload chunks to peers over P2P `ChunkV2` gossip (**B2**).
 
 use std::path::Path;
 
 use mfn_net::{push_chunks_gossip_to_peer, ChainTipV1, PushTxGossipError};
-use mfn_storage::{chunk_data, storage_commitment_hash};
+use mfn_storage::{chunk_data, encode_merkle_proof_wire, storage_commitment_hash};
 
 use crate::rpc::{RpcClient, RpcError};
 use crate::upload_artifact_store::load_upload_artifact;
+
+/// Chunk index, payload bytes, and Merkle proof wire for **B2** gossip.
+type ChunkV2GossipPiece = (u32, Vec<u8>, Vec<u8>);
 
 /// Chunk push errors.
 #[derive(Debug, thiserror::Error)]
@@ -60,7 +63,7 @@ pub fn push_wallet_artifact_chunks_to_peer_with_handshake(
     genesis_id: &[u8; 32],
     local_tip: &ChainTipV1,
 ) -> Result<ChunkPushPeerResult, ChunkPushError> {
-    let chunks = wallet_artifact_chunks(wallet_path, commitment_hash_hex)?;
+    let chunks = wallet_artifact_chunks_v2(wallet_path, commitment_hash_hex)?;
     let commit_hash = parse_commit_hash_hex(commitment_hash_hex)?;
     match push_chunks_gossip_to_peer(peer, genesis_id, local_tip, &commit_hash, &chunks) {
         Ok(()) => Ok(ChunkPushPeerResult {
@@ -116,10 +119,10 @@ pub fn push_wallet_artifact_chunks_to_peers_with_handshake(
     Ok(out)
 }
 
-fn wallet_artifact_chunks(
+fn wallet_artifact_chunks_v2(
     wallet_path: &Path,
     commitment_hash_hex: &str,
-) -> Result<Vec<(u32, Vec<u8>)>, ChunkPushError> {
+) -> Result<Vec<ChunkV2GossipPiece>, ChunkPushError> {
     let loaded = load_upload_artifact(wallet_path, commitment_hash_hex)
         .map_err(|e| ChunkPushError::Usage(format!("upload artifact: {e}")))?;
     let on_chain = storage_commitment_hash(&loaded.built.commit);
@@ -138,11 +141,18 @@ fn wallet_artifact_chunks(
             loaded.built.commit.num_chunks
         )));
     }
-    Ok(slices
-        .into_iter()
-        .enumerate()
-        .map(|(i, bytes)| (u32::try_from(i).unwrap_or(u32::MAX), bytes.to_vec()))
-        .collect())
+    let mut out = Vec::with_capacity(slices.len());
+    for (i, bytes) in slices.iter().enumerate() {
+        let proof = mfn_crypto::merkle::merkle_proof(&loaded.built.tree, i)
+            .map_err(|e| ChunkPushError::Usage(format!("merkle_proof: {e}")))?;
+        let proof_wire = encode_merkle_proof_wire(&proof);
+        out.push((
+            u32::try_from(i).unwrap_or(u32::MAX),
+            bytes.to_vec(),
+            proof_wire,
+        ));
+    }
+    Ok(out)
 }
 
 fn p2p_handshake_material(
@@ -201,8 +211,12 @@ mod tests {
         .expect("commit");
         let hash = hex::encode(storage_commitment_hash(&built.commit));
         save_upload_artifact(&wallet, &built, &payload, Path::new("x"), None).expect("save");
-        let chunks = wallet_artifact_chunks(&wallet, &hash).expect("chunks");
+        let chunks = wallet_artifact_chunks_v2(&wallet, &hash).expect("chunks");
         assert_eq!(chunks.len(), built.commit.num_chunks as usize);
         assert_eq!(chunks[0].1.len(), 4096);
+        assert!(
+            !chunks[0].2.is_empty(),
+            "B2 push includes Merkle proof wire"
+        );
     }
 }

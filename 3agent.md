@@ -3,6 +3,24 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-07 PM (B2 ChunkV2 Merkle-path gossip)
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| **B2 ChunkV2** | **This commit** | `0x12` Merkle-proven chunk gossip; fan-out + operator push emit v2; v1 inbound still accepted |
+| **CI / Nightly / RC** | **GREEN** | Prior stack on `96462aa` |
+| **Release evidence** | **Done** | `96462aa` + RC audit dry-run **go** |
+
+### RC push hold
+
+**Lifted** until CI on this commit completes.
+
+### Next priority (lane 4+5)
+
+**F7 consensus tail** — `min_input_count` enforcement at `verify_transaction`.
+
+---
+
 ## Session — 2026-07-07 PM (revisions — B-11 doc accuracy + gate sync)
 
 | Gate | Status | Notes |
@@ -112,8 +130,8 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#28889931523`; CI `#28885223488` GREEN | — | B2 Merkle-path gossip (lane 4) |
-| **2** RC ops | Release evidence `96462aa` + RC audit **go** | — | Human sign-off packet |
+| **1** RC core | Nightly `#28889931523`; CI `#28885223488` GREEN | — | Monitor CI on B2 commit |
+| **2** RC ops | Release evidence refresh (post-B2 CI) | — | Human sign-off packet |
 | **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---
@@ -122,9 +140,9 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **4** Protocol | B-11 complete (MFEO + proptests + genesis) | — | B2 Merkle-path chunk gossip |
+| **4** Protocol | B2 ChunkV2 Merkle-path gossip (this commit) | — | F7 `min_input_count` tail |
 | **5** Privacy | B7 dandelion rehearsal; B9 view tags | — | B8 Tor transport (research) |
-| **6** Permanence | B-11 complete; B-05 soak PASS | — | B2 with lane 4 |
+| **6** Permanence | B2 with lane 4 (this commit) | — | B3 replication accounting |
 
 ---
 

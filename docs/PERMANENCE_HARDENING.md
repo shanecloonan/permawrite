@@ -26,7 +26,7 @@ catalogued in [`PROBLEMS.md`](./PROBLEMS.md) and
 
 ---
 
-## Part A — Shipped (M5.49 + M7.12, commit `890a56c`; M2.5.61, commit `1603e43`; B-11 phase 1, commits `3511346` / `9f0a0aa` / `0fee187`)
+## Part A — Shipped (M5.49 + M7.12, commit `890a56c`; M2.5.61, commit `1603e43`; B-11 phase 1; **B2 ChunkV2**, this commit)
 
 The through-line of this batch: **every hop of a payload's life — anchoring,
 gossip, disk, re-broadcast — must be checkable against the on-chain
@@ -432,6 +432,41 @@ are the upgrade path if amount privacy matters.
 - Reject without `MFEO` when `require_endowment_opening = 1`.
 - `public_devnet_manifest` — genesis spec asserts `require_endowment_opening: 1`.
 
+### A7. Merkle-path-carrying chunk gossip (B2, this commit)
+
+**Status:** shipped (`mfn-net`, `mfn-node`, `mfn-storage`, `mfn-storage-operator`).
+
+#### The attack this closes
+
+[`ChunkV1`](../mfn-net/src/chunk_v1.rs) gossip could only length-gate multi-chunk
+commitments at inbox time (§A2). Wrong-content-right-length bytes for an anchored
+multi-chunk commitment were accepted into `chunk-inbox/` and only caught at
+fan-out Merkle re-derivation (§A3) — wasting disk and mesh bandwidth, and
+first-write-wins could block honest bytes until repair.
+
+#### What changed
+
+1. **`ChunkV2` wire** — tag `0x12` (distinct from `ChunkV1` `0x10` and
+   `TxStemV1` `0x11`): `commit_hash ‖ chunk_index ‖ merkle_proof_wire ‖ chunk_bytes`
+   ([`chunk_v2.rs`](../mfn-net/src/chunk_v2.rs)).
+2. **Canonical proof wire** — [`encode_merkle_proof_wire`](../mfn-storage/src/spora.rs)
+   / `decode_merkle_proof_wire` shared with SPoRA proof encoding.
+3. **Gossip gate** — `validate_gossip_chunk_v2` verifies Merkle inclusion against
+   `data_root` before any disk write ([`p2p_chunk_inbox.rs`](../mfn-node/src/p2p_chunk_inbox.rs)).
+4. **Fan-out / catch-up** — complete verified inboxes fan out via `send_chunk_v2`
+   with per-chunk proofs ([`p2p_chunk_fanout.rs`](../mfn-node/src/p2p_chunk_fanout.rs),
+   [`p2p_fanout.rs`](../mfn-node/src/p2p_fanout.rs)).
+5. **Operator push** — `mfn-storage-operator` chunk push uses `ChunkV2` only
+   ([`chunk_push.rs`](../mfn-storage-operator/src/chunk_push.rs)).
+6. **Compatibility** — inbound `ChunkV1` still accepted; outbound replication
+   prefers `ChunkV2` when proofs are available.
+
+#### Test coverage
+
+- `chunk_v2` round-trip / reject missing body (`mfn-net`).
+- `validate_v2_*` + `on_chunk_v2_validates_merkle_proofs_*` (`mfn-node`).
+- `wallet_artifact_chunks_matches_commitment_layout` includes proof wire (`mfn-storage-operator`).
+
 ### Related shipped work (other lanes, same doctrine)
 
 - **F5-PM10** (`b260033`) — `mfnd archive-export` / `archive-verify`
@@ -471,31 +506,11 @@ proptests mixing valid/forged proofs.
 
 **Effort:** high. **Risk:** high (consensus + wire).
 
-### B2. Merkle-path-carrying chunk gossip — full per-chunk verification
+### B2. Merkle-path-carrying chunk gossip — **SHIPPED** (see [§A7](#a7-merkle-path-carrying-chunk-gossip-b2-this-commit))
 
-**Problem.** A2 verifies single-chunk commitments outright but can only
-length-gate the chunks of multi-chunk commitments at gossip time, because a
-[`ChunkV1`](../mfn-net/src/chunk_v1.rs) frame carries raw bytes with **no
-Merkle path**. Wrong-content-right-length bytes for an anchored multi-chunk
-commitment are accepted into the inbox and only caught at fan-out/assembly
-(A3). That wastes disk and retransmission on junk, and a first-write-wins
-inbox seeded with junk blocks the honest bytes until the wrong-length repair
-path or manual cleanup intervenes.
-
-**Plan.** Add a `ChunkV2` gossip frame:
-`tag 0x11 ‖ commit_hash ‖ chunk_index ‖ varint(path_len) ‖ [sibling ‖ side]* ‖ chunk_bytes`,
-reusing the exact `MerkleProof` encoding from
-[`encode_storage_proof`](../mfn-storage/src/spora.rs). `on_chunk_v2` verifies
-`verify_merkle_proof(chunk_hash(bytes), path, index, data_root)` before the
-inbox write — at which point **every** stored chunk is individually proven
-and the A2 first-write-wins rule becomes airtight (junk can never occupy a
-slot). Keep accepting `ChunkV1` for one release for mesh compatibility;
-senders can always produce the path because fan-out already loads the
-complete verified set (A3) and can rebuild the tree. Cost: ~`32·log₂(n)`
-bytes per chunk frame (320 bytes at a million chunks) — negligible against a
-256 KiB body. Pure `mfn-net`/`mfn-node` change, no consensus impact.
-
-**Effort:** moderate. **Risk:** low–medium (P2P compatibility window).
+**Status:** shipped. Multi-chunk inbox writes now require Merkle inclusion proofs
+on the `ChunkV2` (`0x12`) path; `ChunkV1` remains accepted inbound for mesh
+compatibility. Fan-out and operator chunk push emit `ChunkV2` exclusively.
 
 ### B3. Replication accounting — make `replication` mean something at audit time — **consensus**
 

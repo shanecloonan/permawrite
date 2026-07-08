@@ -7,6 +7,7 @@
 use std::io::{Read, Write};
 
 use crate::chunk_v1::CHUNK_V1_TAG;
+use crate::chunk_v2::CHUNK_V2_TAG;
 use crate::frame::{
     is_tx_gossip_tag, read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError,
     TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
@@ -251,8 +252,8 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
             BLOCKS_V1_TAG => {
                 return BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode);
             }
-            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | 0x06 | TX_STEM_V1_TAG | 0x07 | 0x08
-            | 0x0b => continue,
+            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | CHUNK_V2_TAG | 0x06 | TX_STEM_V1_TAG
+            | 0x07 | 0x08 | 0x0b => continue,
             tag => {
                 return Err(BlockSyncRecvError::Decode(
                     BlockSyncDecodeError::UnknownTag(tag),
@@ -456,7 +457,9 @@ pub fn serve_post_handshake_v1(
                     let _ = h.on_vote_v1(&payload[1..]);
                 }
             }
-            tag if matches!(tag, 0x07 | 0x08 | CHUNK_V1_TAG) || is_tx_gossip_tag(tag) => {
+            tag if matches!(tag, 0x07 | 0x08 | CHUNK_V1_TAG | CHUNK_V2_TAG)
+                || is_tx_gossip_tag(tag) =>
+            {
                 recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
                 // Keep the duplex session alive for later producer fan-out (**M7.5**).
             }
@@ -492,6 +495,16 @@ fn recv_gossip_v1_from_first<R: Read>(
                 let chunk = crate::chunk_v1::ChunkV1::decode_payload(payload)?;
                 let _ =
                     handler.on_chunk_v1(&chunk.commit_hash, chunk.chunk_index, &chunk.chunk_bytes);
+                stats.chunk_frames = stats.chunk_frames.saturating_add(1);
+            }
+            CHUNK_V2_TAG => {
+                let chunk = crate::chunk_v2::ChunkV2::decode_payload(payload)?;
+                let _ = handler.on_chunk_v2(
+                    &chunk.commit_hash,
+                    chunk.chunk_index,
+                    &chunk.chunk_bytes,
+                    &chunk.merkle_proof_wire,
+                );
                 stats.chunk_frames = stats.chunk_frames.saturating_add(1);
             }
             0x08 => {

@@ -11,7 +11,7 @@ use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
     push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply,
-    send_block_v1, send_chunk_v1, send_gossip_end_v1, send_proposal_v1, send_vote_v1,
+    send_block_v1, send_chunk_v2, send_gossip_end_v1, send_proposal_v1, send_vote_v1,
     spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1,
     FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook,
     TipSnapshot,
@@ -150,11 +150,13 @@ impl P2pPeerSet {
                 let local = peer_set.local_tip();
                 let data_root = peer_set.data_root.clone();
                 for (commit_hash, commit) in commits {
-                    let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
-                        &data_root,
-                        &commit_hash,
-                        &commit,
-                    ) else {
+                    let Some(chunks) =
+                        crate::p2p_chunk_fanout::load_complete_inbox_chunks_v2_wire(
+                            &data_root,
+                            &commit_hash,
+                            &commit,
+                        )
+                    else {
                         continue;
                     };
                     let commit_hex = hex::encode(commit_hash);
@@ -212,7 +214,7 @@ impl P2pPeerSet {
             return;
         }
         for (commit_hash, commit) in commits {
-            let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
+            let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks_v2_wire(
                 &self.data_root,
                 commit_hash,
                 commit,
@@ -222,8 +224,8 @@ impl P2pPeerSet {
             let commit_hex = hex::encode(commit_hash);
             let n = chunks.len();
             let mut ok = true;
-            for (index, bytes) in &chunks {
-                if let Err(e) = send_chunk_v1(stream, commit_hash, *index, bytes) {
+            for (index, bytes, proof_wire) in &chunks {
+                if let Err(e) = send_chunk_v2(stream, commit_hash, *index, proof_wire, bytes) {
                     eprintln!(
                         "mfnd_p2p_chunk_catchup_stream_abort peer={peer} commit={commit_hex} chunks={n} {e}"
                     );
@@ -616,11 +618,13 @@ impl P2pPeerSet {
                 let local = peer_set.local_tip();
                 let data_root = peer_set.data_root.clone();
                 for (commit_hash, commit) in commits {
-                    let Some(chunks) = crate::p2p_chunk_fanout::load_complete_inbox_chunks(
-                        &data_root,
-                        &commit_hash,
-                        &commit,
-                    ) else {
+                    let Some(chunks) =
+                        crate::p2p_chunk_fanout::load_complete_inbox_chunks_v2_wire(
+                            &data_root,
+                            &commit_hash,
+                            &commit,
+                        )
+                    else {
                         continue;
                     };
                     let commit_hex = hex::encode(commit_hash);
@@ -676,11 +680,11 @@ impl P2pPeerSet {
         &self,
         peer: &str,
         commit_hash: &[u8; 32],
-        chunks: &[(u32, Vec<u8>)],
+        chunks: &[(u32, Vec<u8>, Vec<u8>)],
     ) -> bool {
         self.send_on_session(peer, |sock| {
-            for (index, bytes) in chunks {
-                send_chunk_v1(sock, commit_hash, *index, bytes)?;
+            for (index, bytes, proof_wire) in chunks {
+                send_chunk_v2(sock, commit_hash, *index, proof_wire, bytes)?;
             }
             send_gossip_end_v1(sock)?;
             Ok(())

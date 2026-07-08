@@ -7,6 +7,11 @@ use mfn_consensus::{storage_commitment_hash, Block};
 use mfn_storage::StorageCommitment;
 use mfn_store::{chunk_inbox_complete, read_chunk_inbox};
 
+/// One verified inbox chunk: `(index, bytes)`.
+type InboxChunkEntry = (u32, Vec<u8>);
+/// B2 fan-out piece: `(index, bytes, merkle_proof_wire)`.
+type InboxChunkV2Entry = (u32, Vec<u8>, Vec<u8>);
+
 /// Storage commitments newly anchored by `block` (not present in `known_before`).
 pub fn new_storage_commits_in_block(
     block: &Block,
@@ -33,7 +38,15 @@ pub(crate) fn load_complete_inbox_chunks(
     data_root: &Path,
     commit_hash: &[u8; 32],
     commit: &StorageCommitment,
-) -> Option<Vec<(u32, Vec<u8>)>> {
+) -> Option<Vec<InboxChunkEntry>> {
+    load_complete_inbox_chunks_with_tree(data_root, commit_hash, commit).map(|(chunks, _)| chunks)
+}
+
+pub(crate) fn load_complete_inbox_chunks_with_tree(
+    data_root: &Path,
+    commit_hash: &[u8; 32],
+    commit: &StorageCommitment,
+) -> Option<(Vec<InboxChunkEntry>, mfn_crypto::merkle::MerkleTree)> {
     let commit_hex = hex::encode(commit_hash);
     if !chunk_inbox_complete(data_root, &commit_hex, commit.num_chunks).ok()? {
         return None;
@@ -58,7 +71,23 @@ pub(crate) fn load_complete_inbox_chunks(
         eprintln!("mfnd_p2p_chunk_fanout_skip commit={commit_hex} data_root_mismatch=1");
         return None;
     }
-    Some(chunks)
+    Some((chunks, tree))
+}
+
+/// Load verified inbox chunks with per-chunk Merkle proof wire for **B2** fan-out.
+pub(crate) fn load_complete_inbox_chunks_v2_wire(
+    data_root: &Path,
+    commit_hash: &[u8; 32],
+    commit: &StorageCommitment,
+) -> Option<Vec<InboxChunkV2Entry>> {
+    let (chunks, tree) = load_complete_inbox_chunks_with_tree(data_root, commit_hash, commit)?;
+    let mut out = Vec::with_capacity(chunks.len());
+    for (index, bytes) in chunks {
+        let proof = mfn_crypto::merkle::merkle_proof(&tree, index as usize).ok()?;
+        let proof_wire = mfn_storage::encode_merkle_proof_wire(&proof);
+        out.push((index, bytes, proof_wire));
+    }
+    Some(out)
 }
 
 #[cfg(test)]
