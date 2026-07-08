@@ -1999,6 +1999,7 @@ mod tests {
             txs,
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
             bond_ops: Vec::new(),
         }
     }

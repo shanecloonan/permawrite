@@ -936,6 +936,7 @@ mod tests {
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
             bond_ops: Vec::new(),
+            storage_operator_ops: Vec::new(),
         }
     }
 

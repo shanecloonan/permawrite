@@ -382,6 +382,7 @@ fn append_solo_blocks_without_checkpoint(data_dir: &Path, spec: &Path, blocks: u
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         };
         let block = produce_solo_block(&chain, &producer, &secrets, chain.state().params, inputs)
             .expect("produce solo block");

@@ -23,6 +23,8 @@ else
   export MFND_VRF_SEED_HEX=0303030303030303030303030303030303030303030303030303030303030303
   export MFND_BLS_SEED_HEX=8787878787878787878787878787878787878787878787878787878787878787
 fi
+: "${MFN_RPC_LISTEN:=127.0.0.1:0}"
+: "${MFN_P2P_LISTEN:=127.0.0.1:0}"
 exec "$MFND" --data-dir "$DATA_DIR" --genesis "$GENESIS" --store fs \
-  --rpc-listen "${MFN_RPC_LISTEN:-127.0.0.1:0}" --p2p-listen "${MFN_P2P_LISTEN:-127.0.0.1:0}" \
+  --rpc-listen "$MFN_RPC_LISTEN" --p2p-listen "$MFN_P2P_LISTEN" \
   --p2p-dial "$HUB_P2P" --slot-duration-ms "$SLOT_MS" serve --committee-vote

@@ -110,6 +110,8 @@ pub struct EndowmentParams {
     /// When non-zero (requires `operator_salted_challenges`), storage proofs
     /// must come from payout keys registered in `ChainState::storage_operators`.
     pub require_registered_operators: u8,
+    /// Minimum escrow bond for storage-operator registration when non-zero.
+    pub min_storage_operator_bond: u64,
 }
 
 /// Canonical defaults.
@@ -124,6 +126,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     require_endowment_opening: 0,
     operator_salted_challenges: 0,
     require_registered_operators: 0,
+    min_storage_operator_bond: 0,
 };
 
 /* ----------------------------------------------------------------------- *

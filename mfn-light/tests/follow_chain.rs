@@ -97,6 +97,7 @@ fn produce_block(
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block")
 }
@@ -585,6 +586,7 @@ fn produce_block_with_ops(
         bond_ops,
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block")
 }
@@ -846,6 +848,7 @@ fn light_chain_rejects_invalid_bond_op_signature_via_evolution_failed() {
         bond_ops: vec![bad_op],
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
 
     let state = full.state();

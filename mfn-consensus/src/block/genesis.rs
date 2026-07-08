@@ -76,6 +76,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
         bond_ops: Vec::new(),
+        storage_operator_ops: Vec::new(),
     }
 }
 

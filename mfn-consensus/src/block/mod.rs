@@ -57,7 +57,9 @@ mod wire;
 #[cfg(feature = "bls")]
 pub use apply::{apply_block, ApplyOutcome};
 #[cfg(feature = "bls")]
-pub use builder::{build_unsealed_header, seal_block};
+pub use builder::{
+    build_unsealed_header, build_unsealed_header_storage_ops, seal_block, seal_block_storage_ops,
+};
 pub use error::BlockError;
 pub use genesis::{apply_genesis, build_genesis, GenesisConfig, GenesisOutput};
 pub use header::{

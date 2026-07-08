@@ -74,12 +74,16 @@ pub mod extra_codec;
 pub mod header_verify;
 pub mod slashing;
 pub mod storage;
+pub mod storage_operator_wire;
 pub mod transaction;
 #[cfg(feature = "bls")]
 pub mod validator_evolution;
 
 #[cfg(feature = "bls")]
-pub use block::{apply_block, build_unsealed_header, seal_block, ApplyOutcome};
+pub use block::{
+    apply_block, build_unsealed_header, build_unsealed_header_storage_ops, seal_block,
+    seal_block_storage_ops, ApplyOutcome,
+};
 pub use block::{
     apply_genesis, block_header_bytes, block_id, build_genesis, decode_block, decode_block_body,
     decode_block_header, encode_block, encode_block_body, header_signing_bytes,
@@ -157,6 +161,13 @@ pub use slashing::{
 pub use storage::{
     decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,
     StorageCommitment,
+};
+pub use storage_operator_wire::{
+    apply_storage_operator_ops, bond_section_merkle_root, decode_storage_operator_op,
+    encode_storage_operator_op, register_signing_bytes as storage_operator_register_signing_bytes,
+    register_signing_hash as storage_operator_register_signing_hash, storage_operator_op_leaf_hash,
+    verify_register_sig as verify_storage_operator_register_sig, StorageOperatorOp,
+    StorageOperatorOpError, StorageOperatorWireError, STORAGE_OP_REGISTER,
 };
 pub use transaction::{
     decode_transaction, encode_transaction, sign_transaction, tx_id, tx_preimage,

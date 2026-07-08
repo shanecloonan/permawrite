@@ -103,6 +103,7 @@ fn produce_and_apply(
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block =
         produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block");
@@ -193,6 +194,7 @@ fn checkpoint_round_trip_after_three_real_blocks_advances_in_lockstep() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block_4 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     let id_orig = chain.apply(&block_4).expect("orig advance");

@@ -294,7 +294,15 @@ mod tests {
         assert_ne!(t0, t1);
 
         let bob = stealth_gen();
-        assert_ne!(t0, indexed_view_tag(&r_point, 0, &bob.view_priv));
+        let mut bob_tag = indexed_view_tag(&r_point, 0, &bob.view_priv);
+        // u8 view tags collide ~1/256 across random recipients; resample bob.
+        let mut bump = 0u8;
+        while bob_tag == t0 && bump < 32 {
+            bump = bump.wrapping_add(1);
+            let alt = stealth_wallet_from_seed(&[bump; 32]);
+            bob_tag = indexed_view_tag(&r_point, 0, &alt.view_priv);
+        }
+        assert_ne!(t0, bob_tag);
     }
 
     #[test]

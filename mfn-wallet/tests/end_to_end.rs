@@ -148,6 +148,7 @@ fn wallet_round_trip_through_full_chain_and_light_chain() {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         };
         let block =
             produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
@@ -206,6 +207,7 @@ fn wallet_round_trip_through_full_chain_and_light_chain() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block4 =
         produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce block 4");
@@ -277,6 +279,7 @@ fn wallet_rejects_transfer_when_below_balance() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block).expect("apply");
@@ -352,6 +355,7 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         };
         let block =
             produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
@@ -426,6 +430,7 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block4 =
         produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce block 4");
@@ -511,6 +516,7 @@ fn wallet_storage_upload_rejects_insufficient_funds_before_signing() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block).expect("apply");
@@ -574,6 +580,7 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block).expect("apply");
@@ -657,6 +664,7 @@ fn publish_claim_tx_round_trip_through_chain() {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         };
         let block =
             produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
@@ -697,6 +705,7 @@ fn publish_claim_tx_round_trip_through_chain() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block4 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
     chain.apply(&block4).expect("chain applies claim block");

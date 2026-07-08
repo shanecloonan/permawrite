@@ -20,9 +20,7 @@ pub(crate) use mfn_storage::{
     StorageCommitment, StorageProof, StorageProofCheck, DEFAULT_ENDOWMENT_PARAMS,
 };
 
-pub(crate) use crate::bond_wire::{
-    bond_merkle_root, decode_bond_op, encode_bond_op, BondOp, BondWireError,
-};
+pub(crate) use crate::bond_wire::{decode_bond_op, encode_bond_op, BondOp, BondWireError};
 pub(crate) use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 pub(crate) use crate::claims::{
     authorship_claim_key, check_claim_key_unique, check_claim_storage_binding, claim_to_record,
@@ -38,6 +36,9 @@ pub(crate) use crate::emission::{
 };
 pub(crate) use crate::slashing::{
     decode_evidence, encode_evidence, EvidenceCheck, SlashDecodeError, SlashEvidence,
+};
+pub(crate) use crate::storage_operator_wire::{
+    apply_storage_operator_ops, bond_section_merkle_root, StorageOperatorOp,
 };
 pub(crate) use crate::transaction::{
     encode_transaction, read_transaction, tx_id, verify_transaction, TransactionWire, TxDecodeError,

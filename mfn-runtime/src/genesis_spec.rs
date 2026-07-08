@@ -175,6 +175,7 @@ struct EndowmentSection {
     require_endowment_opening: Option<u8>,
     operator_salted_challenges: Option<u8>,
     require_registered_operators: Option<u8>,
+    min_storage_operator_bond: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -266,6 +267,9 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
         require_registered_operators: e
             .require_registered_operators
             .unwrap_or(base.require_registered_operators),
+        min_storage_operator_bond: e
+            .min_storage_operator_bond
+            .unwrap_or(base.min_storage_operator_bond),
     }
 }
 

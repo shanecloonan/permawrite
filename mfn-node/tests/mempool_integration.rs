@@ -140,6 +140,7 @@ fn wallet_to_mempool_to_producer_to_chain_round_trip() {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         };
         let block =
             produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
@@ -203,6 +204,7 @@ fn wallet_to_mempool_to_producer_to_chain_round_trip() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block4 =
         produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce block 4");
@@ -272,6 +274,7 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block1 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block1).expect("apply");
@@ -305,6 +308,7 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block2 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block2).expect("apply block 2");
@@ -355,6 +359,7 @@ fn mempool_admit_after_chain_advanced_still_works() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block1 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block1).expect("apply");
@@ -384,6 +389,7 @@ fn mempool_admit_after_chain_advanced_still_works() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block2 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("produce");
     chain.apply(&block2).expect("apply");
@@ -548,6 +554,7 @@ fn storage_tx_through_full_mempool_producer_chain_pipeline() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block = produce_solo_block(&chain, &validator, &secrets, consensus_params(), inputs)
         .expect("produce");

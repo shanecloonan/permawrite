@@ -104,6 +104,7 @@ fn three_validators_proposal_vote_seal_in_process() {
         bond_ops: vec![],
         slashings: vec![],
         storage_proofs: vec![],
+        storage_operator_ops: vec![],
     };
 
     let (params, proposal) = {
@@ -278,6 +279,7 @@ fn competing_proposals_at_same_height_converge_on_pick_winner() {
         bond_ops: vec![],
         slashings: vec![],
         storage_proofs: vec![],
+        storage_operator_ops: vec![],
     };
 
     let (params, p0, p1) = {

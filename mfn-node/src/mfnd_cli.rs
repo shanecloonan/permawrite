@@ -306,6 +306,7 @@ fn run_solo_step(
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs,
+            storage_operator_ops: Vec::new(),
         };
         let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
             .map_err(|e| format!("produce_solo_block: {e}"))?;

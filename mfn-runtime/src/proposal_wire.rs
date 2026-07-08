@@ -39,7 +39,13 @@ pub enum ProposalWireError {
 /// Encode a [`BlockProposal`] for P2P `ProposalV1` (`0x0c`).
 #[must_use]
 pub fn encode_block_proposal(p: &BlockProposal) -> Vec<u8> {
-    let body = encode_block_body(&p.txs, &p.bond_ops, &p.slashings, &p.storage_proofs);
+    let body = encode_block_body(
+        &p.txs,
+        &p.bond_ops,
+        &p.slashings,
+        &p.storage_proofs,
+        &p.storage_operator_ops,
+    );
     let mut w = Writer::new();
     w.push(PROPOSAL_MAGIC);
     w.u8(PROPOSAL_VERSION);
@@ -120,6 +126,7 @@ pub fn decode_block_proposal(bytes: &[u8]) -> Result<BlockProposal, ProposalWire
         bond_ops: body.bond_ops,
         slashings: body.slashings,
         storage_proofs: body.storage_proofs,
+        storage_operator_ops: body.storage_operator_ops,
     })
 }
 
@@ -221,6 +228,7 @@ mod tests {
             bond_ops: vec![],
             slashings: vec![],
             storage_proofs: vec![],
+            storage_operator_ops: vec![],
         }
     }
 

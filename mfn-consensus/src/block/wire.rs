@@ -40,6 +40,7 @@ fn encode_block_body_parts(
     bond_ops: &[BondOp],
     slashings: &[SlashEvidence],
     storage_proofs: &[StorageProof],
+    storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
 ) {
     w.varint(txs.len() as u64);
     for tx in txs {
@@ -57,18 +58,32 @@ fn encode_block_body_parts(
     for p in storage_proofs {
         w.blob(&encode_storage_proof(p));
     }
+    w.varint(storage_operator_ops.len() as u64);
+    for op in storage_operator_ops {
+        w.blob(&crate::storage_operator_wire::encode_storage_operator_op(
+            op,
+        ));
+    }
 }
 
-/// Canonical body bytes (txs, bond ops, slashings, storage proofs) without a header.
+/// Canonical body bytes (txs, bond ops, slashings, storage proofs, storage-operator ops) without a header.
 #[must_use]
 pub fn encode_block_body(
     txs: &[TransactionWire],
     bond_ops: &[BondOp],
     slashings: &[SlashEvidence],
     storage_proofs: &[StorageProof],
+    storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
 ) -> Vec<u8> {
     let mut w = Writer::new();
-    encode_block_body_parts(&mut w, txs, bond_ops, slashings, storage_proofs);
+    encode_block_body_parts(
+        &mut w,
+        txs,
+        bond_ops,
+        slashings,
+        storage_proofs,
+        storage_operator_ops,
+    );
     w.into_bytes()
 }
 
@@ -83,13 +98,21 @@ pub struct BlockBody {
     pub slashings: Vec<SlashEvidence>,
     /// SPoRA storage proofs.
     pub storage_proofs: Vec<StorageProof>,
+    /// Storage-operator registration ops (B3 phase 3b).
+    pub storage_operator_ops: Vec<crate::storage_operator_wire::StorageOperatorOp>,
 }
 
 /// Encode a full block (header bytes + canonical body section).
 #[must_use]
 pub fn encode_block(b: &Block) -> Vec<u8> {
     let mut out = block_header_bytes(&b.header);
-    let body = encode_block_body(&b.txs, &b.bond_ops, &b.slashings, &b.storage_proofs);
+    let body = encode_block_body(
+        &b.txs,
+        &b.bond_ops,
+        &b.slashings,
+        &b.storage_proofs,
+        &b.storage_operator_ops,
+    );
     out.extend_from_slice(&body);
     out
 }
@@ -149,6 +172,15 @@ pub enum BlockDecodeError {
         #[source]
         source: mfn_storage::SporaError,
     },
+    /// A specific storage-operator op in the body failed to decode.
+    #[error("storage_operator_ops[{index}]: {source}")]
+    StorageOperatorOp {
+        /// Index of the offending op in `block.storage_operator_ops`.
+        index: usize,
+        /// Underlying storage-operator-op-decoder error.
+        #[source]
+        source: crate::storage_operator_wire::StorageOperatorWireError,
+    },
     /// Bytes remained in the buffer after a full block had been parsed.
     /// Blocks are self-delimiting, so a non-empty tail always indicates
     /// caller-side framing confusion or corruption.
@@ -204,6 +236,7 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         slashings: body.slashings,
         storage_proofs: body.storage_proofs,
         bond_ops: body.bond_ops,
+        storage_operator_ops: body.storage_operator_ops,
     })
 }
 
@@ -275,6 +308,22 @@ pub fn decode_block_body(bytes: &[u8]) -> Result<BlockBody, BlockDecodeError> {
         storage_proofs.push(pf);
     }
 
+    let mut storage_operator_ops: Vec<crate::storage_operator_wire::StorageOperatorOp> = Vec::new();
+    if !r.end() {
+        let n_so_raw = r.varint()?;
+        let n_so: usize =
+            usize::try_from(n_so_raw).map_err(|_| BlockDecodeError::CountTooLarge {
+                field: "storage_operator_ops",
+                got: n_so_raw,
+            })?;
+        for index in 0..n_so {
+            let op_bytes = r.blob()?;
+            let op = crate::storage_operator_wire::decode_storage_operator_op(op_bytes)
+                .map_err(|source| BlockDecodeError::StorageOperatorOp { index, source })?;
+            storage_operator_ops.push(op);
+        }
+    }
+
     if !r.end() {
         return Err(BlockDecodeError::TrailingBytes {
             remaining: r.remaining(),
@@ -286,6 +335,7 @@ pub fn decode_block_body(bytes: &[u8]) -> Result<BlockBody, BlockDecodeError> {
         bond_ops,
         slashings,
         storage_proofs,
+        storage_operator_ops,
     })
 }
 

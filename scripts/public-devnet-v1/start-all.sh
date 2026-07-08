@@ -74,12 +74,15 @@ rm -rf "$REPO_ROOT/$DATA_ROOT"
 echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
 vps_export_binds hub
-bash "$SCRIPT_DIR/start-hub.sh" >"$LOG_DIR/v0.log" 2>&1 &
+: >"$LOG_DIR/v0.log"
+bash "$SCRIPT_DIR/start-hub.sh" >>"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!
 echo "HUB_PID=$HUB_PID" >"$PORTS_FILE"
 HUB_P2P=""
 HUB_RPC=""
 HUB_POLL_MAX="$MFN_POLL_HUB_MAX"
+# First poll after 1s — avoids $! / log-redirect races on fast GHA runners.
+sleep 1
 for hub_poll_i in $(seq 1 "$HUB_POLL_MAX"); do
   if ! kill -0 "$HUB_PID" 2>/dev/null; then
     echo "start-all: hub process $HUB_PID exited before P2P listen; tail $LOG_DIR/v0.log:" >&2

@@ -113,7 +113,7 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         errors.push(BlockError::TxRootMismatch);
     }
 
-    let expected_bond_root = bond_merkle_root(&block.bond_ops);
+    let expected_bond_root = bond_section_merkle_root(&block.bond_ops, &block.storage_operator_ops);
     if expected_bond_root != block.header.bond_root {
         errors.push(BlockError::BondRootMismatch);
     }
@@ -864,6 +864,20 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
         Err(crate::validator_evolution::BondOpError { index, message }) => {
             errors.push(BlockError::BondOpRejected { index, message });
+        }
+    }
+
+    match apply_storage_operator_ops(
+        block.header.height,
+        &next.endowment_params,
+        &mut next.storage_operators,
+        &block.storage_operator_ops,
+    ) {
+        Ok(burn) => {
+            next.treasury = next.treasury.saturating_add(burn);
+        }
+        Err(crate::storage_operator_wire::StorageOperatorOpError { index, message }) => {
+            errors.push(BlockError::StorageOperatorOpRejected { index, message });
         }
     }
 

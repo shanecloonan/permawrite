@@ -37,10 +37,10 @@
 //! directly.
 
 use mfn_consensus::{
-    build_unsealed_header, cast_vote, encode_finality_proof, finalize, header_signing_hash,
-    seal_block, try_produce_slot, Block, BlockHeader, BondOp, ConsensusError, ConsensusParams,
-    FinalityProof, ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator,
-    ValidatorSecrets,
+    build_unsealed_header_storage_ops, cast_vote, encode_finality_proof, finalize,
+    header_signing_hash, seal_block_storage_ops, try_produce_slot, Block, BlockHeader, BondOp,
+    ConsensusError, ConsensusParams, FinalityProof, ProducerProof, SlashEvidence, SlotContext,
+    TransactionWire, Validator, ValidatorSecrets,
 };
 use mfn_storage::StorageProof;
 
@@ -77,6 +77,8 @@ pub struct BlockInputs {
     pub slashings: Vec<SlashEvidence>,
     /// Storage proofs (SPoRA) to include this block.
     pub storage_proofs: Vec<StorageProof>,
+    /// Storage-operator registration ops (B3 phase 3b).
+    pub storage_operator_ops: Vec<mfn_consensus::StorageOperatorOp>,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -112,6 +114,8 @@ pub struct BlockProposal {
     pub slashings: Vec<SlashEvidence>,
     /// See `txs`.
     pub storage_proofs: Vec<StorageProof>,
+    /// Storage-operator registration ops.
+    pub storage_operator_ops: Vec<mfn_consensus::StorageOperatorOp>,
 }
 
 /* ----------------------------------------------------------------------- *
@@ -181,12 +185,13 @@ pub fn build_proposal(
     params: ConsensusParams,
     inputs: BlockInputs,
 ) -> Result<BlockProposal, ProducerError> {
-    let unsealed = build_unsealed_header(
+    let unsealed = build_unsealed_header_storage_ops(
         state,
         &inputs.txs,
         &inputs.bond_ops,
         &inputs.slashings,
         &inputs.storage_proofs,
+        &inputs.storage_operator_ops,
         inputs.slot,
         inputs.timestamp,
     );
@@ -220,6 +225,7 @@ pub fn build_proposal(
         bond_ops: inputs.bond_ops,
         slashings: inputs.slashings,
         storage_proofs: inputs.storage_proofs,
+        storage_operator_ops: inputs.storage_operator_ops,
     })
 }
 
@@ -290,13 +296,14 @@ pub fn seal_proposal(
         finality: agg,
         signing_stake,
     };
-    Ok(seal_block(
+    Ok(seal_block_storage_ops(
         proposal.unsealed_header,
         proposal.txs,
         proposal.bond_ops,
         encode_finality_proof(&fin),
         proposal.slashings,
         proposal.storage_proofs,
+        proposal.storage_operator_ops,
     ))
 }
 
@@ -417,6 +424,7 @@ mod tests {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         }
     }
 

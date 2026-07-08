@@ -96,6 +96,7 @@ fn produce_block(
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block")
 }

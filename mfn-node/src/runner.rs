@@ -237,6 +237,7 @@ impl ProductionEngine {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs,
+            storage_operator_ops: Vec::new(),
         })
     }
 

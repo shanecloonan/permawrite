@@ -1020,6 +1020,108 @@ fn b3_registered_two_operators_same_block_accepted() {
     }
 }
 
+fn test_storage_operator_register_op(
+    spend_scalar: u64,
+    view_scalar: u64,
+    bond: u64,
+) -> StorageOperatorOp {
+    use mfn_crypto::point::generator_g;
+    use mfn_crypto::schnorr::{schnorr_sign_with, SchnorrKeypair};
+    let view = generator_g() * Scalar::from(view_scalar);
+    let spend = generator_g() * Scalar::from(spend_scalar);
+    let kp = SchnorrKeypair {
+        priv_key: Scalar::from(spend_scalar),
+        pub_key: spend,
+    };
+    let msg = storage_operator_register_signing_hash(bond, &view, &spend);
+    let sig = schnorr_sign_with(&msg, &kp, &mut rand_core::OsRng);
+    StorageOperatorOp::Register {
+        bond_amount: bond,
+        operator_view_pub: view,
+        operator_spend_pub: spend,
+        sig,
+    }
+}
+
+#[test]
+fn b3_storage_operator_register_wire_accepted() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b3_storage(&built);
+    let reg = test_storage_operator_register_op(2, 1, 0);
+    let expected_id = match &reg {
+        StorageOperatorOp::Register {
+            operator_view_pub,
+            operator_spend_pub,
+            ..
+        } => mfn_storage::operator_identity_from_payout(operator_view_pub, operator_spend_pub),
+    };
+    let unsealed = build_unsealed_header_storage_ops(
+        &state0,
+        &[],
+        &[],
+        &[],
+        &[],
+        std::slice::from_ref(&reg),
+        1_000,
+        1_000,
+    );
+    let block = seal_block_storage_ops(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![reg],
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert!(state.storage_operators.contains_key(&expected_id));
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+#[test]
+fn b3_storage_operator_register_duplicate_rejected() {
+    let state0 = genesis_state();
+    let op = test_storage_operator_register_op(3, 5, 0);
+    let unsealed = build_unsealed_header_storage_ops(
+        &state0,
+        &[],
+        &[],
+        &[],
+        &[],
+        &[op.clone(), op],
+        1_000,
+        1_000,
+    );
+    let block = seal_block_storage_ops(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![
+            test_storage_operator_register_op(3, 5, 0),
+            test_storage_operator_register_op(3, 5, 0),
+        ],
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageOperatorOpRejected { .. })),
+                "expected StorageOperatorOpRejected, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate register must reject"),
+    }
+}
+
 #[test]
 fn storage_proof_for_unknown_commit_rejected() {
     let state0 = empty_genesis_with_endowment(DEFAULT_ENDOWMENT_PARAMS);
@@ -2606,6 +2708,7 @@ fn sample_empty_block() -> Block {
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
         bond_ops: Vec::new(),
+        storage_operator_ops: Vec::new(),
     }
 }
 
@@ -2621,6 +2724,7 @@ fn block_codec_round_trip_empty_body() {
     assert!(b2.slashings.is_empty());
     assert!(b2.storage_proofs.is_empty());
     assert!(b2.bond_ops.is_empty());
+    assert!(b2.storage_operator_ops.is_empty());
     // Re-encoding must yield identical bytes (deterministic).
     assert_eq!(encode_block(&b2), bytes);
 }
@@ -2637,10 +2741,10 @@ fn block_codec_starts_with_block_header_bytes() {
         block_bytes.starts_with(&header_bytes),
         "encode_block must prefix with block_header_bytes(header)"
     );
-    // And the four empty-body-section varints come right after.
+    // And the five empty-body-section varints come right after.
     let tail = &block_bytes[header_bytes.len()..];
-    // Four varints of value 0 = four 0x00 bytes.
-    assert_eq!(tail, &[0u8, 0u8, 0u8, 0u8]);
+    // Five varints of value 0 = five 0x00 bytes.
+    assert_eq!(tail, &[0u8, 0u8, 0u8, 0u8, 0u8]);
 }
 
 /// Adding a trailing byte after a valid encoding → `TrailingBytes`.
@@ -2656,13 +2760,23 @@ fn block_codec_rejects_trailing_bytes() {
     }
 }
 
-/// Sweeping every prefix of a valid encoding must fail to decode.
+/// Sweeping every prefix of a valid encoding must fail to decode,
+/// except a legacy body prefix that omits the optional
+/// `storage_operator_ops` section (backward-compatible decode).
 #[test]
 fn block_codec_rejects_truncation_at_every_prefix() {
     let b = sample_empty_block();
     let bytes = encode_block(&b);
+    let header_len = block_header_bytes(&b.header).len();
+    // Four mandatory body sections; fifth (`storage_operator_ops`) is optional on decode.
+    let legacy_body_end = header_len + 4;
     for cut in 0..bytes.len() {
         let err = decode_block(&bytes[..cut]);
+        if cut == legacy_body_end {
+            let decoded = err.expect("legacy body without storage_operator_ops section");
+            assert!(decoded.storage_operator_ops.is_empty());
+            continue;
+        }
         assert!(
             err.is_err(),
             "prefix of length {cut}/{} should be rejected",
@@ -2702,7 +2816,7 @@ fn block_codec_rejects_oversized_txs_count() {
 
 /// Golden vector for the empty-body encoding shape: a genesis-
 /// shaped block must serialise to exactly the 306 header bytes
-/// followed by four `0x00` count varints (= 310 bytes total).
+/// followed by five `0x00` count varints (= 311 bytes total).
 /// Pins the wire layout so any unintentional codec change
 /// trips a hard failure.
 #[test]
@@ -2729,12 +2843,13 @@ fn block_codec_empty_body_golden_shape() {
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
         bond_ops: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let bytes = encode_block(&b);
-    // 306 (header) + 4 (four zero-length section varints) = 310.
-    assert_eq!(bytes.len(), 310);
-    // Last four bytes are the empty-section count varints.
-    assert_eq!(&bytes[306..], &[0u8, 0u8, 0u8, 0u8]);
+    // 306 (header) + 5 (five zero-length section varints) = 311.
+    assert_eq!(bytes.len(), 311);
+    // Last five bytes are the empty-section count varints.
+    assert_eq!(&bytes[306..], &[0u8, 0u8, 0u8, 0u8, 0u8]);
     // Round-trip pin.
     let b2 = decode_block(&bytes).expect("decode");
     assert_eq!(block_id(&b.header), block_id(&b2.header));

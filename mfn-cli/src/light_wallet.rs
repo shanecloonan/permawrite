@@ -251,6 +251,7 @@ fn sync_wallet_light_from_node(
                 slashings: Vec::new(),
                 bond_ops: Vec::new(),
                 storage_proofs: Vec::new(),
+                storage_operator_ops: Vec::new(),
             };
             wallet.ingest_block(&block);
 

@@ -57,6 +57,14 @@ pub enum BlockError {
         /// Human-readable reason.
         message: String,
     },
+    /// A storage-operator registration op failed validation.
+    #[error("storage_operator_ops[{index}]: {message}")]
+    StorageOperatorOpRejected {
+        /// Index in `block.storage_operator_ops`.
+        index: usize,
+        /// Human-readable reason.
+        message: String,
+    },
     /// Chain has a validator set but the header lacks a producer proof.
     #[error("missing producer proof")]
     MissingProducerProof,

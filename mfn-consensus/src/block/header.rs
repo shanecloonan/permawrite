@@ -82,6 +82,9 @@ pub struct Block {
     /// Validator bonding / rotation operations (M1). Verified against
     /// [`BlockHeader::bond_root`] before mutating the validator set.
     pub bond_ops: Vec<BondOp>,
+    /// Storage-operator registration ops (B3 phase 3b). Verified against
+    /// the same [`BlockHeader::bond_root`] after validator bond-op leaves.
+    pub storage_operator_ops: Vec<crate::storage_operator_wire::StorageOperatorOp>,
 }
 
 /* ----------------------------------------------------------------------- *

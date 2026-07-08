@@ -101,6 +101,7 @@ fn produce_and_apply(
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block =
         produce_solo_block(chain, &producer, secrets, params, inputs).expect("produce_solo_block");
@@ -189,6 +190,7 @@ fn replaying_a_block_is_rejected_state_preserved() {
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
+        storage_operator_ops: Vec::new(),
     };
     let block = produce_solo_block(&chain, &producer, &secrets, params, inputs)
         .expect("produce_solo_block");

@@ -547,17 +547,20 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
 
 **Plan (incremental — bonding + proptests next).**
 
-1. **Operator registry binding (phase 3 — shipped, genesis off).** Optionally
+1. **Operator registry binding (phase 3a — shipped, genesis off).** Optionally
    gated by `EndowmentParams.require_registered_operators` (requires B3
    `operator_salted_challenges`). Chain state holds
    `storage_operators: BTreeMap<[u8;32], StorageOperatorEntry>` (payout keys,
    registration height, `bond_amount`). Checkpoint **v6**. When the flag is
    set, `apply_block` rejects proofs whose
    `operator_identity_from_payout` is missing from the map
-   (`StorageProofUnregisteredOperator`). Registration for tests is in-memory
-   today; a signed `StorageOperatorRegister` wire op + bond escrow is the
-   next bonding step ([`DECENTRALIZATION.md`](./DECENTRALIZATION.md) / B5).
-2. **M5 proptests** — `prop_b3_two_operator_proof_chain_treasury` shipped
+   (`StorageProofUnregisteredOperator`).
+2. **Operator register wire (phase 3b — shipped).** [`StorageOperatorOp::Register`](../mfn-consensus/src/storage_operator_wire.rs)
+   with Schnorr authorization under the payout spend key; bond escrow credits
+   treasury; leaves extend `bond_root` via [`bond_section_merkle_root`](../mfn-consensus/src/storage_operator_wire.rs).
+   Block body section is backward-compatible on decode (optional tail).
+   `min_storage_operator_bond` in endowment params (checkpoint **v7**).
+3. **M5 proptests** — `prop_b3_two_operator_proof_chain_treasury` shipped
    (`apply_block_proptest.rs`, **M5.41**); extend with duplicate-operator reject +
    replication-cap fuzz.
 3. **Proactive repair + staleness** (B4) once replication is audited on-chain.

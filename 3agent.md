@@ -7,11 +7,48 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B3 M5.41 `3de427b` | **CI #28934551469** (matrix tests) | Nightly after green |
-| **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on green head |
-| **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
-| **4+6** Protocol | B3 treasury `88457df`, M5.41 `3de427b` | **B3 phase 3a** (this push) | `StorageOperatorRegister` bond wire (3b) |
+| **1** RC core | B3 3a `99754b8` GREEN | **Monitor** local `ci-check.ps1` on 3b | Nightly re-dispatch + `start_mesh_fail` |
+| **2** RC ops | Evidence `1b6caba` draft | **Await** 3b CI green | Refresh evidence on 3b head |
+| **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
+| **4+6** Protocol | B3 phase 3a `99754b8` | **B3 phase 3b** — local CI running | Genesis operator seeding (3c) |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B3 phase 3b — CI gate + push)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3b** | **In progress** — local CI | `StorageOperatorOp::Register`; Schnorr spend-key auth; `bond_section_merkle_root`; checkpoint **v7**; block wire 5th section |
+| **Codec tests** | **Done** | `block_codec_*` updated for 311-byte empty block; legacy decode at `header+4` |
+| **B3 phase 3c** | **Next** | Genesis spec operator seeding + devnet enable |
+| **Nightly #28940474074** | **FAIL** | `start_mesh_fail` (~1s) — lane 1 follow-up after push |
+
+**Lane 4+6 — Done:** codec fix **Doing:** `ci-check.ps1` **Next:** commit + push + 3c
+
+---
+
+## Session — 2026-07-08 (B3 phase 3b — StorageOperatorOp register wire)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3b** | **Done** — this push | `StorageOperatorOp::Register`; Schnorr spend-key auth; `bond_section_merkle_root`; checkpoint **v7** |
+| **B3 tests** | **Done** | `b3_storage_operator_register_wire_accepted` + duplicate reject |
+| **B3 phase 3c** | **Next** | Genesis spec operator seeding + devnet enable |
+
+**Lane 4+6 — Done:** B3 phase 3b **Doing:** CI + push **Next:** genesis seeding (3c)
+
+---
+
+## Session — 2026-07-08 (B3 phase 3b — StorageOperatorRegister wire + bond_root)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3b** | **This push** | `StorageOperatorOp::Register` Schnorr wire; `bond_section_merkle_root`; `apply_storage_operator_ops`; checkpoint **v7** (`min_storage_operator_bond`); block wire section; 2× `block_apply` register tests |
+| **Nightly #28940474074** | **FAIL** | `start_mesh_fail` (~1s) — hub exit before v0.log; investigate lane 1 (not F7 fund-wallet) |
+| **Release evidence** | **Done** — `1b6caba` + RC audit **go** | Refresh again after 3b CI green |
+
+**Lane 4+6 — Done:** 3a `99754b8` **Doing:** 3b push + CI **Next:** genesis operator seeding (3c)
 
 ---
 
@@ -19,8 +56,8 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B3 phase 3a** | **Done** — this push | `require_registered_operators`; `storage_operators` map; checkpoint **v6**; `StorageProofUnregisteredOperator`; 2× `block_apply` registry tests |
-| **CI #28934551469** | **In progress** | `3de427b` — clippy/scripts GREEN; matrix tests running |
+| **B3 phase 3a** | **Done** — `99754b8` | `require_registered_operators`; `storage_operators` map; checkpoint **v6**; `StorageProofUnregisteredOperator`; 2× `block_apply` registry tests |
+| **CI #28935445273** | **GREEN** | Full matrix ~1h30m on `99754b8` |
 | **B3 phase 3b** | **Next** | Signed `StorageOperatorRegister` + bond escrow wire |
 
 **Lane 4+6 — Done:** B3 phase 3a **Doing:** push + CI **Next:** operator register bond op (3b)

@@ -155,6 +155,13 @@ pub const STORAGE_OPERATOR_ID: Domain = b"MFBN-1/storage-operator-id";
 /// [`CHUNK_HASH`] so legacy single-replica challenges cannot collide.
 pub const SPORA_OPERATOR_CHALLENGE: Domain = b"MFBN-1/spora-operator-challenge";
 
+/// Merkle leaf for a storage-operator bonding op in the block `bond_root`
+/// section (**B3 phase 3b**).
+pub const STORAGE_OPERATOR_OP_LEAF: Domain = b"MFBN-1/storage-operator-op-leaf";
+
+/// Schnorr authorization payload for storage-operator registration.
+pub const STORAGE_OPERATOR_REGISTER_SIG: Domain = b"MFBN-1/storage-operator-register-sig";
+
 /// Merkle leaf for an authorship claim record under the block header's
 /// `claims_root` (M2.2.x).
 pub const CLAIM_LEAF: Domain = b"MFBN-1/claim-leaf";

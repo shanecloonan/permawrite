@@ -1505,6 +1505,7 @@ mod tests {
             bond_ops: Vec::new(),
             slashings: Vec::new(),
             storage_proofs: Vec::new(),
+            storage_operator_ops: Vec::new(),
         }
     }
 

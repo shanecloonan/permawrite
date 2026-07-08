@@ -128,7 +128,7 @@ pub fn verify_block_body(block: &Block) -> Result<(), BodyVerifyError> {
         });
     }
 
-    let bond_root = bond_merkle_root(&block.bond_ops);
+    let bond_root = bond_section_merkle_root(&block.bond_ops, &block.storage_operator_ops);
     if bond_root != block.header.bond_root {
         return Err(BodyVerifyError::BondRootMismatch {
             expected: block.header.bond_root,
