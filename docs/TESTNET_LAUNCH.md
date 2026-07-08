@@ -55,11 +55,15 @@ Editing genesis after TL-8 starts a **new chain** (`genesis_id` mismatch). Lane 
 
 ```bash
 bash scripts/public-devnet-v1/launch-status.sh
+bash scripts/public-devnet-v1/vps-launch-ceremony.sh --plan-only   # full VPS path
 ```
 
 ```powershell
 powershell -File scripts/public-devnet-v1/launch-status.ps1
+powershell -File scripts/public-devnet-v1/vps-launch-ceremony.ps1 -PlanOnly
 ```
+
+Provision a host first: [`VPS_PROVISION.md`](./VPS_PROVISION.md).
 
 Prints TL phase hints, `seed_nodes` posture, VPS evidence presence, release binary presence, and CI watcher summary when `gh` is available.
 

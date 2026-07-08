@@ -56,6 +56,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` — see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
+| VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |

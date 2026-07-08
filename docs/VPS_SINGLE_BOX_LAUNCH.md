@@ -32,12 +32,10 @@ Peers dial **P2P addresses only**. Never publish RPC URLs in `seed_nodes` or the
 
 ## Provision the VPS
 
-1. Create a Linux VPS with a static public IPv4 (or documented IPv6).
-2. Install build deps: `build-essential`, `pkg-config`, `libssl-dev`, `git`, `curl`.
-3. Clone this repository at the **exact release commit** from TL-3 evidence.
-4. Build release binaries:
+See [`VPS_PROVISION.md`](./VPS_PROVISION.md) for provider-agnostic steps. Summary:
 
 ```bash
+git clone https://github.com/shanecloonan/permawrite.git && cd permawrite
 cargo build -p mfn-node --release --bin mfnd
 cargo build -p mfn-cli --release --bin mfn-cli
 ```
