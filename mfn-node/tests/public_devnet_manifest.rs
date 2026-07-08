@@ -61,6 +61,20 @@ fn public_devnet_v1_requires_endowment_opening() {
 }
 
 #[test]
+fn public_devnet_v1_b5_slash_params() {
+    let spec = spec_path("public_devnet_v1.json");
+    let cfg = genesis_config_from_json_path(&spec).expect("spec");
+    let ep = &cfg.endowment_params;
+    assert_eq!(
+        ep.operator_audit_missed_cap, 48,
+        "30s slots × 48 misses ≈ 24 min before slash on public devnet"
+    );
+    assert_eq!(ep.operator_slash_bps, 250, "2.5% bond slash per cap breach");
+    assert_eq!(ep.operator_salted_challenges, 1);
+    assert_eq!(ep.require_registered_operators, 1);
+}
+
+#[test]
 fn public_devnet_validator0_needs_advancing_slots_for_liveness() {
     let spec = spec_path("public_devnet_v1.json");
     let cfg = ChainConfig::new(genesis_config_from_json_path(&spec).expect("spec"));

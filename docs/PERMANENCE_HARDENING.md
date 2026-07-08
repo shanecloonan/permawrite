@@ -598,7 +598,7 @@ Observable log: `mfnd_p2p_repair_fanout commit=… stale_slots=…`.
 
 **Problem.** SPoRA is carrot-only without a stick. See [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md).
 
-**Shipped.** Phase **5a** (`e81d33e`): inert slash params, checkpoint **v8**. Phase **5b** (`643a224`): retained bond + miss stats, checkpoint **v9**. Phase **5c** (this commit): auto-slash to treasury + zero-bond deregister in `apply_block`.
+**Shipped.** Phase **5a** (`e81d33e`): inert slash params, checkpoint **v8**. Phase **5b** (`643a224`): retained bond + miss stats, checkpoint **v9**. Phase **5c** (`8bdb4ab`): auto-slash to treasury + zero-bond deregister in `apply_block`.
 
 **Next.** Phase **5d**: public devnet enable + M5 proptests.
 

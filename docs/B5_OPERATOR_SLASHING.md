@@ -12,8 +12,8 @@ SPoRA today is carrot-only: prove → get paid; vanish → forego future reward.
 | --- | --- | --- |
 | **5a** | Inert `EndowmentParams` slash knobs + checkpoint **v8** + validation | **Shipped** (`e81d33e`) |
 | **5b** | Retained slashable bond + per-operator miss stats + checkpoint **v9** | **Shipped** (`643a224`) |
-| **5c** | Bond slash execution → treasury; operator deregistration on zero bond | **Shipped** (this commit) |
-| **5d** | Public devnet enable + M5 proptests (honest / missing / equivocating operators) | Planned |
+| **5c** | Bond slash execution → treasury; operator deregistration on zero bond | **Shipped** (`8bdb4ab`) |
+| **5d** | Public devnet enable + M5.51 slash proptests | **Shipped** (this commit) |
 
 ## Protocol parameters (5a — inert until 5b)
 
@@ -87,8 +87,9 @@ Audit evolution runs in `apply_block` after storage proofs and operator ops, usi
 
 - Unit: slash math (bond floor, treasury credit, bps edge cases).
 - `block_apply`: cap−1 misses no slash; cap-th miss slashes; proof resets counter.
-- M5 proptest: mixed honest/missing operators, treasury identity over multi-block chains.
-- Nightly: no behavior change until public devnet enables non-zero cap.
+- M5.51: `prop_b5_miss_streak_slash_treasury_identity` + `prop_b5_proof_resets_miss_streak_before_slash` (high-slot stale challenge; outside main `proptest!` block due to macro size).
+- Public devnet: `operator_audit_missed_cap=48`, `operator_slash_bps=250`; `genesis_id` unchanged.
+- Nightly: slash inactive until storage stale + consecutive misses.
 
 ## See also
 

@@ -885,6 +885,15 @@ Permawrite separates **on-chain anchors** (private `StorageCommitment` in a bloc
 
 Bond at genesis is `0` (`min_storage_operator_bond: 0`); post-genesis registration uses `StorageOperatorOp::Register` + bond escrow. `genesis_id` is unchanged from pre-B3 public devnet.
 
+**Public devnet B5 slash (phase 5d).** `public_devnet_v1.json` sets non-zero audit slash knobs (slash is **inactive** until storage is stale past `proof_reward_window_slots` and operators miss consecutive operator-salted challenges):
+
+| Field | Value | Meaning (30s slots) |
+|-------|-------|---------------------|
+| `operator_audit_missed_cap` | `48` | ~24 minutes of consecutive missed audits before slash |
+| `operator_slash_bps` | `250` | 2.5% of bonded stake forfeited to treasury per slash event |
+
+Operators should run `mfn-storage-operator prove` on a schedule; a valid operator-salted proof in a block resets the miss counter. Rehearsal operators with `bond_amount: 0` at genesis are not slashable until they register with bond post-genesis.
+
 **Proactive repair (B4).** Every `mfnd serve` node with P2P runs a background repair sweep when `MFND_REPAIR_THRESHOLD_SLOTS` is non-zero (default `14400` ≈ 2× anti-hoarding window). Stale on-chain storage (`current_slot − last_proven_slot` above threshold) with a **complete Merkle-verified** local `chunk-inbox/` is re-fan-out to peers. Tune with:
 
 | Env | Default | Meaning |

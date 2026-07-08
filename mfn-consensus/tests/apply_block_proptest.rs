@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**, **M5.41**, **M5.50**, **B-11**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**–**M5.50**, **M5.51**, **B-11**).
 //!
 //! CI runs a bounded case count; all deep chains are in default CI (**M5.36–M5.39**).
 
@@ -13,9 +13,9 @@ use mfn_consensus::{
     header_signing_hash, pick_winner, seal_block, sign_register, sign_transaction,
     storage_proof_coinbase_bonus, storage_proof_operator_settlements, try_produce_slot,
     ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams,
-    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
-    PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator,
-    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, GenesisStorageOperator, InputSpec,
+    OutputSpec, PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire,
+    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
     DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
@@ -24,8 +24,9 @@ use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::vrf::vrf_keygen_from_seed;
 use mfn_storage::{
     accrue_proof_reward, build_storage_commitment, build_storage_proof_operator_salted,
-    build_test_storage_proof, build_test_storage_proof_operator_salted, required_endowment,
-    storage_commitment_hash, test_operator_payout_keys_alt, AccrueArgs, BuiltCommitment,
+    build_test_storage_proof, build_test_storage_proof_operator_salted,
+    operator_identity_from_payout, required_endowment, storage_commitment_hash,
+    test_operator_payout_keys, test_operator_payout_keys_alt, AccrueArgs, BuiltCommitment,
     EndowmentParams, DEFAULT_CHUNK_SIZE, DEFAULT_ENDOWMENT_PARAMS, PPB,
 };
 use proptest::prelude::*;
@@ -67,6 +68,20 @@ const PROP_ENDOWMENT_B3: EndowmentParams = EndowmentParams {
     min_replication: 1,
     ..DEFAULT_ENDOWMENT_PARAMS
 };
+
+/// B5: operator audit miss + slash (test genesis only; cap=2, 10% slash).
+const PROP_ENDOWMENT_B5: EndowmentParams = EndowmentParams {
+    operator_salted_challenges: 1,
+    require_registered_operators: 1,
+    operator_audit_missed_cap: 2,
+    operator_slash_bps: 1_000,
+    proof_reward_window_slots: 100,
+    min_replication: 1,
+    real_yield_ppb: 40_000_000,
+    ..DEFAULT_ENDOWMENT_PARAMS
+};
+
+const PROP_B5_OPERATOR_BOND: u64 = 1_000_000;
 
 const PROP_STORAGE_ENDOWMENT_AMOUNT: u64 = 1_000;
 
@@ -225,6 +240,69 @@ fn genesis_with_b3_storage() -> StorageGenesis {
         built,
         payload,
     }
+}
+
+struct B5SlashGenesis {
+    state: ChainState,
+    built: BuiltCommitment,
+    payload: Vec<u8>,
+    operator_id: [u8; 32],
+}
+
+fn genesis_with_b5_slash_storage() -> B5SlashGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(&payload, 1_000, Some(256), 3, None).expect("commitment");
+    let (v0, s0) = test_operator_payout_keys();
+    let operator_id = operator_identity_from_payout(&v0, &s0);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![GenesisStorageOperator {
+            operator_view_pub: v0,
+            operator_spend_pub: s0,
+            bond_amount: PROP_B5_OPERATOR_BOND,
+        }],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: PROP_ENDOWMENT_B5,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    B5SlashGenesis {
+        state,
+        built,
+        payload,
+        operator_id,
+    }
+}
+
+fn treasury_after_b5_slash(treasury: u128, bond: u64, slash_bps: u32) -> (u128, u64) {
+    let forfeited = u128::from(bond) * u128::from(slash_bps.min(10_000)) / 10_000;
+    let new_bond = u128::from(bond).saturating_sub(forfeited);
+    (
+        treasury.saturating_add(forfeited),
+        u64::try_from(new_bond).unwrap_or(u64::MAX),
+    )
+}
+
+fn apply_b5_operator_proof_at(
+    built: &BuiltCommitment,
+    payload: &[u8],
+    st: &ChainState,
+    slot: u32,
+) -> ChainState {
+    let scratch = build_unsealed_header(st, &[], &[], &[], &[], slot, 1_000);
+    let proof = build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        slot,
+        payload,
+        &built.tree,
+    );
+    apply_with_storage_proofs_at_slot(st, slot, slot, vec![proof])
 }
 
 /// Mirrors `apply_block` treasury settlement for fee + storage-proof tranche.
@@ -1577,6 +1655,11 @@ fn apply_empty_at(st: &ChainState, height: u32, timestamp: u64) -> ChainState {
     }
 }
 
+/// Empty block at a high slot so B5 stale-storage audit challenges are active.
+fn apply_empty_at_audit_slot(st: &ChainState, slot: u32) -> ChainState {
+    apply_empty_at(st, slot, 1_000)
+}
+
 #[derive(Debug, Clone)]
 enum HeaderTamper {
     HeightOffset(u32),
@@ -2865,6 +2948,111 @@ proptest! {
         }
     }
 
+}
+
+/// B5: consecutive miss blocks slash bonded stake into treasury (**M5.51**).
+#[test]
+fn prop_b5_miss_streak_slash_treasury_identity() {
+    const AUDIT_SLOT_BASE: u32 = 10_000;
+    for extra_misses in 0u32..=1u32 {
+        let gen = genesis_with_b5_slash_storage();
+        let mut st = gen.state;
+        let mut model = 0u128;
+        let mut bond = PROP_B5_OPERATOR_BOND;
+        let slash_bps = PROP_ENDOWMENT_B5.operator_slash_bps;
+
+        for i in 0..(PROP_ENDOWMENT_B5.operator_audit_missed_cap - 1) {
+            let slot = AUDIT_SLOT_BASE + u32::from(i);
+            st = apply_empty_at_audit_slot(&st, slot);
+            assert_eq!(st.treasury, model);
+            assert_eq!(st.storage_operators[&gen.operator_id].bond_amount, bond);
+            assert_eq!(
+                st.storage_operator_stats[&gen.operator_id].consecutive_missed_audits,
+                i + 1,
+            );
+        }
+
+        let slash_slot =
+            AUDIT_SLOT_BASE + u32::from(PROP_ENDOWMENT_B5.operator_audit_missed_cap - 1);
+        st = apply_empty_at_audit_slot(&st, slash_slot);
+        (model, bond) = treasury_after_b5_slash(model, bond, slash_bps);
+        assert_eq!(st.treasury, model);
+        assert_eq!(st.storage_operators[&gen.operator_id].bond_amount, bond);
+        assert_eq!(
+            st.storage_operator_stats[&gen.operator_id].consecutive_missed_audits,
+            0
+        );
+
+        for j in 0..extra_misses {
+            let slot = slash_slot + 1 + j;
+            st = apply_empty_at_audit_slot(&st, slot);
+            assert_eq!(st.treasury, model);
+            assert_eq!(st.storage_operators[&gen.operator_id].bond_amount, bond);
+            assert_eq!(
+                st.storage_operator_stats[&gen.operator_id].consecutive_missed_audits,
+                u8::try_from(j + 1).expect("miss count"),
+            );
+        }
+    }
+}
+
+/// B5: a valid operator proof resets the miss streak before slash (**M5.51**).
+#[test]
+fn prop_b5_proof_resets_miss_streak_before_slash() {
+    const AUDIT_SLOT_BASE: u32 = 10_000;
+    let gen = genesis_with_b5_slash_storage();
+    let mut st = gen.state;
+    st = apply_empty_at_audit_slot(&st, AUDIT_SLOT_BASE);
+    assert_eq!(
+        st.storage_operator_stats[&gen.operator_id].consecutive_missed_audits,
+        1
+    );
+    st = apply_b5_operator_proof_at(&gen.built, &gen.payload, &st, AUDIT_SLOT_BASE + 1);
+    assert_eq!(
+        st.storage_operator_stats[&gen.operator_id].consecutive_missed_audits,
+        0
+    );
+    assert_eq!(st.treasury, 0);
+    assert_eq!(
+        st.storage_operators[&gen.operator_id].bond_amount,
+        PROP_B5_OPERATOR_BOND
+    );
+}
+
+/// B5: alternating prove / miss preserves treasury and bond invariants (**M5.51**).
+#[test]
+fn prop_b5_alternating_prove_and_miss_treasury() {
+    const AUDIT_SLOT_BASE: u32 = 10_000;
+    for n_steps in 1u32..=5u32 {
+        for prove_first in [false, true] {
+            let gen = genesis_with_b5_slash_storage();
+            let mut st = gen.state;
+            let mut slot = AUDIT_SLOT_BASE;
+
+            for step in 0..n_steps {
+                let prove = if step == 0 {
+                    prove_first
+                } else {
+                    step % 2 == 0
+                };
+                if prove {
+                    st = apply_b5_operator_proof_at(&gen.built, &gen.payload, &st, slot);
+                } else {
+                    st = apply_empty_at_audit_slot(&st, slot);
+                }
+                let miss = st
+                    .storage_operator_stats
+                    .get(&gen.operator_id)
+                    .map(|s| s.consecutive_missed_audits)
+                    .unwrap_or(0);
+                assert!(
+                    miss < PROP_ENDOWMENT_B5.operator_audit_missed_cap,
+                    "slash must reset miss streak"
+                );
+                slot = slot.saturating_add(1);
+            }
+        }
+    }
 }
 
 /// A privacy spend and SPoRA proof in the same block must still reject atomically

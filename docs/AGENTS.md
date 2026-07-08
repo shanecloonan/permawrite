@@ -213,7 +213,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B5 phase 5d** — M5 proptests + public devnet enable (lanes 4+6).
+- [x] **B5 phase 5d** — M5.51 proptests + public devnet slash params (`operator_audit_missed_cap=48`, `operator_slash_bps=250`).
 
 ### Handoff to lane 3
 
@@ -298,14 +298,13 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] B-06 — Nightly #63 all three jobs green (`28792429191` on `85e5870` stack; lane 1 RC gate closed).
 - [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip with lane 4.
 - [x] **B4** — proactive repair sweep with lane 4 (`89f3498`).
-
-### Doing
-
-- [ ] **B5 phase 5a** — [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md) design + griefing sign-off.
+- [x] **B5 phase 5a** — inert slash params + checkpoint v8 (`e81d33e`).
+- [x] **B5 phase 5b** — retained bond + miss stats + checkpoint v9 (`643a224`).
+- [x] **B5 phase 5c** — slash → treasury + zero-bond deregister (`8bdb4ab`; CI `#28979369780` GREEN).
 
 ### Next
 
-- [ ] **B5 phase 5b** — retained escrow register semantics (lane 4 implementation).
+- [x] **B5 phase 5d** — M5.51 proptests + public devnet slash params (with lane 4).
 
 ### Do not start
 

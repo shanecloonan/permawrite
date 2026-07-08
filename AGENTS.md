@@ -83,22 +83,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `8bdb4ab` (B5 phase 5c). **CI #28979369780** GREEN on `8bdb4ab` (~31m).
+**Head:** B5 phase 5d (this push). **CI #28979369780** GREEN. **Nightly #28980876807** GREEN on `8bdb4ab`.
 
-**Nightly #28968584904:** GREEN — M2.5.66 stack. **Nightly #28970179853:** GREEN — B4 stack (all three jobs).
-
-**Release evidence:** refresh on `8bdb4ab` after this board sync (lane 2).
+**Release evidence:** refresh on 5d head after CI green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly on B5 stack | **Done** — CI `#28979369780` GREEN | Nightly re-dispatch |
-| **2** | Release evidence refresh | **Doing** — `8bdb4ab` head | Human sign-off packet |
-| **3** | Nightly participant PASS | **Done** — `#28970179853` | Idle |
-| **4** | B5 operator slashing | **Done** — `8bdb4ab` (5a–5c) | B5 phase 5d proptests |
+| **1** | CI + Nightly on B5 stack | **Done** — `#28979369780`, `#28980876807` | CI on 5d push |
+| **2** | Release evidence refresh | **Doing** — after 5d CI | Human sign-off packet |
+| **3** | Nightly participant PASS | **Done** — `#28980876807` | Idle |
+| **4** | B5 operator slashing | **Done** — phases 5a–5d | B6 size buckets |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B5 with lane 4 | **Done** — `8bdb4ab` | B5 phase 5d devnet enable |
+| **6** | B5 with lane 4 | **Done** — complete | B6 with lane 4 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
@@ -133,6 +131,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B5 phase 5c** (`8bdb4ab`) - permanence (lanes 4+6): operator bond slash to treasury when `consecutive_missed_audits >= operator_audit_missed_cap`; zero-bond deregister; clippy fix for 5b CI `#28977215094`; full matrix CI `#28979369780` GREEN.
 - **F7 mfnd fanout tail** (`b70b3ec`) - RC core (lane 1): `mfnd_p2p_tx_fanout_reaches_third_hop_peer` expects `applied=2` after two-block F7 fixture; closes Nightly ignored-P2P job on `#28928716414`.
 - **F7 fund-wallet tail** (`dc22cb7`) - RC onboarding (lane 3): `fund-wallet` top-up sends until `owned_count >= 2`; closes rehearsal `input count 1` upload rejects on `#28928716414`.
 - **TL-3 release evidence** (lane 7) — `release-evidence-46677ad` + RC audit dry-run `go` on CI `#28924060054` (`e7d74f7`); TL-2 gate closed.
