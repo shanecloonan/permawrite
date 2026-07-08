@@ -67,6 +67,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.50 (`dbf6067`; code `6216aec`) - early P2P listen; POST_START timeout export; participant smoke ps1 parity.
 - [x] M2.5.51 (`0d9646a`) - start-all GHA hub_tip_wait uses MFN_POLL_HUB_MAX; observer catchup soft gate.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
+- [x] M2.5.66 — `vps_export_binds` set -e abort on loopback mesh; `vps-bind-lib-smoke.sh` in CI (this push).
 
 ### Done
 
@@ -82,6 +83,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Nightly #28889931523** all three green on B-11/B7 stack (`b1072e3`).
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
 - [x] Release evidence refresh on green CI (lane 2) — `release-evidence-96462aa` (this commit).
+- [ ] Nightly re-dispatch after M2.5.66 CI green (closes `#28961041302` start_mesh_fail).
 
 ### Do not start (other lanes)
 
@@ -197,6 +199,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B3 phase 3a** — operator registry in chain state + `require_registered_operators` gate (checkpoint v6; genesis off).
 - [x] **B3 phase 3b** — `StorageOperatorOp::Register` Schnorr wire + bond escrow (checkpoint v7 `min_storage_operator_bond`).
 - [x] **B3 phase 3c** — genesis spec `storage_operators` seeding + public devnet enable.
+- [x] **M5.50** — B3 duplicate-operator + replication-cap reject proptests (this push).
+
+### Next
+
+- [ ] **B4** — proactive replica repair sweep (`mfnd` staleness re-fan-out).
 
 ### Handoff to lane 3
 

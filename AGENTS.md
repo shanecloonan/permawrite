@@ -83,22 +83,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `664b9e7` (daemon stop sleep fix). **CI #28952620476:** ubuntu/windows **GREEN**; macos **cancelled** (90m timeout on `run_daemon` 3600s sleep).
+**Head:** `c9618f6` (B3 3c board sync) + **this push** (M2.5.66 mesh `set -e` + M5.50 B3 proptests). **CI #28961075305** GREEN on `c9618f6`.
 
-**Prior green:** `#28935445273` on B3 phase 3a (`99754b8`).
-
-**RC push hold:** lifted — monitor CI on `664b9e7`; Nightly after green.
+**Nightly #28962813486:** in progress on pre-M2.5.66 head (expect `start_mesh_fail`); re-dispatch after this push greens CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on `664b9e7` | **Monitor** | Nightly re-dispatch after green |
-| **2** | Release evidence refresh | **Doing** — post-664b9e7 head | RC audit + human sign-off packet |
-| **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | B3 phase 3b register wire | **Done** — `8b4e163` | Genesis operator seeding (3c) |
-| **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B3 phase 3b with lane 4 | **Done** — `8b4e163` | Operator bonding + 3c genesis |
+| **1** | M2.5.66 `vps_export_binds` set -e fix | **This push** | Nightly re-dispatch after green CI |
+| **2** | Release evidence refresh | **Doing** — await CI green | RC audit on head |
+| **3** | B7 Dandelion++ rehearsal smoke | **Done** — `0d28e4f` | Idle |
+| **4** | M5.50 B3 duplicate-operator proptest | **This push** | B4 proactive repair research |
+| **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
+| **6** | M5.50 with lane 4 | **This push** | B4 proactive repair research |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---

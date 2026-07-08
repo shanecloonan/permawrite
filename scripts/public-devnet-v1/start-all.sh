@@ -74,6 +74,8 @@ rm -rf "$REPO_ROOT/$DATA_ROOT"
 echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
 vps_export_binds hub
+export MFN_RPC_LISTEN="${MFN_RPC_LISTEN:-127.0.0.1:0}"
+export MFN_P2P_LISTEN="${MFN_P2P_LISTEN:-127.0.0.1:0}"
 : >"$LOG_DIR/v0.log"
 bash "$SCRIPT_DIR/start-hub.sh" >>"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!

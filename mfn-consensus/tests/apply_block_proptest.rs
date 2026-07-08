@@ -1,4 +1,4 @@
-//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**, **B-11**).
+//! Property-based fuzzing of [`apply_block`] (**M5.2**, **M5.2+**, **M5.4**, **M5.5**, **M5.6**, **M5.7**, **M5.8**, **M5.9**, **M5.10**, **M5.11**, **M5.21**, **M5.33**, **M5.35**, **M5.36**, **M5.37**, **M5.38**, **M5.39**, **M5.41**, **M5.50**, **B-11**).
 //!
 //! CI runs a bounded case count; all deep chains are in default CI (**M5.36–M5.39**).
 
@@ -1784,6 +1784,48 @@ proptest! {
         }
     }
 
+    /// B3: duplicate operator identity in one block must reject without state change (**M5.50**).
+    #[test]
+    fn prop_b3_duplicate_operator_rejects_after_prefix(prefix_len in 0u32..=6u32) {
+        let gen = genesis_with_b3_storage();
+        let mut st = gen.state;
+        for i in 0..prefix_len {
+            let h = next_height(&st);
+            st = apply_b3_two_operator_proofs_at(&gen.built, &gen.payload, &st, h);
+            let _ = i;
+        }
+        let before = snap(&st);
+        let h = next_height(&st);
+        let prev = *st.tip_id().expect("tip");
+        let proof = build_test_storage_proof_operator_salted(
+            &gen.built.commit,
+            &prev,
+            h,
+            &gen.payload,
+            &gen.built.tree,
+        );
+        let proofs = vec![proof.clone(), proof];
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, h, u64::from(h) * 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Err { errors, .. } => {
+                let dup = errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::DuplicateStorageProofOperator { .. }));
+                prop_assert!(dup, "errors: {errors:?}");
+                prop_assert_eq!(snap(&st), before);
+            }
+            ApplyOutcome::Ok { .. } => prop_assert!(false, "duplicate B3 operator must reject"),
+        }
+    }
+
     /// B3: two-operator blocks drain treasury as `2 × storage_proof_reward + Σ bonuses`
     /// (**M5.41**).
     #[test]
@@ -3353,6 +3395,95 @@ fn reject_forged_register_bond_op_without_state_change() {
             assert_eq!(snap(&st), before);
         }
         ApplyOutcome::Ok { .. } => panic!("forged register must reject"),
+    }
+}
+
+/// B3: reject duplicate operator proofs in one block (**M5.50**).
+#[test]
+fn reject_duplicate_b3_operator_proof_without_state_change() {
+    let gen = genesis_with_b3_storage();
+    let st = gen.state;
+    let before = snap(&st);
+    let h = next_height(&st);
+    let prev = *st.tip_id().expect("tip");
+    let proof = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    let proofs = vec![proof.clone(), proof];
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| { matches!(e, BlockError::DuplicateStorageProofOperator { .. }) }));
+            assert_eq!(snap(&st), before);
+        }
+        ApplyOutcome::Ok { .. } => panic!("duplicate B3 operator must reject"),
+    }
+}
+
+/// B3: reject proofs exceeding commitment `replication` cap (**M5.50**).
+#[test]
+fn reject_b3_replication_cap_exceeded_without_state_change() {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(&payload, 1_000, Some(256), 2, None).expect("commitment");
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: PROP_ENDOWMENT_B3,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    let st = apply_genesis(&g, &cfg).expect("genesis");
+    let before = snap(&st);
+    let h = next_height(&st);
+    let prev = *st.tip_id().expect("tip");
+    let p0 =
+        build_test_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree);
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let p1 =
+        build_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree, v1, s1)
+            .expect("proof");
+    let v2 = generator_g() * Scalar::from(7u64);
+    let s2 = generator_g() * Scalar::from(11u64);
+    let p2 =
+        build_storage_proof_operator_salted(&built.commit, &prev, h, &payload, &built.tree, v2, s2)
+            .expect("proof");
+    let proofs = vec![p0, p1, p2];
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(&st, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors
+                .iter()
+                .any(|e| { matches!(e, BlockError::StorageProofReplicationExceeded { .. }) }));
+            assert_eq!(snap(&st), before);
+        }
+        ApplyOutcome::Ok { .. } => panic!("replication cap exceeded must reject"),
     }
 }
 

@@ -5,22 +5,39 @@ set -euo pipefail
 vps_export_binds() {
   local role="$1"
   unset MFN_RPC_LISTEN MFN_P2P_LISTEN
+  # Use if/fi — `[[ -n ... ]] && export` aborts callers with `set -e` when VPS binds are unset.
   case "$role" in
     hub)
-      [[ -n "${MFN_RPC_LISTEN_HUB:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_HUB"
-      [[ -n "${MFN_P2P_LISTEN_HUB:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_HUB"
+      if [[ -n "${MFN_RPC_LISTEN_HUB:-}" ]]; then
+        export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_HUB"
+      fi
+      if [[ -n "${MFN_P2P_LISTEN_HUB:-}" ]]; then
+        export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_HUB"
+      fi
       ;;
     v1)
-      [[ -n "${MFN_RPC_LISTEN_V1:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V1"
-      [[ -n "${MFN_P2P_LISTEN_V1:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V1"
+      if [[ -n "${MFN_RPC_LISTEN_V1:-}" ]]; then
+        export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V1"
+      fi
+      if [[ -n "${MFN_P2P_LISTEN_V1:-}" ]]; then
+        export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V1"
+      fi
       ;;
     v2)
-      [[ -n "${MFN_RPC_LISTEN_V2:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V2"
-      [[ -n "${MFN_P2P_LISTEN_V2:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V2"
+      if [[ -n "${MFN_RPC_LISTEN_V2:-}" ]]; then
+        export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V2"
+      fi
+      if [[ -n "${MFN_P2P_LISTEN_V2:-}" ]]; then
+        export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V2"
+      fi
       ;;
     observer)
-      [[ -n "${MFN_RPC_LISTEN_OBSERVER:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_OBSERVER"
-      [[ -n "${MFN_P2P_LISTEN_OBSERVER:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_OBSERVER"
+      if [[ -n "${MFN_RPC_LISTEN_OBSERVER:-}" ]]; then
+        export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_OBSERVER"
+      fi
+      if [[ -n "${MFN_P2P_LISTEN_OBSERVER:-}" ]]; then
+        export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_OBSERVER"
+      fi
       ;;
   esac
 }

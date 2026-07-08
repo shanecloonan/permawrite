@@ -7,11 +7,36 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B3 3c `65aea81` pushed | **Monitor** CI on `f16a4f4` | Nightly re-dispatch |
-| **2** RC ops | Evidence `1b6caba` draft | **Await** CI green on `65aea81` | Release evidence refresh |
+| **1** RC core | CI `#28961075305` GREEN | **Push** M2.5.66 mesh `set -e` fix | Nightly re-dispatch after green CI |
+| **2** RC ops | Evidence `1b6caba` draft | **Await** this push CI | Release evidence refresh |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
-| **4+6** Protocol | B3 phase 3c `65aea81` | **Monitor** CI on 3c push | M5 duplicate-operator proptest |
+| **4+6** Protocol | B3 3c `65aea81` | **Push** M5.50 duplicate-operator proptest | B4 repair sweep research |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (M2.5.66 mesh set -e + B3 M5.50 proptests)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **M2.5.66** | **This push** | `vps_export_binds` if/fi; hub bind defaults; `vps-bind-lib-smoke.sh` in CI |
+| **M5.50** | **This push** | `prop_b3_duplicate_operator_rejects_after_prefix` + replication-cap reject tests |
+| **CI #28961075305** | **GREEN** | B3 3c board sync `c9618f6` |
+| **Nightly #28962813486** | **In progress** | Pre-M2.5.66 head — expect `start_mesh_fail`; re-dispatch after push |
+
+**Lane 1 — Done:** root-cause **Doing:** push M2.5.66 **Next:** Nightly green  
+**Lane 4+6 — Done:** 3c `65aea81` **Doing:** M5.50 push **Next:** B4 repair sweep
+
+---
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Root cause** | **Found** | `[[ -n ... ]] && export` in `vps_export_binds` aborts `start-all` under `set -e` when VPS binds unset |
+| **Fix** | **This push** | `if/fi` exports + hub bind defaults in `start-all`; `vps-bind-lib-smoke.sh` |
+| **Nightly #28961041302** | **FAIL** | `start_mesh_fail` ~1s — no v0.log (exit before hub launch) |
+| **B3 phase 3c** | **Done** — `65aea81` | Genesis operator seeding + public devnet enable |
+
+**Lane 1 — Done:** root-cause **Doing:** CI + push **Next:** Nightly re-dispatch
 
 ---
 

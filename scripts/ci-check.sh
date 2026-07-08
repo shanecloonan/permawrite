@@ -67,6 +67,7 @@ export PERMAWRITE_RELEASE_SCHEMA_PYTHON="$schema_python"
 for script in scripts/*.sh scripts/public-devnet-v1/*.sh; do
   bash -n "$script"
 done
+bash scripts/public-devnet-v1/vps-bind-lib-smoke.sh
 http_plan="$(bash scripts/public-devnet-v1/recovery-walkthrough.sh --plan-only --rpc 127.0.0.1:18731 --wallet ./alice.json --commit ababab --peer 127.0.0.1:18780 --expected-sha256 cdcd --prove)"
 if [[ "$http_plan" != *"restore_mode=http"* || "$http_plan" != *"optional sha256 verify"* || "$http_plan" != *"only proves when --prove is set"* ]]; then
   printf '%s\n' "$http_plan" >&2

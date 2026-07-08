@@ -91,6 +91,8 @@ Get-ChildItem scripts -Filter *.sh -Recurse | ForEach-Object {
     bash -n $_.FullName
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
+bash scripts/public-devnet-v1/vps-bind-lib-smoke.sh
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $httpPlan = (powershell -NoProfile -File scripts/public-devnet-v1/recovery-walkthrough.ps1 -PlanOnly -Rpc 127.0.0.1:18731 -Wallet ./alice.json -CommitHash ababab -Peer 127.0.0.1:18780 -ExpectedSha256 cdcd -Prove) -join "`n"
 if ($httpPlan -notmatch "restore_mode=http" -or $httpPlan -notmatch "optional sha256 verify" -or $httpPlan -notmatch "only proves when -Prove is set") {
     $httpPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

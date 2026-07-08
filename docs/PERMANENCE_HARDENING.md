@@ -565,7 +565,10 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
    inserts `StorageOperatorEntry` at height 0 (no treasury burn). Public devnet
    enables B3 endowment flags with two deterministic operator seeds; rehearsal
    replica wallet restores from operator-0 seed.
-3. **Proactive repair + staleness** (B4) once replication is audited on-chain.
+4. **M5.50 proptests (shipped).** `prop_b3_duplicate_operator_rejects_after_prefix`
+   plus replication-cap reject tests in
+   [`apply_block_proptest.rs`](../mfn-consensus/tests/apply_block_proptest.rs).
+5. **Proactive repair + staleness** (B4) once replication is audited on-chain.
 
 Requires: emission/treasury settlement audit under multi-operator blocks, and
 heavy M5 proptesting (mixed honest/missing/equivocating operators). Sequence
