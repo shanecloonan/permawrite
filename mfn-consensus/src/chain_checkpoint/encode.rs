@@ -42,6 +42,10 @@ pub(crate) fn encode_endowment_params(
     if checkpoint_version >= 7 {
         w.u64(p.min_storage_operator_bond);
     }
+    if checkpoint_version >= 8 {
+        w.u8(p.operator_audit_missed_cap);
+        w.u32(p.operator_slash_bps);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {

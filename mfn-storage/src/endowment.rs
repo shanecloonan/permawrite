@@ -112,6 +112,13 @@ pub struct EndowmentParams {
     pub require_registered_operators: u8,
     /// Minimum escrow bond for storage-operator registration when non-zero.
     pub min_storage_operator_bond: u64,
+    /// Consecutive missed operator-salted SPoRA challenges before a bond slash
+    /// (B5). `0` disables slashing (default until B5b wires audit accounting).
+    pub operator_audit_missed_cap: u8,
+    /// Fraction of an operator's bonded stake slashed to treasury on audit
+    /// failure, in basis points (1 bps = 0.01%). Active only when
+    /// `operator_audit_missed_cap > 0` and `operator_salted_challenges > 0`.
+    pub operator_slash_bps: u32,
 }
 
 /// Canonical defaults.
@@ -127,6 +134,8 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     operator_salted_challenges: 0,
     require_registered_operators: 0,
     min_storage_operator_bond: 0,
+    operator_audit_missed_cap: 0,
+    operator_slash_bps: 0,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -177,6 +186,21 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
     }
     if p.require_registered_operators != 0 && p.operator_salted_challenges == 0 {
         return Err(EndowmentError::RegisteredOperatorsRequiresB3);
+    }
+    if p.operator_audit_missed_cap > 0 && p.operator_salted_challenges == 0 {
+        return Err(EndowmentError::OperatorSlashRequiresB3);
+    }
+    if p.operator_audit_missed_cap > 0
+        && (p.operator_slash_bps == 0 || p.operator_slash_bps > 10_000)
+    {
+        return Err(EndowmentError::InvalidOperatorSlashBps {
+            got: p.operator_slash_bps,
+        });
+    }
+    if p.operator_slash_bps > 10_000 {
+        return Err(EndowmentError::InvalidOperatorSlashBps {
+            got: p.operator_slash_bps,
+        });
     }
     Ok(())
 }
@@ -542,6 +566,15 @@ pub enum EndowmentError {
     /// `require_registered_operators` without `operator_salted_challenges`.
     #[error("require_registered_operators requires operator_salted_challenges")]
     RegisteredOperatorsRequiresB3,
+    /// `operator_audit_missed_cap` without `operator_salted_challenges`.
+    #[error("operator_audit_missed_cap requires operator_salted_challenges")]
+    OperatorSlashRequiresB3,
+    /// `operator_slash_bps` out of range (must be 1..=10000 when slashing is enabled).
+    #[error("operator_slash_bps must be 1..=10000 when slashing is enabled, got {got}")]
+    InvalidOperatorSlashBps {
+        /// Caller-supplied basis points.
+        got: u32,
+    },
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,
@@ -575,6 +608,38 @@ mod tests {
         let mut ok = p();
         ok.operator_salted_challenges = 1;
         ok.require_registered_operators = 1;
+        assert!(validate_endowment_params(&ok).is_ok());
+    }
+
+    #[test]
+    fn rejects_operator_slash_without_b3() {
+        let mut bad = p();
+        bad.operator_audit_missed_cap = 3;
+        bad.operator_slash_bps = 500;
+        assert!(matches!(
+            validate_endowment_params(&bad),
+            Err(EndowmentError::OperatorSlashRequiresB3)
+        ));
+    }
+
+    #[test]
+    fn rejects_operator_slash_bps_when_cap_enabled() {
+        let mut bad = p();
+        bad.operator_salted_challenges = 1;
+        bad.operator_audit_missed_cap = 3;
+        bad.operator_slash_bps = 0;
+        assert!(matches!(
+            validate_endowment_params(&bad),
+            Err(EndowmentError::InvalidOperatorSlashBps { got: 0 })
+        ));
+    }
+
+    #[test]
+    fn accepts_inert_b5_slash_params() {
+        let mut ok = p();
+        ok.operator_salted_challenges = 1;
+        ok.operator_audit_missed_cap = 8;
+        ok.operator_slash_bps = 250;
         assert!(validate_endowment_params(&ok).is_ok());
     }
 

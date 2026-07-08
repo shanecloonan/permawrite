@@ -12,7 +12,9 @@
     "require_endowment_opening": 1,
     "operator_salted_challenges": 1,
     "require_registered_operators": 1,
-    "min_storage_operator_bond": 0
+    "min_storage_operator_bond": 0,
+    "operator_audit_missed_cap": 0,
+    "operator_slash_bps": 0
   },
   "storage_operators": [
     {

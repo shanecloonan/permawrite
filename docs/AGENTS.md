@@ -206,7 +206,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B5** — operator bonding + slashing research (lane 6).
+- [x] **B5 phase 5a** — inert slash params + checkpoint v8 + [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md) (lane 6).
+- [ ] **B5 phase 5b** — retained bond collateral + per-operator miss stats (lanes 4+6).
 
 ### Handoff to lane 3
 
@@ -290,6 +291,15 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] B-05 — Linux soak PASS transcript archived (`28851202993` / `234f0a8`).
 - [x] B-06 — Nightly #63 all three jobs green (`28792429191` on `85e5870` stack; lane 1 RC gate closed).
 - [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip with lane 4.
+- [x] **B4** — proactive repair sweep with lane 4 (`89f3498`).
+
+### Doing
+
+- [ ] **B5 phase 5a** — [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md) design + griefing sign-off.
+
+### Next
+
+- [ ] **B5 phase 5b** — retained escrow register semantics (lane 4 implementation).
 
 ### Do not start
 

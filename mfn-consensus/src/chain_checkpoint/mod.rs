@@ -94,7 +94,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 7;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 8;
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -114,7 +114,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 7"
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 8"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.

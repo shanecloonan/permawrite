@@ -7,15 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Idle** | B-05 soak maintenance |
+| **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Doing** — CI on B5 push | Nightly re-dispatch |
 | **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Human sign-off packet |
 | **3** Onboarding | Nightly participant+observer PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B4 `89f3498`, full RC stack green | **Idle** | B5 slashing research |
+| **4+6** Protocol | B5 phase 5a (this push) | **Doing** — ci-check + push | B5 phase 5b retained bond + miss stats |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
 
-## Session — 2026-07-08 (B4 proactive repair sweep)
+## Session — 2026-07-08 (B5 phase 5a — inert slash params + checkpoint v8)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B5 phase 5a** | **This push** | `operator_audit_missed_cap` + `operator_slash_bps` in `EndowmentParams`; checkpoint **v8**; [`B5_OPERATOR_SLASHING.md`](docs/B5_OPERATOR_SLASHING.md) |
+| **CI** | **Pending** | Local `ci-check.ps1` before push |
+| **Nightly** | **Pending** | Re-dispatch after green CI |
+
+**Lane 4+6 — Done:** B4 `89f3498`, Nightly `#28970179853` **Doing:** B5 phase 5a push **Next:** B5 phase 5b retained bond + miss accounting  
+**Lane 1 — Done:** full RC stack green **Doing:** CI on B5 push **Next:** Nightly re-dispatch
 
 | Unit | Status | Notes |
 | --- | --- | --- |
@@ -23,15 +32,25 @@
 | **CI #28966851917** | **GREEN** | `0ede433` M2.5.66 + M5.50 (~28m) |
 | **CI #28968642140** | **GREEN** | `89f3498` B4 (~26m) |
 | **Nightly #28968584904** | **GREEN** | All 3 jobs on `0ede433` M2.5.66 stack (~7m) |
-| **Nightly #28970179853** | **In progress** | Auto-dispatch on B4 CI green |
+| **Nightly #28970179853** | **GREEN** | All 3 jobs on B4 stack (`89f3498` ancestor) |
 | **Release evidence** | **Done** | `release-evidence-1c633e7` + RC audit **go** |
-
-**Lane 4+6 — Done:** B4 `89f3498` **Doing:** — **Next:** B5 slashing research  
-**Lane 1 — Done:** Nightly `#28968584904`, CI `#28968642140` **Doing:** Nightly `#28970179853` **Next:** idle
 
 ---
 
-## Session — 2026-07-08 (M2.5.66 mesh set -e + B3 M5.50 proptests)
+## Session — 2026-07-08 (B5 operator slashing — phase 5a design)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B5 phase 5a** | **In progress** | `docs/B5_OPERATOR_SLASHING.md`: retained escrow, miss stats, checkpoint v8 sketch, griefing |
+| **Critical gap** | **Documented** | B3 register burns bond to treasury — 5b must change to slashable collateral |
+| **CI #28970409945** | **In progress** | `f804ac1` OPERATORS + board sync (docs-only) |
+
+**Lane 4+6 — Done:** B4 `89f3498` **Doing:** B5 phase 5a design **Next:** B5 phase 5b retained escrow  
+**Lane 1 — Done:** dual Nightly GREEN **Doing:** monitor CI `#28970409945` **Next:** idle
+
+---
+
+## Session — 2026-07-08 (B4 proactive repair sweep)
 
 | Unit | Status | Notes |
 | --- | --- | --- |

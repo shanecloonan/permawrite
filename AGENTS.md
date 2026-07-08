@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** `89f3498` (B4 repair sweep). **CI #28968642140** GREEN on `89f3498`.
+**Head:** `d06fdad` (docs Nightly GREEN). **B5 phase 5a** landing this push.
 
 **Nightly #28968584904:** GREEN — M2.5.66 stack. **Nightly #28970179853:** GREEN — B4 stack (all three jobs).
 
@@ -93,12 +93,12 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly on M2.5.66/B4 stack | **Done** — CI `#28968642140`, Nightly `#28968584904` | Monitor `#28970179853` |
-| **2** | Release evidence refresh | **Done** — `1c633e7` RC audit **go** | Human sign-off packet |
-| **3** | Nightly participant PASS | **Done** — `#28968584904` | Idle |
-| **4** | B4 proactive repair sweep | **Done** — `89f3498` | B5 operator slashing research |
+| **1** | CI + Nightly on B5 stack | **Doing** — local CI + push | Nightly re-dispatch after green |
+| **2** | Release evidence refresh | **Done** — `1c633e7` RC audit **go** | Refresh on B5 green head |
+| **3** | Nightly participant PASS | **Done** — `#28970179853` | Idle |
+| **4** | B5 phase 5a slash params | **In progress** — checkpoint v8 | B5 phase 5b retained bond |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B4 with lane 4 | **Done** — `89f3498` | B5 operator slashing research |
+| **6** | B5 with lane 4 | **In progress** — design doc + params | B5 phase 5b miss accounting |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---

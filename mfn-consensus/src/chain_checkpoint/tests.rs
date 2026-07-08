@@ -520,6 +520,24 @@ fn rejects_next_index_at_or_below_max_assigned() {
 }
 
 #[test]
+fn b5_endowment_slash_params_roundtrip() {
+    let mut s = fresh_state();
+    s.endowment_params = EndowmentParams {
+        operator_salted_challenges: 1,
+        operator_audit_missed_cap: 12,
+        operator_slash_bps: 500,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let cp = ChainCheckpoint {
+        genesis_id: [0xB5; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let restored = decode_chain_checkpoint(&bytes).expect("roundtrip");
+    assert_eq!(restored.state.endowment_params, cp.state.endowment_params);
+}
+
+#[test]
 fn rejects_trailing_bytes_after_tag() {
     let cp = ChainCheckpoint {
         genesis_id: [0u8; 32],

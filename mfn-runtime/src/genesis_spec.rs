@@ -217,6 +217,8 @@ struct EndowmentSection {
     operator_salted_challenges: Option<u8>,
     require_registered_operators: Option<u8>,
     min_storage_operator_bond: Option<u64>,
+    operator_audit_missed_cap: Option<u8>,
+    operator_slash_bps: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -320,6 +322,10 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
         min_storage_operator_bond: e
             .min_storage_operator_bond
             .unwrap_or(base.min_storage_operator_bond),
+        operator_audit_missed_cap: e
+            .operator_audit_missed_cap
+            .unwrap_or(base.operator_audit_missed_cap),
+        operator_slash_bps: e.operator_slash_bps.unwrap_or(base.operator_slash_bps),
     }
 }
 

@@ -594,23 +594,20 @@ Observable log: `mfnd_p2p_repair_fanout commit=… stale_slots=…`.
 
 **Effort:** low–moderate. **Risk:** low.
 
-### B5. Operator bonding + slashing for failed audits — **consensus**
+### B5. Operator bonding + slashing for failed audits — **design (phase 5a)**
 
 **Problem.** SPoRA is currently carrot-only: prove → get paid; vanish → the
 only loss is foregone reward. An operator who accepted endowment-funded
 rewards for a year and then deletes the data keeps everything earned. For
 permanence, absence needs a *stick*.
 
-**Plan.** Lane 6 owns the research
-([`AGENTS.md`](../AGENTS.md) lane registry). Sketch: operators register with
-a bonded stake (the `BondOp` machinery in
-[`mfn-consensus/src/bond_wire.rs`](../mfn-consensus/src/bond_wire.rs) and the
-existing bonding params are the substrate); commitments are assigned (or
-operators self-select into) replica slots (B3); missing `k` consecutive
-salted challenges for an assigned slot slashes a proportional bond fraction
-into the treasury (which funds repair incentives, closing the loop with B4).
-Needs careful griefing analysis — challenge availability must never depend on
-data a censoring producer can withhold.
+**Phase 5a (this commit).** Full design in [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md):
+retained slashable escrow (register stops burning bond), per-operator miss
+stats, auto-slash mirroring validator liveness, checkpoint **v8** params,
+griefing analysis, and phased rollout 5b–5f.
+
+**Critical finding:** B3 phase 3b burns `bond_amount` to treasury at register —
+B5 phase 5b must change semantics to retained collateral before slash bites.
 
 **Effort:** very high. **Risk:** high (consensus + economics + liveness).
 
@@ -661,7 +658,7 @@ become self-verifying for free once B2 lands.
 | Shipped | **A1** shape consensus gate, **A2** gossip authentication, **A3** fan-out root verification, **A4** doc honesty, **A5** CI harness fix |
 | Cheap wins | **B4** proactive repair, **B7** inbox quota |
 | High impact, moderate effort | **B1(1)** endowment opening reveal, **B2** Merkle-path gossip, **B6** size buckets |
-| High impact, high effort | **B1(2)** range-proof binding, **B3** replication accounting, **B5** bonding + slashing |
+| High impact, high effort | **B1(2)** range-proof binding, **B3** replication accounting (shipped), **B5** bonding + slashing ([design](./B5_OPERATOR_SLASHING.md)) |
 
 Natural next step: **B1 design 1** (close the decorative-endowment gap with
 a revealed opening behind a version gate), with **B2** as the parallel
