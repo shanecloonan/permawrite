@@ -83,21 +83,21 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** `3933cf0` … + mempool `e7d74f7`. **CI `#28924060054` GREEN** on `e7d74f7` (~48m matrix). TL-3 release evidence archived for `46677ad`.
+**F7 stack:** … + fund-wallet `dc22cb7` + fanout `b70b3ec`. **CI `#28924060054` GREEN** on `e7d74f7`. **CI `#28929315750` queued** on `b70b3ec`. Nightly `#28928716414` failed on pre-`dc22cb7` head (upload 1-input + fanout `applied=1`).
 
-**RC push hold:** cleared — lane 7 TL-4 VPS runbook next.
+**RC push hold:** monitor `#28929315750`; Nightly re-dispatch after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly dispatch on `46677ad` stack | **Idle** — CI `#28924060054` GREEN | Monitor Nightly auto-dispatch |
+| **1** | CI `#28929315750` on `b70b3ec` | **Monitor** — F7 Nightly closure stack | Nightly re-dispatch after green |
 | **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-4 single-VPS runbook | **Done** — `2f77eb4` | TL-5 VPS soak (provision host) |
+| **7** | TL-5 VPS internet soak tooling | **In progress** — `vps-internet-soak.sh` + preflight | Run soak on provisioned VPS |
 
 ---
 
@@ -131,6 +131,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **F7 mfnd fanout tail** (`b70b3ec`) - RC core (lane 1): `mfnd_p2p_tx_fanout_reaches_third_hop_peer` expects `applied=2` after two-block F7 fixture; closes Nightly ignored-P2P job on `#28928716414`.
+- **F7 fund-wallet tail** (`dc22cb7`) - RC onboarding (lane 3): `fund-wallet` top-up sends until `owned_count >= 2`; closes rehearsal `input count 1` upload rejects on `#28928716414`.
 - **TL-3 release evidence** (lane 7) — `release-evidence-46677ad` + RC audit dry-run `go` on CI `#28924060054` (`e7d74f7`); TL-2 gate closed.
 - **TL-2 CI GREEN** (`e7d74f7`) — lane 7: mempool F7 two-input pad; CI `#28924060054` full matrix pass (~48m).
 - **F7 mfnd_smoke tail** (`0825385`) - RC core (lane 1): `synth_decoy_one_step_signed_transfer_fixture` steps 2 blocks so wallet owns ≥2 UTXOs before two-input transfer; closes CI `#28919128030` mempool/P2P admit failures.
