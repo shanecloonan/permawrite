@@ -637,7 +637,13 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     let mut accepted_storage_proofs: u128 = 0;
     let mut storage_bonus_total: u128 = 0;
     let mut accepted_proof_settlements: Vec<(mfn_storage::StorageProof, u128)> = Vec::new();
+    let mut proved_operators: HashSet<[u8; 32]> = HashSet::new();
     let current_slot = u64::from(block.header.slot);
+    let audit_challenge_active = crate::storage_operator_evolution::storage_audit_challenge_active(
+        &next.storage,
+        current_slot,
+        &next.endowment_params,
+    );
     for (pi, proof) in block.storage_proofs.iter().enumerate() {
         if b3_operator_salted {
             let count = commit_proof_count
@@ -750,6 +756,10 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                     accepted_storage_proofs += 1;
                     storage_bonus_total = storage_bonus_total.saturating_add(payout_accrual.payout);
                     accepted_proof_settlements.push((proof.clone(), payout_accrual.payout));
+                    proved_operators.insert(operator_identity_from_payout(
+                        &proof.operator_view_pub,
+                        &proof.operator_spend_pub,
+                    ));
                 } else {
                     let state_accrual = if b3_operator_salted {
                         match accrue_proof_reward(AccrueArgs {
@@ -788,6 +798,12 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
                     accepted_storage_proofs += 1;
                     storage_bonus_total = storage_bonus_total.saturating_add(payout_accrual.payout);
                     accepted_proof_settlements.push((proof.clone(), payout_accrual.payout));
+                    if b3_operator_salted {
+                        proved_operators.insert(operator_identity_from_payout(
+                            &proof.operator_view_pub,
+                            &proof.operator_spend_pub,
+                        ));
+                    }
                 }
             }
             Err(e) => errors.push(BlockError::EndowmentMathFailed {
@@ -880,6 +896,14 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
             errors.push(BlockError::StorageOperatorOpRejected { index, message });
         }
     }
+
+    crate::storage_operator_evolution::apply_storage_operator_audit_evolution(
+        block.header.height,
+        audit_challenge_active,
+        &next.storage_operators,
+        &mut next.storage_operator_stats,
+        &proved_operators,
+    );
 
     // ---- Unbond settlements (M1): scan pending_unbonds in deterministic
     //      sorted-by-index order; for each entry whose unlock_height has

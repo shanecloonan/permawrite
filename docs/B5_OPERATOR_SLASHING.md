@@ -10,8 +10,8 @@ SPoRA today is carrot-only: prove → get paid; vanish → forego future reward.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| **5a** | Inert `EndowmentParams` slash knobs + checkpoint **v8** + validation | **Shipped** |
-| **5b** | Per-operator missed-challenge counter in `ChainState`; audit witness in block wire | Planned |
+| **5a** | Inert `EndowmentParams` slash knobs + checkpoint **v8** + validation | **Shipped** (`e81d33e`) |
+| **5b** | Retained slashable bond + per-operator miss stats + checkpoint **v9** | **Shipped** (this commit) |
 | **5c** | Bond slash execution → treasury; operator deregistration on zero bond | Planned |
 | **5d** | Public devnet enable + M5 proptests (honest / missing / equivocating operators) | Planned |
 
@@ -34,7 +34,7 @@ No consensus behavior changes in 5a — params round-trip in checkpoints and gen
 
 ## Intended runtime (5b–5c sketch)
 
-1. **Registration (B3, shipped).** Operators register with bonded stake (`StorageOperatorOp::Register`, `min_storage_operator_bond`). **Phase 5b must change semantics:** today `bond_amount` burns to treasury on acceptance; slashing requires **retained collateral** in `StorageOperatorEntry::bond_amount` until slash or voluntary exit.
+1. **Registration (B3 + B5 phase 5b).** Operators register with bonded stake (`StorageOperatorOp::Register`, `min_storage_operator_bond`). `bond_amount` is **retained** in `StorageOperatorEntry` as slashable collateral (no treasury burn on register).
 2. **Challenge window.** Each block height defines a deterministic operator-salted SPoRA challenge from public chain state (block id, data root, operator payout key, replication slot index). No payload bytes required on-chain.
 3. **Accounting.** For each registered operator, consensus tracks `consecutive_missed_audits`. A valid proof in a block resets the counter; absence increments it.
 4. **Slash.** When `consecutive_missed_audits >= operator_audit_missed_cap`, slash `bond_amount * operator_slash_bps / 10000` to `ChainState::treasury`, reduce bond, reset or deregister if bond hits zero.
@@ -71,9 +71,9 @@ Each operator pubkey is tracked independently (B3 per-operator dedup). One hones
 - **`operator_audit_missed_cap`:** high enough to absorb brief outages (target: hours–days at 12s slots, not single-block flakes).
 - **`operator_slash_bps`:** partial slashes (e.g. 250–1000 bps) per event allow recovery; repeated misses compound via consecutive counter.
 
-## Wire / state additions (5b — not yet implemented)
+## Wire / state additions (5b — shipped)
 
-Planned `ChainState` extension:
+`ChainState` extension (checkpoint **v9**):
 
 ```text
 storage_operator_stats: BTreeMap<[u8;32], StorageOperatorStats>
@@ -81,7 +81,7 @@ storage_operator_stats: BTreeMap<[u8;32], StorageOperatorStats>
   last_audit_height: u32
 ```
 
-Optional block section: `StorageOperatorAuditOps` (only when slash params enabled) — likely folded into existing storage-proof walk rather than a new section to avoid producer censorship of a separate “audit tx” type.
+Audit evolution runs in `apply_block` after storage proofs and operator ops, using the **pre-proof** storage snapshot to decide whether a global stale challenge was active (so same-block proofs count as compliance). No separate block section — folded into the existing proof walk.
 
 ## Testing plan (5d)
 

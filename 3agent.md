@@ -7,11 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Doing** — CI on B5 push | Nightly re-dispatch |
-| **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Human sign-off packet |
+| **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Doing** — CI B5 5a/5b | Nightly re-dispatch |
+| **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Refresh evidence on 5b green |
 | **3** Onboarding | Nightly participant+observer PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 phase 5a (this push) | **Doing** — ci-check + push | B5 phase 5b retained bond + miss stats |
+| **4+6** Protocol | B5 5a `e81d33e` | **Doing** — B5 5b push + CI | B5 5c slash execution |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B5 phase 5b — retained bond + miss stats)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B5 phase 5b** | **This push** | Retained register bond; `StorageOperatorStats`; checkpoint **v9**; pre-proof stale challenge gate |
+| **Local CI** | **GREEN** | `ci-check-b5.log` on 5b stack |
+| **CI #28975621634** | **In progress** | `e81d33e` B5 5a (superseded by 5b push) |
+
+**Lane 4+6 — Done:** B5 5a `e81d33e` **Doing:** B5 5b push **Next:** B5 5c slash → treasury  
+**Lane 1 — Done:** full RC stack **Doing:** CI on B5 stack **Next:** Nightly re-dispatch
 
 ---
 

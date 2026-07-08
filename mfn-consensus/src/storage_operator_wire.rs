@@ -26,11 +26,11 @@ pub const STORAGE_OP_REGISTER: u8 = 0;
 /// A consensus operation that registers a storage operator payout identity.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StorageOperatorOp {
-    /// Register operator payout keys and escrow `bond_amount` into the
-    /// permanence treasury. Authorized by a Schnorr signature under
-    /// `operator_spend_pub` over [`register_signing_hash`].
+    /// Register operator payout keys and post `bond_amount` as slashable
+    /// collateral in [`StorageOperatorEntry`] (B5 phase 5b). Authorized by a
+    /// Schnorr signature under `operator_spend_pub` over [`register_signing_hash`].
     Register {
-        /// Escrowed bond in base units (burned to treasury on acceptance).
+        /// Slashable bond in base units (retained in registry entry).
         bond_amount: u64,
         /// Operator payout view public key.
         operator_view_pub: EdwardsPoint,
@@ -206,8 +206,9 @@ pub struct StorageOperatorOpError {
 
 /// Apply storage-operator registration ops atomically.
 ///
-/// On success: inserts into `storage_operators` and returns total bond burned
-/// (caller credits treasury). On failure: no mutation.
+/// On success: inserts into `storage_operators` (bond retained in each entry;
+/// treasury is not credited — slash forfeitures are phase 5c). On failure: no
+/// mutation. Returns `0` for API compatibility with the treasury credit hook.
 pub fn apply_storage_operator_ops(
     height: u32,
     endowment_params: &EndowmentParams,
@@ -217,7 +218,6 @@ pub fn apply_storage_operator_ops(
     let mut staged: Vec<([u8; 32], StorageOperatorEntry)> = Vec::new();
     let mut seen_ids: std::collections::HashSet<[u8; 32]> =
         storage_operators.keys().copied().collect();
-    let mut burn_total: u128 = 0;
 
     for (i, op) in ops.iter().enumerate() {
         let StorageOperatorOp::Register {
@@ -265,13 +265,12 @@ pub fn apply_storage_operator_ops(
                 bond_amount: *bond_amount,
             },
         ));
-        burn_total = burn_total.saturating_add(u128::from(*bond_amount));
     }
 
     for (id, entry) in staged {
         storage_operators.insert(id, entry);
     }
-    Ok(burn_total)
+    Ok(0)
 }
 
 #[cfg(test)]
@@ -333,6 +332,7 @@ mod tests {
         let burn =
             apply_storage_operator_ops(5, &DEFAULT_ENDOWMENT_PARAMS, &mut map, &[op]).unwrap();
         assert_eq!(burn, 0);
+        assert_eq!(map[&id].bond_amount, 0);
         assert!(map.contains_key(&id));
         assert_eq!(map[&id].registration_height, 5);
     }

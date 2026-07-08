@@ -94,7 +94,7 @@ pub const CHAIN_CHECKPOINT_MAGIC: [u8; 4] = *b"MFCC";
 
 /// Currently-supported chain-checkpoint format version. Bumped only on
 /// wire-incompatible changes.
-pub const CHAIN_CHECKPOINT_VERSION: u32 = 8;
+pub const CHAIN_CHECKPOINT_VERSION: u32 = 9;
 
 /// Errors produced by the chain-checkpoint codec.
 ///
@@ -114,7 +114,7 @@ pub enum ChainCheckpointError {
 
     /// Format version is not supported by this build.
     #[error(
-        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 8"
+        "unsupported chain-checkpoint version {got}; this build supports versions 1 through 9"
     )]
     UnsupportedVersion {
         /// The version encoded in the payload.
@@ -176,6 +176,15 @@ pub enum ChainCheckpointError {
     #[error("chain-checkpoint storage_operators[{index}]: invalid operator payout point")]
     InvalidStorageOperatorPoint {
         /// Position in the `storage_operators` list.
+        index: usize,
+    },
+
+    /// `storage_operator_stats` map entries were not strictly ascending by key.
+    #[error(
+        "chain-checkpoint storage_operator_stats entries not strictly ascending at position {index}"
+    )]
+    StorageOperatorStatsNotSorted {
+        /// Position in the `storage_operator_stats` list.
         index: usize,
     },
 

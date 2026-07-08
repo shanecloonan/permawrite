@@ -16,6 +16,7 @@ fn fresh_state() -> ChainState {
         spent_key_images: HashSet::new(),
         storage: HashMap::new(),
         storage_operators: BTreeMap::new(),
+        storage_operator_stats: BTreeMap::new(),
         claims: BTreeMap::new(),
         block_ids: Vec::new(),
         validators: Vec::new(),
@@ -260,6 +261,7 @@ fn encode_is_independent_of_hashmap_iteration_order() {
         spent_key_images: HashSet::new(),
         storage: HashMap::new(),
         storage_operators: BTreeMap::new(),
+        storage_operator_stats: BTreeMap::new(),
         claims: s_a.claims.clone(),
         block_ids: s_a.block_ids.clone(),
         validators: s_a.validators.clone(),
@@ -333,13 +335,13 @@ fn rejects_unsupported_version() {
         state: fresh_state(),
     };
     let mut bytes = encode_chain_checkpoint(&cp);
-    // Bytes 4..8 are the version, big-endian. Flip to 9.
-    bytes[4..8].copy_from_slice(&9u32.to_be_bytes());
+    // Bytes 4..8 are the version, big-endian. Flip to 10 (unsupported).
+    bytes[4..8].copy_from_slice(&10u32.to_be_bytes());
     let plen = bytes.len() - 32;
     let new_tag = dhash(CHAIN_CHECKPOINT, &[&bytes[..plen]]);
     bytes[plen..].copy_from_slice(&new_tag);
     match decode_chain_checkpoint(&bytes) {
-        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 9),
+        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 10),
         other => panic!("expected UnsupportedVersion, got {other:?}"),
     }
 }
@@ -535,6 +537,29 @@ fn b5_endowment_slash_params_roundtrip() {
     let bytes = encode_chain_checkpoint(&cp);
     let restored = decode_chain_checkpoint(&bytes).expect("roundtrip");
     assert_eq!(restored.state.endowment_params, cp.state.endowment_params);
+}
+
+#[test]
+fn b5_storage_operator_stats_roundtrip() {
+    use crate::block::StorageOperatorStats;
+    let mut s = fresh_state();
+    s.storage_operator_stats.insert(
+        [0xAA; 32],
+        StorageOperatorStats {
+            consecutive_missed_audits: 3,
+            last_audit_height: 42,
+        },
+    );
+    let cp = ChainCheckpoint {
+        genesis_id: [0xB5; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let restored = decode_chain_checkpoint(&bytes).expect("roundtrip");
+    assert_eq!(
+        restored.state.storage_operator_stats,
+        cp.state.storage_operator_stats
+    );
 }
 
 #[test]

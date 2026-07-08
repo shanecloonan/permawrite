@@ -83,8 +83,20 @@ pub struct StorageOperatorEntry {
     pub operator_spend_pub: EdwardsPoint,
     /// Height at which this operator was registered (genesis = 0).
     pub registration_height: u32,
-    /// Escrowed bond in base units (`0` = bondless tier).
+    /// Slashable bond collateral in base units (`0` = bondless tier).
+    /// Retained in this entry until B5 slash or voluntary exit (B5 phase 5b);
+    /// no longer burned to treasury on register.
     pub bond_amount: u64,
+}
+
+/// Per-operator SPoRA audit liveness stats (B5 phase 5b).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct StorageOperatorStats {
+    /// Consecutive blocks with an active global audit challenge where this
+    /// operator submitted no valid operator-salted proof.
+    pub consecutive_missed_audits: u8,
+    /// Height of the last audit evolution pass that touched this record.
+    pub last_audit_height: u32,
 }
 
 /// Minimum output count enforced on regular transactions whenever the
@@ -262,6 +274,8 @@ pub struct ChainState {
     pub storage: HashMap<[u8; 32], StorageEntry>,
     /// Registered storage operators (B3), keyed by operator identity hash.
     pub storage_operators: BTreeMap<[u8; 32], StorageOperatorEntry>,
+    /// Per-operator audit miss counters (B5), keyed like `storage_operators`.
+    pub storage_operator_stats: BTreeMap<[u8; 32], StorageOperatorStats>,
     /// Authorship claims indexed by (`data_root`, `claim_pubkey` bytes).
     pub claims: BTreeMap<crate::claims::AuthorshipClaimKey, crate::claims::AuthorshipClaimRecord>,
     /// Block-id chain: `[genesis_id, block1_id, ...]`.
@@ -315,6 +329,7 @@ impl ChainState {
             spent_key_images: HashSet::new(),
             storage: HashMap::new(),
             storage_operators: BTreeMap::new(),
+            storage_operator_stats: BTreeMap::new(),
             claims: BTreeMap::new(),
             block_ids: Vec::new(),
             validators: Vec::new(),

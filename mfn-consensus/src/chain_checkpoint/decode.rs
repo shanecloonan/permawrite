@@ -134,6 +134,18 @@ fn decode_storage_operator_entry(
     })
 }
 
+fn decode_storage_operator_stats(
+    r: &mut Reader<'_>,
+) -> Result<crate::block::StorageOperatorStats, ChainCheckpointError> {
+    let consecutive_missed_audits =
+        read_u8(r, "storage_operator_stats[i].consecutive_missed_audits")?;
+    let last_audit_height = read_u32(r, "storage_operator_stats[i].last_audit_height")?;
+    Ok(crate::block::StorageOperatorStats {
+        consecutive_missed_audits,
+        last_audit_height,
+    })
+}
+
 fn decode_authorship_claim_record_v3(
     r: &mut Reader<'_>,
     index: usize,
@@ -296,7 +308,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if !(1..=8).contains(&version) {
+    if !(1..=9).contains(&version) {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -429,10 +441,31 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         BTreeMap::new()
     };
 
+    let storage_operator_stats = if version >= 9 {
+        let stat_n = read_len(&mut r, "storage_operator_stats.len")?;
+        let mut storage_operator_stats: BTreeMap<[u8; 32], crate::block::StorageOperatorStats> =
+            BTreeMap::new();
+        let mut prev_stat_key: Option<[u8; 32]> = None;
+        for i in 0..stat_n {
+            let key: [u8; 32] = read_fixed(&mut r, "storage_operator_stats[i].key")?;
+            if let Some(prev) = prev_stat_key {
+                if key <= prev {
+                    return Err(ChainCheckpointError::StorageOperatorStatsNotSorted { index: i });
+                }
+            }
+            prev_stat_key = Some(key);
+            let entry = decode_storage_operator_stats(&mut r)?;
+            storage_operator_stats.insert(key, entry);
+        }
+        storage_operator_stats
+    } else {
+        BTreeMap::new()
+    };
+
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3..=8 => decode_claims_state_v3(&mut r)?,
+        3..=9 => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }
@@ -480,6 +513,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         spent_key_images,
         storage,
         storage_operators,
+        storage_operator_stats,
         claims,
         block_ids,
         validators,

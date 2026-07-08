@@ -74,6 +74,7 @@ pub mod extra_codec;
 pub mod header_verify;
 pub mod slashing;
 pub mod storage;
+pub mod storage_operator_evolution;
 pub mod storage_operator_wire;
 pub mod transaction;
 #[cfg(feature = "bls")]

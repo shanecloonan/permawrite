@@ -64,6 +64,11 @@ fn encode_storage_operator_entry(w: &mut Writer, e: &StorageOperatorEntry) {
     w.u64(e.bond_amount);
 }
 
+fn encode_storage_operator_stats(w: &mut Writer, s: &crate::block::StorageOperatorStats) {
+    w.u8(s.consecutive_missed_audits);
+    w.u32(s.last_audit_height);
+}
+
 fn encode_storage_entry(w: &mut Writer, e: &StorageEntry) {
     let commit_bytes = encode_storage_commitment(&e.commit);
     w.varint(commit_bytes.len() as u64);
@@ -197,6 +202,16 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
         for k in op_keys {
             w.push(k);
             encode_storage_operator_entry(&mut w, &parts.state.storage_operators[k]);
+        }
+    }
+
+    if CHAIN_CHECKPOINT_VERSION >= 9 {
+        let mut stat_keys: Vec<&[u8; 32]> = parts.state.storage_operator_stats.keys().collect();
+        stat_keys.sort();
+        w.varint(stat_keys.len() as u64);
+        for k in stat_keys {
+            w.push(k);
+            encode_storage_operator_stats(&mut w, &parts.state.storage_operator_stats[k]);
         }
     }
 

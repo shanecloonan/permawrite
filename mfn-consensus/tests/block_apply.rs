@@ -3481,3 +3481,174 @@ fn apply_block_rejects_ring_smaller_than_sixteen() {
         ApplyOutcome::Ok { .. } => panic!("sub-minimum ring must reject block"),
     }
 }
+
+fn b5_audit_test_endowment_params() -> EndowmentParams {
+    EndowmentParams {
+        operator_salted_challenges: 1,
+        require_registered_operators: 1,
+        operator_audit_missed_cap: 5,
+        operator_slash_bps: 250,
+        proof_reward_window_slots: 100,
+        min_replication: 1,
+        real_yield_ppb: 50_000_000,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    }
+}
+
+fn genesis_with_b5_registered_storage(built: &BuiltCommitment) -> ChainState {
+    let ep = b5_audit_test_endowment_params();
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![
+            GenesisStorageOperator {
+                operator_view_pub: v0,
+                operator_spend_pub: s0,
+                bond_amount: 1_000_000,
+            },
+            GenesisStorageOperator {
+                operator_view_pub: v1,
+                operator_spend_pub: s1,
+                bond_amount: 2_000_000,
+            },
+        ],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: ep,
+        bonding_params: None,
+    };
+    let g = build_genesis(&cfg);
+    apply_genesis(&g, &cfg).unwrap()
+}
+
+#[test]
+fn b5_register_bond_retained_not_treasury() {
+    let state0 = genesis_state();
+    let treasury_before = state0.treasury;
+    let reg = test_storage_operator_register_op(2, 1, 1_500_000);
+    let expected_id = match &reg {
+        StorageOperatorOp::Register {
+            operator_view_pub,
+            operator_spend_pub,
+            bond_amount,
+            ..
+        } => (
+            mfn_storage::operator_identity_from_payout(operator_view_pub, operator_spend_pub),
+            *bond_amount,
+        ),
+    };
+    let unsealed = build_unsealed_header_storage_ops(
+        &state0,
+        &[],
+        &[],
+        &[],
+        &[],
+        std::slice::from_ref(&reg),
+        1_000,
+        1_000,
+    );
+    let block = seal_block_storage_ops(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![reg],
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(state.treasury, treasury_before);
+            assert_eq!(
+                state.storage_operators[&expected_id.0].bond_amount,
+                expected_id.1
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+#[test]
+fn b5_operator_miss_counter_increments_on_stale_challenge() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b5_registered_storage(&built);
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let id0 = mfn_storage::operator_identity_from_payout(&v0, &s0);
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let id1 = mfn_storage::operator_identity_from_payout(&v1, &s1);
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &[], 10_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(
+                state.storage_operator_stats[&id0].consecutive_missed_audits,
+                1
+            );
+            assert_eq!(
+                state.storage_operator_stats[&id1].consecutive_missed_audits,
+                1
+            );
+            assert_eq!(state.storage_operator_stats[&id0].last_audit_height, 1);
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+#[test]
+fn b5_operator_miss_counter_resets_when_operator_proves() {
+    let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
+    let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
+    let state0 = genesis_with_b5_registered_storage(&built);
+    let (v0, s0) = mfn_storage::test_operator_payout_keys();
+    let id0 = mfn_storage::operator_identity_from_payout(&v0, &s0);
+    let (v1, s1) = mfn_storage::test_operator_payout_keys_alt();
+    let id1 = mfn_storage::operator_identity_from_payout(&v1, &s1);
+    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 10_000, 1_000);
+    let p0 = mfn_storage::build_test_storage_proof_operator_salted(
+        &built.commit,
+        &scratch.prev_hash,
+        10_000,
+        &payload,
+        &built.tree,
+    );
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &[p0], 10_000, 1_000);
+    let block = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![mfn_storage::build_test_storage_proof_operator_salted(
+            &built.commit,
+            &scratch.prev_hash,
+            10_000,
+            &payload,
+            &built.tree,
+        )],
+    );
+    match apply_block(&state0, &block) {
+        ApplyOutcome::Ok { state, .. } => {
+            assert_eq!(
+                state.storage_operator_stats[&id0].consecutive_missed_audits,
+                0
+            );
+            assert_eq!(
+                state.storage_operator_stats[&id1].consecutive_missed_audits,
+                1
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
