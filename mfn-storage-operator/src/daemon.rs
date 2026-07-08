@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::chunk_http::{serve_chunks, ChunkServeConfig};
 use crate::prove::{prove_from_wallet_artifact, ProveError};
@@ -290,7 +290,7 @@ fn run_daemon_prove_loop(
         if stop.load(Ordering::SeqCst) {
             break;
         }
-        thread::sleep(config.interval);
+        sleep_interruptible(stop, config.interval);
     }
 
     if config.json_logs {
@@ -302,6 +302,18 @@ fn run_daemon_prove_loop(
         println!("mfno_exit ok");
     }
     Ok(())
+}
+
+/// Sleep up to `duration`, returning early when `stop` is set (daemon shutdown).
+fn sleep_interruptible(stop: &AtomicBool, duration: Duration) {
+    let deadline = Instant::now() + duration;
+    while Instant::now() < deadline {
+        if stop.load(Ordering::SeqCst) {
+            return;
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        thread::sleep(remaining.min(Duration::from_millis(100)));
+    }
 }
 
 fn prove_attempt_json(attempt: &ProveAttempt) -> serde_json::Value {
