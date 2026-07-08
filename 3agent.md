@@ -7,11 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B3 3a `99754b8` GREEN | **Monitor** local `ci-check.ps1` on 3b | Nightly re-dispatch + `start_mesh_fail` |
-| **2** RC ops | Evidence `1b6caba` draft | **Await** 3b CI green | Refresh evidence on 3b head |
+| **1** RC core | B3 3b `8b4e163` pushed; local CI green | **Monitor** CI `#28952620476` | Nightly re-dispatch |
+| **2** RC ops | Evidence `1b6caba` draft | **Await** CI green on `8b4e163` | Release evidence refresh + RC audit |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
-| **4+6** Protocol | B3 phase 3a `99754b8` | **B3 phase 3b** — local CI running | Genesis operator seeding (3c) |
+| **4+6** Protocol | B3 phase 3b `8b4e163` | Idle — landed | Genesis operator seeding (3c) |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B3 phase 3b — pushed `8b4e163`)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B3 phase 3b** | **Done** — `8b4e163` | `StorageOperatorOp::Register`; Schnorr; `bond_section_merkle_root`; checkpoint **v7**; mesh startup fix |
+| **Local CI** | **GREEN** | `ci-check.ps1` run2 ~54m |
+| **GitHub CI** | **In progress** | `#28952620476` on `8b4e163` |
+| **B3 phase 3c** | **Next** | Genesis spec operator seeding + devnet enable |
+
+**Lane 4+6 — Done:** 3b **Doing:** — **Next:** 3c genesis seeding
 
 ---
 

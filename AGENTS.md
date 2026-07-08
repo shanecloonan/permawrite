@@ -83,20 +83,22 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** B3 phase 3b + Nightly start_mesh fix (this push). **Prior:** `99754b8` — **CI #28935445273 GREEN**.
+**Head:** `8b4e163` (B3 phase 3b + Nightly mesh fix). **CI #28952620476** in progress.
 
-**RC push hold:** lifted — push 3b + rehearsal mesh fix; monitor CI/Nightly.
+**Prior green:** `#28935445273` on B3 phase 3a (`99754b8`).
+
+**RC push hold:** active until `#28952620476` GREEN; then Nightly re-dispatch.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly `#28940474074` start_mesh | **Fix** — hub poll race + bind defaults (this push) | Re-dispatch after green CI |
-| **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Refresh on 3b head |
+| **1** | CI `#28952620476` on `8b4e163` | **Doing** — monitor matrix | Nightly re-dispatch |
+| **2** | Release evidence refresh | **Doing** — await CI green | RC audit + human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | B3 phase 3b register wire | **This push** | Genesis operator seeding (3c) |
+| **4** | B3 phase 3b register wire | **Done** — `8b4e163` | Genesis operator seeding (3c) |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B3 phase 3b with lane 4 | **This push** | Operator bonding research + 3c |
+| **6** | B3 phase 3b with lane 4 | **Done** — `8b4e163` | Operator bonding + 3c genesis |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
