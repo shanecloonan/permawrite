@@ -415,6 +415,28 @@ impl P2pPeerSet {
         }
     }
 
+    /// Current chain slot proxy for repair staleness (tip height until slot is on the tip cell).
+    pub(crate) fn current_chain_slot(&self) -> u64 {
+        let g = self.tip_cell.lock().unwrap_or_else(|e| e.into_inner());
+        u64::from(g.0)
+    }
+
+    pub(crate) fn data_root(&self) -> &std::path::Path {
+        &self.data_root
+    }
+
+    pub(crate) fn chain_storage_snapshot(&self) -> Option<Vec<([u8; 32], u64, StorageCommitment)>> {
+        let guard = self.chain.lock().ok()?;
+        Some(
+            guard
+                .state()
+                .storage
+                .iter()
+                .map(|(hash, entry)| (*hash, entry.last_proven_slot, entry.commit.clone()))
+                .collect(),
+        )
+    }
+
     fn snapshot_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
         self.snapshot_tx_fanout_peers_except(except_peer)
     }

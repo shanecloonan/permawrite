@@ -34,6 +34,10 @@ use crate::p2p_fanout::{
 };
 use crate::p2p_gossip::P2pGossipHandler;
 use crate::p2p_reconnect_plan::is_self_peer_addr;
+use crate::p2p_repair_sweep::{
+    repair_interval_ms_from_env, repair_threshold_slots_from_env, spawn_repair_sweep_loop,
+    RepairSweepLoop, DEFAULT_REPAIR_INTERVAL_MS,
+};
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
 };
@@ -730,6 +734,25 @@ pub(crate) fn run_serve(
                 block_applier: Arc::clone(&applier_hook),
                 local_p2p_listen,
                 interval_ms: observer_catch_up_ms,
+            })?;
+        }
+        let repair_threshold = repair_threshold_slots_from_env()?;
+        if repair_threshold > 0 {
+            let repair_interval = repair_interval_ms_from_env(
+                slot_duration_ms
+                    .saturating_mul(10)
+                    .max(DEFAULT_REPAIR_INTERVAL_MS),
+            )?;
+            println!(
+                "mfnd_repair_sweep_start threshold_slots={repair_threshold} interval_ms={repair_interval}"
+            );
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (repair sweep): {e}"))?;
+            spawn_repair_sweep_loop(RepairSweepLoop {
+                peer_set: Arc::clone(&fanout),
+                interval_ms: repair_interval,
+                repair_threshold_slots: repair_threshold,
             })?;
         }
         (

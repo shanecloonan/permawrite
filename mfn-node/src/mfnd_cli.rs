@@ -119,6 +119,8 @@ fn usage() -> &'static str {
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
        --dandelion              only for `serve`: Dandelion++ stem/fluff tx relay (opt-in; default off)\n\
                                   or set env MFND_DANDELION=1\n\
+      env MFND_REPAIR_THRESHOLD_SLOTS only for `serve`: proactive repair staleness threshold slots (0 disables; default 14400)\n\
+      env MFND_REPAIR_INTERVAL_MS     only for `serve`: repair sweep interval in ms (default 300000)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
        --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\

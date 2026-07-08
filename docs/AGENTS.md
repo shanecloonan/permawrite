@@ -200,10 +200,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B3 phase 3b** — `StorageOperatorOp::Register` Schnorr wire + bond escrow (checkpoint v7 `min_storage_operator_bond`).
 - [x] **B3 phase 3c** — genesis spec `storage_operators` seeding + public devnet enable.
 - [x] **M5.50** — B3 duplicate-operator + replication-cap reject proptests (this push).
+- [ ] **B4 phase 1** — proactive repair sweep in `mfnd` (this session; push after CI green).
 
 ### Next
 
-- [ ] **B4** — proactive replica repair sweep (`mfnd` staleness re-fan-out).
+- [ ] **B5** — operator bonding + slashing research (lane 6).
 
 ### Handoff to lane 3
 

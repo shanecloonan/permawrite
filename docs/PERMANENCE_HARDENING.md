@@ -568,7 +568,7 @@ land. Integration tests in [`block_apply.rs`](../mfn-consensus/tests/block_apply
 4. **M5.50 proptests (shipped).** `prop_b3_duplicate_operator_rejects_after_prefix`
    plus replication-cap reject tests in
    [`apply_block_proptest.rs`](../mfn-consensus/tests/apply_block_proptest.rs).
-5. **Proactive repair + staleness** (B4) once replication is audited on-chain.
+5. **Proactive repair + staleness** (B4) — shipped; operator bonding/slashing (B5) next.
 
 Requires: emission/treasury settlement audit under multi-operator blocks, and
 heavy M5 proptesting (mixed honest/missing/equivocating operators). Sequence
@@ -576,23 +576,21 @@ heavy M5 proptesting (mixed honest/missing/equivocating operators). Sequence
 
 **Effort:** high. **Risk:** high (consensus + economics).
 
-### B4. Proactive replica repair (re-fan-out on staleness)
+### B4. Proactive replica repair (re-fan-out on staleness) — **SHIPPED** (this commit)
 
 **Problem.** Fan-out happens when an upload lands (and on inbox completion).
 If replicas later vanish — operators churn, disks die — nothing re-spreads
 the data. The chain *records* staleness (`StorageEntry.last_proven_height` /
 `last_proven_slot` go quiet) but nodes don't act on it.
 
-**Plan.** A periodic repair sweep in `mfnd` (alongside the existing
-committee catch-up loop in
-[`mfn-node/src/mfnd_serve.rs`](../mfn-node/src/mfnd_serve.rs)): scan
+**Shipped.** Periodic repair sweep in `mfnd` via
+[`p2p_repair_sweep.rs`](../mfn-node/src/p2p_repair_sweep.rs): scans
 `chain.state().storage` for entries with
 `current_slot − last_proven_slot > repair_threshold_slots` where the local
-inbox is complete and verified (A3 path), and re-fan-out to current peers.
-Config knob `MFND_REPAIR_THRESHOLD_SLOTS` (default ~2× the anti-hoarding
-window, 14 400). Pure node-layer, no consensus change; observable via a
-`mfnd_p2p_repair_fanout commit=… stale_slots=…` log line for rehearsal
-assertions.
+inbox is complete and Merkle-verified (A3/B2 path), then re-fan-outs to
+current peers. Config: `MFND_REPAIR_THRESHOLD_SLOTS` (default 14_400 =
+2× anti-hoarding window), `MFND_REPAIR_INTERVAL_MS` (default 300_000 ms).
+Observable log: `mfnd_p2p_repair_fanout commit=… stale_slots=…`.
 
 **Effort:** low–moderate. **Risk:** low.
 

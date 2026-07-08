@@ -10,7 +10,7 @@
 | **1** RC core | M2.5.66 `0ede433` | **Monitor** CI `#28966851917` | Nightly re-dispatch after green |
 | **2** RC ops | Evidence `1b6caba` draft | **Await** CI green on `0ede433` | Release evidence refresh |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
-| **4+6** Protocol | M5.50 `0ede433` + B3 3c `65aea81` | **Monitor** CI | B4 repair sweep research |
+| **4+6** Protocol | M5.50 `0ede433` + B3 3c | **Implement** B4 repair sweep (local) | CI green → push B4 |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
