@@ -23,11 +23,13 @@ for b in mfnd mfn-cli mfn-storage-operator; do
   [[ -x "$REPO_ROOT/target/release/$b" ]] || missing_bins+=("$b")
 done
 
-phase="TL-1"
+phase="TL-5 (provision VPS — see docs/VPS_SINGLE_BOX_LAUNCH.md)"
 if [[ "$seed_count" -gt 0 ]]; then
   phase="TL-8+"
+elif compgen -G "$SCRIPT_DIR/evidence/vps-internet-soak-linux-*" >/dev/null 2>&1; then
+  phase="TL-6+ (VPS soak evidence archived; run participant rehearsal)"
 elif [[ ${#missing_bins[@]} -eq 0 ]]; then
-  phase="TL-2+ (build ready; follow TESTNET_LAUNCH.md)"
+  phase="TL-5 (VPS ready — vps-preflight.sh then vps-internet-soak.sh)"
 fi
 
 internet="false"

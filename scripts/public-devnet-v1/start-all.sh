@@ -13,38 +13,12 @@ PORTS_FILE="$SCRIPT_DIR/devnet-ports.env"
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-vps_export_binds() {
-  local role="$1"
-  unset MFN_RPC_LISTEN MFN_P2P_LISTEN
-  case "$role" in
-    hub)
-      [[ -n "${MFN_RPC_LISTEN_HUB:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_HUB"
-      [[ -n "${MFN_P2P_LISTEN_HUB:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_HUB"
-      ;;
-    v1)
-      [[ -n "${MFN_RPC_LISTEN_V1:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V1"
-      [[ -n "${MFN_P2P_LISTEN_V1:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V1"
-      ;;
-    v2)
-      [[ -n "${MFN_RPC_LISTEN_V2:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_V2"
-      [[ -n "${MFN_P2P_LISTEN_V2:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_V2"
-      ;;
-    observer)
-      [[ -n "${MFN_RPC_LISTEN_OBSERVER:-}" ]] && export MFN_RPC_LISTEN="$MFN_RPC_LISTEN_OBSERVER"
-      [[ -n "${MFN_P2P_LISTEN_OBSERVER:-}" ]] && export MFN_P2P_LISTEN="$MFN_P2P_LISTEN_OBSERVER"
-      ;;
-  esac
-}
+# shellcheck source=vps-bind-lib.sh
+source "$SCRIPT_DIR/vps-bind-lib.sh"
 
 if [[ "${MFN_VPS_MODE:-}" == "1" ]]; then
-  BIND="${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
-  if [[ ! -f "$BIND" ]]; then
-    echo "start-all: MFN_VPS_MODE=1 requires bind file at $BIND (copy vps-bind.env.example)" >&2
-    exit 1
-  fi
-  # shellcheck source=/dev/null
-  source "$BIND"
-  echo "start-all: VPS mode — public P2P binds from $BIND"
+  load_vps_bind_file "$SCRIPT_DIR" || exit 1
+  echo "start-all: VPS mode — public P2P binds from ${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
 fi
 
 NO_BUILD=0

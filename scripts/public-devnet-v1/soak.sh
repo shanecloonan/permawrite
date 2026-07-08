@@ -23,6 +23,7 @@ RESTART_OBSERVER_ONCE=0
 RESTART_TIMEOUT_SECONDS=180
 ARCHIVE_EVIDENCE=0
 DANDELION=0
+VPS=0
 P2P_LOG_TIMEOUT_SECONDS=120
 
 usage() {
@@ -32,7 +33,7 @@ usage: soak.sh [--duration-minutes N] [--check-interval-seconds N]
                [--min-height-delta N] [--min-final-height N]
                [--min-successful-iterations N] [--restart-observer-once]
                [--restart-timeout-seconds N] [--archive-evidence] [--no-start]
-               [--dandelion]
+               [--dandelion] [--vps]
 USAGE
 }
 
@@ -92,6 +93,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dandelion)
       DANDELION=1
+      shift
+      ;;
+    --vps)
+      VPS=1
       shift
       ;;
     -h|--help)
@@ -232,6 +237,12 @@ restart_observer_probe() {
     mv "$LOG_DIR/observer.err.log" "$LOG_DIR/observer.before-restart-$marker.err.log"
   fi
   export HUB_P2P="${HUB_P2P:?}"
+  if (( VPS == 1 )); then
+    # shellcheck source=vps-bind-lib.sh
+    source "$SCRIPT_DIR/vps-bind-lib.sh"
+    load_vps_bind_file "$SCRIPT_DIR" || exit 1
+    vps_export_binds observer
+  fi
   "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>"$LOG_DIR/observer.err.log" &
   new_pid=$!
   echo "OBSERVER_PID=$new_pid" >>"$PORTS_FILE"
@@ -313,7 +324,9 @@ archive_soak_evidence() {
   stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
   local dandelion_label=""
   if (( DANDELION == 1 )); then dandelion_label="-dandelion"; fi
-  path="$evidence_dir/soak-restart-linux${dandelion_label}-$slot_label-$stamp.txt"
+  local soak_prefix="soak-restart-linux"
+  if (( VPS == 1 )); then soak_prefix="vps-internet-soak-linux"; fi
+  path="$evidence_dir/${soak_prefix}${dandelion_label}-$slot_label-$stamp.txt"
   repo_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
   commit=""
   if commit=$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null); then
@@ -323,7 +336,11 @@ archive_soak_evidence() {
   fi
   {
     echo "# Linux soak evidence ($slot_label)"
-    echo "# Command: soak.sh --duration-minutes $DURATION_MINUTES$( (( RESTART_OBSERVER_ONCE == 1 )) && echo -n ' --restart-observer-once')$( (( DANDELION == 1 )) && echo -n ' --dandelion')$( (( ARCHIVE_EVIDENCE == 1 )) && echo -n ' --archive-evidence')"
+    if (( VPS == 1 )); then
+      echo "# TL-5 internet-facing VPS soak"
+      echo "# VPS_BIND=${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
+    fi
+    echo "# Command: soak.sh --duration-minutes $DURATION_MINUTES$( (( RESTART_OBSERVER_ONCE == 1 )) && echo -n ' --restart-observer-once')$( (( DANDELION == 1 )) && echo -n ' --dandelion')$( (( VPS == 1 )) && echo -n ' --vps')$( (( ARCHIVE_EVIDENCE == 1 )) && echo -n ' --archive-evidence')"
     if [[ -n "$commit" ]]; then
       echo "# Commit: $commit"
     fi
@@ -508,6 +525,11 @@ soak_gha_mesh_converge_soft_ok() {
 }
 
 if (( NO_START == 0 )); then
+  if (( VPS == 1 )); then
+    # shellcheck source=vps-bind-lib.sh
+    source "$SCRIPT_DIR/vps-bind-lib.sh"
+    load_vps_bind_file "$SCRIPT_DIR" || exit 1
+  fi
   if [[ -z "${SLOT_MS:-}" ]]; then
     SLOT_MS=10000
     export SLOT_MS
@@ -523,9 +545,15 @@ if (( NO_START == 0 )); then
     echo "soak: removing stale soak lock before bootstrap"
     soak_lock_remove "$SCRIPT_DIR"
   fi
-  echo "soak: starting public-devnet-v1 mesh"
+  echo "soak: starting public-devnet-v1 mesh$( (( VPS == 1 )) && echo -n ' (VPS / public P2P)')"
   export MFN_SOAK_BOOTSTRAP=1
-  if (( DANDELION == 1 )); then
+  if (( VPS == 1 )); then
+    if (( DANDELION == 1 )); then
+      bash "$SCRIPT_DIR/vps-start-all.sh" --no-build --dandelion
+    else
+      bash "$SCRIPT_DIR/vps-start-all.sh" --no-build
+    fi
+  elif (( DANDELION == 1 )); then
     bash "$SCRIPT_DIR/start-all.sh" --no-build --dandelion
   else
     bash "$SCRIPT_DIR/start-all.sh" --no-build

@@ -34,8 +34,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **M7.11.2** (lane 3) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md` (`0650ad6`).
 - [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
-- [ ] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (**Done** — `8661106`).
-- [ ] **Lane 7 / TL-2–TL-3** — green CI on `e7d74f7` + `release-evidence-46677ad` + RC audit dry-run go (**Done** — CI `#28924060054`).
+- [x] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (`8661106`).
+- [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).
+- [ ] **Lane 7 / TL-5** — VPS internet soak (`vps-preflight.sh` + `vps-internet-soak.sh`; evidence archived on PASS)
 - [x] **B-11** (lanes 4+6) — `MFEO` endowment opening in `tx.extra`; `require_endowment_opening` param; phase 1 + proptests (`9f0a0aa`); public devnet genesis enable (`endowment.require_endowment_opening: 1` in `public_devnet_v1.json`, same `genesis_id`).
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

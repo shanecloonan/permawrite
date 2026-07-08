@@ -54,6 +54,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 |----------|---------|
 | Linux/macOS (local loopback) | `bash scripts/public-devnet-v1/start-all.sh` |
 | Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` — see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
+| Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 
 Stop a local mesh before rebuilding release binaries or running CI:

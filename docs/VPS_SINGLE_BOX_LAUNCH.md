@@ -115,6 +115,42 @@ Confirm RPC ports **18731–18734 are not** in the allow list.
 
 ---
 
+## TL-5 — Internet soak (height ≥ 10)
+
+After firewall + `vps-bind.env` are configured:
+
+```bash
+# Preflight only (bind file, loopback RPC, public P2P, binaries)
+bash scripts/public-devnet-v1/vps-preflight.sh
+
+# Start mesh, multi-sample health, archive evidence (default 20 min, min height 10)
+bash scripts/public-devnet-v1/vps-internet-soak.sh
+```
+
+Override duration or height gate:
+
+```bash
+MFN_VPS_SOAK_MINUTES=30 MFN_VPS_SOAK_MIN_HEIGHT=15 \
+  bash scripts/public-devnet-v1/vps-internet-soak.sh
+```
+
+On **PASS**, evidence is written to `scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt`. Commit that file to the repo (Lane 7 TL-5 gate) before TL-6.
+
+Verify public P2P is listening (not loopback):
+
+```bash
+grep mfnd_p2p_listening= scripts/public-devnet-v1/logs/v0.log
+# expect 0.0.0.0:19001 (or your vps-bind.env ports)
+```
+
+If the mesh is already running:
+
+```bash
+bash scripts/public-devnet-v1/vps-internet-soak.sh --no-start
+```
+
+---
+
 ## Publish seed nodes (TL-8)
 
 After TL-5 soak and TL-6 participant rehearsal on this host, add reachable P2P seeds to [`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json):
@@ -146,7 +182,7 @@ Use the addresses printed in `devnet-ports.env` / logs, substituting the public 
 
 | Phase | Action |
 | --- | --- |
-| TL-5 | Internet soak on this VPS — multi-sample health, height ≥ 10 |
+| TL-5 | `vps-preflight.sh` then `vps-internet-soak.sh` — archive PASS evidence |
 | TL-6 | Participant rehearsal — fund → upload → restore → prove |
 | TL-7 | Toy keys vs fresh genesis decision (human) |
 | TL-8 | Publish `seed_nodes` + invite packet |

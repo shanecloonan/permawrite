@@ -311,11 +311,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] *(idle — awaiting VPS provision for TL-5)*
+- [ ] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps`
 
 ### Next
 
-- [ ] **TL-5** — internet soak on provisioned VPS (height ≥ 10, multi-sample health)
+- [ ] **TL-5 execution** — run soak on provisioned VPS; archive PASS evidence (height ≥ 10)
 
 ### Do not start
 

@@ -63,9 +63,13 @@ foreach ($b in $binaries) {
     if (-not (Test-Path $p)) { $missingBins += $b }
 }
 
-$phase = "TL-1"
-if ($seedCount -gt 0) { $phase = "TL-8+" }
-elseif ($missingBins.Count -eq 0) { $phase = "TL-2+ (build ready; follow TESTNET_LAUNCH.md)" }
+$phase = 'TL-5 (provision VPS - see docs/VPS_SINGLE_BOX_LAUNCH.md)'
+if ($seedCount -gt 0) { $phase = 'TL-8+' }
+else {
+    $vpsEvidence = Get-ChildItem -Path (Join-Path $ScriptDir "evidence") -Filter "vps-internet-soak-linux-*" -ErrorAction SilentlyContinue
+    if ($vpsEvidence) { $phase = 'TL-6+ (VPS soak evidence archived; run participant rehearsal)' }
+    elseif ($missingBins.Count -eq 0) { $phase = 'TL-5 (VPS ready - vps-preflight.sh then vps-internet-soak.sh)' }
+}
 
 $ci = Get-CiSummary
 $head = Get-HeadSha
@@ -83,7 +87,7 @@ $report = [ordered]@{
     ci             = $ci
     next_actions   = @(
         "Complete TL phases in order: $Playbook",
-        "Run release-ci-watch after TL-2 gate",
+        "TL-5 on VPS: vps-preflight.sh then vps-internet-soak.sh",
         "Do not publish seed_nodes until TL-5/TL-6 VPS evidence exists"
     )
 }
