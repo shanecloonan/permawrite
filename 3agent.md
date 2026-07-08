@@ -15,6 +15,19 @@
 
 ---
 
+## Session — 2026-07-08 (B4 proactive repair sweep)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B4 phase 1** | **Done** — `89f3498` | `p2p_repair_sweep.rs`; stale inbox re-fan-out; `MFND_REPAIR_*` env |
+| **CI #28966851917** | **GREEN** | `0ede433` M2.5.66 + M5.50 (~28m) |
+| **CI #28968642140** | **In progress** | `89f3498` B4 matrix |
+
+**Lane 4+6 — Done:** B4 `89f3498` **Doing:** CI monitor **Next:** B5 slashing research  
+**Lane 1 — Done:** M2.5.66 `0ede433` **Doing:** CI on B4 **Next:** Nightly on green head
+
+---
+
 ## Session — 2026-07-08 (M2.5.66 mesh set -e + B3 M5.50 proptests)
 
 | Unit | Status | Notes |
