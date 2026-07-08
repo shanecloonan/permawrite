@@ -83,21 +83,21 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** `3933cf0` + smoke `81849c8` + proptest `4a320ad` + block_apply `668cf17` + settlement `996f60f` + mfnd_smoke `0825385` + mempool `e7d74f7`. **CI `#28924060054` in progress** on `e7d74f7` — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running.
+**F7 stack:** `3933cf0` … + mempool `e7d74f7`. **CI `#28924060054` GREEN** on `e7d74f7` (~48m matrix). TL-3 release evidence archived for `46677ad`.
 
-**RC push hold:** monitor `#28924060054`; lane 2 evidence after green. No pushes until matrix completes.
+**RC push hold:** cleared — lane 7 TL-4 VPS runbook next.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28924060054` on `e7d74f7` | **Monitor** — F7 mempool tail | Nightly on green head |
-| **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
+| **1** | Nightly dispatch on `46677ad` stack | **Idle** — CI `#28924060054` GREEN | Monitor Nightly auto-dispatch |
+| **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-2 CI green + release evidence | **Monitor** — `e7d74f7` mempool pad | TL-3 launch ceremony prep |
+| **7** | TL-4 single-VPS runbook | **In progress** — public P2P binds + `VPS_SINGLE_BOX_LAUNCH.md` | TL-5 VPS soak |
 
 ---
 
@@ -124,13 +124,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | 2 | 1 | Green CI on M2.5.43–45 stack before Nightly #62 dispatch | **Done** - CI #636 |
 | 3 | 1 | Nightly #63 participant + observer PASS | **Done** - run `28792429191` |
 | 4 | 3 | M5.31-M5.33 protocol tests green before next M7.10 UX | **Done** - `d3a4f36` |
-| 7 | 1 | Green CI on head before TL-2 release-evidence refresh | **In progress** — CI `#28921758809` on `0825385` |
+| 7 | 1 | Green CI on head before TL-2 release-evidence refresh | **Done** — CI `#28924060054` on `e7d74f7` |
 | TESTNET | all | Mirror completed units into `docs/TESTNET_CHECKLIST.md` | Ongoing |
 
 ---
 
 ## Recently completed
 
+- **TL-3 release evidence** (lane 7) — `release-evidence-46677ad` + RC audit dry-run `go` on CI `#28924060054` (`e7d74f7`); TL-2 gate closed.
+- **TL-2 CI GREEN** (`e7d74f7`) — lane 7: mempool F7 two-input pad; CI `#28924060054` full matrix pass (~48m).
 - **F7 mfnd_smoke tail** (`0825385`) - RC core (lane 1): `synth_decoy_one_step_signed_transfer_fixture` steps 2 blocks so wallet owns ≥2 UTXOs before two-input transfer; closes CI `#28919128030` mempool/P2P admit failures.
 - **F7 settlement test tail** (`996f60f`) - permanence (lane 6): `producer_treasury_settlement.rs` two-input companion pad across genesis + all `sign_self_transfer` call sites; closes CI `#28917267975` failure on `fee_only_block_credits_treasury_ninety_percent`.
 - **F7 consensus tail** (`3933cf0`) - protocol (lanes 4+5): `RingPolicy.min_input_count` (`MIN_TX_INPUTS_UNIFORM_TIER = 2`) at `verify_transaction` when uniform-ring tier active; mirrors output floor; conformance + spend tests use two inputs under production policy.

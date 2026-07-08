@@ -3,15 +3,27 @@
 > **Unified coordination:** [`AGENTS.md`](./AGENTS.md) (master board) and [`docs/AGENTS.md`](./docs/AGENTS.md) (per-lane checklists).
 > Lanes **4–6** are overflow lanes.
 
+## Session — 2026-07-08 (Lane 7 TL-3 — CI green + release evidence)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **CI #28924060054** | **GREEN** | `e7d74f7` — full matrix ~48m; closes TL-2 |
+| **TL-3 evidence** | **Done** | `release-evidence-46677ad` + RC audit dry-run `go` |
+| **TL-4 VPS runbook** | **In progress** | `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`, P2P bind env |
+
+**Lane 7 — Done:** TL-1–TL-3 **Doing:** TL-4 VPS runbook **Next:** TL-5 internet soak (VPS provisioned)
+
+---
+
 ## Session — 2026-07-08 (F7 mempool tail → CI `#28924060054`)
 
 | Gate | Status | Notes |
 | --- | --- | --- |
 | **mempool F7** | **Done** — `e7d74f7` | `mfn-runtime` test helpers: companion pad + two-input `signed_tx` / `signed_storage_tx` |
-| **CI #28924060054** | **In progress** | `e7d74f7` — clippy/rustfmt/audit/wasm/scripts GREEN; matrix tests running |
+| **CI #28924060054** | **GREEN** | `e7d74f7` — full matrix pass |
 | **Prior CI #28921758809** | **Cancelled** | `0825385` — superseded by mempool fix push |
 
-**Lanes 1–3 — Done:** settlement `996f60f`, mfnd_smoke `0825385`, mempool `e7d74f7` **Doing:** CI monitor `#28924060054` **Next:** release evidence (lane 2) → Nightly (lane 1) → B3 (lanes 4+6)
+**Lanes 1–3 — Done:** mempool `e7d74f7`, CI `#28924060054` GREEN, TL-3 evidence **Doing:** TL-4 VPS (lane 7) **Next:** Nightly (lane 1) → TL-5 soak (lane 7) → B3 (lanes 4+6)
 
 ---
 

@@ -304,14 +304,16 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Done
 
 - [x] **TL-1** — charter + [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` (`8661106`)
+- [x] **TL-2** — green CI `#28924060054` on `e7d74f7` (F7 mempool two-input pad)
+- [x] **TL-3** — `release-evidence-46677ad` + RC audit dry-run `go` (CI `#28924060054`)
 
 ### Doing
 
-- [ ] **TL-2** — monitor CI `#28921758809` on `0825385` (F7 mfnd_smoke two-UTXO tail)
+- [ ] **TL-4** — single-VPS runbook (`vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`)
 
 ### Next
 
-- [ ] **TL-3** — `release-evidence-refresh-for-head` + RC audit dry-run go on green head
+- [ ] **TL-5** — internet soak on provisioned VPS (height ≥ 10, multi-sample health)
 
 ### Do not start
 
