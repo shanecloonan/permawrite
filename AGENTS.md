@@ -82,19 +82,19 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-07)
 
-**B2 ChunkV2** `20954b0` on `main`. **F7 tail** landing this push. **Nightly #28889931523 GREEN** (B-11/B7 stack).
+**B2 ChunkV2** `20954b0` + **F7 tail** `3933cf0` on `main`. **Nightly #28889931523 GREEN** (B-11/B7 stack).
 
-**RC push hold:** lifted after green CI on this commit.
+**RC push hold:** monitor CI on `3933cf0`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | Nightly #28889931523 | **Done** — all three jobs green on B-11/B7 stack | Nightly on F7 commit |
-| **2** | F7 consensus tail | **In progress** — ci-check + push | Release evidence refresh |
+| **2** | F7 `3933cf0` + B2 `20954b0` | **Done** | Release evidence refresh |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
-| **4** | F7 `min_input_count` at `verify_transaction` | **In progress** — this commit | B3 replication accounting |
-| **5** | F7 consensus tail (with lane 4) | **In progress** — this commit | B8 Tor transport (research) |
+| **4** | F7 `min_input_count` at `verify_transaction` | **Done** — `3933cf0` | B3 replication accounting |
+| **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
 
 ---
@@ -128,7 +128,7 @@ Add lanes 7+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F7 consensus tail** (this commit) - protocol (lanes 4+5): `RingPolicy.min_input_count` (`MIN_TX_INPUTS_UNIFORM_TIER = 2`) at `verify_transaction` when uniform-ring tier active; mirrors output floor; conformance + spend tests use two inputs under production policy.
+- **F7 consensus tail** (`3933cf0`) - protocol (lanes 4+5): `RingPolicy.min_input_count` (`MIN_TX_INPUTS_UNIFORM_TIER = 2`) at `verify_transaction` when uniform-ring tier active; mirrors output floor; conformance + spend tests use two inputs under production policy.
 - **B2 ChunkV2** (`20954b0`) - permanence (lanes 4+6): Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained for mesh compatibility.
 - **Release evidence `96462aa`** - RC ops (lane 2): pre-B2 stack evidence + RC audit dry-run go on CI `28885223488` (`0d28e4f`); refresh after B2 CI green.
 - **Nightly #28889931523 GREEN** - RC core (lane 1): all three jobs on B-11/B7 stack (`b1072e3`); auto-dispatched after CI `#28885223488`.

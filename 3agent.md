@@ -7,7 +7,7 @@
 
 | Gate | Status | Notes |
 | --- | --- | --- |
-| **F7 tail** | **This commit** | `RingPolicy.min_input_count = 2` at `verify_transaction` (uniform tier) |
+| **F7 tail** | **Done** — `3933cf0` | `RingPolicy.min_input_count = 2` at `verify_transaction` (uniform tier) |
 | **B2 ChunkV2** | **Done** | `20954b0` on `main` |
 | **CI #28911684671** | **Monitor** | B2 commit matrix (prior session) |
 
@@ -149,7 +149,7 @@
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | B2 CI `#28911684671`; Nightly green | — | Nightly on F7 commit |
-| **2** RC ops | B2 `20954b0` shipped | **This commit** — F7 + ci-check + push | Release evidence refresh |
+| **2** RC ops | F7 `3933cf0` + B2 `20954b0` | — | Release evidence refresh |
 | **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---
@@ -158,8 +158,8 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **4** Protocol | B2 ChunkV2 (`20954b0`) | **This commit** — F7 `min_input_count` | B3 replication accounting |
-| **5** Privacy | F7/B15 wallet floor | **This commit** — F7 consensus tail with lane 4 | B8 Tor transport (research) |
+| **4** Protocol | F7 `3933cf0` + B2 `20954b0` | — | B3 replication accounting |
+| **5** Privacy | F7 consensus tail (`3933cf0`) | — | B8 Tor transport (research) |
 | **6** Permanence | B2 (`20954b0`) | — | B3 replication accounting |
 
 ---
