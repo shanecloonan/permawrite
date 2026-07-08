@@ -10,7 +10,7 @@
 | **1** RC core | B3 3b `8b4e163` pushed; local CI green | **Monitor** CI `#28952620476` | Nightly re-dispatch |
 | **2** RC ops | Evidence `1b6caba` draft | **Await** CI green on `8b4e163` | Release evidence refresh + RC audit |
 | **3** Onboarding | `dc22cb7` fund-wallet F7 | Idle | Nightly participant after green |
-| **4+6** Protocol | B3 phase 3b `8b4e163` | **B3 phase 3c** — genesis operator seeding | Public devnet B3 enable + rehearsal wallet align |
+| **4+6** Protocol | B3 phase 3c `65aea81` | **Monitor** CI on 3c push | M5 duplicate-operator proptest |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
