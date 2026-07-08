@@ -316,7 +316,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps` (`ef3cbc4`)
 - [x] **TL-7–TL-9 tooling** — `TESTNET_GENESIS_CEREMONY.md`, `publish-seed-nodes.*`, `launch-go-no-go.*` (`03de79a`)
-- [x] **TL-8 invite packet** — [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) + `launch-status.v2` evidence hints (this commit)
+- [x] **TL-8 invite packet** — [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) + `launch-status.v2` evidence hints (`a0bf55f`)
 
 ### Doing
 
