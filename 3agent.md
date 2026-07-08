@@ -7,10 +7,11 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F7 CI `#28924060054` GREEN; `dc22cb7` fund-wallet pushed | Monitor CI `#28929146881` | Nightly re-dispatch |
-| **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on new green head |
-| **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Rehearsal after Nightly green |
-| **7** Testnet | TL-1–TL-4 on `main` | TL-5 soak tooling (this tree) | VPS run + archive evidence |
+| **1** RC core | F7 CI `#28924060054` GREEN; `dc22cb7` + `b70b3ec` Nightly fixes | Monitor CI on `5a74d57` stack | Nightly re-dispatch after green |
+| **2** RC ops | TL-3 evidence `46677ad` | Idle | Evidence refresh on `5a74d57` green head |
+| **3** Onboarding | `dc22cb7` fund-wallet F7 top-up | Idle | Participant rehearsal after Nightly green |
+| **4+6** Protocol | F7 test tail complete | **B3** replication accounting (design) | Operator-salted challenges |
+| **7** Testnet | TL-1–TL-5 tooling `5a74d57` | Await VPS provision | `vps-internet-soak.sh` + archive evidence |
 
 ---
 
@@ -18,11 +19,11 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **TL-5 scripts** | **This commit** | `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps`, `vps-bind-lib.sh` |
+| **TL-5 scripts** | **Done** — `5a74d57` | `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps`, `vps-bind-lib.sh` |
 | **TL-5 execution** | **Blocked** | Requires provisioned Linux VPS + `vps-bind.env` |
-| **CI #28929146881** | **Monitor** | `dc22cb7` fund-wallet F7 — hold push until green |
+| **CI** | **Monitor** | Push `5a74d57` stack (`b70b3ec`/`dc22cb7`/`5a74d57`) |
 
-**Lane 7 — Done:** TL-1–TL-4 **Doing:** TL-5 soak tooling **Next:** run `vps-internet-soak.sh` on VPS; archive evidence
+**Lane 7 — Done:** TL-1–TL-5 tooling **Doing:** await VPS **Next:** `vps-internet-soak.sh` + archive evidence
 
 ---
 

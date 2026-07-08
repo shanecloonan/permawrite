@@ -83,21 +83,21 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**F7 stack:** … + fund-wallet `dc22cb7` + fanout `b70b3ec`. **CI `#28924060054` GREEN** on `e7d74f7`. **CI `#28929315750` queued** on `b70b3ec`. Nightly `#28928716414` failed on pre-`dc22cb7` head (upload 1-input + fanout `applied=1`).
+**F7 stack:** … + fund-wallet `dc22cb7` + fanout `b70b3ec` + TL-5 tooling `5a74d57`. **CI `#28924060054` GREEN** on `e7d74f7`. **Push pending:** `5a74d57` (scripts-only TL-5). Nightly `#28928716414` failed pre-`dc22cb7`/`b70b3ec` (1-input upload + fanout `applied=1`).
 
-**RC push hold:** monitor `#28929315750`; Nightly re-dispatch after green.
+**RC push hold:** push `5a74d57` + board sync; monitor resulting CI; Nightly re-dispatch after green.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI `#28929315750` on `b70b3ec` | **Monitor** — F7 Nightly closure stack | Nightly re-dispatch after green |
+| **1** | CI on `5a74d57` stack (`b70b3ec`/`dc22cb7`) | **Monitor** — F7 + Nightly closure | Nightly re-dispatch after green |
 | **2** | Release evidence refresh | **Done** — lane 7 archived `release-evidence-46677ad` | Human sign-off packet |
 | **3** | B7 Dandelion++ rehearsal smoke | **Done** — local PASS evidence (`0d28e4f`) | Idle |
 | **4** | F7 test tail (`producer_treasury_settlement`) | **Done** — `996f60f` | B3 replication accounting |
 | **5** | F7 consensus tail (with lane 4) | **Done** — `3933cf0` | B8 Tor transport (research) |
 | **6** | B2 ChunkV2 (`20954b0`) | **Done** | B3 replication accounting |
-| **7** | TL-5 VPS internet soak tooling | **In progress** — `vps-internet-soak.sh` + preflight | Run soak on provisioned VPS |
+| **7** | TL-5 VPS internet soak | **Done** tooling `5a74d57` | TL-5 execution on provisioned VPS |
 
 ---
 

@@ -308,10 +308,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-3** — `release-evidence-46677ad` + RC audit dry-run `go` (CI `#28924060054`)
 
 - [x] **TL-4** — single-VPS runbook (`2f77eb4`: `vps-start-all.sh`, `VPS_SINGLE_BOX_LAUNCH.md`)
+- [x] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps` (`5a74d57`)
 
 ### Doing
 
-- [ ] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps`
+- [ ] **B3** — replication accounting design + phase-1 challenge salt (with lane 4)
 
 ### Next
 
