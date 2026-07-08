@@ -9,15 +9,15 @@
 | --- | --- | --- |
 | **F7 tail** | **Done** — `3933cf0` | `RingPolicy.min_input_count = 2` at `verify_transaction` (uniform tier) |
 | **B2 ChunkV2** | **Done** | `20954b0` on `main` |
-| **CI #28911684671** | **Monitor** | B2 commit matrix (prior session) |
+| **CI #28914787002** | **Failed** — ubuntu/macos smokes (F7 single-input funding) | Fix: `FUND_WALLET_BLOCKS=2` in mfn-cli integration smokes |
 
 ### RC push hold
 
-**Lifted** after green CI on this commit.
+**Active** — CI `#28914787002` failed on F7 smoke funding; fix landing now.
 
 ### Next priority
 
-**Lane 2:** release evidence refresh on `20954b0` + F7 stack. **Lane 6:** B3 replication accounting research.
+**Lane 2:** release evidence refresh on `3933cf0` after green CI. **Lane 6:** B3 replication accounting.
 
 ---
 
@@ -148,8 +148,8 @@
 
 | Lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B2 CI `#28911684671`; Nightly green | — | Nightly on F7 commit |
-| **2** RC ops | F7 `3933cf0` + B2 `20954b0` | — | Release evidence refresh |
+| **1** RC core | Nightly green; F7 CI `#28914787002` | **Monitor** | Nightly dispatch after green |
+| **2** RC ops | F7 `3933cf0` + B2 `20954b0` | **Waiting** — CI green → evidence refresh | Human sign-off packet |
 | **3** RC onboarding | B7 dandelion PASS; Nightly green | — | Idle |
 
 ---

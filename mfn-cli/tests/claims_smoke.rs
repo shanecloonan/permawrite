@@ -15,6 +15,7 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const CLAIM_DATA_ROOT_HEX: &str =
     "7777777777777777777777777777777777777777777777777777777777777777";
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -110,7 +111,7 @@ fn claims_for_lists_mined_authorship_claim() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()

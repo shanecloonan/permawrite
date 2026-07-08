@@ -13,6 +13,7 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -176,7 +177,7 @@ fn operator_prove_from_wallet_artifact_then_mine_proof() {
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
     std::fs::write(&payload_path, &payload).expect("write payload");
 
-    mfnd_step(&dir, &spec, "1");
+    mfnd_step(&dir, &spec, FUND_WALLET_BLOCKS);
 
     let mut serve = mfnd()
         .args(["--data-dir"])
@@ -410,7 +411,7 @@ fn storage_operator_run_once_submits_proof() {
     let payload_path = dir.join("payload.bin");
     std::fs::write(&payload_path, b"mfn-storage-operator M6.1").expect("write payload");
 
-    mfnd_step(&dir, &spec, "1");
+    mfnd_step(&dir, &spec, FUND_WALLET_BLOCKS);
 
     let mut serve = mfnd()
         .args(["--data-dir"])

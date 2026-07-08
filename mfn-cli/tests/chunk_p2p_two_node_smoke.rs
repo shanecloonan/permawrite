@@ -15,6 +15,7 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -241,7 +242,7 @@ fn hub_push_chunks_replica_inbox_assembles_matching_payload() {
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
     std::fs::write(&payload_path, &payload).expect("write payload");
 
-    mfnd_step(&hub_dir, &spec, "1");
+    mfnd_step(&hub_dir, &spec, FUND_WALLET_BLOCKS);
 
     let mut hub_serve = spawn_serve(&hub_dir, &spec, None);
     let (hub_rpc, _) = read_serve_addrs(&mut hub_serve);

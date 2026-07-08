@@ -15,6 +15,7 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 1024;
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -122,7 +123,7 @@ fn wallet_upload_mined_by_step_anchors_storage() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
@@ -290,7 +291,7 @@ fn wallet_upload_with_message_mines_bound_authorship_claim() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()

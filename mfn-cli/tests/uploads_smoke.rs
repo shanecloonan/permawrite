@@ -14,6 +14,7 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -121,7 +122,7 @@ fn uploads_list_shows_mined_storage_commitment() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
@@ -219,7 +220,7 @@ fn uploads_list_shows_mined_storage_commitment() {
         "stdout={list_stdout}"
     );
     assert!(
-        list_stdout.contains("last_proven_height=2"),
+        list_stdout.contains("last_proven_height=3"),
         "stdout={list_stdout}"
     );
 
@@ -278,7 +279,7 @@ fn uploads_list_include_claims_after_bound_upload() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()

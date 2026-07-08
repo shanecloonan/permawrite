@@ -17,6 +17,8 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
 const UPLOAD_BYTES: usize = 512;
+/// Solo blocks before wallet txs so F7 `min_input_count=2` can be satisfied (two coinbases).
+const FUND_WALLET_BLOCKS: &str = "2";
 const INBOX_WAIT_SECS: u64 = 180;
 
 fn mfnd_bin() -> PathBuf {
@@ -331,8 +333,8 @@ fn hub_produce_seal_auto_fanout_replica_inbox_assembles_matching_payload() {
     let payload: Vec<u8> = (0u8..255u8).cycle().take(UPLOAD_BYTES).collect();
     std::fs::write(&payload_path, &payload).expect("write payload");
 
-    // Fund, admit upload, populate inbox, then mine storage offline (same pattern as M7.4 two-node).
-    mfnd_step(&hub_dir, &spec, "1");
+    // Fund with two coinbases (F7 two-input floor) before upload.
+    mfnd_step(&hub_dir, &spec, FUND_WALLET_BLOCKS);
 
     let mut hub_prep = spawn_serve(&hub_dir, &spec, None);
     let (hub_rpc_prep, _) = read_serve_addrs(&mut hub_prep);

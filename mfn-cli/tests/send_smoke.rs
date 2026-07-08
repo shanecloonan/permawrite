@@ -20,6 +20,7 @@ const DEVNET_SOLO_BLS_SEED_HEX: &str =
 const BOB_SEED: [u8; 32] = [0xc0; 32];
 const TRANSFER_AMOUNT: u64 = 50_000;
 const TRANSFER_FEE: u64 = 10_000;
+const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
     let profile = if cfg!(debug_assertions) {
@@ -126,7 +127,7 @@ fn wallet_send_mined_by_step_reaches_recipient() {
         .arg("fs")
         .arg("step")
         .arg("--blocks")
-        .arg("1")
+        .arg(FUND_WALLET_BLOCKS)
         .env("MFND_SOLO_VRF_SEED_HEX", DEVNET_SOLO_VRF_SEED_HEX)
         .env("MFND_SOLO_BLS_SEED_HEX", DEVNET_SOLO_BLS_SEED_HEX)
         .output()
@@ -245,7 +246,7 @@ fn wallet_send_mined_by_step_reaches_recipient() {
     );
     let step2_out = String::from_utf8_lossy(&step2.stdout);
     assert!(
-        step2_out.contains("new_tip_height=2"),
+        step2_out.contains("new_tip_height=3"),
         "step2 stdout={step2_out}"
     );
     let step2_err = String::from_utf8_lossy(&step2.stderr);
@@ -260,11 +261,11 @@ fn wallet_send_mined_by_step_reaches_recipient() {
     let store2 = NodeStore::open(StoreBackend::Fs, &dir).expect("store2");
     let chain = store2.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let blocks = store2.read_block_log().expect("blocks");
-    assert_eq!(blocks.len(), 2, "expected two blocks in log");
+    assert_eq!(blocks.len(), 3, "expected three blocks in log");
     assert!(
-        blocks[1].txs.len() >= 2,
-        "block at height 2 should include coinbase + transfer, got {} txs",
-        blocks[1].txs.len()
+        blocks[2].txs.len() >= 2,
+        "block at height 3 should include coinbase + transfer, got {} txs",
+        blocks[2].txs.len()
     );
     let _ = chain;
 
