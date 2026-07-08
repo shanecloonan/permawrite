@@ -195,7 +195,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
 - [x] **B3 phase 3a** — operator registry in chain state + `require_registered_operators` gate (checkpoint v6; genesis off).
-- [ ] **B3 phase 3b** — signed `StorageOperatorRegister` bond wire + genesis seeding.
+- [x] **B3 phase 3b** — `StorageOperatorOp::Register` Schnorr wire + bond escrow (checkpoint v7 `min_storage_operator_bond`).
+- [ ] **B3 phase 3c** — genesis spec `storage_operators` seeding + public devnet enable.
 
 ### Handoff to lane 3
 
@@ -314,6 +315,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-5 tooling** — `vps-preflight.sh`, `vps-internet-soak.sh`, `soak.sh --vps` (`5a74d57`)
 
 - [x] **TL-6 tooling** — `vps-participant-rehearsal.sh`, `participant-rehearsal-smoke.sh --vps` (`ef3cbc4`)
+- [x] **TL-7–TL-9 tooling** — `TESTNET_GENESIS_CEREMONY.md`, `publish-seed-nodes.*`, `launch-go-no-go.*` (this commit)
 
 ### Doing
 
@@ -323,6 +325,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [ ] **TL-5 execution** — run soak on provisioned VPS; archive PASS evidence (height ≥ 10)
 - [ ] **TL-6 execution** — `vps-participant-rehearsal.sh` on same VPS after TL-5
+- [ ] **TL-7 human sign-off** — Path A (toy keys) or Path B (fresh genesis)
+- [ ] **TL-8** — `publish-seed-nodes.sh --apply` after TL-7
+- [ ] **TL-9** — `launch-go-no-go.sh` + named watchers before invite
 
 ### Do not start
 

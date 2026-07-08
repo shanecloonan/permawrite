@@ -39,6 +39,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-5 tooling** — `vps-internet-soak.sh` + `vps-preflight.sh` (`5a74d57`).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
 - [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
+- [ ] **Lane 7 / TL-7–TL-9** — genesis ceremony doc, `publish-seed-nodes`, `launch-go-no-go` (tooling on head).
 - [x] **B-11** (lanes 4+6) — `MFEO` endowment opening in `tx.extra`; `require_endowment_opening` param; phase 1 + proptests (`9f0a0aa`); public devnet genesis enable (`endowment.require_endowment_opening: 1` in `public_devnet_v1.json`, same `genesis_id`).
 
 ## Agent 2: RPC, Security, Operations, Observability, CI

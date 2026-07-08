@@ -20,9 +20,9 @@ Complete each phase before starting the next. A phase may have multiple commits;
 | **3** | TL-4 | Single-VPS runbook — [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md); TL-5 soak: `vps-internet-soak.sh` | Lane 7 | TL-3 |
 | **4** | TL-5 | Internet soak on VPS (multi-sample health, height ≥ 10) | Lane 7 | TL-4 + VPS provisioned |
 | **5** | TL-6 | Participant rehearsal on VPS (fund → upload → restore → prove → bundle) | Lane 7 | TL-5 |
-| **6** | TL-7 | Genesis/key decision: toy keys vs fresh genesis ceremony | Lane 7 + human | TL-6 |
-| **7** | TL-8 | Publish `seed_nodes` + operator invite packet | Lane 7 | TL-7 |
-| **8** | TL-9 | Launch go/no-go checklist — all critical items checked + named sign-offs | Lane 7 + human | TL-8 |
+| **6** | TL-7 | Genesis/key decision — [`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md) | Lane 7 + human | TL-6 |
+| **7** | TL-8 | Publish `seed_nodes` — `publish-seed-nodes.sh` + operator invite | Lane 7 | TL-7 |
+| **8** | TL-9 | Launch go/no-go — `launch-go-no-go.sh` + named sign-offs | Lane 7 + human | TL-8 |
 
 Phase 0 is **documentation and status tooling only**. Phases 4–8 require a reachable host (minimum: one Linux VPS).
 

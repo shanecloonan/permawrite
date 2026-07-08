@@ -176,7 +176,19 @@ export MFN_RPC_URL=http://127.0.0.1:18734
 
 ## Publish seed nodes (TL-8)
 
-After TL-5 soak and TL-6 participant rehearsal on this host, add reachable P2P seeds to [`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json):
+After TL-7 human sign-off (Path A toy keys or Path B fresh genesis), publish P2P seeds:
+
+```bash
+# Dry-run (prints JSON snippet):
+bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_VPS_PUBLIC_IP
+
+# Apply to manifest after review:
+bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_VPS_PUBLIC_IP --apply
+```
+
+See [`TESTNET_GENESIS_CEREMONY.md`](../docs/TESTNET_GENESIS_CEREMONY.md) for TL-7. Never publish RPC URLs in `seed_nodes`.
+
+Example manifest fragment:
 
 ```json
 "seed_nodes": [
@@ -186,7 +198,17 @@ After TL-5 soak and TL-6 participant rehearsal on this host, add reachable P2P s
 ]
 ```
 
-Use the addresses printed in `devnet-ports.env` / logs, substituting the public IP for `0.0.0.0`. See [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md).
+---
+
+## TL-9 — Launch go/no-go
+
+Before inviting outside operators:
+
+```bash
+bash scripts/public-devnet-v1/launch-go-no-go.sh
+```
+
+Automates evidence + `seed_nodes` checks. Human sign-off for TL-7 and TL-9 (named watchers, halt authority) is still required — see [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) § Launch go/no-go checklist.
 
 ---
 

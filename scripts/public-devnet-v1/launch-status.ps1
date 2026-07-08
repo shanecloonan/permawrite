@@ -92,7 +92,7 @@ $report = [ordered]@{
     next_actions   = @(
         "Complete TL phases in order: $Playbook",
         "TL-5 on VPS: vps-preflight.sh then vps-internet-soak.sh",
-        "Do not publish seed_nodes until TL-5/TL-6 VPS evidence exists"
+        "TL-7-9: TESTNET_GENESIS_CEREMONY.md, publish-seed-nodes, launch-go-no-go"
     )
 }
 
