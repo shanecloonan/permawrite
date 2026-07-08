@@ -207,10 +207,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **B5 phase 5a** — inert slash params + checkpoint v8 + [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md) (`e81d33e`).
-
-### Doing
-
-- [ ] **B5 phase 5b** — retained bond + `storage_operator_stats` + checkpoint v9 (this push).
+- [x] **B5 phase 5b** — retained bond + `storage_operator_stats` + checkpoint v9 (`643a224`).
 
 ### Next
 

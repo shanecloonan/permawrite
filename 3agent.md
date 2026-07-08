@@ -10,7 +10,7 @@
 | **1** RC core | Nightly `#28968584904` + `#28970179853` GREEN | **Doing** — CI B5 5a/5b | Nightly re-dispatch |
 | **2** RC ops | Evidence `1c633e7` RC audit **go** | **Idle** | Refresh evidence on 5b green |
 | **3** Onboarding | Nightly participant+observer PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 5a `e81d33e` | **Doing** — B5 5b push + CI | B5 5c slash execution |
+| **4+6** Protocol | B5 5a+5b `643a224` | **Doing** — CI `#28977215094` | B5 5c slash execution |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---

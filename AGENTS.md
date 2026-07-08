@@ -96,9 +96,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | CI on B5 stack | **Doing** — monitor CI `#28975621634` + 5b push | Nightly re-dispatch |
 | **2** | Release evidence refresh | **Done** — `1c633e7` RC audit **go** | Refresh on B5 5b green head |
 | **3** | Nightly participant PASS | **Done** — `#28970179853` | Idle |
-| **4** | B5 phase 5b miss stats | **In progress** — push + CI | B5 phase 5c slash execution |
+| **4** | B5 phase 5b miss stats | **Done** — `643a224` | B5 phase 5c slash execution |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B5 phase 5b with lane 4 | **In progress** — retained bond + stats | B5 phase 5c treasury slash |
+| **6** | B5 phase 5b with lane 4 | **Done** — `643a224` | B5 phase 5c treasury slash |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
