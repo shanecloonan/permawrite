@@ -98,6 +98,26 @@ REPLICA_WALLET="$DEMO_ROOT/replica.json"
 RESTORED_PATH="$DEMO_ROOT/restored.bin"
 CHUNK_LOG="$LOG_DIR/permanence-demo-chunks.log"
 
+stop_orphan_chunk_servers() {
+  pkill -f "mfn-storage-operator serve-chunks" 2>/dev/null || true
+  sleep 0.3
+}
+
+remove_stale_log() {
+  local path="$1" retries=8 i
+  [[ -f "$path" ]] || return 0
+  for ((i = 1; i <= retries; i++)); do
+    rm -f "$path" && return 0
+    sleep 0.25
+  done
+  local stale="${path}.stale.$$"
+  mv -f "$path" "$stale" 2>/dev/null || true
+  if [[ -f "$path" ]]; then
+    echo "permanence-demo: could not clear stale log $path" >&2
+    exit 1
+  fi
+}
+
 resolve_rpc() {
   if [[ -n "$RPC" ]]; then
     printf '%s\n' "$RPC"
@@ -386,7 +406,8 @@ echo "permanence-demo: upload tx_id=$TX_ID commitment_hash=$COMMIT_HASH"
 wait_uploads_list_contains "$MFN_CLI" "$RPC_ADDR" "$COMMIT_HASH" "$WAIT_UPLOAD_SECONDS"
 echo "permanence-demo: discover=ok commitment_hash=$COMMIT_HASH"
 
-rm -f "$CHUNK_LOG"
+stop_orphan_chunk_servers
+remove_stale_log "$CHUNK_LOG"
 "$STORAGE_OPERATOR" serve-chunks --wallet "$UPLOADER_WALLET" --listen "$CHUNK_LISTEN" >"$CHUNK_LOG" 2>&1 &
 CHUNK_PID=$!
 cleanup_chunk_server() {

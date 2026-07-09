@@ -366,10 +366,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-7–TL-9 tooling** — `TESTNET_GENESIS_CEREMONY.md`, `publish-seed-nodes.*`, `launch-go-no-go.*` (`03de79a`)
 - [x] **TL-8 invite packet** — [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) + `launch-status.v2` (`a0bf55f`)
 - [x] **VPS provision + ceremony** — [`VPS_PROVISION.md`](./VPS_PROVISION.md) + `vps-launch-ceremony.*` (`0a700a5`)
+- [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
+- [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
 
 ### Doing
 
-- [ ] *(idle — awaiting VPS provision for TL-5/6 execution)*
+- [ ] *(awaiting VPS provision for TL-5/6 execution)*
 
 ### Next
 

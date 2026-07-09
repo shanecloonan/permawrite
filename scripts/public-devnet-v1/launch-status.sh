@@ -6,8 +6,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MANIFEST="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.manifest.json"
 PLAYBOOK="docs/TESTNET_LAUNCH.md"
+EVIDENCE_DIR="$SCRIPT_DIR/evidence"
 JSON=0
 [[ "${1:-}" == "--json" ]] && JSON=1
+
+evidence_passes() {
+  local pattern="$1"
+  local f
+  shopt -s nullglob
+  for f in $EVIDENCE_DIR/$pattern; do
+    if grep -q "SUMMARY: PASS" "$f" 2>/dev/null; then
+      printf '%s\n' "$(basename "$f")"
+      return 0
+    fi
+  done
+  return 1
+}
 
 head_sha="$(cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
@@ -23,17 +37,53 @@ for b in mfnd mfn-cli mfn-storage-operator; do
   [[ -x "$REPO_ROOT/target/release/$b" ]] || missing_bins+=("$b")
 done
 
-phase="TL-5 (provision VPS — see docs/VPS_SINGLE_BOX_LAUNCH.md)"
-next_action="bash scripts/public-devnet-v1/vps-preflight.sh"
 tl5_evidence=0
 tl6_evidence=0
-if compgen -G "$SCRIPT_DIR/evidence/vps-internet-soak-linux-*.txt" >/dev/null 2>&1; then
+tl5_file=""
+tl6_file=""
+if tl5_file="$(evidence_passes "vps-internet-soak-linux-*.txt" 2>/dev/null)"; then
   tl5_evidence=1
 fi
-if compgen -G "$SCRIPT_DIR/evidence/vps-participant-rehearsal-*.txt" >/dev/null 2>&1; then
+if tl6_file="$(evidence_passes "vps-participant-rehearsal-*.txt" 2>/dev/null)"; then
   tl6_evidence=1
 fi
 
+local_mfer_no_observer=0
+local_mfer_observer=0
+local_mfer_no_observer_file=""
+local_mfer_observer_file=""
+if local_mfer_no_observer_file="$(evidence_passes "participant-rehearsal-no-observer-*.txt" 2>/dev/null)"; then
+  local_mfer_no_observer=1
+fi
+if local_mfer_observer_file="$(evidence_passes "participant-rehearsal-observer-*.txt" 2>/dev/null)"; then
+  local_mfer_observer=1
+fi
+local_rc_complete=0
+if (( local_mfer_no_observer == 1 && local_mfer_observer == 1 )); then
+  local_rc_complete=1
+fi
+
+release_evidence_archived=0
+release_evidence_file=""
+shopt -s nullglob
+for f in "$EVIDENCE_DIR"/release-evidence-*.json; do
+  release_evidence_archived=1
+  release_evidence_file="$(basename "$f")"
+  break
+done
+
+rc_audit_go=0
+rc_audit_file=""
+for f in "$EVIDENCE_DIR"/rc-audit-dry-run-*.json; do
+  if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('decision')=='go' else 1)" "$f" 2>/dev/null; then
+    rc_audit_go=1
+    rc_audit_file="$(basename "$f")"
+    break
+  fi
+done
+
+phase="TL-5 (provision VPS — see docs/VPS_PROVISION.md)"
+next_action="docs/VPS_PROVISION.md then bash scripts/public-devnet-v1/vps-preflight.sh"
 if [[ "$seed_count" -gt 0 ]]; then
   phase="TL-9+ (seed_nodes published — run launch-go-no-go.sh before invite)"
   next_action="bash scripts/public-devnet-v1/launch-go-no-go.sh"
@@ -43,9 +93,12 @@ elif (( tl6_evidence == 1 )); then
 elif (( tl5_evidence == 1 )); then
   phase="TL-6 (VPS soak done; run vps-participant-rehearsal.sh)"
   next_action="bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop"
+elif (( local_rc_complete == 1 )) && [[ ${#missing_bins[@]} -eq 0 ]]; then
+  phase="TL-5 (local RC complete — provision VPS for internet soak)"
+  next_action="docs/VPS_PROVISION.md → vps-preflight.sh → vps-internet-soak.sh"
 elif [[ ${#missing_bins[@]} -eq 0 ]]; then
-  phase="TL-5 (VPS ready — vps-internet-soak.sh)"
-  next_action="bash scripts/public-devnet-v1/vps-internet-soak.sh"
+  phase="TL-5 (build complete — run local MFER rehearsals then provision VPS)"
+  next_action="participant-rehearsal-smoke before VPS; see docs/VPS_PROVISION.md"
 fi
 
 internet="false"
@@ -64,7 +117,10 @@ fi
 
 if [[ "$JSON" -eq 1 ]]; then
   export REPO_ROOT PLAYBOOK phase head_sha genesis_id seed_count internet next_action
-  export tl5_evidence tl6_evidence
+  export tl5_evidence tl6_evidence tl5_file tl6_file
+  export local_mfer_no_observer local_mfer_observer local_rc_complete
+  export local_mfer_no_observer_file local_mfer_observer_file
+  export release_evidence_archived release_evidence_file rc_audit_go rc_audit_file
   export ci_run ci_status ci_conclusion ci_msg
   python3 - <<'PY'
 import json, os, pathlib
@@ -76,7 +132,7 @@ for b in ("mfnd", "mfn-cli", "mfn-storage-operator"):
         missing.append(b)
 
 print(json.dumps({
-    "schema_version": "launch-status.v2",
+    "schema_version": "launch-status.v3",
     "lane": 7,
     "playbook": os.environ["PLAYBOOK"],
     "invite_packet": "docs/TESTNET_INVITE.md",
@@ -86,8 +142,21 @@ print(json.dumps({
     "genesis_id": os.environ["genesis_id"],
     "seed_nodes_count": int(os.environ["seed_count"]),
     "internet_facing": os.environ["internet"] == "true",
+    "local_rc_complete": os.environ.get("local_rc_complete") == "1",
+    "local_mfer_rehearsal": {
+        "no_observer": os.environ.get("local_mfer_no_observer") == "1",
+        "observer": os.environ.get("local_mfer_observer") == "1",
+        "no_observer_file": os.environ.get("local_mfer_no_observer_file", ""),
+        "observer_file": os.environ.get("local_mfer_observer_file", ""),
+    },
     "vps_soak_evidence": os.environ.get("tl5_evidence") == "1",
     "vps_rehearsal_evidence": os.environ.get("tl6_evidence") == "1",
+    "vps_soak_file": os.environ.get("tl5_file", ""),
+    "vps_rehearsal_file": os.environ.get("tl6_file", ""),
+    "release_evidence_archived": os.environ.get("release_evidence_archived") == "1",
+    "release_evidence_file": os.environ.get("release_evidence_file", ""),
+    "rc_audit_go": os.environ.get("rc_audit_go") == "1",
+    "rc_audit_file": os.environ.get("rc_audit_file", ""),
     "release_binaries_missing": missing,
     "ci": {
         "message": os.environ["ci_msg"],
@@ -102,7 +171,9 @@ fi
 
 echo "launch-status: lane=7 phase=$phase head=$head_sha"
 echo "launch-status: genesis_id=$genesis_id seed_nodes=$seed_count internet_facing=$internet"
+echo "launch-status: local_rc_complete=$([[ $local_rc_complete -eq 1 ]] && echo true || echo false) local_mfer_no_observer=$local_mfer_no_observer local_mfer_observer=$local_mfer_observer"
 echo "launch-status: vps_soak_evidence=$([[ $tl5_evidence -eq 1 ]] && echo true || echo false) vps_rehearsal_evidence=$([[ $tl6_evidence -eq 1 ]] && echo true || echo false)"
+echo "launch-status: release_evidence_archived=$([[ $release_evidence_archived -eq 1 ]] && echo true || echo false) rc_audit_go=$([[ $rc_audit_go -eq 1 ]] && echo true || echo false)"
 if [[ ${#missing_bins[@]} -gt 0 ]]; then
   echo "launch-status: missing_release_binaries=${missing_bins[*]}"
 fi

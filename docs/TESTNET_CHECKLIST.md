@@ -37,6 +37,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (`8661106`).
 - [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).
 - [x] **Lane 7 / TL-5 tooling** — `vps-internet-soak.sh` + `vps-preflight.sh` (`5a74d57`).
+- [x] **Lane 7 / TL-5 local RC** — `launch-status.v3` local MFER rehearsal gates; no-observer + observer rehearsals PASS (Windows evidence `20260709T*`).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
 - [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
 - [x] **Lane 7 / TL-7–TL-9 tooling** — genesis ceremony, `publish-seed-nodes`, `launch-go-no-go` (`03de79a`).

@@ -15,6 +15,17 @@ pass() { echo "launch-go-no-go: PASS $1"; }
 fail() { echo "launch-go-no-go: FAIL $1" >&2; FAIL=1; }
 warn() { echo "launch-go-no-go: WARN $1" >&2; }
 
+local_mfer_evidence_passes() {
+  local pattern="$1" f
+  shopt -s nullglob
+  for f in $EVIDENCE_DIR/$pattern; do
+    if grep -q "SUMMARY: PASS" "$f" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 head_sha="$(cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 genesis_id=""
 seed_count=0
@@ -44,6 +55,12 @@ if soak_evidence="$(compgen -G "$EVIDENCE_DIR/vps-internet-soak-linux-*.txt" | h
     fail "TL-5 evidence missing PASS summary in $(basename "$soak_evidence")"
   fi
 else
+  if local_mfer_evidence_passes "participant-rehearsal-no-observer-*.txt" \
+    && local_mfer_evidence_passes "participant-rehearsal-observer-*.txt"; then
+    warn "TL-5 not run; local MFER rehearsals PASS — ready for VPS provision (docs/VPS_PROVISION.md)"
+  else
+    warn "TL-5 not run; complete local participant-rehearsal-smoke on MFER devnet before VPS"
+  fi
   fail "TL-5 evidence missing (vps-internet-soak-linux-*.txt)"
 fi
 
@@ -55,6 +72,9 @@ if rehearsal_evidence="$(compgen -G "$EVIDENCE_DIR/vps-participant-rehearsal-*.t
     fail "TL-6 evidence missing PASS in $(basename "$rehearsal_evidence")"
   fi
 else
+  if [[ -n "$soak_evidence" ]]; then
+    warn "TL-6 not run; VPS soak evidence present — run vps-participant-rehearsal.sh"
+  fi
   fail "TL-6 evidence missing (vps-participant-rehearsal-*.txt)"
 fi
 

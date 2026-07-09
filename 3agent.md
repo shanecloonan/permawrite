@@ -7,11 +7,26 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M4.8 tail `b3f56a6` CI `#29003960562` GREEN | **Doing** — CI on `daa8e8e` board sync | Nightly dispatch |
-| **2** RC ops | Release evidence `daa8e8e` + RC audit **go** | **Done** — local refresh | Human sign-off packet |
-| **3** Onboarding | MFER observer rehearsal PASS `20260709T080708Z` | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | M4.8 complete incl. WASM MFER test (`b3f56a6`) | **Idle** | Next permanence backlog |
-| **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
+| **1** RC core | M4.8 complete `b3f56a6`; CI `#29003960562` GREEN | **Doing** — CI on `daa8e8e` / `6d1d53b` | Nightly soak maintenance |
+| **2** RC ops | Release evidence `daa8e8e` + RC audit **go** | **Doing** — archive refresh on green head | Human sign-off packet |
+| **3** Onboarding | Local MFER rehearsals PASS (no-observer + observer) | **Idle** | TL-6 VPS rehearsal |
+| **4+6** Protocol | B1 + M4.8 complete | **Idle** | B8 Tor / retrieval backlog |
+| **7** Testnet | TL-1–TL-9 tooling; **local RC complete** | **Done** — `launch-status.v3` + bash demo parity | **TL-5 VPS soak** |
+
+---
+
+## Session — 2026-07-09 (Lane 7 — launch-status v3 + bash demo parity)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **launch-status v3** | **Done** — this push | Local MFER rehearsal gates, release evidence, RC audit go; phase → "local RC complete — provision VPS" |
+| **permanence-demo.sh** | **Done** | `stop_orphan_chunk_servers` + `remove_stale_log` parity with `.ps1` |
+| **launch-go-no-go** | **Done** | WARN when TL-5/TL-6 missing but local MFER rehearsals PASS |
+| **CI `#29005580975`** | **GREEN** | `daa8e8e` board sync on `main` |
+
+**Lane 7 — Doing:** launch-status v3 **Next:** TL-5 VPS execution (human provision)  
+**Lane 1 — Doing:** CI on `daa8e8e` **Next:** push Lane 7 ops after green  
+**Lane 3 — Done:** local rehearsals **Next:** TL-6 on VPS
 
 ---
 

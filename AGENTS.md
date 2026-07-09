@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `2fd0bbd` (release evidence). **CI `#28999593529` GREEN** on `bbe1d9f`. **Release evidence:** `release-evidence-bbe1d9f` + `2958cfa` RC audit **go**. MFER participant rehearsal PASS.
+**Head:** `6d1d53b`. **CI `#29003960562` GREEN** on `b3f56a6`. **Local RC complete:** MFER no-observer + observer rehearsals PASS. **Critical path:** VPS provision for TL-5/TL-6.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on M4.8 head | **Doing** — dispatch after `bbe1d9f` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `2fd0bbd` RC audit **go** | Human sign-off packet |
-| **3** | MFER devnet participant rehearsal | **Done** — `20260709T070005Z` | TL-6 VPS rehearsal |
-| **4** | M4.8 WASM upload MFER parity | **Done** — `bbe1d9f` | Next permanence backlog |
+| **1** | CI on board-sync stack | **Doing** — `#29005580975` on `daa8e8e` | Nightly soak maintenance |
+| **2** | Release evidence refresh | **Done** — `daa8e8e` RC audit **go** | Human sign-off packet |
+| **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
+| **4** | M4.8 WASM MFER integration test | **Done** — `b3f56a6` | B8 Tor / retrieval backlog |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | M4.8 with lane 4 | **Done** — `bbe1d9f` | RC evidence with lane 2 |
-| **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
+| **6** | B1 endowment range proof track | **Done** — `2958cfa`–`bbe1d9f` | RC evidence with lane 2 |
+| **7** | launch-status v3 + local RC gates | **Done** — this push | TL-5 VPS internet soak |
 
 ---
 
