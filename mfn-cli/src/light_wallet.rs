@@ -346,7 +346,7 @@ fn fetch_light_follow_with_quorum(
         if addr == &primary_addr {
             continue;
         }
-        let mut peer_client = RpcClient::new(addr);
+        let mut peer_client = primary.peer_client(addr);
         pages.push(peer_client.get_light_follow(from_h, to_h)?);
     }
 

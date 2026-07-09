@@ -52,6 +52,9 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
     let argv: Vec<String> = args.into_iter().skip(1).collect();
     let parsed = parse_args(&argv)?;
     let mut client = RpcClient::new(&parsed.rpc_addr);
+    if parsed.rpc_tor {
+        client = client.with_tor(&parsed.tor_socks5);
+    }
     if let Some(api_key) = parsed.rpc_api_key.clone().or_else(|| {
         std::env::var(MFN_RPC_API_KEY)
             .ok()
@@ -338,6 +341,30 @@ mod tests {
         let p = parse_args(&["--rpc-api-key".into(), "secret".into(), "mempool".into()]).unwrap();
         assert_eq!(p.rpc_api_key.as_deref(), Some("secret"));
         assert_eq!(p.cmd, Cmd::Mempool);
+    }
+
+    #[test]
+    fn parse_tor_flags() {
+        let p = parse_args(&[
+            "--tor".into(),
+            "--tor-socks5".into(),
+            "127.0.0.1:9150".into(),
+            "--rpc".into(),
+            "abc123.onion:18731".into(),
+            "tip".into(),
+        ])
+        .unwrap();
+        assert!(p.rpc_tor);
+        assert_eq!(p.tor_socks5, "127.0.0.1:9150");
+        assert_eq!(p.rpc_addr, "abc123.onion:18731");
+        assert_eq!(p.cmd, Cmd::Tip);
+    }
+
+    #[test]
+    fn parse_tor_defaults_socks5() {
+        let p = parse_args(&["--tor".into(), "status".into()]).unwrap();
+        assert!(p.rpc_tor);
+        assert_eq!(p.tor_socks5, mfn_net::DEFAULT_TOR_SOCKS5);
     }
 
     #[test]

@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `b845d22`. **CI `#29013614453` GREEN** on `ad9d75e`. **Nightly `#29013333776` GREEN** on `759f5d1`. **Release evidence:** `release-evidence-ad9d75e` RC audit **go**. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
+**Head:** B8.3 (this push). **CI `#29016552175` GREEN** on `d1316f7` (B8.2 board sync). **RC push hold lifted.**
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on B8.2 push | **Doing** — push `b845d22` | Nightly on green head |
-| **2** | Release evidence refresh | **Done** — `ad9d75e` RC audit **go** | Refresh after B8.2 CI |
+| **1** | B8.3 push + CI gate | **Doing** — local ci-check + push | Nightly on B8.3 head |
+| **2** | Release evidence refresh | **Doing** — after B8.3 lands | Human sign-off |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
-| **4** | B8.2 onion dials + hidden-service docs | **This push** | B8.3 wallet `--tor` |
-| **5** | B8.2 with lane 4 | **This push** | B8.3 with lane 4 |
-| **6** | B1 endowment range proof track | **Done** | B8.3 with lane 4 |
+| **4** | B8.3 wallet RPC `--tor` | **This push** | B8 embedded `arti` (research) |
+| **5** | B8.3 with lane 4 | **This push** | P31 eclipse diversity (research) |
+| **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
 ---

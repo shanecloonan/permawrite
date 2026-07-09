@@ -1,4 +1,4 @@
-# Tor P2P transport (B8.0–B8.2)
+# Tor P2P transport (B8.0–B8.3)
 
 Optional onion-routed P2P for **privacy at the network layer** (complements ring
 privacy on-chain). Cleartext TCP remains the default; Tor is opt-in with no
@@ -92,6 +92,31 @@ mfnd --data-dir ./observer \
 ```
 
 Keep RPC on loopback; use SSH tunnel if remote wallet access is needed.
+
+---
+
+## Wallet JSON-RPC over Tor (B8.3)
+
+`mfn-cli` can route **outbound JSON-RPC** (including `submit_tx`) through the
+same SOCKS5 proxy as P2P dials. Cleartext mode rejects `.onion` `--rpc` addresses.
+
+```bash
+export MFND_TOR_SOCKS5=127.0.0.1:9050
+
+mfn-cli --tor \
+  --rpc YOURSEED.onion:18731 \
+  wallet send --to … --amount …
+```
+
+Flags:
+
+- `--tor` — route RPC over SOCKS5 (or set `MFN_CLI_RPC_TOR=1`)
+- `--tor-socks5 HOST:PORT` — proxy (default `127.0.0.1:9050`; env `MFND_TOR_SOCKS5`)
+
+Light-wallet quorum peers inherit the primary client's Tor/cleartext mode when
+calling `--quorum-rpc`.
+
+WASM upload/submit remains local-only (no RPC client in `mfn-wasm`).
 
 ---
 

@@ -267,7 +267,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B8** — optional Tor/arti transport: **B8.0–B8.2 shipped**; **Next:** B8.3 wallet RPC `--tor`.
+- [x] **B8** — optional Tor/arti transport: **B8.0–B8.3 shipped** (`mfn-cli --tor` for onion RPC); embedded `arti` listener deferred.
 
 ### Do not start
 

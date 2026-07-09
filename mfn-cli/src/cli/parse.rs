@@ -142,17 +142,22 @@ pub(crate) enum WalletSub {
 pub(crate) struct Parsed {
     pub(crate) rpc_addr: String,
     pub(crate) rpc_api_key: Option<String>,
+    pub(crate) rpc_tor: bool,
+    pub(crate) tor_socks5: String,
     pub(crate) wallet_path: Option<String>,
     pub(crate) cmd: Cmd,
 }
 
 pub(crate) const MFN_RPC_API_KEY: &str = "MFN_RPC_API_KEY";
+pub(crate) const MFN_CLI_RPC_TOR: &str = "MFN_CLI_RPC_TOR";
 
 pub(super) fn usage() -> &'static str {
-    "usage: mfn-cli [--rpc HOST:PORT] [--rpc-api-key KEY] [--wallet PATH] <COMMAND> [ARGS]\n\
+    "usage: mfn-cli [--rpc HOST:PORT] [--tor] [--tor-socks5 HOST:PORT] [--rpc-api-key KEY] [--wallet PATH] <COMMAND> [ARGS]\n\
      \n\
      options:\n\
        --rpc ADDR:PORT   mfnd JSON-RPC listen address (default 127.0.0.1:18731)\n\
+       --tor             route RPC over SOCKS5 (Tor); required for .onion --rpc addresses\n\
+       --tor-socks5 ADDR SOCKS5 proxy when --tor (default 127.0.0.1:9050; env MFN_TOR_SOCKS5)\n\
        --rpc-api-key KEY send KEY with each JSON-RPC request (or set MFN_RPC_API_KEY)\n\
        --wallet PATH     wallet JSON file (default wallet.json)\n\
        --params JSON     only for `call`: JSON-RPC params object/array (default null)\n\
@@ -240,6 +245,34 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
 pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     let mut rpc_addr = DEFAULT_RPC_ADDR.to_string();
     let mut rpc_api_key: Option<String> = None;
+    let mut rpc_tor = match std::env::var(MFN_CLI_RPC_TOR) {
+        Ok(raw) => parse_env_bool(&raw).map_err(CliError::Usage)?,
+        Err(std::env::VarError::NotPresent) => false,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(CliError::Usage(format!(
+                "{MFN_CLI_RPC_TOR} must be valid UTF-8"
+            )));
+        }
+    };
+    let mut tor_socks5 = match std::env::var(mfn_net::MFND_TOR_SOCKS5_ENV) {
+        Ok(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                return Err(CliError::Usage(format!(
+                    "{} must not be empty",
+                    mfn_net::MFND_TOR_SOCKS5_ENV
+                )));
+            }
+            trimmed.to_string()
+        }
+        Err(std::env::VarError::NotPresent) => mfn_net::DEFAULT_TOR_SOCKS5.to_string(),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(CliError::Usage(format!(
+                "{} must be valid UTF-8",
+                mfn_net::MFND_TOR_SOCKS5_ENV
+            )));
+        }
+    };
     let mut wallet_path: Option<String> = None;
     let mut params_json: Option<String> = None;
     let mut force = false;
@@ -252,6 +285,23 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 return Err(CliError::Usage("--rpc requires HOST:PORT".into()));
             };
             rpc_addr = v.clone();
+            i += 2;
+            continue;
+        }
+        if a == "--tor" {
+            rpc_tor = true;
+            i += 1;
+            continue;
+        }
+        if a == "--tor-socks5" {
+            let Some(v) = args.get(i + 1) else {
+                return Err(CliError::Usage("--tor-socks5 requires HOST:PORT".into()));
+            };
+            let trimmed = v.trim();
+            if trimmed.is_empty() {
+                return Err(CliError::Usage("--tor-socks5 requires HOST:PORT".into()));
+            }
+            tor_socks5 = trimmed.to_string();
             i += 2;
             continue;
         }
@@ -433,9 +483,19 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
     Ok(Parsed {
         rpc_addr,
         rpc_api_key,
+        rpc_tor,
+        tor_socks5,
         wallet_path,
         cmd,
     })
+}
+
+fn parse_env_bool(raw: &str) -> Result<bool, String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        other => Err(format!("expected boolean env value, got {other:?}")),
+    }
 }
 
 pub(super) fn parse_claims_cmd(rest: &[&str]) -> Result<Cmd, CliError> {

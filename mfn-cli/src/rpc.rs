@@ -1,15 +1,25 @@
 //! JSON-RPC 2.0 client for `mfnd serve` (one request line per TCP connection).
+//!
+//! **B8.3:** optional Tor-routed RPC dials (`--tor` / `MFN_CLI_RPC_TOR`) route through
+//! SOCKS5 so `--rpc HOST.onion:PORT` works for remote `submit_tx` without exposing
+//! the caller's IP to the seed node.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
+use mfn_net::{
+    is_onion_host, parse_peer_host_port, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
+};
 use mfn_storage::{encode_storage_proof, StorageProof};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 /// Default `mfnd serve --rpc-listen` when not overridden.
 pub const DEFAULT_RPC_ADDR: &str = "127.0.0.1:18731";
+
+/// Environment variable: set to `1` / `true` to route RPC over Tor (same as `--tor`).
+pub const MFN_CLI_RPC_TOR_ENV: &str = "MFN_CLI_RPC_TOR";
 
 /// Chain tip snapshot from `get_tip`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -242,11 +252,77 @@ pub enum RpcError {
     Protocol(String),
 }
 
+/// Outbound RPC dial mode (**B8.3**).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct RpcConnectConfig {
+    /// When set, dials route through this SOCKS5 proxy (Tor).
+    pub tor_socks5: Option<String>,
+}
+
+impl RpcConnectConfig {
+    /// Cleartext TCP (default).
+    pub fn tcp() -> Self {
+        Self::default()
+    }
+
+    /// Tor-routed dials via SOCKS5 at `proxy` (`HOST:PORT`, default Tor daemon).
+    pub fn tor(proxy: impl Into<String>) -> Self {
+        Self {
+            tor_socks5: Some(proxy.into()),
+        }
+    }
+
+    /// Read [`MFN_CLI_RPC_TOR_ENV`] and [`mfn_net::MFND_TOR_SOCKS5_ENV`].
+    pub fn from_env() -> Result<Self, String> {
+        let enabled = match std::env::var(MFN_CLI_RPC_TOR_ENV) {
+            Ok(raw) => parse_env_bool(&raw)?,
+            Err(std::env::VarError::NotPresent) => false,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(format!("{MFN_CLI_RPC_TOR_ENV} must be valid UTF-8"));
+            }
+        };
+        if !enabled {
+            return Ok(Self::tcp());
+        }
+        let tor_socks5 = match std::env::var(mfn_net::MFND_TOR_SOCKS5_ENV) {
+            Ok(raw) => {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    return Err(format!(
+                        "{} must not be empty",
+                        mfn_net::MFND_TOR_SOCKS5_ENV
+                    ));
+                }
+                trimmed.to_string()
+            }
+            Err(std::env::VarError::NotPresent) => DEFAULT_TOR_SOCKS5.into(),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(format!(
+                    "{} must be valid UTF-8",
+                    mfn_net::MFND_TOR_SOCKS5_ENV
+                ));
+            }
+        };
+        Ok(Self::tor(tor_socks5))
+    }
+}
+
+fn parse_env_bool(raw: &str) -> Result<bool, String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "" | "0" | "false" | "no" | "off" => Ok(false),
+        "1" | "true" | "yes" | "on" => Ok(true),
+        other => Err(format!(
+            "{MFN_CLI_RPC_TOR_ENV}={other:?} must be 0/1 or true/false"
+        )),
+    }
+}
+
 /// Talks to a running `mfnd serve` JSON-RPC listener.
 #[derive(Debug, Clone)]
 pub struct RpcClient {
     addr: String,
     api_key: Option<String>,
+    connect: RpcConnectConfig,
     next_id: u64,
     connect_timeout: Duration,
     io_timeout: Duration,
@@ -258,10 +334,23 @@ impl RpcClient {
         Self {
             addr: addr.into(),
             api_key: None,
+            connect: RpcConnectConfig::tcp(),
             next_id: 1,
             connect_timeout: Duration::from_secs(10),
             io_timeout: Duration::from_secs(30),
         }
+    }
+
+    /// Route RPC dials through SOCKS5 (Tor). Reuses the same proxy knob as `mfnd serve`.
+    pub fn with_tor(mut self, socks5: impl Into<String>) -> Self {
+        self.connect = RpcConnectConfig::tor(socks5);
+        self
+    }
+
+    /// Install an explicit connect config (cleartext or Tor).
+    pub fn with_connect_config(mut self, connect: RpcConnectConfig) -> Self {
+        self.connect = connect;
+        self
     }
 
     /// Attach an RPC API key to every request.
@@ -282,9 +371,19 @@ impl RpcClient {
         self
     }
 
-    /// Peer `HOST:PORT`.
+    /// Peer `HOST:PORT` (or `.onion:PORT` when Tor mode is enabled).
     pub fn addr(&self) -> &str {
         &self.addr
+    }
+
+    /// Active RPC connect config (for quorum peer clients that should mirror Tor mode).
+    pub fn connect_config(&self) -> &RpcConnectConfig {
+        &self.connect
+    }
+
+    /// Spawn a client to `addr` with the same Tor/cleartext settings as `self`.
+    pub fn peer_client(&self, addr: impl Into<String>) -> Self {
+        Self::new(addr).with_connect_config(self.connect.clone())
     }
 
     /// Issue a JSON-RPC 2.0 call and return the `result` value.
@@ -544,13 +643,7 @@ impl RpcClient {
     }
 
     fn request_line(&self, request_line: &str) -> Result<String, RpcError> {
-        let mut stream = TcpStream::connect_timeout(
-            &self
-                .addr
-                .parse()
-                .map_err(|e| RpcError::Protocol(format!("invalid rpc addr: {e}")))?,
-            self.connect_timeout,
-        )?;
+        let mut stream = self.connect_stream()?;
         stream.set_read_timeout(Some(self.io_timeout))?;
         stream.set_write_timeout(Some(self.io_timeout))?;
         let mut req = request_line.to_string();
@@ -567,6 +660,29 @@ impl RpcClient {
             return Err(RpcError::Protocol("empty response from node".into()));
         }
         Ok(resp)
+    }
+
+    fn connect_stream(&self) -> Result<TcpStream, RpcError> {
+        if let Some(ref proxy) = self.connect.tor_socks5 {
+            let cfg = P2pTransportConfig {
+                kind: P2pTransportKind::Tor,
+                tor_socks5: proxy.clone(),
+            };
+            return cfg.connect_peer(&self.addr).map_err(RpcError::Io);
+        }
+        let (host, _) = parse_peer_host_port(&self.addr)
+            .map_err(|e| RpcError::Protocol(format!("invalid rpc addr: {e}")))?;
+        if is_onion_host(&host) {
+            return Err(RpcError::Protocol(format!(
+                "rpc addr {:?} is a .onion hidden service; pass --tor (or set {MFN_CLI_RPC_TOR_ENV}=1)",
+                self.addr
+            )));
+        }
+        let addr = self
+            .addr
+            .parse()
+            .map_err(|e| RpcError::Protocol(format!("invalid rpc addr: {e}")))?;
+        TcpStream::connect_timeout(&addr, self.connect_timeout).map_err(RpcError::Io)
     }
 }
 
@@ -587,5 +703,33 @@ mod tests {
         let tip: ChainTip = serde_json::from_value(v).unwrap();
         assert_eq!(tip.tip_height, None);
         assert_eq!(tip.tip_id, "none");
+    }
+
+    #[test]
+    fn cleartext_rpc_rejects_onion_without_tor() {
+        let onion = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:18731";
+        let client = RpcClient::new(onion);
+        let err = client.connect_stream().unwrap_err();
+        match err {
+            RpcError::Protocol(msg) => {
+                assert!(msg.contains(".onion"));
+                assert!(msg.contains("--tor"));
+            }
+            other => panic!("expected Protocol, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn tor_rpc_without_reachable_proxy_fails() {
+        let client = RpcClient::new("example.onion:8333").with_tor("127.0.0.1:1");
+        assert!(client.connect_stream().is_err());
+    }
+
+    #[test]
+    fn rpc_connect_config_from_env_defaults_off() {
+        std::env::remove_var(MFN_CLI_RPC_TOR_ENV);
+        std::env::remove_var(mfn_net::MFND_TOR_SOCKS5_ENV);
+        let cfg = RpcConnectConfig::from_env().unwrap();
+        assert_eq!(cfg, RpcConnectConfig::tcp());
     }
 }
