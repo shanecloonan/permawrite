@@ -1,6 +1,6 @@
 //! Optional P2P dial transport (**B8.0** / `F5:P4`).
 //!
-//! Default is cleartext TCP (`TcpStream::connect_timeout`). Tor/SOCKS5 routing ships in **B8.1**.
+//! Default is cleartext TCP (`TcpStream::connect_timeout`). Tor dials route via SOCKS5 (**B8.1**).
 
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -43,7 +43,7 @@ pub fn active_p2p_transport() -> &'static P2pTransportConfig {
 pub enum P2pTransportKind {
     /// Cleartext TCP (production default).
     Tcp,
-    /// Onion-routed dials via SOCKS5 (**B8.1** — connect returns [`ErrorKind::Unsupported`] today).
+    /// Onion-routed dials via SOCKS5 (**B8.1**).
     Tor,
 }
 
@@ -116,14 +116,11 @@ impl P2pTransportConfig {
     pub fn connect<A: ToSocketAddrs>(&self, addrs: A) -> std::io::Result<TcpStream> {
         match self.kind {
             P2pTransportKind::Tcp => tcp_connect_with_timeout(addrs, P2P_CONNECT_TIMEOUT),
-            P2pTransportKind::Tor => Err(Error::new(
-                ErrorKind::Unsupported,
-                format!(
-                    "Tor P2P transport is not implemented yet (B8.1); \
-                     unset {MFND_P2P_TRANSPORT_ENV} or use tcp (SOCKS5={})",
-                    self.tor_socks5
-                ),
-            )),
+            P2pTransportKind::Tor => crate::socks5::socks5_connect_with_timeout(
+                &self.tor_socks5,
+                addrs,
+                P2P_CONNECT_TIMEOUT,
+            ),
         }
     }
 }
@@ -177,14 +174,12 @@ mod tests {
     }
 
     #[test]
-    fn tor_transport_connect_is_unsupported_stub() {
+    fn tor_transport_without_proxy_fails_connect() {
         let cfg = P2pTransportConfig {
             kind: P2pTransportKind::Tor,
-            tor_socks5: DEFAULT_TOR_SOCKS5.into(),
+            tor_socks5: "127.0.0.1:1".into(),
         };
-        let err = cfg.connect("127.0.0.1:1").unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::Unsupported);
-        assert!(err.to_string().contains("B8.1"));
+        assert!(cfg.connect("127.0.0.1:1").is_err());
     }
 
     #[test]

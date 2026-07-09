@@ -636,7 +636,8 @@ pub(crate) fn run_serve(
             .map_err(|e| format!("mfnd serve: stdout flush (p2p transport): {e}"))?;
         if transport.kind == crate::network::P2pTransportKind::Tor {
             eprintln!(
-                "mfnd_p2p_transport_warning tor outbound dials are stub until B8.1; boot dials will fail"
+                "mfnd_p2p_transport_warning tor outbound dials require reachable SOCKS5 at {}",
+                transport.tor_socks5
             );
         }
     }

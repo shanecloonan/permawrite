@@ -267,7 +267,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B8** — optional Tor/arti transport: **B8.0 shipped** (`mfn-net::transport`, env knobs); **Next:** B8.1 SOCKS5 outbound dial.
+- [ ] **B8** — optional Tor/arti transport: **B8.0–B8.1 shipped**; **Next:** B8.2 inbound hidden service.
 
 ### Do not start
 

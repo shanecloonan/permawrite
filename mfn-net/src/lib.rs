@@ -34,6 +34,7 @@ pub mod handshake;
 pub mod light_follow;
 pub mod production;
 pub mod serve;
+pub mod socks5;
 pub mod transport;
 
 pub use block_sync::{

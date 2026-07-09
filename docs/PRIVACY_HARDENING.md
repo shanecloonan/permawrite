@@ -395,7 +395,7 @@ RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
 | Phase | Scope | Touch points | Gate |
 | --- | --- | --- | --- |
 | **B8.0** | Transport trait + env knobs | **`mfn-net::transport`** with `P2pTransportConfig`, `Tcp` default + `Tor` stub; `MFND_P2P_TRANSPORT`, `MFND_TOR_SOCKS5`; `mfnd_p2p_transport=…` harness line | **Shipped** — default `tcp`; CI unchanged |
-| **B8.1** | Outbound P2P over SOCKS5 | Route dialer path (`hello_v1_dial`, block-sync pulls) through SOCKS5 when `tor`; seed_nodes remain cleartext host:port | Ignored integration: dial mock + handshake |
+| **B8.1** | Outbound P2P over SOCKS5 | **`mfn-net::socks5`** CONNECT client; Tor dials via `MFND_TOR_SOCKS5` | **Shipped** — unit test with mock proxy |
 | **B8.2** | Inbound hidden service | `arti` listener for P2P accept on VPS operators; document onion v3 in [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) as optional | VPS rehearsal with Tor only |
 | **B8.3** | Wallet RPC submit path | `mfn-cli` / WASM optional `--tor` for `submit_tx` to loopback mfnd or remote RPC | Participant rehearsal `--tor` smoke |
 
