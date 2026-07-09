@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#28979369780` + Nightly `#28980876807` GREEN | **Doing** — CI on 5d push | B-05 soak |
-| **2** RC ops | Evidence `8bdb4ab` RC audit **go** | **Idle** | Human sign-off packet |
+| **1** RC core | CI `#28983986309` + Nightly `#28980876807` GREEN | **Doing** — Nightly on `1485e67` | B-05 soak |
+| **2** RC ops | Evidence `8bdb4ab` RC audit **go** | **Doing** — refresh on `1485e67` | Human sign-off packet |
 | **3** Onboarding | Nightly `#28980876807` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 5a–5d (this push) | **Doing** — ci-check + push | B6 size buckets |
+| **4+6** Protocol | B5 5d `1485e67` | **Done** | B6 size buckets |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
 
 ---
@@ -19,9 +19,9 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B5 phase 5d** | **This push** | M5.51 proptests; devnet cap=48 slash=250; manifest test; OPERATORS.md |
+| **B5 phase 5d** | **Done** — `1485e67` | M5.51 proptests; devnet cap=48 slash=250; CI `#28983986309` GREEN |
 | **Nightly #28980876807** | **GREEN** | All 3 jobs on `8bdb4ab` stack |
-| **Local CI** | **Pending** | `ci-check.ps1` before push |
+| **Local CI** | **GREEN** | `ci-check.ps1` on `1485e67` |
 
 **Lane 4+6 — Done:** B5 complete **Doing:** push **Next:** B6 size buckets  
 **Lane 1 — Done:** Nightly `#28980876807` **Doing:** CI on 5d push **Next:** soak maintenance

@@ -83,20 +83,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** B5 phase 5d (this push). **CI #28979369780** GREEN. **Nightly #28980876807** GREEN on `8bdb4ab`.
+**Head:** `1485e67` (B5 phase 5d). **CI #28983986309** GREEN. **Nightly #28980876807** GREEN on `8bdb4ab`.
 
-**Release evidence:** refresh on 5d head after CI green.
+**Release evidence:** refresh on `1485e67` (lane 2).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly on B5 stack | **Done** — `#28979369780`, `#28980876807` | CI on 5d push |
-| **2** | Release evidence refresh | **Doing** — after 5d CI | Human sign-off packet |
+| **1** | CI + Nightly on B5 stack | **Done** — CI `#28983986309`, Nightly `#28980876807` | Nightly on `1485e67` |
+| **2** | Release evidence refresh | **Doing** — refresh on `1485e67` | Human sign-off packet |
 | **3** | Nightly participant PASS | **Done** — `#28980876807` | Idle |
-| **4** | B5 operator slashing | **Done** — phases 5a–5d | B6 size buckets |
+| **4** | B5 operator slashing | **Done** — `1485e67` phases 5a–5d | B6 size buckets |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B5 with lane 4 | **Done** — complete | B6 with lane 4 |
+| **6** | B5 with lane 4 | **Done** — `1485e67` | B6 with lane 4 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---

@@ -241,7 +241,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Nightly #28970179853** — all three green on B4 repair stack (`89f3498`).
 - [x] **CI #28979369780 GREEN** on `8bdb4ab` (B5 phase 5c operator bond slash).
 - [x] **Nightly #28980876807** — all three green on B5 5c stack (`8bdb4ab`).
-- [x] **B5 phases 5a–5d** — operator slash complete (`8bdb4ab` + 5d push).
+- [x] **CI #28983986309 GREEN** on `1485e67` (B5 phase 5d M5.51 + public devnet slash params).
+- [x] **B5 phases 5a–5d** — operator slash complete (`1485e67`).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.
