@@ -535,14 +535,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn upload_min_fee_increases_with_size() {
-        let small = upload_min_fee_json(1_000, 3, 9000).expect("small");
-        let big = upload_min_fee_json(1_000_000, 3, 9000).expect("big");
-        let s: u64 = serde_json::from_str(&small).expect("parse");
-        let b: u64 = serde_json::from_str(&big).expect("parse");
-        assert!(b >= s);
-    }
-    #[test]
     fn wasm_build_and_verify_storage_proof_round_trip() {
         use mfn_storage::{build_storage_commitment, DEFAULT_CHUNK_SIZE};
         let data: Vec<u8> = (0..256 * 1024).map(|i| (i % 251) as u8).collect();
@@ -567,5 +559,145 @@ mod tests {
         .expect("verify");
         let ok: serde_json::Value = serde_json::from_str(&verify_json).expect("parse verify");
         assert_eq!(ok["valid"], true);
+    }
+
+    #[test]
+    fn wasm_storage_upload_attaches_mfer_when_range_proof_required() {
+        use curve25519_dalek::scalar::Scalar;
+        use mfn_consensus::extra_codec::parse_mfex_extra;
+        use mfn_consensus::{
+            decode_transaction, sign_transaction, InputSpec, OutputSpec, Recipient,
+        };
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::random_scalar;
+        use mfn_crypto::{generator_g, generator_h};
+        use mfn_storage::verify_endowment_range_proof_wire;
+        use mfn_wallet::scan::scan_transaction;
+        use mfn_wallet::wallet_from_seed;
+
+        fn fake_input(value: u64, ring_size: usize) -> InputSpec {
+            let signer_spend = random_scalar();
+            let signer_idx = 0usize;
+            let mut p = Vec::with_capacity(ring_size);
+            let mut c = Vec::with_capacity(ring_size);
+            let signer_blinding = random_scalar();
+            let signer_p = generator_g() * signer_spend;
+            let signer_c =
+                (generator_g() * signer_blinding) + (generator_h() * Scalar::from(value));
+            for i in 0..ring_size {
+                if i == signer_idx {
+                    p.push(signer_p);
+                    c.push(signer_c);
+                } else {
+                    let s = random_scalar();
+                    p.push(generator_g() * s);
+                    c.push((generator_g() * random_scalar()) + (generator_h() * random_scalar()));
+                }
+            }
+            InputSpec {
+                ring: ClsagRing { p, c },
+                signer_idx,
+                spend_priv: signer_spend,
+                value,
+                blinding: signer_blinding,
+            }
+        }
+
+        const SEED: [u8; 32] = [0x43u8; 32];
+        let me = wallet_from_seed(&SEED);
+        let recipient = Recipient {
+            view_pub: me.view_pub(),
+            spend_pub: me.spend_pub(),
+        };
+        let input_value = 50_000_000u64;
+        let signed = sign_transaction(
+            vec![fake_input(input_value, 16)],
+            vec![OutputSpec::ToRecipient {
+                recipient,
+                value: input_value - 1,
+                storage: None,
+            }],
+            1,
+            Vec::new(),
+        )
+        .expect("sign");
+        let scan = scan_transaction(&signed.tx, 1, &me, &HashSet::new());
+        assert_eq!(scan.recovered.len(), 1);
+        let owned = StoredOwnedOutput::from_owned(&scan.recovered[0]);
+        let owned_value = owned.value;
+
+        let mut decoy_utxos = Vec::new();
+        for i in 0..20u32 {
+            let s = random_scalar();
+            let p = generator_g() * s;
+            let c = (generator_g() * random_scalar()) + (generator_h() * random_scalar());
+            decoy_utxos.push(UtxoJson {
+                height: i,
+                one_time_addr_hex: hex::encode(p.compress().to_bytes()),
+                commit_hex: hex::encode(c.compress().to_bytes()),
+            });
+        }
+
+        let data = b"wasm mfer upload";
+        let replication: u8 = 3;
+        let fee = 100_000u64;
+        let anchor_value = 1_000u64;
+        let change_value = owned_value.saturating_sub(anchor_value).saturating_sub(fee);
+        let plan = StorageUploadPlanJson {
+            inputs: vec![owned],
+            anchor: RecipientJson {
+                view_pub_hex: hex::encode(me.view_pub().compress().to_bytes()),
+                spend_pub_hex: hex::encode(me.spend_pub().compress().to_bytes()),
+                value: anchor_value,
+            },
+            replication,
+            fee,
+            ring_size: 16,
+            current_height: 1,
+            decoy_utxos,
+            exclude_one_time_addrs_hex: vec![],
+            fee_to_treasury_bps: 9000,
+            change_recipients: vec![RecipientJson {
+                view_pub_hex: hex::encode(me.view_pub().compress().to_bytes()),
+                spend_pub_hex: hex::encode(me.spend_pub().compress().to_bytes()),
+                value: change_value,
+            }],
+            extra_hex: String::new(),
+            message_hex: String::new(),
+            endowment: EndowmentPlanJson {
+                require_endowment_range_proof: Some(1),
+                ..Default::default()
+            },
+            chunk_size: None,
+        };
+        let plan_str = serde_json::to_string(&plan).expect("plan json");
+        let out = build_storage_upload_json(&SEED, data, &plan_str).expect("wasm upload");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("parse result");
+        let tx_bytes = hex::decode(v["tx_hex"].as_str().expect("tx_hex")).expect("decode tx hex");
+        let tx = decode_transaction(&tx_bytes).expect("decode tx");
+        let parsed = parse_mfex_extra(&tx.extra).expect("mfex");
+        assert_eq!(parsed.endowment_range_proofs.len(), 1);
+        assert!(parsed.endowment_openings.is_empty());
+        let sc = tx.outputs[0].storage.as_ref().expect("storage output");
+        let burden: u128 = v["burden"]
+            .as_str()
+            .expect("burden")
+            .parse()
+            .expect("burden u128");
+        let required = u64::try_from(burden).expect("burden u64");
+        assert!(verify_endowment_range_proof_wire(
+            sc,
+            required,
+            &parsed.endowment_range_proofs[0].proof_bytes,
+        ));
+    }
+
+    #[test]
+    fn upload_min_fee_increases_with_size() {
+        let small = upload_min_fee_json(1_000, 3, 9000).expect("small");
+        let big = upload_min_fee_json(1_000_000, 3, 9000).expect("big");
+        let s: u64 = serde_json::from_str(&small).expect("parse");
+        let b: u64 = serde_json::from_str(&big).expect("parse");
+        assert!(b >= s);
     }
 }

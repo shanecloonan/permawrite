@@ -1,0 +1,12 @@
+# Participant rehearsal smoke - observer (Windows)
+# Generated: 20260709T080708Z
+# Command: participant-rehearsal-smoke.ps1 -WithObserver -MinHubHeight 5
+# Commit: 7dba698
+
+SUMMARY: PASS
+
+Hub RPC=127.0.0.1:54269
+Observer RPC=127.0.0.1:54340
+
+participant-rehearsal-smoke: PASS with_observer=True dandelion=false hub_tip_height=10 min_hub_height=5
+participant-rehearsal-smoke: post_rehearsal observer_tip_height=10 observer_rpc=127.0.0.1:54340

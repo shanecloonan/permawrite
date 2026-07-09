@@ -1,6 +1,6 @@
 ﻿# Permawrite Release-Candidate Evidence
 
-Generated UTC: `2026-07-09T07:28:10.1625059Z`
+Generated UTC: `2026-07-09T07:33:06.9134841Z`
 
 ## Commit And CI
 
@@ -30,4 +30,4 @@ Generated UTC: `2026-07-09T07:28:10.1625059Z`
 - RPC exposure approved: `[ ]`
 - Backups and restore rehearsed: `[ ]`
 - Halt/rollback authority agreed: `[ ]`
-- Notes: ``
+- Notes: `M4.8 WASM MFER parity + rehearsal evidence`
