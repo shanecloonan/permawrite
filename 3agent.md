@@ -7,24 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B1 2d `2958cfa` CI GREEN; Nightly `#28997426953` PASS | **Doing** — soak maintenance | Lane 2 evidence handoff |
-| **2** RC ops | B1 2a–2d green; Nightly PASS | **Doing** — release evidence on `2958cfa` + B1 2e push | Human sign-off packet |
-| **3** Onboarding | Nightly `#28997426953` PASS | **Doing** — MFER participant rehearsal (retry after log-lock fix) | TL-6 VPS rehearsal |
-| **4+6** Protocol | B1 2a–2d `2958cfa` | **Doing** — B1 phase 2e WASM MFER parity | RC evidence |
+| **1** RC core | M4.8 `bbe1d9f` CI `#28999593529` GREEN | **Doing** — Nightly on `bbe1d9f` | Soak maintenance |
+| **2** RC ops | Release evidence `2958cfa` + RC audit **go** | **Doing** — refresh on `bbe1d9f` | Human sign-off packet |
+| **3** Onboarding | MFER rehearsal PASS `20260709T070005Z` on `bbe1d9f` | **Idle** | TL-6 VPS rehearsal |
+| **4+6** Protocol | **B1 complete** + M4.8 WASM MFER (`bbe1d9f`) | **Idle** | Next permanence backlog |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
 
 ---
 
-## Session — 2026-07-09 (B1 phase 2e — WASM MFER parity)
+## Session — 2026-07-09 (M4.8 / B1 2e — WASM MFER + rehearsal evidence)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B1 phase 2e** | **This push** | `mfn-wasm` merges `get_chain_params.endowment`; RPC exposes flags; demo web forwards policy |
-| **Nightly #28997426953** | **GREEN** | All jobs on `2958cfa` head (~8m) |
-| **Participant rehearsal** | **Retry** | Prior run failed on locked `permanence-demo-chunks.log`; fixed stale-log helper |
+| **M4.8 / B1 2e** | **Done** — `bbe1d9f` | WASM upload merges live endowment flags; CI `#28999593529` GREEN |
+| **MFER rehearsal** | **Done** | `participant-rehearsal-no-observer-windows-20260709T070005Z.txt`; upload+prove+support-bundle PASS |
+| **Demo log-lock fix** | **This push** | `permanence-demo.ps1` stale-log + orphan chunk-server cleanup |
 
-**Lane 4+6 — Doing:** B1 2e **Next:** participant rehearsal PASS (lane 3)  
-**Lane 3 — Doing:** MFER rehearsal retry **Next:** TL-6 VPS
+**Lane 3 — Done:** MFER rehearsal **Next:** TL-6 VPS  
+**Lane 2 — Doing:** release evidence on `bbe1d9f`
 
 ---
 
