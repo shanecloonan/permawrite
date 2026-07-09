@@ -33,6 +33,7 @@ for needle in \
   "Loopback devnet" \
   "Wallet keys never on validator" \
   "mfn-cli --tor" \
+  "vps-role-validator.env.example" \
   ; do
   if ! grep -q "$needle" "$DOC"; then
     echo "reference-topology-rehearsal-smoke: REFERENCE_TOPOLOGY.md missing: $needle" >&2
@@ -40,8 +41,21 @@ for needle in \
   fi
 done
 
+for template in \
+  vps-role-validator.env.example \
+  vps-role-observer.env.example \
+  vps-role-operator.env.example \
+  vps-role-wallet.env.example \
+  ; do
+  if [[ ! -f "$SCRIPT_DIR/$template" ]]; then
+    echo "reference-topology-rehearsal-smoke: missing $SCRIPT_DIR/$template" >&2
+    exit 1
+  fi
+done
+
 echo "reference-topology-rehearsal-smoke: plan"
 echo "  flow=read REFERENCE_TOPOLOGY.md -> verify P32 harness + separation rules"
+echo "  templates=vps-role-*.env.example (validator|observer|operator|wallet)"
 echo "  docs=docs/REFERENCE_TOPOLOGY.md"
 echo "  lint=mfnd_role_topology_warning (phase 0 shipped f76991a)"
 echo "  live_rehearsal=deferred (VPS TL-5/TL-6 uses separated observer + validators)"

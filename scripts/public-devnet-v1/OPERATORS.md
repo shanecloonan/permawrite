@@ -48,6 +48,21 @@ New peers should:
 
 ## Bootstrap scripts
 
+### P32 role-separated VPS templates (multi-host testnet)
+
+For **production-style** separation (validators, observer, operator, wallet on different hosts), copy the role env templates in this directory:
+
+| Template | Role |
+|---|---|
+| [`vps-role-validator.env.example`](vps-role-validator.env.example) | Dedicated validator (`--produce` or `--committee-vote`); loopback RPC only |
+| [`vps-role-observer.env.example`](vps-role-observer.env.example) | Community observer; public RPC + P2P |
+| [`vps-role-operator.env.example`](vps-role-operator.env.example) | Storage operator; RPC-only path to observer |
+| [`vps-role-wallet.env.example`](vps-role-wallet.env.example) | Wallet client; never dial your own validator RPC |
+
+See [`docs/REFERENCE_TOPOLOGY.md`](../../docs/REFERENCE_TOPOLOGY.md) for layout diagrams and anti-patterns. Single-box internet launch (all roles on one VPS) uses [`vps-bind.env.example`](vps-bind.env.example) instead — loopback RPC + public P2P per process.
+
+### Local mesh scripts
+
 From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 
 | Platform | Command |

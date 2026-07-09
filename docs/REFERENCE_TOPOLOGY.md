@@ -201,6 +201,8 @@ mfnd_role_topology_warning roles=validator+wallet_rpc+operator rpc_listen=0.0.0.
 
 Rehearsal wrapper (plan-only): [`reference-topology-rehearsal-smoke.sh`](../scripts/public-devnet-v1/reference-topology-rehearsal-smoke.sh) / [`.ps1`](../scripts/public-devnet-v1/reference-topology-rehearsal-smoke.ps1).
 
+Role env templates: [`vps-role-validator.env.example`](../scripts/public-devnet-v1/vps-role-validator.env.example), [`vps-role-observer.env.example`](../scripts/public-devnet-v1/vps-role-observer.env.example), [`vps-role-operator.env.example`](../scripts/public-devnet-v1/vps-role-operator.env.example), [`vps-role-wallet.env.example`](../scripts/public-devnet-v1/vps-role-wallet.env.example).
+
 ---
 
 ## 8. Roadmap (P32 remaining)
@@ -208,8 +210,8 @@ Rehearsal wrapper (plan-only): [`reference-topology-rehearsal-smoke.sh`](../scri
 | Phase | Scope | Status |
 |---|---|---|
 | **0** | Startup warn on colocated validator + public RPC (+ operator) | **Shipped** — `f76991a` |
-| **1** | This reference doc + rehearsal smoke | **This doc** |
-| **2** | Operator runbook cross-links + VPS template env files | Planned |
+| **1** | This reference doc + rehearsal smoke | **Shipped** — `85f3512` |
+| **2** | Operator runbook cross-links + VPS template env files | **Shipped** — `vps-role-*.env.example` |
 | **3** | PM23 operator-manifest separation lint | Research |
 
 ---

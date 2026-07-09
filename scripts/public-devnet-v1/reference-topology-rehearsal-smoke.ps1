@@ -16,7 +16,8 @@ $needles = @(
     "mfnd_role_topology_warning",
     "Loopback devnet",
     "Wallet keys never on validator",
-    "mfn-cli --tor"
+    "mfn-cli --tor",
+    "vps-role-validator.env.example"
 )
 foreach ($n in $needles) {
     if (-not (Select-String -LiteralPath $Doc -Pattern $n -Quiet)) {
@@ -24,8 +25,22 @@ foreach ($n in $needles) {
     }
 }
 
+$templates = @(
+    "vps-role-validator.env.example",
+    "vps-role-observer.env.example",
+    "vps-role-operator.env.example",
+    "vps-role-wallet.env.example"
+)
+foreach ($t in $templates) {
+    $path = Join-Path $ScriptDir $t
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "reference-topology-rehearsal-smoke: missing $path"
+    }
+}
+
 Write-Host "reference-topology-rehearsal-smoke: plan"
 Write-Host "  flow=read REFERENCE_TOPOLOGY.md -> verify P32 harness + separation rules"
+Write-Host "  templates=vps-role-*.env.example (validator|observer|operator|wallet)"
 Write-Host "  docs=docs/REFERENCE_TOPOLOGY.md"
 Write-Host "  lint=mfnd_role_topology_warning (phase 0 shipped f76991a)"
 Write-Host "  live_rehearsal=deferred (VPS TL-5/TL-6 uses separated observer + validators)"
