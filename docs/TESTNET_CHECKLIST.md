@@ -37,7 +37,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B8.2** (lanes 4+5) — SOCKS5 domain `.onion` dials + `MFND_P2P_ONION` + [`TOR_P2P.md`](./TOR_P2P.md) (`b845d22`).
 - [x] **B8.3** (lanes 4+5) — `mfn-cli --tor` / `MFN_CLI_RPC_TOR` for onion JSON-RPC + quorum peer mirror + `tor-rpc-rehearsal-smoke` plan gate (`5b863b3`).
 - [x] **P31 phase 0** (lanes 4+5) — peer diversity /16 metrics in `get_status.p2p` + `mfnd_p2p_diversity_warning` (`d3cc1be`).
-- [x] **P31 phase 1** (lanes 4+5) — automatic diversity redial on low /16 spread (this push).
+- [x] **P31 phase 1** (lanes 4+5) — automatic diversity redial on low /16 spread (`571e0bf`).
 - [x] **P32 phase 0** (lanes 4+5) — `mfnd_role_topology_warning` on colocated validator + public RPC (+ operator) (this push).
 - [x] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (`8661106`).
 - [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).

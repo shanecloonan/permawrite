@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29023541155` GREEN on `f76991a` | **Doing** — P31.1 ci-check + push | Nightly watch |
-| **2** RC ops | Release evidence `f76991a` + RC audit **go** | **Done** | Refresh after P31.1 |
+| **1** RC core | CI `#29028631457` GREEN on `571e0bf` | **Done** | Nightly auto-dispatch |
+| **2** RC ops | Release evidence `571e0bf` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | P32 phase 0 `f76991a` | **This push** — P31.1 diversity redial | F12 anchor peers |
+| **4+6** Protocol | P31.1 diversity redial `571e0bf` | **Done** | F12 anchor peers |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
 ---
@@ -19,15 +19,19 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **P31 phase 1** | **This push** | `peer_diversity_redial_candidates`; `spawn_peer_diversity_redial_loop`; `MFND_P2P_DIVERSITY_REDIAL`; harness `mfnd_p2p_diversity_redial_start` |
+| **P31 phase 1** | **Done** — `571e0bf` | `peer_diversity_redial_candidates`; `spawn_peer_diversity_redial_loop`; `MFND_P2P_DIVERSITY_REDIAL`; harness `mfnd_p2p_diversity_redial_start` |
 
-**Lane 4+5 — Doing:** P31.1 **Next:** F12 checkpoint anchor peers
+**Lane 4+5 — Done:** P31.1 **Next:** F12 checkpoint anchor peers
+
+---
+
+## Session — 2026-07-09 (P32 — role topology lint phase 0)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **P32 phase 0** | **Done** — `f76991a` | `role_topology.rs`; `mfnd_role_topology_warning` when validator + public RPC (+ operator) colocate; loopback RPC exempt |
 
-**Lane 4+5 — Doing:** P32 phase 0 **Next:** reference topology doc
+**Lane 4+5 — Done:** P32 phase 0 **Next:** reference topology doc
 
 ---
 
