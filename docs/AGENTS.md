@@ -217,7 +217,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B7 (permanence inbox quota)** — `MFND_CHUNK_INBOX_MAX_BYTES` gossip disk cap (this push).
+- [x] **B7 (permanence inbox quota)** — `MFND_CHUNK_INBOX_MAX_BYTES` gossip disk cap (`930b166`; CI `#28986986012` GREEN).
 
 ### Handoff to lane 3
 
@@ -302,6 +302,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] B-06 — Nightly #63 all three jobs green (`28792429191` on `85e5870` stack; lane 1 RC gate closed).
 - [x] **B2 ChunkV2** (this commit) — Merkle-path chunk gossip with lane 4.
 - [x] **B4** — proactive repair sweep with lane 4 (`89f3498`).
+- [x] **B7 (permanence inbox quota)** — chunk-inbox disk cap (`930b166`).
 - [x] **B5 phase 5a** — inert slash params + checkpoint v8 (`e81d33e`).
 - [x] **B5 phase 5b** — retained bond + miss stats + checkpoint v9 (`643a224`).
 - [x] **B5 phase 5c** — slash → treasury + zero-bond deregister (`8bdb4ab`; CI `#28979369780` GREEN).

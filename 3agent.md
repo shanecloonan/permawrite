@@ -7,11 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#28983986309` + Nightly `#28980876807` GREEN | **Doing** — monitor CI on B7 push | Nightly on B7 head |
-| **2** RC ops | Evidence `8bdb4ab` RC audit **go** | **Doing** — refresh on `1485e67`+ | Human sign-off packet |
-| **3** Onboarding | Nightly `#28980876807` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 5d `1485e67` | **Doing** — B7 chunk-inbox quota push | B1 opening reveal research |
-| **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+| **1** RC core | CI `#28986986012` + Nightly `#28986938052` GREEN | **Doing** — B1 phase 2a push | Nightly on B1 2a head |
+| **2** RC ops | Evidence `1485e67`+ B5 stack | **Doing** — refresh on B7 green | Human sign-off packet |
+| **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal evidence |
+| **4+6** Protocol | B7 inbox quota `930b166` pushed; B5 5d `1485e67` | **Doing** — B1 phase 2a inert param (local) | B1 phase 2b wire + verify |
+| **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
+
+---
+
+## Session — 2026-07-08 (B1 phase 2a — inert range-proof param)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B1 phase 2a** | **Local** | `require_endowment_range_proof`; checkpoint **v10**; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md) |
+| **B7 CI #28986986012** | **GREEN** | Full matrix on `930b166` |
+| **Nightly #28986938052** | **GREEN** | All 3 jobs on B7 stack |
+
+**Lane 4+6 — Done:** B7 `930b166` **Doing:** B1 2a **Next:** B1 2b MFER wire  
+**Lane 1 — Done:** Nightly `#28986938052` **Doing:** CI on B7 **Next:** ci-check + push B1 2a
 
 ---
 
@@ -19,10 +32,10 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B7 inbox quota** | **This push** | `MFND_CHUNK_INBOX_MAX_BYTES`; LRU evict incomplete dirs; protect complete sets |
-| **CI** | **Pending** | `ci-check.ps1` before push |
+| **B7 inbox quota** | **Done** — `930b166` | `MFND_CHUNK_INBOX_MAX_BYTES`; LRU evict incomplete dirs; protect complete sets |
+| **CI #28986986012** | **In progress** | Pushed; awaiting full matrix |
 
-**Lane 4+6 — Done:** B5 `1485e67` **Doing:** B7 push **Next:** B1 opening reveal  
+**Lane 4+6 — Done:** B5 `1485e67` **Doing:** B7 CI **Next:** B1 opening reveal  
 **Lane 1 — Done:** CI `#28983986309` **Doing:** CI on B7 **Next:** Nightly dispatch
 
 ---
