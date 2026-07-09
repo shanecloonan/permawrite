@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** M4.8 / B1 phase 2e WASM MFER upload parity (this push). **B1 2d** `2958cfa` CI `#28995960877` GREEN. **Nightly `#28997426953` GREEN** on `2958cfa`.
+**Head:** M4.8 / B1 phase 2e `bbe1d9f`. **CI `#28999593529` GREEN** (~28m). **MFER participant rehearsal PASS** on `bbe1d9f`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on B1 2d head | **Done** — `#28997426953` PASS | Soak maintenance |
-| **2** | Release evidence refresh | **Doing** — refresh on `2958cfa` + 2e push | Human sign-off packet |
-| **3** | MFER devnet participant rehearsal | **Doing** — retry after permanence-demo log-lock fix | TL-6 VPS rehearsal |
-| **4** | M4.8 WASM upload MFER parity | **Doing** — this push | Next permanence backlog item |
+| **1** | Nightly on M4.8 head | **Doing** — dispatch after `bbe1d9f` | Soak maintenance |
+| **2** | Release evidence refresh | **Doing** — refresh on `bbe1d9f` | Human sign-off packet |
+| **3** | MFER devnet participant rehearsal | **Done** — `20260709T070005Z` | TL-6 VPS rehearsal |
+| **4** | M4.8 WASM upload MFER parity | **Done** — `bbe1d9f` | Next permanence backlog |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | M4.8 with lane 4 | **Doing** — get_chain_params + upload plan | RC evidence with lane 2 |
+| **6** | M4.8 with lane 4 | **Done** — `bbe1d9f` | RC evidence with lane 2 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **M4.8 / B1 phase 2e** (`bbe1d9f`) - permanence + privacy (lanes 4+5+6): WASM upload merges live `get_chain_params.endowment`; RPC exposes MFER flags; demo web forwards policy; CI `#28999593529` GREEN.
+- **MFER participant rehearsal** (lane 3) — Windows smoke PASS on `bbe1d9f`; evidence `participant-rehearsal-no-observer-windows-20260709T070005Z.txt`.
 - **B1 phase 2d** (`2958cfa`) - permanence (lanes 4+6): public devnet `require_endowment_range_proof: 1` (same `genesis_id`); forged-blinding reject test; CI `#28995960877` GREEN.
 - **B1 phase 2c** (`ba53a15`) - permanence (lanes 4+6): wallet MFEX v3 `MFER` builder; `build_endowment_surplus_range_proof` in mfn-storage; wallet unit test.
 - **B1 phase 2b** (`c084537`) - permanence (lanes 4+6): MFEX v3 + `MFER` surplus range proofs; `apply_block` + mempool verify; M5 accept/reject + treasury proptest.

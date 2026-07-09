@@ -30,6 +30,35 @@ $RestoredPath = Join-Path $DemoRoot "restored.bin"
 $ChunkLog = Join-Path $LogDir "permanence-demo-chunks.log"
 $ChunkErrLog = Join-Path $LogDir "permanence-demo-chunks.err.log"
 
+function Stop-OrphanChunkServers {
+    Get-Process -Name "mfn-storage-operator" -ErrorAction SilentlyContinue | ForEach-Object {
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 300
+}
+
+function Remove-StaleLogFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [int]$Retries = 8
+    )
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    foreach ($i in 1..$Retries) {
+        try {
+            Remove-Item -Force -LiteralPath $Path -ErrorAction Stop
+            return
+        } catch {
+            if ($i -eq $Retries) {
+                $stale = "$Path.stale.$PID"
+                Move-Item -Force -LiteralPath $Path -Destination $stale -ErrorAction SilentlyContinue
+                if (-not (Test-Path -LiteralPath $Path)) { return }
+                throw "permanence-demo: could not clear stale log $Path (locked); last_error=$($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds 250
+        }
+    }
+}
+
 function Read-PortsFile {
     if (-not (Test-Path $PortsFile)) { return @{} }
     $ports = @{}
@@ -261,8 +290,9 @@ try {
     $indexed = Wait-UploadsListContains $MfnCli $RpcAddr $commit $WaitUploadSeconds
     Write-Host "permanence-demo: discover=ok commitment_hash=$commit"
 
-    if (Test-Path $ChunkLog) { Remove-Item -Force $ChunkLog }
-    if (Test-Path $ChunkErrLog) { Remove-Item -Force $ChunkErrLog }
+    Stop-OrphanChunkServers
+    if (Test-Path $ChunkLog) { Remove-StaleLogFile -Path $ChunkLog }
+    if (Test-Path $ChunkErrLog) { Remove-StaleLogFile -Path $ChunkErrLog }
     $chunkProc = Start-Process -FilePath $StorageOperator -ArgumentList @(
         "serve-chunks", "--wallet", $UploaderWallet, "--listen", $ChunkListen
     ) -WorkingDirectory $RepoRoot -RedirectStandardOutput $ChunkLog -RedirectStandardError $ChunkErrLog -PassThru
