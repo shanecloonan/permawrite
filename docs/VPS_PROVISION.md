@@ -90,6 +90,7 @@ Expect `detected_public_ip=YOUR_VPS_IP`, `require_endowment_range_proof=1`, and 
 One helper prints the ordered path and current status:
 
 ```bash
+bash scripts/public-devnet-v1/vps-execution-checklist.sh   # laptop: verify local RC before provisioning
 bash scripts/public-devnet-v1/vps-launch-ceremony.sh --plan-only
 bash scripts/public-devnet-v1/vps-launch-ceremony.sh          # status + go/no-go check
 ```

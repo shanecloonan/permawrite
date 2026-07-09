@@ -369,6 +369,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
 - [x] **TL-5 preflight hardening** — MFER policy + storage-operator binary gate in `vps-preflight.sh`
+- [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (this push)
 
 ### Doing
 

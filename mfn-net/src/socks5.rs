@@ -236,12 +236,9 @@ mod tests {
         });
         ready_rx.recv().unwrap();
 
-        let mut stream = socks5_connect_with_timeout(
-            &proxy_addr.to_string(),
-            echo_addr,
-            Duration::from_secs(5),
-        )
-        .unwrap();
+        let mut stream =
+            socks5_connect_with_timeout(&proxy_addr.to_string(), echo_addr, Duration::from_secs(5))
+                .unwrap();
         stream.write_all(b"socks5-ok").unwrap();
         stream.flush().unwrap();
 

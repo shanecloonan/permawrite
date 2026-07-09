@@ -115,6 +115,12 @@ Confirm RPC ports **18731–18734 are not** in the allow list.
 
 ## TL-5 — Internet soak (height ≥ 10)
 
+Before starting, on your laptop (optional):
+
+```bash
+bash scripts/public-devnet-v1/vps-execution-checklist.sh
+```
+
 After firewall + `vps-bind.env` are configured:
 
 ```bash

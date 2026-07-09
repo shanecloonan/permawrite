@@ -7,15 +7,25 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.0 `#419e38a` | **Doing** — CI `#29010590422` + B8.1 push | Nightly on green head |
+| **1** RC core | B8.1 `#b6eba33` pushed | **Doing** — CI `#29011050097` | Release evidence on green |
 | **2** RC ops | Release evidence `b06a704` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | **B8.0** + **B8.1** SOCKS5 dial | **Done** — `b6eba33` | B8.2 hidden service |
-| **7** Testnet | Local RC + preflight MFER gate | **Blocked** — VPS provision | **TL-5 internet soak** |
+| **4+6** Protocol | B8.0 + B8.1 complete | **Idle** | B8.2 hidden service |
+| **7** Testnet | Local RC + preflight MFER gate | **Doing** — VPS execution checklist | **TL-5 VPS soak** |
 
 ---
 
-## Session — 2026-07-09 (B8.1 SOCKS5 outbound P2P dial)
+## Session — 2026-07-09 (Lane 7 — VPS execution checklist)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **vps-execution-checklist** | **This push** | Read-only TL-5/TL-6 gate; wraps `launch-status` + ordered commands |
+| **CI `#29011050097`** | **In progress** | B8.1 matrix on `b6eba33` |
+
+**Lane 7 — Doing:** execution checklist **Next:** TL-5 on provisioned VPS  
+**Lane 1 — Doing:** CI watch **Next:** release evidence refresh
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |
