@@ -34,6 +34,7 @@ pub mod handshake;
 pub mod light_follow;
 pub mod production;
 pub mod serve;
+pub mod transport;
 
 pub use block_sync::{
     pull_blocks_to_tip, recv_blocks_v1, send_get_blocks_by_height_v1, serve_post_handshake_v1,
@@ -82,6 +83,11 @@ pub use serve::{
     height_cmp_label, spawn_catch_up_dial, spawn_inbound_handshake_loop, spawn_outbound_dial,
     BlockSyncApplierHook, BlockSyncHook, FanoutPeerSetHook, GossipHook, HidCounter, InboundP2pLoop,
     LightFollowHook, OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
+};
+pub use transport::{
+    active_p2p_transport, init_active_p2p_transport, init_active_p2p_transport_from_env,
+    tcp_connect_with_timeout, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
+    MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

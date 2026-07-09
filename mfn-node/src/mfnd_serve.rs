@@ -623,6 +623,23 @@ pub(crate) fn run_serve(
     };
 
     let p2p_enabled = p2p_listen.is_some() || !p2p_dials.is_empty();
+    if p2p_enabled {
+        let transport = crate::network::init_active_p2p_transport_from_env()
+            .map_err(|e| format!("mfnd serve: {e}"))?;
+        println!(
+            "mfnd_p2p_transport={} tor_socks5={}",
+            transport.harness_label(),
+            transport.tor_socks5
+        );
+        std::io::stdout()
+            .flush()
+            .map_err(|e| format!("mfnd serve: stdout flush (p2p transport): {e}"))?;
+        if transport.kind == crate::network::P2pTransportKind::Tor {
+            eprintln!(
+                "mfnd_p2p_transport_warning tor outbound dials are stub until B8.1; boot dials will fail"
+            );
+        }
+    }
     let (
         p2p_tip_cell,
         p2p_hid_counter,

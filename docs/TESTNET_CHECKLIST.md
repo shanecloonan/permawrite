@@ -33,7 +33,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.5.29** (lane 2) - `.gitattributes` UTF-8 pins for agent boards + RC validators (`4bd43f2`).
 - [x] **M7.11** (lane 3) — `STORAGE_ACCESSIBILITY.md` consumer SPoRA feasibility (`bb9600b`).
 - [x] **M7.11.2** (lane 3) — Phase B item 4 WASM prove+serve marked shipped in `STORAGE_ACCESSIBILITY.md` (`0650ad6`).
-- [x] **Coordination** — unified `AGENTS.md` lanes 1–6 + mandatory Done/Doing/Next protocol.
+- [x] **B8.0** (lanes 4+5) — `mfn-net::transport` + `MFND_P2P_TRANSPORT` / `MFND_TOR_SOCKS5` env knobs (this push).
 - [x] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (`8661106`).
 - [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).
 - [x] **Lane 7 / TL-5 tooling** — `vps-internet-soak.sh` + `vps-preflight.sh` (`5a74d57`).

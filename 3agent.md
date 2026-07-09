@@ -7,15 +7,27 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29007812174` GREEN on `328e63f` | **Doing** — Nightly dispatch `241f2b4` | TL-5 VPS soak support |
+| **1** RC core | CI `#29007812174` GREEN | **Doing** — CI re-dispatch after B8.0 push | Nightly on full SHA |
 | **2** RC ops | Release evidence `19dc111` + RC audit **go** | **Done** | Human sign-off packet |
-| **3** Onboarding | Local MFER rehearsals PASS (no-observer + observer) | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | B1 + M4.8 complete | **Doing** — B8 phased plan (docs) | B8.0 transport trait |
-| **7** Testnet | `launch-status.v3`; local RC complete | **Done** — VPS preflight MFER gate | **TL-5 VPS soak** |
+| **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
+| **4+6** Protocol | **B8.0** transport trait + env knobs | **Doing** — push + CI | **B8.1** SOCKS5 dial |
+| **7** Testnet | Local RC + preflight MFER gate | **Blocked** — VPS provision | **TL-5 internet soak** |
 
 ---
 
-## Session — 2026-07-09 (TL-5 preflight MFER gate + B8 plan)
+## Session — 2026-07-09 (B8.0 P2P transport trait + Nightly dispatch fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B8.0** | **This push** | `mfn-net::transport`; `MFND_P2P_TRANSPORT` / `MFND_TOR_SOCKS5`; Tor stub returns Unsupported |
+| **mfnd serve** | **This push** | `mfnd_p2p_transport=…` harness line on P2P enable |
+| **Nightly dispatch** | **This push** | `dispatch-rc-workflows.sh` resolves short SHA → full `git rev-parse` |
+
+**Lane 4+6 — Doing:** B8.0 **Next:** B8.1 SOCKS5 outbound dial  
+**Lane 1 — Doing:** CI on push **Next:** Nightly with full SHA  
+**Lane 7 — Blocked:** VPS provision for TL-5
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |

@@ -89,12 +89,12 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly soak maintenance | **Doing** — dispatch on `241f2b4` | TL-5 VPS soak support |
+| **1** | CI + Nightly dispatch fix | **Doing** — CI after B8.0 push | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `19dc111` RC audit **go** | Human sign-off packet |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
-| **4** | B8 Tor transport phased plan | **Done** — docs | B8.0 transport trait |
-| **5** | B8 research alignment | **Doing** — with lane 4 | B8.0 env knobs spec |
-| **6** | B1 endowment range proof track | **Done** — `2958cfa`–`bbe1d9f` | B8.0 with lane 4 |
+| **4** | B8.0 P2P transport trait | **Doing** — this push | B8.1 SOCKS5 dial |
+| **5** | B8.0 with lane 4 | **Doing** — env knobs + mfnd harness | B8.1 with lane 4 |
+| **6** | B1 endowment range proof track | **Done** | B8.1 with lane 4 |
 | **7** | VPS preflight MFER gate | **Done** — `375f4d0` | TL-5 VPS internet soak |
 
 ---

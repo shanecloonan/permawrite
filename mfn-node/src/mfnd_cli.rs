@@ -119,6 +119,8 @@ fn usage() -> &'static str {
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
        --dandelion              only for `serve`: Dandelion++ stem/fluff tx relay (opt-in; default off)\n\
                                   or set env MFND_DANDELION=1\n\
+      env MFND_P2P_TRANSPORT     only for `serve`: outbound P2P dial transport `tcp` (default) or `tor` (B8.1 stub)\n\
+      env MFND_TOR_SOCKS5         only for `serve` with `tor`: SOCKS5 proxy (default 127.0.0.1:9050)\n\
       env MFND_REPAIR_THRESHOLD_SLOTS only for `serve`: proactive repair staleness threshold slots (0 disables; default 14400)\n\
       env MFND_REPAIR_INTERVAL_MS     only for `serve`: repair sweep interval in ms (default 300000)\n\
       env MFND_CHUNK_INBOX_MAX_BYTES  only for `serve`: chunk-inbox disk quota in bytes (0 disables; default 64GiB)\n\
@@ -860,6 +862,8 @@ mod tests {
         let text = usage();
         assert!(text.contains("MFND_RPC_API_KEY"));
         assert!(text.contains("MFND_RPC_MAX_IN_FLIGHT"));
+        assert!(text.contains("MFND_P2P_TRANSPORT"));
+        assert!(text.contains("MFND_TOR_SOCKS5"));
         assert!(text.contains("get_status"));
     }
 

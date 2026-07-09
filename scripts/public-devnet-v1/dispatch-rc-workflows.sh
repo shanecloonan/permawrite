@@ -55,13 +55,13 @@ if ! gh auth status >/dev/null 2>&1; then
 fi
 
 if (( DISPATCH_NIGHTLY == 1 )); then
-  if [[ -n "$CHECKOUT_SHA" ]]; then
-    echo "dispatch-rc-workflows: triggering Nightly on ref=$REF checkout_sha=$CHECKOUT_SHA"
-    gh workflow run nightly.yml --ref "$REF" -f "checkout_sha=$CHECKOUT_SHA"
-  else
-    echo "dispatch-rc-workflows: triggering Nightly on ref=$REF"
-    gh workflow run nightly.yml --ref "$REF"
+  if [[ -z "$CHECKOUT_SHA" ]]; then
+    CHECKOUT_SHA="$(git rev-parse HEAD)"
+  elif [[ ${#CHECKOUT_SHA} -lt 40 ]]; then
+    CHECKOUT_SHA="$(git rev-parse "$CHECKOUT_SHA")"
   fi
+  echo "dispatch-rc-workflows: triggering Nightly on ref=$REF checkout_sha=$CHECKOUT_SHA"
+  gh workflow run nightly.yml --ref "$REF" -f "checkout_sha=$CHECKOUT_SHA"
 fi
 
 if (( DISPATCH_SOAK == 1 )); then

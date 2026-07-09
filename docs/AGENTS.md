@@ -267,7 +267,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B8** — optional Tor/arti transport: phased plan B8.0–B8.3 in [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) (this push); **Next:** B8.0 transport trait.
+- [ ] **B8** — optional Tor/arti transport: **B8.0 shipped** (`mfn-net::transport`, env knobs); **Next:** B8.1 SOCKS5 outbound dial.
 
 ### Do not start
 
