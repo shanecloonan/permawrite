@@ -221,7 +221,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (ci-check in progress).
+- [x] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (`76b5f8f`).
+- [ ] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (this push).
 
 ### Handoff to lane 3
 
@@ -317,7 +318,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (with lane 4; ci-check in progress).
+- [x] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (`76b5f8f`).
+- [ ] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (with lane 4; this push).
 
 ### Do not start
 

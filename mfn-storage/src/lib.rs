@@ -49,7 +49,7 @@ pub use spora::{
     decode_merkle_proof_wire, decode_storage_proof, encode_merkle_proof_wire, encode_storage_proof,
     merkle_tree_from_chunks, operator_identity_from_payout, operator_payout_is_valid,
     storage_proof_leaf_hash, storage_proof_merkle_root, test_operator_payout_keys,
-    test_operator_payout_keys_alt, verify_endowment_opening, verify_storage_proof,
-    verify_storage_proof_operator_salted, BuiltCommitment, SporaError, StorageProof,
-    StorageProofCheck, DEFAULT_CHUNK_SIZE,
+    test_operator_payout_keys_alt, verify_endowment_opening, verify_endowment_range_proof,
+    verify_endowment_range_proof_wire, verify_storage_proof, verify_storage_proof_operator_salted,
+    BuiltCommitment, SporaError, StorageProof, StorageProofCheck, DEFAULT_CHUNK_SIZE,
 };

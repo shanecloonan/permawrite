@@ -178,6 +178,48 @@ pub fn verify_endowment_opening(
     mfn_crypto::pedersen::pedersen_verify(&recomputed)
 }
 
+/// Bit width for endowment surplus range proofs (B-11 phase 2).
+pub const ENDOWMENT_SURPLUS_RANGE_BITS: u32 = 64;
+
+/// Homomorphic surplus point `C − commit(required, 0)` for Bulletproof binding.
+pub fn endowment_surplus_point(c: &StorageCommitment, required: u64) -> EdwardsPoint {
+    let required_pt =
+        mfn_crypto::point::generator_h() * curve25519_dalek::scalar::Scalar::from(required);
+    c.endowment - required_pt
+}
+
+/// Verify a decoded surplus range proof against an anchored commitment (B-11 phase 2).
+pub fn verify_endowment_range_proof(
+    c: &StorageCommitment,
+    required: u64,
+    proof: &mfn_crypto::BulletproofRange,
+) -> bool {
+    if proof.n != ENDOWMENT_SURPLUS_RANGE_BITS {
+        return false;
+    }
+    if proof.v != endowment_surplus_point(c, required) {
+        return false;
+    }
+    mfn_crypto::bulletproofs::bp_verify(proof)
+}
+
+/// Decode and verify an `MFER` wire proof for one new storage anchor (B-11 phase 2).
+pub fn verify_endowment_range_proof_wire(
+    c: &StorageCommitment,
+    required: u64,
+    proof_bytes: &[u8],
+) -> bool {
+    let surplus_pt = endowment_surplus_point(c, required);
+    let proof = match mfn_crypto::bulletproofs::decode_bulletproof(surplus_pt, proof_bytes) {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    if mfn_crypto::bulletproofs::encode_bulletproof(&proof) != proof_bytes {
+        return false;
+    }
+    verify_endowment_range_proof(c, required, &proof)
+}
+
 /* ----------------------------------------------------------------------- *
  *  Per-block challenge                                                     *
  * ----------------------------------------------------------------------- */
@@ -657,6 +699,7 @@ pub enum SporaError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{required_endowment, DEFAULT_ENDOWMENT_PARAMS};
 
     fn data_1mib() -> Vec<u8> {
         // 1 MiB of deterministic content (not zero — zero blocks can mask
@@ -721,6 +764,83 @@ mod tests {
             &built.commit,
             1_000,
             &built.blinding
+        ));
+    }
+
+    #[test]
+    fn verify_endowment_range_proof_accepts_sufficient_surplus() {
+        use mfn_crypto::bulletproofs::bp_prove;
+        let d = b"range-proof-surplus";
+        let endowment_amount = 5_000u64;
+        let built = build_storage_commitment(
+            d,
+            endowment_amount,
+            None,
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let required = required_endowment(
+            built.commit.size_bytes,
+            built.commit.replication,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        )
+        .expect("required");
+        assert!(required <= u128::from(u64::MAX));
+        let required = required as u64;
+        assert!(endowment_amount >= required);
+        let surplus = endowment_amount - required;
+        let proof = bp_prove(surplus, &built.blinding, ENDOWMENT_SURPLUS_RANGE_BITS)
+            .expect("prove")
+            .proof;
+        assert!(verify_endowment_range_proof(
+            &built.commit,
+            required,
+            &proof
+        ));
+        let wire = mfn_crypto::bulletproofs::encode_bulletproof(&proof);
+        assert!(verify_endowment_range_proof_wire(
+            &built.commit,
+            required,
+            &wire
+        ));
+    }
+
+    #[test]
+    fn verify_endowment_range_proof_rejects_insufficient_required_gate() {
+        use mfn_crypto::bulletproofs::bp_prove;
+        let d = b"range-proof-underfund";
+        let endowment_amount = 500u64;
+        let built = build_storage_commitment(
+            d,
+            endowment_amount,
+            None,
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let required = required_endowment(
+            built.commit.size_bytes,
+            built.commit.replication,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        )
+        .expect("required");
+        assert!(required <= u128::from(endowment_amount));
+        let required = required as u64;
+        let surplus = endowment_amount - required;
+        let proof = bp_prove(surplus, &built.blinding, ENDOWMENT_SURPLUS_RANGE_BITS)
+            .expect("prove")
+            .proof;
+        assert!(verify_endowment_range_proof(
+            &built.commit,
+            required,
+            &proof
+        ));
+        // Inflated required makes the homomorphic surplus negative — must reject.
+        assert!(!verify_endowment_range_proof(
+            &built.commit,
+            endowment_amount.saturating_add(1),
+            &proof
         ));
     }
 

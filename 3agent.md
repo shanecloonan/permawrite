@@ -7,25 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#28986986012` + Nightly `#28986938052` GREEN | **Doing** — wait CI `#28988003544` | ci-check + push B1 2a; Nightly dispatch |
-| **2** RC ops | B7 board sync `c85857d` | **Doing** — refresh on B1 2a head | Human sign-off packet |
+| **1** RC core | B1 2a `76b5f8f` | **Doing** — ci-check + push B1 2b | Nightly on B1 2b head |
+| **2** RC ops | B7 board `c85857d` | **Doing** — evidence refresh on B1 2b | Human sign-off packet |
 | **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B7 `930b166`; B5 5d `1485e67` | **Doing** — B1 2a ci-check (local) | B1 2b MFER wire + verify |
+| **4+6** Protocol | B1 2a `76b5f8f` | **Doing** — B1 2b ci-check | B1 2c wallet proof build |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
 
 ---
 
-## Session — 2026-07-08 (B1 phase 2a — inert range-proof param)
+## Session — 2026-07-08 (B1 phase 2b — MFER wire + consensus verify)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B1 phase 2a** | **This push** | `require_endowment_range_proof`; checkpoint **v10**; mutual exclusion with MFEO; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md) |
-| **B7 board sync** | **GREEN** — CI `#28988003544` | `c85857d` on `930b166` |
-| **B7 CI #28986986012** | **GREEN** | Full matrix on `930b166` |
-| **Nightly #28986938052** | **GREEN** | All 3 jobs on B7 stack |
+| **B1 phase 2b** | **Local** | MFEX v3 + `MFER` frames; `apply_block` + mempool; accept/reject tests |
+| **B1 CI #28988726857** | **In progress** | B1 2a stack; release tests running |
+| **B1 2a** | **Done** — `76b5f8f` | checkpoint **v10** inert param |
 
-**Lane 4+6 — Done:** B7 `930b166` **Doing:** B1 2a ci-check **Next:** push B1 2a → B1 2b MFER wire  
-**Lane 1 — Done:** Nightly `#28986938052` **Doing:** wait board-sync CI **Next:** push B1 2a + Nightly
+**Lane 4+6 — Done:** B1 2a **Doing:** B1 2b **Next:** ci-check + push after 2a CI green  
+**Lane 1 — Doing:** CI `#28988726857` **Next:** Nightly on B1 2b head
 
 ---
 

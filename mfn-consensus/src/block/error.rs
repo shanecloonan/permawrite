@@ -314,6 +314,32 @@ pub enum BlockError {
         /// Protocol-required minimum.
         required: u64,
     },
+    /// B-11 phase 2: `MFER` count does not match new storage anchors in this tx.
+    #[error("tx[{tx}]: expected {expected} endowment range proof(s) in extra, got {got}")]
+    EndowmentRangeProofCountMismatch {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Number of new storage anchors.
+        expected: usize,
+        /// Parsed `MFER` frames.
+        got: usize,
+    },
+    /// B-11 phase 2: `tx.extra` MFEX/MFER parse failure.
+    #[error("tx[{tx}]: endowment range proof parse: {reason}")]
+    EndowmentRangeProofParse {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Parse error detail.
+        reason: String,
+    },
+    /// B-11 phase 2: endowment surplus range proof invalid or under-funded.
+    #[error("tx[{tx}].outputs[{output}]: endowment range proof invalid")]
+    EndowmentRangeProofInvalid {
+        /// Position of the offending tx.
+        tx: usize,
+        /// Output index.
+        output: usize,
+    },
     /// Two storage proofs in the block target the same commitment.
     #[error("storage_proofs[{index}]: duplicate proof for {commit_hash}")]
     DuplicateStorageProof {

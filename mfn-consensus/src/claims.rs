@@ -239,6 +239,27 @@ pub fn build_mfex_extra_v2(
     Ok(out)
 }
 
+/// Pack `MFEX` ‖ v3 ‖ MFCL claims ‖ optional `MFER` endowment range proofs (B-11 phase 2).
+pub fn build_mfex_extra_v3(
+    claims: &[AuthorshipClaim],
+    range_proofs: &[mfn_crypto::BulletproofRange],
+) -> mfn_crypto::Result<Vec<u8>> {
+    let mut out = Vec::new();
+    out.extend_from_slice(crate::extra_codec::MFEX_MAGIC);
+    out.push(if range_proofs.is_empty() {
+        crate::extra_codec::MFEX_VERSION
+    } else {
+        crate::extra_codec::MFEX_VERSION_V3
+    });
+    for c in claims {
+        out.extend_from_slice(&encode_authorship_claim(c)?);
+    }
+    for p in range_proofs {
+        out.extend_from_slice(&crate::extra_codec::encode_mfer_range_proof(p));
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod apply_rules_tests {
     use super::*;

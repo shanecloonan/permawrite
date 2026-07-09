@@ -9,6 +9,10 @@
 //! after the MFCL section (B-11). Each opening binds the Pedersen point in
 //! `StorageCommitment.endowment` to a revealed `(value, blinding)` pair.
 //!
+//! **MFEX v3** appends zero or more **`MFER`** endowment range-proof frames
+//! (B-11 phase 2). Each proof shows the surplus over `required_endowment`
+//! is non-negative without revealing the opened amount.
+//!
 //! **`MFEX`** is the only normative structured-`extra` envelope; future tagged
 //! inner payloads extend this container without forking claim parsing.
 
@@ -17,7 +21,10 @@ use mfn_crypto::authorship::{
     decode_authorship_claim, mfcl_frame_wire_len, AuthorshipClaim, AuthorshipClaimDecodeError,
     MAX_CLAIMS_PER_TX, MFCL_MAGIC, MFCL_V2_MIN_WIRE_LEN,
 };
+use mfn_crypto::bulletproofs::encode_bulletproof;
+use mfn_crypto::codec::{Reader, Writer};
 use mfn_crypto::scalar::{bytes_to_scalar, scalar_to_bytes};
+use mfn_crypto::BulletproofRange;
 use thiserror::Error;
 
 /// Magic for structured multi-payload `extra` (M2.2.x).
@@ -29,6 +36,9 @@ pub const MFEX_VERSION: u8 = 1;
 /// MFEX v2 — MFCL claims + optional MFEO endowment openings (B-11).
 pub const MFEX_VERSION_V2: u8 = 2;
 
+/// MFEX v3 — MFCL claims + optional MFER endowment range proofs (B-11 phase 2).
+pub const MFEX_VERSION_V3: u8 = 3;
+
 /// Magic for Pedersen endowment opening reveal (B-11).
 pub const MFEO_MAGIC: &[u8; 4] = b"MFEO";
 
@@ -37,6 +47,15 @@ pub const MFEO_VERSION: u8 = 1;
 
 /// Wire length of an `MFEO` v1 frame: magic(4) + version(1) + value(8) + blinding(32).
 pub const MFEO_V1_WIRE_LEN: usize = 4 + 1 + 8 + 32;
+
+/// Magic for Pedersen endowment surplus range proof (B-11 phase 2).
+pub const MFER_MAGIC: &[u8; 4] = b"MFER";
+
+/// Supported `MFER` frame version.
+pub const MFER_VERSION: u8 = 1;
+
+/// Minimum `MFER` header: magic(4) + version(1) + empty varint(1).
+pub const MFER_V1_HEADER_LEN: usize = 6;
 
 /// Pedersen opening for `StorageCommitment.endowment` (B-11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,13 +66,22 @@ pub struct EndowmentOpening {
     pub blinding: Scalar,
 }
 
-/// Fully parsed MFEX container (claims + optional openings).
+/// Canonical-encoded Bulletproof bytes for an endowment surplus proof (B-11 phase 2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EndowmentRangeProofWire {
+    /// [`encode_bulletproof`] body (commitment `V` is carried out-of-band).
+    pub proof_bytes: Vec<u8>,
+}
+
+/// Fully parsed MFEX container (claims + optional openings / range proofs).
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct ParsedMfexExtra {
     /// Verified-parse authorship claims (signature check is separate).
     pub claims: Vec<AuthorshipClaim>,
     /// Endowment openings in wire order (one per new storage anchor when mandated).
     pub endowment_openings: Vec<EndowmentOpening>,
+    /// Endowment range proofs in wire order (MFEX v3 / B-11 phase 2).
+    pub endowment_range_proofs: Vec<EndowmentRangeProofWire>,
 }
 
 /// Errors from [`parse_mfex_authorship_claims`].
@@ -112,10 +140,41 @@ pub enum ExtraClaimsParseError {
         /// Parsed count before rejection.
         got: usize,
     },
+    /// Expected an `MFER` frame at the current offset.
+    #[error("expected MFER frame at offset {offset}")]
+    ExpectedMfer {
+        /// Byte offset into `extra`.
+        offset: usize,
+    },
+    /// Unknown `MFER` frame version.
+    #[error("unknown MFER version {0}")]
+    UnknownMferVersion(u8),
+    /// Too many endowment range proofs in one `extra`.
+    #[error("too many endowment range proofs: max {max}, got {got}")]
+    TooManyEndowmentRangeProofs {
+        /// Maximum proofs per tx.
+        max: usize,
+        /// Parsed count before rejection.
+        got: usize,
+    },
+    /// `MFER` proof blob exceeds the protocol size cap.
+    #[error("MFER proof too large: max {max} bytes, got {got}")]
+    MferProofTooLarge {
+        /// Maximum encoded proof bytes.
+        max: usize,
+        /// Declared length.
+        got: usize,
+    },
 }
 
 /// Maximum endowment openings per transaction (`extra` wire limit).
 pub const MAX_ENDOWMENT_OPENINGS_PER_TX: usize = 8;
+
+/// Maximum endowment range proofs per transaction (`extra` wire limit).
+pub const MAX_ENDOWMENT_RANGE_PROOFS_PER_TX: usize = 8;
+
+/// Encoded Bulletproof size cap for `MFER` frames (`N = 64` + slack).
+pub const MAX_MFER_PROOF_BYTES: usize = 896;
 
 fn parse_mfcl_claims_at(
     extra: &[u8],
@@ -125,7 +184,7 @@ fn parse_mfcl_claims_at(
     let mut i = start;
     let mut out = Vec::new();
     while i < extra.len() {
-        if extra[i..].starts_with(MFEO_MAGIC) {
+        if extra[i..].starts_with(MFEO_MAGIC) || extra[i..].starts_with(MFER_MAGIC) {
             if ver == MFEX_VERSION {
                 return Err(ExtraClaimsParseError::ExpectedMfcl { offset: i });
             }
@@ -217,6 +276,69 @@ pub fn encode_mfeo_opening(value: u64, blinding: &Scalar) -> Vec<u8> {
     out
 }
 
+/// Encode one `MFER` v1 range-proof frame.
+pub fn encode_mfer_range_proof(proof: &BulletproofRange) -> Vec<u8> {
+    let proof_bytes = encode_bulletproof(proof);
+    let mut out = Vec::with_capacity(MFER_V1_HEADER_LEN + proof_bytes.len());
+    out.extend_from_slice(MFER_MAGIC);
+    out.push(MFER_VERSION);
+    let mut w = Writer::new();
+    w.varint(u64::try_from(proof_bytes.len()).expect("proof fits u64"));
+    out.extend_from_slice(&w.into_bytes());
+    out.extend_from_slice(&proof_bytes);
+    out
+}
+
+fn parse_mfer_range_proofs_at(
+    extra: &[u8],
+    start: usize,
+) -> Result<Vec<EndowmentRangeProofWire>, ExtraClaimsParseError> {
+    let mut i = start;
+    let mut out = Vec::new();
+    while i < extra.len() {
+        if i + MFER_V1_HEADER_LEN > extra.len() {
+            return Err(ExtraClaimsParseError::Truncated {
+                need_at_least: i + MFER_V1_HEADER_LEN,
+                got: extra.len(),
+            });
+        }
+        if !extra[i..].starts_with(MFER_MAGIC) {
+            return Err(ExtraClaimsParseError::ExpectedMfer { offset: i });
+        }
+        if extra[i + 4] != MFER_VERSION {
+            return Err(ExtraClaimsParseError::UnknownMferVersion(extra[i + 4]));
+        }
+        i += 5;
+        let slice = &extra[i..];
+        let mut r = Reader::new(slice);
+        let len = r.varint().map_err(|_| ExtraClaimsParseError::Truncated {
+            need_at_least: i + 1,
+            got: extra.len(),
+        })? as usize;
+        if len > MAX_MFER_PROOF_BYTES {
+            return Err(ExtraClaimsParseError::MferProofTooLarge {
+                max: MAX_MFER_PROOF_BYTES,
+                got: len,
+            });
+        }
+        let proof_bytes = r.bytes(len).map_err(|_| ExtraClaimsParseError::Truncated {
+            need_at_least: i + len,
+            got: extra.len(),
+        })?;
+        out.push(EndowmentRangeProofWire {
+            proof_bytes: proof_bytes.to_vec(),
+        });
+        if out.len() > MAX_ENDOWMENT_RANGE_PROOFS_PER_TX {
+            return Err(ExtraClaimsParseError::TooManyEndowmentRangeProofs {
+                max: MAX_ENDOWMENT_RANGE_PROOFS_PER_TX,
+                got: out.len(),
+            });
+        }
+        i += slice.len() - r.remaining();
+    }
+    Ok(out)
+}
+
 /// Parse the full MFEX container (claims + optional openings).
 pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsParseError> {
     if extra.len() < 5 {
@@ -232,23 +354,27 @@ pub fn parse_mfex_extra(extra: &[u8]) -> Result<ParsedMfexExtra, ExtraClaimsPars
         return Ok(ParsedMfexExtra::default());
     }
     let ver = extra[4];
-    if ver != MFEX_VERSION && ver != MFEX_VERSION_V2 {
+    if ver != MFEX_VERSION && ver != MFEX_VERSION_V2 && ver != MFEX_VERSION_V3 {
         return Err(ExtraClaimsParseError::UnknownMfexVersion(ver));
     }
     let (claims, after_claims) = parse_mfcl_claims_at(extra, ver, 5)?;
-    let endowment_openings = if ver == MFEX_VERSION_V2 {
-        parse_mfeo_openings_at(extra, after_claims)?
-    } else {
-        if after_claims < extra.len() {
-            return Err(ExtraClaimsParseError::ExpectedMfcl {
-                offset: after_claims,
-            });
+    let (endowment_openings, endowment_range_proofs) = match ver {
+        MFEX_VERSION_V2 => (parse_mfeo_openings_at(extra, after_claims)?, Vec::new()),
+        MFEX_VERSION_V3 => (Vec::new(), parse_mfer_range_proofs_at(extra, after_claims)?),
+        MFEX_VERSION => {
+            if after_claims < extra.len() {
+                return Err(ExtraClaimsParseError::ExpectedMfcl {
+                    offset: after_claims,
+                });
+            }
+            (Vec::new(), Vec::new())
         }
-        Vec::new()
+        _ => unreachable!("version filtered above"),
     };
     Ok(ParsedMfexExtra {
         claims,
         endowment_openings,
+        endowment_range_proofs,
     })
 }
 
@@ -341,5 +467,26 @@ mod tests {
         assert_eq!(parsed.endowment_openings.len(), 1);
         assert_eq!(parsed.endowment_openings[0].value, 1_234);
         assert_eq!(parsed.endowment_openings[0].blinding, blinding);
+        assert!(parsed.endowment_range_proofs.is_empty());
+    }
+
+    #[test]
+    fn mfex_v3_endowment_range_proof_round_trip() {
+        use mfn_crypto::bulletproofs::bp_prove;
+        use mfn_crypto::scalar::random_scalar;
+        let blinding = random_scalar();
+        let proof = bp_prove(500, &blinding, 64).expect("prove").proof;
+        let mut extra = Vec::new();
+        extra.extend_from_slice(MFEX_MAGIC);
+        extra.push(MFEX_VERSION_V3);
+        extra.extend_from_slice(&encode_mfer_range_proof(&proof));
+        let parsed = parse_mfex_extra(&extra).expect("parse");
+        assert!(parsed.claims.is_empty());
+        assert!(parsed.endowment_openings.is_empty());
+        assert_eq!(parsed.endowment_range_proofs.len(), 1);
+        assert_eq!(
+            parsed.endowment_range_proofs[0].proof_bytes,
+            encode_bulletproof(&proof)
+        );
     }
 }
