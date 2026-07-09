@@ -378,7 +378,7 @@ Both decode to the same mempool ingress path.
 / [`dandelion-soak.sh`](../scripts/public-devnet-v1/dandelion-soak.sh) for
 local rehearsal. Nightly/CI default remains off.
 
-**Remaining.** Eclipse-resistance peer diversity (P31).
+**Remaining.** Eclipse-resistance peer diversity — **P31 phase 0 shipped** (metrics + warn); redial + anchor peers deferred.
 
 **Effort:** high. **Risk:** high (network behavior + CI mesh) — mitigated by opt-in default off.
 
@@ -549,18 +549,38 @@ it would break light clients without adding privacy. Documented here so it is
 not "fixed" by mistake. Private *reads* are a real problem addressed by
 `F5:P13` (oblivious retrieval), not by restricting this endpoint.
 
+### P31. Anti-eclipse peer diversity (`F5:P31`) — **phase 0 shipped**
+
+**Problem.** A node whose P2P sessions all sit in one IPv4 /16 learns only
+what that neighborhood relays — the fastest path to deanonymizing Dandelion++
+stem traffic and partitioning operators from producers.
+
+**Shipped (phase 0).** [`mfn-net::peer_diversity`](../mfn-net/src/peer_diversity.rs)
+summarizes live session peers into distinct IPv4 /16, `.onion`, and other-host
+buckets. `get_status.p2p` exposes the counts; `mfnd serve` prints
+`mfnd_p2p_diversity_policy=min_distinct_prefix16=2` and emits
+`mfnd_p2p_diversity_warning` when ≥2 IPv4 session peers share one /16.
+Disable warnings with `MFND_P2P_MIN_DISTINCT_PREFIX16=0`.
+
+**Remaining.** Anchor peer lists on checkpoints (F12), ASN-aware buckets,
+automatic redial when diversity drops.
+
+**Effort:** moderate (phase 0) / high (full P31). **Risk:** low (metrics + warn only).
+
 ---
 
 ## Prioritization
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**) |
-| High impact, moderate effort | B8 (Tor), P31 eclipse diversity |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity metrics (phase 0) |
+| High impact, moderate effort | P31 redial + anchor peers (F12) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **B8** optional Tor transport or **P31** peer diversity.
+Natural next step: **P31** automatic redial on low diversity, or **P32** role-separated topology lint.
+
+---
 
 ## See also
 

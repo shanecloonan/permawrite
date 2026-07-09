@@ -460,12 +460,17 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         let ps = Arc::clone(ps);
         let listen_addr = local_p2p_listen.map(|addr| addr.to_string());
         Arc::new(move || {
+            let diversity = ps.peer_diversity_snapshot();
             json!({
                 "configured": true,
                 "listen_addr": listen_addr.as_deref(),
                 "peer_count": ps.snapshot_peers().len(),
-                "session_count": ps.snapshot_session_peers().len(),
+                "session_count": diversity.session_count,
                 "max_outbound_peers": ps.max_outbound_peers(),
+                "distinct_ipv4_prefix16": diversity.distinct_ipv4_prefix16,
+                "distinct_onion": diversity.distinct_onion,
+                "distinct_other_hosts": diversity.distinct_other_hosts,
+                "ipv4_session_count": diversity.ipv4_session_count,
             })
         }) as mfn_rpc::P2pStatusHook
     });
@@ -648,6 +653,12 @@ pub(crate) fn run_serve(
                 .flush()
                 .map_err(|e| format!("mfnd serve: stdout flush (p2p onion): {e}"))?;
         }
+        let min_prefix16 = mfn_net::min_distinct_ipv4_prefix16_from_env()
+            .map_err(|e| format!("mfnd serve: {e}"))?;
+        println!("mfnd_p2p_diversity_policy=min_distinct_prefix16={min_prefix16}");
+        std::io::stdout()
+            .flush()
+            .map_err(|e| format!("mfnd serve: stdout flush (p2p diversity): {e}"))?;
     }
     let (
         p2p_tip_cell,

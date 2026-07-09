@@ -33,6 +33,7 @@ pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
 pub mod peer_addr;
+pub mod peer_diversity;
 pub mod production;
 pub mod serve;
 pub mod socks5;
@@ -79,6 +80,11 @@ pub use light_follow::{
 };
 pub use peer_addr::{
     is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+};
+pub use peer_diversity::{
+    ipv4_prefix16_key, min_distinct_ipv4_prefix16_from_env, peer_diversity_snapshot,
+    peer_diversity_warning, PeerDiversitySnapshot, DEFAULT_MIN_DISTINCT_IPV4_PREFIX16,
+    MFND_P2P_MIN_DISTINCT_PREFIX16_ENV,
 };
 pub use production::{
     push_proposal_v1_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_proposal_v1,

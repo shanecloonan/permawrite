@@ -482,6 +482,26 @@ impl P2pPeerSet {
         }
     }
 
+    /// Live session peer diversity snapshot (**P31** phase 0).
+    #[must_use]
+    pub fn peer_diversity_snapshot(&self) -> mfn_net::PeerDiversitySnapshot {
+        mfn_net::peer_diversity_snapshot(&self.snapshot_session_peers())
+    }
+
+    fn maybe_warn_peer_diversity(&self) {
+        let min = match mfn_net::min_distinct_ipv4_prefix16_from_env() {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("mfnd_p2p_diversity_config_error {e}");
+                return;
+            }
+        };
+        let peers = self.snapshot_session_peers();
+        if let Some(warning) = mfn_net::peer_diversity_warning(&peers, min) {
+            eprintln!("{warning}");
+        }
+    }
+
     /// True when every durable peer has a live session (skip redundant catch-up dials).
     #[must_use]
     pub fn periodic_catch_up_idle(&self) -> bool {
@@ -911,6 +931,8 @@ impl FanoutPeerSet for P2pPeerSet {
         };
         guard.insert(peer_addr.to_string(), Arc::new(Mutex::new(stream)));
         eprintln!("mfnd_p2p_session_register peer={peer_addr}");
+        drop(guard);
+        self.maybe_warn_peer_diversity();
     }
 
     fn unregister_session(&self, peer_addr: &str) {
@@ -1454,6 +1476,44 @@ mod tests {
         assert_eq!(peer_set.snapshot_session_peers(), vec![peer_key.clone()]);
         peer_set.unregister_session(&peer_key);
         assert!(peer_set.snapshot_session_peers().is_empty());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn peer_diversity_snapshot_reflects_live_sessions() {
+        use mfn_net::FanoutPeerSet;
+        use std::net::{TcpListener, TcpStream};
+
+        let dir = temp_dir("diversity_snapshot");
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
+        );
+
+        let listener_a = TcpListener::bind("127.0.0.1:0").expect("bind a");
+        let listener_b = TcpListener::bind("127.0.0.1:0").expect("bind b");
+        let addr_a = listener_a.local_addr().expect("addr a");
+        let addr_b = listener_b.local_addr().expect("addr b");
+        let client_a = thread::spawn(move || TcpStream::connect(addr_a).expect("connect a"));
+        let client_b = thread::spawn(move || TcpStream::connect(addr_b).expect("connect b"));
+        let (stream_a, peer_a) = listener_a.accept().expect("accept a");
+        let (stream_b, peer_b) = listener_b.accept().expect("accept b");
+        let _ = client_a.join().expect("join a");
+        let _ = client_b.join().expect("join b");
+
+        peer_set.register_session(&peer_a.to_string(), stream_a);
+        peer_set.register_session(&peer_b.to_string(), stream_b);
+        let snap = peer_set.peer_diversity_snapshot();
+        assert_eq!(snap.session_count, 2);
+        assert_eq!(snap.ipv4_session_count, 2);
+        assert_eq!(snap.distinct_ipv4_prefix16, 1);
 
         std::fs::remove_dir_all(&dir).ok();
     }

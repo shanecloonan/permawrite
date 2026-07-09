@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `5b863b3` (B8.3 tor-rpc rehearsal + ci-check). **CI `#29020479475` queued**.
+**Head:** P31 phase 0 (this push). **CI `#29020939385` in progress** on `4d756ef`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B8.3 CI gate | **Doing** — CI on `1ad2dce` | Nightly on green head |
+| **1** | B8.3 CI gate | **Doing** — CI `#29020479475` on `5b863b3` | Release evidence + Nightly |
 | **2** | Release evidence refresh | **Doing** — after B8.3 CI green | Human sign-off |
-| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `1ad2dce` plan gate | TL-6 VPS rehearsal |
-| **4** | B8.3 wallet RPC `--tor` | **Done** — `5e540b3` | B8 embedded `arti` (research) |
-| **5** | B8.3 with lane 4 | **Done** — `5e540b3` | P31 eclipse diversity (research) |
+| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
+| **4** | P31 peer diversity phase 0 | **This push** | P31 redial + anchor peers |
+| **5** | P31 with lane 4 | **This push** | P32 role topology lint |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
