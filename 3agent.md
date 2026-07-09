@@ -7,11 +7,21 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29036301962` GREEN on `3b19e7c` | **Done** | Nightly dispatch |
-| **2** RC ops | Release evidence `3b19e7c` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | CI `#29036301962` GREEN on `3b19e7c` | **Doing** — P32.1 ci-check + push | Nightly watch |
+| **2** RC ops | Release evidence `3b19e7c` RC audit **go** | **Doing** — refresh after P32.1 | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | F12 anchor peers `0cf73c6` + CI fix `3b19e7c` | **Done** | P32 reference topology doc |
+| **4+6** Protocol | F12 `0cf73c6` + CI `3b19e7c` | **This push** — P32 reference topology doc | F12 signed log phase 1 |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-09 (P32.1 — reference topology doc)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 1** | **This push** | [`REFERENCE_TOPOLOGY.md`](docs/REFERENCE_TOPOLOGY.md); `reference-topology-rehearsal-smoke.{sh,ps1}`; ci-check + DECENTRALIZATION cross-link |
+
+**Lane 4+5 — Doing:** P32.1 **Next:** F12 signed checkpoint log phase 1 (research) or TL-5 VPS
 
 ---
 

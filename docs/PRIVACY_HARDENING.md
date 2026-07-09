@@ -581,10 +581,13 @@ host correlates block production, chunk serving, and spend/submit behavior.
 a registered storage operator when genesis enables operator registry). Loopback devnet
 meshes are unchanged.
 
-**Remaining.** Reference topology doc, operator-manifest separation (PM23), bind-host
-lint for observer-only nodes.
+**Shipped (phase 1).** [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) — production
+and public-testnet role separation layouts, command templates, anti-patterns;
+`reference-topology-rehearsal-smoke` plan gate in `ci-check`.
 
-**Effort:** low (phase 0). **Risk:** low (warn-only).
+**Remaining.** Operator-manifest separation (PM23), bind-host lint for observer-only nodes.
+
+**Effort:** low (phase 0–1). **Risk:** low (warn-only + docs).
 
 ---
 
@@ -592,12 +595,12 @@ lint for observer-only nodes.
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology lint (phase 0), **F12** checkpoint anchor peers (phase 0) |
-| High impact, moderate effort | P32 reference topology doc; F12 signed checkpoint log (full) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–1), **F12** checkpoint anchor peers (phase 0) |
+| High impact, moderate effort | F12 signed checkpoint log (full); P32 VPS template env files |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **P32** reference topology doc, or **F12** signed checkpoint log (phase 1).
+Natural next step: **F12** signed checkpoint log (phase 1), or **TL-5** VPS internet soak (lane 7).
 
 ---
 

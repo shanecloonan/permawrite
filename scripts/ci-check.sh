@@ -103,6 +103,11 @@ if [[ "$tor_rpc_plan" != *"flow=mfn-cli --tor --rpc"* || "$tor_rpc_plan" != *"PA
   printf '%s\n' "$tor_rpc_plan" >&2
   exit 1
 fi
+ref_topo_plan="$(bash scripts/public-devnet-v1/reference-topology-rehearsal-smoke.sh --plan-only)"
+if [[ "$ref_topo_plan" != *"REFERENCE_TOPOLOGY.md"* || "$ref_topo_plan" != *"PASS plan-only"* ]]; then
+  printf '%s\n' "$ref_topo_plan" >&2
+  exit 1
+fi
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

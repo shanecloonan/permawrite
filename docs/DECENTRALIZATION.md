@@ -127,6 +127,8 @@ Merging storage into validator duties (as Arweave's mining model effectively doe
 
 **Design principle:** keep validators expensive-enough for security, keep storage operators cheap-enough for breadth.
 
+**Operational topology (P32):** hardware profiles above describe *what* each role needs; [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) describes *where* to run them so IP-level correlation does not undo on-chain privacy.
+
 ### 3.2 Centralization pressures (honest)
 
 Hardware accessibility is necessary but not sufficient. Documented pressures that remain:

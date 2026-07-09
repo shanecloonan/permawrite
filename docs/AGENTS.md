@@ -268,7 +268,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [x] **B8** — optional Tor/arti transport: **B8.0–B8.3 shipped**; **P31 phase 0–1** + **P32 phase 0** + **F12 phase 0** (this push) shipped.
+- [ ] **F12 phase 1** — signed checkpoint log (research-gated).
+- [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Do not start
 

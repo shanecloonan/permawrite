@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `3b19e7c` (F12 + wasm-pack CI fix). **CI `#29036301962` GREEN**. **Nightly `#29032867174` GREEN**.
+**Head:** P32.1 (this push). **CI `#29036301962` GREEN** on `3b19e7c`. **Nightly `#29040048884`** (watch).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F12 CI gate | **Done** — CI `#29036301962` GREEN | Nightly dispatch on head |
-| **2** | Release evidence refresh | **Done** — `release-evidence-3b19e7c` RC audit **go** | Human sign-off |
-| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
-| **4** | F12 anchor peers phase 0 | **Done** — `0cf73c6` | P32 reference topology doc |
-| **5** | F12 with lane 4 | **Done** — `0cf73c6` | P32 reference topology doc |
+| **1** | P32.1 CI gate | **Doing** — ci-check + push | Nightly watch |
+| **2** | Release evidence refresh | **Done** — `3b19e7c` RC audit **go** | Refresh after P32.1 |
+| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
+| **4** | P32 reference topology doc | **This push** | F12 signed log phase 1 |
+| **5** | P32.1 with lane 4 | **This push** | TL-5 VPS soak (human) |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 

@@ -128,6 +128,11 @@ if ($torRpcPlan -notmatch "flow=mfn-cli --tor --rpc" -or $torRpcPlan -notmatch "
     $torRpcPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$refTopoPlan = (powershell -NoProfile -File scripts/public-devnet-v1/reference-topology-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($refTopoPlan -notmatch "REFERENCE_TOPOLOGY.md" -or $refTopoPlan -notmatch "PASS plan-only") {
+    $refTopoPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
