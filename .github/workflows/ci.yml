@@ -1167,7 +1167,7 @@ jobs:
       - run: cargo test -p mfn-wasm --release --features wasm-full
       - run: cargo install wasm-pack --locked
       - run: rm -rf mfn-wasm/demo/web/pkg
-      - run: wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
+      - run: wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full --no-opt
 
   audit:
     name: cargo-audit

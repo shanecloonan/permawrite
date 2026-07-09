@@ -9,8 +9,8 @@ license = "MIT OR Apache-2.0"
 authors = []
 description = "Permawrite — WebAssembly bindings for wallet and storage primitives (browser wallets, demos)."
 
-[package.metadata.wasm-pack]
-# Demo pkg only; skip wasm-opt so local CI mirror passes without Binaryen on PATH.
+[package.metadata.wasm-pack.profile.release]
+# Demo pkg only; skip wasm-opt so CI/local mirror pass without Binaryen download.
 wasm-opt = false
 
 [lib]

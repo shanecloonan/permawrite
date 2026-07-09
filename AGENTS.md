@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** F12 phase 0 (this push). **CI `#29030884341` GREEN** on `0a76617`. **Nightly `#29030703077` GREEN**.
+**Head:** `0cf73c6` (F12 phase 0). **CI `#29033177418` failed** — wasm-pack binaryen download flake (wasm-opt config ignored). **Fix in this push.** **Nightly `#29030703077` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly gate | **Done** — CI `#29030884341` + Nightly `#29030703077` GREEN | F12 push + CI |
+| **1** | F12 CI gate | **Doing** — wasm-opt fix + re-push | Release evidence refresh |
 | **2** | Release evidence refresh | **Done** — `571e0bf` RC audit **go** | Refresh after F12 |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
 | **4** | F12 anchor peers phase 0 | **This push** | P32 reference topology doc |

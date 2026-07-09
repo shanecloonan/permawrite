@@ -681,7 +681,7 @@ cargo build -p mfn-wasm --target wasm32-unknown-unknown --release --features was
 cargo test -p mfn-wasm --release --features wasm-full
 # wasm-pack 0.15 mis-parses a prior package.json when `files`/`sideEffects` are arrays.
 rm -rf mfn-wasm/demo/web/pkg
-wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
+wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full --no-opt
 
 echo "==> cargo audit"
 cargo audit

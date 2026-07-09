@@ -34,7 +34,7 @@ With `wasm-full`, additional exports include:
 
 ## Build
 
-`mfn-wasm/Cargo.toml` sets `[package.metadata.wasm-pack] wasm-opt = false` so `scripts/ci-check` and local `wasm-pack build` succeed without Binaryen (`wasm-opt`) on `PATH`. For smaller demo artifacts, install Binaryen and run `wasm-opt -Oz` on the output `.wasm` manually (see [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md#toolchain-recovery)).
+`mfn-wasm/Cargo.toml` sets `[package.metadata.wasm-pack.profile.release] wasm-opt = false` and CI uses `wasm-pack --no-opt` so `scripts/ci-check` and GHA wasm32 builds succeed without Binaryen download flakes.
 
 ```bash
 wasm-pack --log-level warn build mfn-wasm --target web --out-dir demo/web/pkg --release --features wasm-full
