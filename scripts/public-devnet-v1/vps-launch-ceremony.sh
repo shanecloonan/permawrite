@@ -71,5 +71,8 @@ if compgen -G "$SCRIPT_DIR/evidence/vps-internet-soak-linux-*.txt" >/dev/null 2>
   bash "$SCRIPT_DIR/launch-go-no-go.sh" || true
 else
   echo "vps-launch-ceremony: skip go/no-go (no VPS evidence yet); use --check to force"
+  if bash "$SCRIPT_DIR/launch-status.sh" 2>/dev/null | grep -q "local_rc_complete=true"; then
+    echo "vps-launch-ceremony: local RC complete — provision VPS per docs/VPS_PROVISION.md"
+  fi
   echo "vps-launch-ceremony: next: bash scripts/public-devnet-v1/vps-internet-soak.sh (on VPS)"
 fi

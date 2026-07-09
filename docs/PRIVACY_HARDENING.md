@@ -390,7 +390,22 @@ nothing about a network observer correlating broadcast timing with a home IP.
 **Plan.** Optional onion-routed transport (the `arti` crate) for P2P dials and
 RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
 
-**Effort:** moderate–high. **Risk:** medium.
+**Phased wiring (research → ship):**
+
+| Phase | Scope | Touch points | Gate |
+| --- | --- | --- | --- |
+| **B8.0** | Transport trait + env knobs | New `mfn-net::transport` with `TcpTransport` (current `TcpStream::connect_timeout` in [`handshake.rs`](../mfn-net/src/handshake.rs)) and `TorTransport` stub; `MFND_P2P_TRANSPORT=tcp\|tor`, `MFND_TOR_SOCKS5=127.0.0.1:9050` | Default `tcp`; CI unchanged |
+| **B8.1** | Outbound P2P over SOCKS5 | Route dialer path (`hello_v1_dial`, block-sync pulls) through SOCKS5 when `tor`; seed_nodes remain cleartext host:port | Ignored integration: dial mock + handshake |
+| **B8.2** | Inbound hidden service | `arti` listener for P2P accept on VPS operators; document onion v3 in [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) as optional | VPS rehearsal with Tor only |
+| **B8.3** | Wallet RPC submit path | `mfn-cli` / WASM optional `--tor` for `submit_tx` to loopback mfnd or remote RPC | Participant rehearsal `--tor` smoke |
+
+**Non-goals (testnet):** consensus wire changes, mandatory Tor, or blocking
+cleartext P2P — privacy must remain opt-in until eclipse diversity (P31) is
+addressed.
+
+**Effort:** moderate–high. **Risk:** medium (dependency weight, dial latency).
+
+**Lane owner:** 5 (privacy surface) + 1 (CI mesh stability).
 
 ### B9. View tags for cheap light-client scanning (`F5:P7`) — **shipped**
 

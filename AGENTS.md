@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `addc095`. **CI `#29005580975` GREEN** on `daa8e8e`; **`#29003960562` GREEN** on `b3f56a6`. **Release evidence:** `release-evidence-addc095` RC audit **go**. **Local RC complete:** MFER no-observer + observer rehearsals PASS. **Critical path:** VPS provision for TL-5/TL-6.
+**Head:** `241f2b4`. **CI `#29007812174` GREEN** on `328e63f`. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly soak maintenance | **Doing** — dispatch on head | TL-5 VPS soak support |
-| **2** | Release evidence refresh | **Done** — `addc095` RC audit **go** | Human sign-off packet |
+| **1** | Nightly soak maintenance | **Doing** — dispatch on `241f2b4` | TL-5 VPS soak support |
+| **2** | Release evidence refresh | **Done** — `241f2b4` RC audit **go** | Human sign-off packet |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
-| **4** | M4.8 WASM MFER integration test | **Done** — `b3f56a6` | B8 Tor / retrieval backlog |
-| **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B1 endowment range proof track | **Done** — `2958cfa`–`bbe1d9f` | RC evidence with lane 2 |
-| **7** | launch-status v3 + local RC gates | **Done** — this push | TL-5 VPS internet soak |
+| **4** | B8 Tor transport phased plan | **Done** — docs | B8.0 transport trait |
+| **5** | B8 research alignment | **Doing** — with lane 4 | B8.0 env knobs spec |
+| **6** | B1 endowment range proof track | **Done** — `2958cfa`–`bbe1d9f` | B8.0 with lane 4 |
+| **7** | VPS preflight MFER gate | **Doing** — this push | TL-5 VPS internet soak |
 
 ---
 

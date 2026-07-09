@@ -12,6 +12,17 @@ function Pass([string]$Msg) { Write-Host "launch-go-no-go: PASS $Msg" }
 function Fail([string]$Msg) { Write-Host "launch-go-no-go: FAIL $Msg" -ForegroundColor Red; $script:fail = 1 }
 function Warn([string]$Msg) { Write-Host "launch-go-no-go: WARN $Msg" -ForegroundColor Yellow }
 
+function Test-LocalMferRehearsalPass {
+    param([Parameter(Mandatory = $true)][string]$Pattern)
+    $files = Get-ChildItem -Path $EvidenceDir -Filter $Pattern -ErrorAction SilentlyContinue
+    foreach ($f in $files) {
+        if (Select-String -Path $f.FullName -Pattern "SUMMARY: PASS" -Quiet) {
+            return $true
+        }
+    }
+    return $false
+}
+
 Push-Location $RepoRoot
 try { $head = (git rev-parse --short HEAD 2>$null) } finally { Pop-Location }
 if (-not $head) { $head = "unknown" }
@@ -43,6 +54,13 @@ if ($soak -and (Select-String -Path $soak.FullName -Pattern "status=PASS" -Quiet
 } elseif ($soak) {
     Fail "TL-5 evidence missing PASS summary in $($soak.Name)"
 } else {
+    $localNo = Test-LocalMferRehearsalPass -Pattern "participant-rehearsal-no-observer-*.txt"
+    $localObs = Test-LocalMferRehearsalPass -Pattern "participant-rehearsal-observer-*.txt"
+    if ($localNo -and $localObs) {
+        Warn "TL-5 not run; local MFER rehearsals PASS - ready for VPS provision (docs/VPS_PROVISION.md)"
+    } else {
+        Warn "TL-5 not run; complete local participant-rehearsal-smoke on MFER devnet before VPS"
+    }
     Fail "TL-5 evidence missing (vps-internet-soak-linux-*.txt)"
 }
 
@@ -52,6 +70,9 @@ if ($rehearsal -and (Select-String -Path $rehearsal.FullName -Pattern "SUMMARY: 
 } elseif ($rehearsal) {
     Fail "TL-6 evidence missing PASS in $($rehearsal.Name)"
 } else {
+    if ($soak) {
+        Warn "TL-6 not run; VPS soak evidence present - run vps-participant-rehearsal.sh"
+    }
     Fail "TL-6 evidence missing (vps-participant-rehearsal-*.txt)"
 }
 

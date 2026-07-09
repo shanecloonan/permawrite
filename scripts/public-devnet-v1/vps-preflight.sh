@@ -22,10 +22,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 load_vps_bind_file "$SCRIPT_DIR" || exit 1
+vps_assert_public_devnet_policy "$REPO_ROOT" || exit 1
 vps_assert_public_p2p_binds || exit 1
 vps_assert_loopback_rpc_binds || exit 1
 
-for bin in mfnd mfn-cli; do
+for bin in mfnd mfn-cli mfn-storage-operator; do
   if [[ ! -x "$REPO_ROOT/target/release/$bin" ]]; then
     echo "vps-preflight: missing target/release/$bin — build release binaries first" >&2
     exit 1
@@ -50,5 +51,5 @@ if (( SKIP_UFW == 0 )) && command -v ufw >/dev/null 2>&1; then
   fi
 fi
 
-echo "vps-preflight: OK genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+echo "vps-preflight: OK genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 require_endowment_range_proof=1"
 echo "vps-preflight: next=bash scripts/public-devnet-v1/vps-internet-soak.sh"

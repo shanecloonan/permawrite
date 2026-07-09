@@ -88,3 +88,38 @@ vps_assert_loopback_rpc_binds() {
   done
   return 0
 }
+
+# Public devnet genesis + MFER policy (B1 phase 2d) — VPS must match local RC rehearsal chain.
+vps_assert_public_devnet_policy() {
+  local repo_root="$1"
+  local manifest="$repo_root/mfn-node/testdata/public_devnet_v1.manifest.json"
+  local spec="$repo_root/mfn-node/testdata/public_devnet_v1.json"
+  local expected_genesis="454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005"
+  if [[ ! -f "$manifest" || ! -f "$spec" ]]; then
+    echo "vps-preflight: FAIL missing public devnet manifest or genesis spec" >&2
+    return 1
+  fi
+  MFN_VPS_MANIFEST="$manifest" MFN_VPS_SPEC="$spec" MFN_VPS_EXPECTED_GENESIS="$expected_genesis" python3 - <<'PY'
+import json, os, sys
+
+manifest = json.load(open(os.environ["MFN_VPS_MANIFEST"]))
+spec = json.load(open(os.environ["MFN_VPS_SPEC"]))
+expected = os.environ["MFN_VPS_EXPECTED_GENESIS"]
+genesis_id = manifest.get("genesis_id", "")
+if genesis_id != expected:
+    print(
+        f"vps-preflight: FAIL genesis_id={genesis_id} expected {expected}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+mfer = int(spec.get("endowment", {}).get("require_endowment_range_proof", 0))
+if mfer != 1:
+    print(
+        "vps-preflight: FAIL require_endowment_range_proof="
+        f"{mfer} (public devnet requires MFER=1 for TL-5/TL-6)",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+print("vps-preflight: OK public_devnet_v1 policy genesis_id match + MFER required")
+PY
+}

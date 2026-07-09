@@ -81,7 +81,7 @@ Confirm **18731–18734 are not** in the allow list (RPC stays loopback).
 bash scripts/public-devnet-v1/vps-preflight.sh
 ```
 
-Expect `detected_public_ip=YOUR_VPS_IP` and `next=vps-internet-soak.sh`.
+Expect `detected_public_ip=YOUR_VPS_IP`, `require_endowment_range_proof=1`, and `next=vps-internet-soak.sh`.
 
 ---
 

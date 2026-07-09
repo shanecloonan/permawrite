@@ -267,7 +267,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B8** — optional Tor/arti transport (research).
+- [ ] **B8** — optional Tor/arti transport: phased plan B8.0–B8.3 in [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) (this push); **Next:** B8.0 transport trait.
 
 ### Do not start
 
@@ -368,6 +368,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **VPS provision + ceremony** — [`VPS_PROVISION.md`](./VPS_PROVISION.md) + `vps-launch-ceremony.*` (`0a700a5`)
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
+- [x] **TL-5 preflight hardening** — MFER policy + storage-operator binary gate in `vps-preflight.sh`
 
 ### Doing
 
