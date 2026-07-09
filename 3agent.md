@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#28986986012` + Nightly `#28986938052` GREEN | **Doing** — B1 phase 2a push | Nightly on B1 2a head |
-| **2** RC ops | Evidence `1485e67`+ B5 stack | **Doing** — refresh on B7 green | Human sign-off packet |
+| **1** RC core | CI `#28986986012` + Nightly `#28986938052` GREEN | **Doing** — wait CI `#28988003544` | ci-check + push B1 2a; Nightly dispatch |
+| **2** RC ops | B7 board sync `c85857d` | **Doing** — refresh on B1 2a head | Human sign-off packet |
 | **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B7 inbox quota `930b166` pushed; B5 5d `1485e67` | **Doing** — B1 phase 2a inert param (local) | B1 phase 2b wire + verify |
+| **4+6** Protocol | B7 `930b166`; B5 5d `1485e67` | **Doing** — B1 2a ci-check (local) | B1 2b MFER wire + verify |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
 
 ---
@@ -19,12 +19,13 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B1 phase 2a** | **Local** | `require_endowment_range_proof`; checkpoint **v10**; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md) |
+| **B1 phase 2a** | **This push** | `require_endowment_range_proof`; checkpoint **v10**; mutual exclusion with MFEO; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md) |
+| **B7 board sync** | **GREEN** — CI `#28988003544` | `c85857d` on `930b166` |
 | **B7 CI #28986986012** | **GREEN** | Full matrix on `930b166` |
 | **Nightly #28986938052** | **GREEN** | All 3 jobs on B7 stack |
 
-**Lane 4+6 — Done:** B7 `930b166` **Doing:** B1 2a **Next:** B1 2b MFER wire  
-**Lane 1 — Done:** Nightly `#28986938052` **Doing:** CI on B7 **Next:** ci-check + push B1 2a
+**Lane 4+6 — Done:** B7 `930b166` **Doing:** B1 2a ci-check **Next:** push B1 2a → B1 2b MFER wire  
+**Lane 1 — Done:** Nightly `#28986938052` **Doing:** wait board-sync CI **Next:** push B1 2a + Nightly
 
 ---
 

@@ -335,13 +335,13 @@ fn rejects_unsupported_version() {
         state: fresh_state(),
     };
     let mut bytes = encode_chain_checkpoint(&cp);
-    // Bytes 4..8 are the version, big-endian. Flip to 10 (unsupported).
-    bytes[4..8].copy_from_slice(&10u32.to_be_bytes());
+    // Bytes 4..8 are the version, big-endian. Flip to 11 (unsupported).
+    bytes[4..8].copy_from_slice(&11u32.to_be_bytes());
     let plen = bytes.len() - 32;
     let new_tag = dhash(CHAIN_CHECKPOINT, &[&bytes[..plen]]);
     bytes[plen..].copy_from_slice(&new_tag);
     match decode_chain_checkpoint(&bytes) {
-        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 10),
+        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 11),
         other => panic!("expected UnsupportedVersion, got {other:?}"),
     }
 }
@@ -532,6 +532,22 @@ fn b5_endowment_slash_params_roundtrip() {
     };
     let cp = ChainCheckpoint {
         genesis_id: [0xB5; 32],
+        state: s,
+    };
+    let bytes = encode_chain_checkpoint(&cp);
+    let restored = decode_chain_checkpoint(&bytes).expect("roundtrip");
+    assert_eq!(restored.state.endowment_params, cp.state.endowment_params);
+}
+
+#[test]
+fn b1_endowment_range_proof_param_roundtrip() {
+    let mut s = fresh_state();
+    s.endowment_params = EndowmentParams {
+        require_endowment_range_proof: 1,
+        ..DEFAULT_ENDOWMENT_PARAMS
+    };
+    let cp = ChainCheckpoint {
+        genesis_id: [0xB1; 32],
         state: s,
     };
     let bytes = encode_chain_checkpoint(&cp);

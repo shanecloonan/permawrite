@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** B7 inbox quota (this push). **CI #28983986309** GREEN on `1485e67`. **Nightly #28980876807** GREEN.
+**Head:** B1 phase 2a (this push). **RC push hold:** wait CI `#28988003544` (board sync on `c85857d`). **B7** `930b166` CI `#28986986012` GREEN. **Nightly `#28986938052` GREEN** on B7 stack.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly on B5/B7 stack | **Doing** — monitor CI on B7 push | Nightly re-dispatch |
-| **2** | Release evidence refresh | **Doing** — refresh on `1485e67`+ | Human sign-off packet |
-| **3** | Nightly participant PASS | **Done** — `#28980876807` | Idle |
-| **4** | B7 chunk-inbox quota | **Doing** — this push | B1 opening reveal |
+| **1** | RC push gate | **Doing** — wait CI `#28988003544` | ci-check + push B1 2a; Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — refresh on B1 2a head | Human sign-off packet |
+| **3** | Nightly participant PASS | **Done** — `#28986938052` | Idle |
+| **4** | B1 phase 2a range-proof param | **Doing** — ci-check local | B1 phase 2b MFER wire |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B7 with lane 4 | **Doing** — inbox quota | B1 with lane 4 |
+| **6** | B1 with lane 4 | **Doing** — phase 2a ci-check | B1 phase 2b with lane 4 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---

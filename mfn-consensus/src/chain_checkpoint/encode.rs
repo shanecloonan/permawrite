@@ -46,6 +46,9 @@ pub(crate) fn encode_endowment_params(
         w.u8(p.operator_audit_missed_cap);
         w.u32(p.operator_slash_bps);
     }
+    if checkpoint_version >= 10 {
+        w.u8(p.require_endowment_range_proof);
+    }
 }
 
 pub(crate) fn encode_u128(w: &mut Writer, v: u128) {

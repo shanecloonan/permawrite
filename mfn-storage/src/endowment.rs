@@ -119,6 +119,10 @@ pub struct EndowmentParams {
     /// failure, in basis points (1 bps = 0.01%). Active only when
     /// `operator_audit_missed_cap > 0` and `operator_salted_challenges > 0`.
     pub operator_slash_bps: u32,
+    /// When non-zero, new storage anchors must carry a Bulletproof that the
+    /// Pedersen endowment opens to at least `required_endowment(...)` without
+    /// revealing over-payment (B-11 phase 2). Inert until wired in `apply_block`.
+    pub require_endowment_range_proof: u8,
 }
 
 /// Canonical defaults.
@@ -136,6 +140,7 @@ pub const DEFAULT_ENDOWMENT_PARAMS: EndowmentParams = EndowmentParams {
     min_storage_operator_bond: 0,
     operator_audit_missed_cap: 0,
     operator_slash_bps: 0,
+    require_endowment_range_proof: 0,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -201,6 +206,14 @@ pub fn validate_endowment_params(p: &EndowmentParams) -> Result<(), EndowmentErr
         return Err(EndowmentError::InvalidOperatorSlashBps {
             got: p.operator_slash_bps,
         });
+    }
+    if p.require_endowment_range_proof > 1 {
+        return Err(EndowmentError::InvalidRequireEndowmentRangeProof {
+            got: p.require_endowment_range_proof,
+        });
+    }
+    if p.require_endowment_range_proof != 0 && p.require_endowment_opening != 0 {
+        return Err(EndowmentError::EndowmentRangeProofExclusiveWithOpening);
     }
     Ok(())
 }
@@ -575,6 +588,15 @@ pub enum EndowmentError {
         /// Caller-supplied basis points.
         got: u32,
     },
+    /// `require_endowment_range_proof` must be 0 or 1.
+    #[error("require_endowment_range_proof must be 0 or 1, got {got}")]
+    InvalidRequireEndowmentRangeProof {
+        /// Caller-supplied flag.
+        got: u8,
+    },
+    /// Range-proof binding and MFEO opening reveal are mutually exclusive modes.
+    #[error("require_endowment_range_proof and require_endowment_opening cannot both be enabled")]
+    EndowmentRangeProofExclusiveWithOpening,
     /// An intermediate `u128` product overflowed.
     #[error("u128 overflow in endowment math")]
     Overflow,
@@ -632,6 +654,24 @@ mod tests {
             validate_endowment_params(&bad),
             Err(EndowmentError::InvalidOperatorSlashBps { got: 0 })
         ));
+    }
+
+    #[test]
+    fn rejects_endowment_range_proof_with_opening_both_enabled() {
+        let mut bad = p();
+        bad.require_endowment_opening = 1;
+        bad.require_endowment_range_proof = 1;
+        assert!(matches!(
+            validate_endowment_params(&bad),
+            Err(EndowmentError::EndowmentRangeProofExclusiveWithOpening)
+        ));
+    }
+
+    #[test]
+    fn accepts_endowment_range_proof_alone() {
+        let mut ok = p();
+        ok.require_endowment_range_proof = 1;
+        assert!(validate_endowment_params(&ok).is_ok());
     }
 
     #[test]

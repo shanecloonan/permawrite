@@ -489,7 +489,7 @@ Ordered roughly by permanence impact per unit risk. Items marked
 
 ### B1. Range-proof endowment binding (B-11 phase 2) — **consensus**
 
-**Status:** not shipped. **Phase 1 (`MFEO` opening reveal) shipped** — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187).
+**Status:** phase **2a** shipped (inert `require_endowment_range_proof`, checkpoint **v10**). Phase 1 (`MFEO` opening reveal) shipped — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187). Design: [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
 
 **Problem (remaining).** When `require_endowment_opening = 1`, the opened endowment
 amount is visible on-chain. Networks with `require_endowment_opening = 0` still

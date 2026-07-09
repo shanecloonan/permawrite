@@ -219,6 +219,7 @@ struct EndowmentSection {
     min_storage_operator_bond: Option<u64>,
     operator_audit_missed_cap: Option<u8>,
     operator_slash_bps: Option<u32>,
+    require_endowment_range_proof: Option<u8>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -326,6 +327,9 @@ fn merge_endowment(base: EndowmentParams, file: Option<EndowmentSection>) -> End
             .operator_audit_missed_cap
             .unwrap_or(base.operator_audit_missed_cap),
         operator_slash_bps: e.operator_slash_bps.unwrap_or(base.operator_slash_bps),
+        require_endowment_range_proof: e
+            .require_endowment_range_proof
+            .unwrap_or(base.require_endowment_range_proof),
     }
 }
 

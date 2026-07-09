@@ -219,6 +219,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **B7 (permanence inbox quota)** — `MFND_CHUNK_INBOX_MAX_BYTES` gossip disk cap (`930b166`; CI `#28986986012` GREEN).
 
+### Next
+
+- [ ] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (ci-check in progress).
+
 ### Handoff to lane 3
 
 - Ring-16 is consensus-enforced; wallet/CLI must stay ≥16 (lane 5 documents).
@@ -313,7 +317,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **B7 (permanence inbox quota)** — chunk-inbox disk cap with lane 4 (this push).
+- [ ] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (with lane 4; ci-check in progress).
 
 ### Do not start
 
