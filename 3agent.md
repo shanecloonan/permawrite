@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M4.8 tail `b3f56a6` CI `#29003960562` in progress | **Doing** — monitor CI | Nightly on green |
-| **2** RC ops | Release evidence `bbe1d9f` + RC audit **go** | **Doing** — refresh on `b3f56a6` after CI | Human sign-off packet |
+| **1** RC core | M4.8 tail `b3f56a6` CI `#29003960562` GREEN | **Doing** — CI on `daa8e8e` board sync | Nightly dispatch |
+| **2** RC ops | Release evidence `daa8e8e` + RC audit **go** | **Done** — local refresh | Human sign-off packet |
 | **3** Onboarding | MFER observer rehearsal PASS `20260709T080708Z` | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | M4.8 complete incl. WASM MFER test (`b3f56a6`) | **Idle** | Next permanence backlog |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
