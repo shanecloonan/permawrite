@@ -9,7 +9,7 @@
     "liveness_slash_bps": 0
   },
   "endowment": {
-    "require_endowment_opening": 1,
+    "require_endowment_range_proof": 1,
     "operator_salted_challenges": 1,
     "require_registered_operators": 1,
     "min_storage_operator_bond": 0,

@@ -4283,3 +4283,76 @@ fn accept_upload_with_mfer_when_endowment_range_proof_required() {
         ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
     }
 }
+
+/// Reject upload when `MFER` surplus proof uses wrong Pedersen blinding (**B-11 phase 2**).
+#[test]
+fn reject_upload_with_forged_mfer_when_endowment_range_proof_required() {
+    const UPLOAD_PAYLOAD_LEN: usize = 1024;
+    let gen = genesis_dual_spend_for_upload_range_proof_proptest();
+    let upload_fee = prop_min_upload_fee(UPLOAD_PAYLOAD_LEN).saturating_add(100);
+    let payload: Vec<u8> = vec![7u8; UPLOAD_PAYLOAD_LEN];
+    let built = build_storage_commitment(
+        &payload,
+        PROP_STORAGE_ENDOWMENT_AMOUNT,
+        Some(256),
+        DEFAULT_ENDOWMENT_PARAMS.min_replication,
+        None,
+    )
+    .expect("commitment");
+    let required = required_endowment(
+        built.commit.size_bytes,
+        built.commit.replication,
+        &PROP_ENDOWMENT_REQUIRE_RANGE_PROOF,
+    )
+    .expect("required") as u64;
+    let surplus = PROP_STORAGE_ENDOWMENT_AMOUNT - required;
+    let forged_blinding = hash_to_scalar(&[b"B1/forged-blinding"]);
+    let bad_proof = bp_prove(surplus, &forged_blinding, 64)
+        .expect("forged proof")
+        .proof;
+    let forged_extra = build_mfex_extra_v3(&[], std::slice::from_ref(&bad_proof)).expect("mfex v3");
+    let (upload_tx, _, _) = gen.upload_spend.sign_storage_upload(
+        &gen.upload_pad,
+        PropStorageUploadArgs::new(
+            upload_fee,
+            &built,
+            PROP_STORAGE_ENDOWMENT_AMOUNT,
+            &PROP_ENDOWMENT_REQUIRE_RANGE_PROOF,
+            99,
+        )
+        .with_extra_override(forged_extra),
+    );
+    let height = 1u32;
+    let ts = u64::from(height) * 1_000;
+    let unsealed = build_unsealed_header(
+        &gen.state,
+        std::slice::from_ref(&upload_tx),
+        &[],
+        &[],
+        &[],
+        height,
+        ts,
+    );
+    let blk = seal_with_test_finality(
+        &gen.state,
+        unsealed,
+        vec![upload_tx],
+        vec![],
+        vec![],
+        vec![],
+    );
+    match apply_block(&gen.state, &blk) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors.iter().any(|e| {
+                    matches!(
+                        e,
+                        BlockError::EndowmentRangeProofInvalid { tx: 0, output: 0 }
+                    )
+                }),
+                "expected EndowmentRangeProofInvalid, got {errors:?}"
+            );
+        }
+        other => panic!("expected apply_block reject, got {other:?}"),
+    }
+}

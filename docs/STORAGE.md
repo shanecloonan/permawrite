@@ -151,14 +151,14 @@ The `endowment` field is **not** a plaintext amount — it's a Pedersen commitme
 - What consensus always enforces is the *funding route*: the tx's treasury-bound fee share
   (`fee × fee_to_treasury_bps / 10_000`) must cover `required_endowment(size_bytes, replication)`
   or the block is rejected (`UploadUnderfunded`).
-- When `endowment_params.require_endowment_opening = 1` (public devnet v1 since B-11), each new
-  storage output must also carry a matching **`MFEO`** opening in `tx.extra`: consensus verifies
-  `commit(opened_value, blinding) == sc.endowment` and `opened_value ≥ required_endowment(...)`
+- When `endowment_params.require_endowment_range_proof = 1` (public devnet v1 since B1 phase 2d), each new
+  storage output must carry a matching **`MFER`** surplus Bulletproof in `tx.extra` (MFEX v3): consensus
+  verifies the proof binds `sc.endowment` to at least `required_endowment(...)` without revealing
+  over-payment ([`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md)).
+- When `require_endowment_opening = 1` (legacy / alternate networks), each new storage output carries
+  an **`MFEO`** Pedersen opening instead; the opened amount is visible on-chain
   ([`PERMANENCE_HARDENING.md` §A6](./PERMANENCE_HARDENING.md#a6-pedersen-endowment-opening-binding-b-11-phase-1)).
-  The opened amount is visible on-chain (over-payment privacy is not range-proved yet).
-- Networks with `require_endowment_opening = 0` still rely on the fee route only; the Pedersen
-  point is not opened. Optional **range-proof** binding (amount-private over-payment) remains in
-  [`PERMANENCE_HARDENING.md` §B1](./PERMANENCE_HARDENING.md#b1-range-proof-endowment-binding-b-11-phase-2--consensus).
+- The two modes are mutually exclusive. Networks with both flags off rely on the fee route only.
 
 ### Replication factor
 

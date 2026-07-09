@@ -246,7 +246,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B7 chunk-inbox quota** — `MFND_CHUNK_INBOX_MAX_BYTES` (`930b166`; CI `#28986986012` GREEN).
 - [x] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 + genesis merge (`76b5f8f`); design [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
 - [x] **B1 phase 2b** — MFEX v3 + `MFER` surplus range proofs; `apply_block` + mempool verify (`c084537`).
-- [ ] **B1 phase 2c** — wallet builds `MFER` on upload (this push).
+- [x] **B1 phase 2c** — wallet builds `MFER` on upload (`ba53a15`).
+- [x] **B1 phase 2c tail** — reject forged `MFER` consensus test (`reject_upload_with_forged_mfer_when_endowment_range_proof_required`).
+- [ ] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (this push; same `genesis_id`).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

@@ -7,11 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B1 2b `c084537` CI GREEN `#28989926744` | **Doing** — B1 2c ci-check + push | Nightly on 2c head |
-| **2** RC ops | B7 board `c85857d` | **Doing** — evidence on `c084537`+ | Human sign-off packet |
-| **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B1 2b `c084537` | **Doing** — B1 2c wallet `MFER` build | B1 2d devnet flip (after RC) |
+| **1** RC core | B1 2c `ba53a15` CI `#28992802103` GREEN | **Doing** — push B1 2d | Nightly on 2d head |
+| **2** RC ops | B1 2b/2c CI green | **Doing** — evidence refresh on 2d | Human sign-off packet |
+| **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal (MFER devnet) |
+| **4+6** Protocol | B1 2c tail forged MFER test | **Doing** — B1 2d devnet flip | RC evidence + Nightly |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
+
+---
+
+## Session — 2026-07-08 (B1 phase 2d — public devnet MFER flip)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B1 phase 2d** | **This push** | `require_endowment_range_proof: 1` in `public_devnet_v1.json`; same `genesis_id`; OPERATORS + STORAGE docs |
+| **B1 CI #28992802103** | **GREEN** | 2c matrix on `ba53a15` |
+| **B1 2c tail** | **Done** | forged `MFER` reject test |
+
+**Lane 4+6 — Done:** B1 2c **Doing:** B1 2d push **Next:** RC evidence + Nightly  
+**Lane 1 — Doing:** push 2d **Next:** Nightly dispatch
 
 ---
 
@@ -19,12 +32,12 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B1 phase 2c** | **This push** | `build_endowment_surplus_range_proof`; wallet MFEX v3; wallet test |
-| **B1 CI #28989926744** | **GREEN** | 2b matrix on `c084537` (~37m) |
-| **B1 2b** | **Done** — `c084537` | MFER wire + consensus verify |
+| **B1 phase 2c** | **Done** — `ba53a15` | wallet MFEX v3 + `build_endowment_surplus_range_proof`; unit test |
+| **B1 CI #28992802103** | **In progress** | 2c matrix on `ba53a15` |
+| **B1 2b** | **Done** — `c084537` | CI `#28989926744` GREEN |
 
-**Lane 4+6 — Done:** B1 2b **Doing:** B1 2c push **Next:** B1 2d devnet flip  
-**Lane 1 — Doing:** CI `#28989926744` **Next:** Nightly after 2c green
+**Lane 4+6 — Done:** B1 2c `ba53a15` **Doing:** forged MFER reject test **Next:** B1 2d devnet flip  
+**Lane 1 — Doing:** CI `#28992802103` **Next:** Nightly after green
 
 ---
 

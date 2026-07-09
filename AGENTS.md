@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** B1 phase 2c (this push). **CI `#28989926744` GREEN** on `c084537` (2b).
+**Head:** B1 phase 2d (this push). **B1 2c** `ba53a15` CI `#28992802103` GREEN. **B1 2b** `c084537` CI `#28989926744` GREEN.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + B1 2c push | **Doing** — push 2c after local ci-check | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — refresh on 2c head after CI | Human sign-off packet |
+| **1** | B1 2d push + Nightly | **Doing** — push 2d devnet flip | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — refresh on 2d head after CI | Human sign-off packet |
 | **3** | Nightly participant PASS | **Done** — `#28986938052` | Idle |
-| **4** | B1 phase 2c wallet MFER | **Doing** — this push | B1 2d devnet flip |
+| **4** | B1 phase 2d public devnet MFER flip | **Doing** — this push | RC evidence (lane 2) |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B1 with lane 4 | **Doing** — phase 2c | B1 2d with lane 4 |
+| **6** | B1 phase 2d with lane 4 | **Doing** — genesis flip | RC evidence with lane 2 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B1 phase 2c** (`ba53a15`) - permanence (lanes 4+6): wallet MFEX v3 `MFER` builder; `build_endowment_surplus_range_proof` in mfn-storage; wallet unit test.
+- **B1 phase 2c** (`ba53a15`) - permanence (lanes 4+6): wallet MFEX v3 + `build_endowment_surplus_range_proof`; forged `MFER` reject test.
 - **B1 phase 2b** (`c084537`) - permanence (lanes 4+6): MFEX v3 + `MFER` surplus range proofs; `apply_block` + mempool verify; M5 accept/reject + treasury proptest.
 - **B1 phase 2a** (`76b5f8f`) - permanence (lanes 4+6): inert `require_endowment_range_proof`; checkpoint **v10**; mutual exclusion with MFEO; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md).
 - **B5 phase 5c** (`8bdb4ab`) - permanence (lanes 4+6): operator bond slash to treasury when `consecutive_missed_audits >= operator_audit_missed_cap`; zero-bond deregister; clippy fix for 5b CI `#28977215094`; full matrix CI `#28979369780` GREEN.

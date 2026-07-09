@@ -51,12 +51,16 @@ fn public_devnet_v1_genesis_id_matches_manifest() {
 }
 
 #[test]
-fn public_devnet_v1_requires_endowment_opening() {
+fn public_devnet_v1_requires_endowment_range_proof() {
     let spec = spec_path("public_devnet_v1.json");
     let cfg = genesis_config_from_json_path(&spec).expect("spec");
     assert_eq!(
-        cfg.endowment_params.require_endowment_opening, 1,
-        "public devnet must enforce MFEO Pedersen openings (B-11)"
+        cfg.endowment_params.require_endowment_range_proof, 1,
+        "public devnet must enforce MFER surplus range proofs (B1 phase 2d)"
+    );
+    assert_eq!(
+        cfg.endowment_params.require_endowment_opening, 0,
+        "MFER and MFEO are mutually exclusive on public devnet"
     );
 }
 

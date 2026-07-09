@@ -26,8 +26,8 @@ Reuses [`bp_prove` / `bp_verify`](../mfn-crypto/src/bulletproofs.rs) from transa
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `require_endowment_range_proof` | `0` | Inert until phase 2b wires verification |
-| `require_endowment_opening` | `0` | Phase 1 MFEO reveal (public devnet: `1`) |
+| `require_endowment_range_proof` | `0` | Public devnet v1: `1` (B1 phase 2d) |
+| `require_endowment_opening` | `0` | Phase 1 MFEO reveal (superseded on public devnet by MFER) |
 
 **Mutual exclusion:** `require_endowment_range_proof` and `require_endowment_opening` cannot both be `1`. A chain picks one binding mode per era.
 
@@ -39,8 +39,9 @@ Checkpoint **v10** persists `require_endowment_range_proof`.
 | --- | --- | --- |
 | **2a** | Inert param + checkpoint v10 + genesis merge + validation | **Done** — `76b5f8f` |
 | **2b** | Wire `MFER` proof frames in `tx.extra`; `apply_block` + mempool verify | **Done** — `c084537` |
-| **2c** | Wallet upload builds proof; wallet unit test + storage builder | **This commit** |
-| **2d** | Optional devnet flip after green CI + RC evidence | Planned |
+| **2c** | Wallet upload builds proof; wallet unit test + storage builder | **Done** — `ba53a15` |
+| **2c tail** | Reject forged `MFER` at consensus | **Done** — `reject_upload_with_forged_mfer_when_endowment_range_proof_required` |
+| **2d** | Public devnet flip to `require_endowment_range_proof: 1` (same `genesis_id`) | **This commit** |
 
 ## Test plan (phase 2b+)
 
