@@ -8,7 +8,7 @@
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | CI `#29007812174` GREEN on `328e63f` | **Doing** — Nightly dispatch `241f2b4` | TL-5 VPS soak support |
-| **2** RC ops | Release evidence `241f2b4` + RC audit **go** | **Done** — local refresh | Human sign-off packet |
+| **2** RC ops | Release evidence `19dc111` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS (no-observer + observer) | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B1 + M4.8 complete | **Doing** — B8 phased plan (docs) | B8.0 transport trait |
 | **7** Testnet | `launch-status.v3`; local RC complete | **Done** — VPS preflight MFER gate | **TL-5 VPS soak** |
@@ -22,7 +22,7 @@
 | **vps-preflight** | **Done** — `375f4d0` | Validates `require_endowment_range_proof=1` + `mfn-storage-operator` binary |
 | **launch-go-no-go.ps1** | **Done** — `375f4d0` | Local MFER rehearsal WARN parity with bash |
 | **B8 plan** | **Done** — `375f4d0` | Phased B8.0–B8.3 table in `PRIVACY_HARDENING.md` |
-| **RC evidence** | **Done** — `241f2b4` | `release-evidence-241f2b4` + RC audit **go** (local, gitignored) |
+| **RC evidence** | **Done** — `19dc111` | `release-evidence-19dc111` + RC audit **go** |
 
 **Lane 7 — Doing:** VPS preflight hardening **Next:** TL-5 execution (human VPS)  
 **Lane 4+6 — Doing:** B8 research plan **Next:** B8.0 transport trait skeleton  

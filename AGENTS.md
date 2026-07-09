@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `241f2b4`. **CI `#29007812174` GREEN** on `328e63f`. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
+**Head:** `19dc111`. **CI `#29007812174` GREEN** on `328e63f`. **Release evidence:** `release-evidence-19dc111` RC audit **go**. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | Nightly soak maintenance | **Doing** — dispatch on `241f2b4` | TL-5 VPS soak support |
-| **2** | Release evidence refresh | **Done** — `241f2b4` RC audit **go** | Human sign-off packet |
+| **2** | Release evidence refresh | **Done** — `19dc111` RC audit **go** | Human sign-off packet |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
 | **4** | B8 Tor transport phased plan | **Done** — docs | B8.0 transport trait |
 | **5** | B8 research alignment | **Doing** — with lane 4 | B8.0 env knobs spec |
