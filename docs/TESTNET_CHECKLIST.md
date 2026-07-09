@@ -251,6 +251,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; same `genesis_id`; CI `#28995960877` GREEN).
 - [x] **B1 phase 2e** — WASM upload + `get_chain_params` endowment flags; demo web MFER policy (`bbe1d9f`; CI `#28999593529` GREEN).
 - [x] **MFER participant rehearsal** — Windows smoke PASS on `bbe1d9f` (`participant-rehearsal-no-observer-windows-20260709T070005Z.txt`).
+- [x] **MFER observer rehearsal** — Windows smoke PASS on MFER devnet (`participant-rehearsal-observer-windows-20260709T080708Z.txt`; `b3f56a6`).
+- [x] **M4.8 WASM MFER test** — `wasm_storage_upload_attaches_mfer_when_range_proof_required` (`b3f56a6`).
 - [x] Inline CI Nightly dispatch on green main push (**M2.5.18**).
 - [x] Nightly #54 — **PARTIAL** (same 302s class as #52/#53).
 - [x] Nightly #51 — **FAIL** on `9c76050` (ignored flake + devnet CI liveness); fixed in M2.5.5.

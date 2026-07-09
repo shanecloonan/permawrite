@@ -7,11 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | M4.8 `bbe1d9f` CI `#28999593529` GREEN | **Doing** — Nightly on `bbe1d9f` | Soak maintenance |
-| **2** RC ops | Release evidence `2958cfa` + RC audit **go** | **Doing** — refresh on `bbe1d9f` | Human sign-off packet |
-| **3** Onboarding | MFER rehearsal PASS `20260709T070005Z` on `bbe1d9f` | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | **B1 complete** + M4.8 WASM MFER (`bbe1d9f`) | **Idle** | Next permanence backlog |
+| **1** RC core | M4.8 tail `b3f56a6` CI `#29003960562` in progress | **Doing** — monitor CI | Nightly on green |
+| **2** RC ops | Release evidence `bbe1d9f` + RC audit **go** | **Doing** — refresh on `b3f56a6` after CI | Human sign-off packet |
+| **3** Onboarding | MFER observer rehearsal PASS `20260709T080708Z` | **Idle** | TL-6 VPS rehearsal |
+| **4+6** Protocol | M4.8 complete incl. WASM MFER test (`b3f56a6`) | **Idle** | Next permanence backlog |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
+
+---
+
+## Session — 2026-07-09 (M4.8 tail — WASM MFER integration test)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **M4.8 tail** | **Done** — `b3f56a6` | `wasm_storage_upload_attaches_mfer_when_range_proof_required`; observer rehearsal evidence |
+| **Observer rehearsal** | **Done** | `participant-rehearsal-observer-windows-20260709T080708Z.txt` |
+| **Ops `7dba698`** | **Done** | CI cancelled by concurrent push; superseded by `b3f56a6` |
+
+**Lane 4+6 — Doing:** M4.8 tail **Next:** push after CI green  
+**Lane 3 — Doing:** observer MFER rehearsal
 
 ---
 
