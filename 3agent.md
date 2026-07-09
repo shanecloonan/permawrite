@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F12 phase 2 `10e606e`; P32 `db58ae1` | **Doing** — CI `#29054932228` | Nightly dispatch |
-| **2** RC ops | Release evidence `85f3512` + soak `cf99ae5` | **Doing** — refresh after CI green | Human sign-off |
+| **1** RC core | CI `#29055006785` GREEN; Nightly `#29054257043` | **Doing** — Nightly `#29056342177` watch | Soak maintenance |
+| **2** RC ops | `release-evidence-b16cb49` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 2 `10e606e` | **Done** | Idle |
 | **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |

@@ -119,6 +119,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **Release evidence refresh** — `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140` on `89f3498`).
 
+- [x] **Release evidence refresh** — `release-evidence-b16cb49` + RC audit dry-run **go** (CI `#29055006785` on `b16cb49`).
+
 ### Next
 
 - [x] Idle — RC gates green on B4 stack; periodic B-05 soak re-run is maintenance only.

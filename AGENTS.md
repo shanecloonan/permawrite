@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** P32 phase 2 `db58ae1` (this push). **CI `#29054932228` in progress**. F12 phase 2 `10e606e`; prior GREEN `#29052355319` on `c2e524e`.
+**Head:** `b16cb49`. **CI `#29055006785` GREEN**. **Nightly `#29054257043` GREEN**; `#29056342177` (watch).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | P32 phase 2 + CI | **Doing** — ci-check + push | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
+| **1** | CI on F12+P32 stack | **Done** — CI `#29055006785` GREEN | Nightly `#29056342177` watch |
+| **2** | Release evidence refresh | **Done** — `release-evidence-b16cb49` RC audit **go** | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 light-scan log compare | **Done** — `10e606e` | Idle |
 | **5** | P32 VPS role env templates | **Done** — `db58ae1` | B8 embedded arti research |
@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Release evidence `b16cb49`** - RC ops (lane 2): F12+P32 stack evidence + RC audit dry-run **go** on CI `#29055006785`.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
 - **F12 phase 2** (`10e606e`) - privacy surface (lanes 4+5): `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; rejects log disagreement at same `tip_height`.
 - **F12 phase 1** (`50782a3`) - privacy surface (lanes 4+5): `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); plan-only rehearsal in ci-check.
