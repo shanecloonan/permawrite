@@ -655,6 +655,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const transfer = JSON.parse($("transfer-plan").value || "{}");
     const upload = JSON.parse($("upload-plan").value || "{}");
     upload.fee_to_treasury_bps = bps;
+    if (params.endowment) {
+      upload.endowment = { ...params.endowment };
+    }
     const minRep = params.endowment?.min_replication;
     const maxRep = params.endowment?.max_replication;
     if (minRep != null && maxRep != null) {

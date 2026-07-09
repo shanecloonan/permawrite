@@ -122,9 +122,14 @@ Upload plan shape (same decoy / input conventions as transfer):
   "current_height": 12,
   "decoy_utxos": [ /* … */ ],
   "fee_to_treasury_bps": 9000,
-  "message_hex": ""
+  "message_hex": "",
+  "endowment": {
+    "require_endowment_range_proof": 1
+  }
 }
 ```
+
+Optional `endowment` mirrors `get_chain_params.endowment` (including `require_endowment_range_proof` for MFER uploads on public devnet). When omitted, defaults apply (no MFER).
 
 Optional `message_hex` (UTF-8 as hex) attaches an MFCL authorship claim in `tx.extra`.
 

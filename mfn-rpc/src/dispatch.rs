@@ -362,6 +362,10 @@ fn chain_params_json(chain: &Chain) -> Value {
             "max_replication": end.max_replication,
             "slots_per_year": end.slots_per_year,
             "proof_reward_window_slots": end.proof_reward_window_slots,
+            "require_endowment_opening": end.require_endowment_opening,
+            "require_endowment_range_proof": end.require_endowment_range_proof,
+            "operator_salted_challenges": end.operator_salted_challenges,
+            "require_registered_operators": end.require_registered_operators,
         },
         "bonding": {
             "min_validator_stake": bond.min_validator_stake,
@@ -1640,6 +1644,10 @@ mod tests {
         assert_eq!(
             v["result"]["endowment"]["min_replication"],
             json!(DEFAULT_ENDOWMENT_PARAMS.min_replication)
+        );
+        assert_eq!(
+            v["result"]["endowment"]["require_endowment_range_proof"],
+            json!(DEFAULT_ENDOWMENT_PARAMS.require_endowment_range_proof)
         );
         assert_eq!(v["result"]["mfn_decimals"], json!(MFN_DECIMALS));
         assert_eq!(v["result"]["mfn_base"], json!(MFN_BASE));

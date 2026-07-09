@@ -94,8 +94,17 @@ function Invoke-BundleCommand {
     $stderrFile = Join-Path $BundleDir "$Name.err.txt"
     New-Item -ItemType File -Force -Path $stdoutFile | Out-Null
     New-Item -ItemType File -Force -Path $stderrFile | Out-Null
-    & $MfnCli @CliArgs 2> $stderrFile | Set-Content -Path $stdoutFile -Encoding utf8
-    $code = $LASTEXITCODE
+    $maxAttempts = 3
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        & $MfnCli @CliArgs 2> $stderrFile | Set-Content -Path $stdoutFile -Encoding utf8
+        $code = $LASTEXITCODE
+        if ($code -eq 0) { break }
+        $stderr = if (Test-Path $stderrFile) { Get-Content $stderrFile -Raw } else { "" }
+        $transient = $stderr -match "connection refused|actively refused|timed out"
+        if (-not $transient -or $attempt -eq $maxAttempts) { break }
+        Write-Host "support-bundle: retry $Name attempt=$attempt after transient RPC error"
+        Start-Sleep -Seconds 2
+    }
     $stderrLen = (Get-Item $stderrFile).Length
     if ($stderrLen -eq 0) { Remove-Item $stderrFile }
     return [pscustomobject]@{

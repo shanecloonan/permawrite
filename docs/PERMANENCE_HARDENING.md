@@ -489,22 +489,7 @@ Ordered roughly by permanence impact per unit risk. Items marked
 
 ### B1. Range-proof endowment binding (B-11 phase 2) — **consensus**
 
-**Status:** phase **2b** shipped (`MFER` wire + `apply_block`/mempool verify). Phase **2a** shipped (inert `require_endowment_range_proof`, checkpoint **v10**). Phase 1 (`MFEO` opening reveal) shipped — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187). Design: [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
-
-**Problem (remaining).** When `require_endowment_opening = 1`, the opened endowment
-amount is visible on-chain. Networks with `require_endowment_opening = 0` still
-rely on the fee route only (no Pedersen binding). The strongest fix is a range
-proof that the committed point opens to at least `required_endowment(...)` without
-revealing over-payment.
-
-**Plan.** Require a Bulletproof that `endowment − required_endowment(...) ∈ [0, 2^64)`
-over the homomorphic difference `sc.endowment − commit(required, 0)`. Reuses
-[`bp_prove`](../mfn-crypto/src/bulletproofs.rs) from tx outputs; preserves
-over-payment privacy; ~700 bytes per upload. Touches: version-gated wire fields,
-`block/apply.rs` + `block/error.rs`, `mempool.rs`, `mfn-wallet/src/upload.rs`, M5
-proptests mixing valid/forged proofs.
-
-**Effort:** high. **Risk:** high (consensus + wire).
+**Status:** **shipped** (phases 2a–2d on `2958cfa`; phase 2e WASM parity in flight). Public devnet uses `require_endowment_range_proof: 1` with privacy-preserving `MFER` surplus proofs (same `genesis_id`). Phase 1 (`MFEO` opening reveal) remains available for other networks — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187). Design: [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
 
 ### B2. Merkle-path-carrying chunk gossip — **SHIPPED** (see [§A7](#a7-merkle-path-carrying-chunk-gossip-b2-this-commit))
 

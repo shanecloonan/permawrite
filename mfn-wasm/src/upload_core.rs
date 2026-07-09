@@ -7,8 +7,8 @@ use mfn_consensus::{encode_transaction, tx_id, Recipient};
 use mfn_crypto::point::point_from_bytes;
 use mfn_storage::{
     build_storage_proof, chunk_data, decode_storage_commitment, encode_storage_proof,
-    merkle_tree_from_chunks, storage_commitment_hash, verify_storage_proof,
-    DEFAULT_ENDOWMENT_PARAMS,
+    merkle_tree_from_chunks, storage_commitment_hash, validate_endowment_params,
+    verify_storage_proof, EndowmentParams, DEFAULT_ENDOWMENT_PARAMS,
 };
 use mfn_wallet::production_tx_rng;
 use mfn_wallet::{
@@ -55,10 +55,94 @@ struct StorageUploadPlanJson {
     extra_hex: String,
     #[serde(default)]
     message_hex: String,
+    /// Live chain endowment policy from `get_chain_params` (M4.8 / B1 phase 2).
+    #[serde(default)]
+    endowment: EndowmentPlanJson,
 }
 
 fn default_fee_to_treasury_bps() -> u16 {
     9000
+}
+
+/// Optional endowment-policy overrides from `get_chain_params.endowment` (M4.8).
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct EndowmentPlanJson {
+    #[serde(default)]
+    cost_per_byte_year_ppb: Option<u64>,
+    #[serde(default)]
+    inflation_ppb: Option<u64>,
+    #[serde(default)]
+    real_yield_ppb: Option<u64>,
+    #[serde(default)]
+    min_replication: Option<u8>,
+    #[serde(default)]
+    max_replication: Option<u8>,
+    #[serde(default)]
+    slots_per_year: Option<u64>,
+    #[serde(default)]
+    proof_reward_window_slots: Option<u64>,
+    #[serde(default)]
+    require_endowment_opening: Option<u8>,
+    #[serde(default)]
+    require_endowment_range_proof: Option<u8>,
+    #[serde(default)]
+    operator_salted_challenges: Option<u8>,
+    #[serde(default)]
+    require_registered_operators: Option<u8>,
+    #[serde(default)]
+    min_storage_operator_bond: Option<u64>,
+    #[serde(default)]
+    operator_audit_missed_cap: Option<u8>,
+    #[serde(default)]
+    operator_slash_bps: Option<u32>,
+}
+
+fn merge_endowment_params(plan: &EndowmentPlanJson) -> Result<EndowmentParams, WasmCoreError> {
+    let mut p = DEFAULT_ENDOWMENT_PARAMS;
+    if let Some(v) = plan.cost_per_byte_year_ppb {
+        p.cost_per_byte_year_ppb = v;
+    }
+    if let Some(v) = plan.inflation_ppb {
+        p.inflation_ppb = v;
+    }
+    if let Some(v) = plan.real_yield_ppb {
+        p.real_yield_ppb = v;
+    }
+    if let Some(v) = plan.min_replication {
+        p.min_replication = v;
+    }
+    if let Some(v) = plan.max_replication {
+        p.max_replication = v;
+    }
+    if let Some(v) = plan.slots_per_year {
+        p.slots_per_year = v;
+    }
+    if let Some(v) = plan.proof_reward_window_slots {
+        p.proof_reward_window_slots = v;
+    }
+    if let Some(v) = plan.require_endowment_opening {
+        p.require_endowment_opening = v;
+    }
+    if let Some(v) = plan.require_endowment_range_proof {
+        p.require_endowment_range_proof = v;
+    }
+    if let Some(v) = plan.operator_salted_challenges {
+        p.operator_salted_challenges = v;
+    }
+    if let Some(v) = plan.require_registered_operators {
+        p.require_registered_operators = v;
+    }
+    if let Some(v) = plan.min_storage_operator_bond {
+        p.min_storage_operator_bond = v;
+    }
+    if let Some(v) = plan.operator_audit_missed_cap {
+        p.operator_audit_missed_cap = v;
+    }
+    if let Some(v) = plan.operator_slash_bps {
+        p.operator_slash_bps = v;
+    }
+    validate_endowment_params(&p).map_err(|e| WasmCoreError::Storage(e.to_string()))?;
+    Ok(p)
 }
 
 #[derive(Serialize)]
@@ -159,6 +243,7 @@ pub fn build_storage_upload_json(
 ) -> Result<String, WasmCoreError> {
     let plan: StorageUploadPlanJson = serde_json::from_str(plan_json)
         .map_err(|e| WasmCoreError::InvalidHex(format!("upload plan json: {e}")))?;
+    let endowment_params = merge_endowment_params(&plan.endowment)?;
 
     let mut inputs = Vec::with_capacity(plan.inputs.len());
     for stored in &plan.inputs {
@@ -221,7 +306,7 @@ pub fn build_storage_upload_json(
         let endowment = mfn_storage::required_endowment(
             padded.len() as u64,
             plan.replication,
-            &DEFAULT_ENDOWMENT_PARAMS,
+            &endowment_params,
         )
         .map_err(|e| WasmCoreError::Storage(e.to_string()))?;
         let endowment_u64 = u64::try_from(endowment).map_err(|_| {
@@ -251,7 +336,7 @@ pub fn build_storage_upload_json(
         replication: plan.replication,
         chunk_size: plan.chunk_size.map(|c| c as usize),
         endowment_blinding: None,
-        endowment_params: &DEFAULT_ENDOWMENT_PARAMS,
+        endowment_params: &endowment_params,
         fee_to_treasury_bps: plan.fee_to_treasury_bps,
         change_recipients: &change_tr,
         fee: plan.fee,
@@ -418,6 +503,31 @@ fn decode_extra_hex(extra_hex: &str) -> Result<Vec<u8>, WasmCoreError> {
         .or_else(|| t.strip_prefix("0X"))
         .unwrap_or(t);
     hex::decode(t).map_err(|e| WasmCoreError::InvalidHex(format!("extra_hex: {e}")))
+}
+
+#[cfg(test)]
+mod merge_tests {
+    use super::*;
+
+    #[test]
+    fn merge_endowment_params_accepts_range_proof_flag() {
+        let plan = EndowmentPlanJson {
+            require_endowment_range_proof: Some(1),
+            ..Default::default()
+        };
+        let p = merge_endowment_params(&plan).expect("merge");
+        assert_eq!(p.require_endowment_range_proof, 1);
+    }
+
+    #[test]
+    fn merge_endowment_params_rejects_opening_and_range_together() {
+        let plan = EndowmentPlanJson {
+            require_endowment_opening: Some(1),
+            require_endowment_range_proof: Some(1),
+            ..Default::default()
+        };
+        assert!(merge_endowment_params(&plan).is_err());
+    }
 }
 
 #[cfg(all(test, feature = "wasm-full"))]

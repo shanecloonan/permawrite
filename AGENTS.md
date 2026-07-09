@@ -81,20 +81,20 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-08)
+## CI gate (2026-07-09)
 
-**Head:** B1 phase 2d (this push). **B1 2c** `ba53a15` CI `#28992802103` GREEN. **B1 2b** `c084537` CI `#28989926744` GREEN.
+**Head:** M4.8 / B1 phase 2e WASM MFER upload parity (this push). **B1 2d** `2958cfa` CI `#28995960877` GREEN. **Nightly `#28997426953` GREEN** on `2958cfa`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B1 2d push + Nightly | **Doing** — push 2d devnet flip | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — refresh on 2d head after CI | Human sign-off packet |
-| **3** | Nightly participant PASS | **Done** — `#28986938052` | Idle |
-| **4** | B1 phase 2d public devnet MFER flip | **Doing** — this push | RC evidence (lane 2) |
+| **1** | Nightly on B1 2d head | **Done** — `#28997426953` PASS | Soak maintenance |
+| **2** | Release evidence refresh | **Doing** — refresh on `2958cfa` + 2e push | Human sign-off packet |
+| **3** | MFER devnet participant rehearsal | **Doing** — retry after permanence-demo log-lock fix | TL-6 VPS rehearsal |
+| **4** | M4.8 WASM upload MFER parity | **Doing** — this push | Next permanence backlog item |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B1 phase 2d with lane 4 | **Doing** — genesis flip | RC evidence with lane 2 |
+| **6** | M4.8 with lane 4 | **Doing** — get_chain_params + upload plan | RC evidence with lane 2 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
@@ -129,8 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B1 phase 2d** (`2958cfa`) - permanence (lanes 4+6): public devnet `require_endowment_range_proof: 1` (same `genesis_id`); forged-blinding reject test; CI `#28995960877` GREEN.
 - **B1 phase 2c** (`ba53a15`) - permanence (lanes 4+6): wallet MFEX v3 `MFER` builder; `build_endowment_surplus_range_proof` in mfn-storage; wallet unit test.
-- **B1 phase 2c** (`ba53a15`) - permanence (lanes 4+6): wallet MFEX v3 + `build_endowment_surplus_range_proof`; forged `MFER` reject test.
 - **B1 phase 2b** (`c084537`) - permanence (lanes 4+6): MFEX v3 + `MFER` surplus range proofs; `apply_block` + mempool verify; M5 accept/reject + treasury proptest.
 - **B1 phase 2a** (`76b5f8f`) - permanence (lanes 4+6): inert `require_endowment_range_proof`; checkpoint **v10**; mutual exclusion with MFEO; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md).
 - **B5 phase 5c** (`8bdb4ab`) - permanence (lanes 4+6): operator bond slash to treasury when `consecutive_missed_audits >= operator_audit_missed_cap`; zero-bond deregister; clippy fix for 5b CI `#28977215094`; full matrix CI `#28979369780` GREEN.

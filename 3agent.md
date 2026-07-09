@@ -7,24 +7,38 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B1 2c `ba53a15` CI `#28992802103` GREEN | **Doing** — push B1 2d | Nightly on 2d head |
-| **2** RC ops | B1 2b/2c CI green | **Doing** — evidence refresh on 2d | Human sign-off packet |
-| **3** Onboarding | Nightly `#28986938052` PASS | **Idle** | TL-6 rehearsal (MFER devnet) |
-| **4+6** Protocol | B1 2c tail forged MFER test | **Doing** — B1 2d devnet flip | RC evidence + Nightly |
+| **1** RC core | B1 2d `2958cfa` CI GREEN; Nightly `#28997426953` PASS | **Doing** — soak maintenance | Lane 2 evidence handoff |
+| **2** RC ops | B1 2a–2d green; Nightly PASS | **Doing** — release evidence on `2958cfa` + B1 2e push | Human sign-off packet |
+| **3** Onboarding | Nightly `#28997426953` PASS | **Doing** — MFER participant rehearsal (retry after log-lock fix) | TL-6 VPS rehearsal |
+| **4+6** Protocol | B1 2a–2d `2958cfa` | **Doing** — B1 phase 2e WASM MFER parity | RC evidence |
 | **7** Testnet | TL-1–TL-6 tooling | Await VPS provision | TL-5 soak + TL-6 rehearsal |
 
 ---
 
-## Session — 2026-07-08 (B1 phase 2d — public devnet MFER flip)
+## Session — 2026-07-09 (B1 phase 2e — WASM MFER parity)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B1 phase 2d** | **This push** | `require_endowment_range_proof: 1` in `public_devnet_v1.json`; same `genesis_id`; OPERATORS + STORAGE docs |
-| **B1 CI #28992802103** | **GREEN** | 2c matrix on `ba53a15` |
-| **B1 2c tail** | **Done** | forged `MFER` reject test |
+| **B1 phase 2e** | **This push** | `mfn-wasm` merges `get_chain_params.endowment`; RPC exposes flags; demo web forwards policy |
+| **Nightly #28997426953** | **GREEN** | All jobs on `2958cfa` head (~8m) |
+| **Participant rehearsal** | **Retry** | Prior run failed on locked `permanence-demo-chunks.log`; fixed stale-log helper |
 
-**Lane 4+6 — Done:** B1 2c **Doing:** B1 2d push **Next:** RC evidence + Nightly  
-**Lane 1 — Doing:** push 2d **Next:** Nightly dispatch
+**Lane 4+6 — Doing:** B1 2e **Next:** participant rehearsal PASS (lane 3)  
+**Lane 3 — Doing:** MFER rehearsal retry **Next:** TL-6 VPS
+
+---
+
+## Session — 2026-07-09 (B1 phase 2d — public devnet MFER flip)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B1 phase 2d** | **Done** — `2958cfa` | `require_endowment_range_proof: 1`; same `genesis_id`; forged-blinding reject test |
+| **B1 CI #28995960877** | **GREEN** | Full matrix on `2958cfa` (~35m); soak + Nightly dispatch queued |
+| **B1 track** | **Complete** | 2a param → 2b wire → 2c wallet → 2d devnet enable |
+
+**Lane 4+6 — Done:** B1 **Next:** RC evidence (lane 2)  
+**Lane 1 — Doing:** Nightly on `2958cfa` **Next:** soak maintenance  
+**Lane 3 — Doing:** MFER participant-rehearsal smoke evidence
 
 ---
 

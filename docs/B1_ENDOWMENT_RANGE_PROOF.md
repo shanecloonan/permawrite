@@ -41,7 +41,8 @@ Checkpoint **v10** persists `require_endowment_range_proof`.
 | **2b** | Wire `MFER` proof frames in `tx.extra`; `apply_block` + mempool verify | **Done** — `c084537` |
 | **2c** | Wallet upload builds proof; wallet unit test + storage builder | **Done** — `ba53a15` |
 | **2c tail** | Reject forged `MFER` at consensus | **Done** — `reject_upload_with_forged_mfer_when_endowment_range_proof_required` |
-| **2d** | Public devnet flip to `require_endowment_range_proof: 1` (same `genesis_id`) | **This commit** |
+| **2d** | Public devnet flip to `require_endowment_range_proof: 1` (same `genesis_id`) | **Done** — `2958cfa` |
+| **2e** | WASM upload + `get_chain_params` endowment flags; demo web passes live policy | **This push** |
 
 ## Test plan (phase 2b+)
 
