@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** P32.1 (this push). **CI `#29036301962` GREEN** on `3b19e7c`. **Nightly `#29040048884`** (watch).
+**Head:** `85f3512` (P32 reference topology). **CI `#29040315598` GREEN**. **Nightly `#29040048884` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | P32.1 CI gate | **Doing** — ci-check + push | Nightly watch |
-| **2** | Release evidence refresh | **Done** — `3b19e7c` RC audit **go** | Refresh after P32.1 |
+| **1** | P32 CI gate | **Done** — CI `#29040315598` + Nightly `#29040048884` GREEN | Idle |
+| **2** | Release evidence refresh | **Done** — `release-evidence-85f3512` RC audit **go** | Human sign-off |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
-| **4** | P32 reference topology doc | **This push** | F12 signed log phase 1 |
-| **5** | P32.1 with lane 4 | **This push** | TL-5 VPS soak (human) |
+| **4** | P32 reference topology doc | **Done** — `85f3512` | F12 signed log phase 1 |
+| **5** | P32 with lane 4 | **Done** — `85f3512` | TL-5 VPS soak (human) |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **P32 reference topology** (`85f3512`) - privacy surface (lanes 4+5): `REFERENCE_TOPOLOGY.md` + plan-only rehearsal in CI; CI `#29040315598` GREEN; Nightly `#29040048884` GREEN; release evidence RC audit **go**.
+- **F12 checkpoint anchor peers** (`0cf73c6`) - privacy surface (lanes 4+5): `anchor_peers` in trusted summary + `--p2p-anchor-summary`; CI `#29036301962` GREEN after wasm-pack fix (`3b19e7c`).
 - **Nightly `#29030703077` GREEN** - RC core (lane 1): all three jobs on P31 stack (`571e0bf`); auto-dispatched after CI `#29028631457`.
 - **P31 diversity redial phase 1** (`571e0bf`) - privacy surface (lanes 4+5): `peer_diversity_redial_candidates` + background sweep; CI `#29028631457` GREEN; release evidence RC audit **go**.
 - **Nightly `#29025637498` GREEN** - RC core (lane 1): all three jobs on P32 stack (`f76991a`); auto-dispatched after CI `#29023541155`.

@@ -40,7 +40,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **P31 phase 1** (lanes 4+5) — automatic diversity redial on low /16 spread (`571e0bf`).
 - [x] **F12 phase 0** (lanes 4+5) — checkpoint `anchor_peers` in trusted summary + `--p2p-anchor-summary` boot merge (`0cf73c6`).
 - [x] **P32 phase 0** (lanes 4+5) — `mfnd_role_topology_warning` on colocated validator + public RPC (+ operator) (`f76991a`).
-- [x] **P32 phase 1** (lanes 4+5) — [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) + `reference-topology-rehearsal-smoke` (this push).
+- [x] **P32 phase 1** (lanes 4+5) — [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) + `reference-topology-rehearsal-smoke` (`85f3512`).
 - [x] **Lane 7 / TL-1** — internet-facing launch playbook [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) + `launch-status` helper (`8661106`).
 - [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).
 - [x] **Lane 7 / TL-5 tooling** — `vps-internet-soak.sh` + `vps-preflight.sh` (`5a74d57`).
