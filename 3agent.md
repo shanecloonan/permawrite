@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.2 (this push); CI `#29011529403` GREEN on `759f5d1` | **Doing** — ci-check + push | Nightly on B8.2 head |
-| **2** RC ops | Release evidence `759f5d1` + RC audit **go** | **Doing** — refresh on B8.2 push | Human sign-off packet |
+| **1** RC core | Nightly `#29013333776` GREEN; CI `#29013614453` on `ad9d75e` | **Doing** — CI on `b845d22` | Nightly on green head |
+| **2** RC ops | Release evidence `ad9d75e` + RC audit **go** | **Done** | Refresh after B8.2 CI |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B8.0–B8.2 shipped | **Idle** | B8.3 wallet RPC `--tor` |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
