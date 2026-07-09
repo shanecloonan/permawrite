@@ -7,11 +7,11 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.1 `#b6eba33` pushed | **Doing** — CI `#29011050097` | Release evidence on green |
-| **2** RC ops | Release evidence `b06a704` + RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | B8.1 `759f5d1`; CI `#29011529403` GREEN | **Doing** — Nightly auto-dispatch | TL-5 VPS soak support |
+| **2** RC ops | Release evidence `759f5d1` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B8.0 + B8.1 complete | **Idle** | B8.2 hidden service |
-| **7** Testnet | Local RC + preflight MFER gate | **Doing** — VPS execution checklist | **TL-5 VPS soak** |
+| **7** Testnet | VPS execution checklist `759f5d1` | **Done** | **TL-5 VPS soak** |
 
 ---
 
@@ -20,7 +20,7 @@
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **vps-execution-checklist** | **This push** | Read-only TL-5/TL-6 gate; wraps `launch-status` + ordered commands |
-| **CI `#29011050097`** | **In progress** | B8.1 matrix on `b6eba33` |
+| **CI `#29011529403`** | **GREEN** | B8.1 rustfmt fix + matrix on `759f5d1` |
 
 **Lane 7 — Doing:** execution checklist **Next:** TL-5 on provisioned VPS  
 **Lane 1 — Doing:** CI watch **Next:** release evidence refresh
