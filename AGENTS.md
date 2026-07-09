@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Release evidence `f76991a`** - RC ops (lane 2): P32 stack + RC audit dry-run **go** on CI `#29023541155`.
 - **P32 role topology lint** (`f76991a`) - privacy surface (lanes 4+5): `mfnd_role_topology_warning` when validator + public RPC (+ operator) share advertised host.
 - **P31 peer diversity phase 0** (`d3cc1be`) - privacy surface (lanes 4+5): `mfn-net::peer_diversity` /16 bucket metrics; `get_status.p2p` diversity fields; `mfnd_p2p_diversity_warning`.
 - **B8.3 tor-rpc rehearsal smoke** (`1ad2dce`) - onboarding (lane 3): plan-only `tor-rpc-rehearsal-smoke` in CI/ci-check; dispatch jobs `continue-on-error` on runner starvation.
