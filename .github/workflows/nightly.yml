@@ -27,8 +27,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
+          ref: main
           fetch-depth: 0
+      - name: Pin Nightly checkout SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin="${{ github.event.inputs.checkout_sha || github.sha }}"
+          if [ ${#pin} -lt 40 ]; then
+            pin="$(git rev-parse "$pin")"
+          fi
+          git checkout --force "$pin"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -55,8 +64,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
+          ref: main
           fetch-depth: 0
+      - name: Pin Nightly checkout SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin="${{ github.event.inputs.checkout_sha || github.sha }}"
+          if [ ${#pin} -lt 40 ]; then
+            pin="$(git rev-parse "$pin")"
+          fi
+          git checkout --force "$pin"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -139,8 +157,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.checkout_sha || github.sha }}
+          ref: main
           fetch-depth: 0
+      - name: Pin Nightly checkout SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin="${{ github.event.inputs.checkout_sha || github.sha }}"
+          if [ ${#pin} -lt 40 ]; then
+            pin="$(git rev-parse "$pin")"
+          fi
+          git checkout --force "$pin"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

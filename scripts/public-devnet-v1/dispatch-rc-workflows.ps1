@@ -109,13 +109,13 @@ if ($dispatchCleanup) {
 }
 
 if ($dispatchNightly) {
-    $nightlyInputs = @{}
-    if ($CheckoutSha) {
-        $nightlyInputs.checkout_sha = $CheckoutSha
-        Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref checkout_sha=$CheckoutSha"
-    } else {
-        Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref"
+    if (-not $CheckoutSha) {
+        $CheckoutSha = (git rev-parse HEAD).Trim()
+    } elseif ($CheckoutSha.Length -lt 40) {
+        $CheckoutSha = (git rev-parse $CheckoutSha).Trim()
     }
+    $nightlyInputs = @{ checkout_sha = $CheckoutSha }
+    Write-Host "dispatch-rc-workflows: triggering Nightly on ref=$Ref checkout_sha=$CheckoutSha"
     Start-WorkflowDispatch -WorkflowFile "nightly.yml" -Inputs $nightlyInputs
 }
 
