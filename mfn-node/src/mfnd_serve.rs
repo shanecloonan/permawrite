@@ -38,6 +38,9 @@ use crate::p2p_repair_sweep::{
     repair_interval_ms_from_env, repair_threshold_slots_from_env, spawn_repair_sweep_loop,
     RepairSweepLoop, DEFAULT_REPAIR_INTERVAL_MS,
 };
+use crate::role_topology::{
+    chain_validator_is_storage_operator, role_topology_colocation_warning, validator_index_from_env,
+};
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
 };
@@ -605,6 +608,25 @@ pub(crate) fn run_serve(
         println!("mfnd_rpc_auth=enabled protected_classes=wallet-write,operator-admin");
     }
     if let Some(warning) = rpc_public_bind_warning(rpc_listen, rpc_api_key.is_some()) {
+        eprintln!("{warning}");
+    }
+    let is_storage_operator = if produce || committee_vote {
+        validator_index_from_env().is_some_and(|idx| {
+            chain
+                .lock()
+                .map(|guard| chain_validator_is_storage_operator(&guard, idx))
+                .unwrap_or(false)
+        })
+    } else {
+        false
+    };
+    if let Some(warning) = role_topology_colocation_warning(
+        produce,
+        committee_vote,
+        rpc_listen,
+        p2p_listen,
+        is_storage_operator,
+    ) {
         eprintln!("{warning}");
     }
     let rpc_max_in_flight = rpc_max_in_flight_from_env()?;

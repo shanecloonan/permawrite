@@ -567,18 +567,34 @@ automatic redial when diversity drops.
 
 **Effort:** moderate (phase 0) / high (full P31). **Risk:** low (metrics + warn only).
 
+### P32. Role-separated node topology (`F5:P32`) — **phase 0 shipped**
+
+**Problem.** Running validator, storage-operator, and wallet RPC on one internet-facing
+host correlates block production, chunk serving, and spend/submit behavior.
+
+**Shipped (phase 0).** [`role_topology.rs`](../mfn-node/src/role_topology.rs) emits
+`mfnd_role_topology_warning` when `--produce` / `--committee-vote` shares a public
+`--rpc-listen` host with the configured `--p2p-listen` address (and the validator is
+a registered storage operator when genesis enables operator registry). Loopback devnet
+meshes are unchanged.
+
+**Remaining.** Reference topology doc, operator-manifest separation (PM23), bind-host
+lint for observer-only nodes.
+
+**Effort:** low (phase 0). **Risk:** low (warn-only).
+
 ---
 
 ## Prioritization
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity metrics (phase 0) |
-| High impact, moderate effort | P31 redial + anchor peers (F12) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity metrics (phase 0), **P32** role topology lint (phase 0) |
+| High impact, moderate effort | P31 redial + anchor peers (F12); P32 reference topology doc |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **P31** automatic redial on low diversity, or **P32** role-separated topology lint.
+Natural next step: **P31** automatic redial on low diversity, or **P32** reference topology doc.
 
 ---
 

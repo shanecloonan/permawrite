@@ -36,6 +36,7 @@ mod p2p_light_follow_fetch;
 mod p2p_peer_quarantine;
 mod p2p_reconnect_plan;
 mod p2p_repair_sweep;
+mod role_topology;
 mod runner;
 
 pub use archive_export::{
