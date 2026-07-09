@@ -8,7 +8,7 @@
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
 | **1** RC core | M4.8 complete; CI `#29003960562` + `#29005580975` GREEN | **Doing** — Nightly dispatch | TL-5 VPS soak support |
-| **2** RC ops | Release evidence refresh | **Doing** — this push | Human sign-off packet |
+| **2** RC ops | Release evidence `addc095` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS (no-observer + observer) | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B1 + M4.8 complete | **Idle** | B8 Tor / retrieval backlog |
 | **7** Testnet | TL-1–TL-9 tooling; **local RC complete** | **Done** — `launch-status.v3` + bash demo parity | **TL-5 VPS soak** |

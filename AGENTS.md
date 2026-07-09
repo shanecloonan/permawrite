@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** (this push). **CI `#29005580975` GREEN** on `daa8e8e`; **`#29003960562` GREEN** on `b3f56a6`. **Local RC complete:** MFER no-observer + observer rehearsals PASS. **Critical path:** VPS provision for TL-5/TL-6.
+**Head:** `addc095`. **CI `#29005580975` GREEN** on `daa8e8e`; **`#29003960562` GREEN** on `b3f56a6`. **Release evidence:** `release-evidence-addc095` RC audit **go**. **Local RC complete:** MFER no-observer + observer rehearsals PASS. **Critical path:** VPS provision for TL-5/TL-6.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | Nightly soak maintenance | **Doing** — dispatch on head | TL-5 VPS soak support |
-| **2** | Release evidence refresh | **Doing** — this push | Human sign-off packet |
+| **2** | Release evidence refresh | **Done** — `addc095` RC audit **go** | Human sign-off packet |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
 | **4** | M4.8 WASM MFER integration test | **Done** — `b3f56a6` | B8 Tor / retrieval backlog |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
