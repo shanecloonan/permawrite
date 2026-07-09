@@ -213,7 +213,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [x] **B5 phase 5d** — M5.51 proptests + public devnet slash params (`operator_audit_missed_cap=48`, `operator_slash_bps=250`).
+- [x] **B5 phase 5d** — M5.51 proptests + public devnet slash params (`1485e67`; CI `#28983986309` GREEN).
+
+### Next
+
+- [ ] **B7 (permanence inbox quota)** — `MFND_CHUNK_INBOX_MAX_BYTES` gossip disk cap (this push).
 
 ### Handoff to lane 3
 
@@ -305,6 +309,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **B5 phase 5d** — M5.51 proptests + public devnet slash params (with lane 4).
+
+### Next
+
+- [ ] **B7 (permanence inbox quota)** — chunk-inbox disk cap with lane 4 (this push).
 
 ### Do not start
 

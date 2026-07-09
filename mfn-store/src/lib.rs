@@ -42,9 +42,10 @@ pub mod r#trait;
 mod validate;
 
 pub use chunk_inbox::{
-    chunk_inbox_commit_dir, chunk_inbox_complete, chunk_inbox_path, list_chunk_inbox_indices,
-    missing_chunk_inbox_indices, read_chunk_inbox, save_chunk_inbox, ChunkInboxError,
-    CHUNK_INBOX_DIR,
+    chunk_inbox_commit_bytes, chunk_inbox_commit_dir, chunk_inbox_commit_mtime,
+    chunk_inbox_complete, chunk_inbox_path, chunk_inbox_total_bytes, list_chunk_inbox_commit_hexes,
+    list_chunk_inbox_indices, missing_chunk_inbox_indices, read_chunk_inbox,
+    remove_chunk_inbox_commit, save_chunk_inbox, ChunkInboxError, CHUNK_INBOX_DIR,
 };
 pub use error::{StoreError, StoreSave};
 pub use fs::ChainStore;

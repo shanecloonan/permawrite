@@ -121,6 +121,7 @@ fn usage() -> &'static str {
                                   or set env MFND_DANDELION=1\n\
       env MFND_REPAIR_THRESHOLD_SLOTS only for `serve`: proactive repair staleness threshold slots (0 disables; default 14400)\n\
       env MFND_REPAIR_INTERVAL_MS     only for `serve`: repair sweep interval in ms (default 300000)\n\
+      env MFND_CHUNK_INBOX_MAX_BYTES  only for `serve`: chunk-inbox disk quota in bytes (0 disables; default 64GiB)\n\
        --produce                only for `serve`: slot loop + ProposalV1/VoteV1 (needs P2P + env keys)\n\
        --committee-vote         only for `serve`: vote on proposals without slot loop (needs P2P + env keys)\n\
        --slot-duration-ms MS    producer tick / catch-up sweep interval for `serve` (default 1000)\n\

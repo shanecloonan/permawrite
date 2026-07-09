@@ -598,9 +598,7 @@ Observable log: `mfnd_p2p_repair_fanout commit=… stale_slots=…`.
 
 **Problem.** SPoRA is carrot-only without a stick. See [`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md).
 
-**Shipped.** Phase **5a** (`e81d33e`): inert slash params, checkpoint **v8**. Phase **5b** (`643a224`): retained bond + miss stats, checkpoint **v9**. Phase **5c** (`8bdb4ab`): auto-slash to treasury + zero-bond deregister in `apply_block`.
-
-**Next.** Phase **5d**: public devnet enable + M5 proptests.
+**Shipped.** Phase **5a** (`e81d33e`): inert slash params, checkpoint **v8**. Phase **5b** (`643a224`): retained bond + miss stats, checkpoint **v9**. Phase **5c** (`8bdb4ab`): auto-slash to treasury + zero-bond deregister in `apply_block`. Phase **5d** (`1485e67`): public devnet enable + M5.51 proptests.
 
 ### B6. Size-bucketed commitments (`F5:P15`) — shared with privacy roadmap
 
@@ -615,19 +613,12 @@ walk that A1 hardened.
 
 **Effort:** moderate. **Risk:** medium (endowment pricing).
 
-### B7. Chunk-inbox disk quota (DoS depth)
+### B7. Chunk-inbox disk quota (DoS depth) — **shipped**
 
 **Problem.** A2 killed the *unauthenticated* disk-write primitive, but a
-peer can still push valid-shaped junk for **anchored** commitments (until B2
-makes junk impossible) and, even post-B2, true bytes for many large anchored
-payloads a node never intended to replicate. `chunk-inbox/` has no size
-budget.
+peer can still push valid-shaped junk for **anchored** commitments. `chunk-inbox/` had no size budget.
 
-**Plan.** Add `MFND_CHUNK_INBOX_MAX_BYTES` (default e.g. 64 GiB) enforced in
-`save_chunk_inbox`'s caller with an eviction policy that never evicts
-verified-complete sets pending fan-out, plus a
-`mfnd_chunk_inbox_evict commit=… bytes=…` log line. Node-layer only.
-Sequence after B2 so eviction decisions operate on proven bytes.
+**Shipped.** `MFND_CHUNK_INBOX_MAX_BYTES` (default **64 GiB**, `0` disables) enforced on gossip chunk writes in `p2p_gossip` via [`save_chunk_inbox_with_quota`](../mfn-node/src/p2p_chunk_inbox.rs). Incomplete commit dirs are LRU-evicted before new writes; complete sets are never evicted. Boot log line: `mfnd_chunk_inbox_evict commit=… bytes=…`.
 
 **Effort:** low. **Risk:** low.
 
@@ -646,9 +637,9 @@ become self-verifying for free once B2 lands.
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** shape consensus gate, **A2** gossip authentication, **A3** fan-out root verification, **A4** doc honesty, **A5** CI harness fix |
+| Shipped | **A1** shape consensus gate, **A2** gossip authentication, **A3** fan-out root verification, **A4** doc honesty, **A5** CI harness fix, **B4** repair sweep, **B5** operator slashing, **B7** inbox quota |
 | Cheap wins | **B4** proactive repair, **B7** inbox quota |
-| High impact, moderate effort | **B1(1)** endowment opening reveal, **B2** Merkle-path gossip, **B6** size buckets |
+| High impact, moderate effort | **B1(1)** endowment opening reveal, **B2** Merkle-path gossip, **B6** size buckets (**B13 shipped**) |
 | High impact, high effort | **B1(2)** range-proof binding, **B3** replication accounting (shipped), **B5** bonding + slashing ([design](./B5_OPERATOR_SLASHING.md)) |
 
 Natural next step: **B1 design 1** (close the decorative-endowment gap with

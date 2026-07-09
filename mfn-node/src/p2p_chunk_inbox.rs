@@ -9,8 +9,6 @@
 
 use mfn_storage::StorageCommitment;
 
-pub use mfn_store::save_chunk_inbox;
-
 /// Why an inbound gossip chunk was refused before touching disk (**M7.12**).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChunkGossipReject {
@@ -109,6 +107,156 @@ pub fn validate_gossip_chunk_v2(
         return Err(ChunkGossipReject::MerkleProofMismatch);
     }
     Ok(())
+}
+
+/// Default chunk-inbox disk budget when [`MFND_CHUNK_INBOX_MAX_BYTES`] is unset (**B7**).
+pub const DEFAULT_CHUNK_INBOX_MAX_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
+/// Environment variable for chunk-inbox disk quota (**B7**). `0` disables enforcement.
+pub const MFND_CHUNK_INBOX_MAX_BYTES_ENV: &str = "MFND_CHUNK_INBOX_MAX_BYTES";
+
+/// Parse [`MFND_CHUNK_INBOX_MAX_BYTES`]; `0` means unlimited.
+pub fn chunk_inbox_max_bytes_from_env() -> Result<u64, String> {
+    match std::env::var(MFND_CHUNK_INBOX_MAX_BYTES_ENV) {
+        Ok(v) => v.trim().parse::<u64>().map_err(|_| {
+            format!("{MFND_CHUNK_INBOX_MAX_BYTES_ENV} must be a non-negative integer")
+        }),
+        Err(std::env::VarError::NotPresent) => Ok(DEFAULT_CHUNK_INBOX_MAX_BYTES),
+        Err(std::env::VarError::NotUnicode(_)) => Err(format!(
+            "{MFND_CHUNK_INBOX_MAX_BYTES_ENV} must be valid UTF-8"
+        )),
+    }
+}
+
+/// Quota enforcement failure before a gossip chunk write (**B7**).
+#[derive(Debug)]
+pub enum ChunkInboxQuotaReject {
+    /// Inbox is at budget and no incomplete commit set could be evicted.
+    QuotaExceeded {
+        /// Configured cap in bytes (`0` = unlimited).
+        max_bytes: u64,
+        /// Bytes currently on disk.
+        used_bytes: u64,
+        /// Additional bytes required for this write.
+        needed_bytes: u64,
+    },
+    /// Underlying inbox I/O error.
+    Store(mfn_store::ChunkInboxError),
+}
+
+impl std::fmt::Display for ChunkInboxQuotaReject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::QuotaExceeded {
+                max_bytes,
+                used_bytes,
+                needed_bytes,
+            } => write!(
+                f,
+                "chunk inbox quota exceeded (max={max_bytes} used={used_bytes} need={needed_bytes})"
+            ),
+            Self::Store(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+/// Look up anchored `num_chunks` for a commit hex dir (lowercase).
+fn num_chunks_for_inbox_hex(
+    storage: &std::collections::HashMap<[u8; 32], mfn_consensus::block::StorageEntry>,
+    commit_hex: &str,
+) -> Option<u32> {
+    let bytes = hex::decode(commit_hex).ok()?;
+    let hash: [u8; 32] = bytes.try_into().ok()?;
+    storage.get(&hash).map(|e| e.commit.num_chunks)
+}
+
+/// Persist a gossip chunk, evicting **incomplete** inbox sets when over budget (**B7**).
+///
+/// Complete sets (`chunk_inbox_complete`) are never evicted — they may be pending
+/// repair fan-out. Orphan dirs (unknown to `storage`) are treated as incomplete.
+pub fn save_chunk_inbox_with_quota(
+    data_root: &std::path::Path,
+    storage: &std::collections::HashMap<[u8; 32], mfn_consensus::block::StorageEntry>,
+    commit_hash: &[u8; 32],
+    chunk_index: u32,
+    chunk_bytes: &[u8],
+    max_bytes: u64,
+) -> Result<std::path::PathBuf, ChunkInboxQuotaReject> {
+    if max_bytes == 0 {
+        return mfn_store::save_chunk_inbox(data_root, commit_hash, chunk_index, chunk_bytes)
+            .map_err(ChunkInboxQuotaReject::Store);
+    }
+
+    let commit_hex = hex::encode(commit_hash);
+    let path = mfn_store::chunk_inbox_path(data_root, &commit_hex, chunk_index);
+    let old_len = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+    let delta = chunk_bytes.len() as u64;
+    let net_add = delta.saturating_sub(old_len);
+
+    let used =
+        mfn_store::chunk_inbox_total_bytes(data_root).map_err(ChunkInboxQuotaReject::Store)?;
+    if used.saturating_add(net_add) <= max_bytes {
+        return mfn_store::save_chunk_inbox(data_root, commit_hash, chunk_index, chunk_bytes)
+            .map_err(ChunkInboxQuotaReject::Store);
+    }
+
+    let need = used.saturating_add(net_add).saturating_sub(max_bytes);
+    let mut freed = 0u64;
+    let mut candidates: Vec<(String, u64, Option<std::time::SystemTime>)> = Vec::new();
+    for hex in
+        mfn_store::list_chunk_inbox_commit_hexes(data_root).map_err(ChunkInboxQuotaReject::Store)?
+    {
+        if hex == commit_hex {
+            continue;
+        }
+        let complete = match num_chunks_for_inbox_hex(storage, &hex) {
+            Some(nc) => mfn_store::chunk_inbox_complete(data_root, &hex, nc)
+                .map_err(ChunkInboxQuotaReject::Store)?,
+            None => false,
+        };
+        if complete {
+            continue;
+        }
+        let bytes = mfn_store::chunk_inbox_commit_bytes(data_root, &hex)
+            .map_err(ChunkInboxQuotaReject::Store)?;
+        if bytes == 0 {
+            continue;
+        }
+        let mtime = mfn_store::chunk_inbox_commit_mtime(data_root, &hex)
+            .map_err(ChunkInboxQuotaReject::Store)?;
+        candidates.push((hex, bytes, mtime));
+    }
+
+    candidates.sort_by(|a, b| {
+        let at = a.2.unwrap_or(std::time::UNIX_EPOCH);
+        let bt = b.2.unwrap_or(std::time::UNIX_EPOCH);
+        at.cmp(&bt).then_with(|| b.1.cmp(&a.1))
+    });
+
+    for (hex, bytes, _) in candidates {
+        if freed >= need {
+            break;
+        }
+        let evicted = mfn_store::remove_chunk_inbox_commit(data_root, &hex)
+            .map_err(ChunkInboxQuotaReject::Store)?;
+        freed = freed.saturating_add(evicted);
+        println!("mfnd_chunk_inbox_evict commit={hex} bytes={evicted}");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        let _ = bytes;
+    }
+
+    let used_after =
+        mfn_store::chunk_inbox_total_bytes(data_root).map_err(ChunkInboxQuotaReject::Store)?;
+    if used_after.saturating_add(net_add) > max_bytes {
+        return Err(ChunkInboxQuotaReject::QuotaExceeded {
+            max_bytes,
+            used_bytes: used_after,
+            needed_bytes: net_add,
+        });
+    }
+
+    mfn_store::save_chunk_inbox(data_root, commit_hash, chunk_index, chunk_bytes)
+        .map_err(ChunkInboxQuotaReject::Store)
 }
 
 #[cfg(test)]
@@ -235,5 +383,83 @@ mod tests {
                 chunk_index: 0
             })
         );
+    }
+
+    #[test]
+    fn chunk_inbox_quota_evicts_incomplete_before_save() {
+        use mfn_consensus::block::StorageEntry;
+        use std::collections::HashMap;
+
+        let dir = std::env::temp_dir().join(format!("mfn-inbox-quota-{}", std::process::id()));
+        let hash_a = [0x11u8; 32];
+        let hash_b = [0x22u8; 32];
+        mfn_store::save_chunk_inbox(&dir, &hash_a, 0, &[1u8; 100]).expect("seed a");
+        mfn_store::save_chunk_inbox(&dir, &hash_b, 0, &[2u8; 100]).expect("seed b");
+
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![9u8; 500]);
+        let built = build_storage_commitment(&payload, 1_000, Some(1_024), 3, None).expect("build");
+        let commit_hash = mfn_storage::storage_commitment_hash(&built.commit);
+        let mut storage = HashMap::new();
+        storage.insert(
+            commit_hash,
+            StorageEntry {
+                commit: built.commit,
+                last_proven_height: 0,
+                last_proven_slot: 0,
+                pending_yield_ppb: 0,
+            },
+        );
+
+        let path = save_chunk_inbox_with_quota(&dir, &storage, &commit_hash, 0, &[3u8; 80], 150)
+            .expect("save with eviction");
+        assert!(path.is_file());
+        assert!(
+            !mfn_store::chunk_inbox_commit_dir(&dir, &hex::encode(hash_a)).exists()
+                || !mfn_store::chunk_inbox_commit_dir(&dir, &hex::encode(hash_b)).exists(),
+            "an incomplete dir should have been evicted"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn chunk_inbox_quota_never_evicts_complete_set() {
+        use mfn_consensus::block::StorageEntry;
+        use std::collections::HashMap;
+
+        let dir =
+            std::env::temp_dir().join(format!("mfn-inbox-quota-complete-{}", std::process::id()));
+        let payload = mfn_storage::pad_to_storage_size_bucket(&vec![9u8; 500]);
+        let built = build_storage_commitment(&payload, 1_000, Some(1_024), 3, None).expect("build");
+        let commit_hash = mfn_storage::storage_commitment_hash(&built.commit);
+        let hex = hex::encode(commit_hash);
+        let chunks = mfn_storage::chunk_data(&payload, 1_024).expect("chunks");
+        for (i, c) in chunks.iter().enumerate() {
+            mfn_store::save_chunk_inbox(&dir, &commit_hash, i as u32, c).expect("save chunk");
+        }
+        let mut storage = HashMap::new();
+        storage.insert(
+            commit_hash,
+            StorageEntry {
+                commit: built.commit.clone(),
+                last_proven_height: 0,
+                last_proven_slot: 0,
+                pending_yield_ppb: 0,
+            },
+        );
+        assert!(
+            mfn_store::chunk_inbox_complete(&dir, &hex, built.commit.num_chunks).expect("complete")
+        );
+
+        let other = [0x99u8; 32];
+        mfn_store::save_chunk_inbox(&dir, &other, 0, &[0u8; 200]).expect("filler");
+
+        let err = save_chunk_inbox_with_quota(&dir, &storage, &other, 1, &[0u8; 200], 250)
+            .expect_err("complete set must not be evicted");
+        assert!(matches!(err, ChunkInboxQuotaReject::QuotaExceeded { .. }));
+        assert!(
+            mfn_store::chunk_inbox_complete(&dir, &hex, built.commit.num_chunks)
+                .expect("still complete")
+        );
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

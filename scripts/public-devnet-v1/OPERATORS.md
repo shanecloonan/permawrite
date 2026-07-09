@@ -894,6 +894,8 @@ Bond at genesis is `0` (`min_storage_operator_bond: 0`); post-genesis registrati
 
 Operators should run `mfn-storage-operator prove` on a schedule; a valid operator-salted proof in a block resets the miss counter. Rehearsal operators with `bond_amount: 0` at genesis are not slashable until they register with bond post-genesis.
 
+**Chunk-inbox disk quota (B7).** Gossip chunk writes honor `MFND_CHUNK_INBOX_MAX_BYTES` (default **64 GiB**; `0` disables). When over budget, `mfnd` evicts **incomplete** inbox commit dirs (oldest first) and logs `mfnd_chunk_inbox_evict commit=… bytes=…`. Complete Merkle-verified sets are never evicted — they may be pending repair fan-out.
+
 **Proactive repair (B4).** Every `mfnd serve` node with P2P runs a background repair sweep when `MFND_REPAIR_THRESHOLD_SLOTS` is non-zero (default `14400` ≈ 2× anti-hoarding window). Stale on-chain storage (`current_slot − last_proven_slot` above threshold) with a **complete Merkle-verified** local `chunk-inbox/` is re-fan-out to peers. Tune with:
 
 | Env | Default | Meaning |

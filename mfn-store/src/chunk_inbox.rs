@@ -118,6 +118,91 @@ pub fn chunk_inbox_complete(
     Ok(missing_chunk_inbox_indices(data_root, commitment_hash_hex, num_chunks)?.is_empty())
 }
 
+/// Hex directory names under `{data_root}/chunk-inbox/` (lowercase, no `0x`).
+pub fn list_chunk_inbox_commit_hexes(data_root: &Path) -> Result<Vec<String>, ChunkInboxError> {
+    let root = data_root.join(CHUNK_INBOX_DIR);
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(&root)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            if let Some(name) = entry.file_name().to_str() {
+                out.push(name.to_ascii_lowercase());
+            }
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    Ok(out)
+}
+
+/// Total bytes of all `{index}.bin` files under one commitment inbox dir.
+pub fn chunk_inbox_commit_bytes(
+    data_root: &Path,
+    commitment_hash_hex: &str,
+) -> Result<u64, ChunkInboxError> {
+    let dir = chunk_inbox_commit_dir(data_root, commitment_hash_hex);
+    if !dir.is_dir() {
+        return Ok(0);
+    }
+    let mut total = 0u64;
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            total = total.saturating_add(entry.metadata()?.len());
+        }
+    }
+    Ok(total)
+}
+
+/// Sum of [`chunk_inbox_commit_bytes`] across all commitment subdirs.
+pub fn chunk_inbox_total_bytes(data_root: &Path) -> Result<u64, ChunkInboxError> {
+    let mut total = 0u64;
+    for hex in list_chunk_inbox_commit_hexes(data_root)? {
+        total = total.saturating_add(chunk_inbox_commit_bytes(data_root, &hex)?);
+    }
+    Ok(total)
+}
+
+/// Latest modification time among chunk files in a commitment inbox dir (for LRU eviction).
+pub fn chunk_inbox_commit_mtime(
+    data_root: &Path,
+    commitment_hash_hex: &str,
+) -> Result<Option<std::time::SystemTime>, ChunkInboxError> {
+    let dir = chunk_inbox_commit_dir(data_root, commitment_hash_hex);
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+    let mut latest = None;
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            let mtime = entry.metadata()?.modified().ok();
+            latest = match (latest, mtime) {
+                (None, t) => t,
+                (Some(a), Some(b)) => Some(a.max(b)),
+                (Some(a), None) => Some(a),
+            };
+        }
+    }
+    Ok(latest)
+}
+
+/// Remove all chunks for one commitment; returns bytes freed.
+pub fn remove_chunk_inbox_commit(
+    data_root: &Path,
+    commitment_hash_hex: &str,
+) -> Result<u64, ChunkInboxError> {
+    let bytes = chunk_inbox_commit_bytes(data_root, commitment_hash_hex)?;
+    let dir = chunk_inbox_commit_dir(data_root, commitment_hash_hex);
+    if dir.is_dir() {
+        std::fs::remove_dir_all(&dir)?;
+    }
+    Ok(bytes)
+}
+
 fn normalize_commit_hex(s: &str) -> String {
     let t = s.trim();
     let t = t

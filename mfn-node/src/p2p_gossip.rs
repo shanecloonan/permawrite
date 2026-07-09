@@ -67,15 +67,13 @@ impl P2pGossipHandler {
         // (M7.12 / B2) Peers are untrusted: only chunks for an anchored
         // on-chain commitment, with geometry checks and (for v2) Merkle
         // inclusion against `data_root`, reach disk.
-        let commit = {
-            let chain = match self.chain.lock() {
-                Ok(g) => g,
-                Err(_) => return "rejected:chain_mutex".to_string(),
-            };
-            match chain.state().storage.get(commit_hash) {
-                Some(entry) => entry.commit.clone(),
-                None => return format!("rejected:unknown_commit:commit={hex}:index={chunk_index}"),
-            }
+        let chain = match self.chain.lock() {
+            Ok(g) => g,
+            Err(_) => return "rejected:chain_mutex".to_string(),
+        };
+        let commit = match chain.state().storage.get(commit_hash) {
+            Some(entry) => entry.commit.clone(),
+            None => return format!("rejected:unknown_commit:commit={hex}:index={chunk_index}"),
         };
         let validation = match merkle_proof_wire {
             Some(proof_wire) => crate::p2p_chunk_inbox::validate_gossip_chunk_v2(
@@ -101,11 +99,17 @@ impl P2pGossipHandler {
                 return format!("skipped:already_present:commit={hex}:index={chunk_index}");
             }
         }
-        match crate::p2p_chunk_inbox::save_chunk_inbox(
+        let max_bytes = match crate::p2p_chunk_inbox::chunk_inbox_max_bytes_from_env() {
+            Ok(v) => v,
+            Err(e) => return format!("rejected:chunk_inbox_env:{e}"),
+        };
+        match crate::p2p_chunk_inbox::save_chunk_inbox_with_quota(
             self.store.root(),
+            &chain.state().storage,
             commit_hash,
             chunk_index,
             chunk_bytes,
+            max_bytes,
         ) {
             Ok(path) => {
                 format!(

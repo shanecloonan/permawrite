@@ -7,11 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#28983986309` + Nightly `#28980876807` GREEN | **Doing** — Nightly on `1485e67` | B-05 soak |
-| **2** RC ops | Evidence `8bdb4ab` RC audit **go** | **Doing** — refresh on `1485e67` | Human sign-off packet |
+| **1** RC core | CI `#28983986309` + Nightly `#28980876807` GREEN | **Doing** — monitor CI on B7 push | Nightly on B7 head |
+| **2** RC ops | Evidence `8bdb4ab` RC audit **go** | **Doing** — refresh on `1485e67`+ | Human sign-off packet |
 | **3** Onboarding | Nightly `#28980876807` PASS | **Idle** | TL-6 rehearsal evidence |
-| **4+6** Protocol | B5 5d `1485e67` | **Done** | B6 size buckets |
+| **4+6** Protocol | B5 5d `1485e67` | **Doing** — B7 chunk-inbox quota push | B1 opening reveal research |
 | **7** Testnet | TL-1–TL-6 tooling `ef3cbc4` | Await VPS provision | TL-5 soak + TL-6 rehearsal evidence |
+
+---
+
+## Session — 2026-07-08 (B7 chunk-inbox disk quota)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **B7 inbox quota** | **This push** | `MFND_CHUNK_INBOX_MAX_BYTES`; LRU evict incomplete dirs; protect complete sets |
+| **CI** | **Pending** | `ci-check.ps1` before push |
+
+**Lane 4+6 — Done:** B5 `1485e67` **Doing:** B7 push **Next:** B1 opening reveal  
+**Lane 1 — Done:** CI `#28983986309` **Doing:** CI on B7 **Next:** Nightly dispatch
 
 ---
 
