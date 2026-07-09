@@ -39,6 +39,8 @@
 //! - `required_endowment > u64::MAX` (can't be Pedersen-committed in
 //!   `StorageCommitment.endowment`) →
 //!   [`WalletError::UploadEndowmentExceedsU64`]
+//! - B-11 phase 2: when `require_endowment_range_proof = 1`, attaches an
+//!   `MFER` surplus Bulletproof in MFEX v3 (mutually exclusive with MFEO).
 //!
 //! This means the wallet **never signs a tx the mempool would reject
 //! for storage reasons** — saving CLSAG work and avoiding the privacy
@@ -71,12 +73,15 @@
 use curve25519_dalek::scalar::Scalar;
 use mfn_consensus::extra_codec::EndowmentOpening;
 use mfn_consensus::{
-    build_mfex_extra, build_mfex_extra_v2, sign_transaction, InputSpec, OutputSpec,
-    SignedTransaction,
+    build_mfex_extra, build_mfex_extra_v2, build_mfex_extra_v3, sign_transaction, InputSpec,
+    OutputSpec, SignedTransaction,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::{select_gamma_decoys, DecoyCandidate, DEFAULT_GAMMA_PARAMS};
-use mfn_storage::{build_storage_commitment, required_endowment, BuiltCommitment, EndowmentParams};
+use mfn_storage::{
+    build_endowment_surplus_range_proof, build_storage_commitment, required_endowment,
+    validate_endowment_params, BuiltCommitment, EndowmentParams,
+};
 
 use crate::decoy::RingMember;
 use crate::error::WalletError;
@@ -258,6 +263,59 @@ pub fn estimate_minimum_fee_for_upload(
     Ok(min_fee_u128 as u64)
 }
 
+fn build_upload_extra_wire(
+    plan: &StorageUploadPlan<'_, impl FnMut() -> f64>,
+    built: &BuiltCommitment,
+    endowment_amount: u64,
+    _burden: u128,
+) -> Result<Vec<u8>, WalletError> {
+    let require_opening = plan.endowment_params.require_endowment_opening != 0;
+    let require_range_proof = plan.endowment_params.require_endowment_range_proof != 0;
+
+    if require_range_proof {
+        let range_proof = build_endowment_surplus_range_proof(
+            &built.commit,
+            endowment_amount,
+            &built.blinding,
+            plan.endowment_params,
+        )?;
+        if !plan.authorship_claims.is_empty() {
+            Ok(build_mfex_extra_v3(
+                plan.authorship_claims,
+                std::slice::from_ref(&range_proof),
+            )?)
+        } else {
+            Ok(build_mfex_extra_v3(
+                &[],
+                std::slice::from_ref(&range_proof),
+            )?)
+        }
+    } else if !plan.authorship_claims.is_empty() {
+        if require_opening {
+            let opening = EndowmentOpening {
+                value: endowment_amount,
+                blinding: built.blinding,
+            };
+            Ok(build_mfex_extra_v2(
+                plan.authorship_claims,
+                std::slice::from_ref(&opening),
+            )?)
+        } else {
+            Ok(build_mfex_extra(plan.authorship_claims)?)
+        }
+    } else if require_opening {
+        let opening = EndowmentOpening {
+            value: endowment_amount,
+            blinding: built.blinding,
+        };
+        Ok(build_mfex_extra_v2(&[], std::slice::from_ref(&opening))?)
+    } else if plan.extra.is_empty() {
+        Ok(Vec::new())
+    } else {
+        Ok(plan.extra.to_vec())
+    }
+}
+
 /// Build, sign, and seal a storage-upload transaction.
 ///
 /// On success the returned [`UploadArtifacts`] contains the
@@ -303,6 +361,7 @@ where
             max: plan.endowment_params.max_replication,
         });
     }
+    validate_endowment_params(plan.endowment_params).map_err(WalletError::Endowment)?;
 
     // Privacy bucket (F5-P15 / B13): pad to the next power-of-two size so
     // the anchored `size_bytes` does not leak exact payload lengths.
@@ -483,24 +542,7 @@ where
     }
 
     // (8) RingCT ceremony.
-    let require_opening = plan.endowment_params.require_endowment_opening != 0;
-    let opening = EndowmentOpening {
-        value: endowment_amount,
-        blinding: built.blinding,
-    };
-    let extra_wire: Vec<u8> = if !plan.authorship_claims.is_empty() {
-        if require_opening {
-            build_mfex_extra_v2(plan.authorship_claims, std::slice::from_ref(&opening))?
-        } else {
-            build_mfex_extra(plan.authorship_claims)?
-        }
-    } else if require_opening {
-        build_mfex_extra_v2(&[], std::slice::from_ref(&opening))?
-    } else if plan.extra.is_empty() {
-        Vec::new()
-    } else {
-        plan.extra.to_vec()
-    };
+    let extra_wire = build_upload_extra_wire(&plan, &built, endowment_amount, burden)?;
     let signed = sign_transaction(input_specs, output_specs, plan.fee, extra_wire)?;
 
     Ok(UploadArtifacts {
@@ -1033,6 +1075,64 @@ mod tests {
             sc,
             u64::try_from(art.burden).unwrap(),
             &pinned,
+        ));
+    }
+
+    #[test]
+    fn upload_attaches_mfer_when_range_proof_required() {
+        let (anchor_recipient, _keys) = alice_recipient();
+        let input_value = 50_000_000u64;
+        let owned = one_real_owned_output(input_value);
+        let inputs = [&owned];
+        let pool = decoy_pool(20);
+        let mut r = rng();
+        let mut params = DEFAULT_ENDOWMENT_PARAMS;
+        params.require_endowment_range_proof = 1;
+
+        let data = b"range-proof upload";
+        let replication: u8 = 3;
+        let min_fee =
+            estimate_minimum_fee_for_upload(data.len() as u64, replication, &params, 9000).unwrap();
+        let fee = min_fee.max(1);
+        let anchor_value = 1_000u64;
+        let change_value = input_value - anchor_value - fee;
+        let change = [TransferRecipient {
+            recipient: anchor_recipient,
+            value: change_value,
+        }];
+
+        let plan = StorageUploadPlan {
+            inputs: &inputs,
+            anchor: TransferRecipient {
+                recipient: anchor_recipient,
+                value: anchor_value,
+            },
+            data,
+            replication,
+            chunk_size: None,
+            endowment_blinding: None,
+            endowment_params: &params,
+            fee_to_treasury_bps: 9000,
+            change_recipients: &change,
+            fee,
+            extra: b"",
+            authorship_claims: &[],
+            ring_size: 16,
+            decoy_pool: &pool,
+            current_height: 1,
+            rng: &mut r,
+        };
+        let art = build_storage_upload(plan).expect("range-proof upload");
+        let parsed =
+            mfn_consensus::extra_codec::parse_mfex_extra(&art.signed.tx.extra).expect("mfex");
+        assert_eq!(parsed.endowment_range_proofs.len(), 1);
+        assert!(parsed.endowment_openings.is_empty());
+        let sc = art.signed.tx.outputs[0].storage.as_ref().unwrap();
+        let required = u64::try_from(art.burden).unwrap();
+        assert!(mfn_storage::verify_endowment_range_proof_wire(
+            sc,
+            required,
+            &parsed.endowment_range_proofs[0].proof_bytes,
         ));
     }
 }

@@ -38,8 +38,8 @@ Checkpoint **v10** persists `require_endowment_range_proof`.
 | Phase | Scope | Status |
 | --- | --- | --- |
 | **2a** | Inert param + checkpoint v10 + genesis merge + validation | **Done** — `76b5f8f` |
-| **2b** | Wire `MFER` proof frames in `tx.extra`; `apply_block` + mempool verify | **This commit** |
-| **2c** | Wallet upload builds proof; M5 proptests (valid / forged / mixed CLSAG) | Partial — proptest treasury + reject/accept |
+| **2b** | Wire `MFER` proof frames in `tx.extra`; `apply_block` + mempool verify | **Done** — `c084537` |
+| **2c** | Wallet upload builds proof; wallet unit test + storage builder | **This commit** |
 | **2d** | Optional devnet flip after green CI + RC evidence | Planned |
 
 ## Test plan (phase 2b+)

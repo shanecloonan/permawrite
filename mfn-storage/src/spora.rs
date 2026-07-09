@@ -203,6 +203,43 @@ pub fn verify_endowment_range_proof(
     mfn_crypto::bulletproofs::bp_verify(proof)
 }
 
+/// Build a Bulletproof that the escrowed endowment exceeds the protocol minimum
+/// without revealing the surplus (B-11 phase 2).
+///
+/// Proves `endowment_amount − required_endowment(size, replication) ∈ [0, 2^64)`
+/// over the homomorphic surplus point [`endowment_surplus_point`].
+pub fn build_endowment_surplus_range_proof(
+    c: &StorageCommitment,
+    endowment_amount: u64,
+    blinding: &curve25519_dalek::scalar::Scalar,
+    params: &crate::EndowmentParams,
+) -> Result<mfn_crypto::BulletproofRange, SporaError> {
+    let required =
+        crate::required_endowment(c.size_bytes, c.replication, params).map_err(|_| {
+            SporaError::EndowmentBelowRequired {
+                got: endowment_amount,
+                required: u64::MAX,
+            }
+        })?;
+    if required > u128::from(u64::MAX) {
+        return Err(SporaError::EndowmentBelowRequired {
+            got: endowment_amount,
+            required: u64::MAX,
+        });
+    }
+    let required = required as u64;
+    if endowment_amount < required {
+        return Err(SporaError::EndowmentBelowRequired {
+            got: endowment_amount,
+            required,
+        });
+    }
+    let surplus = endowment_amount - required;
+    mfn_crypto::bulletproofs::bp_prove(surplus, blinding, ENDOWMENT_SURPLUS_RANGE_BITS)
+        .map(|r| r.proof)
+        .map_err(SporaError::SurplusRangeProof)
+}
+
 /// Decode and verify an `MFER` wire proof for one new storage anchor (B-11 phase 2).
 pub fn verify_endowment_range_proof_wire(
     c: &StorageCommitment,
@@ -691,6 +728,17 @@ pub enum SporaError {
     /// Build helper computed an out-of-range chunk index.
     #[error("chunk index out of range")]
     ChunkIndexOutOfRange,
+    /// Endowment amount is below the protocol-required minimum for a surplus proof.
+    #[error("endowment {got} below required {required}")]
+    EndowmentBelowRequired {
+        /// Escrowed endowment amount the caller supplied.
+        got: u64,
+        /// Protocol minimum from [`crate::required_endowment`].
+        required: u64,
+    },
+    /// Bulletproof prover failed while building an endowment surplus proof.
+    #[error("endowment surplus range proof failed")]
+    SurplusRangeProof(mfn_crypto::CryptoError),
     /// Operator payout keys failed structural validation.
     #[error("invalid operator payout keys")]
     InvalidOperatorPayout,
@@ -840,6 +888,38 @@ mod tests {
         assert!(!verify_endowment_range_proof(
             &built.commit,
             endowment_amount.saturating_add(1),
+            &proof
+        ));
+    }
+
+    #[test]
+    fn build_endowment_surplus_range_proof_round_trip() {
+        let d = b"builder-round-trip";
+        let endowment_amount = 2_000u64;
+        let built = build_storage_commitment(
+            d,
+            endowment_amount,
+            None,
+            DEFAULT_ENDOWMENT_PARAMS.min_replication,
+            None,
+        )
+        .unwrap();
+        let proof = build_endowment_surplus_range_proof(
+            &built.commit,
+            endowment_amount,
+            &built.blinding,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        )
+        .expect("build proof");
+        let required = required_endowment(
+            built.commit.size_bytes,
+            built.commit.replication,
+            &DEFAULT_ENDOWMENT_PARAMS,
+        )
+        .unwrap() as u64;
+        assert!(verify_endowment_range_proof(
+            &built.commit,
+            required,
             &proof
         ));
     }

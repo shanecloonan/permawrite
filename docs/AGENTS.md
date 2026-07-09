@@ -222,7 +222,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (`76b5f8f`).
-- [ ] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (this push).
+- [x] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (`c084537`).
+- [ ] **B1 phase 2c** — wallet builds `MFER` on upload (this push).
 
 ### Handoff to lane 3
 
@@ -319,7 +320,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **B1 phase 2a** — inert `require_endowment_range_proof` + checkpoint v10 (`76b5f8f`).
-- [ ] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (with lane 4; this push).
+- [x] **B1 phase 2b** — MFEX v3 + `MFER` wire; `apply_block` + mempool verify (`c084537`).
+- [ ] **B1 phase 2c** — wallet builds `MFER` on upload (with lane 4; this push).
 
 ### Do not start
 

@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-08)
 
-**Head:** B1 phase 2b (this push). **B1 2a** `76b5f8f` CI `#28988726857` in progress. **Nightly `#28986938052` GREEN** on B7 stack.
+**Head:** B1 phase 2c (this push). **CI `#28989926744` GREEN** on `c084537` (2b).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on B1 2a + 2b push | **Doing** — CI `#28988726857` + ci-check 2b | Nightly on B1 2b head |
-| **2** | Release evidence refresh | **Doing** — refresh on B1 2b head | Human sign-off packet |
+| **1** | CI + B1 2c push | **Doing** — push 2c after local ci-check | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — refresh on 2c head after CI | Human sign-off packet |
 | **3** | Nightly participant PASS | **Done** — `#28986938052` | Idle |
-| **4** | B1 phase 2b MFER wire | **Doing** — ci-check local | B1 2c wallet proof build |
+| **4** | B1 phase 2c wallet MFER | **Doing** — this push | B1 2d devnet flip |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
-| **6** | B1 with lane 4 | **Doing** — phase 2b | B1 2c with lane 4 |
+| **6** | B1 with lane 4 | **Doing** — phase 2c | B1 2d with lane 4 |
 | **7** | VPS provision + ceremony helper | **Done** — `0a700a5` | TL-5 execution on VPS |
 
 ---
@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B1 phase 2b** (`c084537`) - permanence (lanes 4+6): MFEX v3 + `MFER` surplus range proofs; `apply_block` + mempool verify; M5 accept/reject + treasury proptest.
 - **B1 phase 2a** (`76b5f8f`) - permanence (lanes 4+6): inert `require_endowment_range_proof`; checkpoint **v10**; mutual exclusion with MFEO; [`B1_ENDOWMENT_RANGE_PROOF.md`](docs/B1_ENDOWMENT_RANGE_PROOF.md).
 - **B5 phase 5c** (`8bdb4ab`) - permanence (lanes 4+6): operator bond slash to treasury when `consecutive_missed_audits >= operator_audit_missed_cap`; zero-bond deregister; clippy fix for 5b CI `#28977215094`; full matrix CI `#28979369780` GREEN.
 - **F7 mfnd fanout tail** (`b70b3ec`) - RC core (lane 1): `mfnd_p2p_tx_fanout_reaches_third_hop_peer` expects `applied=2` after two-block F7 fixture; closes Nightly ignored-P2P job on `#28928716414`.
