@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29040315598` + Nightly `#29040048884` GREEN | **Done** | Idle |
+| **1** RC core | CI `#29040315598` + Nightly `#29042017113` GREEN | **Done** | Idle |
 | **2** RC ops | Release evidence `85f3512` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | P32 reference topology `85f3512` | **Done** | F12 signed log phase 1 |
