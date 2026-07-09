@@ -45,7 +45,10 @@ pub enum CliError {
 #[path = "cli/parse.rs"]
 mod parse;
 
-use parse::{parse_args, ClaimsSub, Cmd, OperatorSub, UploadsSub, WalletSub, MFN_RPC_API_KEY};
+use parse::{
+    parse_args, CheckpointLogSub, ClaimsSub, Cmd, OperatorSub, UploadsSub, WalletSub,
+    MFN_RPC_API_KEY,
+};
 
 /// Entry for the `mfn-cli` binary.
 pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
@@ -251,6 +254,29 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     &commitment_hash_hex,
                     params,
                 )?
+            }
+        },
+        Cmd::CheckpointLog { sub } => match sub {
+            CheckpointLogSub::Sign(params) => {
+                let entry = crate::checkpoint_log::checkpoint_log_sign(&params)?;
+                let raw = serde_json::to_string_pretty(&entry)
+                    .map_err(|e| CliError::Usage(format!("encode entry: {e}")))?;
+                println!("{raw}");
+            }
+            CheckpointLogSub::Verify { path, json } => {
+                let report = crate::checkpoint_log::checkpoint_log_verify(&path)?;
+                if json {
+                    let raw = serde_json::json!({
+                        "valid_entries": report.valid_entries,
+                        "max_tip_height": report.max_tip_height,
+                        "signer_ids": report.signer_ids,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&raw).unwrap());
+                } else {
+                    println!("checkpoint_log_verify_ok entries={}", report.valid_entries);
+                    println!("max_tip_height={}", report.max_tip_height);
+                    println!("signer_ids={}", report.signer_ids.join(","));
+                }
             }
         },
         Cmd::Wallet {
@@ -1344,6 +1370,61 @@ mod tests {
                 assert!(params.json);
             }
             _ => panic!("expected operator fetch-chunk"),
+        }
+    }
+
+    #[test]
+    fn parse_checkpoint_log_sign_subcommand() {
+        let seed = "ab".repeat(32);
+        let p = parse_args(&[
+            "checkpoint-log".into(),
+            "sign".into(),
+            "--summary".into(),
+            "trusted-summary.json".into(),
+            "--signer-id".into(),
+            "permawrite-maintainer-1".into(),
+            "--signer-seed-hex".into(),
+            seed.clone(),
+            "--append".into(),
+            "checkpoints.jsonl".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::CheckpointLog {
+                sub: CheckpointLogSub::Sign(params),
+            } => {
+                assert_eq!(
+                    params.summary_path,
+                    std::path::PathBuf::from("trusted-summary.json")
+                );
+                assert_eq!(params.signer_id, "permawrite-maintainer-1");
+                assert_eq!(params.signer_seed_hex, seed);
+                assert_eq!(
+                    params.append_log.as_deref(),
+                    Some(std::path::Path::new("checkpoints.jsonl"))
+                );
+            }
+            _ => panic!("expected checkpoint-log sign"),
+        }
+    }
+
+    #[test]
+    fn parse_checkpoint_log_verify_json() {
+        let p = parse_args(&[
+            "checkpoint-log".into(),
+            "verify".into(),
+            "community.jsonl".into(),
+            "--json".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::CheckpointLog {
+                sub: CheckpointLogSub::Verify { path, json },
+            } => {
+                assert_eq!(path, std::path::PathBuf::from("community.jsonl"));
+                assert!(json);
+            }
+            _ => panic!("expected checkpoint-log verify"),
         }
     }
 }

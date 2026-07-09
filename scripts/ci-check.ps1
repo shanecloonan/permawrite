@@ -133,6 +133,11 @@ if ($refTopoPlan -notmatch "REFERENCE_TOPOLOGY.md" -or $refTopoPlan -notmatch "P
     $refTopoPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$checkpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/checkpoint-log-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($checkpointLogPlan -notmatch "CHECKPOINT_LOG.md" -or $checkpointLogPlan -notmatch "PASS plan-only") {
+    $checkpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

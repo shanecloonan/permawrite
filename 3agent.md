@@ -7,11 +7,31 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29042540983` + Nightly `#29042017113` GREEN | **Done** | Idle |
+| **1** RC core | CI `#29044604516` on `e873d85` | **Doing** — F12 ci-check + push | Nightly watch |
 | **2** RC ops | Release evidence `85f3512` + soak `cf99ae5` | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | P32 reference topology `85f3512` | **Done** | F12 signed log phase 1 |
+| **4+6** Protocol | P32 reference topology `85f3512` | **This push** — F12 signed checkpoint log phase 1 | light-scan log compare |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-09 (F12.1 — signed checkpoint log)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F12 phase 1** | **This push** | `checkpoint_log.rs`; `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md) |
+
+**Lane 4+5 — Doing:** F12.1 **Next:** wallet light-scan log cross-check (phase 2)
+
+---
+
+## Session — 2026-07-09 (F12 phase 1 — signed checkpoint log)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F12 phase 1** | **This push** | `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); `checkpoint-log-rehearsal-smoke.*` in ci-check |
+
+**Lane 4+5 — Doing:** F12 phase 1 **Next:** light-scan log compare (phase 2)
 
 ---
 

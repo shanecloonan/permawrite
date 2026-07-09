@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
+pub mod checkpoint_log;
 pub mod claims_cmd;
 pub mod cli;
 pub mod light_follow_quorum;

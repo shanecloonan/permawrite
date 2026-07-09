@@ -4,7 +4,7 @@
 
 **Short answer:** Run each role on **separate hosts** (or at minimum separate advertised listen addresses). Keep wallet JSON-RPC on loopback; use Tor or a dedicated observer for remote submission. Local devnet meshes intentionally colocate on loopback — production and public testnet VPS layouts must not.
 
-See also: [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) (hardware profiles), [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) §P32, [`TOR_P2P.md`](./TOR_P2P.md) (B8), [`SECURITY.md`](./SECURITY.md) (RPC exposure), [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) (TL phases).
+See also: [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) (hardware profiles), [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) §P32, [`TOR_P2P.md`](./TOR_P2P.md) (B8), [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md) (F12), [`SECURITY.md`](./SECURITY.md) (RPC exposure), [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) (TL phases).
 
 ---
 

@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `f6bc358` (release evidence P32). **CI `#29042540983` GREEN**. **Nightly `#29042017113` GREEN**. **Linux soak `#29040052424` PASS** (`cf99ae5`).
+**Head:** F12 phase 1 (this push). **CI `#29044604516` GREEN** on `e873d85`. **Nightly `#29044384997`** (watch).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | RC stack GREEN | **Done** — CI `#29042540983` + Nightly `#29042017113` | Idle |
-| **2** | Release evidence refresh | **Done** — `release-evidence-85f3512` RC audit **go** | Human sign-off |
+| **1** | F12 CI gate | **Doing** — ci-check + push | Nightly watch |
+| **2** | Release evidence refresh | **Done** — `f6bc358` / soak `cf99ae5` | Refresh after F12 CI |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
-| **4** | P32 reference topology doc | **Done** — `85f3512` | F12 signed log phase 1 |
-| **5** | P32 with lane 4 | **Done** — `85f3512` | TL-5 VPS soak (human) |
+| **4** | F12 signed checkpoint log | **This push** | F12 light-scan compare phase 2 |
+| **5** | F12 with lane 4 | **This push** | TL-5 VPS soak (human) |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 

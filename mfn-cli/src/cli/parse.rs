@@ -47,6 +47,9 @@ pub(crate) enum Cmd {
     Operator {
         sub: OperatorSub,
     },
+    CheckpointLog {
+        sub: CheckpointLogSub,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +75,15 @@ pub(crate) enum UploadsSub {
         output_path: std::path::PathBuf,
         peers: Vec<String>,
         params: UploadsFetchHttpParams,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CheckpointLogSub {
+    Sign(crate::checkpoint_log::CheckpointLogSignParams),
+    Verify {
+        path: std::path::PathBuf,
+        json: bool,
     },
 }
 
@@ -239,6 +251,10 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
        operator inbox-status HASH DATA_DIR  list chunk-inbox indices for commitment\n\
                          options: --json\n\
        operator assemble-inbox HASH DATA_DIR [replace]  build wallet artifact from inbox\n\
+                         options: --json\n\
+       checkpoint-log sign --summary FILE --signer-id ID --signer-seed-hex HEX\n\
+                         options: --checkpoint-hex HEX --append LOG.jsonl\n\
+       checkpoint-log verify LOG.jsonl   verify signed checkpoint log (**F12** phase 1)\n\
                          options: --json\n"
 }
 
@@ -381,6 +397,11 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--height"
                 | "--max-height"
                 | "--key-derivation"
+                | "--summary"
+                | "--signer-id"
+                | "--signer-seed-hex"
+                | "--checkpoint-hex"
+                | "--append"
         ) {
             positional.push(a);
             let Some(v) = args.get(i + 1) else {
@@ -473,6 +494,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
         "claims" => parse_claims_cmd(&positional[1..])?,
         "uploads" => parse_uploads_cmd(&positional[1..])?,
         "operator" => parse_operator_cmd(&positional[1..])?,
+        "checkpoint-log" => parse_checkpoint_log_cmd(&positional[1..])?,
         other => {
             return Err(CliError::Usage(format!(
                 "unknown command `{other}`\n{}",
@@ -1823,4 +1845,128 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
         ring_size,
         json,
     })
+}
+
+fn parse_checkpoint_log_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
+    if rest.is_empty() {
+        return Err(CliError::Usage(format!(
+            "checkpoint-log requires subcommand sign|verify\n{}",
+            usage()
+        )));
+    }
+    match rest[0] {
+        "sign" => {
+            let mut summary_path: Option<std::path::PathBuf> = None;
+            let mut signer_id: Option<String> = None;
+            let mut signer_seed_hex: Option<String> = None;
+            let mut checkpoint_hex: Option<String> = None;
+            let mut append_log: Option<std::path::PathBuf> = None;
+            let mut i = 1usize;
+            while i < rest.len() {
+                let a = rest[i];
+                if a == "--summary" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--summary requires PATH".into()));
+                    };
+                    summary_path = Some(std::path::PathBuf::from(*v));
+                    i += 2;
+                    continue;
+                }
+                if a == "--signer-id" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--signer-id requires ID".into()));
+                    };
+                    signer_id = Some((*v).to_string());
+                    i += 2;
+                    continue;
+                }
+                if a == "--signer-seed-hex" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage(
+                            "--signer-seed-hex requires 32-byte hex".into(),
+                        ));
+                    };
+                    signer_seed_hex = Some((*v).to_string());
+                    i += 2;
+                    continue;
+                }
+                if a == "--checkpoint-hex" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--checkpoint-hex requires HEX".into()));
+                    };
+                    checkpoint_hex = Some((*v).to_string());
+                    i += 2;
+                    continue;
+                }
+                if a == "--append" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--append requires LOG.jsonl PATH".into()));
+                    };
+                    append_log = Some(std::path::PathBuf::from(*v));
+                    i += 2;
+                    continue;
+                }
+                return Err(CliError::Usage(format!(
+                    "unknown checkpoint-log sign option `{a}`\n{}",
+                    usage()
+                )));
+            }
+            let summary_path = summary_path.ok_or_else(|| {
+                CliError::Usage("checkpoint-log sign requires --summary PATH".into())
+            })?;
+            let signer_id = signer_id.ok_or_else(|| {
+                CliError::Usage("checkpoint-log sign requires --signer-id ID".into())
+            })?;
+            let signer_seed_hex = signer_seed_hex
+                .or_else(|| {
+                    std::env::var(crate::checkpoint_log::MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX_ENV)
+                        .ok()
+                })
+                .ok_or_else(|| {
+                    CliError::Usage(format!(
+                        "checkpoint-log sign requires --signer-seed-hex HEX or {} env",
+                        crate::checkpoint_log::MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX_ENV
+                    ))
+                })?;
+            Ok(Cmd::CheckpointLog {
+                sub: CheckpointLogSub::Sign(crate::checkpoint_log::CheckpointLogSignParams {
+                    summary_path,
+                    signer_id,
+                    signer_seed_hex,
+                    checkpoint_hex,
+                    append_log,
+                }),
+            })
+        }
+        "verify" => {
+            if rest.len() < 2 {
+                return Err(CliError::Usage(format!(
+                    "checkpoint-log verify requires LOG.jsonl\n{}",
+                    usage()
+                )));
+            }
+            let mut json = false;
+            let path = std::path::PathBuf::from(rest[1]);
+            let mut i = 2usize;
+            while i < rest.len() {
+                if rest[i] == "--json" {
+                    json = true;
+                    i += 1;
+                    continue;
+                }
+                return Err(CliError::Usage(format!(
+                    "unknown checkpoint-log verify option `{}`\n{}",
+                    rest[i],
+                    usage()
+                )));
+            }
+            Ok(Cmd::CheckpointLog {
+                sub: CheckpointLogSub::Verify { path, json },
+            })
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown checkpoint-log subcommand `{other}`\n{}",
+            usage()
+        ))),
+    }
 }

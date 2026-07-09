@@ -1,0 +1,54 @@
+# Signed checkpoint log (F12 phase 1)
+
+Social redundancy for light-client weak subjectivity: maintainers and witnesses publish **Schnorr-signed** trusted-summary entries in an append-only JSONL log. Wallets cross-check P2P tips against multiple independent signatures before pinning.
+
+See [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) for role separation and [`F5.md` §F12](./F5.md) for roadmap context.
+
+---
+
+## Wire format
+
+One JSON object per line (JSONL). Fields:
+
+| Field | Description |
+|---|---|
+| `version` | Must be `1` |
+| `signer_id` | Human label (e.g. `permawrite-maintainer-1`) |
+| `published_at` | UTC timestamp (`{unix_secs}Z` in phase 1) |
+| `summary` | Same object as `get_light_snapshot.summary` / `export-trusted-summary` |
+| `checkpoint_hex` | Optional full checkpoint for offline verify |
+| `signer_pk_hex` | 32-byte compressed Edwards point (hex) |
+| `signature_hex` | 64-byte Schnorr signature (hex) |
+
+Signing key derivation: `hash_to_scalar("MFN:checkpoint-log-signer:v1" || seed32)` — **not** a wallet spend seed.
+
+---
+
+## CLI
+
+```bash
+# Sign a trusted summary and append to the community log
+export MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX=<64-char hex>
+mfn-cli checkpoint-log sign \
+  --summary trusted-summary.json \
+  --signer-id permawrite-maintainer-1 \
+  --signer-seed-hex "$MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX" \
+  --append checkpoints.jsonl
+
+# Verify all entries
+mfn-cli checkpoint-log verify checkpoints.jsonl
+mfn-cli checkpoint-log verify checkpoints.jsonl --json
+```
+
+Publish verified `checkpoints.jsonl` alongside release artifacts and link from [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) after TL-8.
+
+---
+
+## Light client usage (phase 1)
+
+1. Fetch P2P/RPC `get_light_snapshot`.
+2. Compare `summary` against ≥1 valid entry in the published log with matching weak-subjectivity fields.
+3. Prefer entries from distinct `signer_id` values when heights tie.
+4. Reject tips that disagree with every trusted log entry at the same height.
+
+Phase 2 will wire automatic log fetch + compare into `wallet light-scan` and WASM light clients.

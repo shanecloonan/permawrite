@@ -108,6 +108,11 @@ if [[ "$ref_topo_plan" != *"REFERENCE_TOPOLOGY.md"* || "$ref_topo_plan" != *"PAS
   printf '%s\n' "$ref_topo_plan" >&2
   exit 1
 fi
+checkpoint_log_plan="$(bash scripts/public-devnet-v1/checkpoint-log-rehearsal-smoke.sh --plan-only)"
+if [[ "$checkpoint_log_plan" != *"CHECKPOINT_LOG.md"* || "$checkpoint_log_plan" != *"PASS plan-only"* ]]; then
+  printf '%s\n' "$checkpoint_log_plan" >&2
+  exit 1
+fi
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

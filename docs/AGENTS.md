@@ -268,8 +268,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] **F12 phase 1** — signed checkpoint log (research-gated).
+- [ ] **F12 phase 2** — wallet `light-scan` cross-check against published log.
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
+
+### Done (recent)
+
+- [x] **F12 phase 1** — `checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](../CHECKPOINT_LOG.md); ci-check rehearsal (this push).
 
 ### Do not start
 
