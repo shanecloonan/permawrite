@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `19dc111`. **CI `#29007812174` GREEN** on `328e63f`. **Release evidence:** `release-evidence-19dc111` RC audit **go**. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
+**Head:** `b6eba33`. **Local RC complete.** **Critical path:** VPS provision for TL-5/TL-6.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly dispatch fix | **Doing** — CI after B8.0 push | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `19dc111` RC audit **go** | Human sign-off packet |
+| **1** | CI on B8.1 push | **Doing** — `#29010590422` / new run | Nightly on green head |
+| **2** | Release evidence refresh | **Done** — `b06a704` RC audit **go** | Human sign-off packet |
 | **3** | Local MFER participant rehearsals | **Done** — `20260709T*` evidence | TL-6 VPS rehearsal |
-| **4** | B8.0 P2P transport trait | **Doing** — this push | B8.1 SOCKS5 dial |
-| **5** | B8.0 with lane 4 | **Doing** — env knobs + mfnd harness | B8.1 with lane 4 |
-| **6** | B1 endowment range proof track | **Done** | B8.1 with lane 4 |
+| **4** | B8.1 SOCKS5 outbound dial | **Done** — `b6eba33` | B8.2 hidden service |
+| **5** | B8.1 with lane 4 | **Done** — `b6eba33` | B8.2 with lane 4 |
+| **6** | B1 endowment range proof track | **Done** | B8.2 with lane 4 |
 | **7** | VPS preflight MFER gate | **Done** — `375f4d0` | TL-5 VPS internet soak |
 
 ---

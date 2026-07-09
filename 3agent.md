@@ -10,7 +10,7 @@
 | **1** RC core | B8.0 `#419e38a` | **Doing** — CI `#29010590422` + B8.1 push | Nightly on green head |
 | **2** RC ops | Release evidence `b06a704` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | **B8.0** + **B8.1** SOCKS5 dial | **Doing** — push + CI | B8.2 hidden service |
+| **4+6** Protocol | **B8.0** + **B8.1** SOCKS5 dial | **Done** — `b6eba33` | B8.2 hidden service |
 | **7** Testnet | Local RC + preflight MFER gate | **Blocked** — VPS provision | **TL-5 internet soak** |
 
 ---
@@ -19,7 +19,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B8.1** | **This push** | `mfn-net::socks5` CONNECT client; Tor transport routes via `MFND_TOR_SOCKS5` |
+| **B8.1** | **Done** — `b6eba33` | `mfn-net::socks5` CONNECT client; Tor transport routes via `MFND_TOR_SOCKS5` |
 | **mfnd serve** | **This push** | Tor warning when SOCKS5 must be reachable |
 
 **Lane 4+6 — Doing:** B8.1 **Next:** B8.2 inbound hidden service  
