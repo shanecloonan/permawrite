@@ -111,22 +111,22 @@ $releaseEvidenceFile = if ($releaseEvidenceFiles) { $releaseEvidenceFiles[0].Nam
 $rcAuditFile = Test-RcAuditGo
 $rcAuditGo = [bool]$rcAuditFile
 
-$phase = 'TL-5 (provision VPS — see docs/VPS_PROVISION.md)'
+$phase = 'TL-5 (provision VPS - see docs/VPS_PROVISION.md)'
 $nextAction = 'docs/VPS_PROVISION.md then bash scripts/public-devnet-v1/vps-preflight.sh'
 if ($seedCount -gt 0) {
-    $phase = 'TL-9+ (seed_nodes published — run launch-go-no-go.sh before invite)'
+    $phase = 'TL-9+ (seed_nodes published - run launch-go-no-go.sh before invite)'
     $nextAction = 'bash scripts/public-devnet-v1/launch-go-no-go.sh'
 } elseif ($tl6Evidence) {
-    $phase = 'TL-7 (human genesis ceremony — TESTNET_GENESIS_CEREMONY.md)'
+    $phase = 'TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)'
     $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh'
 } elseif ($tl5Evidence) {
     $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)'
     $nextAction = 'bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop'
 } elseif ($localRcComplete -and $missingBins.Count -eq 0) {
-    $phase = 'TL-5 (local RC complete — provision VPS for internet soak)'
+    $phase = 'TL-5 (local RC complete - provision VPS for internet soak)'
     $nextAction = 'docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh'
 } elseif ($missingBins.Count -eq 0) {
-    $phase = 'TL-5 (build complete — run local MFER rehearsals then provision VPS)'
+    $phase = 'TL-5 (build complete - run local MFER rehearsals then provision VPS)'
     $nextAction = 'participant-rehearsal-smoke before VPS; see docs/VPS_PROVISION.md'
 }
 
