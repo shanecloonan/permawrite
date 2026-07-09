@@ -82,22 +82,22 @@ for f in "$EVIDENCE_DIR"/rc-audit-dry-run-*.json; do
   fi
 done
 
-phase="TL-5 (provision VPS — see docs/VPS_PROVISION.md)"
+phase="TL-5 (provision VPS - see docs/VPS_PROVISION.md)"
 next_action="docs/VPS_PROVISION.md then bash scripts/public-devnet-v1/vps-preflight.sh"
 if [[ "$seed_count" -gt 0 ]]; then
-  phase="TL-9+ (seed_nodes published — run launch-go-no-go.sh before invite)"
+  phase="TL-9+ (seed_nodes published - run launch-go-no-go.sh before invite)"
   next_action="bash scripts/public-devnet-v1/launch-go-no-go.sh"
 elif (( tl6_evidence == 1 )); then
-  phase="TL-7 (human genesis ceremony — TESTNET_GENESIS_CEREMONY.md)"
+  phase="TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)"
   next_action="complete TL-7 sign-off then publish-seed-nodes.sh"
 elif (( tl5_evidence == 1 )); then
   phase="TL-6 (VPS soak done; run vps-participant-rehearsal.sh)"
   next_action="bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop"
 elif (( local_rc_complete == 1 )) && [[ ${#missing_bins[@]} -eq 0 ]]; then
-  phase="TL-5 (local RC complete — provision VPS for internet soak)"
-  next_action="docs/VPS_PROVISION.md → vps-preflight.sh → vps-internet-soak.sh"
+  phase="TL-5 (local RC complete - provision VPS for internet soak)"
+  next_action="docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh"
 elif [[ ${#missing_bins[@]} -eq 0 ]]; then
-  phase="TL-5 (build complete — run local MFER rehearsals then provision VPS)"
+  phase="TL-5 (build complete - run local MFER rehearsals then provision VPS)"
   next_action="participant-rehearsal-smoke before VPS; see docs/VPS_PROVISION.md"
 fi
 
