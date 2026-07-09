@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** M4.8 / B1 phase 2e `bbe1d9f`. **CI `#28999593529` GREEN** (~28m). **MFER participant rehearsal PASS** on `bbe1d9f`.
+**Head:** `2fd0bbd` (release evidence). **CI `#28999593529` GREEN** on `bbe1d9f`. **Release evidence:** `release-evidence-bbe1d9f` + `2958cfa` RC audit **go**. MFER participant rehearsal PASS.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
 | **1** | Nightly on M4.8 head | **Doing** — dispatch after `bbe1d9f` | Soak maintenance |
-| **2** | Release evidence refresh | **Doing** — refresh on `bbe1d9f` | Human sign-off packet |
+| **2** | Release evidence refresh | **Done** — `2fd0bbd` RC audit **go** | Human sign-off packet |
 | **3** | MFER devnet participant rehearsal | **Done** — `20260709T070005Z` | TL-6 VPS rehearsal |
 | **4** | M4.8 WASM upload MFER parity | **Done** — `bbe1d9f` | Next permanence backlog |
 | **5** | F7 consensus tail | **Done** — `3933cf0` | B8 Tor transport (research) |
