@@ -16,6 +16,13 @@ struct NetworkManifestSeeds {
     seed_nodes: Vec<String>,
 }
 
+/// Subset of trusted-summary JSON read for checkpoint anchor peers (**F12** phase 0).
+#[derive(Debug, Deserialize)]
+struct TrustedSummaryAnchors {
+    #[serde(default)]
+    anchor_peers: Vec<String>,
+}
+
 /// Summary of boot-peer merge/capping before outbound dial threads are spawned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BootPeerDialMergeReport {
@@ -127,6 +134,33 @@ pub fn merge_boot_peer_dials(
         dropped: configured.saturating_sub(explicit.len()),
         cap: MAX_BOOT_PEER_DIALS,
     })
+}
+
+/// Read `anchor_peers` from a trusted-summary JSON file (`get_light_snapshot.summary` shape).
+pub fn anchor_peers_from_trusted_summary(path: &Path) -> Result<Vec<String>, String> {
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| format!("read checkpoint anchor summary `{}`: {e}", path.display()))?;
+    let summary: TrustedSummaryAnchors = serde_json::from_str(&raw)
+        .map_err(|e| format!("parse checkpoint anchor summary `{}`: {e}", path.display()))?;
+    normalize_peer_addrs(
+        summary.anchor_peers,
+        &format!("checkpoint anchor summary `{}`", path.display()),
+    )
+}
+
+/// Merge `anchor_peers` from a trusted-summary file into boot dial addresses.
+pub fn merge_checkpoint_anchor_peers(
+    explicit: &mut Vec<String>,
+    summary_path: Option<&Path>,
+) -> Result<usize, String> {
+    let Some(path) = summary_path else {
+        return Ok(0);
+    };
+    let before = explicit.len();
+    for addr in anchor_peers_from_trusted_summary(path)? {
+        push_unique_peer_addr(explicit, addr);
+    }
+    Ok(explicit.len().saturating_sub(before))
 }
 
 #[cfg(test)]
@@ -288,6 +322,30 @@ mod tests {
         assert_eq!(report.dropped, 2);
         assert_eq!(&explicit[..2], ["198.51.100.10:4001", "198.51.100.11:4001"]);
         assert!(!explicit.contains(&format!("203.0.113.{}:4001", MAX_BOOT_PEER_DIALS - 1)));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn merge_checkpoint_anchor_peers_from_trusted_summary() {
+        let dir = std::env::temp_dir().join(format!(
+            "permawrite-p2p-boot-anchor-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        let summary = dir.join("trusted-summary.json");
+        std::fs::write(
+            &summary,
+            r#"{"genesis_id":"00","tip_height":0,"tip_block_id":"00","validator_count":1,"validator_set_root":"00","checkpoint_digest":"00","anchor_peers":["203.0.113.20:4001","203.0.113.21:4001"]}"#,
+        )
+        .expect("write summary");
+        let mut explicit = vec!["203.0.113.20:4001".into()];
+        let added = merge_checkpoint_anchor_peers(&mut explicit, Some(&summary)).expect("merge");
+        assert_eq!(added, 1);
+        assert_eq!(explicit, vec!["203.0.113.20:4001", "203.0.113.21:4001",]);
         std::fs::remove_dir_all(&dir).ok();
     }
 }

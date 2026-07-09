@@ -270,6 +270,7 @@ mod tests {
             validator_count: 0,
             validator_set_root: "cc".repeat(32),
             checkpoint_digest: "dd".repeat(32),
+            anchor_peers: vec!["203.0.113.10:8333".into()],
         });
         let raw = serde_json::to_string(&file).expect("json");
         let back: WalletFile = serde_json::from_str(&raw).expect("parse");

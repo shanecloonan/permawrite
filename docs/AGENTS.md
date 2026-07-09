@@ -268,7 +268,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [x] **B8** — optional Tor/arti transport: **B8.0–B8.3 shipped**; **P31 phase 0–1** + **P32 phase 0** shipped.
+- [x] **B8** — optional Tor/arti transport: **B8.0–B8.3 shipped**; **P31 phase 0–1** + **P32 phase 0** + **F12 phase 0** (this push) shipped.
 
 ### Do not start
 

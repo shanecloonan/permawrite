@@ -82,6 +82,8 @@ struct Parsed {
     p2p_listen: Option<String>,
     /// Solo `serve` only: boot peer `HOST:PORT` list (repeat `--p2p-dial`; merged with genesis manifest `seed_nodes` when present — **M2.4.4**).
     p2p_dials: Vec<String>,
+    /// Solo `serve` only: trusted-summary JSON with `anchor_peers` for boot dials (**F12** phase 0).
+    p2p_anchor_summary: Option<PathBuf>,
     /// Solo `serve` only: Dandelion++ stem/fluff tx relay (**F5-P3** / B7).
     dandelion: bool,
     /// Persistence backend (`fs` default, or `redb`).
@@ -117,6 +119,8 @@ fn usage() -> &'static str {
                                   `--genesis` is set (M2.4.4). Each dial runs hello + ping/pong + ChainTipV1\n\
                                   + GoodbyeV1; on success prints mfnd_p2p_dial_ok=… then mfnd_p2p_peer_tip /\n\
                                   mfnd_p2p_height_cmp / mfnd_p2p_handshake_ms (hid=; see mfnd_serve)\n\
+       --p2p-anchor-summary PATH only for `serve`: merge `anchor_peers` from trusted-summary JSON\n\
+                                  (F12 checkpoint web phase 0)\n\
        --dandelion              only for `serve`: Dandelion++ stem/fluff tx relay (opt-in; default off)\n\
                                   or set env MFND_DANDELION=1\n\
       env MFND_P2P_TRANSPORT     only for `serve`: outbound P2P dial transport `tcp` (default) or `tor` (B8.1)\n\
@@ -521,6 +525,17 @@ fn run(args: Vec<String>) -> Result<(), String> {
                 println!("{line}");
                 std::io::stdout().flush().ok();
             }
+            let anchor_added = crate::p2p_boot::merge_checkpoint_anchor_peers(
+                &mut p2p_dials,
+                parsed.p2p_anchor_summary.as_deref(),
+            )?;
+            if anchor_added > 0 {
+                println!("mfnd_p2p_anchor_peers_merged={anchor_added}");
+                std::io::stdout().flush().ok();
+            }
+            if p2p_dials.len() > crate::p2p_boot::MAX_BOOT_PEER_DIALS {
+                p2p_dials.truncate(crate::p2p_boot::MAX_BOOT_PEER_DIALS);
+            }
             if !p2p_dials.is_empty() {
                 println!("mfnd_p2p_boot_dials={}", p2p_dials.join(","));
                 std::io::stdout().flush().ok();
@@ -587,6 +602,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
     let mut rpc_api_key: Option<String> = None;
     let mut p2p_listen: Option<String> = None;
     let mut p2p_dials: Vec<String> = Vec::new();
+    let mut p2p_anchor_summary: Option<PathBuf> = None;
     let mut store_backend = StoreBackend::default();
     let mut produce = false;
     let mut committee_vote = false;
@@ -699,6 +715,17 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             i += 2;
             continue;
         }
+        if a == "--p2p-anchor-summary" {
+            let Some(v) = args.get(i + 1) else {
+                return Err("--p2p-anchor-summary requires PATH to trusted-summary JSON".into());
+            };
+            if v.starts_with('-') {
+                return Err("expected PATH after --p2p-anchor-summary".into());
+            }
+            p2p_anchor_summary = Some(PathBuf::from(v));
+            i += 2;
+            continue;
+        }
         if a == "--dandelion" {
             dandelion = true;
             i += 1;
@@ -799,6 +826,12 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
             usage()
         ));
     }
+    if p2p_anchor_summary.is_some() && cmd != Cmd::Serve {
+        return Err(format!(
+            "--p2p-anchor-summary is only valid with the serve command\n{}",
+            usage()
+        ));
+    }
     if produce && cmd != Cmd::Serve {
         return Err(format!(
             "--produce is only valid with the serve command\n{}",
@@ -845,6 +878,7 @@ fn parse_args(args: &[String]) -> Result<Parsed, String> {
         rpc_api_key,
         p2p_listen,
         p2p_dials,
+        p2p_anchor_summary,
         store_backend,
         produce,
         committee_vote,

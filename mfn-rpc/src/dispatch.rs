@@ -506,6 +506,8 @@ pub type P2pLightFollowQuorumHook =
     Arc<dyn Fn(&[String], u32, u32) -> Result<Value, String> + Send + Sync>;
 /// Public-safe P2P status snapshot injected by `mfnd serve`.
 pub type P2pStatusHook = Arc<dyn Fn() -> Value + Send + Sync>;
+/// Diverse boot peers for checkpoint summaries (**F12** phase 0).
+pub type P2pAnchorPeersHook = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
 
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
@@ -536,6 +538,8 @@ pub struct ServeDispatchOpts {
     pub p2p_light_follow_quorum: Option<P2pLightFollowQuorumHook>,
     /// Public-safe P2P health fields for [`get_status`].
     pub p2p_status: Option<P2pStatusHook>,
+    /// Diverse session/durable peers for [`get_light_snapshot`] anchor list (**F12**).
+    pub p2p_anchor_peers: Option<P2pAnchorPeersHook>,
     /// Persist `proof_pool.bytes` after admit/clear (**M3.23**).
     pub on_proof_pool_change: Option<ProofPoolPersistHook>,
 }
@@ -1140,6 +1144,21 @@ fn dispatch_serve_methods(
             let summary = match light_checkpoint_summary_json(&checkpoint_hex) {
                 Ok(s) => s,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
+            };
+            let summary = match &opts.p2p_anchor_peers {
+                Some(hook) => {
+                    let peers = hook();
+                    if peers.is_empty() {
+                        summary
+                    } else if let Some(obj) = summary.as_object().cloned() {
+                        let mut merged = obj;
+                        merged.insert("anchor_peers".into(), json!(peers));
+                        Value::Object(merged)
+                    } else {
+                        summary
+                    }
+                }
+                None => summary,
             };
             rpc_success(
                 id,
@@ -2092,6 +2111,30 @@ mod tests {
             v["result"]["checkpoint_hex"].as_str().unwrap(),
             light_snapshot_hex(&c)
         );
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_get_light_snapshot_includes_anchor_peers_when_hook_set() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_light_snap_anchor");
+        let hook: P2pAnchorPeersHook =
+            Arc::new(|| vec!["203.0.113.10:8333".into(), "203.0.113.11:8334".into()]);
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"get_light_snapshot","id":0}"#,
+            ServeDispatchOpts {
+                p2p_anchor_peers: Some(hook),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        let anchors = v["result"]["summary"]["anchor_peers"]
+            .as_array()
+            .expect("anchor_peers");
+        assert_eq!(anchors.len(), 2);
         fs::remove_dir_all(&root).ok();
     }
 

@@ -26,6 +26,7 @@ pub fn summary_from_checkpoint_hex(checkpoint_hex: &str) -> Result<LightCheckpoi
             .map_err(|_| "validator_count overflow".to_string())?,
         validator_set_root: hex::encode(validator_set_root(chain.trusted_validators())),
         checkpoint_digest: hex::encode(digest),
+        anchor_peers: Vec::new(),
     })
 }
 

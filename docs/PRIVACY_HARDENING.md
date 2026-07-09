@@ -378,7 +378,7 @@ Both decode to the same mempool ingress path.
 / [`dandelion-soak.sh`](../scripts/public-devnet-v1/dandelion-soak.sh) for
 local rehearsal. Nightly/CI default remains off.
 
-**Remaining.** Eclipse-resistance peer diversity — **P31 phase 0 shipped** (metrics + warn); redial + anchor peers deferred.
+**Remaining.** Eclipse-resistance peer diversity — **P31 phase 0–1 shipped**; anchor peers on checkpoints (**F12 phase 0** this push).
 
 **Effort:** high. **Risk:** high (network behavior + CI mesh) — mitigated by opt-in default off.
 
@@ -566,7 +566,7 @@ Disable warnings with `MFND_P2P_MIN_DISTINCT_PREFIX16=0`.
 sweep that dials durable peers in **new** /16 buckets (`mfnd_p2p_diversity_redial_start`).
 Disable with `MFND_P2P_DIVERSITY_REDIAL=0`.
 
-**Remaining.** Anchor peer lists on checkpoints (F12), ASN-aware buckets.
+**Remaining.** Anchor peer lists on checkpoints — **F12 phase 0 shipped** (optional `anchor_peers` in trusted summary + RPC); ASN-aware buckets.
 
 **Effort:** moderate (phase 0–1) / high (full P31). **Risk:** low (metrics + bounded redial).
 
@@ -592,12 +592,12 @@ lint for observer-only nodes.
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity metrics (phase 0), **P32** role topology lint (phase 0) |
-| High impact, moderate effort | P31 redial + anchor peers (F12); P32 reference topology doc |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology lint (phase 0), **F12** checkpoint anchor peers (phase 0) |
+| High impact, moderate effort | P32 reference topology doc; F12 signed checkpoint log (full) |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |
 
-Natural next step: **P31** automatic redial on low diversity, or **P32** reference topology doc.
+Natural next step: **P32** reference topology doc, or **F12** signed checkpoint log (phase 1).
 
 ---
 

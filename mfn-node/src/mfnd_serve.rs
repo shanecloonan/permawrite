@@ -477,6 +477,12 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
             })
         }) as mfn_rpc::P2pStatusHook
     });
+    let p2p_anchor_peers = fanout_peers.map(|ps| {
+        let ps = Arc::clone(ps);
+        Arc::new(move || {
+            ps.snapshot_checkpoint_anchor_peers(mfn_net::DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT)
+        }) as mfn_rpc::P2pAnchorPeersHook
+    });
     ServeDispatchOpts {
         genesis: Some(genesis),
         rpc_api_key,
@@ -492,6 +498,7 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         p2p_light_follow: Some(p2p_light_follow),
         p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
         p2p_status,
+        p2p_anchor_peers,
     }
 }
 

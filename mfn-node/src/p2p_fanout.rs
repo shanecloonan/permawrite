@@ -489,6 +489,16 @@ impl P2pPeerSet {
         mfn_net::peer_diversity_snapshot(&self.snapshot_session_peers())
     }
 
+    /// Diverse session + durable peers for checkpoint anchor export (**F12** phase 0).
+    #[must_use]
+    pub fn snapshot_checkpoint_anchor_peers(&self, max_peers: usize) -> Vec<String> {
+        mfn_net::checkpoint_anchor_peer_candidates(
+            &self.snapshot_session_peers(),
+            &self.snapshot_durable_available_peers(),
+            max_peers,
+        )
+    }
+
     fn maybe_warn_peer_diversity(&self) {
         let min = match mfn_net::min_distinct_ipv4_prefix16_from_env() {
             Ok(v) => v,

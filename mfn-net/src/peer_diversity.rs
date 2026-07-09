@@ -18,6 +18,8 @@ pub const MFND_P2P_MIN_DISTINCT_PREFIX16_ENV: &str = "MFND_P2P_MIN_DISTINCT_PREF
 pub const MFND_P2P_DIVERSITY_REDIAL_ENV: &str = "MFND_P2P_DIVERSITY_REDIAL";
 /// Default outbound dials per diversity-redial sweep.
 pub const DEFAULT_DIVERSITY_REDIAL_PER_SWEEP: u32 = 2;
+/// Default anchor peers embedded in checkpoint trusted-summary JSON (**F12** phase 0).
+pub const DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT: usize = 8;
 
 /// Diversity snapshot for live P2P session peers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,6 +167,90 @@ pub fn peer_diversity_redial_candidates(
     picks
 }
 
+/// Select diverse `HOST:PORT` peers to ship with checkpoint summaries (**F12** phase 0).
+///
+/// Prefers live session peers, then fills from `durable_peers` in new /16, `.onion`, or
+/// other-host buckets.
+#[must_use]
+pub fn checkpoint_anchor_peer_candidates(
+    session_peers: &[String],
+    durable_peers: &[String],
+    max_peers: usize,
+) -> Vec<String> {
+    if max_peers == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut prefix16 = BTreeSet::new();
+    let mut onion = BTreeSet::new();
+    let mut other_hosts = BTreeSet::new();
+
+    let try_add = |out: &mut Vec<String>,
+                   seen: &mut BTreeSet<String>,
+                   prefix16: &mut BTreeSet<String>,
+                   onion: &mut BTreeSet<String>,
+                   other_hosts: &mut BTreeSet<String>,
+                   peer: &str,
+                   require_new_bucket: bool|
+     -> bool {
+        if seen.contains(peer) {
+            return false;
+        }
+        let Ok((host, _)) = parse_peer_host_port(peer) else {
+            return false;
+        };
+        if is_onion_host(&host) {
+            if require_new_bucket && onion.contains(&host) {
+                return false;
+            }
+            onion.insert(host);
+        } else if let Some(key) = ipv4_prefix16_key(&host) {
+            if require_new_bucket && prefix16.contains(&key) {
+                return false;
+            }
+            prefix16.insert(key);
+        } else if require_new_bucket && other_hosts.contains(&host) {
+            return false;
+        } else {
+            other_hosts.insert(host);
+        }
+        seen.insert(peer.to_string());
+        out.push(peer.to_string());
+        true
+    };
+
+    for peer in session_peers {
+        if out.len() >= max_peers {
+            break;
+        }
+        try_add(
+            &mut out,
+            &mut seen,
+            &mut prefix16,
+            &mut onion,
+            &mut other_hosts,
+            peer,
+            false,
+        );
+    }
+    for peer in durable_peers {
+        if out.len() >= max_peers {
+            break;
+        }
+        try_add(
+            &mut out,
+            &mut seen,
+            &mut prefix16,
+            &mut onion,
+            &mut other_hosts,
+            peer,
+            true,
+        );
+    }
+    out
+}
+
 /// Warn when ≥2 IPv4 session peers share fewer than `min_distinct_prefix16` /16 buckets.
 #[must_use]
 pub fn peer_diversity_warning(peers: &[String], min_distinct_prefix16: u32) -> Option<String> {
@@ -252,5 +338,25 @@ mod tests {
         let sessions = vec!["10.0.0.1:8333".into(), "10.1.0.2:8334".into()];
         let candidates = vec!["10.2.0.3:8335".into()];
         assert!(peer_diversity_redial_candidates(&sessions, &candidates, 2, 2).is_empty());
+    }
+
+    #[test]
+    fn checkpoint_anchor_peers_prefers_sessions_then_diverse_durable() {
+        let sessions = vec!["10.0.0.1:8333".into(), "10.0.0.2:8334".into()];
+        let durable = vec![
+            "10.0.0.3:8335".into(),
+            "10.1.0.4:8336".into(),
+            "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333".into(),
+        ];
+        let picks = checkpoint_anchor_peer_candidates(&sessions, &durable, 4);
+        assert_eq!(
+            picks,
+            vec![
+                "10.0.0.1:8333".to_string(),
+                "10.0.0.2:8334".to_string(),
+                "10.1.0.4:8336".to_string(),
+                "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333".to_string(),
+            ]
+        );
     }
 }

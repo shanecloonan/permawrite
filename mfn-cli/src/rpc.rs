@@ -186,6 +186,9 @@ pub struct LightCheckpointSummary {
     pub validator_set_root: String,
     /// Checkpoint integrity digest (64-char hex).
     pub checkpoint_digest: String,
+    /// Optional diverse boot peers bundled with the checkpoint (**F12** phase 0).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub anchor_peers: Vec<String>,
 }
 
 /// `get_light_snapshot` result.
