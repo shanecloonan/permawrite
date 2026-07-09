@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `0cf73c6` (F12 phase 0). **CI `#29033177418` failed** — wasm-pack binaryen download flake (wasm-opt config ignored). **Fix in this push.** **Nightly `#29030703077` GREEN**.
+**Head:** `3b19e7c` (F12 + wasm-pack CI fix). **CI `#29036301962` GREEN**. **Nightly `#29032867174` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F12 CI gate | **Doing** — wasm-opt fix + re-push | Release evidence refresh |
-| **2** | Release evidence refresh | **Done** — `571e0bf` RC audit **go** | Refresh after F12 |
+| **1** | F12 CI gate | **Done** — CI `#29036301962` GREEN | Nightly dispatch on head |
+| **2** | Release evidence refresh | **Done** — `release-evidence-3b19e7c` RC audit **go** | Human sign-off |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
-| **4** | F12 anchor peers phase 0 | **This push** | P32 reference topology doc |
-| **5** | F12 with lane 4 | **This push** | P32 reference topology doc |
+| **4** | F12 anchor peers phase 0 | **Done** — `0cf73c6` | P32 reference topology doc |
+| **5** | F12 with lane 4 | **Done** — `0cf73c6` | P32 reference topology doc |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 

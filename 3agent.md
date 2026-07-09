@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29030884341` GREEN on `0a76617` | **Doing** — F12 push | CI on F12 head |
-| **2** RC ops | Release evidence `571e0bf` RC audit **go** | **Doing** — refresh after F12 CI | Human sign-off |
+| **1** RC core | CI `#29036301962` GREEN on `3b19e7c` | **Done** | Nightly dispatch |
+| **2** RC ops | Release evidence `3b19e7c` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | P31.1 diversity redial `571e0bf` | **This push** — F12 anchor peers phase 0 | P32 reference topology doc |
+| **4+6** Protocol | F12 anchor peers `0cf73c6` + CI fix `3b19e7c` | **Done** | P32 reference topology doc |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
 ---
@@ -19,9 +19,9 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F12 phase 0** | **This push** | `anchor_peers` in trusted summary + `get_light_snapshot`; `checkpoint_anchor_peer_candidates`; `--p2p-anchor-summary`; harness `mfnd_p2p_anchor_peers_merged` |
+| **F12 phase 0** | **Done** — `0cf73c6` | `anchor_peers` in trusted summary + `get_light_snapshot`; `checkpoint_anchor_peer_candidates`; `--p2p-anchor-summary`; harness `mfnd_p2p_anchor_peers_merged` |
 
-**Lane 4+5 — Doing:** F12 phase 0 **Next:** P32 reference topology doc
+**Lane 4+5 — Done:** F12 phase 0 **Next:** P32 reference topology doc
 
 ---
 
