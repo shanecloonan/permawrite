@@ -25,7 +25,8 @@ use crate::p2p_peer_quarantine::{
     PEER_QUARANTINE_DURATION,
 };
 use crate::p2p_reconnect_plan::{
-    catch_up_peer_events, reconnect_peer_events, CatchUpPeerEvent, ReconnectPeerEvent,
+    catch_up_peer_events, is_self_peer_addr, reconnect_peer_events, CatchUpPeerEvent,
+    ReconnectPeerEvent,
 };
 
 /// Peers that completed a successful P2P handshake (address strings suitable for `TcpStream::connect`).
@@ -1085,6 +1086,96 @@ pub fn spawn_committee_catch_up_loop(cfg: CommitteeCatchUpLoop) -> Result<(), St
             thread::sleep(Duration::from_millis(interval_ms));
         })
         .map_err(|e| format!("mfnd serve: spawn committee catch-up loop: {e}"))?;
+    Ok(())
+}
+
+/// Periodic redial when IPv4 /16 session diversity is low (**P31** phase 1).
+pub struct PeerDiversityRedialLoop {
+    /// Peer registry.
+    pub peer_set: Arc<P2pPeerSet>,
+    /// Chain genesis id for hello handshake.
+    pub genesis_id: [u8; 32],
+    /// Shared tip snapshot for dial handshakes.
+    pub tip_cell: TipSnapshot,
+    /// Monotonic handshake id counter.
+    pub hid_counter: HidCounter,
+    /// Block-log query for catch-up pulls.
+    pub block_sync: BlockSyncHook,
+    /// Block catch-up applier.
+    pub block_applier: BlockSyncApplierHook,
+    /// Local listen address to avoid self-dials.
+    pub local_p2p_listen: Option<std::net::SocketAddr>,
+    /// Sleep interval between diversity sweeps.
+    pub interval_ms: u64,
+}
+
+/// Spawn a background loop that dials durable peers in underrepresented /16 buckets.
+pub fn spawn_peer_diversity_redial_loop(cfg: PeerDiversityRedialLoop) -> Result<(), String> {
+    let PeerDiversityRedialLoop {
+        peer_set,
+        genesis_id,
+        tip_cell,
+        hid_counter,
+        block_sync,
+        block_applier,
+        local_p2p_listen,
+        interval_ms,
+    } = cfg;
+    thread::Builder::new()
+        .name("mfnd-p2p-diversity-redial".into())
+        .spawn(move || loop {
+            let min_prefix16 = match mfn_net::min_distinct_ipv4_prefix16_from_env() {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("mfnd_p2p_diversity_config_error {e}");
+                    thread::sleep(Duration::from_millis(interval_ms));
+                    continue;
+                }
+            };
+            let redial_enabled = match mfn_net::peer_diversity_redial_enabled_from_env() {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("mfnd_p2p_diversity_config_error {e}");
+                    thread::sleep(Duration::from_millis(interval_ms));
+                    continue;
+                }
+            };
+            if min_prefix16 == 0 || !redial_enabled {
+                thread::sleep(Duration::from_millis(interval_ms));
+                continue;
+            }
+            let sessions = peer_set.snapshot_session_peers();
+            let candidates = peer_set.snapshot_durable_available_peers();
+            let max_per_sweep = peer_set
+                .max_outbound_peers()
+                .min(mfn_net::DEFAULT_DIVERSITY_REDIAL_PER_SWEEP);
+            let picks = mfn_net::peer_diversity_redial_candidates(
+                &sessions,
+                &candidates,
+                min_prefix16,
+                max_per_sweep,
+            );
+            for peer in picks {
+                if is_self_peer_addr(&peer, local_p2p_listen) {
+                    println!("mfnd_p2p_self_dial_skip peer={peer}");
+                    let _ = std::io::Write::flush(&mut std::io::stdout());
+                    continue;
+                }
+                println!("mfnd_p2p_diversity_redial_start peer={peer}");
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                let _ = spawn_catch_up_dial(
+                    peer,
+                    genesis_id,
+                    Arc::clone(&tip_cell),
+                    Arc::clone(&hid_counter),
+                    Some(Arc::clone(&block_sync)),
+                    Arc::clone(&block_applier),
+                    Some(Arc::clone(&peer_set) as Arc<dyn FanoutPeerSet>),
+                );
+            }
+            thread::sleep(Duration::from_millis(interval_ms));
+        })
+        .map_err(|e| format!("mfnd serve: spawn peer diversity redial loop: {e}"))?;
     Ok(())
 }
 

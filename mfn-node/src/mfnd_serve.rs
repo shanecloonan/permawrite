@@ -29,8 +29,8 @@ use serde_json::{json, Value};
 
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{
-    spawn_committee_catch_up_loop, spawn_reconnect_saved_peers, CommitteeCatchUpLoop, P2pPeerSet,
-    ReconnectPeersBoot,
+    spawn_committee_catch_up_loop, spawn_peer_diversity_redial_loop, spawn_reconnect_saved_peers,
+    CommitteeCatchUpLoop, P2pPeerSet, PeerDiversityRedialLoop, ReconnectPeersBoot,
 };
 use crate::p2p_gossip::P2pGossipHandler;
 use crate::p2p_reconnect_plan::is_self_peer_addr;
@@ -678,6 +678,13 @@ pub(crate) fn run_serve(
         let min_prefix16 = mfn_net::min_distinct_ipv4_prefix16_from_env()
             .map_err(|e| format!("mfnd serve: {e}"))?;
         println!("mfnd_p2p_diversity_policy=min_distinct_prefix16={min_prefix16}");
+        if min_prefix16 > 0 {
+            match mfn_net::peer_diversity_redial_enabled_from_env() {
+                Ok(true) => println!("mfnd_p2p_diversity_redial_policy=enabled"),
+                Ok(false) => println!("mfnd_p2p_diversity_redial_policy=disabled"),
+                Err(e) => eprintln!("mfnd_p2p_diversity_config_error {e}"),
+            }
+        }
         std::io::stdout()
             .flush()
             .map_err(|e| format!("mfnd serve: stdout flush (p2p diversity): {e}"))?;
@@ -812,6 +819,28 @@ pub(crate) fn run_serve(
                 peer_set: Arc::clone(&fanout),
                 interval_ms: repair_interval,
                 repair_threshold_slots: repair_threshold,
+            })?;
+        }
+        let min_prefix16 = mfn_net::min_distinct_ipv4_prefix16_from_env()
+            .map_err(|e| format!("mfnd serve: {e}"))?;
+        if min_prefix16 > 0
+            && mfn_net::peer_diversity_redial_enabled_from_env()
+                .map_err(|e| format!("mfnd serve: {e}"))?
+        {
+            let diversity_interval = slot_duration_ms.saturating_mul(4).max(60_000);
+            println!("mfnd_p2p_diversity_redial_start interval_ms={diversity_interval}");
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (diversity redial): {e}"))?;
+            spawn_peer_diversity_redial_loop(PeerDiversityRedialLoop {
+                peer_set: Arc::clone(&fanout),
+                genesis_id,
+                tip_cell: Arc::clone(&tip_cell),
+                hid_counter: Arc::clone(&hid_counter),
+                block_sync: Arc::clone(&sync_hook),
+                block_applier: Arc::clone(&applier_hook),
+                local_p2p_listen,
+                interval_ms: diversity_interval,
             })?;
         }
         (

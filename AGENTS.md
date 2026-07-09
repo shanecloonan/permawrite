@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `f76991a` (P32 phase 0). **CI `#29023541155` GREEN** on `f76991a`. **Nightly `#29025637498` in progress** (auto-dispatch).
+**Head:** P31.1 (this push). **CI `#29023541155` + `#29025878010` GREEN** on stack through `e080d73`. **Nightly `#29025637498` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI gate on `f76991a` | **Done** — CI `#29023541155` GREEN | Nightly `#29025637498` |
+| **1** | Nightly `#29025637498` | **Done** — all 3 jobs GREEN | CI on P31.1 push |
 | **2** | Release evidence refresh | **Done** — `f76991a` RC audit **go** | Human sign-off |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
-| **4** | P32 role topology lint | **Done** — `f76991a` | P31 redial + anchor peers |
-| **5** | P32 with lane 4 | **Done** — `f76991a` | P32 reference topology doc |
+| **4** | P31.1 diversity redial | **This push** | F12 anchor peers |
+| **5** | P31.1 with lane 4 | **This push** | P32 reference topology doc |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Nightly `#29025637498` GREEN** - RC core (lane 1): all three jobs on P32 stack (`f76991a`); auto-dispatched after CI `#29023541155`.
 - **Release evidence `f76991a`** - RC ops (lane 2): P32 stack + RC audit dry-run **go** on CI `#29023541155`.
 - **P32 role topology lint** (`f76991a`) - privacy surface (lanes 4+5): `mfnd_role_topology_warning` when validator + public RPC (+ operator) share advertised host.
 - **P31 peer diversity phase 0** (`d3cc1be`) - privacy surface (lanes 4+5): `mfn-net::peer_diversity` /16 bucket metrics; `get_status.p2p` diversity fields; `mfnd_p2p_diversity_warning`.

@@ -562,10 +562,13 @@ buckets. `get_status.p2p` exposes the counts; `mfnd serve` prints
 `mfnd_p2p_diversity_warning` when ≥2 IPv4 session peers share one /16.
 Disable warnings with `MFND_P2P_MIN_DISTINCT_PREFIX16=0`.
 
-**Remaining.** Anchor peer lists on checkpoints (F12), ASN-aware buckets,
-automatic redial when diversity drops.
+**Shipped (phase 1).** When diversity is low, `mfnd serve` runs a background
+sweep that dials durable peers in **new** /16 buckets (`mfnd_p2p_diversity_redial_start`).
+Disable with `MFND_P2P_DIVERSITY_REDIAL=0`.
 
-**Effort:** moderate (phase 0) / high (full P31). **Risk:** low (metrics + warn only).
+**Remaining.** Anchor peer lists on checkpoints (F12), ASN-aware buckets.
+
+**Effort:** moderate (phase 0–1) / high (full P31). **Risk:** low (metrics + bounded redial).
 
 ### P32. Role-separated node topology (`F5:P32`) — **phase 0 shipped**
 
