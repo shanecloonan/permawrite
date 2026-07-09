@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `5e540b3` (B8.3). **CI re-trigger** on this push (prior `#29019649864` cancelled by concurrency).
+**Head:** `1ad2dce` (B8.3 tor-rpc rehearsal + dispatch hardening). **CI in progress** on this stack.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | B8.3 CI gate | **Doing** — re-trigger CI on head | Nightly auto-dispatch on green |
+| **1** | B8.3 CI gate | **Doing** — CI on `1ad2dce` | Nightly on green head |
 | **2** | Release evidence refresh | **Doing** — after B8.3 CI green | Human sign-off |
-| **3** | Nightly participant PASS | **Done** — `#29019689195` participant | Observer + ignored-P2P jobs |
+| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `1ad2dce` plan gate | TL-6 VPS rehearsal |
 | **4** | B8.3 wallet RPC `--tor` | **Done** — `5e540b3` | B8 embedded `arti` (research) |
 | **5** | B8.3 with lane 4 | **Done** — `5e540b3` | P31 eclipse diversity (research) |
 | **6** | B1 endowment range proof track | **Done** | Idle |
@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **B8.3 tor-rpc rehearsal smoke** (`1ad2dce`) - onboarding (lane 3): plan-only `tor-rpc-rehearsal-smoke` in CI/ci-check; dispatch jobs `continue-on-error` on runner starvation.
 - **B8.3 wallet RPC Tor** (`5e540b3`) - privacy surface (lanes 4+5): `mfn-cli --tor` / `MFN_CLI_RPC_TOR` for onion JSON-RPC; quorum RPC peers mirror Tor mode; [`TOR_P2P.md`](docs/TOR_P2P.md) § B8.3.
 - **M4.8 / B1 phase 2e** (`bbe1d9f`) - permanence + privacy (lanes 4+5+6): WASM upload merges live `get_chain_params.endowment`; RPC exposes MFER flags; demo web forwards policy; CI `#28999593529` GREEN.
 - **MFER participant rehearsal** (lane 3) — Windows smoke PASS on `bbe1d9f`; evidence `participant-rehearsal-no-observer-windows-20260709T070005Z.txt`.

@@ -118,6 +118,15 @@ calling `--quorum-rpc`.
 
 WASM upload/submit remains local-only (no RPC client in `mfn-wasm`).
 
+Plan-only rehearsal (CI-safe):
+
+```bash
+bash scripts/public-devnet-v1/tor-rpc-rehearsal-smoke.sh \
+  --rpc YOURSEED.onion:18731
+```
+
+Pass `--live` when Tor SOCKS5 is reachable to run `status` + `tip` against a real onion RPC.
+
 ---
 
 ## Testnet invite

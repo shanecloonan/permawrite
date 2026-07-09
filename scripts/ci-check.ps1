@@ -123,6 +123,11 @@ if ($dandelionWrapperPlan -notmatch "dandelion=true") {
     $dandelionWrapperPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$torRpcPlan = (powershell -NoProfile -File scripts/public-devnet-v1/tor-rpc-rehearsal-smoke.ps1 -Rpc "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:18731") -join "`n"
+if ($torRpcPlan -notmatch "flow=mfn-cli --tor --rpc" -or $torRpcPlan -notmatch "PASS plan-only") {
+    $torRpcPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

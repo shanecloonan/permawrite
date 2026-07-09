@@ -145,10 +145,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **Nightly #63** all three green (`28792429191`; B-06 closed).
 - [x] **Nightly #64** all three green (`28841761235` on `934cc2f`).
+- [x] **B8.3 tor-rpc rehearsal** — plan-only `tor-rpc-rehearsal-smoke` in CI + ci-check (`1ad2dce`).
 
 ### Next
 
-- [ ] Idle — B8 Tor transport (research, lane 5).
+- [ ] TL-6 VPS participant rehearsal (human VPS).
 
 ### Do not start
 

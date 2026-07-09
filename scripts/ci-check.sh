@@ -98,6 +98,11 @@ if [[ "$dandelion_wrapper_plan" != *"dandelion=true"* ]]; then
   printf '%s\n' "$dandelion_wrapper_plan" >&2
   exit 1
 fi
+tor_rpc_plan="$(bash scripts/public-devnet-v1/tor-rpc-rehearsal-smoke.sh --rpc abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:18731)"
+if [[ "$tor_rpc_plan" != *"flow=mfn-cli --tor --rpc"* || "$tor_rpc_plan" != *"PASS plan-only"* ]]; then
+  printf '%s\n' "$tor_rpc_plan" >&2
+  exit 1
+fi
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then
