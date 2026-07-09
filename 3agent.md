@@ -11,7 +11,7 @@
 | **2** RC ops | Release evidence `241f2b4` + RC audit **go** | **Done** — local refresh | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS (no-observer + observer) | **Idle** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B1 + M4.8 complete | **Doing** — B8 phased plan (docs) | B8.0 transport trait |
-| **7** Testnet | `launch-status.v3`; local RC complete | **Doing** — VPS preflight MFER gate | **TL-5 VPS soak** |
+| **7** Testnet | `launch-status.v3`; local RC complete | **Done** — VPS preflight MFER gate | **TL-5 VPS soak** |
 
 ---
 
@@ -19,9 +19,9 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **vps-preflight** | **This push** | Validates `require_endowment_range_proof=1` + `mfn-storage-operator` binary |
-| **launch-go-no-go.ps1** | **This push** | Local MFER rehearsal WARN parity with bash |
-| **B8 plan** | **This push** | Phased B8.0–B8.3 table in `PRIVACY_HARDENING.md` |
+| **vps-preflight** | **Done** — `375f4d0` | Validates `require_endowment_range_proof=1` + `mfn-storage-operator` binary |
+| **launch-go-no-go.ps1** | **Done** — `375f4d0` | Local MFER rehearsal WARN parity with bash |
+| **B8 plan** | **Done** — `375f4d0` | Phased B8.0–B8.3 table in `PRIVACY_HARDENING.md` |
 | **RC evidence** | **Done** — `241f2b4` | `release-evidence-241f2b4` + RC audit **go** (local, gitignored) |
 
 **Lane 7 — Doing:** VPS preflight hardening **Next:** TL-5 execution (human VPS)  

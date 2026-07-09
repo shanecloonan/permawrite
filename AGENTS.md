@@ -95,7 +95,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **4** | B8 Tor transport phased plan | **Done** — docs | B8.0 transport trait |
 | **5** | B8 research alignment | **Doing** — with lane 4 | B8.0 env knobs spec |
 | **6** | B1 endowment range proof track | **Done** — `2958cfa`–`bbe1d9f` | B8.0 with lane 4 |
-| **7** | VPS preflight MFER gate | **Doing** — this push | TL-5 VPS internet soak |
+| **7** | VPS preflight MFER gate | **Done** — `375f4d0` | TL-5 VPS internet soak |
 
 ---
 
