@@ -1,7 +1,11 @@
-//! Optional P2P dial transport (**B8.0** / `F5:P4`).
+//! Optional P2P dial transport (**B8.0**–**B8.2** / `F5:P4`).
 //!
-//! Default is cleartext TCP (`TcpStream::connect_timeout`). Tor dials route via SOCKS5 (**B8.1**).
+//! Default is cleartext TCP (`TcpStream::connect_timeout`). Tor dials route via SOCKS5 (**B8.1**);
+//! `.onion` hidden-service peers use SOCKS5 domain connect (**B8.2**).
 
+use crate::peer_addr::{
+    is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+};
 use std::io::{Error, ErrorKind};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::OnceLock;
@@ -14,6 +18,8 @@ pub const P2P_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 pub const MFND_P2P_TRANSPORT_ENV: &str = "MFND_P2P_TRANSPORT";
 /// Environment variable: SOCKS5 proxy for Tor dials (default `127.0.0.1:9050`).
 pub const MFND_TOR_SOCKS5_ENV: &str = "MFND_TOR_SOCKS5";
+/// Environment variable: operator-published v3 onion P2P address (`HOST.onion:PORT`, optional).
+pub const MFND_P2P_ONION_ENV: &str = "MFND_P2P_ONION";
 /// Default local Tor SOCKS5 listen address.
 pub const DEFAULT_TOR_SOCKS5: &str = "127.0.0.1:9050";
 
@@ -104,11 +110,70 @@ impl P2pTransportConfig {
         Ok(Self { kind, tor_socks5 })
     }
 
+    /// Optional operator-published onion P2P dial address from [`MFND_P2P_ONION_ENV`].
+    pub fn p2p_onion_from_env() -> Result<Option<String>, String> {
+        match std::env::var(MFND_P2P_ONION_ENV) {
+            Ok(raw) => {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() {
+                    return Err(format!("{MFND_P2P_ONION_ENV} must not be empty"));
+                }
+                let (host, _port) = parse_peer_host_port(trimmed)?;
+                if !is_onion_host(&host) {
+                    return Err(format!(
+                        "{MFND_P2P_ONION_ENV}={trimmed:?} must be a .onion HOST:PORT"
+                    ));
+                }
+                Ok(Some(trimmed.to_string()))
+            }
+            Err(std::env::VarError::NotPresent) => Ok(None),
+            Err(std::env::VarError::NotUnicode(_)) => {
+                Err(format!("{MFND_P2P_ONION_ENV} must be valid UTF-8"))
+            }
+        }
+    }
+
     /// Log-friendly label for `mfnd_p2p_transport=…` harness lines.
     pub fn harness_label(&self) -> &'static str {
         match self.kind {
             P2pTransportKind::Tcp => "tcp",
             P2pTransportKind::Tor => "tor",
+        }
+    }
+
+    /// Connect to a peer dial string (`HOST:PORT`, `[IPv6]:PORT`, or `.onion:PORT`).
+    pub fn connect_peer(&self, peer: &str) -> std::io::Result<TcpStream> {
+        let (host, port) =
+            parse_peer_host_port(peer).map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+        match self.kind {
+            P2pTransportKind::Tcp => {
+                if is_onion_host(&host) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!(
+                            "peer {peer:?}: cleartext TCP cannot dial .onion; set {MFND_P2P_TRANSPORT_ENV}=tor"
+                        ),
+                    ));
+                }
+                let addrs = resolve_cleartext_peer(peer)?;
+                tcp_connect_with_timeout(&addrs[..], P2P_CONNECT_TIMEOUT)
+            }
+            P2pTransportKind::Tor => {
+                if is_onion_host(&host) || !is_literal_ip_host(&host) {
+                    crate::socks5::socks5_connect_domain_with_timeout(
+                        &self.tor_socks5,
+                        &host,
+                        port,
+                        P2P_CONNECT_TIMEOUT,
+                    )
+                } else {
+                    crate::socks5::socks5_connect_with_timeout(
+                        &self.tor_socks5,
+                        (host.as_str(), port),
+                        P2P_CONNECT_TIMEOUT,
+                    )
+                }
+            }
         }
     }
 
@@ -171,6 +236,15 @@ mod tests {
         let cfg = P2pTransportConfig::from_env().unwrap();
         assert_eq!(cfg.kind, P2pTransportKind::Tcp);
         assert_eq!(cfg.tor_socks5, DEFAULT_TOR_SOCKS5);
+    }
+
+    #[test]
+    fn tor_transport_rejects_onion_without_tor_mode() {
+        let cfg = P2pTransportConfig::default();
+        let onion = "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:8333";
+        let err = cfg.connect_peer(onion).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidInput);
+        assert!(err.to_string().contains(".onion"));
     }
 
     #[test]

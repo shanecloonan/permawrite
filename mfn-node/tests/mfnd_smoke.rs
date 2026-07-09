@@ -936,8 +936,9 @@ fn mfnd_serve_p2p_hello_handshake_over_tcp() {
         height: tip_h,
         tip_id,
     };
+    let p2p_peer = p2p_addr.to_string();
     mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-        p2p_addr,
+        &p2p_peer,
         &genesis_id,
         &local_tip,
     )
@@ -970,8 +971,9 @@ fn mfnd_serve_p2p_tx_gossip_after_handshake() {
         height: tip_h,
         tip_id,
     };
+    let p2p_peer = p2p_addr.to_string();
     let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-        p2p_addr,
+        &p2p_peer,
         &genesis_id,
         &local_tip,
     )
@@ -1051,8 +1053,9 @@ fn mfnd_serve_p2p_blocks_reply_after_handshake() {
         height: tip_h,
         tip_id,
     };
+    let p2p_peer = p2p_addr.to_string();
     let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-        p2p_addr,
+        &p2p_peer,
         &genesis_id,
         &local_tip,
     )
@@ -1130,8 +1133,9 @@ fn mfnd_serve_p2p_light_follow_reply_after_handshake() {
         height: tip_h,
         tip_id,
     };
+    let p2p_peer = p2p_addr.to_string();
     let (mut sock, _remote) = mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-        p2p_addr,
+        &p2p_peer,
         &genesis_id,
         &local_tip,
     )
@@ -1709,9 +1713,10 @@ fn mfnd_serve_p2p_listener_two_handshakes_increment_hid() {
         height: tip_h,
         tip_id,
     };
+    let p2p_peer = p2p_addr.to_string();
     for _ in 0..2 {
         mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-            p2p_addr,
+            &p2p_peer,
             &genesis_id,
             &local_tip,
         )
@@ -1780,8 +1785,9 @@ fn mfnd_serve_p2p_listener_failed_hello_emits_abort_and_advances_hid() {
         "expected stage=hello, line={abort_line:?}"
     );
 
+    let p2p_peer = p2p_addr.to_string();
     mfn_node::network::tcp_connect_peer_v1_handshake_with_tip_exchange(
-        p2p_addr,
+        &p2p_peer,
         &genesis_id,
         &local_tip,
     )

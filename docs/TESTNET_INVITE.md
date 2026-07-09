@@ -71,7 +71,20 @@ Read [`TESTNET.md`](./TESTNET.md) § Join The Testnet and [`OPERATORS.md`](../sc
 | `peers.json` from operators | Topology leak |
 | RPC URLs on the public internet | Read exposure + abuse (keep loopback or SSH tunnel) |
 
-Bootstrapping uses **P2P `host:port` only** in `seed_nodes`.
+Bootstrapping uses **P2P `host:port` only** in `seed_nodes` (cleartext or optional `.onion:PORT` when the operator publishes a Tor hidden service — see [`TOR_P2P.md`](./TOR_P2P.md)).
+
+### Optional Tor join (B8.2)
+
+When the operator publishes onion seed nodes:
+
+```bash
+export MFND_P2P_TRANSPORT=tor
+export MFND_TOR_SOCKS5=127.0.0.1:9050
+
+mfnd … serve --p2p-dial YOURSEED.onion:8333
+```
+
+Keep RPC on loopback unless tunneled.
 
 ---
 

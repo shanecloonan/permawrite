@@ -11,7 +11,7 @@
 //! checks the advertised genesis id matches the chain id both sides intend to speak.
 
 use std::io::{Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpStream;
 use std::time::Duration;
 
 use crate::transport;
@@ -106,22 +106,22 @@ pub fn hello_v1_handshake<S: Read + Write>(
     Ok(())
 }
 
-/// [`TcpStream::connect`] to `addrs`, then run [`hello_v1_handshake`] on the connected stream.
+/// [`TcpStream::connect`] to `peer`, then run [`hello_v1_handshake`] on the connected stream.
 ///
 /// On success returns the open `TcpStream` positioned after the handshake (no extra bytes
 /// consumed beyond the peer's hello frame).
-pub fn tcp_connect_hello_v1_handshake<A: ToSocketAddrs>(
-    addrs: A,
+pub fn tcp_connect_hello_v1_handshake(
+    peer: &str,
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
-    let mut stream = p2p_connect_with_timeout(addrs)?;
+    let mut stream = p2p_connect_with_timeout(peer)?;
     set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     Ok(stream)
 }
 
-fn p2p_connect_with_timeout<A: ToSocketAddrs>(addrs: A) -> std::io::Result<TcpStream> {
-    transport::active_p2p_transport().connect(addrs)
+fn p2p_connect_with_timeout(peer: &str) -> std::io::Result<TcpStream> {
+    transport::active_p2p_transport().connect_peer(peer)
 }
 
 fn set_handshake_io_timeouts(stream: &TcpStream) {
@@ -202,11 +202,11 @@ pub fn exchange_goodbye_v1_as_listener<S: Read + Write>(
 }
 
 /// [`TcpStream::connect`] + [`hello_v1_handshake`] + [`send_ping_recv_pong`] (full dialer path).
-pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
-    addrs: A,
+pub fn tcp_connect_peer_v1_handshake(
+    peer: &str,
     genesis_id: &[u8; 32],
 ) -> Result<TcpStream, HelloHandshakeError> {
-    let mut stream = p2p_connect_with_timeout(addrs)?;
+    let mut stream = p2p_connect_with_timeout(peer)?;
     set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
@@ -217,12 +217,12 @@ pub fn tcp_connect_peer_v1_handshake<A: ToSocketAddrs>(
 /// then runs [`exchange_goodbye_v1_as_dialer`] (**M2.3.10**).
 ///
 /// Returns the open stream (positioned after the peer's goodbye frame) and the **remote** tip.
-pub fn tcp_connect_peer_v1_handshake_with_tip_exchange<A: ToSocketAddrs>(
-    addrs: A,
+pub fn tcp_connect_peer_v1_handshake_with_tip_exchange(
+    peer: &str,
     genesis_id: &[u8; 32],
     local_tip: &ChainTipV1,
 ) -> Result<(TcpStream, ChainTipV1), HelloHandshakeError> {
-    let mut stream = p2p_connect_with_timeout(addrs)?;
+    let mut stream = p2p_connect_with_timeout(peer)?;
     set_handshake_io_timeouts(&stream);
     hello_v1_handshake(&mut stream, genesis_id)?;
     send_ping_recv_pong(&mut stream)?;
@@ -280,7 +280,8 @@ mod tests {
             hello_v1_handshake(&mut sock, &genesis)
         });
 
-        let client = tcp_connect_hello_v1_handshake(addr, &genesis).unwrap();
+        let peer = addr.to_string();
+        let client = tcp_connect_hello_v1_handshake(&peer, &genesis).unwrap();
         client
             .set_read_timeout(Some(Duration::from_secs(5)))
             .unwrap();
@@ -306,7 +307,8 @@ mod tests {
             recv_ping_send_pong(&mut sock)
         });
 
-        let _ = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
+        let peer = addr.to_string();
+        let _ = tcp_connect_peer_v1_handshake(&peer, &genesis).unwrap();
 
         server.join().unwrap().unwrap();
     }
@@ -341,8 +343,9 @@ mod tests {
             Ok::<(), HelloHandshakeError>(())
         });
 
+        let peer = addr.to_string();
         let (_stream, remote) =
-            tcp_connect_peer_v1_handshake_with_tip_exchange(addr, &genesis, &dial_tip).unwrap();
+            tcp_connect_peer_v1_handshake_with_tip_exchange(&peer, &genesis, &dial_tip).unwrap();
         assert_eq!(remote, expect_remote);
         server.join().unwrap().unwrap();
     }
@@ -362,7 +365,8 @@ mod tests {
             recv_ping_send_pong(&mut sock)
         });
 
-        let sock = tcp_connect_peer_v1_handshake(addr, &genesis).unwrap();
+        let peer = addr.to_string();
+        let sock = tcp_connect_peer_v1_handshake(&peer, &genesis).unwrap();
         assert_eq!(
             sock.read_timeout().expect("read_timeout"),
             Some(P2P_HANDSHAKE_IO_TIMEOUT)

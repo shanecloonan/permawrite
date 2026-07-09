@@ -7,23 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.1 `759f5d1`; CI `#29011529403` GREEN | **Doing** — Nightly auto-dispatch | TL-5 VPS soak support |
-| **2** RC ops | Release evidence `759f5d1` + RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | B8.2 (this push); CI `#29011529403` GREEN on `759f5d1` | **Doing** — ci-check + push | Nightly on B8.2 head |
+| **2** RC ops | Release evidence `759f5d1` + RC audit **go** | **Doing** — refresh on B8.2 push | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | B8.0 + B8.1 complete | **Idle** | B8.2 hidden service |
-| **7** Testnet | VPS execution checklist `759f5d1` | **Done** | **TL-5 VPS soak** |
+| **4+6** Protocol | B8.0–B8.2 shipped | **Idle** | B8.3 wallet RPC `--tor` |
+| **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
 ---
 
-## Session — 2026-07-09 (Lane 7 — VPS execution checklist)
+## Session — 2026-07-09 (B8.2 — onion P2P)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **vps-execution-checklist** | **This push** | Read-only TL-5/TL-6 gate; wraps `launch-status` + ordered commands |
-| **CI `#29011529403`** | **GREEN** | B8.1 rustfmt fix + matrix on `759f5d1` |
+| **B8.2** | **This push** | SOCKS5 domain connect; `MFND_P2P_ONION`; [`TOR_P2P.md`](docs/TOR_P2P.md) |
+| **Nightly `#29013333776`** | **Dispatched** | checkout `759f5d1` (pre-B8.2) |
+| **CI `#29011529403`** | **GREEN** | `759f5d1` fmt + checklist |
 
-**Lane 7 — Doing:** execution checklist **Next:** TL-5 on provisioned VPS  
-**Lane 1 — Doing:** CI watch **Next:** release evidence refresh
+**Lane 4+6 — Done:** B8.2 **Next:** B8.3 wallet submit `--tor`  
+**Lane 7 — Next:** TL-5 VPS soak (blocked on human VPS provision)
 
 ---
 

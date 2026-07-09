@@ -32,6 +32,7 @@ pub mod frame;
 pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
+pub mod peer_addr;
 pub mod production;
 pub mod serve;
 pub mod socks5;
@@ -76,6 +77,9 @@ pub use light_follow::{
     LightFollowRecvError, LightFollowRow, LightFollowV1, GET_LIGHT_FOLLOW_V1_TAG,
     LIGHT_FOLLOW_V1_TAG, MAX_LIGHT_FOLLOW_PER_GET_V1,
 };
+pub use peer_addr::{
+    is_literal_ip_host, is_onion_host, parse_peer_host_port, resolve_cleartext_peer,
+};
 pub use production::{
     push_proposal_v1_to_peer, push_vote_v1_to_peer, read_vote_v1_reply, send_proposal_v1,
     send_vote_v1, ProductionHandler, PushProductionError, PROPOSAL_V1_TAG, VOTE_V1_TAG,
@@ -88,7 +92,7 @@ pub use serve::{
 pub use transport::{
     active_p2p_transport, init_active_p2p_transport, init_active_p2p_transport_from_env,
     tcp_connect_with_timeout, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
-    MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
+    MFND_P2P_ONION_ENV, MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

@@ -1,7 +1,7 @@
-//! Minimal SOCKS5 client for outbound P2P dials (**B8.1** / `F5:P4`).
+//! Minimal SOCKS5 client for outbound P2P dials (**B8.1** / **B8.2** / `F5:P4`).
 //!
-//! Supports anonymous auth (`METHOD 0x00`) and `CONNECT` to IPv4/IPv6 targets.
-//! Domain-name targets are not required for B8.1 (cleartext `host:port` seed nodes).
+//! Supports anonymous auth (`METHOD 0x00`) and `CONNECT` to IPv4/IPv6 targets and
+//! domain names (`.onion` hidden services via Tor SOCKS5, **B8.2**).
 
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
@@ -14,6 +14,99 @@ const ATYP_IPV6: u8 = 4;
 const ATYP_DOMAIN: u8 = 3;
 const AUTH_NONE: u8 = 0;
 const REP_SUCCEEDED: u8 = 0;
+
+/// Connect to `host:port` via SOCKS5 `ATYP_DOMAIN` (required for `.onion` peers).
+pub fn socks5_connect_domain_with_timeout(
+    proxy: &str,
+    host: &str,
+    port: u16,
+    timeout: Duration,
+) -> std::io::Result<TcpStream> {
+    if host.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "socks5 domain connect: host must not be empty",
+        ));
+    }
+    if host.len() > 255 {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "socks5 domain connect: host exceeds 255 bytes",
+        ));
+    }
+
+    let proxy_addrs: Vec<SocketAddr> = proxy.to_socket_addrs()?.collect();
+    if proxy_addrs.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "socks5 proxy address resolved to no socket addresses",
+        ));
+    }
+
+    let mut last_err = None;
+    for proxy_addr in proxy_addrs {
+        match socks5_connect_domain_via_proxy(proxy_addr, host, port, timeout) {
+            Ok(stream) => return Ok(stream),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(last_err.unwrap_or_else(|| {
+        Error::new(
+            ErrorKind::ConnectionRefused,
+            "socks5 domain connect failed for all proxy addresses",
+        )
+    }))
+}
+
+fn socks5_connect_domain_via_proxy(
+    proxy: SocketAddr,
+    host: &str,
+    port: u16,
+    timeout: Duration,
+) -> std::io::Result<TcpStream> {
+    let mut stream = TcpStream::connect_timeout(&proxy, timeout)?;
+    stream.set_read_timeout(Some(timeout))?;
+    stream.set_write_timeout(Some(timeout))?;
+    socks5_handshake(&mut stream)?;
+    socks5_request_connect_domain(&mut stream, host, port)?;
+    Ok(stream)
+}
+
+fn socks5_request_connect_domain(
+    stream: &mut TcpStream,
+    host: &str,
+    port: u16,
+) -> std::io::Result<()> {
+    let host_bytes = host.as_bytes();
+    let mut req = Vec::with_capacity(7 + host_bytes.len());
+    req.push(SOCKS5_VERSION);
+    req.push(CMD_CONNECT);
+    req.push(0);
+    req.push(ATYP_DOMAIN);
+    req.push(host_bytes.len() as u8);
+    req.extend_from_slice(host_bytes);
+    req.push((port >> 8) as u8);
+    req.push((port & 0xff) as u8);
+    stream.write_all(&req)?;
+    stream.flush()?;
+
+    let mut head = [0u8; 4];
+    stream.read_exact(&mut head)?;
+    if head[0] != SOCKS5_VERSION {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("socks5: bad connect reply version {}", head[0]),
+        ));
+    }
+    if head[1] != REP_SUCCEEDED {
+        return Err(Error::new(
+            ErrorKind::ConnectionRefused,
+            format!("socks5: CONNECT failed rep={}", head[1]),
+        ));
+    }
+    socks5_skip_bind_addr(stream, head[3])?;
+    Ok(())
+}
 
 /// Connect to the first resolved `target_addrs` via SOCKS5 `proxy` within `timeout`.
 pub fn socks5_connect_with_timeout<A: ToSocketAddrs>(
@@ -187,6 +280,13 @@ mod tests {
                 let mut rest = [0u8; 16 + 2];
                 client.read_exact(&mut rest).unwrap();
             }
+            ATYP_DOMAIN => {
+                let mut len = [0u8; 1];
+                client.read_exact(&mut len).unwrap();
+                let domain_len = len[0] as usize;
+                let mut rest = vec![0u8; domain_len + 2];
+                client.read_exact(&mut rest).unwrap();
+            }
             _ => panic!("unexpected atyp {atyp}"),
         }
 
@@ -240,6 +340,44 @@ mod tests {
             socks5_connect_with_timeout(&proxy_addr.to_string(), echo_addr, Duration::from_secs(5))
                 .unwrap();
         stream.write_all(b"socks5-ok").unwrap();
+        stream.flush().unwrap();
+
+        proxy_thread.join().unwrap();
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn socks5_connect_domain_round_trip() {
+        use std::sync::mpsc;
+
+        let echo = TcpListener::bind("127.0.0.1:0").unwrap();
+        let echo_addr = echo.local_addr().unwrap();
+        let proxy = TcpListener::bind("127.0.0.1:0").unwrap();
+        let proxy_addr = proxy.local_addr().unwrap();
+
+        let server = thread::spawn(move || {
+            let (mut sock, _) = echo.accept().unwrap();
+            sock.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+            let mut buf = [0u8; 9];
+            sock.read_exact(&mut buf).unwrap();
+            assert_eq!(&buf, b"domain-ok");
+        });
+
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let proxy_thread = thread::spawn(move || {
+            ready_tx.send(()).ok();
+            run_minimal_socks5_proxy(proxy, echo_addr);
+        });
+        ready_rx.recv().unwrap();
+
+        let mut stream = socks5_connect_domain_with_timeout(
+            &proxy_addr.to_string(),
+            "example.onion",
+            echo_addr.port(),
+            Duration::from_secs(5),
+        )
+        .unwrap();
+        stream.write_all(b"domain-ok").unwrap();
         stream.flush().unwrap();
 
         proxy_thread.join().unwrap();

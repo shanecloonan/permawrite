@@ -396,7 +396,7 @@ RPC submission, configured at `mfnd` startup. Opt-in, no consensus impact.
 | --- | --- | --- | --- |
 | **B8.0** | Transport trait + env knobs | **`mfn-net::transport`** with `P2pTransportConfig`, `Tcp` default + `Tor` stub; `MFND_P2P_TRANSPORT`, `MFND_TOR_SOCKS5`; `mfnd_p2p_transport=…` harness line | **Shipped** — default `tcp`; CI unchanged |
 | **B8.1** | Outbound P2P over SOCKS5 | **`mfn-net::socks5`** CONNECT client; Tor dials via `MFND_TOR_SOCKS5` | **Shipped** — unit test with mock proxy |
-| **B8.2** | Inbound hidden service | `arti` listener for P2P accept on VPS operators; document onion v3 in [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) as optional | VPS rehearsal with Tor only |
+| **B8.2** | Inbound hidden service + onion dials | SOCKS5 `ATYP_DOMAIN` connect; `MFND_P2P_ONION` harness; [`TOR_P2P.md`](./TOR_P2P.md) + torrc example; optional `.onion` in [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | **Shipped** (system Tor HS path; embedded `arti` listener deferred) |
 | **B8.3** | Wallet RPC submit path | `mfn-cli` / WASM optional `--tor` for `submit_tx` to loopback mfnd or remote RPC | Participant rehearsal `--tor` smoke |
 
 **Non-goals (testnet):** consensus wire changes, mandatory Tor, or blocking

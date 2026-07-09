@@ -640,6 +640,14 @@ pub(crate) fn run_serve(
                 transport.tor_socks5
             );
         }
+        if let Some(onion) = crate::network::P2pTransportConfig::p2p_onion_from_env()
+            .map_err(|e| format!("mfnd serve: {e}"))?
+        {
+            println!("mfnd_p2p_onion={onion}");
+            std::io::stdout()
+                .flush()
+                .map_err(|e| format!("mfnd serve: stdout flush (p2p onion): {e}"))?;
+        }
     }
     let (
         p2p_tip_cell,

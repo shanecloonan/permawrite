@@ -7,7 +7,6 @@ use mfn_net::{
 };
 use mfn_rpc::light_follow_v1_to_json;
 use serde_json::{json, Value};
-use std::net::ToSocketAddrs;
 use std::thread;
 
 /// Maximum P2P peers per quorum fetch (DoS cap, **M4.16**).
@@ -124,33 +123,20 @@ fn fetch_light_follow_v1(
     start_height: u32,
     count: u32,
 ) -> Result<LightFollowV1, String> {
-    let addrs = peer
-        .to_socket_addrs()
-        .map_err(|e| format!("peer address `{peer}`: {e}"))?;
-    let mut last_err = String::from("no addresses resolved for peer");
-    for addr in addrs {
-        match tcp_connect_peer_v1_handshake_with_tip_exchange(addr, genesis_id, local_tip) {
-            Ok((mut stream, _remote_tip)) => {
-                let req = GetLightFollowV1 {
-                    start_height,
-                    count,
-                };
-                if let Err(e) = send_get_light_follow_v1(&mut stream, req) {
-                    last_err = format!("send GetLightFollowV1 to {addr}: {e}");
-                    continue;
-                }
-                let follow = recv_light_follow_v1(&mut stream)
-                    .map_err(|e| format!("recv LightFollowV1 from {addr}: {e}"))?;
-                validate_light_follow_response(&follow, start_height, count)
-                    .map_err(|e| format!("invalid LightFollowV1 from {addr}: {e}"))?;
-                return Ok(follow);
-            }
-            Err(e) => {
-                last_err = format!("p2p handshake with {addr}: {e}");
-            }
-        }
-    }
-    Err(last_err)
+    let (mut stream, _remote_tip) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer, genesis_id, local_tip)
+            .map_err(|e| format!("p2p handshake with {peer}: {e}"))?;
+    let req = GetLightFollowV1 {
+        start_height,
+        count,
+    };
+    send_get_light_follow_v1(&mut stream, req)
+        .map_err(|e| format!("send GetLightFollowV1 to {peer}: {e}"))?;
+    let follow = recv_light_follow_v1(&mut stream)
+        .map_err(|e| format!("recv LightFollowV1 from {peer}: {e}"))?;
+    validate_light_follow_response(&follow, start_height, count)
+        .map_err(|e| format!("invalid LightFollowV1 from {peer}: {e}"))?;
+    Ok(follow)
 }
 
 fn validate_light_follow_response(
