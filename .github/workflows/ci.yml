@@ -71,6 +71,9 @@ jobs:
             exit 1
           fi
           [[ "$smoke_plan" == *"evidence_dir="*"participant-rehearsal-smoke/evidence"* ]] || { echo "$smoke_plan"; exit 1; }
+          tor_rpc_plan="$(bash scripts/public-devnet-v1/tor-rpc-rehearsal-smoke.sh --rpc abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:18731)"
+          [[ "$tor_rpc_plan" == *"flow=mfn-cli --tor --rpc"* ]] || { echo "$tor_rpc_plan"; exit 1; }
+          [[ "$tor_rpc_plan" == *"PASS plan-only"* ]] || { echo "$tor_rpc_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -521,6 +524,11 @@ jobs:
           $smokePlan = (powershell -NoProfile -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly -Rpc 127.0.0.1:18731) -join "`n"
           if ($smokePlan -notmatch "flow=stop stale mesh -> start-all -> restore/check test faucet -> wait faucet balance -> participant-rehearsal -> stop mesh" -or $smokePlan -notmatch "custom faucet wallets are never overwritten" -or $smokePlan -notmatch "evidence_dir=.*participant-rehearsal-smoke.*evidence") {
             $smokePlan
+            exit 1
+          }
+          $torRpcPlan = (powershell -NoProfile -File scripts/public-devnet-v1/tor-rpc-rehearsal-smoke.ps1 -Rpc "abcdefghijklmnopqrstuvwxyz234567abcdefghijklmnopqrstuv.onion:18731") -join "`n"
+          if ($torRpcPlan -notmatch "flow=mfn-cli --tor --rpc" -or $torRpcPlan -notmatch "PASS plan-only") {
+            $torRpcPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
@@ -1186,6 +1194,8 @@ jobs:
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
       && !contains(github.event.head_commit.message, '[skip ci]')
+    # Runner starvation on dispatch must not fail CI when the matrix is green.
+    continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -1213,6 +1223,7 @@ jobs:
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
       && !contains(github.event.head_commit.message, '[skip ci]')
+    continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
       actions: write

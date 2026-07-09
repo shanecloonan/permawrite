@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.2 CI `#29016552175` GREEN on `d1316f7` | **Doing** — B8.3 push + CI gate | Nightly on B8.3 head |
-| **2** RC ops | Release evidence `ad9d75e` + RC audit **go** | **Doing** — refresh after B8.3 | Human sign-off |
-| **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | B8.2 `b845d22` shipped | **This push** — B8.3 wallet RPC `--tor` | B8 embedded `arti` (research) |
+| **1** RC core | B8.3 `5e540b3` shipped | **Doing** — CI gate + tor-rpc-rehearsal | Nightly on green head |
+| **2** RC ops | Release evidence `ad9d75e` | **Doing** — refresh after CI green | Human sign-off |
+| **3** Onboarding | Nightly participant `#29019689195` PASS | **This push** — tor-rpc-rehearsal-smoke | TL-6 VPS rehearsal |
+| **4+6** Protocol | B8.3 `5e540b3` shipped | **Done** | B8 embedded `arti` (research) |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
 ---
@@ -19,7 +19,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B8.3** | **This push** | `mfn-cli --tor` / `MFN_CLI_RPC_TOR`; quorum RPC peers mirror Tor mode; cleartext rejects `.onion` without `--tor`; [`TOR_P2P.md`](docs/TOR_P2P.md) § B8.3 |
+| **B8.3** | **Done** — `5e540b3` | `mfn-cli --tor` / `MFN_CLI_RPC_TOR`; quorum RPC peers mirror Tor mode; cleartext rejects `.onion` without `--tor`; [`TOR_P2P.md`](docs/TOR_P2P.md) § B8.3 |
 
 **Lane 4+5 — Done:** B8.3 **Next:** embedded `arti` listener (research)
 
@@ -29,7 +29,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B8.2** | **Done** — `b845d22` | SOCKS5 domain connect; `MFND_P2P_ONION`; CI `#29016552175` GREEN |
+| **B8.2** | **Done** — `b845d22` | SOCKS5 domain connect; `MFND_P2P_ONION`; CI `#29016552175` matrix green (workflow cancelled on dispatch runner starvation) |
 | **Nightly `#29013333776`** | **Dispatched** | checkout `759f5d1` (pre-B8.2) |
 | **CI `#29011529403`** | **GREEN** | `759f5d1` fmt + checklist |
 
