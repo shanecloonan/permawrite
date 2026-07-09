@@ -245,7 +245,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **B13 tail** (`96fe808`–`934cc2f`) — spora revert, authorship bucket parity, WASM + GHA timing.
 - [x] **M2.5.64** (`c5e69f6` + `c7420a2`) — Linux soak pre-build bootstrap (`mfnd` + `mfn-cli` for tip polls).
 - [x] **B7 Dandelion++** (`1cc9ead`) — opt-in `--dandelion` (default off); rehearsal PASS evidence `participant-rehearsal-no-observer-dandelion-windows-20260707T171612Z.txt` on B-11 MFEO genesis.
-- [x] **B-05 Linux soak** — PASS soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260707T083949Z.txt` (`234f0a8`).
+- [x] **B-05 Linux soak** — PASS soak `#29040052424` on `3b19e7c` (max_height=48, 8 iterations); evidence `soak-restart-linux-30s-slot-20260709T185101Z.txt` (`cf99ae5`).
 - [x] **Nightly #28889931523** — all three green on B-11/B7 stack (`b1072e3`).
 - [x] **Nightly #28968584904** — all three green on M2.5.66 mesh-fix stack (`0ede433`; closes `start_mesh_fail`).
 - [x] **Nightly #28970179853** — all three green on B4 repair stack (`89f3498`).
@@ -351,7 +351,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **M2.4.89** — CI Linux test hardening (`--test-threads=2`, one retry, GHA stdout timeouts 120s/150s).
 - [x] Linux `soak.sh` success criteria, soak lock, and archive parity with PowerShell (**M2.4.73**).
 - [x] RC audit dry-run with M2.4.70 soak evidence archived (`release-rc-audit-dry-run.ps1`, decision=go) (**M2.4.73**).
-- [x] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — PASS `28851202993`, max_height=48, `234f0a8`).
+- [x] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — PASS `#29040052424`, max_height=48, `cf99ae5`).
 
 ## Cross-Agent Notes
 

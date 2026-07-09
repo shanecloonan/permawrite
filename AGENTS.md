@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `f6bc358` (release evidence P32). **CI `#29042540983` GREEN**. **Nightly `#29042017113` GREEN**.
+**Head:** `f6bc358` (release evidence P32). **CI `#29042540983` GREEN**. **Nightly `#29042017113` GREEN**. **Linux soak `#29040052424` PASS** (`cf99ae5`).
 
 ## Current board
 
@@ -105,7 +105,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | B-02 | M5.33 - proptest: mixed CLSAG + storage upload same block treasury identity | 4 | Done - extends M5.5 |
 | B-03 | Promote one ignored emission sim with CLSAG fee mix to CI | 6 | Done - M5.34/M5.35 (`45a118b`, `9537c7b`) |
-| B-05 | Linux 30s soak evidence | 2 + 6 | **Done** - soak `28851202993` PASS max_height=48 (`8ccda5d`) |
+| B-05 | Linux 30s soak evidence | 2 + 6 | **Done** - soak `#29040052424` PASS max_height=48 (`cf99ae5`) |
 | B-06 | Nightly #63 green (all three jobs) | 1 | **Done** - run `28792429191` on `85e5870` stack |
 | B-07 | God-file splits (`dispatch.rs`, `cli.rs`, `p2p_fanout.rs`) | 1 + 4 | **Done** - M2.5.46 `p2p_fanout`; M2.5.52–53 dispatch + `cli/parse.rs` |
 | B-08 | P2P production `unwrap`/`expect` audit (`mfn-net`, `mfn-node`) | 4 | **Done** - M2.5.47–48 + M2.5.55 light-chain test |
@@ -129,7 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **P32 reference topology** (`85f3512`) - privacy surface (lanes 4+5): `REFERENCE_TOPOLOGY.md` + plan-only rehearsal in CI; CI `#29040315598` GREEN; Nightly `#29040048884` GREEN; release evidence RC audit **go**.
+- **B-05 Linux soak refresh** (`cf99ae5`) - RC core (lanes 1+2): soak `#29040052424` PASS max_height=48 on F12/wasm stack (`3b19e7c`); evidence `soak-restart-linux-30s-slot-20260709T185101Z.txt`.
+- **P32 reference topology** (`85f3512`) - privacy surface (lanes 4+5): `REFERENCE_TOPOLOGY.md` + plan-only rehearsal in CI; CI `#29040315598` GREEN; Nightly `#29040048884` GREEN; release evidence RC audit **go** (`f6bc358`).
 - **F12 checkpoint anchor peers** (`0cf73c6`) - privacy surface (lanes 4+5): `anchor_peers` in trusted summary + `--p2p-anchor-summary`; CI `#29036301962` GREEN after wasm-pack fix (`3b19e7c`).
 - **Nightly `#29042017113` GREEN** - RC core (lane 1): all three jobs on P32.1 stack (`85f3512`).
 - **P32 reference topology doc** (`85f3512`) - privacy surface (lanes 4+5): [`REFERENCE_TOPOLOGY.md`](docs/REFERENCE_TOPOLOGY.md) + plan-only rehearsal smoke in ci-check.
