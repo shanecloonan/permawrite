@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** P32 phase 0 (this push). **CI `#29021711417` in progress** on `d3cc1be`.
+**Head:** `f76991a` (P32 phase 0). **CI `#29023541155` GREEN** on `f76991a`. **Nightly `#29025637498` in progress** (auto-dispatch).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | P31 + CI gate | **Doing** — this push + CI `#29020939385` | Release evidence + Nightly |
-| **2** | Release evidence refresh | **Doing** — after B8.3 CI green | Human sign-off |
+| **1** | CI gate on `f76991a` | **Done** — CI `#29023541155` GREEN | Nightly `#29025637498` |
+| **2** | Release evidence refresh | **Done** — `f76991a` RC audit **go** | Human sign-off |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` plan gate | TL-6 VPS rehearsal |
-| **4** | P32 role topology lint | **This push** | P31 redial + anchor peers |
-| **5** | P32 with lane 4 | **This push** | P32 reference topology doc |
+| **4** | P32 role topology lint | **Done** — `f76991a` | P31 redial + anchor peers |
+| **5** | P32 with lane 4 | **Done** — `f76991a` | P32 reference topology doc |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **P32 role topology lint** (this push) - privacy surface (lanes 4+5): `mfnd_role_topology_warning` when validator + public RPC (+ operator) share advertised host.
+- **P32 role topology lint** (`f76991a`) - privacy surface (lanes 4+5): `mfnd_role_topology_warning` when validator + public RPC (+ operator) share advertised host.
 - **P31 peer diversity phase 0** (`d3cc1be`) - privacy surface (lanes 4+5): `mfn-net::peer_diversity` /16 bucket metrics; `get_status.p2p` diversity fields; `mfnd_p2p_diversity_warning`.
 - **B8.3 tor-rpc rehearsal smoke** (`1ad2dce`) - onboarding (lane 3): plan-only `tor-rpc-rehearsal-smoke` in CI/ci-check; dispatch jobs `continue-on-error` on runner starvation.
 - **B8.3 wallet RPC Tor** (`5e540b3`) - privacy surface (lanes 4+5): `mfn-cli --tor` / `MFN_CLI_RPC_TOR` for onion JSON-RPC; quorum RPC peers mirror Tor mode; [`TOR_P2P.md`](docs/TOR_P2P.md) § B8.3.

@@ -7,15 +7,31 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.3 tor-rpc-rehearsal `5b863b3` | **Doing** — CI `#29020479475` | Nightly on green head |
-| **2** RC ops | Release evidence `ad9d75e` | **Doing** — refresh on `5b863b3` | Human sign-off |
-| **3** Onboarding | tor-rpc-rehearsal-smoke shipped | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | B8.3 `5e540b3` shipped | **Done** | B8 embedded `arti` (research) |
+| **1** RC core | CI `#29023541155` GREEN on `f76991a` | **Doing** — Nightly `#29025637498` | P31 redial phase 1 |
+| **2** RC ops | Release evidence `f76991a` + RC audit **go** | **Done** | Human sign-off packet |
+| **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
+| **4+6** Protocol | P32 phase 0 `f76991a` | **Done** | P31 redial + anchor peers |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
 ---
 
-## Session — 2026-07-09 (B8.3 — wallet RPC Tor)
+## Session — 2026-07-09 (P32 — role topology lint phase 0)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 0** | **Done** — `f76991a` | `role_topology.rs`; `mfnd_role_topology_warning` when validator + public RPC (+ operator) colocate; loopback RPC exempt |
+
+**Lane 4+5 — Doing:** P32 phase 0 **Next:** reference topology doc
+
+---
+
+## Session — 2026-07-09 (P31 — peer diversity phase 0)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P31 phase 0** | **Done** — `d3cc1be` | `mfn-net::peer_diversity`; `get_status.p2p` diversity fields; `mfnd_p2p_diversity_warning`; env `MFND_P2P_MIN_DISTINCT_PREFIX16` |
+
+**Lane 4+5 — Done:** P31 phase 0 **Next:** automatic redial on low diversity
 
 | Unit | Status | Notes |
 | --- | --- | --- |
