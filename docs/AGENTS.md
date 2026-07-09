@@ -227,7 +227,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2c** — wallet builds `MFER` on upload (`ba53a15`).
 - [x] **B1 phase 2c tail** — reject forged `MFER` consensus test (`reject_upload_with_forged_mfer_when_endowment_range_proof_required`).
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
-- [ ] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (this push).
+- [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
 
 ### Handoff to lane 3
 
@@ -328,7 +328,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2c** — wallet builds `MFER` on upload (`ba53a15`).
 - [x] **B1 phase 2c tail** — reject forged `MFER` consensus test (with lane 4).
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
-- [ ] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (this push).
+- [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
 
 ### Do not start
 

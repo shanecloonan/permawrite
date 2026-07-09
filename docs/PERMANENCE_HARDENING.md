@@ -489,7 +489,7 @@ Ordered roughly by permanence impact per unit risk. Items marked
 
 ### B1. Range-proof endowment binding (B-11 phase 2) — **consensus**
 
-**Status:** **shipped** (phases 2a–2d on `2958cfa`; phase 2e WASM parity in flight). Public devnet uses `require_endowment_range_proof: 1` with privacy-preserving `MFER` surplus proofs (same `genesis_id`). Phase 1 (`MFEO` opening reveal) remains available for other networks — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187). Design: [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
+**Status:** **shipped** (phases 2a–2e on `bbe1d9f`). Public devnet uses `require_endowment_range_proof: 1` with privacy-preserving `MFER` surplus proofs (same `genesis_id`). Phase 1 (`MFEO` opening reveal) remains available for other networks — see [§A6](#a6-pedersen-endowment-opening-binding-b-11-phase-1-commits-3511346--9f0a0aa--0fee187). Design: [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md).
 
 ### B2. Merkle-path-carrying chunk gossip — **SHIPPED** (see [§A7](#a7-merkle-path-carrying-chunk-gossip-b2-this-commit))
 

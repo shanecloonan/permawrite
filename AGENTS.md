@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `1ad2dce` (B8.3 tor-rpc rehearsal + dispatch hardening). **CI in progress** on this stack.
+**Head:** `5b863b3` (B8.3 tor-rpc rehearsal + ci-check). **CI `#29020479475` queued**.
 
 ## Current board
 

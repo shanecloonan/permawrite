@@ -7,9 +7,9 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | B8.3 `5e540b3` shipped | **Doing** — CI gate + tor-rpc-rehearsal | Nightly on green head |
-| **2** RC ops | Release evidence `ad9d75e` | **Doing** — refresh after CI green | Human sign-off |
-| **3** Onboarding | Nightly participant `#29019689195` PASS | **This push** — tor-rpc-rehearsal-smoke | TL-6 VPS rehearsal |
+| **1** RC core | B8.3 tor-rpc-rehearsal `5b863b3` | **Doing** — CI `#29020479475` | Nightly on green head |
+| **2** RC ops | Release evidence `ad9d75e` | **Doing** — refresh on `5b863b3` | Human sign-off |
+| **3** Onboarding | tor-rpc-rehearsal-smoke shipped | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | B8.3 `5e540b3` shipped | **Done** | B8 embedded `arti` (research) |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
 
