@@ -702,6 +702,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_wallet_light_scan_checkpoint_log() {
+        let p = parse_args(&[
+            "wallet".into(),
+            "light-scan".into(),
+            "--checkpoint-log".into(),
+            "checkpoints.jsonl".into(),
+        ])
+        .unwrap();
+        match p.cmd {
+            Cmd::Wallet {
+                sub: WalletSub::LightScan(params),
+                ..
+            } => {
+                assert_eq!(
+                    params.checkpoint_log_path,
+                    Some(std::path::PathBuf::from("checkpoints.jsonl"))
+                );
+            }
+            _ => panic!("expected wallet light-scan"),
+        }
+    }
+
+    #[test]
     fn parse_claims_for_subcommand() {
         let p = parse_args(&["claims".into(), "for".into(), "aa".repeat(32)]).unwrap();
         match p.cmd {

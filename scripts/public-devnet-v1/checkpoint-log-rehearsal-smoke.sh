@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F12 phase 1: plan-only signed checkpoint log rehearsal (bash parity).
+# F12 phase 1–2: plan-only signed checkpoint log rehearsal (bash parity).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,6 +33,8 @@ for needle in \
   "checkpoint-log verify" \
   "MFN:checkpoint-log-signer:v1" \
   "MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX" \
+  "--checkpoint-log" \
+  "checkpoint_log=matched" \
   ; do
   if ! grep -qF "$needle" "$DOC"; then
     echo "checkpoint-log-rehearsal-smoke: CHECKPOINT_LOG.md missing: $needle" >&2
@@ -42,8 +44,9 @@ done
 
 echo "checkpoint-log-rehearsal-smoke: plan"
 echo "  flow=export-trusted-summary -> checkpoint-log sign -> checkpoint-log verify"
+echo "  light_scan=wallet light-scan --checkpoint-log FILE"
 echo "  docs=docs/CHECKPOINT_LOG.md"
-echo "  cli=mfn-cli checkpoint-log sign|verify"
+echo "  cli=mfn-cli checkpoint-log sign|verify; wallet light-scan --checkpoint-log"
 echo "  live_rehearsal=deferred (publish log at TL-8 invite)"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

@@ -15,7 +15,9 @@ use mfn_crypto::schnorr::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::light_subjectivity::{load_trusted_summary_file, summary_from_checkpoint_hex};
+use crate::light_subjectivity::{
+    format_summary_diff, load_trusted_summary_file, summaries_equal, summary_from_checkpoint_hex,
+};
 use crate::rpc::LightCheckpointSummary;
 use crate::wallet_cmd::WalletCmdError;
 
@@ -87,6 +89,15 @@ pub struct CheckpointLogVerifyReport {
     pub max_tip_height: u32,
     /// Distinct signer ids observed.
     pub signer_ids: Vec<String>,
+}
+
+/// Result of cross-checking a live summary against a signed checkpoint log (**F12** phase 2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckpointLogCrossCheckReport {
+    /// Signer labels whose entries match the live summary at `tip_height`.
+    pub matching_signer_ids: Vec<String>,
+    /// Valid log entries at the live summary's `tip_height`.
+    pub entries_at_height: usize,
 }
 
 /// Derive a deterministic maintainer signing key from a 32-byte seed.
@@ -217,6 +228,83 @@ pub fn checkpoint_log_verify(path: &Path) -> Result<CheckpointLogVerifyReport, W
     })
 }
 
+/// Cross-check a live weak-subjectivity summary against a signed checkpoint log.
+///
+/// Requires at least one cryptographically valid entry whose weak-subjectivity
+/// fields match `summary`. Rejects when entries exist at the same `tip_height`
+/// but none agree (social consensus disagreement).
+pub fn cross_check_summary_against_checkpoint_log(
+    summary: &LightCheckpointSummary,
+    path: &Path,
+) -> Result<CheckpointLogCrossCheckReport, WalletCmdError> {
+    let file = File::open(path)
+        .map_err(|e| WalletCmdError::Usage(format!("read {}: {e}", path.display())))?;
+    let reader = BufReader::new(file);
+    let mut matching_signer_ids = Vec::new();
+    let mut entries_at_height = 0usize;
+    let mut first_disagreement: Option<(String, LightCheckpointSummary)> = None;
+    let mut valid_entries = 0usize;
+
+    for (line_no, line) in reader.lines().enumerate() {
+        let line = line.map_err(|e| {
+            WalletCmdError::Usage(format!("read {} line {}: {e}", path.display(), line_no + 1))
+        })?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let entry: CheckpointLogEntry = serde_json::from_str(trimmed).map_err(|e| {
+            WalletCmdError::Usage(format!(
+                "parse {} line {}: {e}",
+                path.display(),
+                line_no + 1
+            ))
+        })?;
+        entry.verify().map_err(|e| {
+            WalletCmdError::Usage(format!("{} line {}: {e}", path.display(), line_no + 1))
+        })?;
+        valid_entries = valid_entries.saturating_add(1);
+
+        if entry.summary.tip_height != summary.tip_height {
+            continue;
+        }
+        entries_at_height = entries_at_height.saturating_add(1);
+        if summaries_equal(&entry.summary, summary) {
+            if !matching_signer_ids.iter().any(|s| s == &entry.signer_id) {
+                matching_signer_ids.push(entry.signer_id.clone());
+            }
+        } else if first_disagreement.is_none() {
+            first_disagreement = Some((entry.signer_id.clone(), entry.summary));
+        }
+    }
+
+    if valid_entries == 0 {
+        return Err(WalletCmdError::Usage(format!(
+            "checkpoint log {} has no entries",
+            path.display()
+        )));
+    }
+    if !matching_signer_ids.is_empty() {
+        return Ok(CheckpointLogCrossCheckReport {
+            matching_signer_ids,
+            entries_at_height,
+        });
+    }
+    if entries_at_height > 0 {
+        let (signer_id, disagreeing) = first_disagreement.expect("entries_at_height > 0");
+        let diff = format_summary_diff("live sync", summary, &signer_id, &disagreeing);
+        return Err(WalletCmdError::Usage(format!(
+            "checkpoint log disagrees with live sync at tip_height {}:\n{diff}",
+            summary.tip_height
+        )));
+    }
+    Err(WalletCmdError::Usage(format!(
+        "checkpoint log {} has no attestation at tip_height {}",
+        path.display(),
+        summary.tip_height
+    )))
+}
+
 /// Append a verified entry to a JSONL log (creates file if missing).
 pub fn append_checkpoint_log_entry(path: &Path, entry: &CheckpointLogEntry) -> Result<(), String> {
     entry.verify()?;
@@ -305,6 +393,62 @@ mod tests {
         let sig = schnorr_sign_with(&msg, &kp, &mut rand_core::OsRng);
         entry.signature_hex = hex::encode(encode_schnorr_signature(&sig));
         entry.verify().expect("verify");
+    }
+
+    fn signed_entry(
+        seed: [u8; 32],
+        signer_id: &str,
+        summary: LightCheckpointSummary,
+    ) -> CheckpointLogEntry {
+        let kp = signer_keypair_from_seed(&seed);
+        let mut entry = CheckpointLogEntry {
+            version: CHECKPOINT_LOG_VERSION,
+            signer_id: signer_id.into(),
+            published_at: "0Z".into(),
+            summary,
+            checkpoint_hex: None,
+            signer_pk_hex: hex::encode(kp.pub_key.compress().to_bytes()),
+            signature_hex: String::new(),
+        };
+        let msg = entry.signing_bytes().expect("signing bytes");
+        let sig = schnorr_sign_with(&msg, &kp, &mut rand_core::OsRng);
+        entry.signature_hex = hex::encode(encode_schnorr_signature(&sig));
+        entry
+    }
+
+    #[test]
+    fn cross_check_accepts_matching_entry() {
+        let summary = sample_summary();
+        let entry = signed_entry([9u8; 32], "maintainer-a", summary.clone());
+        let dir =
+            std::env::temp_dir().join(format!("mfn-checkpoint-log-cross-{}", std::process::id()));
+        let log_path = dir.join("checkpoints.jsonl");
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        append_checkpoint_log_entry(&log_path, &entry).expect("append");
+        let report =
+            cross_check_summary_against_checkpoint_log(&summary, &log_path).expect("cross-check");
+        assert_eq!(report.matching_signer_ids, vec!["maintainer-a".to_string()]);
+        assert_eq!(report.entries_at_height, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cross_check_rejects_disagreement_at_height() {
+        let summary = sample_summary();
+        let mut disagree = summary.clone();
+        disagree.tip_block_id = "ee".repeat(32);
+        let entry = signed_entry([10u8; 32], "maintainer-b", disagree);
+        let dir = std::env::temp_dir().join(format!(
+            "mfn-checkpoint-log-disagree-{}",
+            std::process::id()
+        ));
+        let log_path = dir.join("checkpoints.jsonl");
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        append_checkpoint_log_entry(&log_path, &entry).expect("append");
+        let err = cross_check_summary_against_checkpoint_log(&summary, &log_path)
+            .expect_err("disagreement");
+        assert!(err.to_string().contains("disagrees with live sync"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

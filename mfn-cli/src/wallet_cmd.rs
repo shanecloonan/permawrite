@@ -954,6 +954,9 @@ pub(crate) struct SyncStats {
     pub(crate) weak_subjectivity_checked: bool,
     /// Trusted summary was written or refreshed (**M3.13**).
     pub(crate) weak_subjectivity_pinned: bool,
+    /// Signed checkpoint log cross-check after sync (**F12** phase 2).
+    pub(crate) checkpoint_log_cross_check:
+        Option<crate::checkpoint_log::CheckpointLogCrossCheckReport>,
 }
 
 pub(crate) fn persist_wallet(
@@ -1006,6 +1009,7 @@ fn sync_wallet_from_node(
         quorum_batches: 1,
         weak_subjectivity_checked: false,
         weak_subjectivity_pinned: false,
+        checkpoint_log_cross_check: None,
     })
 }
 
@@ -1353,6 +1357,7 @@ mod tests {
             quorum_batches: 1,
             weak_subjectivity_checked: false,
             weak_subjectivity_pinned: false,
+            checkpoint_log_cross_check: None,
         };
 
         let value = scan_summary_json(&path, &file, &stats, Some(9), 123, 2);
@@ -1396,6 +1401,7 @@ mod tests {
             quorum_batches: 0,
             weak_subjectivity_checked: false,
             weak_subjectivity_pinned: false,
+            checkpoint_log_cross_check: None,
         };
         let artifact = Ok(UploadArtifactSaveMeta {
             dir: artifact_dir.clone(),
@@ -1463,6 +1469,7 @@ mod tests {
             quorum_batches: 0,
             weak_subjectivity_checked: false,
             weak_subjectivity_pinned: false,
+            checkpoint_log_cross_check: None,
         };
         let outcome = SendOutcome {
             stats: &stats,
@@ -1512,6 +1519,7 @@ mod tests {
             quorum_batches: 0,
             weak_subjectivity_checked: false,
             weak_subjectivity_pinned: false,
+            checkpoint_log_cross_check: None,
         };
         let outcome = ClaimOutcome {
             stats: &stats,

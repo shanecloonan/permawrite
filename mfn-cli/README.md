@@ -115,7 +115,7 @@ mfn-cli --rpc 127.0.0.1:18731 wallet light-scan \
 
 The primary `--rpc` node must expose P2P fetch (`mfnd serve --p2p-listen`) when using `--quorum-p2p`.
 
-Weak-subjectivity (**M3.13** / **M3.18**): pin `get_light_snapshot.summary` fields in `wallet.json` (`--pin-trusted-summary`), verify an out-of-band file (`--trusted-summary FILE`), import-and-pin in one step (`light-scan --import-trusted-summary FILE`), or reset with `--reset-trusted-summary`. After each sync the pinned summary is refreshed from the evolved checkpoint (same as the browser demo).
+Weak-subjectivity (**M3.13** / **M3.18**): pin `get_light_snapshot.summary` fields in `wallet.json` (`--pin-trusted-summary`), verify an out-of-band file (`--trusted-summary FILE`), import-and-pin in one step (`light-scan --import-trusted-summary FILE`), cross-check against a signed community log (`--checkpoint-log FILE`, **F12** phase 2), or reset with `--reset-trusted-summary`. After each sync the pinned summary is refreshed from the evolved checkpoint (same as the browser demo).
 
 Cap scan depth with `--max-height N` (**M3.21**) when the node tip is ahead of what you need (e.g. integration smokes that only require height 1).
 

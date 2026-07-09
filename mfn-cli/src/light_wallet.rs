@@ -13,6 +13,9 @@ use mfn_consensus::{
 use mfn_light::{LightChain, LightChainError};
 use mfn_wallet::Wallet;
 
+use crate::checkpoint_log::{
+    cross_check_summary_against_checkpoint_log, CheckpointLogCrossCheckReport,
+};
 use crate::light_follow_quorum::light_follow_pages_quorum;
 use crate::light_subjectivity::{
     load_trusted_summary_file, summary_from_checkpoint_hex, weak_subjectivity_agrees,
@@ -43,6 +46,8 @@ pub struct LightScanParams {
     pub update_trusted_summary: bool,
     /// Stop after this inclusive height even if the node tip is higher (**M3.21**).
     pub max_height: Option<u32>,
+    /// Cross-check post-sync summary against signed checkpoint log (**F12** phase 2).
+    pub checkpoint_log_path: Option<PathBuf>,
 }
 
 impl Default for LightScanParams {
@@ -56,6 +61,7 @@ impl Default for LightScanParams {
             pin_trusted_summary: false,
             update_trusted_summary: true,
             max_height: None,
+            checkpoint_log_path: None,
         }
     }
 }
@@ -105,6 +111,17 @@ pub fn wallet_light_scan(
     }
     if stats.weak_subjectivity_pinned {
         println!("weak_subjectivity=pinned");
+    }
+    if let Some(ref report) = stats.checkpoint_log_cross_check {
+        println!("checkpoint_log=matched");
+        println!(
+            "checkpoint_log_signers={}",
+            report.matching_signer_ids.join(",")
+        );
+        println!(
+            "checkpoint_log_entries_at_height={}",
+            report.entries_at_height
+        );
     }
     println!(
         "light_checkpoint_tip={}",
@@ -163,6 +180,7 @@ fn sync_wallet_light_from_node(
         if refresh_trusted_summary_from_checkpoint(file, params)? {
             weak_subjectivity_pinned = true;
         }
+        let checkpoint_log_cross_check = cross_check_checkpoint_log_if_requested(file, params)?;
         file.apply_pending_spends(wallet)?;
         return Ok(SyncStats {
             tip_height: chain_tip_height,
@@ -171,6 +189,7 @@ fn sync_wallet_light_from_node(
             quorum_batches: 1,
             weak_subjectivity_checked,
             weak_subjectivity_pinned,
+            checkpoint_log_cross_check,
         });
     }
 
@@ -272,6 +291,8 @@ fn sync_wallet_light_from_node(
         weak_subjectivity_pinned = true;
     }
 
+    let checkpoint_log_cross_check = cross_check_checkpoint_log_if_requested(file, params)?;
+
     file.apply_pending_spends(wallet)?;
     Ok(SyncStats {
         tip_height: chain_tip_height,
@@ -280,6 +301,7 @@ fn sync_wallet_light_from_node(
         quorum_batches,
         weak_subjectivity_checked,
         weak_subjectivity_pinned,
+        checkpoint_log_cross_check,
     })
 }
 
@@ -304,6 +326,23 @@ fn gate_weak_subjectivity(
         }
     }
     Ok((checked, pinned))
+}
+
+fn cross_check_checkpoint_log_if_requested(
+    file: &WalletFile,
+    params: &LightScanParams,
+) -> Result<Option<CheckpointLogCrossCheckReport>, WalletCmdError> {
+    let Some(log_path) = &params.checkpoint_log_path else {
+        return Ok(None);
+    };
+    let cp_hex = file.light_checkpoint_hex.as_ref().ok_or_else(|| {
+        WalletCmdError::Usage(
+            "wallet light-scan --checkpoint-log requires light_checkpoint_hex after sync".into(),
+        )
+    })?;
+    let summary = summary_from_checkpoint_hex(cp_hex)
+        .map_err(|e| WalletCmdError::Usage(format!("checkpoint log cross-check: {e}")))?;
+    cross_check_summary_against_checkpoint_log(&summary, log_path).map(Some)
 }
 
 fn refresh_trusted_summary_from_checkpoint(

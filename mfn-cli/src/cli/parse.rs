@@ -191,7 +191,8 @@ pub(super) fn usage() -> &'static str {
        wallet light-scan verify headers + evolution, scan txs only (**M3.11**)\n\
                          options: --quorum-rpc HOST:PORT,... --quorum-p2p HOST:PORT,...\n\
                          --trusted-summary FILE --import-trusted-summary FILE\n\
-                         --pin-trusted-summary --reset-trusted-summary --max-height N\n\
+                         --checkpoint-log FILE --pin-trusted-summary --reset-trusted-summary\n\
+                         --max-height N\n\
        wallet balance    scan chain and print balance\n\
                          options: --json\n\
        wallet status     print cached balance vs node tip (no block fetch)\n\
@@ -391,6 +392,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--quorum-p2p"
                 | "--trusted-summary"
                 | "--import-trusted-summary"
+                | "--checkpoint-log"
                 | "--pin-trusted-summary"
                 | "--reset-trusted-summary"
                 | "--out"
@@ -1255,6 +1257,7 @@ pub(super) fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanPar
     let mut reset_trusted_summary = false;
     let mut pin_trusted_summary = false;
     let mut max_height: Option<u32> = None;
+    let mut checkpoint_log_path: Option<std::path::PathBuf> = None;
     let mut i = 0usize;
     while i < rest.len() {
         let a = rest[i];
@@ -1321,6 +1324,16 @@ pub(super) fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanPar
             i += 2;
             continue;
         }
+        if a == "--checkpoint-log" {
+            let Some(v) = rest.get(i + 1) else {
+                return Err(CliError::Usage(
+                    "wallet light-scan --checkpoint-log requires FILE\n".into(),
+                ));
+            };
+            checkpoint_log_path = Some(std::path::PathBuf::from(v));
+            i += 2;
+            continue;
+        }
         return Err(CliError::Usage(format!(
             "unknown wallet light-scan argument `{a}`\n{}",
             usage()
@@ -1341,6 +1354,7 @@ pub(super) fn parse_wallet_light_scan_args(rest: &[&str]) -> Result<LightScanPar
         pin_trusted_summary,
         update_trusted_summary: true,
         max_height,
+        checkpoint_log_path,
     })
 }
 

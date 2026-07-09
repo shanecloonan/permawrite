@@ -44,11 +44,25 @@ Publish verified `checkpoints.jsonl` alongside release artifacts and link from [
 
 ---
 
-## Light client usage (phase 1)
+## Light client usage (phase 2)
+
+After sync, wallets can cross-check the evolved checkpoint against a published log:
+
+```bash
+mfn-cli --rpc HOST:PORT wallet light-scan \
+  --checkpoint-log checkpoints.jsonl
+```
+
+Behavior:
+
+1. Verify every JSONL line (Schnorr + optional checkpoint agreement).
+2. Require ≥1 valid entry whose weak-subjectivity fields match the post-sync summary at `tip_height`.
+3. Reject when entries exist at the same height but none agree (social consensus disagreement).
+4. Print `checkpoint_log=matched` and `checkpoint_log_signers=` on success.
+
+Phase 1 manual flow (still supported):
 
 1. Fetch P2P/RPC `get_light_snapshot`.
 2. Compare `summary` against ≥1 valid entry in the published log with matching weak-subjectivity fields.
 3. Prefer entries from distinct `signer_id` values when heights tie.
 4. Reject tips that disagree with every trusted log entry at the same height.
-
-Phase 2 will wire automatic log fetch + compare into `wallet light-scan` and WASM light clients.
