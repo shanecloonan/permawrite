@@ -10,7 +10,7 @@
 | **1** RC core | CI `#29007812174` GREEN | **Doing** — CI re-dispatch after B8.0 push | Nightly on full SHA |
 | **2** RC ops | Release evidence `19dc111` + RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | Local MFER rehearsals PASS | **Idle** | TL-6 VPS rehearsal |
-| **4+6** Protocol | **B8.0** transport trait + env knobs | **Doing** — push + CI | **B8.1** SOCKS5 dial |
+| **4+6** Protocol | **B8.0** transport trait + env knobs | **Done** — `419e38a` | **B8.1** SOCKS5 dial |
 | **7** Testnet | Local RC + preflight MFER gate | **Blocked** — VPS provision | **TL-5 internet soak** |
 
 ---
@@ -19,7 +19,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **B8.0** | **This push** | `mfn-net::transport`; `MFND_P2P_TRANSPORT` / `MFND_TOR_SOCKS5`; Tor stub returns Unsupported |
+| **B8.0** | **Done** — `419e38a` | `mfn-net::transport`; `MFND_P2P_TRANSPORT` / `MFND_TOR_SOCKS5`; Tor stub returns Unsupported |
 | **mfnd serve** | **This push** | `mfnd_p2p_transport=…` harness line on P2P enable |
 | **Nightly dispatch** | **This push** | `dispatch-rc-workflows.sh` resolves short SHA → full `git rev-parse` |
 
