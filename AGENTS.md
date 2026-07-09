@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** P32 phase 2 (this push). **CI `#29054645736` in progress** on `10e606e` (F12 phase 2). Prior GREEN `#29052355319` on `c2e524e`.
+**Head:** P32 phase 2 `db58ae1` (this push). **CI `#29054932228` in progress**. F12 phase 2 `10e606e`; prior GREEN `#29052355319` on `c2e524e`.
 
 ## Current board
 
@@ -93,7 +93,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 light-scan log compare | **Done** — `10e606e` | Idle |
-| **5** | P32 VPS role env templates | **This push** | B8 embedded arti research |
+| **5** | P32 VPS role env templates | **Done** — `db58ae1` | B8 embedded arti research |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
@@ -129,6 +129,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
+- **F12 phase 2** (`10e606e`) - privacy surface (lanes 4+5): `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; rejects log disagreement at same `tip_height`.
+- **F12 phase 1** (`50782a3`) - privacy surface (lanes 4+5): `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); plan-only rehearsal in ci-check.
 - **B-05 Linux soak refresh** (`cf99ae5`) - RC core (lanes 1+2): soak `#29040052424` PASS max_height=48 on F12/wasm stack (`3b19e7c`); evidence `soak-restart-linux-30s-slot-20260709T185101Z.txt`.
 - **P32 reference topology** (`85f3512`) - privacy surface (lanes 4+5): `REFERENCE_TOPOLOGY.md` + plan-only rehearsal in CI; CI `#29040315598` GREEN; Nightly `#29040048884` GREEN; release evidence RC audit **go** (`f6bc358`).
 - **F12 checkpoint anchor peers** (`0cf73c6`) - privacy surface (lanes 4+5): `anchor_peers` in trusted summary + `--p2p-anchor-summary`; CI `#29036301962` GREEN after wasm-pack fix (`3b19e7c`).

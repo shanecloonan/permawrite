@@ -7,11 +7,22 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29044604516` on `e873d85` | **Doing** — F12 phase 2 ci-check + push | Nightly dispatch |
-| **2** RC ops | Release evidence `85f3512` + soak `cf99ae5` | **Doing** — refresh after F12 2 CI | Human sign-off |
+| **1** RC core | F12 phase 2 `10e606e`; P32 `db58ae1` | **Doing** — CI `#29054932228` | Nightly dispatch |
+| **2** RC ops | Release evidence `85f3512` + soak `cf99ae5` | **Doing** — refresh after CI green | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | F12 phase 1 `50782a3` | **This push** — F12 light-scan `--checkpoint-log` phase 2 | TL-5 VPS soak |
+| **4+6** Protocol | F12 phase 2 `10e606e` | **Done** | Idle |
+| **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-09 (P32 phase 2 — VPS role env templates)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 2** | **Done** — `db58ae1` | `vps-role-*.env.example`; OPERATORS.md cross-links; rehearsal smoke template gate |
+
+**Lane 5 — Done:** P32 phase 2 **Next:** TL-5 VPS internet soak (human)
 
 ---
 
@@ -19,7 +30,17 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F12 phase 2** | **This push** | `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; docs + rehearsal smoke |
+| **F12 phase 2** | **Done** — `10e606e` | `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log` |
+
+**Lane 4+5 — Done:** F12 phase 2 **Next:** WASM light client parity / TL-8 log publish
+
+---
+
+## Session — 2026-07-09 (F12 phase 2 — light-scan log cross-check)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F12 phase 2** | **Done** — `10e606e` | `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; docs + rehearsal smoke |
 
 **Lane 4+5 — Done:** F12 phase 2 **Next:** TL-5 VPS soak (human) / WASM light client parity
 
