@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `09edd8a`. **CI `#29086333628` GREEN**. **Nightly `#29088007044` GREEN**. **Release evidence `09edd8a` + RC audit go**.
+**Head:** `648676b`. **CI `#29088674668` GREEN**. **Nightly `#29090091058` GREEN**. **Release evidence `648676b` + RC audit go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly monitor | **Done** — Nightly `#29088007044` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-09edd8a` RC audit **go** | Human sign-off packet |
+| **1** | Nightly monitor | **Done** — Nightly `#29090091058` GREEN | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-648676b` RC audit **go** | Human sign-off packet |
 | **3** | F12 demo web phase 5 | **Done** — `05e2772` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | F12 demo web checkpoint log UI | **Done** — `05e2772` | PM23 hard lint (research) |
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Nightly `#29090091058` GREEN** (`648676b`) - RC core (lane 1): all three jobs on board-sync stack.
+- **Board sync `648676b`** - RC ops (lane 2): CI `#29088674668` GREEN; release evidence refresh on docs-only head.
 - **Nightly `#29088007044` GREEN** (`09edd8a`) - RC core (lane 1): all three jobs on board-sync stack.
 - **Board sync `09edd8a`** - RC ops (lane 2): CI `#29086333628` GREEN; release evidence refresh on docs-only head.
 - **Nightly `#29085709944` GREEN** (`fac313a`) - RC core (lane 1): all three jobs on TL-7/TL-8 + F12 demo board-sync stack.
