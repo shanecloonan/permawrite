@@ -77,6 +77,12 @@ jobs:
           ref_topo_plan="$(bash scripts/public-devnet-v1/reference-topology-rehearsal-smoke.sh --plan-only)"
           [[ "$ref_topo_plan" == *"REFERENCE_TOPOLOGY.md"* ]] || { echo "$ref_topo_plan"; exit 1; }
           [[ "$ref_topo_plan" == *"PASS plan-only"* ]] || { echo "$ref_topo_plan"; exit 1; }
+          checkpoint_log_plan="$(bash scripts/public-devnet-v1/checkpoint-log-rehearsal-smoke.sh --plan-only)"
+          [[ "$checkpoint_log_plan" == *"CHECKPOINT_LOG.md"* ]] || { echo "$checkpoint_log_plan"; exit 1; }
+          [[ "$checkpoint_log_plan" == *"PASS plan-only"* ]] || { echo "$checkpoint_log_plan"; exit 1; }
+          publish_checkpoint_log_plan="$(bash scripts/public-devnet-v1/publish-checkpoint-log.sh --plan-only)"
+          [[ "$publish_checkpoint_log_plan" == *"publish-checkpoint-log: plan"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
+          [[ "$publish_checkpoint_log_plan" == *"PASS plan-only"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -537,6 +543,16 @@ jobs:
           $refTopoPlan = (powershell -NoProfile -File scripts/public-devnet-v1/reference-topology-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($refTopoPlan -notmatch "REFERENCE_TOPOLOGY.md" -or $refTopoPlan -notmatch "PASS plan-only") {
             $refTopoPlan
+            exit 1
+          }
+          $checkpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/checkpoint-log-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($checkpointLogPlan -notmatch "CHECKPOINT_LOG.md" -or $checkpointLogPlan -notmatch "PASS plan-only") {
+            $checkpointLogPlan
+            exit 1
+          }
+          $publishCheckpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-checkpoint-log.ps1 -PlanOnly) -join "`n"
+          if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publishCheckpointLogPlan -notmatch "PASS plan-only") {
+            $publishCheckpointLogPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
