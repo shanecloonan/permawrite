@@ -271,7 +271,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ### Next
 
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
-- [ ] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (this push).
+- [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 

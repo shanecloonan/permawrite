@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `b16cb49`. **CI `#29055006785` GREEN**. **Nightly `#29054257043` GREEN**; `#29056342177` (watch).
+**Head:** `5d78329`. **CI `#29060447662`** (watch). **Nightly `#29057711114` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on F12+P32 stack | **Done** — CI `#29055006785` GREEN | Nightly `#29056342177` watch |
+| **1** | CI on F12 phase 3 | **Doing** — CI `#29060447662` watch | Release evidence refresh |
 | **2** | Release evidence refresh | **Done** — `release-evidence-b16cb49` RC audit **go** | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
-| **4** | F12 WASM checkpoint log parity | **Doing** — this push | TL-8 log publish |
+| **4** | F12 WASM checkpoint log parity | **Done** — `5d78329` | TL-8 log publish |
 | **5** | P32 VPS role env templates | **Done** — `db58ae1` | B8 embedded arti research |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
@@ -131,7 +131,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 - **Release evidence `b16cb49`** - RC ops (lane 2): F12+P32 stack evidence + RC audit dry-run **go** on CI `#29055006785`.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
-- **F12 phase 3** (this push) - protocol surface (lanes 4+6): `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` parity with CLI cross-check.
+- **F12 phase 3** (`5d78329`) - protocol surface (lanes 4+6): `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` parity with CLI cross-check.
 - **F12 phase 2** (`10e606e`) - privacy surface (lanes 4+5): `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; rejects log disagreement at same `tip_height`.
 - **F12 phase 1** (`50782a3`) - privacy surface (lanes 4+5): `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); plan-only rehearsal in ci-check.
 - **B-05 Linux soak refresh** (`cf99ae5`) - RC core (lanes 1+2): soak `#29040052424` PASS max_height=48 on F12/wasm stack (`3b19e7c`); evidence `soak-restart-linux-30s-slot-20260709T185101Z.txt`.
