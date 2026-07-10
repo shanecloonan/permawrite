@@ -130,6 +130,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 ## Recently completed
 
 - **Nightly `#29067729847` GREEN** (`6b884ea`) - RC core (lane 1): all three jobs on launch-status v4 stack.
+- **P32 phase 4a / PM23** (`808529a`) - privacy surface (lane 5): `pm23-operator-manifest-rehearsal-smoke` plan gate for operator-manifest separation on role env templates + docs.
 - **F6 treasury telemetry watch** (`808529a`) - permanence depth (lane 6): `treasury-telemetry-watch.*` read-only `get_chain_params` helper for FEES.md §5 revisit triggers.
 - **launch-status rehearsal smoke** (`808529a`) - testnet launch (lane 7): dedicated `launch-status-rehearsal-smoke.*` wired into ci-check + GHA.
 - **F6 fee economics docs** (`d4a5114`) - permanence depth (lane 6): [`FEES.md`](docs/FEES.md) plain-language fee breakdown (90/10 split, upload endowment gate); 2026-07 parameter review (keep current fees; reject tail→treasury split for now); `ECONOMICS.md` §3/§7/§8/§10 sync to shipped operator-direct payout.
