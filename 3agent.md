@@ -10,9 +10,19 @@
 | **1** RC core | CI `#29060447662` GREEN | **Doing** — Nightly `#29061696154` watch | Soak maintenance |
 | **2** RC ops | `release-evidence-c861217` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | F12 phase 3 `5d78329` | **Done** | TL-8 log publish |
+| **4+6** Protocol | F12 phase 4 (this push) | **Doing** — ci-check | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-10 (F12 phase 4 — TL-8 publish tooling + live rehearsal)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F12 phase 4** | **This push** | `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke |
+
+**Lane 4+6 — Done:** F12 phase 4 **Next:** TL-8 `--apply` on VPS after TL-7
 
 ---
 

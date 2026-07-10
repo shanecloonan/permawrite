@@ -14,8 +14,23 @@ Use this **after** the operator completes TL-5–TL-9 on a VPS and publishes `se
 | `genesis_id` | `454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005` |
 | Genesis file | [`mfn-node/testdata/public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json) (byte-identical required) |
 | Boot peers | `seed_nodes` in [`public_devnet_v1.manifest.json`](../mfn-node/testdata/public_devnet_v1.manifest.json) |
+| Signed checkpoint log | [`public_devnet_v1.checkpoints.jsonl`](../mfn-node/testdata/public_devnet_v1.checkpoints.jsonl) (after TL-8 publish) |
 
 Every node must print the same `mfnd_chain_genesis_id=` on startup. A mismatch means you are on a different chain.
+
+---
+
+## Weak-subjectivity checkpoint log (F12)
+
+Light clients should cross-check the post-sync trusted summary against the published Schnorr-signed JSONL log (same rules as `mfn-cli checkpoint-log verify`):
+
+```bash
+mfn-cli checkpoint-log verify mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+mfn-cli --rpc 127.0.0.1:18734 wallet light-scan \
+  --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
+Browser wallets: `checkpointLogVerify` / `checkpointLogCrossCheck` in `mfn-wasm` (`wasm-full`). See [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md).
 
 ---
 

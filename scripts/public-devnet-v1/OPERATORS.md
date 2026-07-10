@@ -73,6 +73,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
+| TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 

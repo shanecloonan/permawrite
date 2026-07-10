@@ -81,19 +81,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-09)
+## CI gate (2026-07-10)
 
-**Head:** `c861217`. **CI `#29060447662` GREEN**. **Nightly `#29061696154`** (watch).
+**Head:** F12 phase 4 (this push). **CI `#29060447662` GREEN** on `5d78329` stack. **Nightly `#29061696154` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on F12 phase 3 | **Done** — CI `#29060447662` GREEN | Nightly `#29061696154` watch |
-| **2** | Release evidence refresh | **Done** — `release-evidence-c861217` RC audit **go** | Human sign-off packet |
-| **2** | Release evidence refresh | **Done** — `release-evidence-b16cb49` RC audit **go** | Human sign-off packet |
+| **1** | F12 phase 4 CI | **Doing** — ci-check + push | Nightly dispatch |
+| **2** | Release evidence refresh | **Done** — `release-evidence-c861217` RC audit **go** | Refresh after phase 4 CI |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
-| **4** | F12 WASM checkpoint log parity | **Done** — `5d78329` | TL-8 log publish |
+| **4** | F12 TL-8 publish tooling | **This push** | TL-8 `--apply` on VPS |
 | **5** | P32 VPS role env templates | **Done** — `db58ae1` | B8 embedded arti research |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
@@ -132,6 +131,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 - **Release evidence `b16cb49`** - RC ops (lane 2): F12+P32 stack evidence + RC audit dry-run **go** on CI `#29055006785`.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
+- **F12 phase 4** (this push) - protocol surface (lanes 4+6): `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8 operator tooling; live rehearsal smoke.
 - **F12 phase 3** (`5d78329`) - protocol surface (lanes 4+6): `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` parity with CLI cross-check.
 - **F12 phase 2** (`10e606e`) - privacy surface (lanes 4+5): `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; rejects log disagreement at same `tip_height`.
 - **F12 phase 1** (`50782a3`) - privacy surface (lanes 4+5): `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); plan-only rehearsal in ci-check.

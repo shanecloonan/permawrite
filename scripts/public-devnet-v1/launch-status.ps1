@@ -118,7 +118,7 @@ if ($seedCount -gt 0) {
     $nextAction = 'bash scripts/public-devnet-v1/launch-go-no-go.sh'
 } elseif ($tl6Evidence) {
     $phase = 'TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)'
-    $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh'
+    $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh + publish-checkpoint-log.sh'
 } elseif ($tl5Evidence) {
     $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)'
     $nextAction = 'bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop'

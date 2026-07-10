@@ -32,6 +32,15 @@ pub struct CheckpointLogSignParams {
     pub append_log: Option<std::path::PathBuf>,
 }
 
+/// Cross-check a trusted summary file against a signed checkpoint log.
+pub fn checkpoint_log_cross_check(
+    summary_path: &Path,
+    log_path: &Path,
+) -> Result<CheckpointLogCrossCheckReport, WalletCmdError> {
+    let summary = load_trusted_summary_file(summary_path)?;
+    cross_check_summary_against_checkpoint_log(&summary, log_path)
+}
+
 /// Build and optionally append a signed checkpoint log entry.
 pub fn checkpoint_log_sign(
     params: &CheckpointLogSignParams,

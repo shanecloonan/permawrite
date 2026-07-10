@@ -85,6 +85,11 @@ pub(crate) enum CheckpointLogSub {
         path: std::path::PathBuf,
         json: bool,
     },
+    CrossCheck {
+        summary_path: std::path::PathBuf,
+        log_path: std::path::PathBuf,
+        json: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,6 +261,9 @@ wallet send VIEW_HEX SPEND_HEX AMOUNT  legacy raw-key send form\n\
        checkpoint-log sign --summary FILE --signer-id ID --signer-seed-hex HEX\n\
                          options: --checkpoint-hex HEX --append LOG.jsonl\n\
        checkpoint-log verify LOG.jsonl   verify signed checkpoint log (**F12** phase 1)\n\
+                         options: --json\n\
+       checkpoint-log cross-check --summary FILE --log LOG.jsonl\n\
+                         cross-check summary vs signed log (**F12** phase 4)\n\
                          options: --json\n"
 }
 
@@ -400,6 +408,7 @@ pub(super) fn parse_args(args: &[String]) -> Result<Parsed, CliError> {
                 | "--max-height"
                 | "--key-derivation"
                 | "--summary"
+                | "--log"
                 | "--signer-id"
                 | "--signer-seed-hex"
                 | "--checkpoint-hex"
@@ -1864,7 +1873,7 @@ pub(super) fn parse_wallet_claim_args(rest: &[&str]) -> Result<ClaimParams, CliE
 fn parse_checkpoint_log_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
     if rest.is_empty() {
         return Err(CliError::Usage(format!(
-            "checkpoint-log requires subcommand sign|verify\n{}",
+            "checkpoint-log requires subcommand sign|verify|cross-check\n{}",
             usage()
         )));
     }
@@ -1976,6 +1985,53 @@ fn parse_checkpoint_log_cmd(rest: &[&str]) -> Result<Cmd, CliError> {
             }
             Ok(Cmd::CheckpointLog {
                 sub: CheckpointLogSub::Verify { path, json },
+            })
+        }
+        "cross-check" => {
+            let mut summary_path: Option<std::path::PathBuf> = None;
+            let mut log_path: Option<std::path::PathBuf> = None;
+            let mut json = false;
+            let mut i = 1usize;
+            while i < rest.len() {
+                let a = rest[i];
+                if a == "--summary" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--summary requires PATH".into()));
+                    };
+                    summary_path = Some(std::path::PathBuf::from(*v));
+                    i += 2;
+                    continue;
+                }
+                if a == "--log" {
+                    let Some(v) = rest.get(i + 1) else {
+                        return Err(CliError::Usage("--log requires LOG.jsonl PATH".into()));
+                    };
+                    log_path = Some(std::path::PathBuf::from(*v));
+                    i += 2;
+                    continue;
+                }
+                if a == "--json" {
+                    json = true;
+                    i += 1;
+                    continue;
+                }
+                return Err(CliError::Usage(format!(
+                    "unknown checkpoint-log cross-check option `{a}`\n{}",
+                    usage()
+                )));
+            }
+            let summary_path = summary_path.ok_or_else(|| {
+                CliError::Usage("checkpoint-log cross-check requires --summary PATH".into())
+            })?;
+            let log_path = log_path.ok_or_else(|| {
+                CliError::Usage("checkpoint-log cross-check requires --log LOG.jsonl".into())
+            })?;
+            Ok(Cmd::CheckpointLog {
+                sub: CheckpointLogSub::CrossCheck {
+                    summary_path,
+                    log_path,
+                    json,
+                },
             })
         }
         other => Err(CliError::Usage(format!(

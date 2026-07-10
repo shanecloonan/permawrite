@@ -138,6 +138,11 @@ if ($checkpointLogPlan -notmatch "CHECKPOINT_LOG.md" -or $checkpointLogPlan -not
     $checkpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$publishCheckpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-checkpoint-log.ps1 -PlanOnly) -join "`n"
+if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publishCheckpointLogPlan -notmatch "PASS plan-only") {
+    $publishCheckpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

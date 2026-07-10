@@ -38,7 +38,35 @@ mfn-cli checkpoint-log sign \
 # Verify all entries
 mfn-cli checkpoint-log verify checkpoints.jsonl
 mfn-cli checkpoint-log verify checkpoints.jsonl --json
+
+# Cross-check a trusted summary file against the log (without light-scan)
+mfn-cli checkpoint-log cross-check \
+  --summary trusted-summary.json \
+  --log checkpoints.jsonl
 ```
+
+### TL-8 operator publish (phase 4)
+
+After TL-7 sign-off, append a signed entry from the observer/validator RPC tip:
+
+```bash
+export MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX=<64-char hex>   # production maintainer seed
+bash scripts/public-devnet-v1/publish-checkpoint-log.sh --rpc 127.0.0.1:18734 --apply
+# default log: mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
+Dry-run first (no `--apply`) to preview RPC + log path.
+
+### Local rehearsal (test-only seed)
+
+CI and local smoke use a **non-production** rehearsal maintainer seed:
+
+```bash
+export MFN_CHECKPOINT_LOG_REHEARSAL_SIGNER_SEED_HEX=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+bash scripts/public-devnet-v1/checkpoint-log-rehearsal-smoke.sh --live
+```
+
+Never reuse the rehearsal seed for a public testnet maintainer key.
 
 Publish verified `checkpoints.jsonl` alongside release artifacts and link from [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) after TL-8.
 

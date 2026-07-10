@@ -608,7 +608,10 @@ against verified log entries; rejects disagreement at the same `tip_height`.
 **Shipped (phase 3).** `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` /
 `checkpointLogCrossCheck` for browser light wallets (same Schnorr rules as CLI).
 
-**Remaining.** Publish log at TL-8 invite.
+**Shipped (phase 4).** `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8
+operator tooling; live `checkpoint-log-rehearsal-smoke --live` on local devnet.
+
+**Remaining.** Publish log at TL-8 invite (human `--apply` on VPS).
 
 **Effort:** moderate (phase 0–3) / high (web fetch). **Risk:** low (opt-in social layer).
 

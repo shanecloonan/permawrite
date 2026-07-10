@@ -278,6 +278,29 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
                     println!("signer_ids={}", report.signer_ids.join(","));
                 }
             }
+            CheckpointLogSub::CrossCheck {
+                summary_path,
+                log_path,
+                json,
+            } => {
+                let report =
+                    crate::checkpoint_log::checkpoint_log_cross_check(&summary_path, &log_path)?;
+                if json {
+                    let raw = serde_json::json!({
+                        "matched": true,
+                        "matching_signer_ids": report.matching_signer_ids,
+                        "entries_at_height": report.entries_at_height,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&raw).unwrap());
+                } else {
+                    println!("checkpoint_log=matched");
+                    println!(
+                        "checkpoint_log_signers={}",
+                        report.matching_signer_ids.join(",")
+                    );
+                    println!("entries_at_height={}", report.entries_at_height);
+                }
+            }
         },
         Cmd::Wallet {
             sub,
@@ -1432,22 +1455,31 @@ mod tests {
     }
 
     #[test]
-    fn parse_checkpoint_log_verify_json() {
+    fn parse_checkpoint_log_cross_check() {
         let p = parse_args(&[
             "checkpoint-log".into(),
-            "verify".into(),
+            "cross-check".into(),
+            "--summary".into(),
+            "trusted.json".into(),
+            "--log".into(),
             "community.jsonl".into(),
             "--json".into(),
         ])
         .unwrap();
         match p.cmd {
             Cmd::CheckpointLog {
-                sub: CheckpointLogSub::Verify { path, json },
+                sub:
+                    CheckpointLogSub::CrossCheck {
+                        summary_path,
+                        log_path,
+                        json,
+                    },
             } => {
-                assert_eq!(path, std::path::PathBuf::from("community.jsonl"));
+                assert_eq!(summary_path, std::path::PathBuf::from("trusted.json"));
+                assert_eq!(log_path, std::path::PathBuf::from("community.jsonl"));
                 assert!(json);
             }
-            _ => panic!("expected checkpoint-log verify"),
+            _ => panic!("expected checkpoint-log cross-check"),
         }
     }
 }
