@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** (this push). **CI `#29066308783` failed** Windows public-devnet scripts — `launch-status.ps1` gh without `GH_TOKEN` on GHA. Prior GREEN `#29060447662` on `5d78329`.
+**Head:** `6b884ea`. **CI `#29066731152` GREEN**. Release evidence `6b884ea` + RC audit dry-run **go** on green CI.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | launch-status v4 GHA gh fix | **Doing** — push after `#29066308783` Windows fail | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
+| **1** | Nightly dispatch | **Next** — after CI green | Nightly #64+ on `6b884ea` stack |
+| **2** | Release evidence refresh | **Done** — `6b884ea` / CI `#29066731152` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 observer RPC bind hint | **Done** — `7d39f4c` | PM23 research |
 | **6** | F6 fee economics docs | **Done** — `d4a5114` | Treasury telemetry watch |
-| **7** | launch-status v4 checkpoint log | **Done** — `895ac1e` | TL-5 VPS internet soak |
+| **7** | launch-status v4 checkpoint log | **Done** — `895ac1e` + CI fix `6b884ea` | TL-5 VPS internet soak |
 
 ---
 
@@ -130,6 +130,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 ## Recently completed
 
 - **F6 fee economics docs** (`d4a5114`) - permanence depth (lane 6): [`FEES.md`](docs/FEES.md) plain-language fee breakdown (90/10 split, upload endowment gate); 2026-07 parameter review (keep current fees; reject tail→treasury split for now); `ECONOMICS.md` §3/§7/§8/§10 sync to shipped operator-direct payout.
+- **CI `#29066731152` GREEN** (`6b884ea`) - RC ops (lane 1+2): launch-status v4 GHA gh-token fix; full matrix pass.
+- **Release evidence `6b884ea`** - RC ops (lane 2): launch-status v4 stack + RC audit dry-run **go** on CI `#29066731152`.
 - **launch-status v4** (`895ac1e`) - testnet launch (lane 7): TL-8 checkpoint log tracking (`entry_count`, `published`, optional `verify`); `launch-go-no-go` requires non-empty log when `seed_nodes >= 3`; ci-check + GHA smoke on `launch-status.v4` schema.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
 - **F12 phase 4** (this push) - protocol surface (lanes 4+6): `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8 operator tooling; live rehearsal smoke.
