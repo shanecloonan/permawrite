@@ -22,7 +22,7 @@ $report = & powershell -NoProfile -File (Join-Path $ScriptDir "vps-execution-che
 if ($report.schema_version -ne "vps-execution-checklist.v1") {
     throw "vps-execution-checklist-rehearsal-smoke: expected v1 got $($report.schema_version)"
 }
-foreach ($key in @("provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry", "pm23_rehearsal")) {
+foreach ($key in @("provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry", "pm23_rehearsal", "tl9_launch_gate")) {
     if (-not $report.commands.$key) {
         throw "vps-execution-checklist-rehearsal-smoke: commands missing $key"
     }

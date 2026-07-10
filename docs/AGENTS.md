@@ -343,6 +343,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
 - [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
 - [x] **F6 fee economics docs** (`d4a5114`) — [`FEES.md`](./FEES.md) plain-language fee breakdown + 2026-07 parameter review; `ECONOMICS.md` §3/§7/§8/§10 sync.
+- [x] **F6 tail split approved (docs)** (`9a2673a`) — `FEES.md` §5.4: 10% subsidy tail → treasury for next parameter fork (implementation deferred).
+- [x] **F6 Arweave durability comparison** (`bff1b70`) — `ECONOMICS.md` §12 vs Arweave permanence model.
+- [x] **F6 treasury telemetry watch** (`808529a`) — `treasury-telemetry-watch.*` read-only helper.
 
 ### Next
 
@@ -386,6 +389,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
 - [x] **launch-status v4** — TL-8 checkpoint log tracking in `launch-status.*` + `launch-go-no-go` gate (this push)
+- [x] **vps-execution-checklist-rehearsal-smoke** — ci-check gate on TL-5/TL-6 preflight checklist (`8a49f7e`)
+- [x] **launch-go-no-go-rehearsal-smoke** — ci-check gate on TL-9 pre-launch go/no-go JSON (this push)
 - [x] **TL-5 preflight hardening** — MFER policy + storage-operator binary gate in `vps-preflight.sh`
 - [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (`759f5d1`).
 

@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `f6f7e22`. **CI `#29072043578` in progress**. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go**.
+**Head:** `8a49f7e`. **CI `#29073823035` in progress**. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go** (refresh after `#29073823035` green).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on checklist v2 | **Doing** — watch `#29072043578` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `77253f6` / CI `#29068155204` | Human sign-off packet |
+| **1** | CI on checklist rehearsal | **Doing** — watch `#29073823035` | Release evidence + Nightly on green |
+| **2** | Release evidence refresh | **Doing** — after `#29073823035` green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
-| **6** | F6 treasury telemetry watch | **Done** — `808529a` | Fee-drought telemetry on testnet |
-| **7** | TL-5 VPS checklist v2 | **Done** — this push | TL-5 VPS internet soak (human) |
+| **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork implementation (research) |
+| **7** | TL-9 launch-go-no-go rehearsal | **Doing** — this push | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,7 +129,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **TL-5 VPS checklist v2** (`f6f7e22`) - testnet launch (lane 7): OPERATORS cross-links for launch-status/treasury/PM23; vps-execution-checklist TL-8 checkpoint log warning + command hints.
+- **vps-execution-checklist-rehearsal-smoke** (`8a49f7e`) - testnet launch (lane 7): plan-only CI gate on `vps-execution-checklist.v1` JSON + OPERATORS cross-links.
+- **F6 Arweave durability comparison** (`bff1b70`) - permanence depth (lane 6): `ECONOMICS.md` §12 permanence durability vs Arweave.
+- **F6 tail split approved (docs)** (`9a2673a`) - permanence depth (lane 6): `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (implementation deferred).
 - **Nightly `#29071784488` GREEN** (`808529a`) - RC core (lane 1): all three jobs on PM23/F6 stack.
 - **Release evidence `77253f6`** - RC ops (lane 2): PM23/F6 stack + RC audit dry-run **go** on CI `#29068155204`.
 - **CI `#29068155204` GREEN** (`808529a`) - RC core (lane 1): PM23/F6/treasury-telemetry rehearsal smokes; full matrix pass.

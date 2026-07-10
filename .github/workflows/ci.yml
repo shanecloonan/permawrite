@@ -91,6 +91,8 @@ jobs:
           [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { echo "$treasury_plan"; exit 1; }
           vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
           [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_checklist_plan"; exit 1; }
+          launch_go_no_go_plan="$(bash scripts/public-devnet-v1/launch-go-no-go-rehearsal-smoke.sh --plan-only)"
+          [[ "$launch_go_no_go_plan" == *"launch-go-no-go-rehearsal-smoke: PASS plan-only"* ]] || { echo "$launch_go_no_go_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -581,6 +583,11 @@ jobs:
           $vpsChecklistPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only") {
             $vpsChecklistPlan
+            exit 1
+          }
+          $launchGoNoGoPlan = (powershell -NoProfile -File scripts/public-devnet-v1/launch-go-no-go-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($launchGoNoGoPlan -notmatch "launch-go-no-go-rehearsal-smoke: PASS plan-only") {
+            $launchGoNoGoPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null

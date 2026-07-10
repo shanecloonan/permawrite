@@ -7,13 +7,26 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29068155204` GREEN on `808529a` | **Doing** — Nightly dispatch | Soak maintenance |
-| **2** RC ops | `release-evidence-77253f6` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | Nightly `#29071784488` GREEN on `808529a` | **Doing** — CI `#29073823035` on `8a49f7e` | Release evidence + Nightly re-dispatch |
+| **2** RC ops | `release-evidence-77253f6` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
-| **6** Permanence | F6 treasury telemetry `808529a` | **Done** | Testnet fee-drought watch |
-| **7** Testnet | VPS checklist v2 (this push) | **Doing** — ci-check + push | **TL-5 VPS soak** (human VPS) |
+| **6** Permanence | F6 tail split + Arweave docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
+| **7** Testnet | Checklist rehearsal smoke `8a49f7e` | **Done** | **TL-5 VPS soak** (human VPS) |
+| **7** Testnet | launch-go-no-go rehearsal (this push) | **Doing** — ci-check + push | TL-9 gate on VPS |
+
+---
+
+## Session — 2026-07-10 (checklist rehearsal + F6 economics tail)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **vps-execution-checklist-rehearsal-smoke** | **Done** — `8a49f7e` | ci-check + GHA gate on checklist v1 JSON + OPERATORS links |
+| **F6 tail split (docs)** | **Done** — `9a2673a` | `FEES.md` §5.4 approves 10% subsidy tail → treasury |
+| **F6 Arweave comparison** | **Done** — `bff1b70` | `ECONOMICS.md` §12 durability comparison |
+
+**Lane 1 — Doing:** CI `#29073823035` **Next:** release evidence + Nightly on green
 
 ---
 
