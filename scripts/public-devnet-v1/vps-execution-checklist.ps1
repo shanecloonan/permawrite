@@ -47,6 +47,9 @@ if ($launchJson.vps_soak_evidence) {
 if ($launchJson.vps_rehearsal_evidence) {
     $warnings += "TL-6 VPS rehearsal evidence already present"
 }
+if ($launchJson.vps_rehearsal_evidence -and -not $launchJson.checkpoint_log.published) {
+    $warnings += "checkpoint log empty - run publish-checkpoint-log.ps1 -Apply after TL-7 before TL-8 invite"
+}
 if ($ci -and -not $ciGreen) {
     $msg = "GitHub CI not green (run=$($ci.databaseId) status=$($ci.status) conclusion=$($ci.conclusion))"
     if ($Strict) { $blockers += $msg } else { $warnings += $msg }
@@ -71,7 +74,9 @@ $report = [ordered]@{
         tl5_soak     = "bash scripts/public-devnet-v1/vps-internet-soak.sh"
         tl6_rehearsal = "bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop"
         archive      = "git add scripts/public-devnet-v1/evidence/vps-*.txt && git commit"
-        ceremony     = "bash scripts/public-devnet-v1/vps-launch-ceremony.sh"
+        ceremony      = "bash scripts/public-devnet-v1/vps-launch-ceremony.sh"
+        treasury_telemetry = "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731"
+        pm23_rehearsal = "bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only"
     }
 }
 

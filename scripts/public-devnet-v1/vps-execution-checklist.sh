@@ -75,6 +75,9 @@ if launch.get("vps_soak_evidence"):
     warnings.append("TL-5 VPS soak evidence already present — skip re-soak unless reprovisioning")
 if launch.get("vps_rehearsal_evidence"):
     warnings.append("TL-6 VPS rehearsal evidence already present")
+cl = launch.get("checkpoint_log") or {}
+if launch.get("vps_rehearsal_evidence") and not cl.get("published"):
+    warnings.append("checkpoint log empty — run publish-checkpoint-log.sh --apply after TL-7 before TL-8 invite")
 if ci and not ci_green:
     msg = (
         f"GitHub CI not green (run={ci.get('databaseId')} "
@@ -105,6 +108,8 @@ print(json.dumps({
         "tl6_rehearsal": "bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop",
         "archive": "git add scripts/public-devnet-v1/evidence/vps-*.txt && git commit",
         "ceremony": "bash scripts/public-devnet-v1/vps-launch-ceremony.sh",
+        "treasury_telemetry": "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731",
+        "pm23_rehearsal": "bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only",
     },
 }, indent=2))
 PY

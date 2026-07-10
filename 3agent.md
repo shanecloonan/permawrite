@@ -7,17 +7,49 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29066731152` GREEN on `6b884ea` | **Next** — Nightly dispatch | Soak maintenance |
-| **2** RC ops | `release-evidence-6b884ea` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | CI `#29068155204` GREEN on `808529a` | **Doing** — Nightly dispatch | Soak maintenance |
+| **2** RC ops | `release-evidence-77253f6` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | P32 phase 3 `7d39f4c` | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | F6 fee docs `d4a5114` | **Done** | Treasury telemetry watch |
-| **7** Testnet | launch-status v4 `895ac1e` | **Done** | **TL-5 VPS soak** (human VPS) |
+| **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
+| **6** Permanence | F6 treasury telemetry `808529a` | **Done** | Testnet fee-drought watch |
+| **7** Testnet | VPS checklist v2 (this push) | **Doing** — ci-check + push | **TL-5 VPS soak** (human VPS) |
 
 ---
 
-## Session — 2026-07-10 (launch-status v4 + GHA gh fix)
+## Session — 2026-07-10 (TL-5 VPS execution checklist v2)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **TL-5 checklist v2** | **This push** | checkpoint-log warning; treasury-telemetry + PM23 rehearsal in planned commands; OPERATORS.md |
+
+**Lane 7 — Doing:** ci-check **Next:** human VPS TL-5 soak
+
+---
+
+## Session — 2026-07-10 (P32 phase 4a PM23 + F6 treasury telemetry)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 4a** | **Done** — `808529a` | `pm23-operator-manifest-rehearsal-smoke`; role env separation gate |
+| **F6 telemetry** | **Done** — `808529a` | `treasury-telemetry-watch.*`; `launch-status-rehearsal-smoke` v4 |
+
+**Lane 1 — Doing:** Nightly `#29071784488` on `808529a` **Next:** soak maintenance
+
+---
+
+## Session — 2026-07-10 (OPERATORS + VPS checklist TL-8 hints)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **OPERATORS cross-links** | **This push** | launch-status, vps-execution-checklist, treasury-telemetry, PM23 rehearsal |
+| **vps-execution-checklist** | **This push** | TL-8 checkpoint log warning when TL-6 evidence present; treasury/PM23 command hints |
+
+**Lane 7 — Done:** checklist polish **Next:** TL-5 VPS soak (human)
+
+---
+
+## Session — 2026-07-10 (P32 phase 4a PM23 + F6 treasury telemetry)
 
 | Unit | Status | Notes |
 | --- | --- | --- |

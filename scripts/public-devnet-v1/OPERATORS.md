@@ -74,6 +74,10 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
+| Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (v4) |
+| VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (use `--strict` when CI must be green) |
+| Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |
+| P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |
 | TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 

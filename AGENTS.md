@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `808529a`. **CI `#29068155204` in progress**. Prior GREEN `#29066731152` on `6b884ea`; **Nightly `#29067729847` GREEN** on `6b884ea`.
+**Head:** `77253f6`. **CI `#29068155204` GREEN** on `808529a`. **Nightly `#29071784488` in progress** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on PM23/F6 stack | **Doing** — watch latest CI on `808529a` | Nightly re-dispatch after green |
-| **2** | Release evidence refresh | **Done** — `6b884ea` / CI `#29066731152` | Human sign-off packet |
+| **1** | Nightly `#29071784488` | **Doing** — watch on `808529a` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `77253f6` / CI `#29068155204` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
 | **6** | F6 treasury telemetry watch | **Done** — `808529a` | Fee-drought telemetry on testnet |
-| **7** | launch-status v4 checkpoint log | **Done** — `895ac1e` + CI fix `6b884ea` | TL-5 VPS internet soak |
+| **7** | TL-5 VPS checklist v2 | **Done** — this push | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,7 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Nightly `#29067729847` GREEN** (`6b884ea`) - RC core (lane 1): all three jobs on launch-status v4 stack.
+- **TL-5 VPS checklist v2** (this push) - testnet launch (lane 7): OPERATORS cross-links for launch-status/treasury/PM23; vps-execution-checklist TL-8 checkpoint log warning + command hints.
+- **CI `#29068155204` GREEN** (`808529a`) - RC core (lane 1): PM23/F6/treasury-telemetry rehearsal smokes; full matrix pass.
 - **P32 phase 4a / PM23** (`808529a`) - privacy surface (lane 5): `pm23-operator-manifest-rehearsal-smoke` plan gate for operator-manifest separation on role env templates + docs.
 - **F6 treasury telemetry watch** (`808529a`) - permanence depth (lane 6): `treasury-telemetry-watch.*` read-only `get_chain_params` helper for FEES.md §5 revisit triggers.
 - **launch-status rehearsal smoke** (`808529a`) - testnet launch (lane 7): dedicated `launch-status-rehearsal-smoke.*` wired into ci-check + GHA.

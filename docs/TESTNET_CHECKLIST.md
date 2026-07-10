@@ -55,7 +55,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-8 readiness** — `launch-status.v4` checkpoint log tracking + `launch-go-no-go` non-empty log gate when `seed_nodes >= 3` (`895ac1e`).
 - [x] **Lane 6 / F6 telemetry** — `treasury-telemetry-watch.*` read-only `get_chain_params` helper (this push).
 - [x] **Lane 7 / TL-5 preflight hardening** — `vps-preflight.sh` validates MFER policy + `mfn-storage-operator` binary before VPS soak.
-- [x] **Lane 7 / TL-5 execution checklist** — `vps-execution-checklist.*` read-only gate before VPS soak (this push).
+- [x] **Lane 7 / TL-5 execution checklist** — `vps-execution-checklist.*` read-only gate before VPS soak (`759f5d1`); v2 TL-8 checkpoint log warning + treasury/PM23 command hints (this push).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
 - [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
 - [x] **Lane 7 / TL-7–TL-9 tooling** — genesis ceremony, `publish-seed-nodes`, `launch-go-no-go` (`03de79a`).
