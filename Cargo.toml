@@ -11,6 +11,7 @@ members = [
     "mfn-net",
     "mfn-node",
     "mfn-light",
+    "mfn-checkpoint-log",
     "mfn-wallet",
     "mfn-cli",
     "mfn-storage-operator",

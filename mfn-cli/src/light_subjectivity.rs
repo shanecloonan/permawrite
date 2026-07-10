@@ -3,115 +3,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::rpc::LightCheckpointSummary;
+pub use mfn_checkpoint_log::{
+    format_summary_diff, norm_hex32, summaries_equal, summary_from_checkpoint_hex,
+    weak_subjectivity_agrees, LightCheckpointSummary,
+};
+
 use crate::rpc::RpcClient;
 use crate::wallet_cmd::WalletCmdError;
 use crate::wallet_store::WalletFile;
-use mfn_consensus::validator_set_root;
-use mfn_crypto::dhash;
-use mfn_crypto::domain::LIGHT_CHECKPOINT;
-use mfn_light::LightChain;
-
-/// Build the same summary object as `get_light_snapshot.summary` / browser pins.
-pub fn summary_from_checkpoint_hex(checkpoint_hex: &str) -> Result<LightCheckpointSummary, String> {
-    let bytes = decode_hex(checkpoint_hex, "checkpoint_hex")?;
-    let chain = LightChain::decode_checkpoint(&bytes).map_err(|e| format!("decode: {e}"))?;
-    let checkpoint_bytes = chain.encode_checkpoint();
-    let digest = dhash(LIGHT_CHECKPOINT, &[&checkpoint_bytes]);
-    Ok(LightCheckpointSummary {
-        genesis_id: hex::encode(chain.genesis_id()),
-        tip_height: chain.tip_height(),
-        tip_block_id: hex::encode(chain.tip_id()),
-        validator_count: u64::try_from(chain.trusted_validators().len())
-            .map_err(|_| "validator_count overflow".to_string())?,
-        validator_set_root: hex::encode(validator_set_root(chain.trusted_validators())),
-        checkpoint_digest: hex::encode(digest),
-        anchor_peers: Vec::new(),
-    })
-}
-
-/// Field-by-field equality of two summary objects (all weak-subjectivity fields).
-pub fn summaries_equal(a: &LightCheckpointSummary, b: &LightCheckpointSummary) -> bool {
-    norm_hex32(&a.genesis_id) == norm_hex32(&b.genesis_id)
-        && a.tip_height == b.tip_height
-        && norm_hex32(&a.tip_block_id) == norm_hex32(&b.tip_block_id)
-        && a.validator_count == b.validator_count
-        && norm_hex32(&a.validator_set_root) == norm_hex32(&b.validator_set_root)
-        && norm_hex32(&a.checkpoint_digest) == norm_hex32(&b.checkpoint_digest)
-}
-
-/// Human-readable diff when [`summaries_equal`] is false.
-pub fn format_summary_diff(
-    left_label: &str,
-    left: &LightCheckpointSummary,
-    right_label: &str,
-    right: &LightCheckpointSummary,
-) -> String {
-    let mut lines = vec![format!(
-        "trusted summary mismatch: {left_label} vs {right_label}"
-    )];
-    if norm_hex32(&left.genesis_id) != norm_hex32(&right.genesis_id) {
-        lines.push(format!(
-            "  genesis_id: {} vs {}",
-            left.genesis_id, right.genesis_id
-        ));
-    }
-    if left.tip_height != right.tip_height {
-        lines.push(format!(
-            "  tip_height: {} vs {}",
-            left.tip_height, right.tip_height
-        ));
-    }
-    if norm_hex32(&left.tip_block_id) != norm_hex32(&right.tip_block_id) {
-        lines.push(format!(
-            "  tip_block_id: {} vs {}",
-            left.tip_block_id, right.tip_block_id
-        ));
-    }
-    if left.validator_count != right.validator_count {
-        lines.push(format!(
-            "  validator_count: {} vs {}",
-            left.validator_count, right.validator_count
-        ));
-    }
-    if norm_hex32(&left.validator_set_root) != norm_hex32(&right.validator_set_root) {
-        lines.push(format!(
-            "  validator_set_root: {} vs {}",
-            left.validator_set_root, right.validator_set_root
-        ));
-    }
-    if norm_hex32(&left.checkpoint_digest) != norm_hex32(&right.checkpoint_digest) {
-        lines.push(format!(
-            "  checkpoint_digest: {} vs {}",
-            left.checkpoint_digest, right.checkpoint_digest
-        ));
-    }
-    lines.join("\n")
-}
-
-/// Compare pinned weak-subjectivity fields against a checkpoint (M4.14 parity).
-pub fn weak_subjectivity_agrees(
-    trusted: &LightCheckpointSummary,
-    checkpoint_hex: &str,
-) -> Result<(), String> {
-    let remote = summary_from_checkpoint_hex(checkpoint_hex)?;
-    if norm_hex32(&trusted.genesis_id) != norm_hex32(&remote.genesis_id) {
-        return Err("genesis_id mismatch (trusted vs checkpoint)".into());
-    }
-    if trusted.tip_height != remote.tip_height {
-        return Err(format!(
-            "tip_height mismatch (trusted {} vs checkpoint {})",
-            trusted.tip_height, remote.tip_height
-        ));
-    }
-    if norm_hex32(&trusted.tip_block_id) != norm_hex32(&remote.tip_block_id) {
-        return Err("tip_block_id mismatch (trusted vs checkpoint)".into());
-    }
-    if norm_hex32(&trusted.validator_set_root) != norm_hex32(&remote.validator_set_root) {
-        return Err("validator_set_root mismatch (trusted vs checkpoint)".into());
-    }
-    Ok(())
-}
 
 /// Load a trusted summary JSON file (`get_light_snapshot.summary` shape).
 pub fn load_trusted_summary_file(path: &Path) -> Result<LightCheckpointSummary, WalletCmdError> {
@@ -406,24 +305,6 @@ pub fn save_trusted_summary_file(
         .map_err(|e| WalletCmdError::Usage(format!("write {}: {e}", path.display())))
 }
 
-fn norm_hex32(s: &str) -> String {
-    let t = s
-        .trim()
-        .strip_prefix("0x")
-        .or_else(|| s.trim().strip_prefix("0X"))
-        .unwrap_or(s.trim());
-    t.to_ascii_lowercase()
-}
-
-fn decode_hex(s: &str, label: &str) -> Result<Vec<u8>, String> {
-    let t = s
-        .trim()
-        .strip_prefix("0x")
-        .or_else(|| s.trim().strip_prefix("0X"))
-        .unwrap_or(s.trim());
-    hex::decode(t).map_err(|e| format!("{label}: {e}"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,7 +313,7 @@ mod tests {
         BondingParams, ConsensusParams, GenesisConfig, Validator, TEST_CONSENSUS_PARAMS,
     };
     use mfn_crypto::vrf::vrf_keygen_from_seed;
-    use mfn_light::LightChainConfig;
+    use mfn_light::{LightChain, LightChainConfig};
 
     fn sample_chain() -> LightChain {
         let cfg = GenesisConfig {

@@ -1,0 +1,26 @@
+[package]
+name = "mfn-checkpoint-log"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Permawrite — signed checkpoint log for light-client weak subjectivity (F12)."
+
+[lints.clippy]
+all = "warn"
+
+[dependencies]
+mfn-consensus = { path = "../mfn-consensus" }
+mfn-crypto = { path = "../mfn-crypto" }
+mfn-light = { path = "../mfn-light" }
+hex = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+mfn-bls = { path = "../mfn-bls" }
+mfn-storage = { path = "../mfn-storage" }

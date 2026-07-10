@@ -12,7 +12,7 @@ use mfn_net::{
     is_onion_host, parse_peer_host_port, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
 };
 use mfn_storage::{encode_storage_proof, StorageProof};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 
 /// Default `mfnd serve --rpc-listen` when not overridden.
@@ -172,24 +172,7 @@ pub struct LightFollowPage {
 }
 
 /// Weak-subjectivity summary embedded in `get_light_snapshot`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LightCheckpointSummary {
-    /// Genesis block id (64-char hex).
-    pub genesis_id: String,
-    /// Checkpoint tip height.
-    pub tip_height: u32,
-    /// Checkpoint tip block id (64-char hex).
-    pub tip_block_id: String,
-    /// Trusted validator count.
-    pub validator_count: u64,
-    /// Validator set Merkle root (64-char hex).
-    pub validator_set_root: String,
-    /// Checkpoint integrity digest (64-char hex).
-    pub checkpoint_digest: String,
-    /// Optional diverse boot peers bundled with the checkpoint (**F12** phase 0).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchor_peers: Vec<String>,
-}
+pub use mfn_checkpoint_log::LightCheckpointSummary;
 
 /// `get_light_snapshot` result.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

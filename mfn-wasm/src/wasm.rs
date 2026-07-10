@@ -36,6 +36,8 @@ pub fn wasm_storage_upload_preview(data: &[u8], replication: u8) -> Result<Strin
 }
 
 #[cfg(feature = "wasm-full")]
+use crate::checkpoint_log_core::{checkpoint_log_cross_check_json, checkpoint_log_verify_json};
+#[cfg(feature = "wasm-full")]
 use crate::header_verify_core::{block_id_from_header_hex_json, verify_header_hex_json};
 #[cfg(feature = "wasm-full")]
 use crate::light_chain_core::{
@@ -145,6 +147,23 @@ pub fn wasm_light_chain_weak_subjectivity(
 #[wasm_bindgen(js_name = lightFollowQuorum)]
 pub fn wasm_light_follow_quorum(batches_json: &str) -> Result<String, JsValue> {
     light_follow_quorum_json(batches_json).map_err(|e| js_err(e.to_string()))
+}
+
+/// Verify a signed checkpoint log JSONL in the browser (**F12** phase 3).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = checkpointLogVerify)]
+pub fn wasm_checkpoint_log_verify(log_jsonl: &str) -> Result<String, JsValue> {
+    checkpoint_log_verify_json(log_jsonl).map_err(|e| js_err(e.to_string()))
+}
+
+/// Cross-check a trusted summary JSON against a signed checkpoint log (**F12** phase 3).
+#[cfg(feature = "wasm-full")]
+#[wasm_bindgen(js_name = checkpointLogCrossCheck)]
+pub fn wasm_checkpoint_log_cross_check(
+    summary_json: &str,
+    log_jsonl: &str,
+) -> Result<String, JsValue> {
+    checkpoint_log_cross_check_json(summary_json, log_jsonl).map_err(|e| js_err(e.to_string()))
 }
 
 /// Verify BLS finality + validator-root binding on a header wire hex.

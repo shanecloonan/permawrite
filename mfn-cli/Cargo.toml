@@ -18,6 +18,7 @@ all = "warn"
 [dependencies]
 curve25519-dalek = { workspace = true }
 hex = { workspace = true }
+mfn-checkpoint-log = { path = "../mfn-checkpoint-log" }
 mfn-consensus = { path = "../mfn-consensus" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-light = { path = "../mfn-light" }

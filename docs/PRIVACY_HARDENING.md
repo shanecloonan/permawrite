@@ -592,7 +592,7 @@ wallet) + OPERATORS.md cross-links; rehearsal smoke verifies templates exist.
 
 **Effort:** low (phase 0–2). **Risk:** low (warn-only + docs).
 
-### F12. Subjective checkpoint web (`F5:F12`) — **phase 0–2 shipped**
+### F12. Subjective checkpoint web (`F5:F12`) — **phase 0–3 shipped**
 
 **Problem.** Light clients that pin a single RPC tip are vulnerable to eclipse and forged
 checkpoints. Independent maintainer attestations provide social redundancy.
@@ -605,9 +605,12 @@ checkpoints. Independent maintainer attestations provide social redundancy.
 **Shipped (phase 2).** `wallet light-scan --checkpoint-log FILE` cross-checks post-sync summary
 against verified log entries; rejects disagreement at the same `tip_height`.
 
-**Remaining.** Publish log at TL-8 invite; WASM light client parity.
+**Shipped (phase 3).** `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` /
+`checkpointLogCrossCheck` for browser light wallets (same Schnorr rules as CLI).
 
-**Effort:** moderate (phase 0–2) / high (web fetch). **Risk:** low (opt-in social layer).
+**Remaining.** Publish log at TL-8 invite.
+
+**Effort:** moderate (phase 0–3) / high (web fetch). **Risk:** low (opt-in social layer).
 
 ---
 
@@ -615,7 +618,7 @@ against verified log entries; rejects disagreement at the same `tip_height`.
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–2), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–2) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–2), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–3) |
 | High impact, moderate effort | TL-5 VPS internet soak |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

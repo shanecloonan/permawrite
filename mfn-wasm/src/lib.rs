@@ -13,6 +13,8 @@ mod core;
 mod wasm;
 
 #[cfg(feature = "wasm-full")]
+mod checkpoint_log_core;
+#[cfg(feature = "wasm-full")]
 mod header_verify_core;
 #[cfg(feature = "wasm-full")]
 mod light_chain_core;
@@ -34,6 +36,8 @@ pub use wasm::{
     wasm_claim_pubkey_from_seed_hex, wasm_storage_upload_preview, wasm_wallet_address_from_seed_hex,
 };
 
+#[cfg(feature = "wasm-full")]
+pub use checkpoint_log_core::{checkpoint_log_cross_check_json, checkpoint_log_verify_json};
 #[cfg(feature = "wasm-full")]
 pub use header_verify_core::{block_id_from_header_hex_json, verify_header_hex_json};
 #[cfg(feature = "wasm-full")]
@@ -59,8 +63,8 @@ pub use upload_core::{
 #[cfg(feature = "wasm-full")]
 pub use wasm::{
     wasm_block_id_from_header_hex, wasm_build_storage_proof, wasm_build_storage_upload,
-    wasm_build_transfer_json, wasm_decoy_pool_preview_json, wasm_light_chain_apply_evolution,
-    wasm_light_chain_verify_header, wasm_scan_block_hex, wasm_scan_block_txs_hex,
-    wasm_scan_transaction_hex, wasm_storage_chunk_hex, wasm_upload_min_fee, wasm_verify_header_hex,
-    wasm_verify_storage_proof,
+    wasm_build_transfer_json, wasm_checkpoint_log_cross_check, wasm_checkpoint_log_verify,
+    wasm_decoy_pool_preview_json, wasm_light_chain_apply_evolution, wasm_light_chain_verify_header,
+    wasm_scan_block_hex, wasm_scan_block_txs_hex, wasm_scan_transaction_hex,
+    wasm_storage_chunk_hex, wasm_upload_min_fee, wasm_verify_header_hex, wasm_verify_storage_proof,
 };

@@ -7,7 +7,7 @@ Network IO stays outside this crate. JavaScript is expected to fetch JSON-RPC da
 ## Features
 
 - `wasm-keys` (default): wallet address derivation, claiming pubkey derivation, and storage-upload preview helpers.
-- `wasm-full`: transfer construction, block/transaction scanning, storage-upload construction, BLS header verification, light-chain checkpoint/evolution helpers, quorum checks, and weak-subjectivity summary helpers.
+- `wasm-full`: transfer construction, block/transaction scanning, storage-upload construction, BLS header verification, light-chain checkpoint/evolution helpers, quorum checks, weak-subjectivity summary helpers, and signed checkpoint log verify/cross-check (**F12** phase 3).
 
 ## Public Bindings
 
@@ -31,6 +31,8 @@ With `wasm-full`, additional exports include:
 - `wasm_verify_storage_proof` / `verifyStorageProof` — SPoRA proof verification
 - `wasm_storage_chunk_hex` / `storageChunkHex` — extract one Merkle chunk for HTTP replication
 - `wasm_light_follow_quorum_json`
+- `wasm_checkpoint_log_verify` / `checkpointLogVerify` — verify signed checkpoint log JSONL (**F12** phase 3)
+- `wasm_checkpoint_log_cross_check` / `checkpointLogCrossCheck` — cross-check summary vs log (**F12** phase 3)
 
 ## Build
 

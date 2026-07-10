@@ -44,6 +44,23 @@ Publish verified `checkpoints.jsonl` alongside release artifacts and link from [
 
 ---
 
+## Browser / WASM (phase 3)
+
+After light sync in a browser wallet, cross-check the evolved summary against a fetched JSONL log using the same Schnorr rules as the CLI (`mfn-checkpoint-log` crate):
+
+```javascript
+import init, { checkpointLogVerify, checkpointLogCrossCheck } from "./pkg/mfn_wasm.js";
+
+await init();
+const verify = JSON.parse(checkpointLogVerify(logJsonl));
+const cross = JSON.parse(checkpointLogCrossCheck(summaryJson, logJsonl));
+// cross.matched === true when ≥1 signer agrees at tip_height
+```
+
+WASM exports: `checkpointLogVerify`, `checkpointLogCrossCheck` (`wasm-full` feature).
+
+---
+
 ## Light client usage (phase 2)
 
 After sync, wallets can cross-check the evolved checkpoint against a published log:

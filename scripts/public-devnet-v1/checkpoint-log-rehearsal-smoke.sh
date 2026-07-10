@@ -35,6 +35,8 @@ for needle in \
   "MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX" \
   "--checkpoint-log" \
   "checkpoint_log=matched" \
+  "checkpointLogVerify" \
+  "checkpointLogCrossCheck" \
   ; do
   if ! grep -qF "$needle" "$DOC"; then
     echo "checkpoint-log-rehearsal-smoke: CHECKPOINT_LOG.md missing: $needle" >&2
@@ -47,6 +49,7 @@ echo "  flow=export-trusted-summary -> checkpoint-log sign -> checkpoint-log ver
 echo "  light_scan=wallet light-scan --checkpoint-log FILE"
 echo "  docs=docs/CHECKPOINT_LOG.md"
 echo "  cli=mfn-cli checkpoint-log sign|verify; wallet light-scan --checkpoint-log"
+echo "  wasm=checkpointLogVerify; checkpointLogCrossCheck (mfn-wasm wasm-full)"
 echo "  live_rehearsal=deferred (publish log at TL-8 invite)"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

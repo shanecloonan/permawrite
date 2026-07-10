@@ -18,7 +18,9 @@ $needles = @(
     "MFN:checkpoint-log-signer:v1",
     "MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX",
     "--checkpoint-log",
-    "checkpoint_log=matched"
+    "checkpoint_log=matched",
+    "checkpointLogVerify",
+    "checkpointLogCrossCheck"
 )
 foreach ($n in $needles) {
     if (-not (Select-String -LiteralPath $Doc -Pattern $n -Quiet)) {
@@ -31,6 +33,7 @@ Write-Host "  flow=export-trusted-summary -> checkpoint-log sign -> checkpoint-l
 Write-Host "  light_scan=wallet light-scan --checkpoint-log FILE"
 Write-Host "  docs=docs/CHECKPOINT_LOG.md"
 Write-Host "  cli=mfn-cli checkpoint-log sign|verify; wallet light-scan --checkpoint-log"
+Write-Host "  wasm=checkpointLogVerify; checkpointLogCrossCheck (mfn-wasm wasm-full)"
 Write-Host "  live_rehearsal=deferred (publish log at TL-8 invite)"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {

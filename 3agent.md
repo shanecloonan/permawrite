@@ -10,9 +10,19 @@
 | **1** RC core | CI `#29055006785` GREEN; Nightly `#29054257043` | **Doing** — Nightly `#29056342177` watch | Soak maintenance |
 | **2** RC ops | `release-evidence-b16cb49` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | F12 phase 2 `10e606e` | **Done** | Idle |
+| **4+6** Protocol | F12 phase 3 (this push) | **Doing** — ci-check | TL-8 log publish |
 | **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-09 (F12 phase 3 — WASM checkpoint log parity)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F12 phase 3** | **This push** | `mfn-checkpoint-log` shared crate; `checkpointLogVerify` / `checkpointLogCrossCheck` WASM |
+
+**Lane 4+6 — Done:** F12 phase 3 **Next:** TL-8 publish signed log at invite
 
 ---
 

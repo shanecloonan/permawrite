@@ -31,6 +31,7 @@ wasm-keys = ["mfn-wallet/wasm-keys"]
 wasm-full = [
     "wasm-keys",
     "mfn-wallet/wasm-full",
+    "dep:mfn-checkpoint-log",
     "dep:mfn-consensus",
     "dep:mfn-bls",
     "dep:mfn-light",
@@ -38,6 +39,7 @@ wasm-full = [
 ]
 
 [dependencies]
+mfn-checkpoint-log = { path = "../mfn-checkpoint-log", optional = true }
 mfn-consensus = { path = "../mfn-consensus", optional = true, default-features = false }
 mfn-bls = { path = "../mfn-bls", optional = true }
 mfn-light = { path = "../mfn-light", optional = true }
