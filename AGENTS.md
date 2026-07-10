@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `8a49f7e`. **CI `#29073823035` in progress**. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go** (refresh after `#29073823035` green).
+**Head:** (this push). **CI `#29074519821` failed** Ubuntu — launch-go-no-go-rehearsal exit-code capture. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on checklist rehearsal | **Doing** — watch `#29073823035` | Release evidence + Nightly on green |
-| **2** | Release evidence refresh | **Doing** — after `#29073823035` green | Human sign-off packet |
+| **1** | launch-go-no-go rehearsal fix | **Doing** — push after `#29074519821` Ubuntu fail | Release evidence refresh |
+| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork implementation (research) |
-| **7** | TL-9 launch-go-no-go rehearsal | **Doing** — this push | TL-5 VPS internet soak (human) |
+| **7** | TL-9 launch-go-no-go rehearsal | **Done** — `bbc57a1` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **vps-execution-checklist-rehearsal-smoke** (`8a49f7e`) - testnet launch (lane 7): plan-only CI gate on `vps-execution-checklist.v1` JSON + OPERATORS cross-links.
+- **launch-go-no-go-rehearsal-smoke** (`bbc57a1`) - testnet launch (lane 7): plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON + TL-9 command in vps-execution-checklist.
 - **F6 Arweave durability comparison** (`bff1b70`) - permanence depth (lane 6): `ECONOMICS.md` §12 permanence durability vs Arweave.
 - **F6 tail split approved (docs)** (`9a2673a`) - permanence depth (lane 6): `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (implementation deferred).
 - **Nightly `#29071784488` GREEN** (`808529a`) - RC core (lane 1): all three jobs on PM23/F6 stack.

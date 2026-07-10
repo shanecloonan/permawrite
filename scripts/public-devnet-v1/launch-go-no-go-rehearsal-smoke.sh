@@ -35,8 +35,10 @@ if ! grep -qF "launch-go-no-go" "$OPS"; then
   exit 1
 fi
 
-combined="$(bash "$SCRIPT_DIR/launch-go-no-go.sh" --json 2>&1 || true)"
+set +e
+combined="$(bash "$SCRIPT_DIR/launch-go-no-go.sh" --json 2>&1)"
 exit_code=$?
+set -e
 if [[ "$exit_code" -eq 0 ]]; then
   echo "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence" >&2
   exit 1
@@ -68,7 +70,7 @@ if [[ "$genesis_id" != "$expected_genesis" ]]; then
   echo "launch-go-no-go-rehearsal-smoke: unexpected genesis_id $genesis_id" >&2
   exit 1
 fi
-if [[ "$automatable_pass" != "False" ]]; then
+if [[ "$automatable_pass" != "False" && "$automatable_pass" != "false" ]]; then
   echo "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false got $automatable_pass" >&2
   exit 1
 fi

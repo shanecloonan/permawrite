@@ -7,14 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29071784488` GREEN on `808529a` | **Doing** — CI `#29073823035` on `8a49f7e` | Release evidence + Nightly re-dispatch |
-| **2** RC ops | `release-evidence-77253f6` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
+| **1** RC core | Nightly `#29071784488` GREEN on `808529a` | **Doing** — CI `#29074519821` on `bbc57a1` | Release evidence |
+| **2** RC ops | `release-evidence-6b884ea` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
 | **6** Permanence | F6 tail split + Arweave docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | Checklist rehearsal smoke `8a49f7e` | **Done** | **TL-5 VPS soak** (human VPS) |
-| **7** Testnet | launch-go-no-go rehearsal (this push) | **Doing** — ci-check + push | TL-9 gate on VPS |
+| **7** Testnet | launch-go-no-go rehearsal `bbc57a1` | **Done** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-10 (TL-9 launch-go-no-go rehearsal smoke)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **launch-go-no-go-rehearsal-smoke** | **Done** — `bbc57a1` | plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON |
+
+**Lane 1 — Doing:** CI `#29074519821` **Next:** release evidence on green head
 
 ---
 
@@ -34,9 +43,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **TL-5 checklist v2** | **This push** | checkpoint-log warning; treasury-telemetry + PM23 rehearsal in planned commands; OPERATORS.md |
-
-**Lane 7 — Doing:** ci-check **Next:** human VPS TL-5 soak
+| **TL-5 checklist v2** | **Done** — `f6f7e22` | checkpoint-log warning; treasury-telemetry + PM23 rehearsal; OPERATORS.md |
 
 ---
 
