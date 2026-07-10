@@ -233,7 +233,7 @@ behavior are the telemetry inputs. Read-only helper:
 
 ## See also
 
-- [`ECONOMICS.md`](./ECONOMICS.md) — full monetary model: emission curve, treasury dynamics, worked drought/boom scenarios
+- [`ECONOMICS.md`](./ECONOMICS.md) — full monetary model: emission curve, treasury dynamics, worked drought/boom scenarios, [§ 12 Arweave durability comparison](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break)
 - [`STORAGE.md`](./STORAGE.md) — SPoRA proofs and how operators actually collect the treasury outflow
 - [`STORAGE_COST_MODEL.md`](./STORAGE_COST_MODEL.md) — per-gigabyte endowment projections in fiat terms
 - [`SUPPLY_CURVE.md`](./SUPPLY_CURVE.md) — scheduled supply by year/decade/century

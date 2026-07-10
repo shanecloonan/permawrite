@@ -122,7 +122,10 @@ The 51x buffer is designed for the -2% floor. Faster deflation yields surplus; s
 | IPFS | None default | None on-chain | N/A | Pins expire |
 | Filecoin | Deal renewals | PoRep/PoSt | Transparent | Contracts expire |
 | Arweave | One-time endowment | Recall mining | Transparent | Deflation endowment |
-| Permawrite | One-time endowment | SPoRA every block | RingCT/CLSAG | Deflation + fee treasury |
+| Permawrite | One-time endowment | SPoRA every block | RingCT/CLSAG | Deflation + fee treasury + emission backstop |
+
+For a full durability comparison (failure modes, stress scenarios, verdict),
+see [`ECONOMICS.md § 12`](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break).
 
 ---
 

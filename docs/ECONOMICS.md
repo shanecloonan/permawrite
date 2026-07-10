@@ -581,6 +581,126 @@ For full type signatures see the per-crate READMEs.
 
 ---
 
+## 12. Permanence durability vs Arweave — is this model more likely to break?
+
+Honest comparison as of 2026-07. Both projects share the same core bet:
+**pay once upfront, assume real storage costs decline (Kryder's law), and let
+the endowment's purchasing power compound.** Permawrite deliberately
+calibrated to Arweave-comparable upload pricing (~$4.50/GB at equivalent token
+prices). The endowment *math* is not the weak link. The differences are in
+**where ongoing money comes from** and **what happens under stress**.
+
+### 12.1 What is structurally the same
+
+| Property | Arweave | Permawrite |
+|---|---|---|
+| Payment model | One-time endowment at upload | One-time endowment at upload |
+| Solvency bet | Storage costs decline over time | Storage costs decline over time (2% floor vs Arweave's 0.5% Kryder+ assumption) |
+| Audit primitive | Recall / mining proofs | SPoRA Merkle proofs every block |
+| On-chain anchor | Permanent, no delete | Permanent, no delete |
+| Token-price risk | Endowment buys less real storage if AR falls | Same for MFN |
+
+Permawrite's 51× first-year buffer (`inflation_ppb = 2%`) is **more
+conservative** than Arweave's "200 years at 0.5% decline" pricing for the same
+realized deflation rate. If Kryder's law continues anywhere near historical
+rates, both models are massively over-collateralized at upload time.
+
+### 12.2 Where the models diverge (this is what matters)
+
+**Arweave — self-contained endowment faucet.**
+
+- ~80–85% of each upload fee is locked into a **network-wide storage
+  endowment** (token sink).
+- Miners are paid from block rewards + instant tx fees **first**; the endowment
+  drips only when those are insufficient to cover replication costs.
+- Each upload's endowment contribution is designed to fund **that cohort of
+  data** over decades without requiring unrelated transaction activity.
+
+**Permawrite — shared treasury cross-subsidized by privacy demand.**
+
+- Upload fees must cover `required_endowment`, but with `real_yield_ppb = 0`
+  (default), the endowment is **not** a per-file yield-bearing principal.
+  Instead, the treasury share capitalizes a **shared pool** that pays all
+  operators.
+- Ongoing operator revenue comes from:
+  1. 90% of **every privacy transaction fee** (not just upload fees),
+  2. validator bonds and slashes,
+  3. the emission backstop (unconditional mint if treasury is short).
+- Privacy-tx volume is the **primary long-term treasury inflow** — see
+  [`PROBLEMS.md § 2`](./PROBLEMS.md#2-r--0-default-makes-permanence-heavily-dependent-on-continuous-high-privacy-transaction-volume).
+
+This is the central architectural difference. Arweave's permanence loop is
+**mostly self-funding per upload**. Permawrite's is **explicitly a fusion
+thesis**: confidential cash pays for permanent storage.
+
+### 12.3 Failure-mode comparison
+
+| Stress scenario | Arweave (observed / designed) | Permawrite (designed) |
+|---|---|---|
+| **Kryder's law stalls** | Endowment horizon shrinks from "indefinite" toward the priced ~200-year floor; needs parameter/governance response | Same — 51× buffer erodes toward the 2% floor; needs hard fork to widen `inflation_ppb` or enable `real_yield_ppb` |
+| **Token price collapse** | Endowment releases more AR per byte of real storage; miner attrition risk | Same purchasing-power risk, **plus** backstop mints more MFN (dilution spiral risk) |
+| **Low transaction volume** | Block rewards + endowment drip still pay miners; new uploads still add endowment | Treasury drains; backstop takes over; permanence **holds** but inflation rises — privacy volume is a single point of failure |
+| **Operator/miner exit** | Recall-mining hardware barrier; geographic concentration | SPoRA is consumer-grade (easier entry) but proof-winning is a latency race (different centralization shape) |
+| **Implementation error** | Years of mainnet operation, petabyte-scale | Pre-audit experimental software; large attack surface ([`PROBLEMS.md § 8`](./PROBLEMS.md#8-extreme-complexity-and-large-attack-surface)) |
+
+### 12.4 Verdict
+
+**Is Permawrite more likely to break than Arweave?**
+
+**It depends what "break" means.**
+
+1. **Enter economic stress** (treasury drought, elevated inflation, degraded
+   mode): **Yes, Permawrite is more exposed.** The shared-treasury design
+   requires sustained privacy-tx fee inflow in a way Arweave's per-upload
+   endowment sink does not. If confidential-cash adoption stalls, Permawrite
+   falls back to the emission backstop — exactly the inflation tradeoff the
+   operator has accepted (see [`FEES.md § 5`](./FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury)).
+
+2. **Actually stop paying operators / lose data**: **No — not more likely, and
+   possibly less likely.** The emission backstop mints operator payouts
+   unconditionally when the treasury is empty. Operators are paid in full every
+   block regardless of fee volume. Data loss requires mass operator exit with
+   no replacement — a social/operational failure, not a treasury-balance
+   failure. Arweave has no equivalent unconditional mint; it throttles endowment
+   release when miners are already profitable, which is efficient but does not
+   add a hard payment floor.
+
+3. **Suffer a consensus/protocol bug that invalidates commitments**: **Yes,
+   more likely today.** Arweave is battle-tested production infrastructure.
+   Permawrite is pre-testnet experimental software composing Monero-grade
+   privacy + custom PoS + SPoRA in one `apply_block` pipeline. The
+   implementation-risk category is not comparable until audit and mainnet
+   time accrue.
+
+**Bottom line:** Permawrite trades Arweave's self-contained per-upload
+endowment loop for a **stronger unconditional payment guarantee** (backstop)
+and a **larger potential revenue pool** (privacy fees, if Monero-scale
+confidential-cash demand materializes). Under the project's stated preference
+— *permanence over everything, willing to pay inflation* — the model is
+**not more likely to break permanence**. It **is** more likely to enter
+inflation-funded degraded mode if the privacy-demand thesis fails, and **is**
+more likely to suffer an implementation-level break before mainnet maturity.
+
+Arweave is the safer bet on **proven track record and fewer dependency
+assumptions**. Permawrite is the higher-upside bet on **privacy demand
+cross-subsidizing storage at scale**, with a harder backstop floor that
+Arweave does not replicate.
+
+### 12.5 What would close the gap
+
+Ordered by leverage:
+
+1. **Ship `subsidy_to_treasury_bps`** (10% tail → treasury; F6 phase 2) —
+   scheduled permanence inflow independent of privacy demand.
+2. **Operator bonding + slashing at scale** — skin in the game for replicas
+   (partially shipped on public devnet; default bond still 0).
+3. **Mainnet telemetry** — watch `treasury_base_units` and backstop frequency;
+   [`treasury-telemetry-watch.sh`](../scripts/public-devnet-v1/treasury-telemetry-watch.sh).
+4. **Audit + time** — the implementation-risk gap vs Arweave closes only with
+   production evidence, not parameter tuning.
+
+---
+
 ## See also
 
 - [`FEES.md`](./FEES.md) — plain-language fee breakdown and parameter review
