@@ -55,7 +55,7 @@ for needle in \
   "checkpointLogVerify" \
   "checkpointLogCrossCheck" \
   ; do
-  if ! grep -qF "$needle" "$DOC"; then
+  if ! grep -qF -- "$needle" "$DOC"; then
     echo "checkpoint-log-rehearsal-smoke: CHECKPOINT_LOG.md missing: $needle" >&2
     exit 1
   fi
