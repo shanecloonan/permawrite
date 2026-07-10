@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `895ac1e`. **CI `#29066308783` in progress**. Prior GREEN `#29060447662` on `5d78329`; Nightly `#29061696154` GREEN on F12 phase 3 stack.
+**Head:** (this push). **CI `#29066308783` failed** Windows public-devnet scripts — `launch-status.ps1` gh without `GH_TOKEN` on GHA. Prior GREEN `#29060447662` on `5d78329`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on launch-status v4 stack | **Doing** — watch `#29066308783` | Nightly dispatch |
+| **1** | launch-status v4 GHA gh fix | **Doing** — push after `#29066308783` Windows fail | Nightly dispatch |
 | **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |

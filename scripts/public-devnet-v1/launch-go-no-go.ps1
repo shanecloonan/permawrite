@@ -113,18 +113,28 @@ if ($seedCount -ge 3) {
 
 if (Get-Command gh -ErrorAction SilentlyContinue) {
     Push-Location $RepoRoot
+    $prevEap = $ErrorActionPreference
     try {
-        $run = (gh run list --workflow CI --limit 1 --json status,conclusion 2>$null | ConvertFrom-Json)[0]
-        if ($run.status -eq "completed" -and $run.conclusion -eq "success") {
-            Pass "GitHub CI green (latest run)"
-        } elseif ($run.status -eq "in_progress") {
-            Warn "GitHub CI in progress on latest push"
+        if (-not $env:GH_TOKEN -and $env:GITHUB_TOKEN) {
+            $env:GH_TOKEN = $env:GITHUB_TOKEN
+        }
+        if (-not $env:GH_TOKEN) {
+            Warn "gh token not configured - skip CI lookup"
         } else {
-            Fail "GitHub CI status=$($run.status) conclusion=$($run.conclusion)"
+            $ErrorActionPreference = "SilentlyContinue"
+            $run = (gh run list --workflow CI --limit 1 --json status,conclusion 2>$null | ConvertFrom-Json)[0]
+            if ($run.status -eq "completed" -and $run.conclusion -eq "success") {
+                Pass "GitHub CI green (latest run)"
+            } elseif ($run.status -eq "in_progress") {
+                Warn "GitHub CI in progress on latest push"
+            } else {
+                Fail "GitHub CI status=$($run.status) conclusion=$($run.conclusion)"
+            }
         }
     } catch {
         Warn "gh run list unavailable"
     } finally {
+        $ErrorActionPreference = $prevEap
         Pop-Location
     }
 } else {

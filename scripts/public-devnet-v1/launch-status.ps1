@@ -33,7 +33,15 @@ function Get-CiSummary {
         return @{ message = "gh not on PATH" }
     }
     Push-Location $RepoRoot
+    $prevEap = $ErrorActionPreference
     try {
+        if (-not $env:GH_TOKEN -and $env:GITHUB_TOKEN) {
+            $env:GH_TOKEN = $env:GITHUB_TOKEN
+        }
+        if (-not $env:GH_TOKEN) {
+            return @{ message = "gh token not configured" }
+        }
+        $ErrorActionPreference = "SilentlyContinue"
         $line = gh run list --workflow CI --limit 1 --json databaseId,status,conclusion,headSha 2>$null
         if (-not $line) {
             return @{ message = "gh run list failed" }
@@ -46,7 +54,10 @@ function Get-CiSummary {
             conclusion = $run.conclusion
             head_sha   = $run.headSha
         }
+    } catch {
+        return @{ message = "gh run list unavailable" }
     } finally {
+        $ErrorActionPreference = $prevEap
         Pop-Location
     }
 }

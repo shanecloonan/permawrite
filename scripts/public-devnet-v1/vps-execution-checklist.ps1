@@ -13,10 +13,18 @@ $launchJson = & powershell -NoProfile -File (Join-Path $ScriptDir "launch-status
 $ci = @{}
 if (Get-Command gh -ErrorAction SilentlyContinue) {
     Push-Location $RepoRoot
+    $prevEap = $ErrorActionPreference
     try {
-        $line = gh run list --workflow CI --limit 1 --json databaseId,status,conclusion,headSha 2>$null
-        if ($line) { $ci = ($line | ConvertFrom-Json)[0] }
+        if (-not $env:GH_TOKEN -and $env:GITHUB_TOKEN) {
+            $env:GH_TOKEN = $env:GITHUB_TOKEN
+        }
+        if ($env:GH_TOKEN) {
+            $ErrorActionPreference = "SilentlyContinue"
+            $line = gh run list --workflow CI --limit 1 --json databaseId,status,conclusion,headSha 2>$null
+            if ($line) { $ci = ($line | ConvertFrom-Json)[0] }
+        }
     } finally {
+        $ErrorActionPreference = $prevEap
         Pop-Location
     }
 }
