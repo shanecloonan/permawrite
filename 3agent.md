@@ -7,13 +7,25 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29084142605` GREEN; Nightly `#29085709944` GREEN | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-fac313a` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29086333628` GREEN; Nightly `#29088007044` GREEN | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-09edd8a` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | F12 demo web phase 5 `05e2772` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | F12 demo web checkpoint log UI `05e2772` | **Done** | PM23 hard lint (research) |
 | **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
 | **7** Testnet | TL-7/TL-8 rehearsal smokes `05e2772` | **Done** | TL-5 VPS soak (human) |
+
+---
+
+## Session — 2026-07-10 (board sync 09edd8a)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Board sync** | **Done** — `09edd8a` | Nightly `#29088007044` GREEN; CI `#29086333628` GREEN; release evidence refresh |
+
+**Lane 1 — Done:** Nightly `#29088007044` GREEN **Next:** soak maintenance
+
+**Lane 2 — Done:** release evidence `09edd8a` RC audit **go** **Next:** human sign-off packet
 
 ---
 
