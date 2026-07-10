@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `4688735`. **CI `#29079154415` GREEN**. **Nightly `#29077379017` GREEN** on `3067bf9`. Release evidence `4688735` + RC audit dry-run **go**.
+**Head:** (this push). **CI `#29079154415` GREEN** on `4688735`. **Nightly `#29081319938` GREEN**. Release evidence refresh after this push.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly maintenance | **Next** — dispatch on `4688735` stack | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `4688735` / CI `#29079154415` | Human sign-off packet |
-| **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
+| **1** | Nightly `#29081319938` monitor | **In progress** | Soak maintenance |
+| **2** | TL-7/TL-8 rehearsal smokes + F12 demo web | **In progress** | Release evidence refresh after green CI |
+| **3** | F12 demo web phase 5 | **In progress** | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
+| **5** | F12 demo web checkpoint log UI | **In progress** | PM23 hard lint (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork implementation (research) |
-| **7** | TL-5/TL-6 VPS rehearsal smokes | **Done** — `4688735` | TL-5 VPS internet soak (human) |
+| **7** | TL-7/TL-8 publish + ceremony rehearsal smokes | **In progress** | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,6 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Nightly `#29081319938` GREEN** (`4688735`) - RC core (lane 1): all three jobs on TL-5/TL-6 VPS rehearsal stack.
 - **TL-5/TL-6 VPS rehearsal smokes** (`4688735`) - testnet launch (lane 7): `vps-internet-soak-rehearsal-smoke` + `vps-participant-rehearsal-rehearsal-smoke` plan gates in ci-check + GHA; CI `#29079154415` GREEN.
 - **Nightly `#29077379017` GREEN** (`3067bf9`) - RC core (lane 1): all three jobs on launch-go-no-go stack.
 - **CI launch-go-no-go bash fix** (`3067bf9`) - RC core (lane 1): capture non-zero exit from `launch-go-no-go.sh` in rehearsal smoke; CI `#29075258454` GREEN.

@@ -13,6 +13,8 @@ import init, {
   lightChainCheckpointSummary,
   lightChainWeakSubjectivity,
   lightFollowQuorum,
+  checkpointLogVerify,
+  checkpointLogCrossCheck,
 } from "./pkg/mfn_wasm.js";
 import { mfndRpc } from "./rpc-client.js";
 import {
@@ -615,6 +617,51 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTrustedSummary(seedOrDemo());
     $("sync-trusted-summary-json").value = "";
     show("sync-out", "wallet, checkpoint, relay pins, and trusted summary cleared");
+  });
+
+  async function checkpointLogText() {
+    const pasted = $("checkpoint-log-jsonl").value.trim();
+    if (pasted) return pasted;
+    throw new Error("paste checkpoint log JSONL or use Fetch log URL");
+  }
+
+  $("btn-checkpoint-log-fetch").addEventListener("click", async () => {
+    try {
+      const url = $("checkpoint-log-url").value.trim();
+      if (!url) throw new Error("set a log URL");
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status}`);
+      const text = await res.text();
+      $("checkpoint-log-jsonl").value = text.trim();
+      show("checkpoint-log-out", `fetched ${text.trim().split("\n").filter(Boolean).length} line(s) from ${url}`);
+    } catch (e) {
+      show("checkpoint-log-out", String(e));
+    }
+  });
+
+  $("btn-checkpoint-log-verify").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const logJsonl = await checkpointLogText();
+      const out = checkpointLogVerify(logJsonl);
+      show("checkpoint-log-out", out);
+    } catch (e) {
+      show("checkpoint-log-out", String(e));
+    }
+  });
+
+  $("btn-checkpoint-log-cross-check").addEventListener("click", async () => {
+    try {
+      await ensureWasm();
+      const logJsonl = await checkpointLogText();
+      const raw = $("sync-trusted-summary-json").value.trim();
+      if (!raw) throw new Error("paste trusted summary JSON in Wallet sync first");
+      const summary = parseTrustedSummaryJson(raw);
+      const out = checkpointLogCrossCheck(JSON.stringify(summary), logJsonl);
+      show("checkpoint-log-out", out);
+    } catch (e) {
+      show("checkpoint-log-out", String(e));
+    }
   });
 
   $("btn-scan-block").addEventListener("click", async () => {

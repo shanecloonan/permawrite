@@ -120,6 +120,34 @@
         <pre id="sync-out" class="out"></pre>
       </section>
 
+      <section id="checkpoint-log">
+        <h2>Checkpoint log (F12)</h2>
+        <p class="lede">
+          Verify the community Schnorr-signed JSONL log with
+          <code>checkpointLogVerify</code> and cross-check a trusted summary with
+          <code>checkpointLogCrossCheck</code> (same rules as
+          <code>mfn-cli checkpoint-log verify</code>).
+        </p>
+        <label for="checkpoint-log-url">Log URL (optional fetch)</label>
+        <input
+          id="checkpoint-log-url"
+          type="text"
+          spellcheck="false"
+          value="../../mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+        />
+        <label for="checkpoint-log-jsonl">Signed log JSONL (paste or fetch)</label>
+        <textarea id="checkpoint-log-jsonl" rows="6" spellcheck="false"></textarea>
+        <div class="row">
+          <button type="button" id="btn-checkpoint-log-fetch">Fetch log URL</button>
+          <button type="button" id="btn-checkpoint-log-verify">Verify log</button>
+          <button type="button" id="btn-checkpoint-log-cross-check">Cross-check summary</button>
+        </div>
+        <p class="hint">
+          Cross-check uses the trusted summary textarea in Wallet sync (or export one first).
+        </p>
+        <pre id="checkpoint-log-out" class="out"></pre>
+      </section>
+
       <section>
         <h2>Chain scan (manual)</h2>
         <label for="block-hex">Block wire hex</label>

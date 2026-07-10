@@ -197,6 +197,9 @@ Demo sync uses `get_light_follow` instead of per-block `get_block_evolution`. Pe
 | `lightFollowQuorum` | Require multiple `get_light_follow` batches to agree (header + evolution bytes per height) |
 | `checkpointLogVerify` | Verify Schnorr signatures on a signed checkpoint log JSONL (**F12** phase 3) |
 | `checkpointLogCrossCheck` | Cross-check trusted summary JSON against signed log at matching `tip_height` (**F12** phase 3) |
+
+Demo UI (**F12** phase 5): [`demo/web/index.html`](../demo/web/index.html) § Checkpoint log — fetch/paste `public_devnet_v1.checkpoints.jsonl`, **Verify log**, **Cross-check summary** (uses Wallet sync trusted summary textarea).
+
 | `lightChainCheckpointSummary` | Digest + tip identity + `validator_set_root` for a checkpoint |
 | `lightChainWeakSubjectivity` | Compare a pinned trusted summary JSON against a checkpoint |
 | `get_light_checkpoint_summary` | Same summary fields server-side from `checkpoint_hex` |

@@ -178,6 +178,21 @@ if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PA
     $vpsParticipantPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$publishSeedPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($publishSeedPlan -notmatch "publish-seed-nodes-rehearsal-smoke: PASS plan-only" -or $publishSeedPlan -notmatch "203.0.113.1:19001") {
+    $publishSeedPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsCeremonyPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsCeremonyPlan -notmatch "vps-launch-ceremony-rehearsal-smoke: PASS plan-only" -or $vpsCeremonyPlan -notmatch "TL-5..TL-9") {
+    $vpsCeremonyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$demoF12Plan = (powershell -NoProfile -File scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($demoF12Plan -notmatch "demo-web-f12-rehearsal-smoke: PASS plan-only" -or $demoF12Plan -notmatch "checkpointLogVerify") {
+    $demoF12Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

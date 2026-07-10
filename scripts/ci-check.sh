@@ -132,6 +132,12 @@ vps_soak_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke
 [[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_soak_plan" >&2; exit 1; }
 vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
+publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"
+[[ "$publish_seed_plan" == *"publish-seed-nodes-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$publish_seed_plan" >&2; exit 1; }
+vps_ceremony_plan="$(bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_ceremony_plan" == *"vps-launch-ceremony-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_ceremony_plan" >&2; exit 1; }
+demo_f12_plan="$(bash scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.sh --plan-only)"
+[[ "$demo_f12_plan" == *"demo-web-f12-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$demo_f12_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

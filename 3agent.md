@@ -7,24 +7,37 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29079154415` GREEN on `4688735` | **Next** — Nightly dispatch | Soak maintenance |
-| **2** RC ops | `release-evidence-4688735` RC audit **go** | **Done** | Human sign-off |
-| **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
+| **1** RC core | CI `#29079154415` GREEN; Nightly `#29081319938` GREEN | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-4688735` RC audit **go** | **Doing** — ci-check + push | Release evidence refresh |
+| **3** Onboarding | tor-rpc-rehearsal `5b863b3`; TL-5/TL-6 smokes `4688735` | **Doing** — F12 demo web phase 5 | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
-| **6** Permanence | F6 tail split + Arweave docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | TL-5/TL-6 rehearsal smokes `4688735` | **Done** | **TL-5 VPS soak** (human VPS) |
+| **5** Privacy | P32 PM23 `808529a` | **Doing** — F12 demo web checkpoint log UI | PM23 hard lint (research) |
+| **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
+| **7** Testnet | TL-5–TL-9 rehearsal smokes through `4688735` | **Doing** — TL-7/TL-8 publish + ceremony rehearsal smokes | TL-5 VPS soak (human) |
 
 ---
 
-## Session — 2026-07-10 (TL-5/TL-6 VPS rehearsal smokes)
+## Session — 2026-07-10 (TL-7/TL-8 rehearsal + F12 demo web)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **publish-seed-nodes-rehearsal-smoke** | **This push** | fixture dry-run via `vps-bind.env.example` + doc gates |
+| **vps-launch-ceremony-rehearsal-smoke** | **This push** | `vps-launch-ceremony.sh --plan-only` TL-5..TL-9 ordering gate |
+| **F12 phase 5 demo web** | **This push** | `checkpointLogVerify` / `checkpointLogCrossCheck` UI in `demo/web` |
+| **demo-web-f12-rehearsal-smoke** | **This push** | ci-check + GHA wiring gate |
+
+**Lane 2 — Doing:** ci-check before push **Next:** release evidence refresh when CI green
+
+**Lane 7 — Doing:** TL-7/TL-8 software gates **Next:** human TL-5 VPS soak
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **TL-5 soak rehearsal** | **Done** — `4688735` | `vps-internet-soak-rehearsal-smoke.*` — docs + script wiring gate |
 | **TL-6 participant rehearsal** | **Done** — `4688735` | `vps-participant-rehearsal-rehearsal-smoke.*` — wrapper + evidence pattern gate |
 
-**Lane 1 — Done:** CI `#29079154415` GREEN **Next:** Nightly on `4688735` stack
+**Lane 1 — Done:** Nightly `#29081319938` GREEN on `4688735` stack
 
 ---
 

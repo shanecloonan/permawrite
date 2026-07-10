@@ -97,6 +97,12 @@ jobs:
           [[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_soak_plan"; exit 1; }
           vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
           [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_participant_plan"; exit 1; }
+          publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"
+          [[ "$publish_seed_plan" == *"publish-seed-nodes-rehearsal-smoke: PASS plan-only"* ]] || { echo "$publish_seed_plan"; exit 1; }
+          vps_ceremony_plan="$(bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_ceremony_plan" == *"vps-launch-ceremony-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_ceremony_plan"; exit 1; }
+          demo_f12_plan="$(bash scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.sh --plan-only)"
+          [[ "$demo_f12_plan" == *"demo-web-f12-rehearsal-smoke: PASS plan-only"* ]] || { echo "$demo_f12_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -602,6 +608,21 @@ jobs:
           $vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only") {
             $vpsParticipantPlan
+            exit 1
+          }
+          $publishSeedPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($publishSeedPlan -notmatch "publish-seed-nodes-rehearsal-smoke: PASS plan-only") {
+            $publishSeedPlan
+            exit 1
+          }
+          $vpsCeremonyPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($vpsCeremonyPlan -notmatch "vps-launch-ceremony-rehearsal-smoke: PASS plan-only") {
+            $vpsCeremonyPlan
+            exit 1
+          }
+          $demoF12Plan = (powershell -NoProfile -File scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($demoF12Plan -notmatch "demo-web-f12-rehearsal-smoke: PASS plan-only") {
+            $demoF12Plan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
