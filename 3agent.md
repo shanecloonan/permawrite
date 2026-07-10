@@ -7,13 +7,13 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29077379017` GREEN on `3067bf9` | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-1050425` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | CI `#29079154415` GREEN on `4688735` | **Next** — Nightly dispatch | Soak maintenance |
+| **2** RC ops | `release-evidence-4688735` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
 | **6** Permanence | F6 tail split + Arweave docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | TL-5/TL-6 rehearsal smokes | **Done** — this push | **TL-5 VPS soak** (human VPS) |
+| **7** Testnet | TL-5/TL-6 rehearsal smokes `4688735` | **Done** | **TL-5 VPS soak** (human VPS) |
 
 ---
 
@@ -21,10 +21,10 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **TL-5 soak rehearsal** | **Done** — this push | `vps-internet-soak-rehearsal-smoke.*` — docs + script wiring gate |
-| **TL-6 participant rehearsal** | **Done** — this push | `vps-participant-rehearsal-rehearsal-smoke.*` — wrapper + evidence pattern gate |
+| **TL-5 soak rehearsal** | **Done** — `4688735` | `vps-internet-soak-rehearsal-smoke.*` — docs + script wiring gate |
+| **TL-6 participant rehearsal** | **Done** — `4688735` | `vps-participant-rehearsal-rehearsal-smoke.*` — wrapper + evidence pattern gate |
 
-**Lane 1 — Doing:** CI on this push **Next:** release evidence on green head
+**Lane 1 — Done:** CI `#29079154415` GREEN **Next:** Nightly on `4688735` stack
 
 ---
 
