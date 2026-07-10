@@ -131,83 +131,102 @@ endowment amount inside the Pedersen commitment is additionally bound to
 ## 5. Parameter review (2026-07): should fees rise, and should the tail feed the treasury?
 
 Reviewed with permanence as the priority, per the project doctrine. Verdict
-up front: **keep the current parameters** — the 90/10 split, the flat wallet
-transfer fee, and 100% of tail emission to the producer. Reasoning and
-revisit triggers below.
+up front:
 
-### 5.1 Why the permanence guarantee does not depend on the fee level
+- **Keep now:** 90/10 fee split, flat wallet transfer fee.
+- **Ship at next parameter fork:** route **10% of block subsidy** (including
+  tail emission) to the treasury — permanence-first doctrine and operator
+  preference favor predictable treasury inflow over relying on emergency
+  backstop minting during fee droughts.
+
+### 5.1 Permanence is already guaranteed — the question is *how* we pay for it
 
 Storage operators are paid per accepted SPoRA proof out of the treasury, and
 when the treasury is short, **the emission backstop mints the shortfall
 unconditionally** ([`apply_block`](../mfn-consensus/src/block/apply.rs)
-settlement; `emission_backstop_only_when_treasury_short` test). Operators are
-paid in full in every block regardless of fee volume. Fee levels therefore
-change **who bears the cost** — transactors (fees) vs. all holders (dilution
-via backstop minting) — not **whether data stays paid-for**. Raising fees is
-a cost-allocation decision, not a permanence-safety decision.
+settlement; `emission_backstop_only_when_treasury_short` test). Data never
+stops being funded.
 
-### 5.2 Raising the fee split (90% → 95%+): rejected for now
+What *does* vary is the **inflation profile**:
 
-- The treasury already takes 90 basis points of every 100. The remaining 10%
-  is the producer's inclusion incentive; in the tail era (subsidy ≈ 0.195
+| Funding path | When it kicks in | Inflation character |
+|---|---|---|
+| Tx fees → treasury (90%) | Steady-state privacy demand | User-paid; no new mint |
+| Scheduled subsidy → treasury (proposed 10%) | Every block in tail era | Predictable, small, constant |
+| Emission backstop | Treasury empty + proofs accepted | Spiky, drought-triggered, unscheduled |
+
+Choosing a tail split is not about *whether* permanence holds — it already
+does. It is about trading a small, **scheduled** producer subsidy cut for a
+treasury buffer that reduces how often the chain must tap the **emergency**
+backstop. Under permanence-first doctrine, that trade is worth making.
+
+**Important:** a tail/subsidy split does **not** mint extra tokens. Total
+per-block emission stays the same; only the recipient changes (producer
+coinbase → treasury credit). The inflation sacrifice is indirect: producers
+earn slightly less, and backstop spikes should become rarer.
+
+### 5.2 Raising the fee split (90% → 95%+): keep at 90/10 for now
+
+- The treasury already takes 90% of every fee. The remaining 10% is the
+  producer's inclusion incentive; in the tail era (subsidy ≈ 0.195
   MFN/block) fees become a meaningful part of the producer security budget
-  ([`ECONOMICS.md § 6`](./ECONOMICS.md#6-producer-economics)). Squeezing the
-  tip risks weakening consensus security — and a chain that can be cheaply
-  reorged protects no data. Marginal treasury gain, real security cost.
-- `fee_to_treasury_bps` is frozen at genesis and not genesis-JSON
-  configurable ([`genesis_spec.rs`](../mfn-runtime/src/genesis_spec.rs) always
-  loads `DEFAULT_EMISSION_PARAMS`), so any change is a hard fork for the
-  running devnet.
+  ([`ECONOMICS.md § 6`](./ECONOMICS.md#6-producer-economics)).
+- Permanence-first does **not** mean squeeze the producer tip — a chain that
+  can be cheaply reorged protects no data. The tail split (§ 5.4) is the
+  right lever: it funds permanence from *subsidy*, not from *fees*.
+- `fee_to_treasury_bps` is frozen at genesis; any change is a hard fork.
 
-### 5.3 Raising the flat transfer fee: rejected for now
+### 5.3 Raising the flat transfer fee: keep at 0.0001 MFN for now
 
 `DEFAULT_TRANSFER_FEE` is client-side convention with no consensus floor
 behind it. Raising the default taxes reference-wallet users while custom
 wallets pay whatever they want — it buys the treasury almost nothing.
-Introducing a real consensus minimum (per-byte fee market) is a much larger
-protocol change and is not justified while blocks are far from full. The
-fee that actually matters for permanence — the upload endowment gate — is
+The fee that actually matters for permanence — the upload endowment gate — is
 already consensus-enforced and scales with bytes stored.
 
-### 5.4 Routing ~10% of tail emission to the treasury: rejected for now
+### 5.4 Subsidy tail split — **approved for next parameter fork** (10% → treasury)
 
-The idea: split the permanent tail (0.195 MFN/block) so e.g. 10% accrues to
-the treasury instead of the producer, giving permanence a demand-independent
-income floor.
+**Proposed parameter:** `subsidy_to_treasury_bps = 1000` (10% of
+`emission_at_height(h)` credits `ChainState.treasury`; the remainder goes to
+the producer coinbase as today).
 
-**For it:** it converts *unscheduled* backstop minting into *scheduled*
-emission (more predictable inflation), and builds a drought buffer so the
-treasury rarely empties.
+**Numbers at tail era** (defaults, ~2.63M slots/year):
 
-**Against it (decisive today):**
+| Stream | Per block | Per year |
+|---|---|---|
+| Total tail emission | 0.1953125 MFN | ~513,281 MFN |
+| → treasury (10%) | 0.01953125 MFN | ~51,328 MFN |
+| → producer (90%) | 0.17578125 MFN | ~461,953 MFN |
 
-1. **Economically near-redundant.** The backstop already guarantees operator
-   payouts when the treasury is dry. A tail split changes the inflation
-   *accounting*, not the permanence *guarantee*.
-2. **It cuts producer income exactly when it is thinnest.** In the tail era
-   the producer lives on `0.195 MFN + 10% of fees`. Diverting 10% of the tail
-   weakens the consensus security budget in the era it matters most —
-   security is a precondition for permanence, not a competitor to it.
-3. **Hard fork cost.** `EmissionParams` are frozen at genesis; this cannot be
-   rolled out as a config change on the live devnet.
+During the halving eras the same 10% applies to the (larger) subsidy — the
+treasury buffer builds faster early, which is desirable.
 
-**Revisit triggers** (any of these reopens both § 5.2 and § 5.4 as a single
-parameter fork):
+**Why ship this:**
 
-- Testnet/mainnet telemetry shows the treasury pinned near zero with the
-  emission backstop minting in a majority of blocks over a sustained window
-  (weeks), i.e. structural — not transient — fee drought while storage
-  liabilities grow.
-- Realized inflation from backstop minting materially exceeds the scheduled
-  emission curve in [`SUPPLY_CURVE.md`](./SUPPLY_CURVE.md).
-- If reopened: prefer raising `cost_per_byte_year_ppb` (make new uploads pay
-  more) first, then a tail split (respecting the tail-continuity constraint
-  in [`ECONOMICS.md § 2`](./ECONOMICS.md#2-subsidy-curve--bitcoin-halvings-monero-tail)),
-  and only then a higher `fee_to_treasury_bps`.
+1. **Demand-independent permanence floor.** ~51k MFN/year flows to the
+   treasury even with zero privacy txs — a cushion against fee droughts
+   without waiting for backstop spikes.
+2. **Predictable vs. emergency inflation.** Backstop minting is
+   unscheduled and can cluster during droughts. A tail split front-loads a
+   small, constant treasury inflow so backstop taps are rarer and inflation
+   is smoother.
+3. **Modest producer cost.** Producer tail income drops from 0.195 to
+   0.176 MFN/block — ~10%. Fees (10% of tx volume) still flow to the
+   producer; security budget remains viable.
+4. **Respects tail-continuity.** Total emission unchanged; no upward jump
+   at the tail boundary ([`ECONOMICS.md § 2`](./ECONOMICS.md#2-subsidy-curve--bitcoin-halvings-monero-tail)).
 
-The `treasury_base_units` field of the `get_chain_params` RPC and per-block
-backstop behavior give exactly the telemetry needed to watch these triggers.
-Read-only helper: `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only`
+**Not yet in code.** `EmissionParams` are frozen at genesis today. Shipping
+requires a consensus change: new `subsidy_to_treasury_bps` field,
+`apply_block` treasury credit, `producer_portion_amount` adjustment, and
+settlement test updates. Track as **F6 phase 2** on lane 6.
+
+**Do not combine with** raising `fee_to_treasury_bps` in the same fork — one
+lever at a time so telemetry can attribute effects.
+
+The `treasury_base_units` field of `get_chain_params` and per-block backstop
+behavior are the telemetry inputs. Read-only helper:
+`bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only`
 (live: `--rpc HOST:PORT`).
 
 ---

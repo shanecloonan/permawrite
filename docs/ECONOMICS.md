@@ -543,11 +543,12 @@ A future milestone may restore an explicit settlement payout — either via an a
 
 These are deliberately not yet hard-coded:
 
-0. **Tail-to-treasury split.** Should a fraction of tail emission (e.g. 10%)
-   accrue to the treasury instead of the producer, giving permanence a
-   demand-independent income floor? **Rejected for now** — see the analysis in
-   [`FEES.md § 5.4`](./FEES.md#54-routing-10-of-tail-emission-to-the-treasury-rejected-for-now).
-   Revisit when testnet telemetry shows sustained backstop minting.
+0. **Subsidy tail split (approved, not yet shipped).** Route 10% of
+   `emission_at_height(h)` to the treasury (`subsidy_to_treasury_bps = 1000`);
+   producer coinbase keeps the remainder. Permanence-first doctrine favors
+   predictable treasury inflow over emergency backstop spikes — see
+   [`FEES.md § 5.4`](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury).
+   Requires consensus hard fork (F6 phase 2).
 1. **Operator bonding.** Should operators stake MFN as a slashable bond to qualify as a "premium" replica? Tradeoff: more skin in the game (better SLA) vs. higher operator friction (less open participation).
 2. **Replication-dependent yield curves.** Today, a `replication=3` file pays its operators flat-rate. Should `replication=10` files pay each operator less (since redundancy is higher) or more (since operators are committing more)? Currently flat-rate per slot.
 3. **Long-tail decay.** Should very-rarely-proven commitments (e.g., proved 1× per year) eventually expire, freeing their pinned bytes? Today: no — *true* permanence. But this means dead bytes accumulate forever. May need a "stale eviction with refund" mechanism.
