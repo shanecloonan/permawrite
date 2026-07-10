@@ -396,7 +396,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **publish-seed-nodes-rehearsal-smoke** — TL-8 fixture dry-run + doc gate (`05e2772`)
 - [x] **vps-launch-ceremony-rehearsal-smoke** — TL-7 ceremony TL-5..TL-9 ordering gate (`05e2772`)
 - [x] **F12 phase 5 demo web** — checkpoint log UI + `demo-web-f12-rehearsal-smoke.*` (`05e2772`)
-- [x] **TL-5 preflight hardening** — MFER policy + storage-operator binary gate in `vps-preflight.sh`
+- [x] **vps-preflight-rehearsal-smoke** — TL-5 preflight docs + script wiring gate (this push)
+- [x] **testnet-invite-rehearsal-smoke** — TL-8 invite packet doc gate (this push)
 - [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (`759f5d1`).
 
 ### Doing

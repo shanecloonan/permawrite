@@ -124,7 +124,7 @@ bash scripts/public-devnet-v1/vps-execution-checklist.sh
 After firewall + `vps-bind.env` are configured:
 
 ```bash
-# Preflight only (bind file, loopback RPC, public P2P, binaries)
+# Preflight only (bind file, loopback RPC, public P2P, binaries, MFER policy require_endowment_range_proof=1)
 bash scripts/public-devnet-v1/vps-preflight.sh
 
 # Start mesh, multi-sample health, archive evidence (default 20 min, min height 10)
