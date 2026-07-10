@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | launch-go-no-go fix `3067bf9` | **Doing** — CI `#29075258454` | Release evidence done |
+| **1** RC core | CI `#29075258454` GREEN on `3067bf9` | **Next** — Nightly dispatch | Soak maintenance |
 | **2** RC ops | `release-evidence-3067bf9` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | **launch-go-no-go-rehearsal-smoke** | **Done** — `bbc57a1` | plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON |
 
-**Lane 1 — Doing:** CI `#29074519821` **Next:** release evidence on green head
+**Lane 1 — Done:** CI `#29075258454` GREEN **Next:** Nightly on `3067bf9`
 
 ---
 
