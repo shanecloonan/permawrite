@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `3067bf9`. **CI `#29075258454` in progress** (public-devnet scripts GREEN). **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `3067bf9` + RC audit dry-run **go**.
+**Head:** `3067bf9`. **CI `#29075258454` GREEN**. **Nightly `#29077379017`** dispatched on `3067bf9`. Release evidence `1050425` + RC audit dry-run **go** on `#29075258454`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on launch-go-no-go fix | **Doing** — watch `#29075258454` | Release evidence done |
-| **2** | Release evidence refresh | **Done** — `3067bf9` / CI `#29075258454` smokes | Human sign-off packet |
+| **1** | Nightly on `3067bf9` | **Doing** — `#29077379017` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `1050425` / CI `#29075258454` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **CI launch-go-no-go bash fix** (`3067bf9`) - RC core (lane 1): capture non-zero exit from `launch-go-no-go.sh` in rehearsal smoke (Ubuntu GHA `|| true` bug).
+- **CI launch-go-no-go bash fix** (`3067bf9`) - RC core (lane 1): capture non-zero exit from `launch-go-no-go.sh` in rehearsal smoke; CI `#29075258454` GREEN.
 - **launch-go-no-go-rehearsal-smoke** (`bbc57a1`) - testnet launch (lane 7): plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON + TL-9 command in vps-execution-checklist.
 - **F6 Arweave durability comparison** (`bff1b70`) - permanence depth (lane 6): `ECONOMICS.md` §12 permanence durability vs Arweave.
 - **F6 tail split approved (docs)** (`9a2673a`) - permanence depth (lane 6): `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (implementation deferred).
