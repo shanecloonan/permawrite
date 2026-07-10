@@ -104,6 +104,32 @@ pub fn role_topology_colocation_warning(
     ))
 }
 
+/// Hint when a non-validator node advertises public P2P but keeps RPC loopback-only.
+///
+/// Community observers typically expose public RPC for wallets; loopback-only is fine on
+/// local devnet meshes where both listeners bind `127.0.0.1`.
+#[must_use]
+pub fn observer_loopback_rpc_hint_warning(
+    produce: bool,
+    committee_vote: bool,
+    rpc_listen: &str,
+    p2p_listen: Option<&str>,
+) -> Option<String> {
+    if produce || committee_vote {
+        return None;
+    }
+    if !listen_is_loopback(rpc_listen) {
+        return None;
+    }
+    let p2p = p2p_listen?;
+    if listen_is_loopback(p2p) {
+        return None;
+    }
+    Some(format!(
+        "mfnd_role_topology_warning roles=observer rpc_listen={rpc_listen} p2p_listen={p2p}; community observers usually expose public RPC (see REFERENCE_TOPOLOGY.md); loopback RPC is OK with SSH tunnel"
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,6 +184,40 @@ mod tests {
         .expect("warning");
         assert!(msg.contains("roles=validator+wallet_rpc"));
         assert!(!msg.contains("+operator"));
+    }
+
+    #[test]
+    fn observer_public_p2p_loopback_rpc_hints() {
+        let msg = observer_loopback_rpc_hint_warning(
+            false,
+            false,
+            "127.0.0.1:18731",
+            Some("0.0.0.0:19004"),
+        )
+        .expect("hint");
+        assert!(msg.contains("roles=observer"));
+    }
+
+    #[test]
+    fn observer_loopback_mesh_skips_hint() {
+        assert!(observer_loopback_rpc_hint_warning(
+            false,
+            false,
+            "127.0.0.1:18731",
+            Some("127.0.0.1:8333"),
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn validator_skips_observer_hint() {
+        assert!(observer_loopback_rpc_hint_warning(
+            true,
+            false,
+            "127.0.0.1:18731",
+            Some("0.0.0.0:19004"),
+        )
+        .is_none());
     }
 
     #[test]

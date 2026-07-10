@@ -16,6 +16,7 @@ $needles = @(
     "mfnd_role_topology_warning",
     "Loopback devnet",
     "Wallet keys never on validator",
+    "community observers usually expose public RPC",
     "mfn-cli --tor",
     "vps-role-validator.env.example"
 )

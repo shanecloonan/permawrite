@@ -39,7 +39,8 @@ use crate::p2p_repair_sweep::{
     RepairSweepLoop, DEFAULT_REPAIR_INTERVAL_MS,
 };
 use crate::role_topology::{
-    chain_validator_is_storage_operator, role_topology_colocation_warning, validator_index_from_env,
+    chain_validator_is_storage_operator, observer_loopback_rpc_hint_warning,
+    role_topology_colocation_warning, validator_index_from_env,
 };
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
@@ -635,6 +636,11 @@ pub(crate) fn run_serve(
         is_storage_operator,
     ) {
         eprintln!("{warning}");
+    }
+    if let Some(hint) =
+        observer_loopback_rpc_hint_warning(produce, committee_vote, rpc_listen, p2p_listen)
+    {
+        eprintln!("{hint}");
     }
     let rpc_max_in_flight = rpc_max_in_flight_from_env()?;
     println!("mfnd_rpc_max_in_flight={rpc_max_in_flight}");

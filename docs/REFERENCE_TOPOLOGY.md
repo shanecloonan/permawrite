@@ -125,6 +125,8 @@ mfnd --data-dir /var/lib/mfnd-v0 --genesis public_devnet_v1.json \
 
 ### Observer (community RPC)
 
+Community observers usually expose public RPC for wallets; loopback RPC is OK with SSH tunnel.
+
 ```bash
 mfnd --data-dir /var/lib/mfnd-observer --genesis public_devnet_v1.json \
   --rpc-listen 0.0.0.0:18731 --rpc-api-key "$MFND_RPC_API_KEY" \
@@ -212,7 +214,8 @@ Role env templates: [`vps-role-validator.env.example`](../scripts/public-devnet-
 | **0** | Startup warn on colocated validator + public RPC (+ operator) | **Shipped** — `f76991a` |
 | **1** | This reference doc + rehearsal smoke | **Shipped** — `85f3512` |
 | **2** | Operator runbook cross-links + VPS template env files | **Shipped** — `vps-role-*.env.example` |
-| **3** | PM23 operator-manifest separation lint | Research |
+| **3** | Observer loopback-RPC hint when P2P is public | **Shipped** — this push |
+| **4** | PM23 operator-manifest separation lint | Research |
 
 ---
 

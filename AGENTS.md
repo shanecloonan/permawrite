@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** F12 phase 4 (this push). **CI `#29060447662` GREEN** on `5d78329` stack. **Nightly `#29061696154` GREEN**.
+**Head:** P32 phase 3 (this push). **CI `#29063215304` in progress** on `dff074c`. F12 phase 4 `5965525`; prior GREEN `#29060447662`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F12 phase 4 CI | **Doing** — ci-check + push | Nightly dispatch |
-| **2** | Release evidence refresh | **Done** — `release-evidence-c861217` RC audit **go** | Refresh after phase 4 CI |
+| **1** | P32 phase 3 CI | **Doing** — ci-check + push | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
-| **4** | F12 TL-8 publish tooling | **This push** | TL-8 `--apply` on VPS |
-| **5** | P32 VPS role env templates | **Done** — `db58ae1` | B8 embedded arti research |
+| **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
+| **5** | P32 observer RPC bind hint | **This push** | PM23 research |
 | **6** | B1 endowment range proof track | **Done** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
