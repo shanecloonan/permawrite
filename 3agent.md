@@ -7,13 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29061696154` GREEN | **Doing** — CI `#29064435999` on `35c4c7f` | Nightly dispatch |
-| **2** RC ops | `release-evidence-c861217` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
+| **1** RC core | CI `#29066731152` GREEN on `6b884ea` | **Next** — Nightly dispatch | Soak maintenance |
+| **2** RC ops | `release-evidence-6b884ea` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 3 `7d39f4c` | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 fee docs `d4a5114` | **Done** | Treasury telemetry watch |
-| **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+| **7** Testnet | launch-status v4 `895ac1e` | **Done** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-10 (launch-status v4 + GHA gh fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **launch-status v4** | **Done** — `895ac1e` | TL-8 checkpoint log entry count + verify; launch-go-no-go gate |
+| **GHA gh fix** | **Done** — `6b884ea` | `GH_TOKEN` from `GITHUB_TOKEN`; suppress gh stderr on Windows GHA |
+
+**Lane 1 — Next:** Nightly dispatch on `6b884ea` stack
 
 ---
 
@@ -25,7 +36,7 @@
 | **F6 fee docs** | **Done** — `d4a5114` | [`FEES.md`](docs/FEES.md); `ECONOMICS.md` operator-direct payout sync |
 | **CI fix** | **Done** — `35c4c7f` | grep `--` for `--checkpoint-log` needle in bash smoke |
 
-**Lane 1 — Doing:** CI `#29064435999` on `35c4c7f` **Next:** Nightly on green head
+**Lane 1 — Done:** CI `#29064435999` GREEN **Next:** Nightly on `6b884ea` after `#29066731152`
 
 ---
 
