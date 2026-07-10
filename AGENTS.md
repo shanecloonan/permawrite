@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** P32 phase 3 (this push). **CI `#29063215304` in progress** on `dff074c`. F12 phase 4 `5965525`; prior GREEN `#29060447662`.
+**Head:** F6 fee docs (this push). **CI `#29063632275` in progress** on `7d39f4c` (P32 phase 3). Prior GREEN `#29060447662` on `5d78329`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | P32 phase 3 CI | **Doing** — ci-check + push | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
+| **1** | P32 phase 3 CI | **Doing** — watch `#29063632275` | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — after P32 CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | P32 observer RPC bind hint | **This push** | PM23 research |
-| **6** | B1 endowment range proof track | **Done** | Idle |
+| **5** | P32 observer RPC bind hint | **Done** — `7d39f4c` | PM23 research |
+| **6** | F6 fee economics docs | **This push** | Idle |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
 ---
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Release evidence `b16cb49`** - RC ops (lane 2): F12+P32 stack evidence + RC audit dry-run **go** on CI `#29055006785`.
+- **F6 fee economics docs** (this push) - permanence depth (lane 6): [`FEES.md`](docs/FEES.md) plain-language fee breakdown (90/10 split, upload endowment gate); 2026-07 parameter review (keep current fees; reject tail→treasury split for now); `ECONOMICS.md` §3/§7/§8/§10 sync to shipped operator-direct payout.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
 - **F12 phase 4** (this push) - protocol surface (lanes 4+6): `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8 operator tooling; live rehearsal smoke.
 - **F12 phase 3** (`5d78329`) - protocol surface (lanes 4+6): `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` parity with CLI cross-check.

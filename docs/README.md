@@ -29,6 +29,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🌐 [**DECENTRALIZATION.md**](./DECENTRALIZATION.md) — hardware profiles for every network role, how they shape decentralization, and improvements that preserve the architecture.
 - 🗳 [**CONSENSUS.md**](./CONSENSUS.md) — the PoS engine. Slot model, VRF leader election, BLS finality, equivocation slashing, liveness slashing.
 - 💰 [**ECONOMICS.md**](./ECONOMICS.md) — the money. Emission curve, fee split, treasury dynamics, the two-mode (r>0 yield-bearing vs r=0 deflation-funded) endowment model.
+- 💸 [**FEES.md**](./FEES.md) — plain-language transaction fees: what you pay, where it goes (90/10 split), upload endowment pricing, and the 2026-07 parameter review.
 - 📈 [**SUPPLY_CURVE.md**](./SUPPLY_CURVE.md) — scheduled MFN supply by year, decade, and century, with a labeled visual curve.
 - 🛡 [**SECURITY_CONSIDERATIONS.md**](./SECURITY_CONSIDERATIONS.md) — protocol-level trust assumptions and threat model: what finality does/doesn't prove, exact header-signing coverage (the `utxo_root` nuance), BLS rogue-key/PoP, VRF interop, determinism surface.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — honest inventory of real economic, incentive, architectural, and protocol/security-model weaknesses (no invented problems).
@@ -62,7 +63,7 @@ If you're trying to understand a specific feature, here's where it's documented 
 | Equivocation slashing | (covered) | CONSENSUS § Equivocation | code: `mfn-consensus/src/slashing.rs` |
 | Liveness slashing | (covered) | CONSENSUS § Liveness | code: `mfn-consensus/src/validator_evolution/liveness.rs` |
 | Counterfeit-input attack | OVERVIEW § Why this is hard | PRIVACY § Counterfeit-input | code: `mfn-consensus/src/block/apply.rs` |
-| Fee/treasury split | OVERVIEW § How they fuse | ECONOMICS § Fee economics | code: `mfn-consensus/src/emission.rs` |
+| Fee/treasury split | FEES.md (plain language) | ECONOMICS § Fee economics | code: `mfn-consensus/src/emission.rs` |
 | Emission curve | (covered) | ECONOMICS § Emission curve | code: `mfn-consensus/src/emission.rs` |
 | Supply schedule | (covered) | SUPPLY_CURVE | code: `mfn-consensus/src/emission.rs` |
 | Trust assumptions & threat model | — | SECURITY_CONSIDERATIONS (full document) | — |

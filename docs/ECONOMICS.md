@@ -169,15 +169,23 @@ Hybrid (ours): high initial subsidy bootstraps security and seeds the storage tr
 
 ## 3. Fee economics
 
+> **Plain-language fee guide:** see [`FEES.md`](./FEES.md) for "if I spend a
+> dollar, what % goes to the network?" and the 2026-07 parameter review.
+
 ### Per-transaction fee
 
-```text
-fee = base_fee + per_byte_fee × tx_size_bytes + endowment_required_share
-```
+Consensus carries a single scalar `tx.fee` per transaction — there is no
+`base_fee + per_byte × size` formula enforced on-chain today.
 
-Where `endowment_required_share` is the additional amount needed *for storage uploads* to ensure the treasury share of the fee covers the protocol-required endowment.
+| Tx type | Fee rule | Enforced by |
+|---|---|---|
+| Plain transfer / claim | Wallet default `0.0001 MFN`; any value accepted | Wallet convention; mempool priority only |
+| Storage upload | `min_fee = ceil(required_endowment × 10_000 / fee_to_treasury_bps)` | **Consensus** (`UploadUnderfunded` reject) |
 
-The wallet computes `fee` before submission; the chain re-validates.
+For uploads, the treasury share of the fee must cover the protocol-required
+endowment (`fee × fee_to_treasury_bps / 10_000 ≥ Σ required_endowment`). The
+wallet computes `fee` before submission; the chain re-validates at mempool
+admit and in `apply_block`.
 
 ### Two-sided fee split
 
@@ -376,22 +384,17 @@ Permawrite's treasury-funded storage rewards mean there's always a non-fee reven
 
 ## 7. Storage-operator economics
 
-> **Implementation reality (read this first).** In the current build the
-> per-proof reward is **not** paid to a distinct storage-operator wallet. A
-> [`StorageProof`](../mfn-storage/src/spora.rs) carries no operator identity or
-> payout address, and [`apply_block`](../mfn-consensus/src/block/apply.rs) folds
-> the total storage reward into the **block producer's coinbase** (`subsidy +
-> producer_fee + storage_reward_total`). An operator therefore realizes SPoRA
-> income only when it *also* produces the block that carries its proof; a
-> non-producing operator earns nothing on-chain, and a producer can include a
-> relayed proof and keep the reward. This is a known, high-severity incentive
-> gap — see [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)
-> — with an operator-direct payout milestone tracked in [§ 10](#10-open-economic-questions).
-> The endowment/yield *math* below is correct; only the *recipient* of the
-> reward differs from the idealized description until that milestone ships.
+> **Implementation reality (read this first).** Each accepted
+> [`StorageProof`](../mfn-storage/src/spora.rs) carries
+> `operator_view_pub` / `operator_spend_pub`. Settlement mints **per-operator
+> coinbase outputs** (outputs 1..N) to those stealth keys; output 0 is the
+> producer (`subsidy + producer_fee`). Treasury drains first; emission
+> backstop mints any shortfall. See
+> [`block_coinbase_specs`](../mfn-consensus/src/emission.rs) and
+> [`STORAGE.md § 5.5`](./STORAGE.md). The historical producer-only payout gap
+> is closed — see [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data).
 
-Under the intended (not-yet-implemented) operator-direct payout, a storage
-operator earns by:
+A storage operator earns by:
 
 1. **Capturing the SPoRA challenge race.** The first valid proof for the
    deterministic challenge that a producer includes wins the per-proof yield.
@@ -438,42 +441,32 @@ In practice, operators specialize: some hold "hot" recent uploads; some hold col
                                      │
                   fresh MFN per block ▼
                             ┌──────────────────┐
-                            │     COINBASE     │  = subsidy + producer_fee + storage_reward_total
-                            └────────┬─────────┘
+                            │     COINBASE     │  out 0: subsidy + producer_fee
+                            └────────┬─────────┘  out 1..N: operator storage rewards
                                      │
-                                     ▼
-                              PRODUCER WALLET ─── eventually circulates ───┐
-                                 ▲                                          │
-      storage_reward_total       │                                         ▼
-      (drained from treasury,    │                                    PRIVACY TX
-       emission backstop if      │                                         │
-       short) is paid INTO       │                                    pays fee
-       the producer coinbase     │                                         │
-                                 │        ┌────────────────────────────────┼───────────┐
-                                 │        │                                │            │
-                                 │  producer_share (10%)          treasury_share (90%)  │
-                                 │        │                                │            │
-                                 │        ▼                                ▼            │
-                                 │  PRODUCER WALLET                     TREASURY         │
-                                 │                                    (drains per block  │
-                                 └────────────────────────────────────  for storage ────┘
-                                        SPoRA proofs settle             rewards)
-                                        into producer coinbase                │
-                                                                    (if treasury empty)
-                                                                              │
-                                                                       EMISSION BACKSTOP
-                                                                              │
-                                                                       fresh MFN minted
+                    ┌────────────────┴────────────────┐
+                    ▼                                 ▼
+             PRODUCER WALLET                   OPERATOR WALLETS
+                    ▲                                 ▲
+                    │                                 │
+                    │         storage_reward_total    │
+                    │         (treasury drain first;  │
+                    │          emission backstop if   │
+                    │          short)                 │
+                    │                                 │
+                    │         ┌───────────────────────┘
+                    │         │
+                    ▼         ▼
+               PRIVACY TX ──► TREASURY ──► SPoRA payouts
+                    │
+         producer_share (10%) + treasury_share (90%)
+                    │
+                    └──── (if treasury empty) ──► EMISSION BACKSTOP (fresh mint)
 ```
 
 Two issuance pipes: the subsidy curve (main) and the emission backstop (rare).
-**Note the recipient:** today the storage reward is settled into the *producer*
-coinbase (there is no separate storage-operator payout wire yet — see
-[§ 7](#7-storage-operator-economics) and
-[`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)).
-The sinks are therefore producer compensation (which currently absorbs the
-storage-reward stream) and held savings; a dedicated operator sink arrives with
-the operator-direct payout milestone.
+Storage rewards settle into **operator coinbase outputs**, not the producer's
+output 0 (see [§ 7](#7-storage-operator-economics)).
 
 The economy is **closed** in the sense that no value leaves the chain. It's **open** in the sense that fresh tokens can enter (subsidy + backstop) and old tokens can be effectively burned (no formal mechanism, but indefinite holding has the same balance-sheet effect).
 
@@ -550,14 +543,11 @@ A future milestone may restore an explicit settlement payout — either via an a
 
 These are deliberately not yet hard-coded:
 
-0. **Operator-direct payout (highest priority).** Today storage operators have
-   **no direct on-chain payout channel** — accepted-proof rewards go to the
-   block producer's coinbase (see [§ 7](#7-storage-operator-economics) and
-   [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data)).
-   Shipping an operator payout address in `StorageProof` plus per-proof
-   settlement outputs (drained from the treasury/backstop like today's reward)
-   is the change that makes "operators are paid to keep data forever" literally
-   true rather than true-only-when-the-operator-is-the-producer.
+0. **Tail-to-treasury split.** Should a fraction of tail emission (e.g. 10%)
+   accrue to the treasury instead of the producer, giving permanence a
+   demand-independent income floor? **Rejected for now** — see the analysis in
+   [`FEES.md § 5.4`](./FEES.md#54-routing-10-of-tail-emission-to-the-treasury-rejected-for-now).
+   Revisit when testnet telemetry shows sustained backstop minting.
 1. **Operator bonding.** Should operators stake MFN as a slashable bond to qualify as a "premium" replica? Tradeoff: more skin in the game (better SLA) vs. higher operator friction (less open participation).
 2. **Replication-dependent yield curves.** Today, a `replication=3` file pays its operators flat-rate. Should `replication=10` files pay each operator less (since redundancy is higher) or more (since operators are committing more)? Currently flat-rate per slot.
 3. **Long-tail decay.** Should very-rarely-proven commitments (e.g., proved 1× per year) eventually expire, freeing their pinned bytes? Today: no — *true* permanence. But this means dead bytes accumulate forever. May need a "stale eviction with refund" mechanism.
@@ -592,6 +582,7 @@ For full type signatures see the per-crate READMEs.
 
 ## See also
 
+- [`FEES.md`](./FEES.md) — plain-language fee breakdown and parameter review
 - [`STORAGE.md`](./STORAGE.md) — the engineering side of storage proofs and yield accrual
 - [`CONSENSUS.md`](./CONSENSUS.md) — who earns the subsidy + the producer fee share
 - [`PRIVACY.md`](./PRIVACY.md) — the demand engine that funds the treasury
