@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** (this push). **CI `#29079154415` GREEN** on `4688735`. **Nightly `#29081319938` GREEN**. Release evidence refresh after this push.
+**Head:** `05e2772`. **CI `#29082197263` GREEN**. **Nightly `#29081319938` GREEN**. **Release evidence `05e2772` + RC audit go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly `#29081319938` monitor | **In progress** | Soak maintenance |
-| **2** | TL-7/TL-8 rehearsal smokes + F12 demo web | **In progress** | Release evidence refresh after green CI |
-| **3** | F12 demo web phase 5 | **In progress** | TL-5 VPS soak (human) |
+| **1** | Nightly monitor | **Done** — CI `#29082197263` GREEN | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-05e2772` RC audit **go** | Human sign-off packet |
+| **3** | F12 demo web phase 5 | **Done** — `05e2772` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | F12 demo web checkpoint log UI | **In progress** | PM23 hard lint (research) |
+| **5** | F12 demo web checkpoint log UI | **Done** — `05e2772` | PM23 hard lint (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork implementation (research) |
-| **7** | TL-7/TL-8 publish + ceremony rehearsal smokes | **In progress** | TL-5 VPS internet soak (human) |
+| **7** | TL-7/TL-8 publish + ceremony rehearsal smokes | **Done** — `05e2772` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Release evidence `05e2772`** - RC ops (lane 2): RC audit dry-run **go** on CI `#29082197263` GREEN head.
+- **TL-7/TL-8 + F12 demo web phase 5** (`05e2772`) - testnet launch + onboarding (lanes 3+5+7): `publish-seed-nodes-rehearsal-smoke`, `vps-launch-ceremony-rehearsal-smoke`, `demo-web-f12-rehearsal-smoke`; demo/web checkpoint log verify + cross-check UI; CI `#29082197263` GREEN.
 - **Nightly `#29081319938` GREEN** (`4688735`) - RC core (lane 1): all three jobs on TL-5/TL-6 VPS rehearsal stack.
 - **TL-5/TL-6 VPS rehearsal smokes** (`4688735`) - testnet launch (lane 7): `vps-internet-soak-rehearsal-smoke` + `vps-participant-rehearsal-rehearsal-smoke` plan gates in ci-check + GHA; CI `#29079154415` GREEN.
 - **Nightly `#29077379017` GREEN** (`3067bf9`) - RC core (lane 1): all three jobs on launch-go-no-go stack.

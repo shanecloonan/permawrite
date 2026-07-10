@@ -59,9 +59,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-9 launch-go-no-go rehearsal** — `launch-go-no-go-rehearsal-smoke.*` plan-only gate on pre-launch `launch-go-no-go.v1` JSON (`bbc57a1`).
 - [x] **Lane 7 / TL-5 soak rehearsal smoke** — `vps-internet-soak-rehearsal-smoke.*` plan-only gate (this push).
 - [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (this push).
-- [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (this push).
-- [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (this push).
-- [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (this push).
+- [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (`05e2772`).
+- [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
+- [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).
 - [x] **Lane 6 / F6 Arweave comparison** — `ECONOMICS.md` §12 permanence durability vs Arweave (`bff1b70`).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
