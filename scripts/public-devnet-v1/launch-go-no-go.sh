@@ -98,6 +98,16 @@ else
   fail "missing docs/PUBLIC_DEVNET_THREAT_MODEL.md"
 fi
 
+CHECKPOINT_LOG="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+if (( seed_count >= 3 )); then
+  if [[ -f "$CHECKPOINT_LOG" ]] && grep -q '[^[:space:]]' "$CHECKPOINT_LOG" 2>/dev/null; then
+    checkpoint_entries="$(grep -c '[^[:space:]]' "$CHECKPOINT_LOG" 2>/dev/null || echo 0)"
+    pass "checkpoint log has $checkpoint_entries entries ($(basename "$CHECKPOINT_LOG"))"
+  else
+    fail "checkpoint log missing or empty ($CHECKPOINT_LOG) — run publish-checkpoint-log.sh --apply after TL-7"
+  fi
+fi
+
 if command -v gh >/dev/null 2>&1; then
   ci_line="$(cd "$REPO_ROOT" && gh run list --workflow CI --limit 1 --json status,conclusion,headSha 2>/dev/null || true)"
   if [[ -n "$ci_line" ]]; then

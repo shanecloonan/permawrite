@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MANIFEST="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.manifest.json"
+CHECKPOINT_LOG="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
+CHECKPOINT_LOG_REL="mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
 PLAYBOOK="docs/TESTNET_LAUNCH.md"
 EVIDENCE_DIR="$SCRIPT_DIR/evidence"
 JSON=0
@@ -72,6 +74,26 @@ for f in "$EVIDENCE_DIR"/release-evidence-*.json; do
   break
 done
 
+checkpoint_log_exists=0
+checkpoint_log_entries=0
+checkpoint_log_published=0
+checkpoint_log_verified=""
+if [[ -f "$CHECKPOINT_LOG" ]]; then
+  checkpoint_log_exists=1
+  checkpoint_log_entries="$(grep -c '[^[:space:]]' "$CHECKPOINT_LOG" 2>/dev/null || echo 0)"
+  if (( checkpoint_log_entries > 0 )); then
+    checkpoint_log_published=1
+    mcli="$REPO_ROOT/target/release/mfn-cli"
+    if [[ -x "$mcli" ]]; then
+      if "$mcli" checkpoint-log verify "$CHECKPOINT_LOG" >/dev/null 2>&1; then
+        checkpoint_log_verified=1
+      else
+        checkpoint_log_verified=0
+      fi
+    fi
+  fi
+fi
+
 rc_audit_go=0
 rc_audit_file=""
 for f in "$EVIDENCE_DIR"/rc-audit-dry-run-*.json; do
@@ -89,7 +111,11 @@ if [[ "$seed_count" -gt 0 ]]; then
   next_action="bash scripts/public-devnet-v1/launch-go-no-go.sh"
 elif (( tl6_evidence == 1 )); then
   phase="TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)"
-  next_action="complete TL-7 sign-off then publish-seed-nodes.sh + publish-checkpoint-log.sh"
+  if (( checkpoint_log_published == 0 )); then
+    next_action="complete TL-7 sign-off then publish-seed-nodes.sh + publish-checkpoint-log.sh --apply"
+  else
+    next_action="complete TL-7 sign-off then publish-seed-nodes.sh (checkpoint log already has entries)"
+  fi
 elif (( tl5_evidence == 1 )); then
   phase="TL-6 (VPS soak done; run vps-participant-rehearsal.sh)"
   next_action="bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop"
@@ -121,7 +147,8 @@ if [[ "$JSON" -eq 1 ]]; then
   export local_mfer_no_observer local_mfer_observer local_rc_complete
   export local_mfer_no_observer_file local_mfer_observer_file
   export release_evidence_archived release_evidence_file rc_audit_go rc_audit_file
-  export ci_run ci_status ci_conclusion ci_msg
+  export checkpoint_log_exists checkpoint_log_entries checkpoint_log_published checkpoint_log_verified
+  export CHECKPOINT_LOG_REL ci_run ci_status ci_conclusion ci_msg
   python3 - <<'PY'
 import json, os, pathlib
 
@@ -131,8 +158,15 @@ for b in ("mfnd", "mfn-cli", "mfn-storage-operator"):
     if not (repo / "target/release" / b).is_file():
         missing.append(b)
 
+verified_raw = os.environ.get("checkpoint_log_verified", "")
+verified = None
+if verified_raw == "1":
+    verified = True
+elif verified_raw == "0":
+    verified = False
+
 print(json.dumps({
-    "schema_version": "launch-status.v3",
+    "schema_version": "launch-status.v4",
     "lane": 7,
     "playbook": os.environ["PLAYBOOK"],
     "invite_packet": "docs/TESTNET_INVITE.md",
@@ -157,6 +191,13 @@ print(json.dumps({
     "release_evidence_file": os.environ.get("release_evidence_file", ""),
     "rc_audit_go": os.environ.get("rc_audit_go") == "1",
     "rc_audit_file": os.environ.get("rc_audit_file", ""),
+    "checkpoint_log": {
+        "path": os.environ.get("CHECKPOINT_LOG_REL", ""),
+        "exists": os.environ.get("checkpoint_log_exists") == "1",
+        "entry_count": int(os.environ.get("checkpoint_log_entries", "0")),
+        "published": os.environ.get("checkpoint_log_published") == "1",
+        "verified": verified,
+    },
     "release_binaries_missing": missing,
     "ci": {
         "message": os.environ["ci_msg"],
@@ -174,6 +215,7 @@ echo "launch-status: genesis_id=$genesis_id seed_nodes=$seed_count internet_faci
 echo "launch-status: local_rc_complete=$([[ $local_rc_complete -eq 1 ]] && echo true || echo false) local_mfer_no_observer=$local_mfer_no_observer local_mfer_observer=$local_mfer_observer"
 echo "launch-status: vps_soak_evidence=$([[ $tl5_evidence -eq 1 ]] && echo true || echo false) vps_rehearsal_evidence=$([[ $tl6_evidence -eq 1 ]] && echo true || echo false)"
 echo "launch-status: release_evidence_archived=$([[ $release_evidence_archived -eq 1 ]] && echo true || echo false) rc_audit_go=$([[ $rc_audit_go -eq 1 ]] && echo true || echo false)"
+echo "launch-status: checkpoint_log_entries=$checkpoint_log_entries published=$([[ $checkpoint_log_published -eq 1 ]] && echo true || echo false) verified=${checkpoint_log_verified:-unknown}"
 if [[ ${#missing_bins[@]} -gt 0 ]]; then
   echo "launch-status: missing_release_binaries=${missing_bins[*]}"
 fi

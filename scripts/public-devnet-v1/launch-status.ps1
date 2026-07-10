@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $ManifestPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.manifest.json"
+$CheckpointLogPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.checkpoints.jsonl"
+$CheckpointLogRel = "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
 $EvidenceDir = Join-Path $ScriptDir "evidence"
 $Playbook = "docs/TESTNET_LAUNCH.md"
 
@@ -63,6 +65,33 @@ function Get-EvidencePassFile {
     return $null
 }
 
+function Get-CheckpointLogStatus {
+    $exists = Test-Path -LiteralPath $CheckpointLogPath
+    $entryCount = 0
+    $published = $false
+    $verified = $null
+    if ($exists) {
+        $lines = Get-Content -LiteralPath $CheckpointLogPath -ErrorAction SilentlyContinue |
+            Where-Object { $_.Trim() -ne "" }
+        $entryCount = @($lines).Count
+        if ($entryCount -gt 0) {
+            $published = $true
+            $mcli = Join-Path $RepoRoot "target\release\mfn-cli.exe"
+            if (Test-Path -LiteralPath $mcli) {
+                & $mcli checkpoint-log verify $CheckpointLogPath 2>$null | Out-Null
+                $verified = ($LASTEXITCODE -eq 0)
+            }
+        }
+    }
+    return [ordered]@{
+        path         = $CheckpointLogRel
+        exists       = $exists
+        entry_count  = $entryCount
+        published    = $published
+        verified     = $verified
+    }
+}
+
 function Test-RcAuditGo {
     $files = Get-ChildItem -Path $EvidenceDir -Filter "rc-audit-dry-run-*.json" -ErrorAction SilentlyContinue
     foreach ($f in $files) {
@@ -111,6 +140,8 @@ $releaseEvidenceFile = if ($releaseEvidenceFiles) { $releaseEvidenceFiles[0].Nam
 $rcAuditFile = Test-RcAuditGo
 $rcAuditGo = [bool]$rcAuditFile
 
+$checkpointLog = Get-CheckpointLogStatus
+
 $phase = 'TL-5 (provision VPS - see docs/VPS_PROVISION.md)'
 $nextAction = 'docs/VPS_PROVISION.md then bash scripts/public-devnet-v1/vps-preflight.sh'
 if ($seedCount -gt 0) {
@@ -118,7 +149,11 @@ if ($seedCount -gt 0) {
     $nextAction = 'bash scripts/public-devnet-v1/launch-go-no-go.sh'
 } elseif ($tl6Evidence) {
     $phase = 'TL-7 (human genesis ceremony - TESTNET_GENESIS_CEREMONY.md)'
-    $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh + publish-checkpoint-log.sh'
+    if (-not $checkpointLog.published) {
+        $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh + publish-checkpoint-log.sh --apply'
+    } else {
+        $nextAction = 'complete TL-7 sign-off then publish-seed-nodes.sh (checkpoint log already has entries)'
+    }
 } elseif ($tl5Evidence) {
     $phase = 'TL-6 (VPS soak done; run vps-participant-rehearsal.sh)'
     $nextAction = 'bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop'
@@ -135,7 +170,7 @@ $head = Get-HeadSha
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v3"
+    schema_version         = "launch-status.v4"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"
@@ -160,6 +195,7 @@ $report = [ordered]@{
     release_evidence_file  = $releaseEvidenceFile
     rc_audit_go            = $rcAuditGo
     rc_audit_file          = $(if ($rcAuditFile) { $rcAuditFile } else { "" })
+    checkpoint_log         = $checkpointLog
     release_binaries_missing = $missingBins
     ci                     = $ci
 }
@@ -174,6 +210,7 @@ Write-Host "launch-status: genesis_id=$genesisId seed_nodes=$seedCount internet_
 Write-Host "launch-status: local_rc_complete=$localRcComplete local_mfer_no_observer=$localMferNoObserver local_mfer_observer=$localMferObserver"
 Write-Host "launch-status: vps_soak_evidence=$tl5Evidence vps_rehearsal_evidence=$tl6Evidence"
 Write-Host "launch-status: release_evidence_archived=$releaseEvidenceArchived rc_audit_go=$rcAuditGo"
+Write-Host "launch-status: checkpoint_log_entries=$($checkpointLog.entry_count) published=$($checkpointLog.published) verified=$($checkpointLog.verified)"
 if ($missingBins.Count -gt 0) {
     Write-Host "launch-status: missing_release_binaries=$($missingBins -join ',')"
 }

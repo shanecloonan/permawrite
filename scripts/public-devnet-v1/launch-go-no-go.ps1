@@ -95,6 +95,22 @@ if (Test-Path (Join-Path $RepoRoot "docs\PUBLIC_DEVNET_THREAT_MODEL.md")) {
     Fail "missing docs/PUBLIC_DEVNET_THREAT_MODEL.md"
 }
 
+$checkpointLogPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.checkpoints.jsonl"
+if ($seedCount -ge 3) {
+    if (Test-Path -LiteralPath $checkpointLogPath) {
+        $checkpointLines = Get-Content -LiteralPath $checkpointLogPath -ErrorAction SilentlyContinue |
+            Where-Object { $_.Trim() -ne "" }
+        $checkpointEntries = @($checkpointLines).Count
+        if ($checkpointEntries -gt 0) {
+            Pass "checkpoint log has $checkpointEntries entries ($(Split-Path -Leaf $checkpointLogPath))"
+        } else {
+            Fail "checkpoint log empty ($checkpointLogPath); run publish-checkpoint-log.ps1 -Apply after TL-7"
+        }
+    } else {
+        Fail "checkpoint log missing ($checkpointLogPath); run publish-checkpoint-log.ps1 -Apply after TL-7"
+    }
+}
+
 if (Get-Command gh -ErrorAction SilentlyContinue) {
     Push-Location $RepoRoot
     try {

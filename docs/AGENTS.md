@@ -67,13 +67,14 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] M2.5.50 (`dbf6067`; code `6216aec`) - early P2P listen; POST_START timeout export; participant smoke ps1 parity.
 - [x] M2.5.51 (`0d9646a`) - start-all GHA hub_tip_wait uses MFN_POLL_HUB_MAX; observer catchup soft gate.
 - [x] M2.4.89 Windows mirror — `ci-check.ps1` `--test-threads=2` (`8e6b3c1`).
-- [x] M2.5.66 — `vps_export_binds` set -e abort on loopback mesh; `vps-bind-lib-smoke.sh` in CI (this push).
+- [x] M2.5.66 — `vps_export_binds` set -e abort on loopback mesh; `vps-bind-lib-smoke.sh` in CI (`759f5d1`).
 
 ### Done
 
 - [x] M2.5.65 — soak WARMUP health-check uses mfn-cli `status` for P2P session counts (`76cc778`).
 - [x] M2.5.65 — GHA converge soft gate + `MFN_HEALTH_MIN_P2P_SESSIONS=0` (`8ccda5d`; intermediate soak `28850304866` converge FAIL → final PASS `28851202993`).
 - [x] **B-05 Linux soak PASS** — soak `28851202993` on `8ccda5d` (max_height=48, 8 iterations).
+- [x] **CI smoke fixes** — reference-topology grep case + F12 smokes in GHA (`e705718`); bash grep `--` for `--checkpoint-log` needle (`35c4c7f`).
 
 ### Next
 
@@ -272,9 +273,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
 - [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
-- [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (this push).
+- [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (`5965525`).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
-- [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (this push).
+- [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Done (recent)
@@ -340,7 +341,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2c tail** — reject forged `MFER` consensus test (with lane 4).
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
 - [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
-- [x] **F6 fee economics docs** (this push) — [`FEES.md`](./FEES.md) plain-language fee breakdown + 2026-07 parameter review; `ECONOMICS.md` §3/§7/§8/§10 sync.
+- [x] **F6 fee economics docs** (`d4a5114`) — [`FEES.md`](./FEES.md) plain-language fee breakdown + 2026-07 parameter review; `ECONOMICS.md` §3/§7/§8/§10 sync.
 
 ### Next
 
@@ -383,8 +384,9 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **VPS provision + ceremony** — [`VPS_PROVISION.md`](./VPS_PROVISION.md) + `vps-launch-ceremony.*` (`0a700a5`)
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
+- [x] **launch-status v4** — TL-8 checkpoint log tracking in `launch-status.*` + `launch-go-no-go` gate (this push)
 - [x] **TL-5 preflight hardening** — MFER policy + storage-operator binary gate in `vps-preflight.sh`
-- [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (this push)
+- [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (`759f5d1`).
 
 ### Doing
 

@@ -25,7 +25,7 @@
 | **F6 fee docs** | **Done** — `d4a5114` | [`FEES.md`](docs/FEES.md); `ECONOMICS.md` operator-direct payout sync |
 | **CI fix** | **Done** — `35c4c7f` | grep `--` for `--checkpoint-log` needle in bash smoke |
 
-**Lane 1 — Doing:** CI `#29063906360` **Next:** Nightly on green head
+**Lane 1 — Doing:** CI `#29064435999` on `35c4c7f` **Next:** Nightly on green head
 
 ---
 
@@ -206,12 +206,13 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **launch-status v3** | **Done** — this push | Local MFER rehearsal gates, release evidence, RC audit go; phase → "local RC complete — provision VPS" |
+| **launch-status v4** | **Doing** — this push | TL-8 checkpoint log tracking + go/no-go gate when seed_nodes published |
+| **launch-status v3** | **Done** — prior push | Local MFER rehearsal gates, release evidence, RC audit go; phase → "local RC complete — provision VPS" |
 | **permanence-demo.sh** | **Done** | `stop_orphan_chunk_servers` + `remove_stale_log` parity with `.ps1` |
 | **launch-go-no-go** | **Done** | WARN when TL-5/TL-6 missing but local MFER rehearsals PASS |
 | **CI `#29005580975`** | **GREEN** | `daa8e8e` board sync on `main` |
 
-**Lane 7 — Doing:** launch-status v3 **Next:** TL-5 VPS execution (human provision)  
+**Lane 7 — Doing:** launch-status v4 **Next:** TL-5 VPS execution (human provision)  
 **Lane 1 — Doing:** CI on `daa8e8e` **Next:** push Lane 7 ops after green  
 **Lane 3 — Done:** local rehearsals **Next:** TL-6 on VPS
 

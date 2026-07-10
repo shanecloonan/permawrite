@@ -83,6 +83,8 @@ jobs:
           publish_checkpoint_log_plan="$(bash scripts/public-devnet-v1/publish-checkpoint-log.sh --plan-only)"
           [[ "$publish_checkpoint_log_plan" == *"publish-checkpoint-log: plan"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
           [[ "$publish_checkpoint_log_plan" == *"PASS plan-only"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
+          launch_status_json="$(bash scripts/public-devnet-v1/launch-status.sh --json)"
+          echo "$launch_status_json" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['schema_version']=='launch-status.v4'; assert d['checkpoint_log']['path']=='mfn-node/testdata/public_devnet_v1.checkpoints.jsonl'"
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -553,6 +555,11 @@ jobs:
           $publishCheckpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-checkpoint-log.ps1 -PlanOnly) -join "`n"
           if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publishCheckpointLogPlan -notmatch "PASS plan-only") {
             $publishCheckpointLogPlan
+            exit 1
+          }
+          $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status.ps1 -Json | ConvertFrom-Json)
+          if ($launchStatus.schema_version -ne "launch-status.v4" -or $launchStatus.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
+            $launchStatus | ConvertTo-Json -Depth 6
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null

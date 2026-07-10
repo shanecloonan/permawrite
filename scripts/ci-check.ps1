@@ -143,6 +143,11 @@ if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publ
     $publishCheckpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status.ps1 -Json | ConvertFrom-Json)
+if ($launchStatus.schema_version -ne "launch-status.v4" -or $launchStatus.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
+    $launchStatus | ConvertTo-Json -Depth 6 | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -118,6 +118,8 @@ if [[ "$publish_checkpoint_log_plan" != *"publish-checkpoint-log: plan"* || "$pu
   printf '%s\n' "$publish_checkpoint_log_plan" >&2
   exit 1
 fi
+launch_status_json="$(bash scripts/public-devnet-v1/launch-status.sh --json)"
+echo "$launch_status_json" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['schema_version']=='launch-status.v4'; assert d['checkpoint_log']['path']=='mfn-node/testdata/public_devnet_v1.checkpoints.jsonl'"
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then
