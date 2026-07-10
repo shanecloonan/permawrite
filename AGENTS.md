@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `77253f6`. **CI `#29068155204` GREEN** on `808529a`. **Nightly `#29071784488` in progress** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go**.
+**Head:** `f6f7e22`. **CI `#29072043578` in progress**. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `77253f6` + RC audit dry-run **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly `#29071784488` | **Doing** — watch on `808529a` | Soak maintenance |
+| **1** | CI on checklist v2 | **Doing** — watch `#29072043578` | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `77253f6` / CI `#29068155204` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
@@ -129,7 +129,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **TL-5 VPS checklist v2** (this push) - testnet launch (lane 7): OPERATORS cross-links for launch-status/treasury/PM23; vps-execution-checklist TL-8 checkpoint log warning + command hints.
+- **TL-5 VPS checklist v2** (`f6f7e22`) - testnet launch (lane 7): OPERATORS cross-links for launch-status/treasury/PM23; vps-execution-checklist TL-8 checkpoint log warning + command hints.
+- **Nightly `#29071784488` GREEN** (`808529a`) - RC core (lane 1): all three jobs on PM23/F6 stack.
+- **Release evidence `77253f6`** - RC ops (lane 2): PM23/F6 stack + RC audit dry-run **go** on CI `#29068155204`.
 - **CI `#29068155204` GREEN** (`808529a`) - RC core (lane 1): PM23/F6/treasury-telemetry rehearsal smokes; full matrix pass.
 - **P32 phase 4a / PM23** (`808529a`) - privacy surface (lane 5): `pm23-operator-manifest-rehearsal-smoke` plan gate for operator-manifest separation on role env templates + docs.
 - **F6 treasury telemetry watch** (`808529a`) - permanence depth (lane 6): `treasury-telemetry-watch.*` read-only `get_chain_params` helper for FEES.md §5 revisit triggers.
