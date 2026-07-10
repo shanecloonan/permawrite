@@ -207,6 +207,8 @@ parameter fork):
 
 The `treasury_base_units` field of the `get_chain_params` RPC and per-block
 backstop behavior give exactly the telemetry needed to watch these triggers.
+Read-only helper: `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only`
+(live: `--rpc HOST:PORT`).
 
 ---
 

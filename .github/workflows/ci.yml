@@ -83,8 +83,12 @@ jobs:
           publish_checkpoint_log_plan="$(bash scripts/public-devnet-v1/publish-checkpoint-log.sh --plan-only)"
           [[ "$publish_checkpoint_log_plan" == *"publish-checkpoint-log: plan"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
           [[ "$publish_checkpoint_log_plan" == *"PASS plan-only"* ]] || { echo "$publish_checkpoint_log_plan"; exit 1; }
-          launch_status_json="$(bash scripts/public-devnet-v1/launch-status.sh --json)"
-          echo "$launch_status_json" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['schema_version']=='launch-status.v4'; assert d['checkpoint_log']['path']=='mfn-node/testdata/public_devnet_v1.checkpoints.jsonl'"
+          launch_status_plan="$(bash scripts/public-devnet-v1/launch-status-rehearsal-smoke.sh --plan-only)"
+          [[ "$launch_status_plan" == *"launch-status-rehearsal-smoke: PASS plan-only"* ]] || { echo "$launch_status_plan"; exit 1; }
+          pm23_plan="$(bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only)"
+          [[ "$pm23_plan" == *"pm23-operator-manifest-rehearsal-smoke: PASS plan-only"* ]] || { echo "$pm23_plan"; exit 1; }
+          treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only)"
+          [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { echo "$treasury_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -557,9 +561,19 @@ jobs:
             $publishCheckpointLogPlan
             exit 1
           }
-          $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status.ps1 -Json | ConvertFrom-Json)
-          if ($launchStatus.schema_version -ne "launch-status.v4" -or $launchStatus.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
-            $launchStatus | ConvertTo-Json -Depth 6
+          $launchStatusPlan = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($launchStatusPlan -notmatch "launch-status-rehearsal-smoke: PASS plan-only") {
+            $launchStatusPlan
+            exit 1
+          }
+          $pm23Plan = (powershell -NoProfile -File scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($pm23Plan -notmatch "pm23-operator-manifest-rehearsal-smoke: PASS plan-only") {
+            $pm23Plan
+            exit 1
+          }
+          $treasuryPlan = (powershell -NoProfile -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -PlanOnly) -join "`n"
+          if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only") {
+            $treasuryPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null

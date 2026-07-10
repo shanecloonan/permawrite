@@ -118,8 +118,12 @@ if [[ "$publish_checkpoint_log_plan" != *"publish-checkpoint-log: plan"* || "$pu
   printf '%s\n' "$publish_checkpoint_log_plan" >&2
   exit 1
 fi
-launch_status_json="$(bash scripts/public-devnet-v1/launch-status.sh --json)"
-echo "$launch_status_json" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['schema_version']=='launch-status.v4'; assert d['checkpoint_log']['path']=='mfn-node/testdata/public_devnet_v1.checkpoints.jsonl'"
+launch_status_plan="$(bash scripts/public-devnet-v1/launch-status-rehearsal-smoke.sh --plan-only)"
+[[ "$launch_status_plan" == *"launch-status-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$launch_status_plan" >&2; exit 1; }
+pm23_plan="$(bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only)"
+[[ "$pm23_plan" == *"pm23-operator-manifest-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$pm23_plan" >&2; exit 1; }
+treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only)"
+[[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { printf '%s\n' "$treasury_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

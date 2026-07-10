@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `6b884ea`. **CI `#29066731152` GREEN**. Release evidence `6b884ea` + RC audit dry-run **go** on green CI.
+**Head:** `c7fcd21`. **CI `#29066731152` GREEN** on `6b884ea`. **Nightly `#29067729847` in progress** on `6b884ea`. Release evidence `6b884ea` + RC audit dry-run **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly dispatch | **Next** — after CI green | Nightly #64+ on `6b884ea` stack |
+| **1** | Nightly `#29067729847` | **Doing** — watch on `6b884ea` | Re-dispatch after PM23/F6 push CI |
 | **2** | Release evidence refresh | **Done** — `6b884ea` / CI `#29066731152` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | P32 observer RPC bind hint | **Done** — `7d39f4c` | PM23 research |
-| **6** | F6 fee economics docs | **Done** — `d4a5114` | Treasury telemetry watch |
+| **5** | P32 phase 4a PM23 smoke | **Doing** — this push | PM23 hard lint (research) |
+| **6** | F6 treasury telemetry watch | **Doing** — this push | Fee-drought telemetry on testnet |
 | **7** | launch-status v4 checkpoint log | **Done** — `895ac1e` + CI fix `6b884ea` | TL-5 VPS internet soak |
 
 ---
@@ -129,6 +129,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **P32 phase 4a / PM23** (this push) - privacy surface (lane 5): `pm23-operator-manifest-rehearsal-smoke` plan gate for operator-manifest separation on role env templates + docs.
+- **F6 treasury telemetry watch** (this push) - permanence depth (lane 6): `treasury-telemetry-watch.*` read-only `get_chain_params` helper for FEES.md §5 revisit triggers.
+- **launch-status rehearsal smoke** (this push) - testnet launch (lane 7): dedicated `launch-status-rehearsal-smoke.*` wired into ci-check + GHA.
 - **F6 fee economics docs** (`d4a5114`) - permanence depth (lane 6): [`FEES.md`](docs/FEES.md) plain-language fee breakdown (90/10 split, upload endowment gate); 2026-07 parameter review (keep current fees; reject tail→treasury split for now); `ECONOMICS.md` §3/§7/§8/§10 sync to shipped operator-direct payout.
 - **CI `#29066731152` GREEN** (`6b884ea`) - RC ops (lane 1+2): launch-status v4 GHA gh-token fix; full matrix pass.
 - **Release evidence `6b884ea`** - RC ops (lane 2): launch-status v4 stack + RC audit dry-run **go** on CI `#29066731152`.

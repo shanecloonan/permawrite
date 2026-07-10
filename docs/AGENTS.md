@@ -276,6 +276,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (`5965525`).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
+- [x] **P32 phase 4a** — PM23 operator-manifest separation plan-only rehearsal smoke (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Done (recent)
@@ -345,7 +346,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] Idle — watch testnet treasury telemetry for fee-drought revisit triggers ([`FEES.md § 5`](./FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury)).
+- [ ] Idle — watch testnet treasury telemetry for fee-drought revisit triggers ([`FEES.md § 5`](./FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury); helper: `treasury-telemetry-watch.*`).
 
 - RC Nightly fixes — lane 1.
 - `push-all-chunks` — lanes 2–3.

@@ -143,9 +143,19 @@ if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publ
     $publishCheckpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
-$launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status.ps1 -Json | ConvertFrom-Json)
-if ($launchStatus.schema_version -ne "launch-status.v4" -or $launchStatus.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
-    $launchStatus | ConvertTo-Json -Depth 6 | ForEach-Object { [Console]::Error.WriteLine($_) }
+$launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v4") {
+    $launchStatus | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$pm23Plan = (powershell -NoProfile -File scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($pm23Plan -notmatch "pm23-operator-manifest-rehearsal-smoke: PASS plan-only" -or $pm23Plan -notmatch "PM23 rules") {
+    $pm23Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$treasuryPlan = (powershell -NoProfile -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -PlanOnly) -join "`n"
+if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $treasuryPlan -notmatch "get_chain_params") {
+    $treasuryPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"

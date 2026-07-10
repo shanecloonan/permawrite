@@ -201,7 +201,7 @@ mfnd_role_topology_warning roles=validator+wallet_rpc+operator rpc_listen=0.0.0.
 - [ ] TL-5 internet soak + TL-6 participant rehearsal evidence archived
 - [ ] Optional: Tor hidden service for P2P/RPC per [`TOR_P2P.md`](./TOR_P2P.md)
 
-Rehearsal wrapper (plan-only): [`reference-topology-rehearsal-smoke.sh`](../scripts/public-devnet-v1/reference-topology-rehearsal-smoke.sh) / [`.ps1`](../scripts/public-devnet-v1/reference-topology-rehearsal-smoke.ps1).
+Rehearsal wrappers (plan-only): [`reference-topology-rehearsal-smoke.sh`](../scripts/public-devnet-v1/reference-topology-rehearsal-smoke.sh), [`pm23-operator-manifest-rehearsal-smoke.sh`](../scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh).
 
 Role env templates: [`vps-role-validator.env.example`](../scripts/public-devnet-v1/vps-role-validator.env.example), [`vps-role-observer.env.example`](../scripts/public-devnet-v1/vps-role-observer.env.example), [`vps-role-operator.env.example`](../scripts/public-devnet-v1/vps-role-operator.env.example), [`vps-role-wallet.env.example`](../scripts/public-devnet-v1/vps-role-wallet.env.example).
 
@@ -215,7 +215,7 @@ Role env templates: [`vps-role-validator.env.example`](../scripts/public-devnet-
 | **1** | This reference doc + rehearsal smoke | **Shipped** — `85f3512` |
 | **2** | Operator runbook cross-links + VPS template env files | **Shipped** — `vps-role-*.env.example` |
 | **3** | Observer loopback-RPC hint when P2P is public | **Shipped** — this push |
-| **4** | PM23 operator-manifest separation lint | Research |
+| **4** | PM23 operator-manifest separation lint | **Phase 4a shipped** — `pm23-operator-manifest-rehearsal-smoke` plan gate; hard lint deferred |
 
 ---
 
