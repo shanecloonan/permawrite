@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `05e2772`. **CI `#29082197263` GREEN**. **Nightly `#29081319938` GREEN**. **Release evidence `05e2772` + RC audit go**.
+**Head:** `fac313a`. **CI `#29084142605` GREEN**. **Nightly `#29085709944` GREEN**. **Release evidence `fac313a` + RC audit go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly monitor | **Done** — CI `#29082197263` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-05e2772` RC audit **go** | Human sign-off packet |
+| **1** | Nightly monitor | **Done** — Nightly `#29085709944` GREEN | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-fac313a` RC audit **go** | Human sign-off packet |
 | **3** | F12 demo web phase 5 | **Done** — `05e2772` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | F12 demo web checkpoint log UI | **Done** — `05e2772` | PM23 hard lint (research) |
@@ -129,6 +129,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Nightly `#29085709944` GREEN** (`fac313a`) - RC core (lane 1): all three jobs on TL-7/TL-8 + F12 demo board-sync stack.
+- **Board sync `fac313a`** - RC ops (lane 2): CI `#29084142605` GREEN; TL-2 gate closed on docs-only head.
 - **Release evidence `05e2772`** - RC ops (lane 2): RC audit dry-run **go** on CI `#29082197263` GREEN head.
 - **TL-7/TL-8 + F12 demo web phase 5** (`05e2772`) - testnet launch + onboarding (lanes 3+5+7): `publish-seed-nodes-rehearsal-smoke`, `vps-launch-ceremony-rehearsal-smoke`, `demo-web-f12-rehearsal-smoke`; demo/web checkpoint log verify + cross-check UI; CI `#29082197263` GREEN.
 - **Nightly `#29081319938` GREEN** (`4688735`) - RC core (lane 1): all three jobs on TL-5/TL-6 VPS rehearsal stack.
@@ -148,7 +150,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 - **Release evidence `6b884ea`** - RC ops (lane 2): launch-status v4 stack + RC audit dry-run **go** on CI `#29066731152`.
 - **launch-status v4** (`895ac1e`) - testnet launch (lane 7): TL-8 checkpoint log tracking (`entry_count`, `published`, optional `verify`); `launch-go-no-go` requires non-empty log when `seed_nodes >= 3`; ci-check + GHA smoke on `launch-status.v4` schema.
 - **P32 phase 2** (`db58ae1`) - privacy surface (lane 5): `vps-role-*.env.example` role-separated VPS templates; OPERATORS.md + `reference-topology-rehearsal-smoke` template gate.
-- **F12 phase 4** (this push) - protocol surface (lanes 4+6): `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8 operator tooling; live rehearsal smoke.
+- **F12 phase 4** (`5965525`) - protocol surface (lanes 4+6): `checkpoint-log cross-check` CLI; `publish-checkpoint-log.*` TL-8 operator tooling; live rehearsal smoke.
 - **F12 phase 3** (`5d78329`) - protocol surface (lanes 4+6): `mfn-checkpoint-log` shared crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` parity with CLI cross-check.
 - **F12 phase 2** (`10e606e`) - privacy surface (lanes 4+5): `wallet light-scan --checkpoint-log`; `cross_check_summary_against_checkpoint_log`; rejects log disagreement at same `tip_height`.
 - **F12 phase 1** (`50782a3`) - privacy surface (lanes 4+5): `mfn-cli checkpoint-log sign|verify`; [`CHECKPOINT_LOG.md`](docs/CHECKPOINT_LOG.md); plan-only rehearsal in ci-check.

@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29082197263` GREEN; Nightly `#29081319938` GREEN | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-05e2772` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29084142605` GREEN; Nightly `#29085709944` GREEN | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-fac313a` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | F12 demo web phase 5 `05e2772` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | F12 demo web checkpoint log UI `05e2772` | **Done** | PM23 hard lint (research) |
@@ -26,9 +26,9 @@
 | **F12 phase 5 demo web** | **Done** — `05e2772` | `checkpointLogVerify` / `checkpointLogCrossCheck` UI in `demo/web` |
 | **demo-web-f12-rehearsal-smoke** | **Done** — `05e2772` | ci-check + GHA wiring gate; CI `#29082197263` GREEN |
 
-**Lane 1 — Done:** CI `#29082197263` GREEN on `05e2772` **Next:** Nightly on head
+**Lane 1 — Done:** Nightly `#29085709944` GREEN on `fac313a` **Next:** soak maintenance
 
-**Lane 2 — Done:** release evidence `05e2772` RC audit **go** **Next:** human sign-off packet
+**Lane 2 — Done:** release evidence `fac313a` RC audit **go** **Next:** human sign-off packet
 
 **Lane 7 — Done:** TL-7/TL-8 software gates **Next:** human TL-5 VPS soak
 
