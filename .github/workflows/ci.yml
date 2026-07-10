@@ -89,6 +89,8 @@ jobs:
           [[ "$pm23_plan" == *"pm23-operator-manifest-rehearsal-smoke: PASS plan-only"* ]] || { echo "$pm23_plan"; exit 1; }
           treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only)"
           [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { echo "$treasury_plan"; exit 1; }
+          vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_checklist_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -574,6 +576,11 @@ jobs:
           $treasuryPlan = (powershell -NoProfile -File scripts/public-devnet-v1/treasury-telemetry-watch.ps1 -PlanOnly) -join "`n"
           if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only") {
             $treasuryPlan
+            exit 1
+          }
+          $vpsChecklistPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only") {
+            $vpsChecklistPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null
