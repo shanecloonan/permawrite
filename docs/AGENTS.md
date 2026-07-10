@@ -273,7 +273,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
 - [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
 - [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (this push).
-- [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (this push).
+- [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
+- [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Done (recent)
@@ -339,8 +340,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2c tail** — reject forged `MFER` consensus test (with lane 4).
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
 - [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
+- [x] **F6 fee economics docs** (this push) — [`FEES.md`](./FEES.md) plain-language fee breakdown + 2026-07 parameter review; `ECONOMICS.md` §3/§7/§8/§10 sync.
 
-### Do not start
+### Next
+
+- [ ] Idle — watch testnet treasury telemetry for fee-drought revisit triggers ([`FEES.md § 5`](./FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury)).
 
 - RC Nightly fixes — lane 1.
 - `push-all-chunks` — lanes 2–3.
