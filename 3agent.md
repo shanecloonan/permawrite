@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29071784488` GREEN on `808529a` | **Doing** — CI `#29074519821` on `bbc57a1` | Release evidence |
-| **2** RC ops | `release-evidence-6b884ea` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
+| **1** RC core | launch-go-no-go fix `3067bf9` | **Doing** — CI `#29075258454` | Release evidence done |
+| **2** RC ops | `release-evidence-3067bf9` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |

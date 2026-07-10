@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** (this push). **CI `#29074519821` failed** Ubuntu — launch-go-no-go-rehearsal exit-code capture. Prior GREEN `#29068155204` on `808529a`. **Nightly `#29071784488` GREEN**.
+**Head:** `3067bf9`. **CI `#29075258454` in progress** (public-devnet scripts GREEN). **Nightly `#29071784488` GREEN** on `808529a`. Release evidence `3067bf9` + RC audit dry-run **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | launch-go-no-go rehearsal fix | **Doing** — push after `#29074519821` Ubuntu fail | Release evidence refresh |
-| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
+| **1** | CI on launch-go-no-go fix | **Doing** — watch `#29075258454` | Release evidence done |
+| **2** | Release evidence refresh | **Done** — `3067bf9` / CI `#29075258454` smokes | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
@@ -129,11 +129,11 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **CI launch-go-no-go bash fix** (`3067bf9`) - RC core (lane 1): capture non-zero exit from `launch-go-no-go.sh` in rehearsal smoke (Ubuntu GHA `|| true` bug).
 - **launch-go-no-go-rehearsal-smoke** (`bbc57a1`) - testnet launch (lane 7): plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON + TL-9 command in vps-execution-checklist.
 - **F6 Arweave durability comparison** (`bff1b70`) - permanence depth (lane 6): `ECONOMICS.md` §12 permanence durability vs Arweave.
 - **F6 tail split approved (docs)** (`9a2673a`) - permanence depth (lane 6): `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (implementation deferred).
 - **Nightly `#29071784488` GREEN** (`808529a`) - RC core (lane 1): all three jobs on PM23/F6 stack.
-- **Release evidence `77253f6`** - RC ops (lane 2): PM23/F6 stack + RC audit dry-run **go** on CI `#29068155204`.
 - **CI `#29068155204` GREEN** (`808529a`) - RC core (lane 1): PM23/F6/treasury-telemetry rehearsal smokes; full matrix pass.
 - **P32 phase 4a / PM23** (`808529a`) - privacy surface (lane 5): `pm23-operator-manifest-rehearsal-smoke` plan gate for operator-manifest separation on role env templates + docs.
 - **F6 treasury telemetry watch** (`808529a`) - permanence depth (lane 6): `treasury-telemetry-watch.*` read-only `get_chain_params` helper for FEES.md §5 revisit triggers.
