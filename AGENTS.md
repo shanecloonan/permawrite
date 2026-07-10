@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `02aa5fc`. **CI `#29075258454` GREEN** on `3067bf9`. **Nightly `#29077379017` GREEN** on `3067bf9`. Release evidence `1050425` + RC audit dry-run **go**.
+**Head:** (this push). **CI `#29078270777` in progress** on `0b8192c`. Prior GREEN `#29075258454` on `3067bf9`. **Nightly `#29077379017` GREEN** on `3067bf9`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on launch-go-no-go stack | **Done** — `#29077379017` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `1050425` / CI `#29075258454` | Human sign-off packet |
+| **1** | TL-5/TL-6 rehearsal smokes CI | **Doing** — this push | Nightly re-dispatch |
+| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 phase 4a PM23 smoke | **Done** — `808529a` | PM23 hard lint (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork implementation (research) |
-| **7** | TL-9 launch-go-no-go rehearsal | **Done** — `bbc57a1` | TL-5 VPS internet soak (human) |
+| **7** | TL-5/TL-6 VPS rehearsal smokes | **Doing** — this push | TL-5 VPS internet soak (human) |
 
 ---
 

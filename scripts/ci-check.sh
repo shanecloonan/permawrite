@@ -128,6 +128,10 @@ vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehe
 [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
 launch_go_no_go_plan="$(bash scripts/public-devnet-v1/launch-go-no-go-rehearsal-smoke.sh --plan-only)"
 [[ "$launch_go_no_go_plan" == *"launch-go-no-go-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$launch_go_no_go_plan" >&2; exit 1; }
+vps_soak_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_soak_plan" >&2; exit 1; }
+vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

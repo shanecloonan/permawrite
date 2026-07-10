@@ -13,7 +13,18 @@
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
 | **6** Permanence | F6 tail split + Arweave docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | launch-go-no-go rehearsal `bbc57a1` | **Done** | **TL-5 VPS soak** (human VPS) |
+| **7** Testnet | TL-5/TL-6 rehearsal smokes | **Done** — this push | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-10 (TL-5/TL-6 VPS rehearsal smokes)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **TL-5 soak rehearsal** | **Done** — this push | `vps-internet-soak-rehearsal-smoke.*` — docs + script wiring gate |
+| **TL-6 participant rehearsal** | **Done** — this push | `vps-participant-rehearsal-rehearsal-smoke.*` — wrapper + evidence pattern gate |
+
+**Lane 1 — Doing:** CI on this push **Next:** release evidence on green head
 
 ---
 

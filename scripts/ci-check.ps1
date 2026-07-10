@@ -168,6 +168,16 @@ if ($launchGoNoGoPlan -notmatch "launch-go-no-go-rehearsal-smoke: PASS plan-only
     $launchGoNoGoPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsSoakPlan -notmatch "vps-internet-soak-rehearsal-smoke: PASS plan-only" -or $vpsSoakPlan -notmatch "soak.sh --vps") {
+    $vpsSoakPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only" -or $vpsParticipantPlan -notmatch "--vps --with-observer") {
+    $vpsParticipantPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

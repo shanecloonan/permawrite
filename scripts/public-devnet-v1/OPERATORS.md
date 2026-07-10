@@ -70,7 +70,9 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux/macOS (local loopback) | `bash scripts/public-devnet-v1/start-all.sh` |
 | Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` — see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
+| TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
+| TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
