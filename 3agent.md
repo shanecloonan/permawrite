@@ -7,12 +7,25 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29060447662` GREEN | **Doing** — Nightly `#29061696154` watch | Soak maintenance |
-| **2** RC ops | `release-evidence-c861217` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | Nightly `#29061696154` GREEN | **Doing** — CI `#29064435999` on `35c4c7f` | Nightly dispatch |
+| **2** RC ops | `release-evidence-c861217` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
-| **4+6** Protocol | F12 phase 4 (this push) | **Doing** — ci-check | TL-8 `--apply` on VPS |
-| **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |
+| **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
+| **5** Privacy | P32 phase 3 `7d39f4c` | **Done** | TL-5 VPS soak (human) |
+| **6** Permanence | F6 fee docs `d4a5114` | **Done** | Treasury telemetry watch |
 | **7** Testnet | VPS execution checklist `759f5d1` | **Idle** | **TL-5 VPS soak** (human VPS) |
+
+---
+
+## Session — 2026-07-10 (P32 phase 3 + F6 fee economics + CI fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 3** | **Done** — `7d39f4c` | `observer_loopback_rpc_hint_warning`; `mfnd_serve` startup hint |
+| **F6 fee docs** | **Done** — `d4a5114` | [`FEES.md`](docs/FEES.md); `ECONOMICS.md` operator-direct payout sync |
+| **CI fix** | **Done** — `35c4c7f` | grep `--` for `--checkpoint-log` needle in bash smoke |
+
+**Lane 1 — Doing:** CI `#29063906360` **Next:** Nightly on green head
 
 ---
 
@@ -20,7 +33,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F12 phase 4** | **This push** | `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke |
+| **F12 phase 4** | **Done** — `5965525` | `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke |
 
 **Lane 4+6 — Done:** F12 phase 4 **Next:** TL-8 `--apply` on VPS after TL-7
 

@@ -83,18 +83,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** F6 fee docs (this push). **CI `#29063632275` in progress** on `7d39f4c` (P32 phase 3). Prior GREEN `#29060447662` on `5d78329`.
+**Head:** `35c4c7f`. **CI `#29064435999` in progress**. Prior GREEN `#29060447662` on `5d78329`; Nightly `#29061696154` GREEN on F12 phase 3 stack.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | P32 phase 3 CI | **Doing** — watch `#29063632275` | Nightly dispatch |
-| **2** | Release evidence refresh | **Doing** — after P32 CI green | Human sign-off packet |
+| **1** | CI on F12+P32+F6 stack | **Doing** — watch `#29064435999` | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
 | **5** | P32 observer RPC bind hint | **Done** — `7d39f4c` | PM23 research |
-| **6** | F6 fee economics docs | **This push** | Idle |
+| **6** | F6 fee economics docs | **Done** — `d4a5114` | Treasury telemetry watch |
 | **7** | VPS execution checklist | **Done** — `759f5d1` | TL-5 VPS internet soak |
 
 ---
