@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29075258454` GREEN on `3067bf9` | **Next** — Nightly dispatch | Soak maintenance |
-| **2** RC ops | `release-evidence-3067bf9` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | Nightly `#29077379017` GREEN on `3067bf9` | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-1050425` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 phase 4a PM23 `808529a` | **Done** | PM23 hard lint (research) |
@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | **launch-go-no-go-rehearsal-smoke** | **Done** — `bbc57a1` | plan-only CI gate on pre-launch `launch-go-no-go.v1` JSON |
 
-**Lane 1 — Done:** CI `#29075258454` GREEN **Next:** Nightly on `3067bf9`
+**Lane 1 — Done:** Nightly `#29077379017` GREEN **Next:** human VPS TL-5 soak (lane 7)
 
 ---
 

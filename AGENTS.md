@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-10)
 
-**Head:** `3067bf9`. **CI `#29075258454` GREEN**. **Nightly `#29077379017`** dispatched on `3067bf9`. Release evidence `1050425` + RC audit dry-run **go** on `#29075258454`.
+**Head:** `02aa5fc`. **CI `#29075258454` GREEN** on `3067bf9`. **Nightly `#29077379017` GREEN** on `3067bf9`. Release evidence `1050425` + RC audit dry-run **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on `3067bf9` | **Doing** — `#29077379017` | Soak maintenance |
+| **1** | Nightly on launch-go-no-go stack | **Done** — `#29077379017` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `1050425` / CI `#29075258454` | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
