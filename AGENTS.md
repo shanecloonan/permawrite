@@ -83,13 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-09)
 
-**Head:** `5d78329`. **CI `#29060447662`** (watch). **Nightly `#29057711114` GREEN**.
+**Head:** `c861217`. **CI `#29060447662` GREEN**. **Nightly `#29061696154`** (watch).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on F12 phase 3 | **Doing** — CI `#29060447662` watch | Release evidence refresh |
+| **1** | CI on F12 phase 3 | **Done** — CI `#29060447662` GREEN | Nightly `#29061696154` watch |
+| **2** | Release evidence refresh | **Done** — `release-evidence-c861217` RC audit **go** | Human sign-off packet |
 | **2** | Release evidence refresh | **Done** — `release-evidence-b16cb49` RC audit **go** | Human sign-off packet |
 | **3** | B8.3 tor-rpc rehearsal smoke | **Done** — `5b863b3` | TL-6 VPS rehearsal |
 | **4** | F12 WASM checkpoint log parity | **Done** — `5d78329` | TL-8 log publish |

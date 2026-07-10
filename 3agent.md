@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29057711114` GREEN | **Doing** — CI `#29060447662` watch | Release evidence refresh |
-| **2** RC ops | `release-evidence-b16cb49` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | CI `#29060447662` GREEN | **Doing** — Nightly `#29061696154` watch | Soak maintenance |
+| **2** RC ops | `release-evidence-c861217` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | tor-rpc-rehearsal-smoke `5b863b3` | **Done** | TL-6 VPS rehearsal |
 | **4+6** Protocol | F12 phase 3 `5d78329` | **Done** | TL-8 log publish |
 | **5** Privacy | P32 phase 2 `db58ae1` | **Done** | TL-5 VPS soak (human) |
