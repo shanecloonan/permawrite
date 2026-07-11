@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** `638f260`. **CI `#29169339639` GREEN**. **Nightly `#29170244905`** dispatched on `638f260`. Release evidence `638f260` + RC audit **go**.
+**Head:** `7b85313`. **CI `#29169339639` GREEN** on `638f260`. **Nightly `#29170244905` GREEN** on `638f260`. Release evidence `638f260` + RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on `638f260` | **Doing** — `#29170244905` | Soak maintenance |
+| **1** | Nightly on `638f260` | **Done** — `#29170244905` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `638f260` / CI `#29169339639` | Human sign-off packet |
 | **3** | VPS checklist v2 | **Done** — `c1f9597` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **CI `#29169339639` GREEN** (`638f260`) - RC core (lane 1): launch-status v5 + publish-checkpoint-log rehearsal + PM23 phase 4b; full matrix pass.
+- **Nightly `#29170244905` GREEN** (`638f260`) - RC core (lane 1): all three jobs on launch-status v5 + PM23 phase 4b stack.
 - **launch-status v5** (`cf2c05d`) - testnet launch (lane 7): `execution_checklist` block links `vps-execution-checklist.v2`; ceremony plan adds checkpoint log + invite path.
 - **publish-checkpoint-log-rehearsal-smoke + PM23 phase 4b** (`638f260`) - lanes 5+7: TL-8 checkpoint publish plan gate; `mfnd_pm23_warning` + optional `MFND_PM23_HARD_FAIL=1`.
 - **vps-preflight + testnet-invite rehearsal smokes** (`9da922a`) - testnet launch (lane 7): plan-only CI gates on VPS preflight docs and TESTNET_INVITE.md packet.
