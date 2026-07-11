@@ -15,7 +15,7 @@ Complete each phase before starting the next. A phase may have multiple commits;
 | Phase | ID | Gate | Owner | Blocked by |
 | --- | --- | --- | --- | --- |
 | **0** | TL-1 | Lane 7 charter + this playbook + `launch-status` helper | Lane 7 | — |
-| **1** | TL-2 | Green GitHub CI on exact release commit (`release-ci-watch`) | Lane 7 → lane 1 monitor | CI `#29088674668` GREEN on `648676b` |
+| **1** | TL-2 | Green GitHub CI on exact release commit (`release-ci-watch`) | Lane 7 → lane 1 monitor | CI `#29165580894` GREEN on `c1f9597` |
 | **2** | TL-3 | `release-evidence` + RC audit dry-run `decision=go` on head | Lane 7 coordinates lane 2 artifacts | TL-2 |
 | **3** | TL-4 | Single-VPS runbook — [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md); TL-5 soak: `vps-internet-soak.sh` | Lane 7 | TL-3 |
 | **4** | TL-5 | Internet soak on VPS (multi-sample health, height ≥ 10) | Lane 7 | TL-4 + VPS provisioned |

@@ -55,7 +55,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-8 readiness** — `launch-status.v4` checkpoint log tracking + `launch-go-no-go` non-empty log gate when `seed_nodes >= 3` (`895ac1e`).
 - [x] **Lane 6 / F6 telemetry** — `treasury-telemetry-watch.*` read-only `get_chain_params` helper (this push).
 - [x] **Lane 7 / TL-5 preflight hardening** — `vps-preflight.sh` validates MFER policy + `mfn-storage-operator` binary before VPS soak.
-- [x] **Lane 7 / TL-5 execution checklist v2** — `vps-execution-checklist.v2` adds TL-7/TL-8 publish + invite commands (this push).
+- [x] **Lane 7 / TL-5 execution checklist v2** — `vps-execution-checklist.v2` adds TL-7/TL-8 publish + invite commands (`c1f9597`).
 - [x] **Lane 7 / TL-9 launch-go-no-go rehearsal** — `launch-go-no-go-rehearsal-smoke.*` plan-only gate on pre-launch `launch-go-no-go.v1` JSON (`bbc57a1`).
 - [x] **Lane 7 / TL-5 soak rehearsal smoke** — `vps-internet-soak-rehearsal-smoke.*` plan-only gate (this push).
 - [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (this push).
@@ -67,8 +67,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
 - [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
 - [x] **Lane 7 / TL-7–TL-9 tooling** — genesis ceremony, `publish-seed-nodes`, `launch-go-no-go` (`03de79a`).
-- [x] **Lane 7 / TL-5 preflight rehearsal** — `vps-preflight-rehearsal-smoke.*` plan-only gate on VPS preflight docs + script wiring (this push).
-- [x] **Lane 7 / TL-8 invite rehearsal** — `testnet-invite-rehearsal-smoke.*` plan-only gate on `TESTNET_INVITE.md` packet (this push); live invite still blocked on VPS evidence + published seeds.
+- [x] **Lane 7 / TL-5 preflight rehearsal** — `vps-preflight-rehearsal-smoke.*` plan-only gate on VPS preflight docs + script wiring (`9da922a`; ci-check/GHA wired `c1f9597`).
+- [x] **Lane 7 / TL-8 invite rehearsal** — `testnet-invite-rehearsal-smoke.*` plan-only gate on `TESTNET_INVITE.md` packet (`9da922a`; ci-check/GHA wired `c1f9597`); live invite still blocked on VPS evidence + published seeds.
 - [x] **B-11** (lanes 4+6) — `MFEO` endowment opening in `tx.extra`; `require_endowment_opening` param; phase 1 + proptests (`9f0a0aa`); public devnet genesis enable (`endowment.require_endowment_opening: 1` in `public_devnet_v1.json`, same `genesis_id`).
 
 ## Agent 2: RPC, Security, Operations, Observability, CI
