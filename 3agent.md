@@ -7,13 +7,13 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29166472970` GREEN; CI `#29165580894` GREEN | **Doing** — ci-check + push P32/TL-8 stack | Soak maintenance |
-| **2** RC ops | `release-evidence-c1f9597` RC audit **go** | **Doing** — release evidence after CI green | Human sign-off |
+| **1** RC core | CI `#29169339639` GREEN on `638f260` | **Doing** — Nightly `#29170244905` | Soak maintenance |
+| **2** RC ops | `release-evidence-638f260` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | checklist v2 `c1f9597` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | P32 phase 4b PM23 runtime lint | **Doing** — ci-check | PM23 hard-fail default (research) |
+| **5** Privacy | P32 phase 4b PM23 runtime lint `638f260` | **Done** | PM23 hard-fail default (research) |
 | **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | TL-8 publish-checkpoint-log rehearsal | **Doing** — ci-check + push | TL-5 VPS soak (human) |
+| **7** Testnet | launch-status v5 + checkpoint publish `638f260` | **Done** | TL-5 VPS soak (human) |
 
 ---
 
