@@ -64,6 +64,61 @@ pub fn validator_index_from_env() -> Option<u32> {
         .and_then(|raw| raw.trim().parse().ok())
 }
 
+fn env_nonempty(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .is_some_and(|raw| !raw.trim().is_empty())
+}
+
+/// PM23 phase 4b: warn when operator-manifest env colocates with validator or wallet hosts.
+///
+/// Operator identity is public by design; wallet and validator keys must not share a host
+/// with `MFN_OPERATOR_DATA` / `MFN_OPERATOR_MANIFEST` (see `REFERENCE_TOPOLOGY.md` §PM23).
+#[must_use]
+pub fn pm23_operator_manifest_env_warnings(produce: bool, committee_vote: bool) -> Vec<String> {
+    let validator = produce || committee_vote;
+    let has_operator_data = env_nonempty("MFN_OPERATOR_DATA");
+    let has_operator_manifest = env_nonempty("MFN_OPERATOR_MANIFEST");
+    let has_wallet = env_nonempty("MFN_WALLET");
+    let mut out = Vec::new();
+
+    if validator {
+        if has_operator_data || has_operator_manifest {
+            out.push(
+                "mfnd_pm23_warning roles=validator env has MFN_OPERATOR_DATA or MFN_OPERATOR_MANIFEST; \
+                 operator manifests stay off validator machines (PM23; see REFERENCE_TOPOLOGY.md)"
+                    .to_string(),
+            );
+        }
+        if has_wallet {
+            out.push(
+                "mfnd_pm23_warning roles=validator env has MFN_WALLET; wallet seeds stay off \
+                 validator machines (PM23; see REFERENCE_TOPOLOGY.md)"
+                    .to_string(),
+            );
+        }
+        return out;
+    }
+
+    if has_operator_data || has_operator_manifest {
+        out.push(
+            "mfnd_pm23_warning roles=non-validator env has MFN_OPERATOR_DATA or \
+             MFN_OPERATOR_MANIFEST; keep operator data on dedicated operator hosts (PM23)"
+                .to_string(),
+        );
+    }
+
+    out
+}
+
+/// True when `MFND_PM23_HARD_FAIL=1` and PM23 warnings should abort startup.
+#[must_use]
+pub fn pm23_hard_fail_enabled() -> bool {
+    std::env::var("MFND_PM23_HARD_FAIL")
+        .ok()
+        .is_some_and(|raw| matches!(raw.trim(), "1" | "true" | "yes" | "on"))
+}
+
 /// Warn when ≥2 of {validator, operator, wallet_rpc} colocate on the same advertised host.
 #[must_use]
 pub fn role_topology_colocation_warning(
@@ -230,5 +285,32 @@ mod tests {
             true
         )
         .is_none());
+    }
+
+    #[test]
+    fn pm23_validator_operator_env_warns() {
+        std::env::set_var("MFN_OPERATOR_DATA", "/var/lib/operator");
+        let warnings = pm23_operator_manifest_env_warnings(true, false);
+        std::env::remove_var("MFN_OPERATOR_DATA");
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("mfnd_pm23_warning"));
+        assert!(warnings[0].contains("roles=validator"));
+    }
+
+    #[test]
+    fn pm23_observer_operator_env_warns() {
+        std::env::set_var("MFN_OPERATOR_MANIFEST", "/tmp/manifest.json");
+        let warnings = pm23_operator_manifest_env_warnings(false, false);
+        std::env::remove_var("MFN_OPERATOR_MANIFEST");
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("roles=non-validator"));
+    }
+
+    #[test]
+    fn pm23_clean_env_is_silent() {
+        std::env::remove_var("MFN_OPERATOR_DATA");
+        std::env::remove_var("MFN_OPERATOR_MANIFEST");
+        std::env::remove_var("MFN_WALLET");
+        assert!(pm23_operator_manifest_env_warnings(true, false).is_empty());
     }
 }

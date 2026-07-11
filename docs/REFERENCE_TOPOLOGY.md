@@ -175,7 +175,7 @@ mfnd_role_topology_warning roles=validator+wallet_rpc+operator rpc_listen=0.0.0.
 
 **Exempt:** `127.0.0.1`, `localhost`, `::1`, and devnet dynamic loopback ports — CI meshes stay quiet.
 
-**Not yet enforced (future P32 phases):** hard fail instead of warn; separate lint for observer-only nodes binding wallet-write without API key; PM23 operator-manifest separation checks.
+**Not yet enforced (future P32 phases):** hard fail by default on internet-facing hosts (today warn-only unless `MFND_PM23_HARD_FAIL=1`); separate lint for observer-only nodes binding wallet-write without API key.
 
 ---
 
@@ -215,7 +215,7 @@ Role env templates: [`vps-role-validator.env.example`](../scripts/public-devnet-
 | **1** | This reference doc + rehearsal smoke | **Shipped** — `85f3512` |
 | **2** | Operator runbook cross-links + VPS template env files | **Shipped** — `vps-role-*.env.example` |
 | **3** | Observer loopback-RPC hint when P2P is public | **Shipped** — this push |
-| **4** | PM23 operator-manifest separation lint | **Phase 4a shipped** — `pm23-operator-manifest-rehearsal-smoke` plan gate; hard lint deferred |
+| **4** | PM23 operator-manifest separation lint | **Phase 4a–4b shipped** — plan gate + runtime `mfnd_pm23_warning` / `mfn_storage_operator_pm23_warning` (warn-only; `MFND_PM23_HARD_FAIL=1`) |
 
 ---
 

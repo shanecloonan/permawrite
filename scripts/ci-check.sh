@@ -113,8 +113,8 @@ if [[ "$checkpoint_log_plan" != *"CHECKPOINT_LOG.md"* || "$checkpoint_log_plan" 
   printf '%s\n' "$checkpoint_log_plan" >&2
   exit 1
 fi
-publish_checkpoint_log_plan="$(bash scripts/public-devnet-v1/publish-checkpoint-log.sh --plan-only)"
-if [[ "$publish_checkpoint_log_plan" != *"publish-checkpoint-log: plan"* || "$publish_checkpoint_log_plan" != *"PASS plan-only"* ]]; then
+publish_checkpoint_log_plan="$(bash scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.sh --plan-only)"
+if [[ "$publish_checkpoint_log_plan" != *"publish-checkpoint-log-rehearsal-smoke: PASS plan-only"* ]]; then
   printf '%s\n' "$publish_checkpoint_log_plan" >&2
   exit 1
 fi

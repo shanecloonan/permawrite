@@ -61,13 +61,22 @@ if ($operatorText -match "MFND_VALIDATOR_INDEX" -or $operatorText -match "MFND_V
     throw "pm23-operator-manifest-rehearsal-smoke: operator template must not include validator seeds"
 }
 
+$topology = Join-Path $RepoRoot "mfn-node\src\role_topology.rs"
+$pm23Rs = Join-Path $RepoRoot "mfn-storage-operator\src\pm23.rs"
+if (-not (Select-String -LiteralPath $topology -Pattern "mfnd_pm23_warning" -Quiet)) {
+    throw "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing mfnd_pm23_warning lint"
+}
+if (-not (Test-Path -LiteralPath $pm23Rs) -or -not (Select-String -LiteralPath $pm23Rs -Pattern "mfn_storage_operator_pm23_warning" -Quiet)) {
+    throw "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing PM23 runtime lint"
+}
+
 Write-Host "pm23-operator-manifest-rehearsal-smoke: plan"
 Write-Host "  flow=REFERENCE_TOPOLOGY PM23 rules + vps-role-*.env.example separation"
 Write-Host "  wallet=no operator manifest / mfn-storage-operator paths"
 Write-Host "  validator=no wallet or operator manifest paths"
 Write-Host "  operator=operator data only; no validator seeds"
+Write-Host "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (warn-only; MFND_PM23_HARD_FAIL=1)"
 Write-Host "  docs=docs/REFERENCE_TOPOLOGY.md docs/PRIVACY_HARDENING.md"
-Write-Host "  live_lint=deferred (hard fail on colocated manifest paths)"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {
     Write-Host "pm23-operator-manifest-rehearsal-smoke: PASS plan-only"

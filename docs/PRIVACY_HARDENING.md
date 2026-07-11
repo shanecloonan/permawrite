@@ -593,9 +593,14 @@ public P2P but keeps RPC on loopback (community observers usually expose public 
 
 **Shipped (phase 4a).** `pm23-operator-manifest-rehearsal-smoke` plan gate — wallet role
 env must not reference operator manifest paths; validator env must not hold wallet or
-operator data; operator env must not include validator seeds. Hard runtime lint deferred.
+operator data; operator env must not include validator seeds.
 
-**Remaining.** PM23 hard lint (phase 4b, research).
+**Shipped (phase 4b).** Runtime PM23 env lint: `mfnd_pm23_warning` when validator or
+non-validator `mfnd serve` processes export `MFN_OPERATOR_DATA` / `MFN_OPERATOR_MANIFEST`
+or validator hosts export `MFN_WALLET`; `mfn_storage_operator_pm23_warning` when operator
+processes export validator seed env. Optional hard fail via `MFND_PM23_HARD_FAIL=1`.
+
+**Remaining.** Hard fail by default on public testnet VPS (today warn-only unless env set).
 
 **Effort:** low (phase 0–4a). **Risk:** low (warn-only + docs + plan-only gates).
 

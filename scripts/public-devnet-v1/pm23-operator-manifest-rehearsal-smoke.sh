@@ -82,13 +82,24 @@ if grep -qiF -- "MFND_VALIDATOR_INDEX" "$operator_tpl" || grep -qiF -- "MFND_VRF
   exit 1
 fi
 
+topology="$REPO_ROOT/mfn-node/src/role_topology.rs"
+pm23_rs="$REPO_ROOT/mfn-storage-operator/src/pm23.rs"
+if ! grep -qF -- "mfnd_pm23_warning" "$topology"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing mfnd_pm23_warning lint" >&2
+  exit 1
+fi
+if [[ ! -f "$pm23_rs" ]] || ! grep -qF -- "mfn_storage_operator_pm23_warning" "$pm23_rs"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing PM23 runtime lint" >&2
+  exit 1
+fi
+
 echo "pm23-operator-manifest-rehearsal-smoke: plan"
 echo "  flow=REFERENCE_TOPOLOGY PM23 rules + vps-role-*.env.example separation"
 echo "  wallet=no operator manifest / mfn-storage-operator paths"
 echo "  validator=no wallet or operator manifest paths"
 echo "  operator=operator data only; no validator seeds"
+echo "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (warn-only; MFND_PM23_HARD_FAIL=1)"
 echo "  docs=docs/REFERENCE_TOPOLOGY.md docs/PRIVACY_HARDENING.md"
-echo "  live_lint=deferred (hard fail on colocated manifest paths)"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "pm23-operator-manifest-rehearsal-smoke: PASS plan-only"

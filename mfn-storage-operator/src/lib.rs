@@ -23,6 +23,7 @@ pub mod chunk_http;
 pub mod chunk_push;
 pub mod daemon;
 pub mod inbox_backfill;
+pub mod pm23;
 pub mod prove;
 pub mod rpc;
 pub mod upload_artifact_store;

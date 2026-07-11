@@ -7,17 +7,28 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29166472970` GREEN on `c1f9597` | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-c1f9597` RC audit **go** | **Done** | Human sign-off |
-| **3** Onboarding | F12 demo web `05e2772` | **Done** | TL-5 VPS soak (human) |
+| **1** RC core | Nightly `#29166472970` GREEN; CI `#29165580894` GREEN | **Doing** — ci-check + push P32/TL-8 stack | Soak maintenance |
+| **2** RC ops | `release-evidence-c1f9597` RC audit **go** | **Doing** — release evidence after CI green | Human sign-off |
+| **3** Onboarding | checklist v2 `c1f9597` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | F12 demo web `05e2772` | **Done** | PM23 hard lint (research) |
+| **5** Privacy | P32 phase 4b PM23 runtime lint | **Doing** — ci-check | PM23 hard-fail default (research) |
 | **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | checklist v2 + ci-check wiring `c1f9597` | **Done** | TL-5 VPS soak (human) |
+| **7** Testnet | TL-8 publish-checkpoint-log rehearsal | **Doing** — ci-check + push | TL-5 VPS soak (human) |
 
 ---
 
-## Session — 2026-07-11 (checklist v2 CI green)
+## Session — 2026-07-11 (P32 phase 4b PM23 + TL-8 checkpoint publish rehearsal)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **P32 phase 4b** | **This push** | `mfnd_pm23_warning` + `mfn_storage_operator_pm23_warning`; `MFND_PM23_HARD_FAIL=1` |
+| **publish-checkpoint-log-rehearsal-smoke** | **This push** | doc cross-links + plan-only gate in ci-check + GHA |
+
+**Lane 5 — Doing:** PM23 runtime lint **Next:** hard-fail default on VPS (research)
+
+**Lane 7 — Doing:** TL-8 checkpoint publish rehearsal **Next:** human TL-5 VPS soak
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |

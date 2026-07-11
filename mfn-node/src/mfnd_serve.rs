@@ -40,7 +40,8 @@ use crate::p2p_repair_sweep::{
 };
 use crate::role_topology::{
     chain_validator_is_storage_operator, observer_loopback_rpc_hint_warning,
-    role_topology_colocation_warning, validator_index_from_env,
+    pm23_hard_fail_enabled, pm23_operator_manifest_env_warnings, role_topology_colocation_warning,
+    validator_index_from_env,
 };
 use crate::runner::{
     produce_config_from_env, spawn_slot_producer_loop, ProductionEngine, ProductionEngineDeps,
@@ -641,6 +642,14 @@ pub(crate) fn run_serve(
         observer_loopback_rpc_hint_warning(produce, committee_vote, rpc_listen, p2p_listen)
     {
         eprintln!("{hint}");
+    }
+    for warning in pm23_operator_manifest_env_warnings(produce, committee_vote) {
+        eprintln!("{warning}");
+        if pm23_hard_fail_enabled() {
+            return Err(format!(
+                "mfnd serve: PM23 hard fail enabled (MFND_PM23_HARD_FAIL=1): {warning}"
+            ));
+        }
     }
     let rpc_max_in_flight = rpc_max_in_flight_from_env()?;
     println!("mfnd_rpc_max_in_flight={rpc_max_in_flight}");

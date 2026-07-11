@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mfn_storage_operator::{
-    list_upload_artifacts, load_network_manifest, push_wallet_artifact_chunks_to_peers, run_daemon,
-    serve_chunks, ChunkPushPeerResult, ChunkServeConfig, OperatorDaemonConfig, RpcClient,
-    DEFAULT_RPC_ADDR,
+    list_upload_artifacts, load_network_manifest, pm23::pm23_storage_operator_env_warnings,
+    push_wallet_artifact_chunks_to_peers, run_daemon, serve_chunks, ChunkPushPeerResult,
+    ChunkServeConfig, OperatorDaemonConfig, RpcClient, DEFAULT_RPC_ADDR,
 };
 
 fn main() -> ExitCode {
@@ -26,6 +26,9 @@ fn main() -> ExitCode {
 }
 
 fn run_cli(args: Vec<String>) -> Result<(), String> {
+    for warning in pm23_storage_operator_env_warnings() {
+        eprintln!("{warning}");
+    }
     let mut rpc_addr = env::var("MFN_RPC")
         .ok()
         .filter(|s| !s.is_empty())

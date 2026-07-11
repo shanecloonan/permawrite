@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** (this push). **CI `#29165580894` GREEN** on `c1f9597`. **Nightly `#29166472970` GREEN**. RC push after local ci-check.
+**Head:** (this push). **CI `#29168652689` in progress** on `cf2c05d`. Fixes missing `publish-checkpoint-log-rehearsal-smoke.*` wired by `cf2c05d`.
 
 ## Current board
 
