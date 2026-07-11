@@ -277,7 +277,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **P32 phase 4a** — PM23 operator-manifest separation plan-only rehearsal smoke (this push).
-- [x] **P32 phase 4b** — PM23 runtime env lint (`mfnd_pm23_warning`, `mfn_storage_operator_pm23_warning`) (this push).
+- [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (`a91fbe3`).
+- [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
 - [x] **publish-checkpoint-log-rehearsal-smoke** — TL-8 checkpoint log publish doc + plan gate (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
