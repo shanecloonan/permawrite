@@ -19,10 +19,14 @@ if (-not (Select-String -LiteralPath $Ops -Pattern "vps-execution-checklist" -Qu
 }
 
 $report = & powershell -NoProfile -File (Join-Path $ScriptDir "vps-execution-checklist.ps1") -Json | ConvertFrom-Json
-if ($report.schema_version -ne "vps-execution-checklist.v1") {
-    throw "vps-execution-checklist-rehearsal-smoke: expected v1 got $($report.schema_version)"
+if ($report.schema_version -ne "vps-execution-checklist.v2") {
+    throw "vps-execution-checklist-rehearsal-smoke: expected v2 got $($report.schema_version)"
 }
-foreach ($key in @("provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry", "pm23_rehearsal", "tl9_launch_gate")) {
+foreach ($key in @(
+    "provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry",
+    "pm23_rehearsal", "tl9_launch_gate", "tl7_signoff", "tl8_publish_seeds",
+    "tl8_publish_checkpoint_log", "tl8_invite"
+)) {
     if (-not $report.commands.$key) {
         throw "vps-execution-checklist-rehearsal-smoke: commands missing $key"
     }

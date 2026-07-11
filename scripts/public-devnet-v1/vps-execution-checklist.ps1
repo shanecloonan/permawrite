@@ -58,7 +58,7 @@ if ($ci -and -not $ciGreen) {
 }
 
 $report = [ordered]@{
-    schema_version          = "vps-execution-checklist.v1"
+    schema_version          = "vps-execution-checklist.v2"
     ready_for_vps_execution = ($blockers.Count -eq 0)
     local_rc_complete       = [bool]$launchJson.local_rc_complete
     suggested_phase         = $launchJson.suggested_phase
@@ -78,6 +78,10 @@ $report = [ordered]@{
         treasury_telemetry = "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731"
         pm23_rehearsal = "bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only"
         tl9_launch_gate = "bash scripts/public-devnet-v1/launch-go-no-go.sh"
+        tl7_signoff = "docs/TESTNET_GENESIS_CEREMONY.md"
+        tl8_publish_seeds = "bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_VPS_IP --apply"
+        tl8_publish_checkpoint_log = "bash scripts/public-devnet-v1/publish-checkpoint-log.sh --apply"
+        tl8_invite = "docs/TESTNET_INVITE.md"
     }
 }
 
@@ -96,6 +100,11 @@ if ($Json) {
     Write-Host "  4. $($report.commands.tl6_rehearsal)  # archive vps-participant-rehearsal-*.txt"
     Write-Host "  5. $($report.commands.archive)"
     Write-Host "  6. $($report.commands.ceremony)"
+    Write-Host "  7. $($report.commands.tl7_signoff)  # human sign-off"
+    Write-Host "  8. $($report.commands.tl8_publish_seeds)  # commit manifest"
+    Write-Host "  9. $($report.commands.tl8_publish_checkpoint_log)  # commit checkpoints.jsonl"
+    Write-Host " 10. $($report.commands.tl8_invite)  # share invite packet"
+    Write-Host " 11. $($report.commands.tl9_launch_gate)"
 }
 
 if (-not $report.ready_for_vps_execution) { exit 1 }

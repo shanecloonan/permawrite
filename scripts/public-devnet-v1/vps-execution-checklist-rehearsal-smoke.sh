@@ -41,9 +41,13 @@ export JSON="$json"
 python3 - <<'PY'
 import json, os, sys
 doc = json.loads(os.environ["JSON"])
-assert doc.get("schema_version") == "vps-execution-checklist.v1", doc.get("schema_version")
+assert doc.get("schema_version") == "vps-execution-checklist.v2", doc.get("schema_version")
 cmds = doc.get("commands") or {}
-for key in ("provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry", "pm23_rehearsal", "tl9_launch_gate"):
+for key in (
+    "provision", "preflight", "tl5_soak", "tl6_rehearsal", "treasury_telemetry",
+    "pm23_rehearsal", "tl9_launch_gate", "tl7_signoff", "tl8_publish_seeds",
+    "tl8_publish_checkpoint_log", "tl8_invite",
+):
     assert key in cmds, key
 assert "launch_status" in doc, "launch_status missing"
 print("vps-execution-checklist-rehearsal-smoke: plan")

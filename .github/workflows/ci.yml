@@ -97,6 +97,10 @@ jobs:
           [[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_soak_plan"; exit 1; }
           vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
           [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_participant_plan"; exit 1; }
+          vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_preflight_plan"; exit 1; }
+          testnet_invite_plan="$(bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only)"
+          [[ "$testnet_invite_plan" == *"testnet-invite-rehearsal-smoke: PASS plan-only"* ]] || { echo "$testnet_invite_plan"; exit 1; }
           publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"
           [[ "$publish_seed_plan" == *"publish-seed-nodes-rehearsal-smoke: PASS plan-only"* ]] || { echo "$publish_seed_plan"; exit 1; }
           vps_ceremony_plan="$(bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only)"
@@ -608,6 +612,16 @@ jobs:
           $vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only") {
             $vpsParticipantPlan
+            exit 1
+          }
+          $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only") {
+            $vpsPreflightPlan
+            exit 1
+          }
+          $testnetInvitePlan = (powershell -NoProfile -File scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($testnetInvitePlan -notmatch "testnet-invite-rehearsal-smoke: PASS plan-only") {
+            $testnetInvitePlan
             exit 1
           }
           $publishSeedPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.ps1 -PlanOnly) -join "`n"

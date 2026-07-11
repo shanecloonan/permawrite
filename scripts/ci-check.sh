@@ -126,12 +126,17 @@ treasury_plan="$(bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --pla
 [[ "$treasury_plan" == *"treasury-telemetry-watch: PASS plan-only"* ]] || { printf '%s\n' "$treasury_plan" >&2; exit 1; }
 vps_checklist_plan="$(bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_checklist_plan" == *"vps-execution-checklist-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
+[[ "$vps_checklist_plan" == *"vps-execution-checklist.v2"* ]] || { printf '%s\n' "$vps_checklist_plan" >&2; exit 1; }
 launch_go_no_go_plan="$(bash scripts/public-devnet-v1/launch-go-no-go-rehearsal-smoke.sh --plan-only)"
 [[ "$launch_go_no_go_plan" == *"launch-go-no-go-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$launch_go_no_go_plan" >&2; exit 1; }
 vps_soak_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_soak_plan" >&2; exit 1; }
 vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
+vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_preflight_plan" >&2; exit 1; }
+testnet_invite_plan="$(bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only)"
+[[ "$testnet_invite_plan" == *"testnet-invite-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$testnet_invite_plan" >&2; exit 1; }
 publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"
 [[ "$publish_seed_plan" == *"publish-seed-nodes-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$publish_seed_plan" >&2; exit 1; }
 vps_ceremony_plan="$(bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only)"

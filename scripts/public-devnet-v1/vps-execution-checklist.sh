@@ -91,7 +91,7 @@ elif not ci:
     warnings.append("gh not available — skip live CI lookup")
 
 print(json.dumps({
-    "schema_version": "vps-execution-checklist.v1",
+    "schema_version": "vps-execution-checklist.v2",
     "ready_for_vps_execution": len(blockers) == 0,
     "local_rc_complete": launch.get("local_rc_complete", False),
     "suggested_phase": launch.get("suggested_phase", ""),
@@ -111,6 +111,10 @@ print(json.dumps({
         "treasury_telemetry": "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731",
         "pm23_rehearsal": "bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only",
         "tl9_launch_gate": "bash scripts/public-devnet-v1/launch-go-no-go.sh",
+        "tl7_signoff": "docs/TESTNET_GENESIS_CEREMONY.md",
+        "tl8_publish_seeds": "bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_VPS_IP --apply",
+        "tl8_publish_checkpoint_log": "bash scripts/public-devnet-v1/publish-checkpoint-log.sh --apply",
+        "tl8_invite": "docs/TESTNET_INVITE.md",
     },
 }, indent=2))
 PY
@@ -139,6 +143,11 @@ print(f"  3. {cmds['tl5_soak']}  # archive vps-internet-soak-linux-*.txt")
 print(f"  4. {cmds['tl6_rehearsal']}  # archive vps-participant-rehearsal-*.txt")
 print(f"  5. {cmds['archive']}")
 print(f"  6. {cmds['ceremony']}")
+print(f"  7. {cmds['tl7_signoff']}  # human sign-off")
+print(f"  8. {cmds['tl8_publish_seeds']}  # commit manifest")
+print(f"  9. {cmds['tl8_publish_checkpoint_log']}  # commit checkpoints.jsonl")
+print(f" 10. {cmds['tl8_invite']}  # share invite packet")
+print(f" 11. {cmds['tl9_launch_gate']}")
 PY
 fi
 

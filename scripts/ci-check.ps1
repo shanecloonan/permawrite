@@ -159,7 +159,7 @@ if ($treasuryPlan -notmatch "treasury-telemetry-watch: PASS plan-only" -or $trea
     exit 1
 }
 $vpsChecklistPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only" -or $vpsChecklistPlan -notmatch "vps-execution-checklist.v1") {
+if ($vpsChecklistPlan -notmatch "vps-execution-checklist-rehearsal-smoke: PASS plan-only" -or $vpsChecklistPlan -notmatch "vps-execution-checklist.v2") {
     $vpsChecklistPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
@@ -176,6 +176,16 @@ if ($vpsSoakPlan -notmatch "vps-internet-soak-rehearsal-smoke: PASS plan-only" -
 $vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only" -or $vpsParticipantPlan -notmatch "--vps --with-observer") {
     $vpsParticipantPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
+    $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$testnetInvitePlan = (powershell -NoProfile -File scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($testnetInvitePlan -notmatch "testnet-invite-rehearsal-smoke: PASS plan-only" -or $testnetInvitePlan -notmatch "TESTNET_INVITE.md") {
+    $testnetInvitePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $publishSeedPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.ps1 -PlanOnly) -join "`n"

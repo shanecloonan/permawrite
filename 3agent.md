@@ -7,17 +7,29 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29088674668` GREEN; Nightly `#29090091058` GREEN | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-648676b` RC audit **go** | **Done** | Human sign-off packet |
-| **3** Onboarding | F12 demo web phase 5 `05e2772` | **Done** | TL-5 VPS soak (human) |
+| **1** RC core | CI `#29092934290` GREEN on `9da922a`; Nightly `#29143531475` GREEN | **Doing** — checklist v2 push | Release evidence refresh |
+| **2** RC ops | `release-evidence-648676b` RC audit **go** | **Doing** — refresh after CI green | Human sign-off |
+| **3** Onboarding | F12 demo web `05e2772` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | F12 demo web checkpoint log UI `05e2772` | **Done** | PM23 hard lint (research) |
+| **5** Privacy | F12 demo web `05e2772` | **Done** | PM23 hard lint (research) |
 | **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | TL-7/TL-8 rehearsal smokes `05e2772` | **Done** | TL-5 VPS soak (human) |
+| **7** Testnet | preflight + invite smokes `9da922a` | **Doing** — checklist v2 + ci-check wiring | TL-5 VPS soak (human) |
 
 ---
 
-## Session — 2026-07-10 (board sync 648676b)
+## Session — 2026-07-10 (TL-8 invite + checklist v2)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **testnet-invite-rehearsal-smoke** | **This push** | TESTNET_INVITE.md genesis + privacy gates |
+| **vps-preflight-rehearsal-smoke** | **This push** | TL-5 preflight docs + script wiring gate |
+| **vps-execution-checklist v2** | **This push** | TL-7/TL-8 publish + invite commands in checklist JSON |
+
+**Lane 2 — Doing:** ci-check -DocsOnly **Next:** push when CI `#29090766185` completes
+
+**Lane 7 — Doing:** TL-8 software gates **Next:** human TL-5 VPS soak
+
+---
 
 | Unit | Status | Notes |
 | --- | --- | --- |
