@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** `c1f9597`. **CI `#29165580894` GREEN**. **Nightly `#29166472970`** dispatched on `c1f9597`. Release evidence `c1f9597` + RC audit **go**.
+**Head:** `175a6e2`. **CI `#29165580894` GREEN** on `c1f9597`. **Nightly `#29166472970` GREEN** on `c1f9597`. Release evidence `c1f9597` + RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on `c1f9597` | **Doing** — `#29166472970` | Soak maintenance |
+| **1** | Nightly on `c1f9597` | **Done** — `#29166472970` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-c1f9597` RC audit **go** | Human sign-off packet |
 | **3** | F12 demo web phase 5 | **Done** — `05e2772` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **vps-execution-checklist v2** (`c1f9597`) - testnet launch (lane 7): TL-7/TL-8 publish + invite commands in checklist JSON; ci-check + GHA wiring for preflight/invite rehearsal smokes; CI `#29165580894` GREEN.
+- **Nightly `#29166472970` GREEN** (`c1f9597`) - RC core (lane 1): all three jobs on checklist v2 stack.
 - **vps-preflight + testnet-invite rehearsal smokes** (`9da922a`) - testnet launch (lane 7): plan-only CI gates on VPS preflight docs and TESTNET_INVITE.md packet.
 - **Board sync `648676b`** - RC ops (lane 2): CI `#29088674668` GREEN; release evidence refresh on docs-only head.
 - **Nightly `#29088007044` GREEN** (`09edd8a`) - RC core (lane 1): all three jobs on board-sync stack.

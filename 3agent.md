@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29165580894` GREEN on `c1f9597` | **Doing** — Nightly `#29166472970` | Soak maintenance |
+| **1** RC core | Nightly `#29166472970` GREEN on `c1f9597` | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-c1f9597` RC audit **go** | **Done** | Human sign-off |
 | **3** Onboarding | F12 demo web `05e2772` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
