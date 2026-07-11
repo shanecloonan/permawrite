@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane 7: plan-only launch-status v4 schema rehearsal.
+# Lane 7: plan-only launch-status v5 schema rehearsal.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +8,7 @@ usage() {
   cat <<EOF
 usage: $(basename "$0") [--plan-only]
 
-Validates launch-status.v4 JSON schema + checkpoint_log path (no VPS required).
+Validates launch-status.v5 JSON schema + checkpoint_log + execution_checklist (no VPS required).
 EOF
 }
 
@@ -26,15 +26,19 @@ export JSON="$json"
 python3 - <<'PY'
 import json, os, sys
 doc = json.loads(os.environ["JSON"])
-assert doc.get("schema_version") == "launch-status.v4", doc.get("schema_version")
+assert doc.get("schema_version") == "launch-status.v5", doc.get("schema_version")
 cl = doc.get("checkpoint_log") or {}
 assert cl.get("path") == "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl", cl.get("path")
 for key in ("exists", "entry_count", "published"):
     assert key in cl, key
+ec = doc.get("execution_checklist") or {}
+assert ec.get("schema_version") == "vps-execution-checklist.v2", ec.get("schema_version")
+assert "vps-execution-checklist.sh" in ec.get("helper", ""), ec.get("helper")
 print("launch-status-rehearsal-smoke: plan")
-print("  schema=launch-status.v4")
+print("  schema=launch-status.v5")
 print(f"  checkpoint_log.path={cl.get('path')}")
 print(f"  checkpoint_log.entry_count={cl.get('entry_count')}")
+print(f"  execution_checklist={ec.get('schema_version')}")
 print("  helper=launch-status.sh --json")
 PY
 

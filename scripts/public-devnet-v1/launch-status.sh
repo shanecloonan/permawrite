@@ -121,7 +121,7 @@ elif (( tl5_evidence == 1 )); then
   next_action="bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop"
 elif (( local_rc_complete == 1 )) && [[ ${#missing_bins[@]} -eq 0 ]]; then
   phase="TL-5 (local RC complete - provision VPS for internet soak)"
-  next_action="docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh"
+  next_action="bash scripts/public-devnet-v1/vps-execution-checklist.sh then docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh"
 elif [[ ${#missing_bins[@]} -eq 0 ]]; then
   phase="TL-5 (build complete - run local MFER rehearsals then provision VPS)"
   next_action="participant-rehearsal-smoke before VPS; see docs/VPS_PROVISION.md"
@@ -166,10 +166,15 @@ elif verified_raw == "0":
     verified = False
 
 print(json.dumps({
-    "schema_version": "launch-status.v4",
+    "schema_version": "launch-status.v5",
     "lane": 7,
     "playbook": os.environ["PLAYBOOK"],
     "invite_packet": "docs/TESTNET_INVITE.md",
+    "execution_checklist": {
+        "schema_version": "vps-execution-checklist.v2",
+        "helper": "bash scripts/public-devnet-v1/vps-execution-checklist.sh",
+        "rehearsal": "bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only",
+    },
     "suggested_phase": os.environ["phase"],
     "next_action": os.environ.get("next_action", ""),
     "head_sha": os.environ["head_sha"],

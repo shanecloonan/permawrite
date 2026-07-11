@@ -33,6 +33,9 @@ if (( PLAN_ONLY == 1 )); then
   cat <<'EOF'
 vps-launch-ceremony: ordered VPS path (Lane 7)
 
+  Pre   bash scripts/public-devnet-v1/vps-execution-checklist.sh
+        # laptop gate before provisioning (vps-execution-checklist.v2)
+
   TL-5  bash scripts/public-devnet-v1/vps-preflight.sh
         bash scripts/public-devnet-v1/vps-internet-soak.sh
         # archive scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt
@@ -43,7 +46,8 @@ vps-launch-ceremony: ordered VPS path (Lane 7)
   TL-7  human sign-off — docs/TESTNET_GENESIS_CEREMONY.md (Path A toy keys typical)
 
   TL-8  bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_IP --apply
-        git commit manifest + share docs/TESTNET_INVITE.md
+        bash scripts/public-devnet-v1/publish-checkpoint-log.sh --apply
+        git commit manifest + checkpoints.jsonl + share docs/TESTNET_INVITE.md
 
   TL-9  bash scripts/public-devnet-v1/launch-go-no-go.sh
         complete OPERATORS.md go/no-go + named launch-day watchers

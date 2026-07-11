@@ -277,6 +277,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **P32 phase 4a** — PM23 operator-manifest separation plan-only rehearsal smoke (this push).
+- [x] **P32 phase 4b** — PM23 runtime env lint (`mfnd_pm23_warning`, `mfn_storage_operator_pm23_warning`) (this push).
+- [x] **publish-checkpoint-log-rehearsal-smoke** — TL-8 checkpoint log publish doc + plan gate (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Done (recent)
@@ -388,7 +390,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **VPS provision + ceremony** — [`VPS_PROVISION.md`](./VPS_PROVISION.md) + `vps-launch-ceremony.*` (`0a700a5`)
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
-- [x] **launch-status v4** — TL-8 checkpoint log tracking in `launch-status.*` + `launch-go-no-go` gate (this push)
+- [x] **launch-status v5** — execution_checklist block + TL-5 next_action via vps-execution-checklist.v2 (this push)
 - [x] **vps-execution-checklist-rehearsal-smoke** — ci-check gate on TL-5/TL-6 preflight checklist (`8a49f7e`)
 - [x] **launch-go-no-go-rehearsal-smoke** — ci-check gate on TL-9 pre-launch go/no-go JSON (`bbc57a1`)
 - [x] **vps-internet-soak-rehearsal-smoke** — TL-5 soak docs + script wiring gate (this push)

@@ -170,7 +170,7 @@ if ($seedCount -gt 0) {
     $nextAction = 'bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop'
 } elseif ($localRcComplete -and $missingBins.Count -eq 0) {
     $phase = 'TL-5 (local RC complete - provision VPS for internet soak)'
-    $nextAction = 'docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh'
+    $nextAction = 'bash scripts/public-devnet-v1/vps-execution-checklist.sh then docs/VPS_PROVISION.md -> vps-preflight.sh -> vps-internet-soak.sh'
 } elseif ($missingBins.Count -eq 0) {
     $phase = 'TL-5 (build complete - run local MFER rehearsals then provision VPS)'
     $nextAction = 'participant-rehearsal-smoke before VPS; see docs/VPS_PROVISION.md'
@@ -181,10 +181,15 @@ $head = Get-HeadSha
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v4"
+    schema_version         = "launch-status.v5"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"
+    execution_checklist    = [ordered]@{
+        schema_version = "vps-execution-checklist.v2"
+        helper         = "bash scripts/public-devnet-v1/vps-execution-checklist.sh"
+        rehearsal      = "bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only"
+    }
     suggested_phase        = $phase
     next_action            = $nextAction
     head_sha               = $head

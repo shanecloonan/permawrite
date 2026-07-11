@@ -138,13 +138,13 @@ if ($checkpointLogPlan -notmatch "CHECKPOINT_LOG.md" -or $checkpointLogPlan -not
     $checkpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
-$publishCheckpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-checkpoint-log.ps1 -PlanOnly) -join "`n"
-if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log: plan" -or $publishCheckpointLogPlan -notmatch "PASS plan-only") {
+$publishCheckpointLogPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log-rehearsal-smoke: PASS plan-only" -or $publishCheckpointLogPlan -notmatch "CHECKPOINT_LOG.md") {
     $publishCheckpointLogPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v4") {
+if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v5") {
     $launchStatus | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }

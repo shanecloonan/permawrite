@@ -52,7 +52,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-4** — single-VPS runbook [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md) + `vps-start-all.sh` (`2f77eb4`).
 - [x] **Lane 7 / TL-5 tooling** — `vps-internet-soak.sh` + `vps-preflight.sh` (`5a74d57`).
 - [x] **Lane 7 / TL-5 local RC** — `launch-status.v3` local MFER rehearsal gates; no-observer + observer rehearsals PASS (Windows evidence `20260709T*`).
-- [x] **Lane 7 / TL-8 readiness** — `launch-status.v4` checkpoint log tracking + `launch-go-no-go` non-empty log gate when `seed_nodes >= 3` (`895ac1e`).
+- [x] **Lane 7 / TL-8 readiness** — `launch-status.v5` execution_checklist + checkpoint log tracking + `launch-go-no-go` gate (this push).
 - [x] **Lane 6 / F6 telemetry** — `treasury-telemetry-watch.*` read-only `get_chain_params` helper (this push).
 - [x] **Lane 7 / TL-5 preflight hardening** — `vps-preflight.sh` validates MFER policy + `mfn-storage-operator` binary before VPS soak.
 - [x] **Lane 7 / TL-5 execution checklist v2** — `vps-execution-checklist.v2` adds TL-7/TL-8 publish + invite commands (`c1f9597`).
@@ -62,6 +62,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (`05e2772`).
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
 - [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).
+- [x] **P32 phase 4b** — PM23 runtime env lint (`mfnd_pm23_warning`, `mfn_storage_operator_pm23_warning`; optional `MFND_PM23_HARD_FAIL=1`) (this push).
+- [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (this push).
+- [x] **Lane 7 / launch-status v5** — execution checklist cross-link + ceremony v2 pre-step (this push).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).
 - [x] **Lane 6 / F6 Arweave comparison** — `ECONOMICS.md` §12 permanence durability vs Arweave (`bff1b70`).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.

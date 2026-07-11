@@ -28,8 +28,9 @@ if ($bash) {
 }
 $needles = @(
     "TL-5", "TL-6", "TL-7", "TL-8", "TL-9",
-    "publish-seed-nodes.sh", "launch-go-no-go.sh",
-    "vps-internet-soak.sh", "vps-participant-rehearsal.sh"
+    "publish-seed-nodes.sh", "publish-checkpoint-log.sh", "launch-go-no-go.sh",
+    "vps-internet-soak.sh", "vps-participant-rehearsal.sh",
+    "vps-execution-checklist", "TESTNET_INVITE.md"
 )
 foreach ($n in $needles) {
     if ($planOut -notmatch [regex]::Escape($n)) {

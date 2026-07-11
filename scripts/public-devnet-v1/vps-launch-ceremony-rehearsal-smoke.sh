@@ -50,9 +50,12 @@ for needle in \
   "TL-8" \
   "TL-9" \
   "publish-seed-nodes.sh" \
+  "publish-checkpoint-log.sh" \
   "launch-go-no-go.sh" \
   "vps-internet-soak.sh" \
   "vps-participant-rehearsal.sh" \
+  "vps-execution-checklist" \
+  "TESTNET_INVITE.md" \
   ; do
   if [[ "$plan_out" != *"$needle"* ]]; then
     echo "vps-launch-ceremony-rehearsal-smoke: --plan-only output missing: $needle" >&2
