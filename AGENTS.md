@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** (this push). **CI `#29168652689` in progress** on `cf2c05d`. Fixes missing `publish-checkpoint-log-rehearsal-smoke.*` wired by `cf2c05d`.
+**Head:** `638f260`. **CI `#29169339639` GREEN**. **Nightly `#29170244905`** dispatched on `638f260`. Release evidence `638f260` + RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on PM32/TL-8 stack | **In progress** | Soak maintenance |
-| **2** | Release evidence refresh | **Next** — after green CI | Human sign-off packet |
+| **1** | Nightly on `638f260` | **Doing** — `#29170244905` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `638f260` / CI `#29169339639` | Human sign-off packet |
 | **3** | VPS checklist v2 | **Done** — `c1f9597` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | P32 phase 4b PM23 runtime lint | **In progress** | Hard-fail default on VPS (research) |
+| **5** | P32 phase 4b PM23 runtime lint | **Done** — `638f260` | Hard-fail default on VPS (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork (research) |
-| **7** | launch-status v5 + publish-checkpoint-log rehearsal | **In progress** | TL-5 VPS internet soak (human) |
+| **7** | launch-status v5 + checkpoint publish rehearsal | **Done** — `cf2c05d`/`638f260` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -129,7 +129,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **launch-status v5** (this push) - testnet launch (lane 7): `execution_checklist` block links `vps-execution-checklist.v2`; ceremony plan adds checkpoint log + invite path.
+- **CI `#29169339639` GREEN** (`638f260`) - RC core (lane 1): launch-status v5 + publish-checkpoint-log rehearsal + PM23 phase 4b; full matrix pass.
+- **launch-status v5** (`cf2c05d`) - testnet launch (lane 7): `execution_checklist` block links `vps-execution-checklist.v2`; ceremony plan adds checkpoint log + invite path.
+- **publish-checkpoint-log-rehearsal-smoke + PM23 phase 4b** (`638f260`) - lanes 5+7: TL-8 checkpoint publish plan gate; `mfnd_pm23_warning` + optional `MFND_PM23_HARD_FAIL=1`.
 - **vps-preflight + testnet-invite rehearsal smokes** (`9da922a`) - testnet launch (lane 7): plan-only CI gates on VPS preflight docs and TESTNET_INVITE.md packet.
 - **Board sync `648676b`** - RC ops (lane 2): CI `#29088674668` GREEN; release evidence refresh on docs-only head.
 - **Nightly `#29088007044` GREEN** (`09edd8a`) - RC core (lane 1): all three jobs on board-sync stack.
