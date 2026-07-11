@@ -570,7 +570,7 @@ Disable with `MFND_P2P_DIVERSITY_REDIAL=0`.
 
 **Effort:** moderate (phase 0–1) / high (full P31). **Risk:** low (metrics + bounded redial).
 
-### P32. Role-separated node topology (`F5:P32`) — **phase 0–4a shipped**
+### P32. Role-separated node topology (`F5:P32`) — **phase 0–4c shipped**
 
 **Problem.** Running validator, storage-operator, and wallet RPC on one internet-facing
 host correlates block production, chunk serving, and spend/submit behavior.
@@ -600,9 +600,13 @@ non-validator `mfnd serve` processes export `MFN_OPERATOR_DATA` / `MFN_OPERATOR_
 or validator hosts export `MFN_WALLET`; `mfn_storage_operator_pm23_warning` when operator
 processes export validator seed env. Optional hard fail via `MFND_PM23_HARD_FAIL=1`.
 
-**Remaining.** Hard fail by default on public testnet VPS (today warn-only unless env set).
+**Shipped (phase 4c).** VPS templates default `MFND_PM23_HARD_FAIL=1` in
+`vps-bind.env.example` and `vps-role-validator.env.example`; `vps-preflight.sh` warns when
+public IP is detected but hard-fail is unset.
 
-**Effort:** low (phase 0–4a). **Risk:** low (warn-only + docs + plan-only gates).
+**Remaining.** Hard fail on all role-separated VPS templates (operator host env review).
+
+**Effort:** low (phase 0–4c). **Risk:** low (warn-only locally; hard-fail on VPS bind templates).
 
 ### F12. Subjective checkpoint web (`F5:F12`) — **phase 0–3 shipped**
 
@@ -633,7 +637,7 @@ operator tooling; live `checkpoint-log-rehearsal-smoke --live` on local devnet.
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–4a), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–4) |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–4c), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–4) |
 | High impact, moderate effort | TL-5 VPS internet soak |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs), B12 (PQ stealth) |
 | Network add-ons | B8 (Tor) |

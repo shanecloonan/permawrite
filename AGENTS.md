@@ -83,19 +83,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** `7b85313`. **CI `#29169339639` GREEN** on `638f260`. **Nightly `#29170244905` GREEN** on `638f260`. Release evidence `638f260` + RC audit **go**.
+**Head:** `0f642d0`. **CI `#29169339639` GREEN** on `638f260`. **Nightly `#29170244905` GREEN**. Release evidence `638f260` + RC audit **go**. **Doing:** this push.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on `638f260` | **Done** — `#29170244905` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `638f260` / CI `#29169339639` | Human sign-off packet |
+| **1** | CI on provision + PM23 4c | **Doing** — this push | Nightly dispatch |
+| **2** | Release evidence refresh | **Doing** — after CI green | Human sign-off packet |
 | **3** | VPS checklist v2 | **Done** — `c1f9597` | TL-5 VPS soak (human) |
 | **4** | F12 TL-8 publish tooling | **Done** — `5965525` | TL-8 `--apply` on VPS |
-| **5** | P32 phase 4b PM23 runtime lint | **Done** — `638f260` | Hard-fail default on VPS (research) |
+| **5** | P32 phase 4c PM23 VPS hard-fail | **Doing** — this push | Operator template tail (research) |
 | **6** | F6 economics docs tail | **Done** — `9a2673a`/`bff1b70` | Parameter fork (research) |
-| **7** | launch-status v5 + checkpoint publish rehearsal | **Done** — `cf2c05d`/`638f260` | TL-5 VPS internet soak (human) |
+| **7** | vps-provision-rehearsal-smoke | **Doing** — this push | TL-5 VPS internet soak (human) |
 
 ---
 

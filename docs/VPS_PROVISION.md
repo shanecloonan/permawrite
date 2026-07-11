@@ -73,6 +73,8 @@ ufw status
 
 Confirm **18731–18734 are not** in the allow list (RPC stays loopback).
 
+Copy `vps-bind.env.example` to `vps-bind.env` — it sets `MFND_PM23_HARD_FAIL=1` so mfnd aborts on PM23 role-env violations (P32 phase 4c).
+
 ---
 
 ## 5. Preflight

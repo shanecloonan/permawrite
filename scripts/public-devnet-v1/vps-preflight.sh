@@ -41,6 +41,12 @@ elif command -v wget >/dev/null 2>&1; then
 fi
 if [[ -n "$public_ip" ]]; then
   echo "vps-preflight: detected_public_ip=$public_ip (use for TL-8 seed_nodes)"
+  case "${MFND_PM23_HARD_FAIL:-}" in
+    1|true|yes|on) echo "vps-preflight: pm23_hard_fail=enabled" ;;
+    *)
+      echo "vps-preflight: WARN MFND_PM23_HARD_FAIL not set — copy vps-bind.env.example (PM23 hard-fail recommended on VPS)" >&2
+      ;;
+  esac
 else
   echo "vps-preflight: WARN could not detect public IP (curl/wget unavailable or blocked)"
 fi

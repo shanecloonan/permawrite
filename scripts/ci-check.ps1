@@ -183,6 +183,11 @@ if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" 
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsProvisionPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-provision-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsProvisionPlan -notmatch "vps-provision-rehearsal-smoke: PASS plan-only" -or $vpsProvisionPlan -notmatch "VPS_PROVISION.md") {
+    $vpsProvisionPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $testnetInvitePlan = (powershell -NoProfile -File scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($testnetInvitePlan -notmatch "testnet-invite-rehearsal-smoke: PASS plan-only" -or $testnetInvitePlan -notmatch "TESTNET_INVITE.md") {
     $testnetInvitePlan | ForEach-Object { [Console]::Error.WriteLine($_) }

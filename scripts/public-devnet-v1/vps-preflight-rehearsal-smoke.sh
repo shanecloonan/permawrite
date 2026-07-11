@@ -54,6 +54,7 @@ for needle in \
   "mfn-storage-operator" \
   "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005" \
   "vps-internet-soak.sh" \
+  "MFND_PM23_HARD_FAIL" \
   ; do
   if ! grep -qF -- "$needle" "$PREFLIGHT"; then
     echo "vps-preflight-rehearsal-smoke: vps-preflight.sh missing: $needle" >&2

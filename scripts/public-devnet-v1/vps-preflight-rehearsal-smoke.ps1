@@ -32,7 +32,8 @@ foreach ($required in @(
     "vps-bind-lib.sh",
     "mfn-storage-operator",
     "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005",
-    "vps-internet-soak.sh"
+    "vps-internet-soak.sh",
+    "MFND_PM23_HARD_FAIL"
 )) {
     if ($preflightText -notmatch [regex]::Escape($required)) {
         throw "vps-preflight-rehearsal-smoke: vps-preflight.sh missing: $required"

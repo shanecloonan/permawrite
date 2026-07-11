@@ -62,7 +62,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (`05e2772`).
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
 - [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).
-- [x] **P32 phase 4b** — PM23 runtime env lint (`mfnd_pm23_warning`, `mfn_storage_operator_pm23_warning`; optional `MFND_PM23_HARD_FAIL=1`) (this push).
+- [x] **Lane 7 / TL-5 VPS provision rehearsal** — `vps-provision-rehearsal-smoke.*` plan-only gate on `VPS_PROVISION.md` (this push).
+- [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (this push).
 - [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (`638f260`).
 - [x] **Lane 7 / launch-status v5** — execution checklist cross-link + ceremony v2 pre-step (`cf2c05d`).
 - [x] **P32 phase 4b** — PM23 runtime env lint on mfnd + mfn-storage-operator (`638f260`).
