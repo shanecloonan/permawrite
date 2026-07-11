@@ -72,7 +72,6 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-5 preflight rehearsal (CI) | `bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
-| TL-5 preflight rehearsal (CI) | `bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
@@ -82,9 +81,8 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
 | TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) — share after `publish-seed-nodes --apply` + checkpoint log |
-| TL-8 invite rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` |
 | Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (v4) |
-| VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (use `--strict` when CI must be green) |
+| VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
 | VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
 | Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |
 | P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |

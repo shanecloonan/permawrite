@@ -95,7 +95,7 @@ bash scripts/public-devnet-v1/vps-launch-ceremony.sh --plan-only
 bash scripts/public-devnet-v1/vps-launch-ceremony.sh          # status + go/no-go check
 ```
 
-Then execute TL-5 → TL-6 per [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md).
+Then execute TL-5 → TL-6 per [`VPS_SINGLE_BOX_LAUNCH.md`](./VPS_SINGLE_BOX_LAUNCH.md). After VPS evidence is archived, the checklist `v2` JSON also lists TL-7 sign-off, TL-8 `publish-seed-nodes --apply`, checkpoint log publish, and [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) before TL-9 `launch-go-no-go`.
 
 ---
 
