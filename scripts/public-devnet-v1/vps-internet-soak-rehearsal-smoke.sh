@@ -8,6 +8,8 @@ DOC="$REPO_ROOT/docs/VPS_SINGLE_BOX_LAUNCH.md"
 OPS="$REPO_ROOT/scripts/public-devnet-v1/OPERATORS.md"
 SOAK="$SCRIPT_DIR/vps-internet-soak.sh"
 PREFLIGHT="$SCRIPT_DIR/vps-preflight.sh"
+ASSERT="$SCRIPT_DIR/assert-vps-internet-soak-evidence.sh"
+FIXTURE="$SCRIPT_DIR/fixtures/vps-internet-soak-evidence-v1/vps-internet-soak-linux-30s-slot-20260712T000000Z.txt"
 
 usage() {
   cat <<EOF
@@ -26,7 +28,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for f in "$DOC" "$OPS" "$SOAK" "$PREFLIGHT"; do
+for f in "$DOC" "$OPS" "$SOAK" "$PREFLIGHT" "$ASSERT" "$FIXTURE"; do
   if [[ ! -f "$f" ]]; then
     echo "vps-internet-soak-rehearsal-smoke: missing $f" >&2
     exit 1
@@ -62,10 +64,16 @@ if ! grep -qF -- "--archive-evidence" "$SOAK"; then
   echo "vps-internet-soak-rehearsal-smoke: vps-internet-soak.sh must pass --archive-evidence" >&2
   exit 1
 fi
+if ! grep -qF -- "assert-vps-internet-soak-evidence" "$OPS"; then
+  echo "vps-internet-soak-rehearsal-smoke: OPERATORS.md missing assert-vps-internet-soak-evidence" >&2
+  exit 1
+fi
+bash "$ASSERT" "$FIXTURE" >/dev/null
 
 echo "vps-internet-soak-rehearsal-smoke: plan"
 echo "  flow=vps-preflight.sh -> soak.sh --vps --archive-evidence"
 echo "  evidence=vps-internet-soak-linux-*.txt"
+echo "  assert=assert-vps-internet-soak-evidence.sh"
 echo "  docs=docs/VPS_SINGLE_BOX_LAUNCH.md"
 echo "  live_rehearsal=human VPS (TL-5 execution)"
 

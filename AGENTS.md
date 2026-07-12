@@ -126,6 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **TL-5 soak evidence assert** (this push) - testnet launch (lane 7): `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` detects `soak: SUMMARY status=PASS`; ci-check negative gate.
 - **P32 phase 4d** (`4a429e4`) - privacy surface (lane 5): `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` on operator VPS template; `mfn-storage-operator` aborts on validator seed env; rehearsal smokes gate all role templates.
 - **Nightly `#29175519794` GREEN** (`4a429e4`) - RC core (lane 1): all three jobs on P32 4d stack.
 - **CI `#29174819450` GREEN** (`4a429e4`) - P32 phase 4d storage-operator PM23 hard-fail; full matrix pass (~28m).

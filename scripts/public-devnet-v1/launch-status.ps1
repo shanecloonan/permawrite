@@ -9,7 +9,11 @@ $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $ManifestPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.manifest.json"
 $CheckpointLogPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.checkpoints.jsonl"
 $CheckpointLogRel = "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
-$EvidenceDir = Join-Path $ScriptDir "evidence"
+$EvidenceDir = if ($env:MFN_PUBLIC_DEVNET_EVIDENCE_DIR) {
+    $env:MFN_PUBLIC_DEVNET_EVIDENCE_DIR
+} else {
+    Join-Path $ScriptDir "evidence"
+}
 $Playbook = "docs/TESTNET_LAUNCH.md"
 
 function Read-Manifest {
@@ -69,7 +73,7 @@ function Get-EvidencePassFile {
     $files = Get-ChildItem -Path $EvidenceDir -Filter $Pattern -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending
     foreach ($f in $files) {
-        if (Select-String -Path $f.FullName -Pattern "SUMMARY: PASS" -Quiet) {
+        if (Select-String -Path $f.FullName -Pattern '(^SUMMARY: PASS|soak: SUMMARY status=PASS)' -Quiet) {
             return $f.Name
         }
     }

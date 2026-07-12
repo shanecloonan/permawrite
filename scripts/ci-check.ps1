@@ -169,8 +169,13 @@ if ($launchGoNoGoPlan -notmatch "launch-go-no-go-rehearsal-smoke: PASS plan-only
     exit 1
 }
 $vpsSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($vpsSoakPlan -notmatch "vps-internet-soak-rehearsal-smoke: PASS plan-only" -or $vpsSoakPlan -notmatch "soak.sh --vps") {
+if ($vpsSoakPlan -notmatch "vps-internet-soak-rehearsal-smoke: PASS plan-only" -or $vpsSoakPlan -notmatch "soak.sh --vps" -or $vpsSoakPlan -notmatch "assert-vps-internet-soak-evidence") {
     $vpsSoakPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsSoakEvidencePlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-internet-soak-evidence-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsSoakEvidencePlan -notmatch "vps-internet-soak-evidence-rehearsal-smoke: PASS plan-only" -or $vpsSoakEvidencePlan -notmatch "vps_soak_evidence=true") {
+    $vpsSoakEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
@@ -231,6 +236,25 @@ Remove-Item -Recurse -Force $badEvidenceDir -ErrorAction SilentlyContinue
 Remove-Item -Force $badAssertStdout, $badAssertStderr -ErrorAction SilentlyContinue
 if ($badAssertProcess.ExitCode -eq 0) {
     [Console]::Error.WriteLine("assert-participant-smoke-evidence.ps1 accepted missing evidence directory")
+    exit 1
+}
+$vpsSoakFixture = "scripts/public-devnet-v1/fixtures/vps-internet-soak-evidence-v1/vps-internet-soak-linux-30s-slot-20260712T000000Z.txt"
+powershell -NoProfile -File scripts/public-devnet-v1/assert-vps-internet-soak-evidence.ps1 -EvidenceFile $vpsSoakFixture | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badSoakEvidence = Join-Path $env:TEMP ("permawrite-bad-vps-soak-" + [Guid]::NewGuid().ToString("N") + ".txt")
+Set-Content -LiteralPath $badSoakEvidence -Value "soak: SUMMARY status=FAIL" -Encoding UTF8
+$badSoakStdout = Join-Path $env:TEMP ("permawrite-bad-vps-soak-assert-" + [Guid]::NewGuid().ToString("N") + ".out")
+$badSoakStderr = Join-Path $env:TEMP ("permawrite-bad-vps-soak-assert-" + [Guid]::NewGuid().ToString("N") + ".err")
+$badSoakProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/assert-vps-internet-soak-evidence.ps1",
+    "-EvidenceFile",
+    $badSoakEvidence
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badSoakStdout -RedirectStandardError $badSoakStderr
+Remove-Item -Force $badSoakEvidence, $badSoakStdout, $badSoakStderr -ErrorAction SilentlyContinue
+if ($badSoakProcess.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("assert-vps-internet-soak-evidence.ps1 accepted invalid soak evidence")
     exit 1
 }
 $global:LASTEXITCODE = 0

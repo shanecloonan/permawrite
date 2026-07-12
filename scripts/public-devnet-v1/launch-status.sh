@@ -8,7 +8,7 @@ MANIFEST="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.manifest.json"
 CHECKPOINT_LOG="$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
 CHECKPOINT_LOG_REL="mfn-node/testdata/public_devnet_v1.checkpoints.jsonl"
 PLAYBOOK="docs/TESTNET_LAUNCH.md"
-EVIDENCE_DIR="$SCRIPT_DIR/evidence"
+EVIDENCE_DIR="${MFN_PUBLIC_DEVNET_EVIDENCE_DIR:-$SCRIPT_DIR/evidence}"
 JSON=0
 [[ "${1:-}" == "--json" ]] && JSON=1
 
@@ -17,7 +17,7 @@ evidence_passes() {
   local f
   shopt -s nullglob
   for f in $EVIDENCE_DIR/$pattern; do
-    if grep -q "SUMMARY: PASS" "$f" 2>/dev/null; then
+    if grep -qE '(^SUMMARY: PASS|soak: SUMMARY status=PASS)' "$f" 2>/dev/null; then
       printf '%s\n' "$(basename "$f")"
       return 0
     fi

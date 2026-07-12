@@ -131,6 +131,9 @@ launch_go_no_go_plan="$(bash scripts/public-devnet-v1/launch-go-no-go-rehearsal-
 [[ "$launch_go_no_go_plan" == *"launch-go-no-go-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$launch_go_no_go_plan" >&2; exit 1; }
 vps_soak_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_soak_plan" == *"vps-internet-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_soak_plan" >&2; exit 1; }
+vps_soak_evidence_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-evidence-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_soak_evidence_plan" == *"vps-internet-soak-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_soak_evidence_plan" >&2; exit 1; }
+[[ "$vps_soak_evidence_plan" == *"vps_soak_evidence=true"* ]] || { printf '%s\n' "$vps_soak_evidence_plan" >&2; exit 1; }
 vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
 vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
@@ -155,6 +158,16 @@ if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evid
   exit 1
 fi
 rm -rf "$bad_evidence_dir"
+vps_soak_fixture="scripts/public-devnet-v1/fixtures/vps-internet-soak-evidence-v1/vps-internet-soak-linux-30s-slot-20260712T000000Z.txt"
+bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh "$vps_soak_fixture"
+bad_soak_evidence="$(mktemp)"
+printf 'soak: SUMMARY status=FAIL\n' >"$bad_soak_evidence"
+if bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh "$bad_soak_evidence" >/dev/null 2>&1; then
+  echo "assert-vps-internet-soak-evidence.sh accepted invalid soak evidence" >&2
+  rm -f "$bad_soak_evidence"
+  exit 1
+fi
+rm -f "$bad_soak_evidence"
 bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
 if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then

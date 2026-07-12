@@ -71,9 +71,11 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` — see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
 | VPS provision (zero → soak) | [`docs/VPS_PROVISION.md`](../../docs/VPS_PROVISION.md) — provider-agnostic TL-5 prerequisite |
 | TL-5 provision rehearsal (CI) | `bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only` |
+| P32 role templates rehearsal (CI) | `bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only` |
 | TL-5 preflight rehearsal (CI) | `bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
+| TL-5 soak evidence assert | `bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt` — before commit |
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
@@ -84,7 +86,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
 | TL-8 publish checkpoint log rehearsal (CI) | `bash scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) — share after `publish-seed-nodes --apply` + checkpoint log |
-| Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (v4) |
+| Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (`launch-status.v6`) |
 | VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
 | VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
 | Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |

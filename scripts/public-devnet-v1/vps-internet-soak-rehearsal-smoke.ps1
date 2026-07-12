@@ -11,7 +11,10 @@ $Ops = Join-Path $RepoRoot "scripts\public-devnet-v1\OPERATORS.md"
 $Soak = Join-Path $ScriptDir "vps-internet-soak.sh"
 $Preflight = Join-Path $ScriptDir "vps-preflight.sh"
 
-foreach ($path in @($Doc, $Ops, $Soak, $Preflight)) {
+$Assert = Join-Path $ScriptDir "assert-vps-internet-soak-evidence.ps1"
+$Fixture = Join-Path $ScriptDir "fixtures\vps-internet-soak-evidence-v1\vps-internet-soak-linux-30s-slot-20260712T000000Z.txt"
+
+foreach ($path in @($Doc, $Ops, $Soak, $Preflight, $Assert, $Fixture)) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "vps-internet-soak-rehearsal-smoke: missing $path"
     }
@@ -39,9 +42,15 @@ foreach ($required in @("vps-preflight.sh", "soak.sh", "--vps", "--archive-evide
     }
 }
 
+if (-not (Select-String -LiteralPath $Ops -Pattern "assert-vps-internet-soak-evidence" -Quiet)) {
+    throw "vps-internet-soak-rehearsal-smoke: OPERATORS.md missing assert-vps-internet-soak-evidence"
+}
+& $Assert -EvidenceFile $Fixture | Out-Null
+
 Write-Host "vps-internet-soak-rehearsal-smoke: plan"
 Write-Host "  flow=vps-preflight.sh -> soak.sh --vps --archive-evidence"
 Write-Host "  evidence=vps-internet-soak-linux-*.txt"
+Write-Host "  assert=assert-vps-internet-soak-evidence.ps1"
 Write-Host "  docs=docs/VPS_SINGLE_BOX_LAUNCH.md"
 Write-Host "  live_rehearsal=human VPS (TL-5 execution)"
 

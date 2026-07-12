@@ -58,6 +58,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-5 execution checklist v2** — `vps-execution-checklist.v2` adds TL-7/TL-8 publish + invite commands (`c1f9597`).
 - [x] **Lane 7 / TL-9 launch-go-no-go rehearsal** — `launch-go-no-go-rehearsal-smoke.*` plan-only gate on pre-launch `launch-go-no-go.v1` JSON (`bbc57a1`).
 - [x] **Lane 7 / TL-5 soak rehearsal smoke** — `vps-internet-soak-rehearsal-smoke.*` plan-only gate (this push).
+- [x] **Lane 7 / TL-5 soak evidence assert** — `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` soak PASS detection fix (this push).
 - [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (this push).
 - [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (`05e2772`).
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
@@ -65,6 +66,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-5 VPS provision rehearsal** — `vps-provision-rehearsal-smoke.*` plan-only gate on `VPS_PROVISION.md` (this push).
 - [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (this push).
 - [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (`638f260`).
+- [x] **Lane 7 / launch-status v6** — treasury_telemetry + role_templates blocks (`1630905`).
+- [x] **Lane 7 / role-templates rehearsal** — `vps-role-templates-rehearsal-smoke.*` plan gate (`1630905`).
+- [x] **P32 phase 4d** — operator `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` (`4a429e4`).
+- [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (this push).
 - [x] **Lane 7 / launch-status v5** — execution checklist cross-link + ceremony v2 pre-step (`cf2c05d`).
 - [x] **P32 phase 4b** — PM23 runtime env lint on mfnd + mfn-storage-operator (`638f260`).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).

@@ -138,7 +138,13 @@ MFN_VPS_SOAK_MINUTES=30 MFN_VPS_SOAK_MIN_HEIGHT=15 \
   bash scripts/public-devnet-v1/vps-internet-soak.sh
 ```
 
-On **PASS**, evidence is written to `scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt`. Commit that file to the repo (Lane 7 TL-5 gate) before TL-6.
+On **PASS**, evidence is written to `scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt`. Before commit, validate:
+
+```bash
+bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt
+```
+
+Commit that file to the repo (Lane 7 TL-5 gate) before TL-6.
 
 Verify public P2P is listening (not loopback):
 
