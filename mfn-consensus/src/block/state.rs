@@ -318,6 +318,8 @@ pub struct ChainState {
     /// order during [`apply_block`]. A validator with an entry here is
     /// still subject to equivocation/liveness slashing during the delay.
     pub pending_unbonds: BTreeMap<u32, PendingUnbond>,
+    /// Block header version pinned at genesis (`1` or `2`).
+    pub header_version: u32,
 }
 
 impl ChainState {
@@ -345,6 +347,7 @@ impl ChainState {
             bond_epoch_exit_count: 0,
             next_validator_index: 0,
             pending_unbonds: BTreeMap::new(),
+            header_version: super::header::HEADER_VERSION,
         }
     }
 

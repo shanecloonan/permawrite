@@ -135,6 +135,7 @@ fn genesis_state() -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).expect("genesis")
@@ -182,6 +183,7 @@ fn genesis_with_bonding() -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).expect("genesis")
@@ -214,6 +216,7 @@ fn genesis_with_storage() -> StorageGenesis {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -237,6 +240,7 @@ fn genesis_with_storage_and_bonding() -> StorageGenesis {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     gen.state = apply_genesis(&g, &cfg).expect("genesis");
@@ -256,6 +260,7 @@ fn genesis_with_b3_storage() -> StorageGenesis {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: PROP_ENDOWMENT_B3,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -292,6 +297,7 @@ fn genesis_with_b5_slash_storage() -> B5SlashGenesis {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: PROP_ENDOWMENT_B5,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -770,6 +776,7 @@ fn genesis_dual_spend_for_upload_proptest() -> PropDualSpendGenesis {
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -802,6 +809,7 @@ fn genesis_dual_spend_for_upload_opening_proptest() -> PropDualSpendGenesis {
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: PROP_ENDOWMENT_REQUIRE_OPENING,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -834,6 +842,7 @@ fn genesis_dual_spend_for_upload_range_proof_proptest() -> PropDualSpendGenesis 
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: PROP_ENDOWMENT_REQUIRE_RANGE_PROOF,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -898,6 +907,7 @@ fn genesis_privacy_storage_for_proptest() -> PropPrivacyStorageGenesis {
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -932,6 +942,7 @@ fn genesis_privacy_storage_bonding_for_proptest() -> PropPrivacyStorageGenesis {
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -1138,6 +1149,7 @@ fn genesis_validator_combined_inflow_for_proptest() -> PropValidatorPrivacyStora
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -1174,6 +1186,7 @@ fn genesis_validator_combined_inflow_ppb_for_proptest() -> PropValidatorPrivacyS
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: PROP_PPB_ENDOWMENT,
         bonding_params: Some(DEFAULT_BONDING_PARAMS),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -1289,6 +1302,7 @@ fn genesis_validator_privacy_storage_for_proptest() -> PropValidatorPrivacyStora
         emission_params: PROP_MIXED_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).expect("genesis");
@@ -3819,6 +3833,7 @@ fn reject_b3_replication_cap_exceeded_without_state_change() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: PROP_ENDOWMENT_B3,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");

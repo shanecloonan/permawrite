@@ -133,6 +133,7 @@ fn wallet_round_trip_through_full_chain_and_light_chain() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
 
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
@@ -270,6 +271,7 @@ fn wallet_rejects_transfer_when_below_balance() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
@@ -342,6 +344,7 @@ fn wallet_storage_upload_through_mempool_producer_and_chain() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
     let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
@@ -507,6 +510,7 @@ fn wallet_storage_upload_rejects_insufficient_funds_before_signing() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
@@ -573,6 +577,7 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
@@ -657,6 +662,7 @@ fn publish_claim_tx_round_trip_through_chain() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
 
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");

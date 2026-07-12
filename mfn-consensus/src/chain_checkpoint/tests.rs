@@ -32,6 +32,7 @@ fn fresh_state() -> ChainState {
         bond_epoch_exit_count: 0,
         next_validator_index: 0,
         pending_unbonds: BTreeMap::new(),
+        header_version: 1,
     }
 }
 
@@ -277,6 +278,7 @@ fn encode_is_independent_of_hashmap_iteration_order() {
         bond_epoch_exit_count: s_a.bond_epoch_exit_count,
         next_validator_index: s_a.next_validator_index,
         pending_unbonds: s_a.pending_unbonds.clone(),
+        header_version: s_a.header_version,
     };
     let mut utxo_pairs: Vec<_> = s_a.utxo.iter().collect();
     utxo_pairs.reverse();

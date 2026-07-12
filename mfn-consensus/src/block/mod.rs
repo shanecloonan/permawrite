@@ -62,7 +62,8 @@ pub use builder::{
 };
 pub use error::BlockError;
 pub use genesis::{
-    apply_genesis, build_genesis, GenesisConfig, GenesisOutput, GenesisStorageOperator,
+    apply_genesis, build_genesis, genesis_header_version, GenesisConfig, GenesisOutput,
+    GenesisStorageOperator, SUPPORTED_GENESIS_HEADER_VERSIONS,
 };
 pub use header::{
     block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_hash,

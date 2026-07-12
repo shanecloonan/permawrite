@@ -1099,6 +1099,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
@@ -1229,6 +1230,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
@@ -1297,6 +1299,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).unwrap();
         let bogus = TransactionWire {
@@ -1433,6 +1436,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
@@ -1777,6 +1781,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let other_chain = Chain::from_genesis(ChainConfig::new(cfg)).unwrap();
         let mut pool = Mempool::new(MempoolConfig::default());
@@ -1896,6 +1901,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain2 = Chain::from_genesis(ChainConfig::new(cfg2)).expect("genesis2");
 
@@ -1968,6 +1974,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
         let mut pool = Mempool::new(MempoolConfig::default());
@@ -2007,6 +2014,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
         let mut pool = Mempool::new(MempoolConfig::default());

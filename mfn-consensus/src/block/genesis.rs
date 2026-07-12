@@ -3,7 +3,7 @@
 use super::internal::*;
 
 use super::error::BlockError;
-use super::header::{block_id, Block, BlockHeader, HEADER_VERSION};
+use super::header::{block_id, Block, BlockHeader, HEADER_VERSION, HEADER_VERSION_UTXO_QUORUM};
 use super::state::{
     ChainState, ConsensusParams, StorageEntry, StorageOperatorEntry, UtxoEntry, ValidatorStats,
 };
@@ -57,7 +57,19 @@ pub struct GenesisConfig {
     pub endowment_params: EndowmentParams,
     /// Bonding / churn limits. [`None`] ⇒ [`DEFAULT_BONDING_PARAMS`](bonding::DEFAULT_BONDING_PARAMS).
     pub bonding_params: Option<BondingParams>,
+    /// Block header version for this chain (`1` or `2`). `2` includes
+    /// `utxo_root` in BLS signing bytes ([`HEADER_VERSION_UTXO_QUORUM`]).
+    pub header_version: u32,
 }
+
+/// Resolve the header version for a genesis spec (defaults to [`HEADER_VERSION`]).
+#[must_use]
+pub fn genesis_header_version(cfg: &GenesisConfig) -> u32 {
+    cfg.header_version
+}
+
+/// Supported header versions at genesis (Path B may opt into v2).
+pub const SUPPORTED_GENESIS_HEADER_VERSIONS: &[u32] = &[HEADER_VERSION, HEADER_VERSION_UTXO_QUORUM];
 
 /// Build the genesis [`Block`].
 pub fn build_genesis(cfg: &GenesisConfig) -> Block {
@@ -71,7 +83,7 @@ pub fn build_genesis(cfg: &GenesisConfig) -> Block {
     // genesis block itself installs `cfg.validators`. The next block's
     // header will commit to `validator_set_root(&cfg.validators)`.
     let header = BlockHeader {
-        version: HEADER_VERSION,
+        version: genesis_header_version(cfg),
         prev_hash: [0u8; 32],
         height: 0,
         slot: 0,
@@ -101,7 +113,15 @@ pub fn apply_genesis(genesis: &Block, cfg: &GenesisConfig) -> Result<ChainState,
     if genesis.header.height != 0 {
         return Err(BlockError::GenesisHeightNotZero);
     }
+    let expected_version = genesis_header_version(cfg);
+    if genesis.header.version != expected_version {
+        return Err(BlockError::HeaderVersionMismatch {
+            expected: expected_version,
+            got: genesis.header.version,
+        });
+    }
     let mut state = ChainState::empty();
+    state.header_version = expected_version;
     state.params = cfg.params;
     state.emission_params = cfg.emission_params;
     state.endowment_params = cfg.endowment_params;

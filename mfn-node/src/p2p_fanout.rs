@@ -1279,6 +1279,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         }
     }
 

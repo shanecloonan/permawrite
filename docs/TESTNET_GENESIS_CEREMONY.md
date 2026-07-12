@@ -46,7 +46,7 @@ Date (UTC): ____________________
 | Step | Owner |
 | --- | --- |
 | 1. Generate fresh validator VRF/BLS seeds per operator (offline; never paste in chat) | Human |
-| 2. Build new genesis spec JSON; compute each `bls_register_sig_hex` with [`genesis-validator-bls-pop.sh`](../scripts/public-devnet-v1/genesis-validator-bls-pop.sh) / [`.ps1`](../scripts/public-devnet-v1/genesis-validator-bls-pop.ps1); set `require_validator_bls_pop: 1` | Lane 4+6 review |
+| 2. Build new genesis spec JSON; compute each `bls_register_sig_hex` with [`genesis-validator-bls-pop.sh`](../scripts/public-devnet-v1/genesis-validator-bls-pop.sh) / [`.ps1`](../scripts/public-devnet-v1/genesis-validator-bls-pop.ps1); set `require_validator_bls_pop: 1`; optional `header_version: 2` for direct `utxo_root` BLS quorum | Lane 4+6 review |
 | 3. Run constitution validation + PoP gate: `genesis-validator-bls-pop.sh --genesis PATH.json --verify` (wraps `genesis_config_from_json_bytes`) | Operator |
 | 4. Publish new `genesis_id` + manifest; archive ceremony notes | Lane 7 |
 | 5. Wipe VPS data dirs; restart mesh from new genesis | Operator |

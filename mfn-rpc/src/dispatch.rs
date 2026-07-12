@@ -1507,6 +1507,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let cfg = ChainConfig::new(gc);
         let chain = Chain::from_genesis(cfg.clone()).expect("genesis");

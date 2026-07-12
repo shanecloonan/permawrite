@@ -404,6 +404,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
         (chain, v0, s0, params)

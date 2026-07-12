@@ -43,6 +43,14 @@ pub enum BlockError {
         /// Required minimum from endowment params.
         min_bond: u64,
     },
+    /// Header `version` didn't match the chain's genesis-pinned version.
+    #[error("header version mismatch: expected {expected}, got {got}")]
+    HeaderVersionMismatch {
+        /// Version pinned at genesis.
+        expected: u32,
+        /// What the header carried.
+        got: u32,
+    },
     /// Header height didn't match `state.height + 1`.
     #[error("bad height: expected {expected}, got {got}")]
     BadHeight {

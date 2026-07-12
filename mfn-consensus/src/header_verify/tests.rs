@@ -66,6 +66,7 @@ fn build_signed_block_1() -> (
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -372,6 +373,7 @@ fn verify_block_body_accepts_genesis() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     verify_block_body(&genesis).expect("genesis body must verify");

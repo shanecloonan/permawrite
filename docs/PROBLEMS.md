@@ -114,7 +114,7 @@ confidence" suggests. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERA
 
 ### 12. `utxo_root` is not covered by the finality signature (partially resolved)
 
-> **Status: opt-in fix shipped** — header version 2 ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) appends `utxo_root` to [`header_signing_bytes`](../mfn-consensus/src/block/header.rs), so the BLS quorum directly attests the post-block accumulator root on new chains. Public devnet v1 stays at header v1 (one-block confirmation lag via [`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)). Path B genesis may set `header_version: 2` when launching a fresh chain.
+> **Status: genesis-threaded** — header version 2 ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) appends `utxo_root` to [`header_signing_bytes`](../mfn-consensus/src/block/header.rs). [`GenesisConfig::header_version`](../mfn-consensus/src/block/genesis.rs) + JSON `header_version` (Path B) pin the chain; [`build_unsealed_header`](../mfn-consensus/src/block/builder.rs) and [`apply_block`](../mfn-consensus/src/block/apply.rs) enforce it. Public devnet v1 stays at header v1 (one-block confirmation lag via [`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)).
 
 **Historical note (v1 chains).** `header_signing_bytes` committed every
 header root **except `utxo_root`**, which appears only in `block_header_bytes`

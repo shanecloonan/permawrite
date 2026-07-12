@@ -125,6 +125,7 @@ fn wallet_to_mempool_to_producer_to_chain_round_trip() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
     let mut light = LightChain::from_genesis(LightChainConfig::new(cfg.clone()));
@@ -264,6 +265,7 @@ fn mempool_evicts_tx_after_block_includes_it_via_remove_mined() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
@@ -350,6 +352,7 @@ fn mempool_admit_after_chain_advanced_still_works() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut chain = Chain::from_genesis(ChainConfig::new(cfg.clone())).expect("genesis");
 
@@ -467,6 +470,7 @@ fn genesis_with_spendable_decoy(ring_size: usize, signer_value: u64) -> (Chain, 
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
@@ -673,6 +677,7 @@ fn already_anchored_storage_tx_silently_skips_burden_in_mempool() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 
@@ -801,6 +806,7 @@ fn mempool_rejects_non_uniform_ring_sizes_across_inputs() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let chain = Chain::from_genesis(ChainConfig::new(cfg)).expect("genesis");
 

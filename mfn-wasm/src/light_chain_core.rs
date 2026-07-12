@@ -142,6 +142,7 @@ pub fn light_chain_from_trust_json(trust_json: &str) -> Result<LightChain, WasmC
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
         endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(bonding),
+        header_version: 1,
     };
     let chain = mfn_light::LightChain::from_genesis(mfn_light::LightChainConfig::new(cfg));
     if chain.genesis_id() != &genesis_id {

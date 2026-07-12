@@ -2,7 +2,7 @@
 
 use super::internal::*;
 
-use super::header::{Block, BlockHeader, HEADER_VERSION};
+use super::header::{Block, BlockHeader};
 use super::state::ChainState;
 use super::wire::{storage_merkle_root, tx_merkle_root};
 
@@ -78,7 +78,7 @@ pub fn build_unsealed_header_storage_ops(
     let claims_root = claims_merkle_root(&claim_leaves);
 
     BlockHeader {
-        version: HEADER_VERSION,
+        version: state.header_version,
         prev_hash,
         height: next_height,
         slot,

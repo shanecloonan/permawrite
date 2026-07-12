@@ -14,6 +14,7 @@ use mfn_bls::{bls_keygen_from_seed, decode_signature};
 use mfn_consensus::{
     validate_constitution, verify_register_sig, ConsensusParams, ConstitutionError, GenesisConfig,
     GenesisOutput, GenesisStorageOperator, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
+    HEADER_VERSION, SUPPORTED_GENESIS_HEADER_VERSIONS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
@@ -47,6 +48,10 @@ pub enum GenesisSpecError {
     /// Spec declares an unsupported format version.
     #[error("unsupported genesis spec version {0} (only version 1 is defined)")]
     UnsupportedVersion(u32),
+
+    /// `header_version` is not `1` or `2`.
+    #[error("unsupported header_version {0} (supported: 1 or 2)")]
+    UnsupportedHeaderVersion(u32),
 
     /// Hex decoding failed for a seed field.
     #[error("invalid hex for {field}: {source}")]
@@ -243,6 +248,10 @@ struct GenesisFile {
     /// Path B genesis ceremonies; default `0` keeps toy/devnet specs valid.
     #[serde(default)]
     require_validator_bls_pop: Option<u8>,
+    /// Optional block header version (`1` default, `2` = utxo_root in BLS quorum).
+    /// Path B fresh chains may set `2`; public devnet v1 omits this field.
+    #[serde(default)]
+    header_version: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -403,6 +412,10 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
     if file.version != 1 {
         return Err(GenesisSpecError::UnsupportedVersion(file.version));
     }
+    let header_version = file.header_version.unwrap_or(HEADER_VERSION);
+    if !SUPPORTED_GENESIS_HEADER_VERSIONS.contains(&header_version) {
+        return Err(GenesisSpecError::UnsupportedHeaderVersion(header_version));
+    }
 
     let base_consensus = ConsensusParams::default();
     let params = merge_consensus(base_consensus, file.consensus);
@@ -535,6 +548,7 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params,
         bonding_params: None,
+        header_version,
     })
 }
 
@@ -650,6 +664,22 @@ mod tests {
         assert!(matches!(
             genesis_config_from_json_bytes(non_uniform.as_bytes()),
             Err(GenesisSpecError::Constitution(_))
+        ));
+    }
+
+    #[test]
+    fn accepts_header_version_two() {
+        let s = r#"{"version":1,"timestamp":0,"header_version":2,"validators":[]}"#;
+        let cfg = genesis_config_from_json_bytes(s.as_bytes()).unwrap();
+        assert_eq!(cfg.header_version, 2);
+    }
+
+    #[test]
+    fn rejects_unsupported_header_version() {
+        let s = r#"{"version":1,"timestamp":0,"header_version":3,"validators":[]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::UnsupportedHeaderVersion(3))
         ));
     }
 

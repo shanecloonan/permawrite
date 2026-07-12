@@ -67,6 +67,7 @@ fn single_validator_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusPara
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         },
         s0,
         params,

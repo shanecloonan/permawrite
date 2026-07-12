@@ -534,6 +534,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         bond_epoch_exit_count: counters.bond_epoch_exit_count,
         next_validator_index: counters.next_validator_index,
         pending_unbonds,
+        header_version: crate::block::HEADER_VERSION,
     };
 
     Ok(ChainCheckpoint { genesis_id, state })

@@ -97,6 +97,13 @@ which is outside the threat model). But the distinction matters for:
   (or at minimum fully validate it) before casting a finality vote, even though
   the protocol cannot verify that they did.
 
+**Mitigation roadmap (PROBLEMS § 11).** Tier-4 work targets succinct validity
+proofs bundled in (or referenced by) the header so light clients verify STF
+correctness without re-executing every block. Until then: full nodes remain
+the correctness anchor; light clients should treat finalized headers as
+ordering + byte-binding only; exchanges and deposit infrastructure should
+prefer full-node confirmation or wait for fraud-proof support.
+
 ---
 
 ## 3. Header commitment coverage — what the quorum actually signs

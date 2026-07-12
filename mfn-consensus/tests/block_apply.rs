@@ -30,6 +30,7 @@ fn genesis_state() -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -47,6 +48,7 @@ fn build_apply_genesis_matches() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).unwrap();
@@ -71,6 +73,7 @@ fn apply_genesis_sets_optional_bonding_params() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(custom),
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).unwrap();
@@ -513,6 +516,50 @@ fn header_signing_hash_v2_binds_utxo_root() {
 }
 
 #[test]
+fn genesis_header_version_two_threads_through_chain_state() {
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: None,
+        header_version: 2,
+    };
+    let g = build_genesis(&cfg);
+    assert_eq!(g.header.version, 2);
+    let st = apply_genesis(&g, &cfg).unwrap();
+    assert_eq!(st.header_version, 2);
+    let h = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);
+    assert_eq!(h.version, 2);
+}
+
+#[test]
+fn apply_block_rejects_wrong_header_version() {
+    let st = genesis_state();
+    let mut h = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);
+    h.version = 2;
+    let block = seal_block(h, vec![], vec![], vec![], vec![], vec![]);
+    match apply_block(&st, &block) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(errors.iter().any(|e| {
+                matches!(
+                    e,
+                    BlockError::HeaderVersionMismatch {
+                        expected: 1,
+                        got: 2
+                    }
+                )
+            }));
+        }
+        ApplyOutcome::Ok { .. } => panic!("expected header version reject"),
+    }
+}
+
+#[test]
 fn header_signing_hash_excludes_producer_proof() {
     let st = genesis_state();
     let h0 = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);
@@ -568,6 +615,7 @@ fn empty_genesis_with_endowment(ep: EndowmentParams) -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -608,6 +656,7 @@ fn genesis_with_storage_commit(
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).unwrap();
@@ -652,6 +701,7 @@ fn twin_storage_genesis(
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state = apply_genesis(&g, &cfg).unwrap();
@@ -679,6 +729,7 @@ fn duplicate_storage_proof_in_one_block_rejected() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -745,6 +796,7 @@ fn genesis_with_b3_storage(built: &BuiltCommitment) -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -952,6 +1004,7 @@ fn genesis_with_b3_registered_storage(built: &BuiltCommitment) -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -1217,6 +1270,7 @@ fn storage_proof_with_wrong_chunk_rejected() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -1862,6 +1916,7 @@ fn ring_member_not_in_utxo_set_rejected() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -2005,6 +2060,7 @@ fn ring_member_with_wrong_commit_rejected() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -2370,6 +2426,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).unwrap();
@@ -3024,6 +3081,7 @@ fn consensus_rejects_non_uniform_ring_sizes_across_inputs() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let _state0 = apply_genesis(&g, &cfg).unwrap();
@@ -3141,6 +3199,7 @@ fn apply_block_rejects_non_uniform_ring_sizes_across_inputs() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -3249,6 +3308,7 @@ fn apply_block_with_storage_output(sc: StorageCommitment, fee: u64) -> ApplyOutc
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -3437,6 +3497,7 @@ fn apply_block_rejects_ring_smaller_than_sixteen() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();
@@ -3551,6 +3612,7 @@ fn genesis_with_b5_registered_storage(built: &BuiltCommitment) -> ChainState {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -3714,6 +3776,7 @@ fn genesis_with_b5_slash_single_operator(built: &BuiltCommitment) -> ChainState 
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).unwrap()
@@ -3784,6 +3847,7 @@ fn b5_operator_full_slash_deregisters_operator() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: ep,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let state0 = apply_genesis(&g, &cfg).unwrap();

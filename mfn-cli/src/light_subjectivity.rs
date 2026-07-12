@@ -338,6 +338,7 @@ mod tests {
                 max_exit_churn_per_epoch: 1,
                 slots_per_epoch: 1,
             }),
+            header_version: 1,
         };
         LightChain::from_genesis(LightChainConfig::new(cfg))
     }
@@ -397,6 +398,7 @@ mod tests {
                 max_exit_churn_per_epoch: 1,
                 slots_per_epoch: 1,
             }),
+            header_version: 1,
         };
         let chain = LightChain::from_genesis(LightChainConfig::new(cfg));
         let hex = hex::encode(chain.encode_checkpoint());

@@ -68,6 +68,7 @@ fn single_validator_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusPara
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         },
         s0,
         params,
@@ -227,6 +228,7 @@ fn light_chain_rejects_header_from_different_chain() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let mut full_b = Chain::from_genesis(ChainConfig::new(cfg_b)).expect("genesis B");
     let b1_b = produce_block(&full_b, &s_b, params_a, 1);
@@ -556,6 +558,7 @@ fn rotation_genesis() -> (GenesisConfig, ValidatorSecrets, ConsensusParams) {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: Some(rotation_bonding_params()),
+            header_version: 1,
         },
         s0,
         params,
@@ -1056,6 +1059,7 @@ fn light_chain_checkpoint_carries_genesis_id() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let light_b = LightChain::from_genesis(LightChainConfig::new(cfg_b));
     // genesis_id is *not* a function of the validator set (the

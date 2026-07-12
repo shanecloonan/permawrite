@@ -106,6 +106,12 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     } else if block.header.prev_hash != [0u8; 32] {
         errors.push(BlockError::PrevHashMismatch);
     }
+    if block.header.version != state.header_version {
+        errors.push(BlockError::HeaderVersionMismatch {
+            expected: state.header_version,
+            got: block.header.version,
+        });
+    }
 
     // ---- Tx merkle root ----
     let expected_tx_root = tx_merkle_root(&block.txs);

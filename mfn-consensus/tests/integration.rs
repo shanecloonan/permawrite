@@ -350,6 +350,7 @@ fn chain_genesis_block1_block2_with_slashing() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -673,6 +674,7 @@ fn storage_proof_flow_at_genesis_plus_block1() {
         emission_params: mfn_consensus::DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -904,6 +906,7 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -1081,6 +1084,7 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let mut st = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -1280,6 +1284,7 @@ fn reject_legacy_mixed_tampered_clsag_after_one_block_without_state_change() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -1487,6 +1492,7 @@ fn reject_legacy_mixed_tampered_storage_proof_root_after_one_block_without_state
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -1717,6 +1723,7 @@ fn reject_legacy_mixed_duplicate_storage_proof_after_one_block_without_state_cha
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -1867,6 +1874,7 @@ fn validator_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state0 = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -2216,6 +2224,7 @@ fn validator_mixed_two_block_treasury_ledger_identity() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let mut st = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -2563,6 +2572,7 @@ fn reject_validator_mixed_tampered_clsag_after_one_block_without_state_change() 
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -2886,6 +2896,7 @@ fn reject_validator_mixed_tampered_storage_proof_root_after_one_block_without_st
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -3205,6 +3216,7 @@ fn reject_validator_mixed_invalid_coinbase_after_one_block_without_state_change(
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -3526,6 +3538,7 @@ fn reject_validator_mixed_subquorum_finality_after_one_block_without_state_chang
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -3852,6 +3865,7 @@ fn reject_validator_mixed_duplicate_storage_proof_after_one_block_without_state_
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let genesis_id = block_id(&genesis.header);
@@ -4054,6 +4068,7 @@ fn liveness_slashing_chronic_absentee_gets_slashed() {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: mfn_storage::DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let mut state = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -4265,6 +4280,7 @@ mod unbond_lifecycle {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: Some(bp),
+            header_version: 1,
         };
         let genesis = build_genesis(&cfg);
         let state = apply_genesis(&genesis, &cfg).expect("apply genesis");
@@ -4472,6 +4488,7 @@ mod unbond_lifecycle {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: Some(bp),
+            header_version: 1,
         };
         let g = build_genesis(&cfg);
         let mut fx = ChainFixture {

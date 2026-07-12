@@ -270,6 +270,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let _genesis = build_genesis(&cfg);
         let dir = std::env::temp_dir().join(format!(

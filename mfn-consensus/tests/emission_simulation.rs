@@ -59,6 +59,7 @@ fn genesis_state(emission: EmissionParams) -> ChainState {
         emission_params: emission,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     apply_genesis(&g, &cfg).expect("genesis")
@@ -427,6 +428,7 @@ fn genesis_validator_with_funded_utxo(
         emission_params: emission,
         endowment_params,
         bonding_params,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
@@ -803,6 +805,7 @@ fn genesis_with_funded_utxo(
         emission_params: emission,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
@@ -882,6 +885,7 @@ fn genesis_with_funded_utxo_and_storage(
         emission_params: emission,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let st = apply_genesis(&g, &cfg).expect("genesis");
@@ -1127,6 +1131,7 @@ fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
         emission_params: SIM_EMISSION,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: None,
+        header_version: 1,
     };
     let g = build_genesis(&cfg);
     let mut st = apply_genesis(&g, &cfg).expect("genesis");

@@ -70,6 +70,7 @@ pub fn boot_three_validators_strict_eligibility(liveness_max_missed: u32) -> Fix
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(bonding),
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -108,6 +109,7 @@ pub fn boot_three_validators_cfg(liveness_max_missed: u32, unbond_delay_heights:
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(bonding),
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -150,6 +152,7 @@ pub fn boot_three_validators_entry_churn_cfg(
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(bonding),
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state = apply_genesis(&genesis, &cfg).expect("genesis");
@@ -199,6 +202,7 @@ pub fn boot_four_validators_exit_churn_cfg(slots_per_epoch: u32) -> Fixture {
         emission_params: DEFAULT_EMISSION_PARAMS,
         endowment_params: DEFAULT_ENDOWMENT_PARAMS,
         bonding_params: Some(bonding),
+        header_version: 1,
     };
     let genesis = build_genesis(&cfg);
     let state = apply_genesis(&genesis, &cfg).expect("genesis");

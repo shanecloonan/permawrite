@@ -131,6 +131,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let g = build_genesis(&cfg);
         let st = apply_genesis(&g, &cfg).expect("genesis");
@@ -195,6 +196,7 @@ mod tests {
             emission_params: DEFAULT_EMISSION_PARAMS,
             endowment_params: DEFAULT_ENDOWMENT_PARAMS,
             bonding_params: None,
+            header_version: 1,
         };
         let g = build_genesis(&cfg);
         let st = apply_genesis(&g, &cfg).expect("genesis");
