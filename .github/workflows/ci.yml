@@ -118,6 +118,9 @@ jobs:
           genesis_header_version_plan="$(bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only)"
           [[ "$genesis_header_version_plan" == *"genesis-header-version-rehearsal-smoke: PASS plan-only"* ]] || { echo "$genesis_header_version_plan"; exit 1; }
           [[ "$genesis_header_version_plan" == *"HEADER_VERSION_UTXO_QUORUM"* ]] || { echo "$genesis_header_version_plan"; exit 1; }
+          fraud_proof_plan="$(bash scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.sh --plan-only)"
+          [[ "$fraud_proof_plan" == *"fraud-proof-rehearsal-smoke: PASS plan-only"* ]] || { echo "$fraud_proof_plan"; exit 1; }
+          [[ "$fraud_proof_plan" == *"FRAUD_PROOF_V1_TAG"* ]] || { echo "$fraud_proof_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -673,6 +676,11 @@ jobs:
           $genesisHeaderVersionPlan = (powershell -NoProfile -File scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($genesisHeaderVersionPlan -notmatch "genesis-header-version-rehearsal-smoke: PASS plan-only" -or $genesisHeaderVersionPlan -notmatch "HEADER_VERSION_UTXO_QUORUM") {
             $genesisHeaderVersionPlan
+            exit 1
+          }
+          $fraudProofPlan = (powershell -NoProfile -File scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($fraudProofPlan -notmatch "fraud-proof-rehearsal-smoke: PASS plan-only" -or $fraudProofPlan -notmatch "FRAUD_PROOF_V1_TAG") {
+            $fraudProofPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null

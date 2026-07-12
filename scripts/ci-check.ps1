@@ -233,6 +233,11 @@ if ($genesisHeaderVersionPlan -notmatch "genesis-header-version-rehearsal-smoke:
     $genesisHeaderVersionPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$fraudProofPlan = (powershell -NoProfile -File scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($fraudProofPlan -notmatch "fraud-proof-rehearsal-smoke: PASS plan-only" -or $fraudProofPlan -notmatch "FRAUD_PROOF_V1_TAG") {
+    $fraudProofPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

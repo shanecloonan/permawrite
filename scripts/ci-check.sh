@@ -159,6 +159,9 @@ genesis_bls_pop_plan="$(bash scripts/public-devnet-v1/genesis-validator-bls-pop-
 genesis_header_version_plan="$(bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only)"
 [[ "$genesis_header_version_plan" == *"genesis-header-version-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$genesis_header_version_plan" >&2; exit 1; }
 [[ "$genesis_header_version_plan" == *"HEADER_VERSION_UTXO_QUORUM"* ]] || { printf '%s\n' "$genesis_header_version_plan" >&2; exit 1; }
+fraud_proof_plan="$(bash scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.sh --plan-only)"
+[[ "$fraud_proof_plan" == *"fraud-proof-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$fraud_proof_plan" >&2; exit 1; }
+[[ "$fraud_proof_plan" == *"FRAUD_PROOF_V1_TAG"* ]] || { printf '%s\n' "$fraud_proof_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

@@ -29,6 +29,7 @@ pub mod block_sync;
 pub mod chunk_v1;
 pub mod chunk_v2;
 pub mod frame;
+pub mod fraud_proof_v1;
 pub mod gossip;
 pub mod handshake;
 pub mod light_follow;
@@ -58,6 +59,7 @@ pub use frame::{
     PingPongDecodeError, PingV1, PongV1, TipV1DecodeError, TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN,
     TX_STEM_V1_TAG,
 };
+pub use fraud_proof_v1::{FraudProofV1, FraudProofV1DecodeError, FRAUD_PROOF_V1_TAG};
 pub use gossip::{
     push_block_gossip_to_peer, push_chunk_gossip_to_peer, push_chunks_gossip_to_peer,
     push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer, recv_gossip_v1, send_block_v1,

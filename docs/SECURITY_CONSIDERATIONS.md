@@ -322,7 +322,7 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
 
 | # | Area | Risk | Current mitigation | Residual status |
 |---|---|---|---|---|
-| 1 | Finality semantics | Quorum ≠ state validity; no fraud proofs | Full nodes re-execute `apply_block`; honest-quorum assumption | Open (light clients); Tier-4 SNARKs would close |
+| 1 | Finality semantics | Quorum ≠ state validity | Body-root fraud proofs phase 0 ([`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md)); full nodes re-execute `apply_block` | Partially mitigated; CLSAG/SPoRA fraud + gossip open; Tier-4 SNARKs close |
 | 2 | Header binding | `utxo_root` outside signing hash | Full-node recompute + next-block `prev_hash` binding | Open design question (hard fork) |
 | 3 | BLS rogue keys | Same-message aggregation | PoP via `Register` signature over `bls_pk` | Closed for registered validators; **open at genesis** (trusted setup) |
 | 4 | Determinism | `f64` in eligibility threshold | Default `F = 1.5` exactly representable | Latent; integer fixed-point recommended |

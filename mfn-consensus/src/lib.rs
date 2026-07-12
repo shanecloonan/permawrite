@@ -71,6 +71,8 @@ pub mod constitution;
 pub mod emission;
 pub mod extra_codec;
 #[cfg(feature = "bls")]
+pub mod fraud_proof;
+#[cfg(feature = "bls")]
 pub mod header_verify;
 pub mod slashing;
 pub mod storage;
@@ -150,6 +152,12 @@ pub use emission::{
     storage_payout_amount, storage_proof_coinbase_bonus, storage_proof_operator_settlements,
     validate_emission_params, EmissionError, EmissionParams, DEFAULT_EMISSION_PARAMS, MFN_BASE,
     MFN_DECIMALS,
+};
+#[cfg(feature = "bls")]
+pub use fraud_proof::{
+    decode_body_root_fraud_proof, encode_body_root_fraud_proof, tx_root_fraud_proof,
+    verify_body_root_fraud_proof, BodyRootFraudKind, BodyRootFraudProof, FraudProofError,
+    FraudProofVerdict, FRAUD_PROOF_SOFT_FINALITY_SLOTS, FRAUD_PROOF_VERSION,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

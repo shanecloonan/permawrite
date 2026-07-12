@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-12)
 
-**Head:** `83b82dd` (genesis BLS PoP tooling + TL-9 assert hardening). Prior: `66eb1ea` Q30/legacy fee/PoP gate.
+**Head:** `22549d7` (header_version rehearsal). CI `#29210840888` in progress; prior `#29209302385` GREEN on `dbad44d`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on dbad44d | **Doing** — #29209302385 | Nightly on green |
+| **1** | CI on `22549d7` | **Doing** — `#29210840888` | Nightly on green |
 | **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
-| **4** | F15 MFBN-1 + utxo_root lag | **Done** — `83b82dd` | Idle |
-| **7** | TL-9 assert + Path B PoP tooling | **Done** — `83b82dd` | TL-5 VPS soak (human) |
+| **4** | F5 fraud-proof phase 0 | **Doing** — this push | Gossip phase 1 |
+| **7** | Path B header_version smoke | **Done** — `22549d7` | TL-5 VPS soak (human) |
 
 ---
 

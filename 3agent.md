@@ -7,13 +7,13 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29207374984` GREEN | **Doing** — CI `#29209302385` on `dbad44d` | Nightly on green |
-| **2** RC ops | evidence pending head | **Waiting** — after CI green | Human sign-off |
+| **1** RC core | CI `#29209302385` GREEN (`dbad44d`) | **Doing** — CI `#29210840888` on `22549d7` | Nightly on green |
+| **2** RC ops | evidence pending | **Waiting** — after CI green | Human sign-off |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | header_version genesis `dbad44d` | **Doing** — F5 fraud-proof phase 0 | Gossip + slash hook |
+| **4+6** Protocol | header_version smoke `22549d7` | **Doing** — F5 fraud-proof phase 0 (this push) | Gossip + slash (phase 1) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
-| **7** Testnet | TL-9 assert + Path B PoP `83b82dd` | **Doing** — header_version rehearsal smoke | TL-5 VPS soak (human) |
+| **7** Testnet | Path B header smoke `22549d7` | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---
 
@@ -21,10 +21,10 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F5 fraud-proof phase 0** | **This push** | `mfn_consensus::fraud_proof`; tag `0x13`; [`FRAUD_PROOFS.md`](docs/FRAUD_PROOFS.md) |
-| **genesis-header-version-rehearsal-smoke** | **This push** | Path A v1 + Path B v2 doc gate in ci-check |
+| **F5 fraud-proof phase 0** | **This push** | body-root verify + P2P tag `0x13` + rehearsal smoke |
+| **genesis-header-version-rehearsal-smoke** | **Done** — `22549d7` | Path A v1 + Path B v2 doc gate |
 
-**Lane 4 — Doing:** F5 phase 0 + header_version smoke **Next:** wait CI `#29209302385` then push; phase 1 gossip
+**Lane 4 — Doing:** F5 fraud-proof phase 0 **Next:** push after CI `#29210840888` green; phase 1 gossip
 
 ---
 
@@ -33,7 +33,7 @@
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **header_version genesis threading** | **Done** — `dbad44d` | PROBLEMS §12 genesis-threaded; CI `#29209302385` in progress |
-| **genesis-header-version-rehearsal-smoke** | **This push** | Path A v1 pin + Path B v2 doc gate |
+| **genesis-header-version-rehearsal-smoke** | **Done** — `22549d7` | Path A v1 pin + Path B v2 doc gate |
 
 **Lane 4+7 — Doing:** rehearsal smoke **Next:** human TL-5 VPS soak after CI green
 

@@ -32,6 +32,9 @@
 //! distinct tag so fluff fan-out stays on `0x06`.
 //!
 //! **B2** adds [`crate::chunk_v2::ChunkV2`] (`0x12`): chunk gossip with Merkle inclusion proof.
+//!
+//! **F5** reserves tag `0x13` ([`crate::fraud_proof_v1::FRAUD_PROOF_V1_TAG`]) for interactive
+//! body-root fraud proofs; gossip fan-out is phase 1.
 
 use std::io::{Read, Write};
 

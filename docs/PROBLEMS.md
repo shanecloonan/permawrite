@@ -96,7 +96,9 @@ These were surfaced by a source-level audit of the consensus and crypto crates
 docs. Deeper analysis of every item lives in
 [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md).
 
-### 11. Committee finality does not attest state-transition validity
+### 11. ~~Committee finality does not attest state-transition validity~~ (partially mitigated)
+
+> **Status: fraud-proof phase 0 shipped** — [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) + [`mfn_consensus::fraud_proof`](../mfn-consensus/src/fraud_proof.rs) verify body-root mismatches (tx/bond/slashing/storage-proof roots) without the UTXO set. P2P tag `0x13` reserved. Full `apply_block` fraud (CLSAG/SPoRA/coinbase) and gossip/slash remain phase 1+.
 
 The reference voting path (`cast_vote` → `verify_producer_proof` in
 `mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF
@@ -105,12 +107,10 @@ finality quorum therefore proves "≥ 2/3 stake signed these header bytes," not
 "this block's transactions, coinbase, and state roots are valid."
 
 Full nodes are unaffected (they re-execute `apply_block` and reject invalid
-blocks regardless of signatures). But light clients — the entire
-`verify_header` / `verify_block_body` stack — get state-validity assurance only
-from the honest-quorum assumption. There are **no fraud proofs or validity
-proofs**. Until a Tier-4 proof-aggregation milestone, light-client state
-guarantees are strictly weaker than the docs' framing of "cryptographic
-confidence" suggests. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
+blocks regardless of signatures). Light clients can now reject headers whose
+body Merkle roots disagree with the attached body (phase 0). Residual risk:
+invalid but root-consistent bodies still need honest-quorum or later fraud
+classes. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
 
 ### 12. `utxo_root` is not covered by the finality signature (partially resolved)
 
