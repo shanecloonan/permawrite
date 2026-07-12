@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-12)
 
-**Head:** `66eb1ea` (Q30 eligibility + legacy fee treasury + genesis BLS PoP gate). **In progress:** genesis PoP tooling + TL-9 assert hardening push.
+**Head:** `83b82dd` (genesis BLS PoP tooling + TL-9 assert hardening). Prior: `66eb1ea` Q30/legacy fee/PoP gate.
 
 ## Current board
 
@@ -91,8 +91,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | **1** | CI on pending head | **Doing** — post-push monitor | Nightly on green |
 | **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
-| **4** | F15 MFBN-1 + utxo_root lag | **Doing** — this push | Idle |
-| **7** | TL-9 assert hardening + Path B PoP tooling | **Doing** — this push | TL-5 VPS soak (human) |
+| **4** | F15 MFBN-1 + utxo_root lag | **Done** — `83b82dd` | Idle |
+| **7** | TL-9 assert + Path B PoP tooling | **Done** — `83b82dd` | TL-5 VPS soak (human) |
 
 ---
 
@@ -126,7 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Q30 + legacy fee + genesis BLS PoP** (`66eb1ea`) - protocol (lanes 4+6): integer Q30 slot eligibility; legacy chains route full fees to treasury; `require_validator_bls_pop` + `bls_register_sig_hex` at `genesis_config_from_json_bytes`.
+- **Genesis BLS PoP tooling + TL-9 assert** (`83b82dd`) - testnet launch (lane 7) + protocol (lane 4): `genesis-validator-bls-pop.*` + rehearsal smoke; `launch-go-no-go` uses assert scripts; `vps-execution-checklist` tl5/tl6 assert steps; `docs/interop/VRF_MFBN1.md`.
 - **TL-9 checkpoint Schnorr verify** (`d04afed`) - testnet launch (lane 7): `launch-go-no-go` Schnorr-verifies checkpoint log when `seed_nodes >= 3`.
 - **vps-internet-soak-evidence-rehearsal-smoke** (`78d236c`) - testnet launch (lane 7): ci-check gate for assert + launch-status fixture.
 - **P32 phase 4e** (`b4cab93`) - privacy surface (lane 5): observer template `MFND_PM23_HARD_FAIL=1`.
