@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** P32 phase 4d push (this commit). Prior: **CI `#29171288961` GREEN** + **Nightly `#29172041340` GREEN** on `a91fbe3`.
+**Head:** `4a429e4`. **CI `#29174819450` GREEN**. **Nightly `#29175519794` GREEN**. Release evidence `4a429e4` + RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on P32 4d push | **Doing** — local clippy/fmt + ci-check | Nightly dispatch on green head |
-| **2** | Release evidence refresh | **Doing** — refresh after green CI | Human sign-off packet |
-| **5** | P32 phase 4d operator PM23 hard-fail | **Doing** — this push | TL-5 role-separated VPS (human) |
-| **7** | vps-provision role template gate | **Doing** — extend provision smoke | TL-5 VPS internet soak (human) |
+| **1** | CI + Nightly on `4a429e4` | **Done** — `#29174819450` + `#29175519794` GREEN | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `4a429e4` / CI `#29174819450` | Human sign-off packet |
+| **5** | P32 phase 4d operator PM23 hard-fail | **Done** — `4a429e4` | TL-5 role-separated VPS (human) |
+| **7** | vps-provision role template gate | **Done** — `4a429e4` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -126,7 +126,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Nightly `#29172041340` GREEN** (`a91fbe3`) - RC core (lane 1): all three jobs on provision + PM23 4c stack.
+- **P32 phase 4d** (`4a429e4`) - privacy surface (lane 5): `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` on operator VPS template; `mfn-storage-operator` aborts on validator seed env; rehearsal smokes gate all role templates.
+- **Nightly `#29175519794` GREEN** (`4a429e4`) - RC core (lane 1): all three jobs on P32 4d stack.
+- **CI `#29174819450` GREEN** (`4a429e4`) - P32 phase 4d storage-operator PM23 hard-fail; full matrix pass (~28m).
 - **launch-status v5** (`cf2c05d`) - testnet launch (lane 7): `execution_checklist` block links `vps-execution-checklist.v2`; ceremony plan adds checkpoint log + invite path.
 - **publish-checkpoint-log-rehearsal-smoke + PM23 phase 4b** (`638f260`) - lanes 5+7: TL-8 checkpoint publish plan gate; `mfnd_pm23_warning` + optional `MFND_PM23_HARD_FAIL=1`.
 - **vps-preflight + testnet-invite rehearsal smokes** (`9da922a`) - testnet launch (lane 7): plan-only CI gates on VPS preflight docs and TESTNET_INVITE.md packet.
