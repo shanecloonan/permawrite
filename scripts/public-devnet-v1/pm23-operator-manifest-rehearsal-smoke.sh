@@ -82,14 +82,37 @@ if grep -qiF -- "MFND_VALIDATOR_INDEX" "$operator_tpl" || grep -qiF -- "MFND_VRF
   exit 1
 fi
 
+if ! grep -qF -- "MFND_PM23_HARD_FAIL=1" "$validator_tpl"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1" >&2
+  exit 1
+fi
+if ! grep -qE -- "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1|MFND_PM23_HARD_FAIL=1" "$operator_tpl"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: operator template missing PM23 hard-fail env" >&2
+  exit 1
+fi
+for forbidden in MFND_VALIDATOR_INDEX MFND_VRF_SEED MFN_OPERATOR_DATA mfn-storage-operator; do
+  if grep -qiF -- "$forbidden" "$wallet_tpl"; then
+    echo "pm23-operator-manifest-rehearsal-smoke: wallet template must not reference $forbidden" >&2
+    exit 1
+  fi
+done
+
 topology="$REPO_ROOT/mfn-node/src/role_topology.rs"
 pm23_rs="$REPO_ROOT/mfn-storage-operator/src/pm23.rs"
 if ! grep -qF -- "mfnd_pm23_warning" "$topology"; then
   echo "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing mfnd_pm23_warning lint" >&2
   exit 1
 fi
+if ! grep -qF -- "pm23_hard_fail_enabled" "$topology"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing pm23_hard_fail_enabled" >&2
+  exit 1
+fi
 if [[ ! -f "$pm23_rs" ]] || ! grep -qF -- "mfn_storage_operator_pm23_warning" "$pm23_rs"; then
   echo "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing PM23 runtime lint" >&2
+  exit 1
+fi
+if ! grep -qF -- "pm23_hard_fail_enabled" "$pm23_rs"; then
+  echo "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing pm23_hard_fail_enabled" >&2
   exit 1
 fi
 
@@ -98,7 +121,8 @@ echo "  flow=REFERENCE_TOPOLOGY PM23 rules + vps-role-*.env.example separation"
 echo "  wallet=no operator manifest / mfn-storage-operator paths"
 echo "  validator=no wallet or operator manifest paths"
 echo "  operator=operator data only; no validator seeds"
-echo "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (warn-only; MFND_PM23_HARD_FAIL=1)"
+echo "  hard_fail=MFND_PM23_HARD_FAIL on validator/bind; MFN_STORAGE_OPERATOR_PM23_HARD_FAIL on operator"
+echo "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (hard-fail when env set)"
 echo "  docs=docs/REFERENCE_TOPOLOGY.md docs/PRIVACY_HARDENING.md"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

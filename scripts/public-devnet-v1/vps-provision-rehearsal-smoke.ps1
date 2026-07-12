@@ -39,10 +39,26 @@ if ($bindText -notmatch "MFND_PM23_HARD_FAIL=1") {
     throw "vps-provision-rehearsal-smoke: vps-bind.env.example missing MFND_PM23_HARD_FAIL=1"
 }
 
+$validatorTpl = Join-Path $ScriptDir "vps-role-validator.env.example"
+$operatorTpl = Join-Path $ScriptDir "vps-role-operator.env.example"
+foreach ($path in @($validatorTpl, $operatorTpl)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "vps-provision-rehearsal-smoke: missing $path"
+    }
+}
+$validatorText = Get-Content -Raw -LiteralPath $validatorTpl
+$operatorText = Get-Content -Raw -LiteralPath $operatorTpl
+if ($validatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
+    throw "vps-provision-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1"
+}
+if ($operatorText -notmatch "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1" -and $operatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
+    throw "vps-provision-rehearsal-smoke: operator template missing PM23 hard-fail env"
+}
+
 Write-Host "vps-provision-rehearsal-smoke: plan"
 Write-Host "  docs=docs/VPS_PROVISION.md"
 Write-Host "  flow=provision -> preflight -> soak -> ceremony -> TL-8"
-Write-Host "  pm23=vps-bind.env.example sets MFND_PM23_HARD_FAIL=1"
+Write-Host "  pm23=vps-bind + vps-role-validator MFND_PM23_HARD_FAIL=1; operator MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1"
 Write-Host "  live_rehearsal=human VPS provision before TL-5"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {

@@ -604,9 +604,14 @@ processes export validator seed env. Optional hard fail via `MFND_PM23_HARD_FAIL
 `vps-bind.env.example` and `vps-role-validator.env.example`; `vps-preflight.sh` warns when
 public IP is detected but hard-fail is unset.
 
-**Remaining.** Hard fail on all role-separated VPS templates (operator host env review).
+**Shipped (phase 4d).** Operator role template defaults
+`MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1`; `mfn-storage-operator` aborts on validator seed
+env when hard-fail is set (also accepts `MFND_PM23_HARD_FAIL=1`). Rehearsal smokes gate all
+role-separated templates.
 
-**Effort:** low (phase 0–4c). **Risk:** low (warn-only locally; hard-fail on VPS bind templates).
+**Remaining.** Live VPS role-separated topology rehearsal (TL-5/TL-6 human path).
+
+**Effort:** low (phase 0–4d). **Risk:** low (warn-only locally; hard-fail on VPS templates).
 
 ### F12. Subjective checkpoint web (`F5:F12`) — **phase 0–3 shipped**
 

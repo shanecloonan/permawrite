@@ -57,10 +57,27 @@ if ! grep -qF "MFND_PM23_HARD_FAIL=1" "$BIND_EXAMPLE"; then
   exit 1
 fi
 
+validator_tpl="$SCRIPT_DIR/vps-role-validator.env.example"
+operator_tpl="$SCRIPT_DIR/vps-role-operator.env.example"
+for tpl in "$validator_tpl" "$operator_tpl"; do
+  if [[ ! -f "$tpl" ]]; then
+    echo "vps-provision-rehearsal-smoke: missing $tpl" >&2
+    exit 1
+  fi
+done
+if ! grep -qF "MFND_PM23_HARD_FAIL=1" "$validator_tpl"; then
+  echo "vps-provision-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1" >&2
+  exit 1
+fi
+if ! grep -qE "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1|MFND_PM23_HARD_FAIL=1" "$operator_tpl"; then
+  echo "vps-provision-rehearsal-smoke: operator template missing PM23 hard-fail env" >&2
+  exit 1
+fi
+
 echo "vps-provision-rehearsal-smoke: plan"
 echo "  docs=docs/VPS_PROVISION.md"
 echo "  flow=provision -> preflight -> soak -> ceremony -> TL-8"
-echo "  pm23=vps-bind.env.example sets MFND_PM23_HARD_FAIL=1"
+echo "  pm23=vps-bind + vps-role-validator MFND_PM23_HARD_FAIL=1; operator MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1"
 echo "  live_rehearsal=human VPS provision before TL-5"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

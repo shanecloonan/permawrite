@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** `0b06a9e`. **CI `#29171288961` GREEN** on `a91fbe3`. **Nightly `#29172041340` GREEN** on `a91fbe3`. Release evidence `a91fbe3` + RC audit **go**.
+**Head:** P32 phase 4d push (this commit). Prior: **CI `#29171288961` GREEN** + **Nightly `#29172041340` GREEN** on `a91fbe3`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on `a91fbe3` | **Done** — `#29172041340` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `a91fbe3` / CI `#29171288961` | Human sign-off packet |
-| **5** | P32 phase 4c PM23 VPS hard-fail | **Done** — `a91fbe3` | Operator template tail (research) |
-| **7** | vps-provision-rehearsal-smoke | **Done** — `a91fbe3` | TL-5 VPS internet soak (human) |
+| **1** | CI on P32 4d push | **Doing** — local clippy/fmt + ci-check | Nightly dispatch on green head |
+| **2** | Release evidence refresh | **Doing** — refresh after green CI | Human sign-off packet |
+| **5** | P32 phase 4d operator PM23 hard-fail | **Doing** — this push | TL-5 role-separated VPS (human) |
+| **7** | vps-provision role template gate | **Doing** — extend provision smoke | TL-5 VPS internet soak (human) |
 
 ---
 

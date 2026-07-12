@@ -61,13 +61,31 @@ if ($operatorText -match "MFND_VALIDATOR_INDEX" -or $operatorText -match "MFND_V
     throw "pm23-operator-manifest-rehearsal-smoke: operator template must not include validator seeds"
 }
 
+if ($validatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
+    throw "pm23-operator-manifest-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1"
+}
+if ($operatorText -notmatch "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1" -and $operatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
+    throw "pm23-operator-manifest-rehearsal-smoke: operator template missing PM23 hard-fail env"
+}
+foreach ($forbidden in @("MFND_VALIDATOR_INDEX", "MFND_VRF_SEED", "MFN_OPERATOR_DATA", "mfn-storage-operator")) {
+    if ($walletText -match [regex]::Escape($forbidden)) {
+        throw "pm23-operator-manifest-rehearsal-smoke: wallet template must not reference $forbidden"
+    }
+}
+
 $topology = Join-Path $RepoRoot "mfn-node\src\role_topology.rs"
 $pm23Rs = Join-Path $RepoRoot "mfn-storage-operator\src\pm23.rs"
 if (-not (Select-String -LiteralPath $topology -Pattern "mfnd_pm23_warning" -Quiet)) {
     throw "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing mfnd_pm23_warning lint"
 }
+if (-not (Select-String -LiteralPath $topology -Pattern "pm23_hard_fail_enabled" -Quiet)) {
+    throw "pm23-operator-manifest-rehearsal-smoke: role_topology.rs missing pm23_hard_fail_enabled"
+}
 if (-not (Test-Path -LiteralPath $pm23Rs) -or -not (Select-String -LiteralPath $pm23Rs -Pattern "mfn_storage_operator_pm23_warning" -Quiet)) {
     throw "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing PM23 runtime lint"
+}
+if (-not (Select-String -LiteralPath $pm23Rs -Pattern "pm23_hard_fail_enabled" -Quiet)) {
+    throw "pm23-operator-manifest-rehearsal-smoke: mfn-storage-operator missing pm23_hard_fail_enabled"
 }
 
 Write-Host "pm23-operator-manifest-rehearsal-smoke: plan"
@@ -75,7 +93,8 @@ Write-Host "  flow=REFERENCE_TOPOLOGY PM23 rules + vps-role-*.env.example separa
 Write-Host "  wallet=no operator manifest / mfn-storage-operator paths"
 Write-Host "  validator=no wallet or operator manifest paths"
 Write-Host "  operator=operator data only; no validator seeds"
-Write-Host "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (warn-only; MFND_PM23_HARD_FAIL=1)"
+Write-Host "  hard_fail=MFND_PM23_HARD_FAIL on validator/bind; MFN_STORAGE_OPERATOR_PM23_HARD_FAIL on operator"
+Write-Host "  runtime=mfnd_pm23_warning + mfn_storage_operator_pm23_warning (hard-fail when env set)"
 Write-Host "  docs=docs/REFERENCE_TOPOLOGY.md docs/PRIVACY_HARDENING.md"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {
