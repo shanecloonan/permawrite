@@ -81,18 +81,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-11)
+## CI gate (2026-07-12)
 
-**Head:** launch-status v6 + role-templates push (this commit). Prior: **CI `#29174819450` GREEN** + **Nightly `#29175519794` GREEN** on `4a429e4`.
+**Head:** `8b4f0ee`. Prior: TL-9 `d04afed`; soak evidence rehearsal `78d236c`; P32 4e `b4cab93`; **Nightly `#29175519794` GREEN** on `4a429e4`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on launch-status v6 push | **Doing** — docs-only ci-check | Nightly dispatch on green head |
-| **2** | Release evidence refresh | **Doing** — refresh after green CI | Human sign-off packet |
-| **6** | F6 treasury telemetry in launch-status | **Doing** — this push | Idle telemetry watch |
-| **7** | launch-status v6 + role-templates smoke | **Doing** — this push | TL-5 VPS internet soak (human) |
+| **1** | CI on `8b4f0ee` | **Doing** — docs/scripts ci-check | Nightly dispatch on green head |
+| **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
+| **5** | F12 demo live smoke | **Done** — `8b4f0ee` | Idle until TL-5 VPS |
+| **7** | Launch software path | **Done** — `d04afed`/`78d236c` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -126,7 +126,11 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **TL-5 soak evidence assert** (this push) - testnet launch (lane 7): `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` detects `soak: SUMMARY status=PASS`; ci-check negative gate.
+- **F12 demo live smoke** (`8b4f0ee`) - privacy surface (lane 5): `demo-web-f12-rehearsal-smoke --live` signs fixture; CLI verify/cross-check + mfn-wasm checkpoint_log_core.
+- **TL-9 checkpoint Schnorr verify** (`d04afed`) - testnet launch (lane 7): `launch-go-no-go` Schnorr-verifies checkpoint log when `seed_nodes >= 3`.
+- **vps-internet-soak-evidence-rehearsal-smoke** (`78d236c`) - testnet launch (lane 7): ci-check gate for assert + launch-status fixture.
+- **P32 phase 4e** (`b4cab93`) - privacy surface (lane 5): observer template `MFND_PM23_HARD_FAIL=1`.
+- **TL-5 soak evidence assert** (`1aff0df`) - testnet launch (lane 7): `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` detects `soak: SUMMARY status=PASS`; ci-check negative gate.
 - **P32 phase 4d** (`4a429e4`) - privacy surface (lane 5): `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` on operator VPS template; `mfn-storage-operator` aborts on validator seed env; rehearsal smokes gate all role templates.
 - **Nightly `#29175519794` GREEN** (`4a429e4`) - RC core (lane 1): all three jobs on P32 4d stack.
 - **CI `#29174819450` GREEN** (`4a429e4`) - P32 phase 4d storage-operator PM23 hard-fail; full matrix pass (~28m).
