@@ -57,6 +57,7 @@ Write-Host "  schema=$($report.schema_version)"
 Write-Host "  genesis_id=$($report.genesis_id)"
 Write-Host "  seed_nodes_count=$($report.seed_nodes_count)"
 Write-Host "  automatable_pass=$($report.automatable_pass)"
+Write-Host "  checkpoint=Schnorr verify required when seed_nodes>=3 (mfn-cli checkpoint-log verify)"
 Write-Host "  helper=launch-go-no-go.ps1 [-Json]"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {

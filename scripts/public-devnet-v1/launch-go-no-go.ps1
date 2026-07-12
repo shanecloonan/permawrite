@@ -96,6 +96,8 @@ if (Test-Path (Join-Path $RepoRoot "docs\PUBLIC_DEVNET_THREAT_MODEL.md")) {
 }
 
 $checkpointLogPath = Join-Path $RepoRoot "mfn-node\testdata\public_devnet_v1.checkpoints.jsonl"
+$checkpointEntries = 0
+$checkpointLogVerified = $null
 if ($seedCount -ge 3) {
     if (Test-Path -LiteralPath $checkpointLogPath) {
         $checkpointLines = Get-Content -LiteralPath $checkpointLogPath -ErrorAction SilentlyContinue |
@@ -103,11 +105,31 @@ if ($seedCount -ge 3) {
         $checkpointEntries = @($checkpointLines).Count
         if ($checkpointEntries -gt 0) {
             Pass "checkpoint log has $checkpointEntries entries ($(Split-Path -Leaf $checkpointLogPath))"
+            $mcli = Join-Path $RepoRoot "target\release\mfn-cli.exe"
+            if (-not (Test-Path -LiteralPath $mcli)) {
+                $cmd = Get-Command mfn-cli -ErrorAction SilentlyContinue
+                if ($cmd) { $mcli = $cmd.Source } else { $mcli = $null }
+            }
+            if ($mcli) {
+                & $mcli checkpoint-log verify $checkpointLogPath 2>$null | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    Pass "checkpoint log Schnorr verify OK ($mcli)"
+                    $checkpointLogVerified = $true
+                } else {
+                    Fail "checkpoint log Schnorr verify FAILED - signatures or wire format invalid"
+                    $checkpointLogVerified = $false
+                }
+            } else {
+                Fail "mfn-cli missing; cannot Schnorr-verify checkpoint log (build target/release/mfn-cli)"
+                $checkpointLogVerified = $false
+            }
         } else {
             Fail "checkpoint log empty ($checkpointLogPath); run publish-checkpoint-log.ps1 -Apply after TL-7"
+            $checkpointLogVerified = $false
         }
     } else {
         Fail "checkpoint log missing ($checkpointLogPath); run publish-checkpoint-log.ps1 -Apply after TL-7"
+        $checkpointLogVerified = $false
     }
 }
 
@@ -159,6 +181,8 @@ if ($Json) {
         automatable_pass = ($fail -eq 0)
         tl5_evidence = if ($soak) { $soak.Name } else { "" }
         tl6_evidence = if ($rehearsal) { $rehearsal.Name } else { "" }
+        checkpoint_log_entries = $checkpointEntries
+        checkpoint_log_verified = $checkpointLogVerified
     } | ConvertTo-Json -Depth 4
 }
 

@@ -80,6 +80,7 @@ echo "  schema=$schema_version"
 echo "  genesis_id=$genesis_id"
 echo "  seed_nodes_count=$seed_count"
 echo "  automatable_pass=false"
+echo "  checkpoint=Schnorr verify required when seed_nodes>=3 (mfn-cli checkpoint-log verify)"
 echo "  helper=launch-go-no-go.sh [--json]"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

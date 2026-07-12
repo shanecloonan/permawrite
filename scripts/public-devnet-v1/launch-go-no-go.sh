@@ -29,6 +29,8 @@ local_mfer_evidence_passes() {
 head_sha="$(cd "$REPO_ROOT" && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 genesis_id=""
 seed_count=0
+checkpoint_entries=0
+checkpoint_log_verified=""
 if [[ -f "$MANIFEST" ]]; then
   genesis_id="$(python3 -c "import json; print(json.load(open('$MANIFEST'))['genesis_id'])" 2>/dev/null || true)"
   seed_count="$(python3 -c "import json; print(len(json.load(open('$MANIFEST')).get('seed_nodes',[])))" 2>/dev/null || echo 0)"
@@ -103,8 +105,25 @@ if (( seed_count >= 3 )); then
   if [[ -f "$CHECKPOINT_LOG" ]] && grep -q '[^[:space:]]' "$CHECKPOINT_LOG" 2>/dev/null; then
     checkpoint_entries="$(grep -c '[^[:space:]]' "$CHECKPOINT_LOG" 2>/dev/null || echo 0)"
     pass "checkpoint log has $checkpoint_entries entries ($(basename "$CHECKPOINT_LOG"))"
+    MCLI="${MCLI:-$REPO_ROOT/target/release/mfn-cli}"
+    if [[ ! -x "$MCLI" ]] && command -v mfn-cli >/dev/null 2>&1; then
+      MCLI="$(command -v mfn-cli)"
+    fi
+    if [[ -x "$MCLI" ]]; then
+      if "$MCLI" checkpoint-log verify "$CHECKPOINT_LOG" >/dev/null 2>&1; then
+        pass "checkpoint log Schnorr verify OK ($MCLI)"
+        checkpoint_log_verified=1
+      else
+        fail "checkpoint log Schnorr verify FAILED - signatures or wire format invalid"
+        checkpoint_log_verified=0
+      fi
+    else
+      fail "mfn-cli missing; cannot Schnorr-verify checkpoint log (build target/release/mfn-cli)"
+      checkpoint_log_verified=0
+    fi
   else
     fail "checkpoint log missing or empty ($CHECKPOINT_LOG) — run publish-checkpoint-log.sh --apply after TL-7"
+    checkpoint_log_verified=0
   fi
 fi
 
@@ -142,8 +161,15 @@ if [[ "$JSON" -eq 1 ]]; then
   export REPO_ROOT head_sha genesis_id seed_count automatable_pass
   export soak_base="${soak_evidence##*/}"
   export rehearsal_base="${rehearsal_evidence##*/}"
+  export checkpoint_entries checkpoint_log_verified
   python3 - <<'PY'
 import json, os
+verified_raw = os.environ.get("checkpoint_log_verified", "")
+verified = None
+if verified_raw == "1":
+    verified = True
+elif verified_raw == "0":
+    verified = False
 print(json.dumps({
     "schema_version": "launch-go-no-go.v1",
     "head_sha": os.environ.get("head_sha", ""),
@@ -152,6 +178,8 @@ print(json.dumps({
     "automatable_pass": os.environ.get("automatable_pass") == "1",
     "tl5_evidence": os.environ.get("soak_base", ""),
     "tl6_evidence": os.environ.get("rehearsal_base", ""),
+    "checkpoint_log_entries": int(os.environ.get("checkpoint_entries") or "0"),
+    "checkpoint_log_verified": verified,
 }, indent=2))
 PY
 fi
