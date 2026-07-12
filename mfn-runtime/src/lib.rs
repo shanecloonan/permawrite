@@ -50,8 +50,9 @@ pub mod proposal_wire;
 
 pub use chain::{Chain, ChainConfig, ChainError, ChainStats};
 pub use genesis_spec::{
-    genesis_config_from_json_bytes, genesis_config_from_json_path, hex_seed32, GenesisSpecError,
-    MAX_SYNTHETIC_DECOY_UTXOS,
+    genesis_config_from_json_bytes, genesis_config_from_json_path, hex_seed32,
+    validator_bls_register_sig_hex, verify_genesis_validator_bls_pop_json, GenesisSpecError,
+    ValidatorPopInputs, MAX_SYNTHETIC_DECOY_UTXOS,
 };
 pub use mempool::{AdmitError, AdmitOutcome, Mempool, MempoolConfig, MempoolEntry};
 pub use mempool_snapshot::{

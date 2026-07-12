@@ -450,14 +450,6 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
                 spend_pub: w.spend_pub,
             })
         };
-        validators.push(Validator {
-            index: v.index,
-            vrf_pk: vrf.pk,
-            bls_pk: bls.pk,
-            stake: v.stake,
-            payout,
-        });
-
         let pop_field = format!("validators[{}].bls_register_sig_hex", v.index);
         let pop_sig = if let Some(hex) = &v.bls_register_sig_hex {
             Some(parse_bls_sig(&pop_field, hex)?)
@@ -471,6 +463,13 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
                 return Err(GenesisSpecError::InvalidValidatorBlsPop { index: v.index });
             }
         }
+        validators.push(Validator {
+            index: v.index,
+            vrf_pk: vrf.pk,
+            bls_pk: bls.pk,
+            stake: v.stake,
+            payout,
+        });
     }
 
     let initial_outputs = match file.synthetic_decoy_utxos {
@@ -537,6 +536,57 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
         endowment_params,
         bonding_params: None,
     })
+}
+
+/// Seed material for computing a genesis validator BLS register PoP.
+#[derive(Clone, Debug)]
+pub struct ValidatorPopInputs {
+    /// Validator stake weight (must match genesis JSON row).
+    pub stake: u64,
+    /// VRF seed (`vrf_seed_hex`).
+    pub vrf_seed: [u8; 32],
+    /// BLS seed (`bls_seed_hex`).
+    pub bls_seed: [u8; 32],
+    /// Optional payout seed; defaults to `bls_seed` when `omit_payout` is false.
+    pub payout_seed: Option<[u8; 32]>,
+    /// When true, on-chain payout is `None` (coinbase burns).
+    pub omit_payout: bool,
+}
+
+/// Compute `bls_register_sig_hex` for a validator row (same payload as
+/// on-chain [`mfn_consensus::sign_register`]).
+pub fn validator_bls_register_sig_hex(
+    inputs: &ValidatorPopInputs,
+) -> Result<String, GenesisSpecError> {
+    use mfn_consensus::sign_register;
+
+    let vrf = vrf_keygen_from_seed(&inputs.vrf_seed).map_err(|e| GenesisSpecError::VrfKeygen {
+        index: 0,
+        message: e.to_string(),
+    })?;
+    let bls = bls_keygen_from_seed(&inputs.bls_seed);
+    let payout = if inputs.omit_payout {
+        None
+    } else {
+        let pseed = inputs.payout_seed.unwrap_or(inputs.bls_seed);
+        let w = stealth_wallet_from_seed(&pseed);
+        Some(ValidatorPayout {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        })
+    };
+    let sig = sign_register(inputs.stake, &vrf.pk, &bls.pk, payout.as_ref(), &bls.sk);
+    Ok(hex::encode(mfn_bls::encode_signature(&sig)))
+}
+
+/// Load a genesis JSON file and verify every `bls_register_sig_hex` row (and
+/// `require_validator_bls_pop` policy) via [`genesis_config_from_json_bytes`].
+pub fn verify_genesis_validator_bls_pop_json(path: &Path) -> Result<(), GenesisSpecError> {
+    let bytes = fs::read(path).map_err(|source| GenesisSpecError::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    genesis_config_from_json_bytes(&bytes).map(|_| ())
 }
 
 /// Load and parse a genesis spec from `path` (JSON, UTF-8).

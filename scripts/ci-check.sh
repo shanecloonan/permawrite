@@ -154,6 +154,8 @@ vps_ceremony_plan="$(bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal
 [[ "$vps_ceremony_plan" == *"vps-launch-ceremony-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_ceremony_plan" >&2; exit 1; }
 demo_f12_plan="$(bash scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.sh --plan-only)"
 [[ "$demo_f12_plan" == *"demo-web-f12-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$demo_f12_plan" >&2; exit 1; }
+genesis_bls_pop_plan="$(bash scripts/public-devnet-v1/genesis-validator-bls-pop-rehearsal-smoke.sh --plan-only)"
+[[ "$genesis_bls_pop_plan" == *"genesis-validator-bls-pop-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$genesis_bls_pop_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

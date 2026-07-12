@@ -46,13 +46,13 @@ Date (UTC): ____________________
 | Step | Owner |
 | --- | --- |
 | 1. Generate fresh validator VRF/BLS seeds per operator (offline; never paste in chat) | Human |
-| 2. Build new genesis spec JSON; each validator supplies `bls_register_sig_hex` (BLS PoP over register payload); set `require_validator_bls_pop: 1` | Lane 4+6 review |
-| 3. Run constitution validation + `genesis_config_from_json_bytes` (rejects rogue keys without secret) | Operator |
+| 2. Build new genesis spec JSON; compute each `bls_register_sig_hex` with [`genesis-validator-bls-pop.sh`](../scripts/public-devnet-v1/genesis-validator-bls-pop.sh) / [`.ps1`](../scripts/public-devnet-v1/genesis-validator-bls-pop.ps1); set `require_validator_bls_pop: 1` | Lane 4+6 review |
+| 3. Run constitution validation + PoP gate: `genesis-validator-bls-pop.sh --genesis PATH.json --verify` (wraps `genesis_config_from_json_bytes`) | Operator |
 | 4. Publish new `genesis_id` + manifest; archive ceremony notes | Lane 7 |
 | 5. Wipe VPS data dirs; restart mesh from new genesis | Operator |
 | 6. Re-run TL-5 soak + TL-6 rehearsal on new chain | Lane 7 |
 
-Lane 7 does **not** implement genesis generation tooling in TL-7; coordinate with lanes 4+6 for spec bytes and proptest coverage before any Path B launch.
+Lane 7 does **not** implement genesis generation tooling in TL-7; coordinate with lanes 4+6 for spec bytes and proptest coverage before any Path B launch. CI gates the PoP helper via [`genesis-validator-bls-pop-rehearsal-smoke.sh`](../scripts/public-devnet-v1/genesis-validator-bls-pop-rehearsal-smoke.sh) (plan-only).
 
 **TL-7 sign-off (Path B):**
 

@@ -15,7 +15,13 @@
 //!   the header. The other two header-bound roots (`storage_root`,
 //!   `utxo_root`) are state-dependent and out-of-scope for stateless
 //!   verification — they're already cryptographically bound through
-//!   the BLS aggregate verified by [`verify_header`].
+//!   the BLS aggregate verified by [`verify_header`]. **`utxo_root` is
+//!   not in `header_signing_bytes` on v1 headers** — it is bound only
+//!   transitively one block later via `block_id` → `prev_hash`. Use
+//!   [`UTXO_ROOT_QUORUM_CONFIRMATION_LAG`] / [`utxo_root_quorum_confirmation_lag`]
+//!   before consuming tip `utxo_root` for deposits or OoM proofs. v2+
+//!   headers ([`UTXO_ROOT_DIRECT_QUORUM_HEADER_VERSION`]) include
+//!   `utxo_root` in the BLS message directly.
 //!
 //! ## Why this primitive exists
 //!
@@ -75,8 +81,9 @@
 //! - **State-dependent body roots.** `storage_root` and `utxo_root`
 //!   are functions of accumulated chain state, not pure functions of
 //!   the block body. A stateless verifier can't independently
-//!   recompute them; they're already covered by the BLS aggregate
-//!   (which signs over `header_signing_hash`, including those roots).
+//!   recompute them from the body alone. On **v1** headers the BLS
+//!   aggregate does **not** sign `utxo_root` (see
+//!   [`UTXO_ROOT_QUORUM_CONFIRMATION_LAG`]); on **v2+** it does.
 
 mod body;
 mod header;
@@ -88,4 +95,7 @@ mod tests;
 
 pub use body::{verify_block_body, BodyVerifyError};
 pub use header::verify_header;
-pub use types::{HeaderCheck, HeaderVerifyError};
+pub use types::{
+    utxo_root_quorum_confirmation_lag, HeaderCheck, HeaderVerifyError,
+    UTXO_ROOT_DIRECT_QUORUM_HEADER_VERSION, UTXO_ROOT_QUORUM_CONFIRMATION_LAG,
+};

@@ -22,6 +22,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 
+[[example]]
+name = "genesis_validator_bls_pop"
+path = "examples/genesis_validator_bls_pop.rs"
+
 [dev-dependencies]
 curve25519-dalek = { workspace = true }
 mfn-bls = { path = "../mfn-bls" }

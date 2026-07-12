@@ -118,12 +118,17 @@ These two encodings differ
 | `validator_root` | ✓ | ✓ |
 | `claims_root` | ✓ | ✓ |
 | `producer_proof` | ✗ (it *contains* the signatures) | ✓ |
-| **`utxo_root`** | **✗** | ✓ |
+| **`utxo_root`** | **✗ on v1**; **✓ on v2+** ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) | ✓ |
 
 ### The `utxo_root` nuance
 
-`utxo_root` — the UTXO-accumulator root *after* the block applies — is **not**
-covered by the finality signature. It is bound only:
+On **header version 1** (public devnet v1), `utxo_root` — the UTXO-accumulator root *after* the block applies — is **not**
+covered by the finality signature. On **header version 2+**, it is included in
+`header_signing_bytes` and directly BLS-attested. Use
+[`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)
+when building light-client policy (`0` on v2+, `1` on v1).
+
+**v1 binding only:**
 
 1. **Locally**, by every full node recomputing it in `apply_block` Phase 9 and
    rejecting mismatches; and
@@ -143,12 +148,10 @@ Consequences:
   light-client infrastructure) should wait one block, or treat the tip root as
   provisional.
 
-> **Open design question (hard fork).** Should `utxo_root` be added to
-> `header_signing_bytes`? Doing so makes the quorum directly attest the
-> post-state root (committee members would then *have* to execute the block
-> before voting — arguably a feature) at the cost of a header-codec hard fork
-> and a produce-then-sign ordering constraint. Tracked here deliberately;
-> **not** changed silently.
+> **Open design question (hard fork for existing chains).** Migrating a live v1
+> chain to v2 header signing is a consensus hard fork. New Path B genesis
+> files may set `header_version: 2` at launch. Tracked here deliberately;
+> **not** changed silently on public devnet v1.
 
 ---
 
@@ -207,9 +210,10 @@ RFC-mandated Elligator2 map.
   must migrate to strict Elligator2 (a hard fork) before claiming RFC
   conformance.
 
-Docs elsewhere in this repo describe the VRF as "RFC 9381"; read that as
-"RFC 9381-*style*". The wire format (80-byte proof: `Γ ‖ c₁₆ ‖ s₃₂`) is
-protocol-owned and pinned by golden vectors.
+  Docs elsewhere in this repo describe the VRF as "RFC 9381"; read that as
+  **MFBN-1 near-RFC** — full spec in [`interop/VRF_MFBN1.md`](./interop/VRF_MFBN1.md).
+  The wire format (80-byte proof: `Γ ‖ c₁₆ ‖ s₃₂`) is protocol-owned and
+  pinned by unit tests in `mfn-crypto`.
 
 ---
 

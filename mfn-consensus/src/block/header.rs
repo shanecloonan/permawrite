@@ -9,6 +9,11 @@ use super::internal::*;
 /// Current block header version. Bumped on hard fork only.
 pub const HEADER_VERSION: u32 = 1;
 
+/// Header version that includes [`BlockHeader::utxo_root`] in BLS signing
+/// bytes ([`header_signing_bytes`]). Opt-in for new chains (Path B genesis);
+/// public devnet v1 remains [`HEADER_VERSION`].
+pub const HEADER_VERSION_UTXO_QUORUM: u32 = 2;
+
 /// Block header — the consensus-critical, hash-committed metadata.
 #[derive(Clone, Debug)]
 pub struct BlockHeader {
@@ -108,6 +113,9 @@ pub fn header_signing_bytes(h: &BlockHeader) -> Vec<u8> {
     w.push(&h.storage_proof_root);
     w.push(&h.validator_root);
     w.push(&h.claims_root);
+    if h.version >= HEADER_VERSION_UTXO_QUORUM {
+        w.push(&h.utxo_root);
+    }
     w.into_bytes()
 }
 

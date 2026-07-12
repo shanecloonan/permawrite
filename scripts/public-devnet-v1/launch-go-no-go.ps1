@@ -49,10 +49,14 @@ if ($seedCount -ge 3) {
 }
 
 $soak = Get-ChildItem -Path $EvidenceDir -Filter "vps-internet-soak-linux-*.txt" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($soak -and (Select-String -Path $soak.FullName -Pattern "status=PASS" -Quiet)) {
-    Pass "TL-5 evidence $($soak.Name)"
-} elseif ($soak) {
-    Fail "TL-5 evidence missing PASS summary in $($soak.Name)"
+if ($soak) {
+    $assertSoak = Join-Path $ScriptDir "assert-vps-internet-soak-evidence.ps1"
+    & powershell -NoProfile -File $assertSoak $soak.FullName *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Pass "TL-5 evidence $($soak.Name) (assert OK)"
+    } else {
+        Fail "TL-5 evidence failed assert audit $($soak.Name)"
+    }
 } else {
     $localNo = Test-LocalMferRehearsalPass -Pattern "participant-rehearsal-no-observer-*.txt"
     $localObs = Test-LocalMferRehearsalPass -Pattern "participant-rehearsal-observer-*.txt"
@@ -65,10 +69,14 @@ if ($soak -and (Select-String -Path $soak.FullName -Pattern "status=PASS" -Quiet
 }
 
 $rehearsal = Get-ChildItem -Path $EvidenceDir -Filter "vps-participant-rehearsal-*.txt" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($rehearsal -and (Select-String -Path $rehearsal.FullName -Pattern "SUMMARY: PASS" -Quiet)) {
-    Pass "TL-6 evidence $($rehearsal.Name)"
-} elseif ($rehearsal) {
-    Fail "TL-6 evidence missing PASS in $($rehearsal.Name)"
+if ($rehearsal) {
+    $assertRehearsal = Join-Path $ScriptDir "assert-vps-participant-rehearsal-evidence.ps1"
+    & powershell -NoProfile -File $assertRehearsal $rehearsal.FullName *> $null
+    if ($LASTEXITCODE -eq 0) {
+        Pass "TL-6 evidence $($rehearsal.Name) (assert OK)"
+    } else {
+        Fail "TL-6 evidence failed assert audit $($rehearsal.Name)"
+    }
 } else {
     if ($soak) {
         Warn "TL-6 not run; VPS soak evidence present - run vps-participant-rehearsal.sh"

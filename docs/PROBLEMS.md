@@ -112,9 +112,11 @@ proofs**. Until a Tier-4 proof-aggregation milestone, light-client state
 guarantees are strictly weaker than the docs' framing of "cryptographic
 confidence" suggests. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERATIONS.md#2-what-a-finalized-header-does--and-does-not--prove).
 
-### 12. `utxo_root` is not covered by the finality signature
+### 12. `utxo_root` is not covered by the finality signature (partially resolved)
 
-`header_signing_bytes` (`mfn-consensus/src/block/header.rs`) commits every
+> **Status: opt-in fix shipped** — header version 2 ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) appends `utxo_root` to [`header_signing_bytes`](../mfn-consensus/src/block/header.rs), so the BLS quorum directly attests the post-block accumulator root on new chains. Public devnet v1 stays at header v1 (one-block confirmation lag via [`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)). Path B genesis may set `header_version: 2` when launching a fresh chain.
+
+**Historical note (v1 chains).** `header_signing_bytes` committed every
 header root **except `utxo_root`**, which appears only in `block_header_bytes`
 (the `block_id` preimage). The committee's BLS aggregate therefore does not
 directly attest the post-block UTXO accumulator root; it is bound only
@@ -146,6 +148,8 @@ See [SECURITY_CONSIDERATIONS.md § 4](./SECURITY_CONSIDERATIONS.md#4-bls-aggrega
 **Historical note.** `eligibility_threshold` previously used `(expected_proposers_per_slot * 2^30).round()` on every `verify_finality_proof` call. Default `F = 1.5` was exactly representable, but non-exact values relied on cross-platform IEEE-754. See [SECURITY_CONSIDERATIONS.md § 6](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
 
 ### 15. The VRF is RFC 9381-style, not RFC 9381-conformant
+
+> **Status: documented** — exact MFBN-1 variant spec in [`interop/VRF_MFBN1.md`](./interop/VRF_MFBN1.md). Security-equivalent to RFC 9381; off-the-shelf RFC verifiers reject proofs until they implement try-and-increment `hash_to_point`.
 
 `mfn-crypto/src/vrf.rs` substitutes the protocol's try-and-increment
 `hash_to_point` for the RFC-mandated Elligator2 hash-to-curve. Security is

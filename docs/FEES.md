@@ -85,6 +85,14 @@ producer_fee  = fee − treasury_fee                    (10%)
 - The 90/10 split is pinned by the `default_fee_split_is_ninety_ten` test in
   [`producer_treasury_settlement.rs`](../mfn-consensus/tests/producer_treasury_settlement.rs).
 
+**Legacy / no-coinbase harness.** When `require_coinbase` is false (legacy
+integration tests or validators without payout addresses), there is no producer
+coinbase output. Settlement credits the **full** `fee_sum` to
+`ChainState.treasury` instead of splitting 90/10 — the producer share is not
+burned. This path is dev/test only; production validator sets always mint
+coinbase. See PROBLEMS.md § 16 and
+[`apply_block`](../mfn-consensus/src/block/apply.rs).
+
 ---
 
 ## 4. Upload fees — the permanence price

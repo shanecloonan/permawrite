@@ -113,6 +113,8 @@ jobs:
           [[ "$vps_ceremony_plan" == *"vps-launch-ceremony-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_ceremony_plan"; exit 1; }
           demo_f12_plan="$(bash scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.sh --plan-only)"
           [[ "$demo_f12_plan" == *"demo-web-f12-rehearsal-smoke: PASS plan-only"* ]] || { echo "$demo_f12_plan"; exit 1; }
+          genesis_bls_pop_plan="$(bash scripts/public-devnet-v1/genesis-validator-bls-pop-rehearsal-smoke.sh --plan-only)"
+          [[ "$genesis_bls_pop_plan" == *"genesis-validator-bls-pop-rehearsal-smoke: PASS plan-only"* ]] || { echo "$genesis_bls_pop_plan"; exit 1; }
       - name: Validate Bash release evidence output
         if: runner.os == 'Linux'
         shell: bash
@@ -658,6 +660,11 @@ jobs:
           $demoF12Plan = (powershell -NoProfile -File scripts/public-devnet-v1/demo-web-f12-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($demoF12Plan -notmatch "demo-web-f12-rehearsal-smoke: PASS plan-only") {
             $demoF12Plan
+            exit 1
+          }
+          $genesisBlsPopPlan = (powershell -NoProfile -File scripts/public-devnet-v1/genesis-validator-bls-pop-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($genesisBlsPopPlan -notmatch "genesis-validator-bls-pop-rehearsal-smoke: PASS plan-only") {
+            $genesisBlsPopPlan
             exit 1
           }
           powershell -NoProfile -File scripts/public-devnet-v1/release-participant-smoke-policy-check.ps1 | Out-Null

@@ -13,7 +13,7 @@
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
 | **5** Privacy | P32 4e `b4cab93` + F12 live `8b4f0ee` | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 `1630905` | **Done** | Telemetry watch |
-| **7** Testnet | TL-6 evidence assert `11a2d07` | **Done** | TL-5 VPS soak (human) |
+| **7** Testnet | TL-9 assert + Path B PoP tooling | **Doing** | TL-5 VPS soak (human) |
 
 ---
 

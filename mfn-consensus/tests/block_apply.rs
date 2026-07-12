@@ -482,6 +482,37 @@ fn utxo_root_mismatch_is_rejected() {
 }
 
 #[test]
+fn header_signing_hash_v1_ignores_utxo_root() {
+    let st = genesis_state();
+    let h0 = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);
+    let hash0 = header_signing_hash(&h0);
+    let mut h1 = h0.clone();
+    h1.utxo_root[0] ^= 0xff;
+    assert_eq!(
+        hash0,
+        header_signing_hash(&h1),
+        "v1 signing hash must not depend on utxo_root"
+    );
+}
+
+#[test]
+fn header_signing_hash_v2_binds_utxo_root() {
+    use mfn_consensus::HEADER_VERSION_UTXO_QUORUM;
+
+    let st = genesis_state();
+    let mut h0 = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);
+    h0.version = HEADER_VERSION_UTXO_QUORUM;
+    let hash0 = header_signing_hash(&h0);
+    let mut h1 = h0.clone();
+    h1.utxo_root[0] ^= 0xff;
+    assert_ne!(
+        hash0,
+        header_signing_hash(&h1),
+        "v2 signing hash must bind utxo_root"
+    );
+}
+
+#[test]
 fn header_signing_hash_excludes_producer_proof() {
     let st = genesis_state();
     let h0 = build_unsealed_header(&st, &[], &[], &[], &[], 1, 100);

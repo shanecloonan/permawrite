@@ -87,3 +87,27 @@ impl From<ConsensusDecodeError> for HeaderVerifyError {
         HeaderVerifyError::ProducerProofDecode(format!("{e}"))
     }
 }
+
+/* ----------------------------------------------------------------------- *
+ *  UTXO root quorum lag (PROBLEMS.md § 12)                                 *
+ * ----------------------------------------------------------------------- */
+
+/// Header version where [`crate::block::header_signing_bytes`] includes
+/// [`crate::block::BlockHeader::utxo_root`] in the BLS message.
+pub const UTXO_ROOT_DIRECT_QUORUM_HEADER_VERSION: u32 = crate::block::HEADER_VERSION_UTXO_QUORUM;
+
+/// Confirmations a light client should wait before treating tip
+/// `utxo_root` as quorum-attested on v1 chains (transitive bind via
+/// next block's `prev_hash`).
+pub const UTXO_ROOT_QUORUM_CONFIRMATION_LAG: u32 = 1;
+
+/// How many confirmations until `utxo_root` inherits direct BLS quorum
+/// binding for this header version (`0` on v2+).
+#[must_use]
+pub const fn utxo_root_quorum_confirmation_lag(header_version: u32) -> u32 {
+    if header_version >= UTXO_ROOT_DIRECT_QUORUM_HEADER_VERSION {
+        0
+    } else {
+        UTXO_ROOT_QUORUM_CONFIRMATION_LAG
+    }
+}

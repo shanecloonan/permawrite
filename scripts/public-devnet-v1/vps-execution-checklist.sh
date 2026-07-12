@@ -105,7 +105,9 @@ print(json.dumps({
         "provision": "docs/VPS_PROVISION.md",
         "preflight": "bash scripts/public-devnet-v1/vps-preflight.sh",
         "tl5_soak": "bash scripts/public-devnet-v1/vps-internet-soak.sh",
+        "tl5_assert": "bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt",
         "tl6_rehearsal": "bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop",
+        "tl6_assert": "bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt",
         "archive": "git add scripts/public-devnet-v1/evidence/vps-*.txt && git commit",
         "ceremony": "bash scripts/public-devnet-v1/vps-launch-ceremony.sh",
         "treasury_telemetry": "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731",
@@ -141,14 +143,16 @@ cmds = doc["commands"]
 print(f"  1. {cmds['provision']}")
 print(f"  2. {cmds['preflight']}")
 print(f"  3. {cmds['tl5_soak']}  # archive vps-internet-soak-linux-*.txt")
-print(f"  4. {cmds['tl6_rehearsal']}  # archive vps-participant-rehearsal-*.txt")
-print(f"  5. {cmds['archive']}")
-print(f"  6. {cmds['ceremony']}")
-print(f"  7. {cmds['tl7_signoff']}  # human sign-off")
-print(f"  8. {cmds['tl8_publish_seeds']}  # commit manifest")
-print(f"  9. {cmds['tl8_publish_checkpoint_log']}  # commit checkpoints.jsonl")
-print(f" 10. {cmds['tl8_invite']}  # share invite packet")
-print(f" 11. {cmds['tl9_launch_gate']}")
+print(f"  4. {cmds['tl5_assert']}")
+print(f"  5. {cmds['tl6_rehearsal']}  # archive vps-participant-rehearsal-*.txt")
+print(f"  6. {cmds['tl6_assert']}")
+print(f"  7. {cmds['archive']}")
+print(f"  8. {cmds['ceremony']}")
+print(f"  9. {cmds['tl7_signoff']}  # human sign-off")
+print(f" 10. {cmds['tl8_publish_seeds']}  # commit manifest")
+print(f" 11. {cmds['tl8_publish_checkpoint_log']}  # commit checkpoints.jsonl")
+print(f" 12. {cmds['tl8_invite']}  # share invite packet")
+print(f" 13. {cmds['tl9_launch_gate']}")
 PY
 fi
 

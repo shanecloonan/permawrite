@@ -188,6 +188,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **M2.5.53** (`bd76bde`) - B-07: extract `cli/parse.rs` from `cli.rs`; restore + hoist `mod parse`.
 - [x] **M2.5.60** - B-08 lock-in: `clippy::unwrap_used`/`expect_used` warn gate on non-test `mfn-net` + `mfn-node`; delete one-off repair scripts.
 - [x] **M5.49 + M7.12** (`890a56c`) - permanence hardening: `validate_storage_commitment_shape` consensus + mempool gate (`chunk_size` power-of-two, `num_chunks == ceil(size/chunk)`); chunk-inbox gossip authenticated against anchored commitments (unknown-commit reject, index/length gate, single-chunk data_root verify, no overwrite of held bytes); fan-out verifies inbox Merkle root against `data_root` before replicating.
+- [x] **F15 MFBN-1 interop doc** — `docs/interop/VRF_MFBN1.md` + header_verify utxo_root quorum lag exports (this push)
 
 - [x] **M2.5.61** (`1603e43`) - fix M2.5.50 stdout-order regression: `mfnd serve` prints `mfnd_p2p_listening=` before `mfnd_serve_listening=`, so sequential prefix reads in `mfnd_smoke` consumed the P2P line and hung (`mfnd_p2p_reconnects_saved_peers_on_restart`, `mfnd_rpc_get_light_follow_p2p_fetches_from_peer_listener` — Windows ci-check red twice). New `read_stdout_lines_with_prefixes_any_order` harness helper; all `--p2p-listen` spawns collect startup announcements order-independently. First green CI matrix since M2.5.50 (run `28774283620`).
 - [x] **DOCS-PH-1** - `docs/PERMANENCE_HARDENING.md`: implementation-level log of shipped permanence hardening (M5.49 shape gate, M7.12 gossip auth + fan-out verify, M2.5.61 CI trustworthiness) with code citations and test inventory, plus file-and-function-level plans for the remainder — B-11 endowment binding (opening-reveal vs range-proof designs), ChunkV2 Merkle-path gossip, replication accounting via operator-salted challenges, proactive repair sweep, bonding + slashing, inbox quota. Cross-linked from `docs/README.md`, `STORAGE.md`, `PRIVACY_HARDENING.md`.
@@ -402,7 +403,10 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **vps-internet-soak-rehearsal-smoke** — TL-5 soak docs + script wiring gate (this push)
 - [x] **assert-vps-internet-soak-evidence** — TL-5 transcript audit gate + launch-status soak PASS fix (`1aff0df`)
 - [x] **vps-internet-soak-evidence-rehearsal-smoke** — assert + launch-status fixture gate (this push)
-- [x] **vps-participant-rehearsal-evidence-rehearsal-smoke** — assert + launch-status fixture gate (`11a2d07`)
+- [x] **assert-vps-participant-rehearsal-evidence** — TL-6 transcript audit + launch-status fixture gate (`11a2d07`)
+- [x] **genesis-validator-bls-pop** — Path B ceremony PoP compute/verify helper + ci-check rehearsal smoke (this push)
+- [x] **launch-go-no-go assert hardening** — TL-5/TL-6 evidence via assert scripts in TL-9 gate (this push)
+- [x] **vps-execution-checklist tl5/tl6 assert** — ordered VPS path includes assert steps (this push)
 - [x] **vps-participant-rehearsal-rehearsal-smoke** — TL-6 participant wrapper + evidence gate (`4688735`)
 - [x] **publish-seed-nodes-rehearsal-smoke** — TL-8 fixture dry-run + doc gate (`05e2772`)
 - [x] **vps-launch-ceremony-rehearsal-smoke** — TL-7 ceremony TL-5..TL-9 ordering gate (`05e2772`)

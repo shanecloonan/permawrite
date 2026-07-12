@@ -66,7 +66,7 @@ pub use genesis::{
 };
 pub use header::{
     block_header_bytes, block_id, decode_block_header, header_signing_bytes, header_signing_hash,
-    Block, BlockHeader, HeaderDecodeError, HEADER_VERSION,
+    Block, BlockHeader, HeaderDecodeError, HEADER_VERSION, HEADER_VERSION_UTXO_QUORUM,
 };
 pub use state::{
     ChainState, ConsensusParams, PendingUnbond, RingPolicy, StorageEntry, StorageOperatorEntry,

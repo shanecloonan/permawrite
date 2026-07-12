@@ -51,10 +51,10 @@ fi
 
 soak_evidence=""
 if soak_evidence="$(compgen -G "$EVIDENCE_DIR/vps-internet-soak-linux-*.txt" | head -1)"; then
-  if grep -q "status=PASS" "$soak_evidence" 2>/dev/null; then
-    pass "TL-5 evidence $(basename "$soak_evidence")"
+  if bash "$SCRIPT_DIR/assert-vps-internet-soak-evidence.sh" "$soak_evidence" >/dev/null 2>&1; then
+    pass "TL-5 evidence $(basename "$soak_evidence") (assert OK)"
   else
-    fail "TL-5 evidence missing PASS summary in $(basename "$soak_evidence")"
+    fail "TL-5 evidence failed assert audit $(basename "$soak_evidence")"
   fi
 else
   if local_mfer_evidence_passes "participant-rehearsal-no-observer-*.txt" \
@@ -68,10 +68,10 @@ fi
 
 rehearsal_evidence=""
 if rehearsal_evidence="$(compgen -G "$EVIDENCE_DIR/vps-participant-rehearsal-*.txt" | head -1)"; then
-  if grep -q "SUMMARY: PASS" "$rehearsal_evidence" 2>/dev/null; then
-    pass "TL-6 evidence $(basename "$rehearsal_evidence")"
+  if bash "$SCRIPT_DIR/assert-vps-participant-rehearsal-evidence.sh" "$rehearsal_evidence" >/dev/null 2>&1; then
+    pass "TL-6 evidence $(basename "$rehearsal_evidence") (assert OK)"
   else
-    fail "TL-6 evidence missing PASS in $(basename "$rehearsal_evidence")"
+    fail "TL-6 evidence failed assert audit $(basename "$rehearsal_evidence")"
   fi
 else
   if [[ -n "$soak_evidence" ]]; then

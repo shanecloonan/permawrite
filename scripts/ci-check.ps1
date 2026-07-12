@@ -223,6 +223,11 @@ if ($demoF12Plan -notmatch "demo-web-f12-rehearsal-smoke: PASS plan-only" -or $d
     $demoF12Plan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$genesisBlsPopPlan = (powershell -NoProfile -File scripts/public-devnet-v1/genesis-validator-bls-pop-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($genesisBlsPopPlan -notmatch "genesis-validator-bls-pop-rehearsal-smoke: PASS plan-only") {
+    $genesisBlsPopPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
