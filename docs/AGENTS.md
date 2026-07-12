@@ -275,7 +275,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
 - [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
 - [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (`5965525`).
-- [ ] **F5 fraud-proof phase 0** — body-root fraud verify + P2P tag `0x13` + [`FRAUD_PROOFS.md`](../FRAUD_PROOFS.md) (this push).
+- [x] **F5 fraud-proof phase 0** (`0039732`) — body-root fraud verify + P2P tag `0x13` + [`FRAUD_PROOFS.md`](../FRAUD_PROOFS.md) (this push).
 - [x] **F12 phase 5b** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).

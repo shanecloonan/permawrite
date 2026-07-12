@@ -43,7 +43,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **F12 phase 2** (lanes 4+5) — `wallet light-scan --checkpoint-log` cross-check (`10e606e`).
 - [x] **F12 phase 3** (lanes 4+6) — WASM `checkpointLogVerify` / `checkpointLogCrossCheck` via `mfn-checkpoint-log` (`5d78329`).
 - [x] **F12 phase 4** (lanes 4+6) — `checkpoint-log cross-check` + `publish-checkpoint-log.*` + live rehearsal (`5965525`).
-- [ ] **F5 fraud-proof phase 0** (lanes 4+6) — body-root fraud verify + P2P tag `0x13` (this push).
+- [x] **F5 fraud-proof phase 0** (`0039732`) (lanes 4+6) — body-root fraud verify + P2P tag `0x13` (this push).
 - [x] **P32 phase 3** (lane 5) — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **F6 fee economics** (lane 6) — [`FEES.md`](./FEES.md) plain-language fee guide + 2026-07 parameter review (`d4a5114`).
 - [x] **P32 phase 2** (lane 5) — `vps-role-*.env.example` role-separated VPS templates (`db58ae1`).

@@ -7,13 +7,24 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29209302385` GREEN (`dbad44d`) | **Doing** — CI `#29210840888` on `22549d7` | Nightly on green |
-| **2** RC ops | evidence pending | **Waiting** — after CI green | Human sign-off |
+| **1** RC core | CI `#29210840888` GREEN (`22549d7`) | **Doing** — fix F5 CI `#29211797053` UTF-16 smoke | Nightly on green |
+| **2** RC ops | evidence pending | **Waiting** — after F5 CI green | Human sign-off |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | header_version smoke `22549d7` | **Doing** — F5 fraud-proof phase 0 (this push) | Gossip + slash (phase 1) |
+| **4+6** Protocol | F5 phase 0 code `0039732` | **Doing** — UTF-8 smoke fix (this push) | Gossip phase 1 |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | Path B header smoke `22549d7` | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-12 (F5 UTF-8 smoke fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 fraud-proof phase 0** | **Done** — `0039732` | body-root verify + tag `0x13`; CI `#29211797053` red (UTF-16 `.sh`) |
+| **fraud-proof-rehearsal-smoke UTF-8** | **This push** | rewrite `.sh`/`.ps1` as UTF-8; checklist boards |
+
+**Lane 4 — Doing:** encoding fix **Next:** green CI then gossip phase 1
 
 ---
 

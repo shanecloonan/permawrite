@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-12)
 
-**Head:** `22549d7` (header_version rehearsal). CI `#29210840888` in progress; prior `#29209302385` GREEN on `dbad44d`.
+**Head:** `0039732` (F5 fraud phase 0). CI `#29211797053` RED (UTF-16 smoke.sh); fix this push.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on `22549d7` | **Doing** — `#29210840888` | Nightly on green |
+| **1** | F5 CI red UTF-16 smoke | **Doing** — encoding fix push | Nightly on green |
 | **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
-| **4** | F5 fraud-proof phase 0 | **Doing** — this push | Gossip phase 1 |
+| **4** | F5 phase 0 UTF-8 smoke fix | **Doing** — this push | Gossip phase 1 |
 | **7** | Path B header_version smoke | **Done** — `22549d7` | TL-5 VPS soak (human) |
 
 ---
@@ -125,6 +125,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 ---
 
 ## Recently completed
+
+- **F5 fraud-proof phase 0** (`0039732`) - body-root fraud verify + tag `0x13`; CI red on UTF-16 `.sh` — encoding fix this push.
 
 - **F5 fraud-proof phase 0** (this push) - protocol (lane 4): body-root fraud verify + P2P tag 0x13; [FRAUD_PROOFS.md](docs/FRAUD_PROOFS.md).
 - **genesis-header-version-rehearsal-smoke** (this push) - Path A v1 pin + Path B header_version:2 doc gate in ci-check.
