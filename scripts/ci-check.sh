@@ -136,6 +136,10 @@ vps_soak_evidence_plan="$(bash scripts/public-devnet-v1/vps-internet-soak-eviden
 [[ "$vps_soak_evidence_plan" == *"vps_soak_evidence=true"* ]] || { printf '%s\n' "$vps_soak_evidence_plan" >&2; exit 1; }
 vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_participant_plan" == *"vps-participant-rehearsal-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
+[[ "$vps_participant_plan" == *"assert-vps-participant-rehearsal-evidence"* ]] || { printf '%s\n' "$vps_participant_plan" >&2; exit 1; }
+vps_participant_evidence_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_participant_evidence_plan" == *"vps-participant-rehearsal-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_evidence_plan" >&2; exit 1; }
+[[ "$vps_participant_evidence_plan" == *"vps_rehearsal_evidence=true"* ]] || { printf '%s\n' "$vps_participant_evidence_plan" >&2; exit 1; }
 vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_preflight_plan" >&2; exit 1; }
 vps_provision_plan="$(bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only)"
@@ -168,6 +172,16 @@ if bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh "$bad_soak
   exit 1
 fi
 rm -f "$bad_soak_evidence"
+vps_participant_fixture="scripts/public-devnet-v1/fixtures/vps-participant-rehearsal-evidence-v1/vps-participant-rehearsal-observer-linux-20260712T000000Z.txt"
+bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh "$vps_participant_fixture"
+bad_participant_evidence="$(mktemp)"
+printf 'SUMMARY: FAIL\n' >"$bad_participant_evidence"
+if bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh "$bad_participant_evidence" >/dev/null 2>&1; then
+  echo "assert-vps-participant-rehearsal-evidence.sh accepted invalid participant evidence" >&2
+  rm -f "$bad_participant_evidence"
+  exit 1
+fi
+rm -f "$bad_participant_evidence"
 bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
 if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then

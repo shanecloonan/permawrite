@@ -179,8 +179,13 @@ if ($vpsSoakEvidencePlan -notmatch "vps-internet-soak-evidence-rehearsal-smoke: 
     exit 1
 }
 $vpsParticipantPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only" -or $vpsParticipantPlan -notmatch "--vps --with-observer") {
+if ($vpsParticipantPlan -notmatch "vps-participant-rehearsal-rehearsal-smoke: PASS plan-only" -or $vpsParticipantPlan -notmatch "--vps --with-observer" -or $vpsParticipantPlan -notmatch "assert-vps-participant-rehearsal-evidence") {
     $vpsParticipantPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsParticipantEvidencePlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsParticipantEvidencePlan -notmatch "vps-participant-rehearsal-evidence-rehearsal-smoke: PASS plan-only" -or $vpsParticipantEvidencePlan -notmatch "vps_rehearsal_evidence=true") {
+    $vpsParticipantEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
@@ -255,6 +260,25 @@ $badSoakProcess = Start-Process -FilePath "powershell" -ArgumentList @(
 Remove-Item -Force $badSoakEvidence, $badSoakStdout, $badSoakStderr -ErrorAction SilentlyContinue
 if ($badSoakProcess.ExitCode -eq 0) {
     [Console]::Error.WriteLine("assert-vps-internet-soak-evidence.ps1 accepted invalid soak evidence")
+    exit 1
+}
+$vpsParticipantFixture = "scripts/public-devnet-v1/fixtures/vps-participant-rehearsal-evidence-v1/vps-participant-rehearsal-observer-linux-20260712T000000Z.txt"
+powershell -NoProfile -File scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.ps1 -EvidenceFile $vpsParticipantFixture | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badParticipantEvidence = Join-Path $env:TEMP ("permawrite-bad-vps-participant-" + [Guid]::NewGuid().ToString("N") + ".txt")
+Set-Content -LiteralPath $badParticipantEvidence -Value "SUMMARY: FAIL" -Encoding UTF8
+$badParticipantStdout = Join-Path $env:TEMP ("permawrite-bad-vps-participant-assert-" + [Guid]::NewGuid().ToString("N") + ".out")
+$badParticipantStderr = Join-Path $env:TEMP ("permawrite-bad-vps-participant-assert-" + [Guid]::NewGuid().ToString("N") + ".err")
+$badParticipantProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.ps1",
+    "-EvidenceFile",
+    $badParticipantEvidence
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badParticipantStdout -RedirectStandardError $badParticipantStderr
+Remove-Item -Force $badParticipantEvidence, $badParticipantStdout, $badParticipantStderr -ErrorAction SilentlyContinue
+if ($badParticipantProcess.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("assert-vps-participant-rehearsal-evidence.ps1 accepted invalid participant evidence")
     exit 1
 }
 $global:LASTEXITCODE = 0

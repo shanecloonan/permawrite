@@ -20,6 +20,7 @@ foreach ($path in @($Doc, $Ops, $Rehearsal, $Smoke)) {
 $needles = @(
     "vps-participant-rehearsal.sh",
     "vps-participant-rehearsal-observer-linux-",
+    "assert-vps-participant-rehearsal-evidence",
     "--no-start",
     "--no-stop"
 )
@@ -42,6 +43,7 @@ foreach ($required in @("participant-rehearsal-smoke.sh", "--vps", "--with-obser
 Write-Host "vps-participant-rehearsal-rehearsal-smoke: plan"
 Write-Host "  flow=vps-participant-rehearsal.sh -> participant-rehearsal-smoke.sh --vps --with-observer"
 Write-Host "  evidence=vps-participant-rehearsal-observer-linux-*.txt"
+Write-Host "  assert=assert-vps-participant-rehearsal-evidence.ps1"
 Write-Host "  docs=docs/VPS_SINGLE_BOX_LAUNCH.md"
 Write-Host "  live_rehearsal=human VPS after TL-5 soak PASS"
 

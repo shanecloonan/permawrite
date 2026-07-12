@@ -173,7 +173,13 @@ bash scripts/public-devnet-v1/vps-participant-rehearsal.sh --no-start --no-stop
 bash scripts/public-devnet-v1/vps-participant-rehearsal.sh
 ```
 
-Evidence archives to `scripts/public-devnet-v1/evidence/vps-participant-rehearsal-observer-linux-*.txt`. Commit on PASS before TL-7.
+Evidence archives to `scripts/public-devnet-v1/evidence/vps-participant-rehearsal-observer-linux-*.txt`. Before commit, validate with:
+
+```bash
+bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt
+```
+
+Commit on PASS before TL-7.
 
 From your laptop, tunnel observer RPC if running wallet commands remotely:
 

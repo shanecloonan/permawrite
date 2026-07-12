@@ -36,6 +36,7 @@ done
 for needle in \
   "vps-participant-rehearsal.sh" \
   "vps-participant-rehearsal-observer-linux-" \
+  "assert-vps-participant-rehearsal-evidence" \
   "--no-start" \
   "--no-stop" \
   ; do
@@ -64,6 +65,7 @@ done
 echo "vps-participant-rehearsal-rehearsal-smoke: plan"
 echo "  flow=vps-participant-rehearsal.sh -> participant-rehearsal-smoke.sh --vps --with-observer"
 echo "  evidence=vps-participant-rehearsal-observer-linux-*.txt"
+echo "  assert=assert-vps-participant-rehearsal-evidence.sh"
 echo "  docs=docs/VPS_SINGLE_BOX_LAUNCH.md"
 echo "  live_rehearsal=human VPS after TL-5 soak PASS"
 

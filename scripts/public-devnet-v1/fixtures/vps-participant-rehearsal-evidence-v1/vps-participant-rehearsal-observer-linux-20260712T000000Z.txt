@@ -1,0 +1,13 @@
+﻿# Participant rehearsal smoke - observer (linux)
+# TL-6 internet-facing VPS participant rehearsal
+# Generated: 20260712T000000Z
+# Command: participant-rehearsal-smoke.sh --vps --with-observer --min-hub-height 10
+# Commit: fixture
+
+SUMMARY: PASS
+
+Hub RPC=127.0.0.1:18734
+Observer RPC=127.0.0.1:18734
+
+participant-rehearsal-smoke: PASS with_observer=true dandelion=false hub_tip_height=12 min_hub_height=10
+participant-rehearsal-smoke: post_rehearsal observer_tip_height=12 observer_rpc=127.0.0.1:18734
