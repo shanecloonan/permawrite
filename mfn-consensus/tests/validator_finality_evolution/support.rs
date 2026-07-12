@@ -2,8 +2,8 @@ use mfn_bls::{bls_keygen_from_seed, bls_sign};
 use mfn_consensus::bond_wire::{sign_register, sign_unbond};
 use mfn_consensus::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 use mfn_consensus::consensus::{
-    cast_vote, eligibility_threshold, encode_finality_proof, finalize, is_eligible, pick_winner,
-    slot_seed, try_produce_slot, FinalityProof, ProducerProof, SlotContext, Validator,
+    cast_vote, eligibility_threshold_from_f64, encode_finality_proof, finalize, is_eligible,
+    pick_winner, slot_seed, try_produce_slot, FinalityProof, ProducerProof, SlotContext, Validator,
     ValidatorSecrets,
 };
 use mfn_consensus::{
@@ -337,7 +337,7 @@ pub fn ineligible_producer_at_ctx(
     let seed = slot_seed(ctx);
     for (i, v) in st.validators.iter().enumerate().take(fx.secrets.len()) {
         let res = vrf_prove(&fx.secrets[i].vrf, &seed).ok()?;
-        let threshold = eligibility_threshold(v.stake, total_stake, f);
+        let threshold = eligibility_threshold_from_f64(v.stake, total_stake, f);
         if !is_eligible(&res.output, threshold) {
             return Some(ProducerProof {
                 validator_index: v.index,

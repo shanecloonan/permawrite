@@ -6,15 +6,17 @@ The focus is on **economics/incentives** (the harder and more fundamental catego
 
 ## Economic and Incentive Problems
 
-### 1. Storage operators have almost no skin in the game (no bonds or slashing)
+### 1. Storage operators have limited skin in the game (bonding is opt-in)
 
-Storage operators earn by winning SPoRA challenges. There is **no protocol-level bond**, stake, or slashing for them.
+> **Status: partially mitigated** (B5 operator bonding + slashing shipped; public devnet enables `min_storage_operator_bond` + audit slash params). Residual: bondless tier remains valid where genesis permits `bond_amount: 0`; permanence still depends on rational operators holding data without mandatory global bonds.
 
-- If an operator accepts an upload, collects the economic benefit (the endowment payment flows into the treasury, and the file contributes to the set of challenges that can earn rewards), and later drops the data, the only consequence is that they stop earning future rewards *on that specific file*.
-- The `min_replication` parameter (default 3) provides redundancy against single failures, but it is an upload-time check only. There is no ongoing economic penalty for widespread or selective non-compliance.
-- Roadmap items explicitly call this out as future work ("Operator bonding" for a "premium" tier). See [ECONOMICS.md § 10 Future work](./ECONOMICS.md#10-future-work) and [ROADMAP.md](./ROADMAP.md).
+Storage operators earn by winning SPoRA challenges. **Bonded** operators escrow slashable stake; missed operator-salted audits can forfeit bond to the treasury ([`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md)). Unbonded operators still face only the carrot (forego future rewards on defection).
 
-This is a genuine hole: the permanence guarantee rests on the assumption that enough rational operators will continue to find it profitable to hold data indefinitely, with only weak direct penalties for defection.
+- If an operator accepts an upload, collects the economic benefit (the endowment payment flows into the treasury, and the file contributes to the set of challenges that can earn rewards), and later drops the data, the only consequence for a **bondless** operator is that they stop earning future rewards *on that specific file*. Bonded operators additionally risk slash-to-treasury.
+- The `min_replication` parameter (default 3) provides redundancy against single failures, but it is an upload-time check only. There is no ongoing economic penalty for widespread or selective non-compliance beyond B5 audit slashing when enabled.
+- See [ECONOMICS.md § 10 Future work](./ECONOMICS.md#10-future-work) and [ROADMAP.md](./ROADMAP.md) for premium-tier bonding research.
+
+This remains a genuine hole for bondless deployments: the permanence guarantee still rests partly on the assumption that enough rational operators will continue to find it profitable to hold data indefinitely.
 
 ### 2. r = 0 default makes permanence heavily dependent on continuous high privacy transaction volume
 
@@ -126,30 +128,22 @@ entry), and (b) any future feature that consumes the **tip** accumulator root
 provisional for one block. Whether to add `utxo_root` to the signing bytes is
 an open hard-fork question. See [SECURITY_CONSIDERATIONS.md § 3](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
 
-### 13. Genesis validators bypass BLS proof-of-possession
+### 13. ~~Genesis validators bypass BLS proof-of-possession~~ (partially resolved)
 
-Same-message BLS aggregation is rogue-key-attackable without a
-proof-of-possession. Registered validators get PoP for free: the
-`BondOp::Register` signature is verified under the registering `bls_pk` over a
-payload that includes that key (`verify_register_sig`,
-`mfn-consensus/src/bond_wire.rs`). Genesis validators, however, are installed
-directly by `apply_genesis` with **no PoP check** — safe only because genesis
-is trusted setup. Any genesis assembled from third-party key submissions (a
-public-testnet ceremony) must verify possession out-of-band, or a rogue key
-could poison the initial committee. Genesis tooling should enforce this;
-today nothing does. See [SECURITY_CONSIDERATIONS.md § 4](./SECURITY_CONSIDERATIONS.md#4-bls-aggregation-and-rogue-key-resistance).
+> **Status: tooling gate shipped** — [`genesis_config_from_json_bytes`](../mfn-runtime/src/genesis_spec.rs) accepts optional `bls_register_sig_hex` per validator (same payload as `BondOp::Register`) and rejects invalid signatures. Path B ceremonies set `require_validator_bls_pop: 1` to mandate PoP on every row. Toy Path A devnet specs remain seed-derived trusted setup (PoP optional).
 
-### 14. One `f64` survives on the consensus verification path
+Same-message BLS aggregation is rogue-key-attackable without proof-of-possession. Registered validators get PoP for free via `BondOp::Register`. Genesis validators installed by `apply_genesis` still have **no on-chain PoP field** — the gap is closed at **spec-load time** for JSON genesis, not inside `apply_genesis` itself.
 
-`eligibility_threshold` (`mfn-consensus/src/consensus/engine.rs`) converts the
-`f64` parameter `expected_proposers_per_slot` to fixed-point with a floating
-multiply-and-round on every `verify_finality_proof` call. The default
-`F = 1.5` is exactly representable, so default chains cannot diverge — but the
-workspace's own invariant is "no floating point in consensus paths," and a
-chain configured with a non-exactly-representable `F` would be trusting
-cross-platform IEEE-754 conformance for consensus. The clean fix (integer
-fixed-point parameter, e.g. Q30) changes `ConsensusParams` encoding and is
-deferred. See [SECURITY_CONSIDERATIONS.md § 6](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
+- **Path A (toy keys):** seeds in repo ⇒ trusted setup; optional `bls_register_sig_hex` for audit.
+- **Path B (ceremony):** set `require_validator_bls_pop: 1`; each operator supplies `bls_register_sig_hex` proving knowledge of `bls_seed_hex` without publishing the seed in the ceremony packet (seed still lands in the final genesis bytes operators deploy — treat genesis file custody as trusted setup).
+
+See [SECURITY_CONSIDERATIONS.md § 4](./SECURITY_CONSIDERATIONS.md#4-bls-aggregation-and-rogue-key-resistance) and [TESTNET_GENESIS_CEREMONY.md](./TESTNET_GENESIS_CEREMONY.md).
+
+### 14. ~~One `f64` survives on the consensus verification path~~ (resolved)
+
+> **Status: closed** — [`eligibility_threshold`](../mfn-consensus/src/consensus/engine.rs) now takes a precomputed Q30 factor from [`proposers_factor_q30_from_f64_bits`](../mfn-consensus/src/consensus/engine.rs) (integer IEEE-754 decode). Header verification never performs `f64` multiply/round. `expected_proposers_per_slot` remains `f64` in `ConsensusParams` checkpoint encoding for compatibility; only `to_bits()` crosses the boundary.
+
+**Historical note.** `eligibility_threshold` previously used `(expected_proposers_per_slot * 2^30).round()` on every `verify_finality_proof` call. Default `F = 1.5` was exactly representable, but non-exact values relied on cross-platform IEEE-754. See [SECURITY_CONSIDERATIONS.md § 6](./SECURITY_CONSIDERATIONS.md#6-determinism-surface-the-one-f64-on-a-consensus-path).
 
 ### 15. The VRF is RFC 9381-style, not RFC 9381-conformant
 
@@ -161,15 +155,11 @@ chain must hard-fork to strict Elligator2 before claiming conformance. Docs
 that previously said "RFC 9381" without the caveat have been corrected. See
 [SECURITY_CONSIDERATIONS.md § 5](./SECURITY_CONSIDERATIONS.md#5-vrf-near-rfc-9381-not-rfc-9381).
 
-### 16. Legacy (validator-less) mode silently drops the producer fee share
+### 16. ~~Legacy (validator-less) mode silently drops the producer fee share~~ (resolved)
 
-When `state.validators` is empty (dev/test "legacy mode"), no coinbase is
-allowed, so in `apply_block`'s settlement phase the treasury share of fees is
-credited but the producer share (default 10%) is computed and paid to no one,
-and the emission subsidy is never minted. Harmless for the mode's intended
-use, but it is an undocumented value sink and a trap for anyone repurposing
-legacy mode with real value. (Also: fee-split accounting in this mode does not
-match the ECONOMICS.md money-flow diagram, which assumes a producer exists.)
+> **Status: closed** — when no producer coinbase is required (`require_coinbase` false: legacy harness or validators without payout), [`apply_block`](../mfn-consensus/src/block/apply.rs) credits the **full** `fee_sum` to `ChainState.treasury`. The producer share is no longer burned. Emission subsidy still does not mint without a validator coinbase (intentional for test harnesses).
+
+**Historical note.** When `state.validators` was empty, no coinbase was allowed, so only the treasury fee tranche (default 90%) credited `treasury` while the producer share vanished. Fee-split diagrams in [ECONOMICS.md](./ECONOMICS.md) assume a producer exists — legacy mode is dev/test only.
 
 ### 17. ~~Storage rewards are paid to the block producer, not to the operator that proved the data~~ (resolved)
 

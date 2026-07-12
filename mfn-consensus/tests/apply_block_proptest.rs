@@ -329,7 +329,21 @@ fn apply_b5_operator_proof_at(
     apply_with_storage_proofs_at_slot(st, slot, slot, vec![proof])
 }
 
-/// Mirrors `apply_block` treasury settlement for fee + storage-proof tranche.
+/// Chains with no producer coinbase path: full `fee_sum` credits treasury.
+fn treasury_after_legacy_block(
+    treasury: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
+    let mut pending = treasury.saturating_add(fee_sum);
+    let from_treasury = pending.min(storage_reward_total);
+    pending -= from_treasury;
+    pending
+}
+
+/// Validator chains: treasury fee tranche per `fee_to_treasury_bps`.
 fn treasury_after_block(
     treasury: u128,
     fee_sum: u128,
@@ -1931,7 +1945,7 @@ proptest! {
 
             let h_proof = next_height(&st);
             st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
-            model = treasury_after_block(model, 0, 1, emission);
+            model = treasury_after_legacy_block(model, 0, 1, emission);
             prop_assert_eq!(st.treasury, model);
         }
     }
@@ -1949,7 +1963,7 @@ proptest! {
         for i in 0..n_pairs {
             let h_proof = next_height(&st);
             st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
-            model = treasury_after_block(model, 0, 1, emission);
+            model = treasury_after_legacy_block(model, 0, 1, emission);
             prop_assert_eq!(st.treasury, model);
 
             let h_reg = next_height(&st);
@@ -2069,7 +2083,7 @@ proptest! {
             let prev = *st.tip_id().expect("tip");
             let proof = build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
             st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
-            model = treasury_after_block(model, u128::from(fee), 1, emission);
+            model = treasury_after_legacy_block(model, u128::from(fee), 1, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,
@@ -2139,7 +2153,7 @@ proptest! {
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
             st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
-            model = treasury_after_block(model, fee_sum, 0, emission);
+            model = treasury_after_legacy_block(model, fee_sum, 0, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,
@@ -2211,7 +2225,7 @@ proptest! {
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
             st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
-            model = treasury_after_block(model, fee_sum, 0, emission);
+            model = treasury_after_legacy_block(model, fee_sum, 0, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,
@@ -2283,7 +2297,7 @@ proptest! {
 
             let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
             st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
-            model = treasury_after_block(model, fee_sum, 0, emission);
+            model = treasury_after_legacy_block(model, fee_sum, 0, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,
@@ -2383,7 +2397,7 @@ proptest! {
                     &gen.built.tree,
                 ),
             );
-            model = treasury_after_block(model, u128::from(fee), 1, emission);
+            model = treasury_after_legacy_block(model, u128::from(fee), 1, emission);
             prop_assert_eq!(
                 st.treasury,
                 model,
@@ -4012,7 +4026,7 @@ fn deep_mixed_clsag_fee_and_storage_proof_treasury_64() {
         let proof =
             build_test_storage_proof(&gen.built.commit, &prev, h, &gen.payload, &gen.built.tree);
         st = apply_mixed_clsag_fee_and_storage_proof(&st, h, vec![tx], &proof);
-        model = treasury_after_block(model, u128::from(fee), 1, emission);
+        model = treasury_after_legacy_block(model, u128::from(fee), 1, emission);
         assert_eq!(st.treasury, model, "treasury mismatch at height {h}");
     }
     assert_eq!(st.height, Some(64));
@@ -4063,7 +4077,7 @@ fn deep_mixed_clsag_fee_and_storage_upload_treasury_64() {
         upload_pad = next_upload_pad;
         let fee_sum = u128::from(clsag_fee) + u128::from(upload_fee);
         st = apply_mixed_clsag_fee_and_storage_upload(&st, h, vec![clsag_tx, upload_tx]);
-        model = treasury_after_block(model, fee_sum, 0, emission);
+        model = treasury_after_legacy_block(model, fee_sum, 0, emission);
         assert_eq!(
             st.treasury, model,
             "treasury mismatch at height {h} (clsag_fee {clsag_fee} upload_fee {upload_fee})"
@@ -4091,7 +4105,7 @@ fn deep_alternating_register_storage_treasury_8() {
 
         let h_proof = next_height(&st);
         st = apply_valid_proof_at(&gen.built, &gen.payload, &st, h_proof);
-        model = treasury_after_block(model, 0, 1, emission);
+        model = treasury_after_legacy_block(model, 0, 1, emission);
         assert_eq!(st.treasury, model);
     }
     assert_eq!(st.height, Some(n_pairs * 2));

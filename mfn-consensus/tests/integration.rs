@@ -796,9 +796,9 @@ fn legacy_mixed_clsag_fee_and_storage_proof_at_genesis_plus_block1() {
         proofs: u128,
         params: &mfn_consensus::EmissionParams,
     ) -> u128 {
-        let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+        // No coinbase path — route full fee to permanence treasury.
         let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
-        let mut pending = treasury.saturating_add(treasury_fee);
+        let mut pending = treasury.saturating_add(fee_sum);
         let from_treasury = pending.min(storage_reward_total);
         pending -= from_treasury;
         pending
@@ -973,9 +973,9 @@ fn legacy_mixed_two_block_treasury_ledger_identity() {
         proofs: u128,
         params: &mfn_consensus::EmissionParams,
     ) -> u128 {
-        let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
+        // No coinbase path — route full fee to permanence treasury.
         let storage_reward_total = u128::from(params.storage_proof_reward) * proofs;
-        let mut pending = treasury.saturating_add(treasury_fee);
+        let mut pending = treasury.saturating_add(fee_sum);
         let from_treasury = pending.min(storage_reward_total);
         pending -= from_treasury;
         pending

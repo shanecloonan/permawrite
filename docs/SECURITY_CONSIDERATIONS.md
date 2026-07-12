@@ -178,12 +178,16 @@ Permawrite's defense is **PoP-by-registration**:
 list is assembled from third-party submissions — e.g. a public-testnet
 ceremony — an unverified submission could smuggle a rogue key in.
 
-**Recommendations (future work, not yet implemented):**
+**Recommendations (Path B ceremonies):**
 
-- Tooling that assembles a non-toy `GenesisConfig` should require and verify a
-  `register_signing_hash`-style PoP for every genesis validator key.
-- Alternatively, `apply_genesis` could verify a PoP field per genesis
-  validator (consensus-visible change; needs its own milestone).
+- Set `require_validator_bls_pop: 1` in the genesis JSON and include a valid
+  `bls_register_sig_hex` per validator row (verified by
+  [`genesis_config_from_json_bytes`](../mfn-runtime/src/genesis_spec.rs)).
+- `apply_genesis` itself still does not carry an on-chain PoP field; spec-load
+  validation is the enforcement point before any node applies the genesis.
+
+**Residual gap:** programmatic `GenesisConfig` construction in tests bypasses
+the JSON gate — safe only under trusted-setup assumptions.
 
 ---
 
@@ -209,34 +213,23 @@ protocol-owned and pinned by golden vectors.
 
 ---
 
-## 6. Determinism surface: the one `f64` on a consensus path
+## 6. Determinism surface: consensus sortition parameter
 
 The workspace invariant is "integer math only in consensus paths"
-([`CONTRIBUTING.md`](../CONTRIBUTING.md), ARCHITECTURE design pillar 1). There
-is currently **one known exception**:
-[`eligibility_threshold`](../mfn-consensus/src/consensus/engine.rs), which runs
-inside `verify_finality_proof` on every header verification:
+([`CONTRIBUTING.md`](../CONTRIBUTING.md), ARCHITECTURE design pillar 1).
 
-```rust
-let factor: u64 = (expected_proposers_per_slot * f64::from(1u32 << 30)).round() as u64;
-```
+[`eligibility_threshold`](../mfn-consensus/src/consensus/engine.rs) converts
+`expected_proposers_per_slot` to Q30 via
+[`proposers_factor_q30_from_f64_bits`](../mfn-consensus/src/consensus/engine.rs)
+— **integer IEEE-754 decode, no `f64` multiply/round on the verification
+path**. `expected_proposers_per_slot` remains an `f64` in `ConsensusParams`
+checkpoint encoding; header verification only calls `to_bits()` then integer
+math.
 
-`expected_proposers_per_slot` is an `f64` consensus parameter (default `1.5`).
-After this one rounding step, all arithmetic is `u128` integer.
-
-- **Why it is currently safe:** `1.5 × 2³⁰` is exactly representable in an
-  IEEE-754 double, and `f64` multiply/round on exactly-representable values is
-  bit-identical across conformant platforms. Default-parameter chains cannot
-  diverge here.
-- **Why it is still a liability:** a chain configured with a
-  non-exactly-representable `F` (e.g. `1.1`) relies on cross-platform IEEE-754
-  conformance for consensus. That is much weaker than the integer-only
-  guarantee the rest of the protocol enjoys, and it contradicts the stated
-  invariant. The parameter is also serialized as a float in checkpoint codecs.
-- **Recommended future work:** encode the parameter as integer fixed-point at
-  the consensus level (e.g. `expected_proposers_per_slot_q30: u64`), making
-  the `f64` disappear from the verification path entirely. Hard-fork-adjacent
-  (changes `ConsensusParams` encoding); tracked, not implemented here.
+- **Default chains:** `F = 1.5` ⇒ factor `1_610_612_736` (unchanged behavior).
+- **Future hard-fork option:** store Q30 directly in `ConsensusParams` wire
+  encoding to drop `f64` from checkpoints entirely (not required for
+  determinism today).
 
 ---
 
@@ -261,12 +254,13 @@ Full treatment: [`PRIVACY.md`](./PRIVACY.md). The residual risks in one place:
 5. **Key separation is a wallet obligation.** Authorship-claim keys
    ([`AUTHORSHIP.md`](./AUTHORSHIP.md)) are intentionally public identities and
    must never be derived from, or correlated with, stealth view/spend keys.
-6. **Ring size is not consensus-enforced.** Consensus verifies CLSAG validity
-   and ring-member existence but imposes **no minimum or uniform ring size**;
-   any ring of length ≥ 1 (including a unit ring with no decoys) is structurally
-   valid. Anonymity-set size is therefore a wallet-policy property, not a
-   protocol guarantee — strictly weaker than Monero's mandatory uniform ring
-   size. Full analysis in [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-privacy-is-wallet-policy-not-protocol-law).
+6. **Ring size is consensus-enforced (uniform ring-16).** Production genesis
+   requires `min_ring_size >= 16` and `uniform_ring_size >= 16`
+   ([`validate_constitution`](../mfn-consensus/src/constitution.rs));
+   [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs) rejects
+   undersized or non-uniform rings. Residual Tier-3 work (OoM over full UTXO
+   set) remains in [`PRIVACY.md`](./PRIVACY.md). See
+   [`PROBLEMS.md § 18`](./PROBLEMS.md#18-no-consensus-enforced-minimum-or-uniform-ring-size-resolved).
 
 **Mitigation now in place — key-image subgroup validity.** ed25519's cofactor
 means a decompressed point can carry a low-order (torsion) component.

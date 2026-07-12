@@ -91,32 +91,71 @@ pub fn slot_seed(ctx: &SlotContext) -> [u8; 32] {
  *  Eligibility                                                             *
  * ----------------------------------------------------------------------- */
 
-/// Compute the producer-eligibility threshold for a validator with stake
-/// `stake` out of total stake `total_stake`.
+/// Q30 fixed-point scale for `expected_proposers_per_slot`.
+pub const PROPOSERS_PER_SLOT_Q30_SCALE: u64 = 1u64 << 30;
+
+/// Convert IEEE-754 `f64` bits to Q30 without floating-point arithmetic.
+///
+/// Used at header-verification time so consensus never depends on cross-platform
+/// `f64` multiply/round. Invalid encodings (negative, zero, subnormal, NaN)
+/// yield `0` (never eligible) or `u64::MAX` (infinity — always eligible).
+#[must_use]
+pub fn proposers_factor_q30_from_f64_bits(bits: u64) -> u64 {
+    const EXP_BIAS: i32 = 1023;
+    const MANT_BITS: u32 = 52;
+
+    if bits & 0x8000_0000_0000_0000 != 0 {
+        return 0;
+    }
+    let exp_raw = ((bits >> MANT_BITS) & 0x7FF) as u32;
+    if exp_raw == 0 {
+        return 0;
+    }
+    if exp_raw == 0x7FF {
+        return u64::MAX;
+    }
+    let mant = bits & ((1u64 << MANT_BITS) - 1);
+    let significand = (1u64 << MANT_BITS) | mant;
+    let exp = exp_raw as i32 - EXP_BIAS;
+    // factor = round(significand / 2^52 · 2^exp · 2^30)
+    let shift = exp + 30 - MANT_BITS as i32;
+    if shift < 0 {
+        let div = 1u128 << (-shift) as u32;
+        ((significand as u128 + div / 2) / div).min(u64::MAX as u128) as u64
+    } else {
+        let shifted = (significand as u128) << shift as u32;
+        shifted.min(u64::MAX as u128) as u64
+    }
+}
+
+/// Q30 factor for a consensus `expected_proposers_per_slot` parameter.
+#[inline]
+#[must_use]
+pub fn proposers_factor_q30_from_f64(expected_proposers_per_slot: f64) -> u64 {
+    proposers_factor_q30_from_f64_bits(expected_proposers_per_slot.to_bits())
+}
+
+/// Eligibility threshold from a precomputed Q30 factor (see
+/// [`proposers_factor_q30_from_f64`]).
 ///
 /// ```text
 ///     threshold = floor(2^64 · F · stake / total_stake)
 /// ```
 ///
-/// where `F = expected_proposers_per_slot` is a global parameter. Setting
-/// `F = 1` makes the expected number of eligible validators per slot
-/// exactly one (Algorand-style); typical config uses `F = 1.5` to keep
-/// liveness against minority-stake offline validators.
+/// where `F` is encoded as `expected_proposers_factor_q30 / 2^30`.
 ///
-/// **Encoding:** `F` is rounded to a `factor / 2^30` fixed-point value to
-/// keep arithmetic deterministic. The computation
-/// `(factor · stake · 2^34) / total_stake` fits in `u128` for any
-/// realistic stake (stake ≤ 2^57 is more than enough for any chain that
+/// The computation `(factor · stake · 2^34) / total_stake` fits in `u128` for
+/// any realistic stake (stake ≤ 2^57 is more than enough for any chain that
 /// also fits in `u64` base units).
 pub fn eligibility_threshold(
     stake: u64,
     total_stake: u64,
-    expected_proposers_per_slot: f64,
+    expected_proposers_factor_q30: u64,
 ) -> u64 {
     if total_stake == 0 {
         return 0;
     }
-    let factor: u64 = (expected_proposers_per_slot * f64::from(1u32 << 30)).round() as u64;
+    let factor = expected_proposers_factor_q30;
     // (factor * stake * 2^34) / total_stake — saturates to u64::MAX when
     // factor * stake / total_stake > 2^30 (i.e. the validator owns more
     // than 100% / F of the stake, which makes them deterministically
@@ -125,6 +164,21 @@ pub fn eligibility_threshold(
     let scaled: u128 = num << 34;
     let result: u128 = scaled / (total_stake as u128);
     result.min(u64::MAX as u128) as u64
+}
+
+/// Convenience: derive Q30 factor from `f64` bits, then threshold.
+#[inline]
+#[must_use]
+pub fn eligibility_threshold_from_f64(
+    stake: u64,
+    total_stake: u64,
+    expected_proposers_per_slot: f64,
+) -> u64 {
+    eligibility_threshold(
+        stake,
+        total_stake,
+        proposers_factor_q30_from_f64(expected_proposers_per_slot),
+    )
 }
 
 /// Check eligibility from a 32-byte VRF output.
@@ -210,7 +264,7 @@ pub fn try_produce_slot(
     let seed = slot_seed(ctx);
     let res = vrf_prove(&secrets.vrf, &seed).map_err(ConsensusError::Crypto)?;
     let threshold =
-        eligibility_threshold(validator.stake, total_stake, expected_proposers_per_slot);
+        eligibility_threshold_from_f64(validator.stake, total_stake, expected_proposers_per_slot);
     if !is_eligible(&res.output, threshold) {
         return Ok(None);
     }
@@ -245,7 +299,7 @@ pub fn verify_producer_proof(
         return ConsensusCheck::VrfOutputMismatch;
     }
     let threshold =
-        eligibility_threshold(validator.stake, total_stake, expected_proposers_per_slot);
+        eligibility_threshold_from_f64(validator.stake, total_stake, expected_proposers_per_slot);
     if !is_eligible(&proof.beta, threshold) {
         return ConsensusCheck::NotEligible;
     }
@@ -542,23 +596,46 @@ mod tests {
     fn full_stake_validator_is_eligible_at_f_eq_1() {
         // stake == total_stake and F == 1 ⇒ threshold == 2^64 (saturates),
         // so any VRF output is below threshold.
-        let t = eligibility_threshold(100, 100, 1.0);
+        let factor = proposers_factor_q30_from_f64(1.0);
+        let t = eligibility_threshold(100, 100, factor);
         assert_eq!(t, u64::MAX);
     }
 
     #[test]
     fn zero_total_stake_yields_zero_threshold() {
-        assert_eq!(eligibility_threshold(0, 0, 1.0), 0);
+        assert_eq!(
+            eligibility_threshold(0, 0, proposers_factor_q30_from_f64(1.0)),
+            0
+        );
     }
 
     #[test]
     fn threshold_scales_with_stake_fraction() {
-        let half = eligibility_threshold(50, 100, 1.0);
-        let quarter = eligibility_threshold(25, 100, 1.0);
+        let factor = proposers_factor_q30_from_f64(1.0);
+        let half = eligibility_threshold(50, 100, factor);
+        let quarter = eligibility_threshold(25, 100, factor);
         assert!(half > quarter);
         // Half-stake threshold ≈ 2 × quarter-stake (within rounding).
         let ratio = (half as u128) * 1000 / (quarter as u128);
         assert!((1990..=2010).contains(&ratio), "ratio={ratio}");
+    }
+
+    #[test]
+    fn proposers_factor_q30_matches_default_f_1_5() {
+        let factor = proposers_factor_q30_from_f64(1.5);
+        assert_eq!(factor, 1_610_612_736);
+    }
+
+    #[test]
+    fn proposers_factor_q30_integer_path_matches_f64_round_for_common_values() {
+        for f in [1.0_f64, 1.5, 2.0, 10.0] {
+            let legacy = (f * f64::from(1u32 << 30)).round() as u64;
+            assert_eq!(
+                proposers_factor_q30_from_f64(f),
+                legacy,
+                "mismatch for F={f}"
+            );
+        }
     }
 
     #[test]

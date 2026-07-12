@@ -80,7 +80,22 @@ fn apply_empty_legacy_block(st: &ChainState, height: u32) -> ChainState {
     }
 }
 
-/// Step the same treasury arithmetic as `apply_block` settlement.
+/// Step the same treasury arithmetic as `apply_block` settlement (legacy mode:
+/// full `fee_sum` credits the permanence treasury because there is no coinbase).
+fn treasury_after_legacy_block(
+    treasury: u128,
+    fee_sum: u128,
+    proofs: u128,
+    params: &EmissionParams,
+) -> u128 {
+    let storage_reward_total = params.storage_proof_reward as u128 * proofs;
+    let mut pending = treasury.saturating_add(fee_sum);
+    let from_treasury = pending.min(storage_reward_total);
+    pending -= from_treasury;
+    pending
+}
+
+/// Step the same treasury arithmetic as `apply_block` settlement (validator mode).
 fn treasury_after_block(
     treasury: u128,
     fee_sum: u128,
@@ -918,7 +933,7 @@ fn run_mixed_fee_and_proof_sim(blocks: u32, emission: EmissionParams) {
             &storage.built.tree,
         );
         st = apply_legacy_block_mixed(&st, h, std::slice::from_ref(&signed.tx), &proof);
-        model_treasury = treasury_after_block(model_treasury, u128::from(fee), 1, &emission);
+        model_treasury = treasury_after_legacy_block(model_treasury, u128::from(fee), 1, &emission);
         assert_eq!(
             st.treasury, model_treasury,
             "treasury mismatch at height {h} (fee {fee}, 1 proof)"
@@ -987,7 +1002,7 @@ fn run_fee_treasury_sim(blocks: u32, emission: EmissionParams) {
         spend = next_spend;
         input_pad = next_pad;
         st = apply_legacy_block(&st, h, std::slice::from_ref(&signed.tx));
-        model_treasury = treasury_after_block(model_treasury, u128::from(fee), 0, &emission);
+        model_treasury = treasury_after_legacy_block(model_treasury, u128::from(fee), 0, &emission);
         assert_eq!(
             st.treasury, model_treasury,
             "treasury mismatch at height {h} (fee {fee})"
@@ -1072,8 +1087,8 @@ fn treasury_ledger_matches_apply_block_over_sixty_four_validator_mixed_blocks() 
     run_validator_mixed_fee_and_proof_sim(64, SIM_EMISSION);
 }
 
-/// CLSAG self-transfers in legacy mode credit `fee · fee_to_treasury_bps / 10_000`
-/// to the permanence treasury each block (**M5.1**).
+/// CLSAG self-transfers in legacy mode credit the **full fee** to the
+/// permanence treasury each block (**M5.1**).
 #[test]
 fn treasury_ledger_matches_apply_block_over_clsag_fee_blocks() {
     run_fee_treasury_sim(128, SIM_EMISSION);
@@ -1142,7 +1157,7 @@ fn treasury_ledger_matches_apply_block_over_storage_proof_blocks() {
             ApplyOutcome::Ok { state, .. } => state,
             ApplyOutcome::Err { errors, .. } => panic!("height {h}: {errors:?}"),
         };
-        model_treasury = treasury_after_block(model_treasury, 0, 1, &SIM_EMISSION);
+        model_treasury = treasury_after_legacy_block(model_treasury, 0, 1, &SIM_EMISSION);
         assert_eq!(
             st.treasury, model_treasury,
             "treasury mismatch at height {h}"

@@ -133,8 +133,9 @@ pub use coinbase::{
 #[cfg(feature = "bls")]
 pub use consensus::{
     cast_vote, decode_committee_aggregate, decode_finality_proof, decode_producer_proof,
-    eligibility_threshold, encode_committee_aggregate, encode_finality_proof,
-    encode_producer_proof, finalize, is_eligible, pick_winner, slot_seed, try_produce_slot,
+    eligibility_threshold, eligibility_threshold_from_f64, encode_committee_aggregate,
+    encode_finality_proof, encode_producer_proof, finalize, is_eligible, pick_winner,
+    proposers_factor_q30_from_f64, proposers_factor_q30_from_f64_bits, slot_seed, try_produce_slot,
     verify_finality_proof, verify_producer_proof, ConsensusCheck, ConsensusDecodeError,
     ConsensusError, FinalityProof, ProducerProof, SlotContext, ValidatorSecrets,
 };

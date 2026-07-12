@@ -10,10 +10,10 @@
 use std::fs;
 use std::path::Path;
 
-use mfn_bls::bls_keygen_from_seed;
+use mfn_bls::{bls_keygen_from_seed, decode_signature};
 use mfn_consensus::{
-    validate_constitution, ConsensusParams, ConstitutionError, GenesisConfig, GenesisOutput,
-    GenesisStorageOperator, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
+    validate_constitution, verify_register_sig, ConsensusParams, ConstitutionError, GenesisConfig,
+    GenesisOutput, GenesisStorageOperator, Validator, ValidatorPayout, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_crypto::point::{generator_g, generator_h};
 use mfn_crypto::scalar::bytes_to_scalar;
@@ -134,6 +134,31 @@ pub enum GenesisSpecError {
     #[error("synthetic_decoy_utxos {0} exceeds maximum {1}")]
     SyntheticDecoyCountTooLarge(u32, u32),
 
+    /// Validator BLS register PoP signature failed verification.
+    #[error("validators[{index}]: invalid BLS register proof-of-possession signature")]
+    InvalidValidatorBlsPop {
+        /// Validator `index` from the spec row.
+        index: u32,
+    },
+
+    /// Ceremony genesis requires `bls_register_sig_hex` per validator.
+    #[error(
+        "validators[{index}]: missing required bls_register_sig_hex (require_validator_bls_pop=1)"
+    )]
+    MissingValidatorBlsPop {
+        /// Validator `index` from the spec row.
+        index: u32,
+    },
+
+    /// BLS signature field has wrong byte length or failed decode.
+    #[error("{field}: BLS signature must be 96 bytes, got {got}")]
+    WrongBlsSigLen {
+        /// JSON field name.
+        field: String,
+        /// Byte length observed (or reported length on decode failure).
+        got: usize,
+    },
+
     /// The spec's parameters violate a constitutional invariant
     /// (**F5:PM13**): zero tail emission, sub-uniform or sub-16 rings,
     /// or degenerate endowment pricing. No operator-supplied genesis may
@@ -164,6 +189,29 @@ fn parse_seed32(field: &str, s: &str) -> Result<[u8; 32], GenesisSpecError> {
     Ok(out)
 }
 
+fn parse_bls_sig(field: &str, s: &str) -> Result<mfn_bls::BlsSignature, GenesisSpecError> {
+    let t = s.trim();
+    let t = t
+        .strip_prefix("0x")
+        .unwrap_or(t)
+        .strip_prefix("0X")
+        .unwrap_or(t);
+    let bytes = hex::decode(t).map_err(|source| GenesisSpecError::BadHex {
+        field: field.to_string(),
+        source,
+    })?;
+    if bytes.len() != mfn_bls::BLS_SIGNATURE_BYTES {
+        return Err(GenesisSpecError::WrongBlsSigLen {
+            field: field.to_string(),
+            got: bytes.len(),
+        });
+    }
+    decode_signature(&bytes).map_err(|_| GenesisSpecError::WrongBlsSigLen {
+        field: field.to_string(),
+        got: bytes.len(),
+    })
+}
+
 /// Parse exactly 32 bytes from a 64-character hex string (optional `0x` / `0X` prefix).
 ///
 /// Used by `mfnd step` for [`std::env::var`] seeds; decoding rules match the
@@ -190,6 +238,11 @@ struct GenesisFile {
     validators: Vec<ValidatorSection>,
     #[serde(default)]
     storage_operators: Vec<StorageOperatorSection>,
+    /// When `1`, every validator row must carry a valid
+    /// `bls_register_sig_hex` (BLS PoP over the register payload). Use for
+    /// Path B genesis ceremonies; default `0` keeps toy/devnet specs valid.
+    #[serde(default)]
+    require_validator_bls_pop: Option<u8>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -234,6 +287,11 @@ struct ValidatorSection {
     /// When true, on-chain `payout` is `None` (coinbase burns).
     #[serde(default)]
     omit_payout: bool,
+    /// Optional BLS proof-of-possession over the register signing hash
+    /// (same payload as on-chain `BondOp::Register`). Required when
+    /// `require_validator_bls_pop` is `1`; recommended for ceremony review.
+    #[serde(default)]
+    bls_register_sig_hex: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -399,6 +457,20 @@ pub fn genesis_config_from_json_bytes(bytes: &[u8]) -> Result<GenesisConfig, Gen
             stake: v.stake,
             payout,
         });
+
+        let pop_field = format!("validators[{}].bls_register_sig_hex", v.index);
+        let pop_sig = if let Some(hex) = &v.bls_register_sig_hex {
+            Some(parse_bls_sig(&pop_field, hex)?)
+        } else if file.require_validator_bls_pop == Some(1) {
+            return Err(GenesisSpecError::MissingValidatorBlsPop { index: v.index });
+        } else {
+            None
+        };
+        if let Some(sig) = pop_sig {
+            if !verify_register_sig(v.stake, &vrf.pk, &bls.pk, payout.as_ref(), &sig) {
+                return Err(GenesisSpecError::InvalidValidatorBlsPop { index: v.index });
+            }
+        }
     }
 
     let initial_outputs = match file.synthetic_decoy_utxos {
@@ -570,6 +642,69 @@ mod tests {
         assert!(matches!(
             genesis_config_from_json_bytes(s.as_bytes()),
             Err(GenesisSpecError::StorageOperatorsRequireRegisteredFlag)
+        ));
+    }
+
+    #[test]
+    fn require_validator_bls_pop_rejects_missing_signature() {
+        let s = r#"{"version":1,"timestamp":0,"require_validator_bls_pop":1,"validators":[{"index":0,"vrf_seed_hex":"0101010101010101010101010101010101010101010101010101010101010101","bls_seed_hex":"6565656565656565656565656565656565656565656565656565656565656565","stake":1}]}"#;
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::MissingValidatorBlsPop { index: 0 })
+        ));
+    }
+
+    #[test]
+    fn validator_bls_pop_accepts_register_signature() {
+        use mfn_consensus::sign_register;
+        use mfn_crypto::vrf::vrf_keygen_from_seed;
+
+        let vrf_seed = [0x01u8; 32];
+        let bls_seed = [0x65u8; 32];
+        let vrf = vrf_keygen_from_seed(&vrf_seed).expect("vrf");
+        let bls = bls_keygen_from_seed(&bls_seed);
+        let payout_wallet = mfn_crypto::stealth_wallet_from_seed(&bls_seed);
+        let payout = ValidatorPayout {
+            view_pub: payout_wallet.view_pub,
+            spend_pub: payout_wallet.spend_pub,
+        };
+        let sig = sign_register(1, &vrf.pk, &bls.pk, Some(&payout), &bls.sk);
+        let sig_hex = hex::encode(mfn_bls::encode_signature(&sig));
+        let s = format!(
+            r#"{{"version":1,"timestamp":0,"validators":[{{"index":0,"vrf_seed_hex":"{}","bls_seed_hex":"{}","stake":1,"bls_register_sig_hex":"{}"}}]}}"#,
+            hex::encode(vrf_seed),
+            hex::encode(bls_seed),
+            sig_hex
+        );
+        genesis_config_from_json_bytes(s.as_bytes()).expect("valid pop");
+    }
+
+    #[test]
+    fn validator_bls_pop_rejects_wrong_signature() {
+        use mfn_consensus::sign_register;
+        use mfn_crypto::vrf::vrf_keygen_from_seed;
+
+        let vrf_seed = [0x01u8; 32];
+        let bls_seed = [0x65u8; 32];
+        let vrf = vrf_keygen_from_seed(&vrf_seed).expect("vrf");
+        let bls = bls_keygen_from_seed(&bls_seed);
+        let payout_wallet = mfn_crypto::stealth_wallet_from_seed(&bls_seed);
+        let payout = ValidatorPayout {
+            view_pub: payout_wallet.view_pub,
+            spend_pub: payout_wallet.spend_pub,
+        };
+        // Signed for stake 999, but spec row declares stake 1.
+        let sig = sign_register(999, &vrf.pk, &bls.pk, Some(&payout), &bls.sk);
+        let sig_hex = hex::encode(mfn_bls::encode_signature(&sig));
+        let s = format!(
+            r#"{{"version":1,"timestamp":0,"validators":[{{"index":0,"vrf_seed_hex":"{}","bls_seed_hex":"{}","stake":1,"bls_register_sig_hex":"{}"}}]}}"#,
+            hex::encode(vrf_seed),
+            hex::encode(bls_seed),
+            sig_hex
+        );
+        assert!(matches!(
+            genesis_config_from_json_bytes(s.as_bytes()),
+            Err(GenesisSpecError::InvalidValidatorBlsPop { index: 0 })
         ));
     }
 

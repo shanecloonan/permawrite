@@ -1007,7 +1007,8 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //
     //   1. treasury_fee = fee_sum · fee_to_treasury_bps / 10000
     //      producer_fee = fee_sum − treasury_fee
-    //   2. Treasury gains treasury_fee.
+    //   2. Treasury gains treasury_fee (or the full fee_sum when no coinbase
+    //      path exists — see below).
     //   3. Storage rewards = storage_proof_reward · N_accepted + Σ bonus.
     //      Treasury drains first; any shortfall is minted via emission
     //      as a backstop. Treasury balance never goes negative.
@@ -1015,13 +1016,22 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     //      outputs 1..N = per-operator storage rewards.
     let emission_params = next.emission_params;
     let treasury_fee: u128 = fee_sum * u128::from(emission_params.fee_to_treasury_bps) / 10_000;
-    let _producer_fee_u128 = fee_sum - treasury_fee;
+    let producer_fee = fee_sum.saturating_sub(treasury_fee);
+    // When no producer coinbase is required (legacy harness or validators
+    // without payout), route the producer share into the permanence treasury
+    // instead of burning it.
+    let treasury_fee_credit = if require_coinbase {
+        treasury_fee
+    } else {
+        fee_sum
+    };
+    let _producer_fee_u128 = producer_fee;
 
     let storage_reward_total: u128 = u128::from(emission_params.storage_proof_reward)
         .saturating_mul(accepted_storage_proofs)
         .saturating_add(storage_bonus_total);
 
-    let mut pending_treasury = next.treasury.saturating_add(treasury_fee);
+    let mut pending_treasury = next.treasury.saturating_add(treasury_fee_credit);
     let storage_from_treasury = pending_treasury.min(storage_reward_total);
     pending_treasury -= storage_from_treasury;
     next.treasury = pending_treasury;

@@ -814,6 +814,54 @@ fn producer_coinbase_amount_includes_full_storage_rewards() {
 
 #[test]
 fn fee_only_block_credits_treasury_ninety_percent() {
+    let fixture = ValidatorFixture::three_validators();
+    let initial = 50_000_000_000u64;
+    let (mut st, spend, input_pad) = genesis_validator_with_funded_utxo(
+        TEST_EMISSION,
+        initial,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+
+    let fee = 10_000u64;
+    let (signed, _, _) = spend.sign_self_transfer(&input_pad, fee);
+    let before = st.treasury;
+    let coinbase = build_validator_coinbase(
+        1,
+        &TEST_EMISSION,
+        u128::from(fee),
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        1,
+        vec![coinbase, signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => st = state,
+        ApplyOutcome::Err { errors, .. } => panic!("{errors:?}"),
+    }
+
+    let (treasury_share, _) = fee_split(u128::from(fee), TEST_EMISSION.fee_to_treasury_bps);
+    assert_eq!(st.treasury, before + treasury_share);
+    assert_eq!(
+        st.treasury,
+        treasury_after_settlement(before, u128::from(fee), 0, &TEST_EMISSION)
+    );
+}
+
+#[test]
+fn fee_only_legacy_block_credits_full_fee_to_treasury() {
     let initial = 50_000_000_000u64;
     let (mut st, spend, input_pad) = {
         let spend_priv = random_scalar();
@@ -858,12 +906,7 @@ fn fee_only_block_credits_treasury_ninety_percent() {
     let before = st.treasury;
     st = apply_legacy_block(&st, 1, std::slice::from_ref(&signed.tx));
 
-    let (treasury_share, _) = fee_split(u128::from(fee), TEST_EMISSION.fee_to_treasury_bps);
-    assert_eq!(st.treasury, before + treasury_share);
-    assert_eq!(
-        st.treasury,
-        treasury_after_settlement(before, u128::from(fee), 0, &TEST_EMISSION)
-    );
+    assert_eq!(st.treasury, before + u128::from(fee));
 }
 
 #[test]
