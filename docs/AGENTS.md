@@ -279,7 +279,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 4a** — PM23 operator-manifest separation plan-only rehearsal smoke (this push).
 - [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (`a91fbe3`).
 - [x] **P32 phase 4d** — operator template `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1`; storage-operator aborts on validator seed env (`4a429e4`).
-- [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (this push).
+- [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (`b4cab93`).
 - [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
 - [x] **publish-checkpoint-log-rehearsal-smoke** — TL-8 checkpoint log publish doc + plan gate (this push).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
@@ -399,7 +399,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **vps-execution-checklist-rehearsal-smoke** — ci-check gate on TL-5/TL-6 preflight checklist (`8a49f7e`)
 - [x] **launch-go-no-go-rehearsal-smoke** — ci-check gate on TL-9 pre-launch go/no-go JSON (`bbc57a1`)
 - [x] **vps-internet-soak-rehearsal-smoke** — TL-5 soak docs + script wiring gate (this push)
-- [x] **assert-vps-internet-soak-evidence** — TL-5 transcript audit gate + launch-status soak PASS fix (this push)
+- [x] **assert-vps-internet-soak-evidence** — TL-5 transcript audit gate + launch-status soak PASS fix (`1aff0df`)
+- [x] **vps-internet-soak-evidence-rehearsal-smoke** — assert + launch-status fixture gate (this push)
 - [x] **vps-participant-rehearsal-rehearsal-smoke** — TL-6 participant wrapper + evidence gate (this push)
 - [x] **publish-seed-nodes-rehearsal-smoke** — TL-8 fixture dry-run + doc gate (`05e2772`)
 - [x] **vps-launch-ceremony-rehearsal-smoke** — TL-7 ceremony TL-5..TL-9 ordering gate (`05e2772`)

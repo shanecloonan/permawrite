@@ -76,6 +76,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
 | TL-5 soak evidence assert | `bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt` — before commit |
+| TL-5 soak evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-evidence-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
