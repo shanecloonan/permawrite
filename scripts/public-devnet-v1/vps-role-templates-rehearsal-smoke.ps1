@@ -42,6 +42,9 @@ $walletText = Get-Content -Raw -LiteralPath $walletTpl
 if ($validatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
     throw "vps-role-templates-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1"
 }
+if ($observerText -notmatch "MFND_PM23_HARD_FAIL=1") {
+    throw "vps-role-templates-rehearsal-smoke: observer template missing MFND_PM23_HARD_FAIL=1"
+}
 if ($operatorText -notmatch "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1" -and $operatorText -notmatch "MFND_PM23_HARD_FAIL=1") {
     throw "vps-role-templates-rehearsal-smoke: operator template missing PM23 hard-fail env"
 }
@@ -65,7 +68,7 @@ foreach ($forbidden in @("mfn-storage-operator", "manifest-info", "MFN_OPERATOR_
 Write-Host "vps-role-templates-rehearsal-smoke: plan"
 Write-Host "  docs=docs/REFERENCE_TOPOLOGY.md docs/VPS_PROVISION.md"
 Write-Host "  templates=validator observer operator wallet"
-Write-Host "  pm23=validator MFND_PM23_HARD_FAIL=1; operator storage-operator hard-fail"
+Write-Host "  pm23=validator+observer MFND_PM23_HARD_FAIL=1; operator storage-operator hard-fail"
 Write-Host "  separation=observer no validator seeds; validator no wallet/operator paths"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {

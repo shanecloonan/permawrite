@@ -57,6 +57,10 @@ if ! grep -qF -- "MFND_PM23_HARD_FAIL=1" "$validator_tpl"; then
   echo "vps-role-templates-rehearsal-smoke: validator template missing MFND_PM23_HARD_FAIL=1" >&2
   exit 1
 fi
+if ! grep -qF -- "MFND_PM23_HARD_FAIL=1" "$observer_tpl"; then
+  echo "vps-role-templates-rehearsal-smoke: observer template missing MFND_PM23_HARD_FAIL=1" >&2
+  exit 1
+fi
 if ! grep -qE -- "MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1|MFND_PM23_HARD_FAIL=1" "$operator_tpl"; then
   echo "vps-role-templates-rehearsal-smoke: operator template missing PM23 hard-fail env" >&2
   exit 1
@@ -84,7 +88,7 @@ done
 echo "vps-role-templates-rehearsal-smoke: plan"
 echo "  docs=docs/REFERENCE_TOPOLOGY.md docs/VPS_PROVISION.md"
 echo "  templates=validator observer operator wallet"
-echo "  pm23=validator MFND_PM23_HARD_FAIL=1; operator storage-operator hard-fail"
+echo "  pm23=validator+observer MFND_PM23_HARD_FAIL=1; operator storage-operator hard-fail"
 echo "  separation=observer no validator seeds; validator no wallet/operator paths"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
