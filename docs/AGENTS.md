@@ -275,6 +275,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
 - [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
 - [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (`5965525`).
+- [ ] **F5 fraud-proof phase 0** — body-root fraud verify + P2P tag `0x13` + [`FRAUD_PROOFS.md`](../FRAUD_PROOFS.md) (this push).
 - [x] **F12 phase 5b** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
@@ -405,6 +406,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **vps-internet-soak-evidence-rehearsal-smoke** — assert + launch-status fixture gate (this push)
 - [x] **assert-vps-participant-rehearsal-evidence** — TL-6 transcript audit + launch-status fixture gate (`11a2d07`)
 - [x] **genesis-validator-bls-pop** — Path B ceremony PoP compute/verify helper + ci-check rehearsal smoke (`83b82dd`)
+- [x] **genesis-header-version-rehearsal-smoke** — Path A v1 pin + Path B header_version: 2 doc gate (this push)
 - [x] **launch-go-no-go assert hardening** — TL-5/TL-6 evidence via assert scripts in TL-9 gate (`83b82dd`)
 - [x] **vps-execution-checklist tl5/tl6 assert** — ordered VPS path includes assert steps (`83b82dd`)
 - [x] **vps-participant-rehearsal-rehearsal-smoke** — TL-6 participant wrapper + evidence gate (`4688735`)

@@ -43,6 +43,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **F12 phase 2** (lanes 4+5) — `wallet light-scan --checkpoint-log` cross-check (`10e606e`).
 - [x] **F12 phase 3** (lanes 4+6) — WASM `checkpointLogVerify` / `checkpointLogCrossCheck` via `mfn-checkpoint-log` (`5d78329`).
 - [x] **F12 phase 4** (lanes 4+6) — `checkpoint-log cross-check` + `publish-checkpoint-log.*` + live rehearsal (`5965525`).
+- [ ] **F5 fraud-proof phase 0** (lanes 4+6) — body-root fraud verify + P2P tag `0x13` (this push).
 - [x] **P32 phase 3** (lane 5) — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **F6 fee economics** (lane 6) — [`FEES.md`](./FEES.md) plain-language fee guide + 2026-07 parameter review (`d4a5114`).
 - [x] **P32 phase 2** (lane 5) — `vps-role-*.env.example` role-separated VPS templates (`db58ae1`).
@@ -80,6 +81,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **P32 phase 4b** — PM23 runtime env lint on mfnd + mfn-storage-operator (`638f260`).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).
 - [x] **Lane 6 / F6 Arweave comparison** — `ECONOMICS.md` §12 permanence durability vs Arweave (`bff1b70`).
+- [x] **Lane 4 / genesis header_version rehearsal** — `genesis-header-version-rehearsal-smoke.*` Path B v2 doc gate (this push).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
 - [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
 - [x] **Lane 7 / TL-7–TL-9 tooling** — genesis ceremony, `publish-seed-nodes`, `launch-go-no-go` (`03de79a`).

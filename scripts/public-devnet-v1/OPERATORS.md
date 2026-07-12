@@ -82,6 +82,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-6 rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt` — before commit |
 | TL-6 rehearsal evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
+| TL-7 Path B header_version (CI) | `bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only` |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |

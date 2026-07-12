@@ -89,7 +89,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on pending head | **Doing** — post-push monitor | Nightly on green |
+| **1** | CI on dbad44d | **Doing** — #29209302385 | Nightly on green |
 | **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
 | **4** | F15 MFBN-1 + utxo_root lag | **Done** — `83b82dd` | Idle |
 | **7** | TL-9 assert + Path B PoP tooling | **Done** — `83b82dd` | TL-5 VPS soak (human) |
@@ -125,6 +125,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 ---
 
 ## Recently completed
+
+- **F5 fraud-proof phase 0** (this push) - protocol (lane 4): body-root fraud verify + P2P tag 0x13; [FRAUD_PROOFS.md](docs/FRAUD_PROOFS.md).
+- **genesis-header-version-rehearsal-smoke** (this push) - Path A v1 pin + Path B header_version:2 doc gate in ci-check.
 
 - **Genesis BLS PoP tooling + TL-9 assert** (`83b82dd`) - testnet launch (lane 7) + protocol (lane 4): `genesis-validator-bls-pop.*` + rehearsal smoke; `launch-go-no-go` uses assert scripts; `vps-execution-checklist` tl5/tl6 assert steps; `docs/interop/VRF_MFBN1.md`.
 - **TL-9 checkpoint Schnorr verify** (`d04afed`) - testnet launch (lane 7): `launch-go-no-go` Schnorr-verifies checkpoint log when `seed_nodes >= 3`.

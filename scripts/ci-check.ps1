@@ -228,6 +228,11 @@ if ($genesisBlsPopPlan -notmatch "genesis-validator-bls-pop-rehearsal-smoke: PAS
     $genesisBlsPopPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$genesisHeaderVersionPlan = (powershell -NoProfile -File scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($genesisHeaderVersionPlan -notmatch "genesis-header-version-rehearsal-smoke: PASS plan-only" -or $genesisHeaderVersionPlan -notmatch "HEADER_VERSION_UTXO_QUORUM") {
+    $genesisHeaderVersionPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"
 powershell -NoProfile -File scripts/public-devnet-v1/assert-participant-smoke-evidence.ps1 -EvidenceDir $fixtureEvidenceDir | Out-Null
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
