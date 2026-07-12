@@ -75,6 +75,8 @@ Confirm **18731–18734 are not** in the allow list (RPC stays loopback).
 
 Copy `vps-bind.env.example` to `vps-bind.env` — it sets `MFND_PM23_HARD_FAIL=1` so mfnd aborts on PM23 role-env violations (P32 phase 4c).
 
+**Multi-host alternative:** when validators, observers, operators, and wallets run on separate machines, copy the matching [`vps-role-*.env.example`](../scripts/public-devnet-v1/) templates (see [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)). Rehearsal gate: `bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only`.
+
 ---
 
 ## 5. Preflight

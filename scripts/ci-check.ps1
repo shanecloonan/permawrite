@@ -144,7 +144,7 @@ if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log-rehearsal-smoke:
     exit 1
 }
 $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v5") {
+if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v6") {
     $launchStatus | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
@@ -186,6 +186,11 @@ if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" 
 $vpsProvisionPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-provision-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsProvisionPlan -notmatch "vps-provision-rehearsal-smoke: PASS plan-only" -or $vpsProvisionPlan -notmatch "VPS_PROVISION.md") {
     $vpsProvisionPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$vpsRoleTemplatesPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($vpsRoleTemplatesPlan -notmatch "vps-role-templates-rehearsal-smoke: PASS plan-only" -or $vpsRoleTemplatesPlan -notmatch "templates=validator observer operator wallet") {
+    $vpsRoleTemplatesPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $testnetInvitePlan = (powershell -NoProfile -File scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.ps1 -PlanOnly) -join "`n"

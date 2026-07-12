@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane 7: plan-only launch-status v5 schema rehearsal.
+# Lane 7: plan-only launch-status v6 schema rehearsal.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +8,7 @@ usage() {
   cat <<EOF
 usage: $(basename "$0") [--plan-only]
 
-Validates launch-status.v5 JSON schema + checkpoint_log + execution_checklist (no VPS required).
+Validates launch-status.v6 JSON schema + checkpoint_log + execution_checklist (no VPS required).
 EOF
 }
 
@@ -26,7 +26,7 @@ export JSON="$json"
 python3 - <<'PY'
 import json, os, sys
 doc = json.loads(os.environ["JSON"])
-assert doc.get("schema_version") == "launch-status.v5", doc.get("schema_version")
+assert doc.get("schema_version") == "launch-status.v6", doc.get("schema_version")
 cl = doc.get("checkpoint_log") or {}
 assert cl.get("path") == "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl", cl.get("path")
 for key in ("exists", "entry_count", "published"):
@@ -34,11 +34,19 @@ for key in ("exists", "entry_count", "published"):
 ec = doc.get("execution_checklist") or {}
 assert ec.get("schema_version") == "vps-execution-checklist.v2", ec.get("schema_version")
 assert "vps-execution-checklist.sh" in ec.get("helper", ""), ec.get("helper")
+tt = doc.get("treasury_telemetry") or {}
+assert tt.get("schema_version") == "treasury-telemetry-watch.v1", tt.get("schema_version")
+assert "treasury-telemetry-watch.sh" in tt.get("helper", ""), tt.get("helper")
+rt = doc.get("role_templates") or {}
+assert rt.get("schema_version") == "vps-role-templates.v1", rt.get("schema_version")
+assert len(rt.get("templates") or []) >= 4, rt.get("templates")
 print("launch-status-rehearsal-smoke: plan")
-print("  schema=launch-status.v5")
+print("  schema=launch-status.v6")
 print(f"  checkpoint_log.path={cl.get('path')}")
 print(f"  checkpoint_log.entry_count={cl.get('entry_count')}")
 print(f"  execution_checklist={ec.get('schema_version')}")
+print(f"  treasury_telemetry={tt.get('schema_version')}")
+print(f"  role_templates={rt.get('schema_version')}")
 print("  helper=launch-status.sh --json")
 PY
 

@@ -393,6 +393,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-5 local RC** — `launch-status.v3` + local MFER rehearsals PASS (no-observer + observer Windows evidence)
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
 - [x] **launch-status v5** — execution_checklist block + TL-5 next_action via vps-execution-checklist.v2 (this push)
+- [x] **launch-status v6** — treasury_telemetry + role_templates blocks (this push)
+- [x] **vps-role-templates-rehearsal-smoke** — plan gate on all four role env templates (this push)
 - [x] **vps-execution-checklist-rehearsal-smoke** — ci-check gate on TL-5/TL-6 preflight checklist (`8a49f7e`)
 - [x] **launch-go-no-go-rehearsal-smoke** — ci-check gate on TL-9 pre-launch go/no-go JSON (`bbc57a1`)
 - [x] **vps-internet-soak-rehearsal-smoke** — TL-5 soak docs + script wiring gate (this push)

@@ -100,6 +100,8 @@ jobs:
           [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_preflight_plan"; exit 1; }
           vps_provision_plan="$(bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only)"
           [[ "$vps_provision_plan" == *"vps-provision-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_provision_plan"; exit 1; }
+          vps_role_templates_plan="$(bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only)"
+          [[ "$vps_role_templates_plan" == *"vps-role-templates-rehearsal-smoke: PASS plan-only"* ]] || { echo "$vps_role_templates_plan"; exit 1; }
           testnet_invite_plan="$(bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only)"
           [[ "$testnet_invite_plan" == *"testnet-invite-rehearsal-smoke: PASS plan-only"* ]] || { echo "$testnet_invite_plan"; exit 1; }
           publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"
@@ -623,6 +625,11 @@ jobs:
           $vpsProvisionPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-provision-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
           if ($vpsProvisionPlan -notmatch "vps-provision-rehearsal-smoke: PASS plan-only") {
             $vpsProvisionPlan
+            exit 1
+          }
+          $vpsRoleTemplatesPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+          if ($vpsRoleTemplatesPlan -notmatch "vps-role-templates-rehearsal-smoke: PASS plan-only") {
+            $vpsRoleTemplatesPlan
             exit 1
           }
           $testnetInvitePlan = (powershell -NoProfile -File scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.ps1 -PlanOnly) -join "`n"

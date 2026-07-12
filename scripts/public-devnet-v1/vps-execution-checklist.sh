@@ -110,6 +110,7 @@ print(json.dumps({
         "ceremony": "bash scripts/public-devnet-v1/vps-launch-ceremony.sh",
         "treasury_telemetry": "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc 127.0.0.1:18731",
         "pm23_rehearsal": "bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only",
+        "role_templates": "bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only",
         "tl9_launch_gate": "bash scripts/public-devnet-v1/launch-go-no-go.sh",
         "tl7_signoff": "docs/TESTNET_GENESIS_CEREMONY.md",
         "tl8_publish_seeds": "bash scripts/public-devnet-v1/publish-seed-nodes.sh --public-ip YOUR_VPS_IP --apply",

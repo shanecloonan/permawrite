@@ -181,7 +181,7 @@ $head = Get-HeadSha
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v5"
+    schema_version         = "launch-status.v6"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"
@@ -189,6 +189,23 @@ $report = [ordered]@{
         schema_version = "vps-execution-checklist.v2"
         helper         = "bash scripts/public-devnet-v1/vps-execution-checklist.sh"
         rehearsal      = "bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only"
+    }
+    treasury_telemetry     = [ordered]@{
+        schema_version = "treasury-telemetry-watch.v1"
+        helper         = "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh"
+        rehearsal      = "bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --plan-only"
+        revisit_doc    = "docs/FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury"
+    }
+    role_templates         = [ordered]@{
+        schema_version = "vps-role-templates.v1"
+        helper_doc     = "docs/REFERENCE_TOPOLOGY.md"
+        rehearsal      = "bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only"
+        templates      = @(
+            "scripts/public-devnet-v1/vps-role-validator.env.example"
+            "scripts/public-devnet-v1/vps-role-observer.env.example"
+            "scripts/public-devnet-v1/vps-role-operator.env.example"
+            "scripts/public-devnet-v1/vps-role-wallet.env.example"
+        )
     }
     suggested_phase        = $phase
     next_action            = $nextAction

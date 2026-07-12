@@ -137,6 +137,8 @@ vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smok
 [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_preflight_plan" >&2; exit 1; }
 vps_provision_plan="$(bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_provision_plan" == *"vps-provision-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_provision_plan" >&2; exit 1; }
+vps_role_templates_plan="$(bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_role_templates_plan" == *"vps-role-templates-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_role_templates_plan" >&2; exit 1; }
 testnet_invite_plan="$(bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only)"
 [[ "$testnet_invite_plan" == *"testnet-invite-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$testnet_invite_plan" >&2; exit 1; }
 publish_seed_plan="$(bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only)"

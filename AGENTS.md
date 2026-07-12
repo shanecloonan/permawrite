@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-11)
 
-**Head:** `4a429e4`. **CI `#29174819450` GREEN**. **Nightly `#29175519794` GREEN**. Release evidence `4a429e4` + RC audit **go**.
+**Head:** launch-status v6 + role-templates push (this commit). Prior: **CI `#29174819450` GREEN** + **Nightly `#29175519794` GREEN** on `4a429e4`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI + Nightly on `4a429e4` | **Done** — `#29174819450` + `#29175519794` GREEN | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `4a429e4` / CI `#29174819450` | Human sign-off packet |
-| **5** | P32 phase 4d operator PM23 hard-fail | **Done** — `4a429e4` | TL-5 role-separated VPS (human) |
-| **7** | vps-provision role template gate | **Done** — `4a429e4` | TL-5 VPS internet soak (human) |
+| **1** | CI on launch-status v6 push | **Doing** — docs-only ci-check | Nightly dispatch on green head |
+| **2** | Release evidence refresh | **Doing** — refresh after green CI | Human sign-off packet |
+| **6** | F6 treasury telemetry in launch-status | **Doing** — this push | Idle telemetry watch |
+| **7** | launch-status v6 + role-templates smoke | **Doing** — this push | TL-5 VPS internet soak (human) |
 
 ---
 
