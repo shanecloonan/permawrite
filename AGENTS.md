@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-12)
 
-**Head:** `8b4f0ee`. Prior: TL-9 `d04afed`; soak evidence rehearsal `78d236c`; P32 4e `b4cab93`; **Nightly `#29175519794` GREEN** on `4a429e4`.
+**Head:** `11a2d07` (TL-6 participant evidence assert). Prior: `4f636e5` board sync; F12 live `8b4f0ee`; TL-9 `d04afed`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI on `8b4f0ee` | **Doing** — docs/scripts ci-check | Nightly dispatch on green head |
+| **1** | CI on `11a2d07` | **Doing** — docs/scripts ci-check | Nightly dispatch on green head |
 | **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
-| **5** | F12 demo live smoke | **Done** — `8b4f0ee` | Idle until TL-5 VPS |
-| **7** | Launch software path | **Done** — `d04afed`/`78d236c` | TL-5 VPS internet soak (human) |
+| **5** | F12 5b docs sync | **Done** — this push | Idle until TL-5 VPS |
+| **7** | TL-6 participant evidence assert | **Done** — `11a2d07` | TL-5 VPS internet soak (human) |
 
 ---
 
@@ -126,7 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F12 demo live smoke** (`8b4f0ee`) - privacy surface (lane 5): `demo-web-f12-rehearsal-smoke --live` signs fixture; CLI verify/cross-check + mfn-wasm checkpoint_log_core.
+- **TL-6 participant evidence assert** (`11a2d07`) - testnet launch (lane 7): `assert-vps-participant-rehearsal-evidence.*` + fixture; `vps-participant-rehearsal-evidence-rehearsal-smoke` ci-check gate.
 - **TL-9 checkpoint Schnorr verify** (`d04afed`) - testnet launch (lane 7): `launch-go-no-go` Schnorr-verifies checkpoint log when `seed_nodes >= 3`.
 - **vps-internet-soak-evidence-rehearsal-smoke** (`78d236c`) - testnet launch (lane 7): ci-check gate for assert + launch-status fixture.
 - **P32 phase 4e** (`b4cab93`) - privacy surface (lane 5): observer template `MFND_PM23_HARD_FAIL=1`.

@@ -61,7 +61,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **F12 phase 5b demo live smoke** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **Lane 7 / TL-5 soak rehearsal smoke** — `vps-internet-soak-rehearsal-smoke.*` plan-only gate (this push).
 - [x] **Lane 7 / TL-5 soak evidence assert** — `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` soak PASS detection fix (this push).
-- [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (this push).
+- [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (`4688735`).
+- [x] **Lane 7 / TL-6 participant evidence assert** — `assert-vps-participant-rehearsal-evidence.*` + rehearsal smoke (`11a2d07`).
 - [x] **Lane 7 / TL-7 ceremony rehearsal smoke** — `vps-launch-ceremony-rehearsal-smoke.*` TL-5..TL-9 ordering gate (`05e2772`).
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
 - [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).

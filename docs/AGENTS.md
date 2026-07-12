@@ -402,7 +402,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **vps-internet-soak-rehearsal-smoke** — TL-5 soak docs + script wiring gate (this push)
 - [x] **assert-vps-internet-soak-evidence** — TL-5 transcript audit gate + launch-status soak PASS fix (`1aff0df`)
 - [x] **vps-internet-soak-evidence-rehearsal-smoke** — assert + launch-status fixture gate (this push)
-- [x] **vps-participant-rehearsal-rehearsal-smoke** — TL-6 participant wrapper + evidence gate (this push)
+- [x] **vps-participant-rehearsal-evidence-rehearsal-smoke** — assert + launch-status fixture gate (`11a2d07`)
+- [x] **vps-participant-rehearsal-rehearsal-smoke** — TL-6 participant wrapper + evidence gate (`4688735`)
 - [x] **publish-seed-nodes-rehearsal-smoke** — TL-8 fixture dry-run + doc gate (`05e2772`)
 - [x] **vps-launch-ceremony-rehearsal-smoke** — TL-7 ceremony TL-5..TL-9 ordering gate (`05e2772`)
 - [x] **F12 phase 5 demo web** — checkpoint log UI + `demo-web-f12-rehearsal-smoke.*` (`05e2772`)
@@ -433,14 +434,6 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## TESTNET_CHECKLIST mirror
 
 RC lanes 1–3 must keep [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) in sync when they land units. Lanes 4–6 add a one-line note under **Agent coordination** when they ship protocol or privacy-surface changes. Lane 7 mirrors TL units into [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md).
-
----
-
-## See also
-
-- [`3agent.md`](./3agent.md) — legacy lanes 1–3 pointer
-- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md), [`PRIVACY.md`](./PRIVACY.md), [`ROADMAP.md`](./ROADMAP.md)
-UNCH.md).
 
 ---
 
