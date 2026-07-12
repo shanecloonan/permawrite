@@ -57,6 +57,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-5 preflight hardening** — `vps-preflight.sh` validates MFER policy + `mfn-storage-operator` binary before VPS soak.
 - [x] **Lane 7 / TL-5 execution checklist v2** — `vps-execution-checklist.v2` adds TL-7/TL-8 publish + invite commands (`c1f9597`).
 - [x] **Lane 7 / TL-9 launch-go-no-go rehearsal** — `launch-go-no-go-rehearsal-smoke.*` plan-only gate on pre-launch `launch-go-no-go.v1` JSON (`bbc57a1`).
+- [x] **Lane 7 / TL-9 Schnorr checkpoint gate** — `launch-go-no-go` runs `mfn-cli checkpoint-log verify` when `seed_nodes >= 3` (this push).
+- [x] **F12 phase 5b demo live smoke** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **Lane 7 / TL-5 soak rehearsal smoke** — `vps-internet-soak-rehearsal-smoke.*` plan-only gate (this push).
 - [x] **Lane 7 / TL-5 soak evidence assert** — `assert-vps-internet-soak-evidence.*` + fixture; `launch-status` soak PASS detection fix (this push).
 - [x] **Lane 7 / TL-6 participant rehearsal smoke** — `vps-participant-rehearsal-rehearsal-smoke.*` plan-only gate (this push).
@@ -69,7 +71,10 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / launch-status v6** — treasury_telemetry + role_templates blocks (`1630905`).
 - [x] **Lane 7 / role-templates rehearsal** — `vps-role-templates-rehearsal-smoke.*` plan gate (`1630905`).
 - [x] **P32 phase 4d** — operator `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` (`4a429e4`).
-- [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (this push).
+- [x] **Lane 7 / TL-5 soak evidence rehearsal** — `vps-internet-soak-evidence-rehearsal-smoke.*` (`78d236c`).
+- [x] **Lane 7 / TL-9 Schnorr gate** — `launch-go-no-go` checkpoint verify when `seed_nodes >= 3` (`d04afed`).
+- [x] **Lane 5 / F12 demo live** — `demo-web-f12-rehearsal-smoke --live` (`8b4f0ee`).
+- [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (`b4cab93`).
 - [x] **Lane 7 / launch-status v5** — execution checklist cross-link + ceremony v2 pre-step (`cf2c05d`).
 - [x] **P32 phase 4b** — PM23 runtime env lint on mfnd + mfn-storage-operator (`638f260`).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).

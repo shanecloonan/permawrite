@@ -7,13 +7,27 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | Nightly `#29170244905` GREEN on `638f260` | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-638f260` RC audit **go** | **Done** | Human sign-off |
+| **1** RC core | Nightly `#29175519794` GREEN on `4a429e4` | **Doing** — CI on `8b4f0ee` | Nightly on green head |
+| **2** RC ops | evidence on `4a429e4` | **Waiting** — refresh after CI | Human sign-off |
 | **3** Onboarding | checklist v2 `c1f9597` | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F12 phase 4 `5965525` | **Done** | TL-8 `--apply` on VPS |
-| **5** Privacy | P32 phase 4b PM23 runtime lint `638f260` | **Done** | PM23 hard-fail default (research) |
-| **6** Permanence | F6 docs `9a2673a`/`bff1b70` | **Done** | Parameter fork (research) |
-| **7** Testnet | launch-status v5 + checkpoint publish `638f260` | **Done** | TL-5 VPS soak (human) |
+| **5** Privacy | P32 4e `b4cab93` + F12 live `8b4f0ee` | **Done** | TL-5 VPS soak (human) |
+| **6** Permanence | launch-status v6 `1630905` | **Done** | Telemetry watch |
+| **7** Testnet | TL-9 `d04afed` + soak evidence `78d236c` | **Done** | TL-5 VPS soak (human) |
+
+---
+
+## Session — 2026-07-12 (TL-9 crypto + F12 live + soak evidence rehearsal)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **vps-internet-soak-evidence-rehearsal-smoke** | **Done** — `78d236c` | assert + launch-status fixture gate (fixes ci-check) |
+| **TL-9 checkpoint Schnorr** | **Done** — `d04afed` | `launch-go-no-go` verifies JSONL when seeds>=3 |
+| **F12 demo live** | **Done** — `8b4f0ee` | `--live` sign + CLI + wasm checkpoint_log_core |
+
+**Lane 5 — Done:** P32 4e + F12 live **Next:** human VPS rehearsal
+
+**Lane 7 — Done:** software path **Next:** human TL-5 VPS soak
 
 ---
 

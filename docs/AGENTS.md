@@ -274,6 +274,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F12 phase 2** — `wallet light-scan --checkpoint-log`; cross-check vs signed JSONL log (`10e606e`).
 - [x] **F12 phase 3** — `mfn-checkpoint-log` crate; WASM `checkpointLogVerify` / `checkpointLogCrossCheck` (`5d78329`).
 - [x] **F12 phase 4** — `checkpoint-log cross-check`; `publish-checkpoint-log.*`; live rehearsal smoke (`5965525`).
+- [x] **F12 phase 5b** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **P32 phase 4a** — PM23 operator-manifest separation plan-only rehearsal smoke (this push).
@@ -281,7 +282,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 4d** — operator template `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1`; storage-operator aborts on validator seed env (`4a429e4`).
 - [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (`b4cab93`).
 - [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
-- [x] **publish-checkpoint-log-rehearsal-smoke** — TL-8 checkpoint log publish doc + plan gate (this push).
+- [x] **F12 phase 5b demo live** — `demo-web-f12-rehearsal-smoke --live` (`8b4f0ee`).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
 ### Done (recent)
@@ -405,6 +406,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **publish-seed-nodes-rehearsal-smoke** — TL-8 fixture dry-run + doc gate (`05e2772`)
 - [x] **vps-launch-ceremony-rehearsal-smoke** — TL-7 ceremony TL-5..TL-9 ordering gate (`05e2772`)
 - [x] **F12 phase 5 demo web** — checkpoint log UI + `demo-web-f12-rehearsal-smoke.*` (`05e2772`)
+- [x] **F12 phase 5b + TL-9 Schnorr gate** — live demo smoke (`8b4f0ee`) + `launch-go-no-go` crypto verify (`d04afed`)
 - [x] **vps-execution-checklist v2** — TL-7/TL-8 publish + invite commands in checklist JSON (`c1f9597`)
 - [x] **testnet-invite-rehearsal-smoke** — TL-8 invite packet doc gate (`9da922a`; wired `c1f9597`)
 - [x] **TL-5 execution checklist** — `vps-execution-checklist.*` (`759f5d1`).
@@ -431,6 +433,14 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 ## TESTNET_CHECKLIST mirror
 
 RC lanes 1–3 must keep [`TESTNET_CHECKLIST.md`](./TESTNET_CHECKLIST.md) in sync when they land units. Lanes 4–6 add a one-line note under **Agent coordination** when they ship protocol or privacy-surface changes. Lane 7 mirrors TL units into [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md).
+
+---
+
+## See also
+
+- [`3agent.md`](./3agent.md) — legacy lanes 1–3 pointer
+- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md), [`PRIVACY.md`](./PRIVACY.md), [`ROADMAP.md`](./ROADMAP.md)
+UNCH.md).
 
 ---
 
