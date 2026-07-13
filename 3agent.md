@@ -24,7 +24,7 @@
 | **F5 fraud-proof phase 1** | **Done** — `bd6d4d9` | P2P tag `0x13` recv/send/fanout; CI `#29221315455` GREEN |
 | **F5 UTF-8 smoke fix** | **Done** — `fa2aab2` | CI `#29212422570` GREEN; Nightly `#29213250847` GREEN |
 
-**Lane 4 — Doing:** phase 1 gossip **Next:** green CI; phase 2 coinbase fraud
+**Lane 4 — Done:** phase 1 gossip (`bd6d4d9`) **Next:** phase 2 coinbase fraud
 
 ---
 
