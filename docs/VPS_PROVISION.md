@@ -50,8 +50,8 @@ Use the **software-ready pin** from [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) (
 ```bash
 git clone https://github.com/shanecloonan/permawrite.git
 cd permawrite
-# Prefer the pinned release commit from TESTNET_LAUNCH.md § Software-ready pin
-git checkout ba6fdce   # or later GREEN head after release-evidence refresh
+# Checkout the Release commit from TESTNET_LAUNCH.md § Software-ready pin
+git checkout <pin-sha-from-TESTNET_LAUNCH.md>
 git log -1 --oneline   # record for soak evidence
 
 cargo build -p mfn-node --release --bin mfnd
