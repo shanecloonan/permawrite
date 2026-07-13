@@ -105,7 +105,7 @@ docs. Deeper analysis of every item lives in
 
 ### 11. ~~Committee finality does not attest state-transition validity~~ (partially mitigated)
 
-> **Status: fraud-proof phase 2 shipped** — body-root (v1 wire) + coinbase amount (v2 wire) verify without UTXO set; P2P tag `0x13` gossips via `verify_interactive_fraud_proof`. CLSAG/SPoRA fraud + slash remain phase 3+.
+> **Status: fraud-proof phase 3 shipped** — body-root (v1) + coinbase (v2) + invalid CLSAG/SPoRA (v3) verify; P2P tag `0x13` gossips via `verify_interactive_fraud_proof`. Ring-membership mint fraud + producer slash remain phase 3b+.
 
 The reference voting path (`cast_vote` → `verify_producer_proof` in
 `mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF

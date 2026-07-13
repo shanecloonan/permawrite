@@ -50,9 +50,9 @@ foreach ($entry in $phase1.GetEnumerator()) {
         throw "fraud-proof-rehearsal-smoke: $($entry.Value) missing phase 1: $($entry.Key)"
     }
 }
-foreach ($needle in @("verify_coinbase_amount_fraud_proof", "verify_interactive_fraud_proof", "COINBASE_FRAUD_PROOF_VERSION")) {
+foreach ($needle in @("verify_coinbase_amount_fraud_proof", "verify_interactive_fraud_proof", "COINBASE_FRAUD_PROOF_VERSION", "verify_tx_fraud_proof", "TX_FRAUD_PROOF_VERSION", "InvalidClsag", "InvalidSpora")) {
     if (-not (Select-String -LiteralPath $Consensus -Pattern ([regex]::Escape($needle)) -Quiet)) {
-        throw "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2: $needle"
+        throw "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2/3: $needle"
     }
 }
 
@@ -60,7 +60,7 @@ Write-Host "fraud-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::fraud_proof"
 Write-Host "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-Write-Host "  phase=2 coinbase amount fraud + phase 1 gossip; slash deferred"
+Write-Host "  phase=3 CLSAG/SPoRA + phase 2 coinbase + phase 1 gossip; slash deferred"
 
 if ($PlanOnly) {
     Write-Host "fraud-proof-rehearsal-smoke: PASS plan-only"

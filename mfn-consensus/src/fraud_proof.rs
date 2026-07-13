@@ -6,18 +6,24 @@
 //! light client can verify **without the UTXO set**: the attached body
 //! recomputes a Merkle root that disagrees with the finalized header.
 //!
-//! Later phases (CLSAG / SPoRA) need state witnesses. Coinbase amount fraud
-//! (phase 2) uses fee_sum + settlement witnesses. Gossip ships on `mfn-net`
-//! tag `0x13`; slash deferred.
+//! Later phases (CLSAG / SPoRA) attach compact witnesses. Coinbase amount fraud
+//! (phase 2) uses fee_sum + settlement witnesses; phase 3 adds invalid CLSAG
+//! (stateless) and invalid SPoRA (parent-state `StorageCommitment` witness).
+//! Gossip ships on `mfn-net` tag `0x13`; slash deferred.
 
-use crate::block::{decode_block, encode_block, tx_merkle_root, Block, BlockDecodeError};
+use crate::block::{
+    decode_block, encode_block, tx_merkle_root, Block, BlockDecodeError, RingPolicy,
+};
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase_outputs, PayoutAddress};
 use crate::emission::{block_coinbase_specs, EmissionParams};
 use crate::slashing::slashing_merkle_root;
+use crate::storage::{decode_storage_commitment, encode_storage_commitment, StorageCommitment};
 use crate::storage_operator_wire::bond_section_merkle_root;
+use crate::transaction::verify_transaction;
 use mfn_crypto::codec::{Reader, Writer};
 use mfn_storage::{
-    decode_storage_proof, encode_storage_proof, storage_proof_merkle_root, SporaError, StorageProof,
+    decode_storage_proof, encode_storage_proof, storage_proof_merkle_root, verify_storage_proof,
+    SporaError, StorageProof, StorageProofCheck,
 };
 use thiserror::Error;
 
@@ -27,8 +33,17 @@ pub const FRAUD_PROOF_VERSION: u32 = 1;
 /// Wire format version for [`CoinbaseAmountFraudProof`] (**F5** phase 2).
 pub const COINBASE_FRAUD_PROOF_VERSION: u32 = 2;
 
+/// Wire format version for CLSAG / SPoRA fraud (**F5** phase 3).
+pub const TX_FRAUD_PROOF_VERSION: u32 = 3;
+
 /// Dedup tag for coinbase fraud fan-out (distinct from [`BodyRootFraudKind`]).
 pub const COINBASE_FRAUD_DEDUP_KIND: u8 = 5;
+
+/// Dedup tag for invalid-CLSAG fraud fan-out.
+pub const CLSAG_FRAUD_DEDUP_KIND: u8 = 6;
+
+/// Dedup tag for invalid-SPoRA fraud fan-out.
+pub const SPORA_FRAUD_DEDUP_KIND: u8 = 7;
 
 /// Soft confirmation guidance for light clients (slots to wait for fraud).
 ///
@@ -116,6 +131,25 @@ pub enum FraudProofError {
     /// Storage proof witness decode failed.
     #[error("storage proof decode: {0}")]
     StorageProofDecode(String),
+    /// `tx_index` / `proof_index` out of range for the attached block.
+    #[error("fraud index {index} out of range for {kind} (len {len})")]
+    IndexOutOfRange {
+        /// Which index field failed.
+        kind: &'static str,
+        /// Supplied index.
+        index: u16,
+        /// Body section length.
+        len: usize,
+    },
+    /// CLSAG fraud does not apply to coinbase-shaped txs.
+    #[error("coinbase tx at index {0} is not a CLSAG fraud target")]
+    CoinbaseNotClsagTarget(usize),
+    /// SPoRA fraud requires a parent-state commitment witness.
+    #[error("missing storage commitment witness for SPoRA fraud")]
+    MissingStorageWitness,
+    /// Storage commitment witness decode failed.
+    #[error("storage commitment decode: {0}")]
+    StorageCommitmentDecode(String),
 }
 
 /// Recompute the body root named by `kind` and compare to the header.
@@ -231,13 +265,15 @@ pub enum CoinbaseAmountFraudVerdict {
     },
 }
 
-/// Unified verdict for gossip admission (body-root or coinbase amount).
+/// Unified verdict for gossip admission (body-root, coinbase, or tx/storage).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteractiveFraudVerdict {
     /// Body-root mismatch (phase 0).
     BodyRoot(FraudProofVerdict),
     /// Coinbase economics mismatch (phase 2).
     CoinbaseAmount(CoinbaseAmountFraudVerdict),
+    /// CLSAG or SPoRA invalidity (phase 3).
+    Tx(TxFraudVerdict),
 }
 
 /// Recompute expected coinbase outputs and compare to the body coinbase tx.
@@ -402,7 +438,208 @@ pub fn decode_coinbase_amount_fraud_proof(
     })
 }
 
-/// Verify any supported interactive fraud proof wire (version 1 or 2).
+/// Which tx/storage proof class phase 3 disputes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TxFraudKind {
+    /// `verify_transaction` rejects the tx at `index` (stateless).
+    InvalidClsag = 1,
+    /// `verify_storage_proof` rejects the proof at `index` given witness commit.
+    InvalidSpora = 2,
+}
+
+impl TxFraudKind {
+    /// Parse a wire discriminant.
+    pub fn from_u8(v: u8) -> Option<Self> {
+        match v {
+            1 => Some(Self::InvalidClsag),
+            2 => Some(Self::InvalidSpora),
+            _ => None,
+        }
+    }
+}
+
+/// CLSAG or SPoRA invalidity challenge (**F5** phase 3).
+#[derive(Debug, Clone)]
+pub struct TxFraudProof {
+    /// Format version ([`TX_FRAUD_PROOF_VERSION`]).
+    pub version: u32,
+    /// Which check failed.
+    pub kind: TxFraudKind,
+    /// `txs` index (CLSAG) or `storage_proofs` index (SPoRA).
+    pub index: u16,
+    /// Parent-state commitment witness (required for [`TxFraudKind::InvalidSpora`]).
+    pub storage_commit_witness: Option<StorageCommitment>,
+    /// Full block including the disputed tx or storage proof.
+    pub block: Block,
+}
+
+/// Outcome of [`verify_tx_fraud_proof`] for invalid CLSAG.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClsagFraudVerdict {
+    /// Index in `block.txs`.
+    pub tx_index: usize,
+    /// Diagnostics from [`verify_transaction`].
+    pub verify_errors: Vec<String>,
+}
+
+/// Outcome of [`verify_tx_fraud_proof`] for invalid SPoRA.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SporaFraudVerdict {
+    /// Index in `block.storage_proofs`.
+    pub proof_index: usize,
+    /// Why [`verify_storage_proof`] rejected the proof.
+    pub reason: StorageProofCheck,
+}
+
+/// Verify a phase-3 CLSAG or SPoRA fraud proof.
+pub fn verify_tx_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, FraudProofError> {
+    if proof.version != TX_FRAUD_PROOF_VERSION {
+        return Err(FraudProofError::UnsupportedVersion { got: proof.version });
+    }
+    match proof.kind {
+        TxFraudKind::InvalidClsag => verify_clsag_fraud_proof(proof),
+        TxFraudKind::InvalidSpora => verify_spora_fraud_proof(proof),
+    }
+}
+
+fn verify_clsag_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, FraudProofError> {
+    let tx_index = usize::from(proof.index);
+    let tx = proof
+        .block
+        .txs
+        .get(tx_index)
+        .ok_or(FraudProofError::IndexOutOfRange {
+            kind: "tx",
+            index: proof.index,
+            len: proof.block.txs.len(),
+        })?;
+    if tx_index == 0 && is_coinbase_shaped(tx) {
+        return Err(FraudProofError::CoinbaseNotClsagTarget(tx_index));
+    }
+    let v = verify_transaction(tx, &RingPolicy::PRODUCTION);
+    if v.ok {
+        return Err(FraudProofError::NotFraud);
+    }
+    Ok(TxFraudVerdict::InvalidClsag(ClsagFraudVerdict {
+        tx_index,
+        verify_errors: v.errors,
+    }))
+}
+
+fn verify_spora_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, FraudProofError> {
+    let proof_index = usize::from(proof.index);
+    let storage_proof =
+        proof
+            .block
+            .storage_proofs
+            .get(proof_index)
+            .ok_or(FraudProofError::IndexOutOfRange {
+                kind: "storage_proof",
+                index: proof.index,
+                len: proof.block.storage_proofs.len(),
+            })?;
+    let commit = proof
+        .storage_commit_witness
+        .as_ref()
+        .ok_or(FraudProofError::MissingStorageWitness)?;
+    let verdict = verify_storage_proof(
+        commit,
+        &proof.block.header.prev_hash,
+        proof.block.header.slot,
+        storage_proof,
+    );
+    if verdict.is_valid() {
+        return Err(FraudProofError::NotFraud);
+    }
+    Ok(TxFraudVerdict::InvalidSpora(SporaFraudVerdict {
+        proof_index,
+        reason: verdict,
+    }))
+}
+
+/// Unified phase-3 verdict for gossip admission.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TxFraudVerdict {
+    /// CLSAG / balance / range proof failure (stateless).
+    InvalidClsag(ClsagFraudVerdict),
+    /// SPoRA proof failure given parent-state commitment witness.
+    InvalidSpora(SporaFraudVerdict),
+}
+
+/// Encode a phase-3 fraud proof for P2P / archive.
+#[must_use]
+pub fn encode_tx_fraud_proof(proof: &TxFraudProof) -> Vec<u8> {
+    let mut out = Vec::new();
+    out.extend_from_slice(&proof.version.to_le_bytes());
+    out.push(proof.kind as u8);
+    out.extend_from_slice(&proof.index.to_le_bytes());
+    if proof.kind == TxFraudKind::InvalidSpora {
+        let commit_wire = encode_storage_commitment(
+            proof
+                .storage_commit_witness
+                .as_ref()
+                .expect("SPoRA fraud requires storage witness"),
+        );
+        let len = u32::try_from(commit_wire.len()).unwrap_or(u32::MAX);
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&commit_wire);
+    }
+    out.extend_from_slice(&encode_block(&proof.block));
+    out
+}
+
+/// Decode [`encode_tx_fraud_proof`] bytes.
+pub fn decode_tx_fraud_proof(bytes: &[u8]) -> Result<TxFraudProof, FraudProofError> {
+    if bytes.len() < 7 {
+        return Err(FraudProofError::BlockDecode(
+            "tx fraud proof too short".into(),
+        ));
+    }
+    let version = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    let kind = TxFraudKind::from_u8(bytes[4]).ok_or(FraudProofError::UnknownKind(bytes[4]))?;
+    let index = u16::from_le_bytes([bytes[5], bytes[6]]);
+    let mut offset = 7usize;
+    let storage_commit_witness = if kind == TxFraudKind::InvalidSpora {
+        if offset + 4 > bytes.len() {
+            return Err(FraudProofError::BlockDecode(
+                "truncated commitment length".into(),
+            ));
+        }
+        let wire_len = usize::try_from(u32::from_le_bytes([
+            bytes[offset],
+            bytes[offset + 1],
+            bytes[offset + 2],
+            bytes[offset + 3],
+        ]))
+        .unwrap_or(usize::MAX);
+        offset = offset.saturating_add(4);
+        if offset.saturating_add(wire_len) > bytes.len() {
+            return Err(FraudProofError::BlockDecode(
+                "truncated commitment wire".into(),
+            ));
+        }
+        let wire = &bytes[offset..offset.saturating_add(wire_len)];
+        offset = offset.saturating_add(wire_len);
+        Some(
+            decode_storage_commitment(wire)
+                .map_err(|e| FraudProofError::StorageCommitmentDecode(e.to_string()))?,
+        )
+    } else {
+        None
+    };
+    let block = decode_block(&bytes[offset..])
+        .map_err(|e: BlockDecodeError| FraudProofError::BlockDecode(e.to_string()))?;
+    Ok(TxFraudProof {
+        version,
+        kind,
+        index,
+        storage_commit_witness,
+        block,
+    })
+}
+
+/// Verify any supported interactive fraud proof wire (version 1, 2, or 3).
 pub fn verify_interactive_fraud_proof(
     consensus_wire: &[u8],
     emission_params: &EmissionParams,
@@ -429,6 +666,10 @@ pub fn verify_interactive_fraud_proof(
                 verify_coinbase_amount_fraud_proof(&proof, emission_params)?,
             ))
         }
+        TX_FRAUD_PROOF_VERSION => {
+            let proof = decode_tx_fraud_proof(consensus_wire)?;
+            Ok(InteractiveFraudVerdict::Tx(verify_tx_fraud_proof(&proof)?))
+        }
         got => Err(FraudProofError::UnsupportedVersion { got }),
     }
 }
@@ -442,6 +683,13 @@ pub fn fraud_proof_fanout_key(consensus_wire: &[u8]) -> Option<([u8; 32], u8)> {
     }
     if let Ok(p) = decode_coinbase_amount_fraud_proof(consensus_wire) {
         return Some((block_id(&p.block.header), COINBASE_FRAUD_DEDUP_KIND));
+    }
+    if let Ok(p) = decode_tx_fraud_proof(consensus_wire) {
+        let kind_tag = match p.kind {
+            TxFraudKind::InvalidClsag => CLSAG_FRAUD_DEDUP_KIND,
+            TxFraudKind::InvalidSpora => SPORA_FRAUD_DEDUP_KIND,
+        };
+        return Some((block_id(&p.block.header), kind_tag));
     }
     None
 }
@@ -589,6 +837,193 @@ mod tests {
         let wire = encode_coinbase_amount_fraud_proof(&proof);
         let decoded = decode_coinbase_amount_fraud_proof(&wire).expect("decode");
         verify_coinbase_amount_fraud_proof(&decoded, &DEFAULT_EMISSION_PARAMS).expect("fraud");
+        verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
+    }
+
+    #[test]
+    fn clsag_fraud_round_trip_and_detect() {
+        use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+        use curve25519_dalek::Scalar;
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::stealth::stealth_gen;
+        use mfn_crypto::{generator_g, generator_h, random_scalar};
+
+        fn ring16_input(value: u64) -> InputSpec {
+            let signer_idx = 8usize;
+            let signer_spend = random_scalar();
+            let signer_blinding = random_scalar();
+            let signer_p = generator_g() * signer_spend;
+            let signer_c =
+                (generator_g() * signer_blinding) + (generator_h() * Scalar::from(value));
+            let mut p = Vec::with_capacity(16);
+            let mut c = Vec::with_capacity(16);
+            for i in 0..16 {
+                if i == signer_idx {
+                    p.push(signer_p);
+                    c.push(signer_c);
+                } else {
+                    p.push(generator_g() * random_scalar());
+                    c.push(generator_g() * random_scalar());
+                }
+            }
+            InputSpec {
+                ring: ClsagRing { p, c },
+                signer_idx,
+                spend_priv: signer_spend,
+                value,
+                blinding: signer_blinding,
+            }
+        }
+
+        let w_a = stealth_gen();
+        let w_b = stealth_gen();
+        let signed = sign_transaction(
+            vec![ring16_input(1_000_000)],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: Recipient {
+                        view_pub: w_a.view_pub,
+                        spend_pub: w_a.spend_pub,
+                    },
+                    value: 600_000,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: Recipient {
+                        view_pub: w_b.view_pub,
+                        spend_pub: w_b.spend_pub,
+                    },
+                    value: 399_000,
+                    storage: None,
+                },
+            ],
+            1_000,
+            Vec::new(),
+        )
+        .expect("sign");
+        let mut bad_tx = signed.tx.clone();
+        bad_tx.fee = bad_tx.fee.saturating_add(1);
+        let block = {
+            let genesis = build_genesis(&GenesisConfig {
+                timestamp: 0,
+                initial_outputs: Vec::new(),
+                initial_storage: Vec::new(),
+                initial_storage_operators: Vec::new(),
+                validators: Vec::new(),
+                params: TEST_CONSENSUS_PARAMS,
+                emission_params: DEFAULT_EMISSION_PARAMS,
+                endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+                bonding_params: None,
+                header_version: HEADER_VERSION,
+            });
+            let state = apply_genesis(
+                &genesis,
+                &GenesisConfig {
+                    timestamp: 0,
+                    initial_outputs: Vec::new(),
+                    initial_storage: Vec::new(),
+                    initial_storage_operators: Vec::new(),
+                    validators: Vec::new(),
+                    params: TEST_CONSENSUS_PARAMS,
+                    emission_params: DEFAULT_EMISSION_PARAMS,
+                    endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+                    bonding_params: None,
+                    header_version: HEADER_VERSION,
+                },
+            )
+            .expect("genesis");
+            let header =
+                build_unsealed_header(&state, std::slice::from_ref(&bad_tx), &[], &[], &[], 1, 1);
+            seal_block(header, vec![bad_tx], vec![], vec![], vec![], vec![])
+        };
+        let proof = TxFraudProof {
+            version: TX_FRAUD_PROOF_VERSION,
+            kind: TxFraudKind::InvalidClsag,
+            index: 0,
+            storage_commit_witness: None,
+            block,
+        };
+        let wire = encode_tx_fraud_proof(&proof);
+        let decoded = decode_tx_fraud_proof(&wire).expect("decode");
+        match verify_tx_fraud_proof(&decoded).expect("fraud") {
+            TxFraudVerdict::InvalidClsag(v) => assert!(!v.verify_errors.is_empty()),
+            _ => panic!("expected CLSAG fraud"),
+        }
+        verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
+    }
+
+    #[test]
+    fn spora_fraud_round_trip_and_detect() {
+        use mfn_crypto::stealth::stealth_gen;
+        use mfn_storage::{build_storage_commitment, build_storage_proof, DEFAULT_CHUNK_SIZE};
+
+        let data = vec![0xABu8; 8192];
+        let built = build_storage_commitment(&data, 1_000, Some(DEFAULT_CHUNK_SIZE), 3, None)
+            .expect("commit");
+        let prev = [42u8; 32];
+        let slot = 3u32;
+        let op = stealth_gen();
+        let mut proof = build_storage_proof(
+            &built.commit,
+            &prev,
+            slot,
+            &data,
+            &built.tree,
+            op.view_pub,
+            op.spend_pub,
+        )
+        .expect("proof");
+        proof.chunk[0] ^= 0xff;
+        let mut block = {
+            let genesis = build_genesis(&GenesisConfig {
+                timestamp: 0,
+                initial_outputs: Vec::new(),
+                initial_storage: Vec::new(),
+                initial_storage_operators: Vec::new(),
+                validators: Vec::new(),
+                params: TEST_CONSENSUS_PARAMS,
+                emission_params: DEFAULT_EMISSION_PARAMS,
+                endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+                bonding_params: None,
+                header_version: HEADER_VERSION,
+            });
+            let state = apply_genesis(
+                &genesis,
+                &GenesisConfig {
+                    timestamp: 0,
+                    initial_outputs: Vec::new(),
+                    initial_storage: Vec::new(),
+                    initial_storage_operators: Vec::new(),
+                    validators: Vec::new(),
+                    params: TEST_CONSENSUS_PARAMS,
+                    emission_params: DEFAULT_EMISSION_PARAMS,
+                    endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+                    bonding_params: None,
+                    header_version: HEADER_VERSION,
+                },
+            )
+            .expect("genesis");
+            let header =
+                build_unsealed_header(&state, &[], &[], &[], std::slice::from_ref(&proof), slot, 1);
+            seal_block(header, vec![], vec![], vec![], vec![], vec![proof])
+        };
+        block.header.prev_hash = prev;
+        let fraud = TxFraudProof {
+            version: TX_FRAUD_PROOF_VERSION,
+            kind: TxFraudKind::InvalidSpora,
+            index: 0,
+            storage_commit_witness: Some(built.commit.clone()),
+            block,
+        };
+        let wire = encode_tx_fraud_proof(&fraud);
+        let decoded = decode_tx_fraud_proof(&wire).expect("decode");
+        match verify_tx_fraud_proof(&decoded).expect("fraud") {
+            TxFraudVerdict::InvalidSpora(v) => {
+                assert_eq!(v.proof_index, 0);
+                assert!(!v.reason.is_valid());
+            }
+            _ => panic!("expected SPoRA fraud"),
+        }
         verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
     }
 }

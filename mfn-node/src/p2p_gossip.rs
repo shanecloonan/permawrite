@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{
     block_id, decode_block, decode_transaction, tx_id, verify_interactive_fraud_proof,
-    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict,
+    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict, TxFraudVerdict,
     DEFAULT_EMISSION_PARAMS,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
@@ -274,6 +274,19 @@ impl GossipHandler for P2pGossipHandler {
                 } else {
                     format!("valid_fraud:CoinbaseAmount:height={height}")
                 }
+            }
+            Ok(InteractiveFraudVerdict::Tx(TxFraudVerdict::InvalidClsag(v))) => {
+                format!(
+                    "valid_fraud:InvalidClsag:tx_index={}:errors={}",
+                    v.tx_index,
+                    v.verify_errors.len()
+                )
+            }
+            Ok(InteractiveFraudVerdict::Tx(TxFraudVerdict::InvalidSpora(v))) => {
+                format!(
+                    "valid_fraud:InvalidSpora:proof_index={}:reason={:?}",
+                    v.proof_index, v.reason
+                )
             }
             Err(e) => format!("rejected:verify:{e}"),
         }

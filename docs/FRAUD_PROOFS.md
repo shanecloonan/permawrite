@@ -69,6 +69,27 @@ encode_block(block)
 Verifier supplies chain [`EmissionParams`](../mfn-consensus/src/emission.rs); challenger must attach
 `fee_sum` and per-proof settlement bonuses that match the body.
 
+### Phase 3 wire (invalid CLSAG / SPoRA)
+
+```text
+u32le version (=3)
+u8 kind (=1 invalid CLSAG, =2 invalid SPoRA)
+u16le index   (tx index or storage_proof index)
+if kind=2:
+  u32le commit_wire_len || encode_storage_commitment(witness)
+encode_block(block)
+```
+
+- **CLSAG (`kind=1`)** — stateless: runs [`verify_transaction`](../mfn-consensus/src/transaction/verify.rs)
+  with [`RingPolicy::PRODUCTION`](../mfn-consensus/src/block/state.rs). Valid fraud when the tx
+  fails ingress checks (bad CLSAG, balance, range proof, ring floors).
+- **SPoRA (`kind=2`)** — challenger attaches the parent-state [`StorageCommitment`](../mfn-consensus/src/storage.rs)
+  witness; verifier runs [`verify_storage_proof`](../mfn-storage/src/spora.rs) against
+  `prev_hash` + `slot` from the block header.
+
+Ring-membership fraud (fabricated ring mint) remains a follow-up: it needs UTXO witnesses and
+producer slash hooks (phase 3b).
+
 ---
 
 ## API
@@ -92,7 +113,8 @@ let wire = encode_body_root_fraud_proof(&proof);
 | **0 (shipped)** | Body-root kinds + consensus verify + P2P tag reserve |
 | **1 (shipped)** | `mfnd` gossip recv + verify + fan-out (`fanout_fraud_proof`); producer slash deferred |
 | **2 (shipped)** | Coinbase amount fraud (`verify_coinbase_amount_fraud_proof`); wire version 2 |
-| **3** | Invalid CLSAG / SPoRA with compact witnesses (state-heavy) |
+| **3 (shipped)** | Invalid CLSAG + invalid SPoRA (`verify_tx_fraud_proof`); wire version 3 |
+| **3b** | Ring-membership mint fraud + producer slash hooks |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 
 See [`F5.md` §F5](./F5.md).

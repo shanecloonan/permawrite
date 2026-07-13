@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `12e7353` F5 phase 2. **CI `#29225657744` RED** — macOS `mfnd_serve_rejects_oversized_rpc_line` (mfnd_serve drain fix this push).
+**Head:** `9d1710f`. **CI `#29230074495` GREEN**. **This push:** F5 phase 3 CLSAG/SPoRA wire v3.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | macOS RPC oversized-line CI fix | **Doing** — this push | Green CI + Nightly |
-| **2** | Release evidence refresh | **Done** — `release-evidence-f3e5236` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 2 coinbase fraud | **Done** — `12e7353` | Phase 3 CLSAG/SPoRA witnesses |
+| **1** | Nightly on F5 stack | **Doing** — `#29232188307` on `9d1710f` | CI on phase 3 push |
+| **2** | Release evidence refresh | **Done** — `release-evidence-9d1710f` RC audit **go** | Refresh after phase 3 CI green |
+| **4** | F5 phase 3 CLSAG/SPoRA fraud | **Doing** — this push | Phase 3b ring-membership |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---
@@ -126,6 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **macOS RPC oversized-line CI fix** (`9d1710f`) - RC core (lane 1): drain oversized request through newline before JSON-RPC reject; fixes `mfnd_serve_rejects_oversized_rpc_line` on macOS; CI `#29230074495` GREEN; release evidence `9d1710f` RC audit **go**.
 - **Board sync `f3e5236`** - RC ops (lane 2): 3agent F5 phase 1 Done row; release evidence `f3e5236` RC audit **go**.
 - **F5 fraud-proof phase 1** (`bd6d4d9`) - protocol (lane 4): P2P tag `0x13` recv/send/fanout; `mfnd_fraud_proof_valid` log; CI `#29221315455` GREEN; slash deferred.
 - **F5 fraud-proof UTF-8 smoke fix** (`fa2aab2`) - CI `#29212422570` GREEN; Nightly `#29213250847` GREEN.
