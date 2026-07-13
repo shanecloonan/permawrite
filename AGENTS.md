@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `bd6d4d9`. **CI `#29221315455` GREEN**. **Nightly `#29213250847` GREEN** (prior head). **Release evidence `bd6d4d9` + RC audit go**.
+**Head:** `f3e5236`. **CI `#29221315455` GREEN** (stack head `bd6d4d9`; docs-only `f3e5236` inherits). **Release evidence `f3e5236` + RC audit go**. **Nightly `#29213250847` GREEN** (prior stack) — dispatch on `f3e5236` pending.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly monitor | **Done** — CI `#29221315455` GREEN | Nightly on `bd6d4d9` |
-| **2** | Release evidence refresh | **Done** — `release-evidence-bd6d4d9` RC audit **go** | Human sign-off packet |
+| **1** | Nightly on F5 stack | **Next** — dispatch Nightly on `f3e5236` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-f3e5236` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 1 gossip fan-out | **Done** — `bd6d4d9` | Phase 2 coinbase fraud |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
@@ -126,10 +126,11 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Board sync `f3e5236`** - RC ops (lane 2): 3agent F5 phase 1 Done row; release evidence `f3e5236` RC audit **go**.
 - **F5 fraud-proof phase 1** (`bd6d4d9`) - protocol (lane 4): P2P tag `0x13` recv/send/fanout; `mfnd_fraud_proof_valid` log; CI `#29221315455` GREEN; slash deferred.
 - **F5 fraud-proof UTF-8 smoke fix** (`fa2aab2`) - CI `#29212422570` GREEN; Nightly `#29213250847` GREEN.
 - **F5 fraud-proof phase 0** (`0039732`) - body-root fraud verify + tag `0x13`.
-- **genesis-header-version-rehearsal-smoke** (this push) - Path A v1 pin + Path B header_version:2 doc gate in ci-check.
+- **genesis-header-version-rehearsal-smoke** (`22549d7`) - Path A v1 pin + Path B `header_version:2` doc gate in ci-check.
 
 - **Genesis BLS PoP tooling + TL-9 assert** (`83b82dd`) - testnet launch (lane 7) + protocol (lane 4): `genesis-validator-bls-pop.*` + rehearsal smoke; `launch-go-no-go` uses assert scripts; `vps-execution-checklist` tl5/tl6 assert steps; `docs/interop/VRF_MFBN1.md`.
 - **TL-9 checkpoint Schnorr verify** (`d04afed`) - testnet launch (lane 7): `launch-go-no-go` Schnorr-verifies checkpoint log when `seed_nodes >= 3`.

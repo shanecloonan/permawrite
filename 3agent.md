@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29221315455` GREEN (`bd6d4d9`) | **Done** | Nightly on head |
-| **2** RC ops | `release-evidence-bd6d4d9` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29221315455` GREEN (`bd6d4d9`) | **Next** — Nightly on `f3e5236` | Soak maintenance |
+| **2** RC ops | `release-evidence-f3e5236` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 1 `bd6d4d9` | **Done** | Phase 2 coinbase fraud |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
