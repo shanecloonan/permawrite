@@ -13,11 +13,11 @@ use mfn_consensus::{
     extra_codec::EndowmentOpening, finalize, header_signing_hash, pick_winner, seal_block,
     sign_register, sign_transaction, storage_proof_coinbase_bonus,
     storage_proof_operator_settlements, try_produce_slot, ApplyOutcome, Block, BlockError, BondOp,
-    ChainCheckpoint, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
-    GenesisOutput, GenesisStorageOperator, InputSpec, OutputSpec, PayoutAddress, ProducerProof,
-    SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
-    DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
-    TEST_CONSENSUS_PARAMS,
+    ChainCheckpoint, ChainState, ConsensusParams, EmissionParams, EquivocationEvidence,
+    FinalityProof, GenesisConfig, GenesisOutput, GenesisStorageOperator, InputSpec, OutputSpec,
+    PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator,
+    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::bulletproofs::bp_prove;
 use mfn_crypto::clsag::ClsagRing;
@@ -1542,7 +1542,7 @@ fn equivocation_evidence(
 ) -> SlashEvidence {
     let h1 = [voter_index.wrapping_add(11) as u8; 32];
     let h2 = [voter_index.wrapping_add(22) as u8; 32];
-    SlashEvidence {
+    SlashEvidence::Equivocation(EquivocationEvidence {
         height,
         slot,
         voter_index,
@@ -1550,7 +1550,7 @@ fn equivocation_evidence(
         sig_a: bls_sign(&h1, bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, bls_sk),
-    }
+    })
 }
 /// Attach a valid MFBN finality blob when the pre-state has validators (**M5.4**).
 ///

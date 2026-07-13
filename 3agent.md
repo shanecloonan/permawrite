@@ -10,23 +10,23 @@
 | **1** RC core | F5 `85dad78`; CI `#29284954973` + Nightly `#29286801623` GREEN | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1c design (this push) | **Done** | `InvalidBlockSlashEvidence` impl (header_version gate) |
+| **4+6** Protocol | F5 phase 1c impl (`HEADER_VERSION_FRAUD_SLASH`) | **Done** — this push | Full apply_block producer slash integration test |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | launch-status.v7 (this push) | **Done** | Human TL-5 VPS soak → TL-6 |
+| **7** Testnet | launch-status.v7 fraud_proof 1c | **Done** — this push | Human TL-5 VPS soak → TL-6 |
 
 ---
 
-## Session — 2026-07-13 (launch-status v7 + F5 phase 1c design)
+## Session — 2026-07-13 (F5 phase 1c on-chain producer slash)
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **launch-status.v7** | **Done** — this push | `software_ready` pin parse + `fraud_proof` block; rehearsal smokes + ci-check |
-| **F5 phase 1c design** | **Done** — this push | `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` + `PROBLEMS.md` |
+| **F5 phase 1c** | **Done** — this push | Tagged `SlashEvidence` + `InvalidBlockEvidence` + `apply_block` stake zero (`HEADER_VERSION_FRAUD_SLASH`=3) |
+| **launch-status fraud_proof 1c** | **Done** — this push | `on_chain_producer_slash: shipped` |
 | **TL-5** | **Waiting** — human | VPS internet soak |
 
-**Lane 4 — Done:** phase 1c design **Next:** tagged `SlashEvidence` impl  
-**Lane 7 — Done:** launch-status v7 **Next:** human TL-5 VPS soak
+**Lane 4 — Done:** phase 1c impl **Next:** F5 phase 4 SNARK research  
+**Lane 7 — Done:** launch-status 1c pin **Next:** human TL-5 VPS soak
 
 ---
 

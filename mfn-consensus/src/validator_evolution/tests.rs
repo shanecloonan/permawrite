@@ -3,8 +3,10 @@
 use super::internal::*;
 use super::*;
 use super::*;
+use crate::block::HEADER_VERSION;
 use crate::bonding::DEFAULT_BONDING_PARAMS;
 use crate::consensus::{ValidatorPayout, ValidatorSecrets};
+use crate::DEFAULT_EMISSION_PARAMS;
 use crate::TEST_CONSENSUS_PARAMS;
 use mfn_bls::bls_keygen_from_seed;
 use mfn_crypto::stealth::stealth_gen;
@@ -48,7 +50,13 @@ fn default_params() -> ConsensusParams {
 fn equivocation_empty_input_is_noop() {
     let (v0, _) = mk_validator(0, 1_000);
     let mut validators = vec![v0];
-    let out = apply_equivocation_slashings(&mut validators, &[]);
+    let out = apply_equivocation_slashings(
+        &mut validators,
+        &[],
+        &DEFAULT_EMISSION_PARAMS,
+        1,
+        HEADER_VERSION,
+    );
     assert_eq!(out.forfeited_total, 0);
     assert!(out.errors.is_empty());
     assert_eq!(validators[0].stake, 1_000);

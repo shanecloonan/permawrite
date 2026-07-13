@@ -94,8 +94,9 @@ pub use block::{
     BlockBody, BlockDecodeError, BlockError, BlockHeader, ChainState, ConsensusParams,
     GenesisConfig, GenesisOutput, GenesisStorageOperator, HeaderDecodeError, PendingUnbond,
     RingPolicy, StorageOperatorEntry, UtxoEntry, ValidatorStats, DEFAULT_CONSENSUS_PARAMS,
-    HEADER_VERSION, HEADER_VERSION_UTXO_QUORUM, MIN_TX_INPUTS_UNIFORM_TIER,
-    MIN_TX_OUTPUTS_UNIFORM_TIER, SUPPORTED_GENESIS_HEADER_VERSIONS, TEST_CONSENSUS_PARAMS,
+    HEADER_VERSION, HEADER_VERSION_FRAUD_SLASH, HEADER_VERSION_UTXO_QUORUM,
+    MIN_TX_INPUTS_UNIFORM_TIER, MIN_TX_OUTPUTS_UNIFORM_TIER, SUPPORTED_GENESIS_HEADER_VERSIONS,
+    TEST_CONSENSUS_PARAMS,
 };
 pub use bond_wire::{
     bond_merkle_root, bond_op_leaf_hash, decode_bond_op, encode_bond_op, BondOp, BondWireError,
@@ -172,10 +173,12 @@ pub use header_verify::{
     verify_block_body, verify_header, BodyVerifyError, HeaderCheck, HeaderVerifyError,
 };
 #[cfg(feature = "bls")]
-pub use slashing::{canonicalize, verify_evidence, EvidenceCheck};
+pub use slashing::{canonicalize, verify_equivocation_evidence, verify_evidence, EvidenceCheck};
 pub use slashing::{
-    decode_evidence, encode_evidence, slashing_leaf_hash, slashing_merkle_root, SlashDecodeError,
-    SlashEvidence,
+    decode_evidence, decode_slash_evidence, encode_evidence, encode_slash_evidence,
+    slashing_leaf_hash, slashing_merkle_root, slashing_merkle_root_for_version,
+    EquivocationEvidence, InvalidBlockEvidence, InvalidBlockEvidenceCheck, SlashDecodeError,
+    SlashEvidence, SlashRejectReason,
 };
 pub use storage::{
     decode_storage_commitment, encode_storage_commitment, storage_commitment_hash,

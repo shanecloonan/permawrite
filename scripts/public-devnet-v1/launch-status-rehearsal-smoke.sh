@@ -44,7 +44,8 @@ sr = doc.get("software_ready") or {}
 assert sr.get("schema_version") == "software-ready-pin.v1", sr.get("schema_version")
 assert sr.get("release_commit"), sr
 fp = doc.get("fraud_proof") or {}
-assert fp.get("phase_shipped") == "1b", fp.get("phase_shipped")
+assert fp.get("phase_shipped") == "1c", fp.get("phase_shipped")
+assert fp.get("on_chain_producer_slash") == "shipped", fp.get("on_chain_producer_slash")
 assert fp.get("list_fraud_contests_rpc") is True, fp.get("list_fraud_contests_rpc")
 print("launch-status-rehearsal-smoke: plan")
 print("  schema=launch-status.v7")

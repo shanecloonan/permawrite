@@ -464,9 +464,11 @@ fn decode_slashings(
     let mut out = Vec::with_capacity(row.slashings.len());
     for (i, s) in row.slashings.iter().enumerate() {
         let bytes = decode_hex(&s.evidence_hex, "evidence_hex")?;
-        out.push(decode_evidence(&bytes).map_err(|e| {
-            WalletCmdError::Usage(format!("slashings[{i}] at height {}: {e}", row.height))
-        })?);
+        out.push(SlashEvidence::Equivocation(
+            decode_evidence(&bytes).map_err(|e| {
+                WalletCmdError::Usage(format!("slashings[{i}] at height {}: {e}", row.height))
+            })?,
+        ));
     }
     Ok(out)
 }

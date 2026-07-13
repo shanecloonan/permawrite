@@ -51,10 +51,10 @@ fn parse_evolution(
     let slash_bytes = decode_hex_list(&body.slashings, "slashings")?;
     let mut slashings = Vec::with_capacity(slash_bytes.len());
     for bytes in slash_bytes {
-        slashings.push(
+        slashings.push(SlashEvidence::Equivocation(
             decode_evidence(&bytes)
                 .map_err(|e| WasmCoreError::InvalidHex(format!("slashings: {e}")))?,
-        );
+        ));
     }
     let bond_bytes = decode_hex_list(&body.bond_ops, "bond_ops")?;
     let mut bond_ops = Vec::with_capacity(bond_bytes.len());

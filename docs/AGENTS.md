@@ -204,11 +204,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B2 ChunkV2** (`20954b0`) — Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained.
 - [x] **F7 consensus tail** (this commit) — `RingPolicy.min_input_count` at `verify_transaction` (with lane 5).
 - [x] **F5 fraud-proof phase 1b** (`85dad78`) — `FraudContestRegistry` + RPC `list_fraud_contests`; CI `#29278386048` GREEN.
-- [x] **F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (this push).
+- [x] **F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (8b72294).
+- [x] **F5 phase 1c impl** — tagged `SlashEvidence` + `InvalidBlockEvidence` + `HEADER_VERSION_FRAUD_SLASH` (this push).
 
 ### Next
 
-- [ ] **F5 phase 1c impl** — tagged `SlashEvidence` union + `apply_block` stake zero (`header_version` bump).
+- [ ] **F5 phase 4** — SNARK/STARK validity proofs research.
 
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).

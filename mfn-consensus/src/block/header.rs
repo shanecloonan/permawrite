@@ -14,6 +14,10 @@ pub const HEADER_VERSION: u32 = 1;
 /// public devnet v1 remains [`HEADER_VERSION`].
 pub const HEADER_VERSION_UTXO_QUORUM: u32 = 2;
 
+/// Header version with tagged slash evidence (equivocation + invalid-block
+/// fraud). Opt-in for new chains (Path B genesis / TL-7 ceremony).
+pub const HEADER_VERSION_FRAUD_SLASH: u32 = 3;
+
 /// Block header — the consensus-critical, hash-committed metadata.
 #[derive(Clone, Debug)]
 pub struct BlockHeader {

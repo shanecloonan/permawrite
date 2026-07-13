@@ -136,7 +136,7 @@ pub fn verify_block_body(block: &Block) -> Result<(), BodyVerifyError> {
         });
     }
 
-    let slashing_root = slashing_merkle_root(&block.slashings);
+    let slashing_root = slashing_merkle_root_for_version(&block.slashings, block.header.version);
     if slashing_root != block.header.slashing_root {
         return Err(BodyVerifyError::SlashingRootMismatch {
             expected: block.header.slashing_root,

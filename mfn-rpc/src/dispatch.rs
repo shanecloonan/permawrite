@@ -7,7 +7,7 @@ use mfn_bls::encode_public_key;
 use mfn_consensus::block::{StorageEntry, UtxoEntry};
 use mfn_consensus::{
     block_header_bytes, block_id, decode_block_header, decode_transaction, encode_block,
-    encode_bond_op, encode_evidence, encode_transaction, tx_id, validator_set_root,
+    encode_bond_op, encode_slash_evidence, encode_transaction, tx_id, validator_set_root,
     AuthorshipClaimRecord, Block, BondEpochCounters, ConsensusParams, GenesisConfig, Validator,
 };
 use mfn_crypto::dhash;
@@ -475,7 +475,7 @@ fn light_follow_row_json(block: &Block, height: u32) -> Value {
     let slashings: Vec<Value> = block
         .slashings
         .iter()
-        .map(|ev| json!({ "evidence_hex": hex::encode(encode_evidence(ev)) }))
+        .map(|ev| json!({ "evidence_hex": hex::encode(encode_slash_evidence(ev, block.header.version)) }))
         .collect();
     let bond_ops: Vec<Value> = block
         .bond_ops
@@ -1278,7 +1278,7 @@ fn dispatch_serve_methods(
             let slashings: Vec<Value> = block
                 .slashings
                 .iter()
-                .map(|ev| json!({ "evidence_hex": hex::encode(encode_evidence(ev)) }))
+                .map(|ev| json!({ "evidence_hex": hex::encode(encode_slash_evidence(ev, block.header.version)) }))
                 .collect();
             let bond_ops: Vec<Value> = block
                 .bond_ops

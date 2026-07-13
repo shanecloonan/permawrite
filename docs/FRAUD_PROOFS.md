@@ -143,16 +143,16 @@ let wire = encode_body_root_fraud_proof(&proof);
 | **3 (shipped)** | Invalid CLSAG + invalid SPoRA (`verify_tx_fraud_proof`); wire version 3 |
 | **3b (shipped)** | Ring-membership UTXO witness + producer slash ops hints |
 | **1b (shipped)** | In-memory fraud contest registry + RPC `list_fraud_contests` |
-| **1c (design)** | On-chain `InvalidBlockSlashEvidence` — producer stake zero on valid interactive fraud (see below) |
+| **1c (shipped)** | On-chain `InvalidBlockSlashEvidence` — producer stake zero on valid interactive fraud (`HEADER_VERSION_FRAUD_SLASH` = 3) |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 
 See [`F5.md` §F5](./F5.md).
 
 ---
 
-## Phase 1c — on-chain producer slash (design)
+## Phase 1c — on-chain producer slash (shipped)
 
-**Status:** design only (not shipped). Phase **1b** gives light clients `list_fraud_contests`; phase **1c** closes the economic loop by zeroing producer stake when a block is *provably invalid* under the interactive fraud stack.
+**Status:** shipped behind `HEADER_VERSION_FRAUD_SLASH` (3). Public devnet v1 stays on header v1 until TL-7 ceremony.
 
 ### Problem
 

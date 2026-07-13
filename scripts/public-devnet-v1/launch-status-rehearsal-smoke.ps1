@@ -43,8 +43,11 @@ if (-not $launch.software_ready.release_commit) {
 if (-not $launch.fraud_proof) {
     throw "launch-status-rehearsal-smoke: fraud_proof block missing"
 }
-if ($launch.fraud_proof.phase_shipped -ne "1b") {
-    throw "launch-status-rehearsal-smoke: fraud_proof.phase_shipped expected 1b got $($launch.fraud_proof.phase_shipped)"
+if ($launch.fraud_proof.phase_shipped -ne "1c") {
+    throw "launch-status-rehearsal-smoke: fraud_proof.phase_shipped expected 1c got $($launch.fraud_proof.phase_shipped)"
+}
+if ($launch.fraud_proof.on_chain_producer_slash -ne "shipped") {
+    throw "launch-status-rehearsal-smoke: fraud_proof.on_chain_producer_slash expected shipped"
 }
 if (-not $launch.fraud_proof.list_fraud_contests_rpc) {
     throw "launch-status-rehearsal-smoke: fraud_proof.list_fraud_contests_rpc expected true"

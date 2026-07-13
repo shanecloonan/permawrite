@@ -8,8 +8,8 @@ use mfn_consensus::consensus::{
 };
 use mfn_consensus::{
     apply_block, build_unsealed_header, decode_chain_checkpoint, encode_chain_checkpoint,
-    header_signing_hash, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, SlashEvidence,
-    ValidatorStats,
+    header_signing_hash, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint,
+    EquivocationEvidence, SlashEvidence, ValidatorStats,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -26,7 +26,7 @@ fn equivocation_slash_moves_successor_validator_root() {
 
     let h1 = [33u8; 32];
     let h2 = [44u8; 32];
-    let evidence = SlashEvidence {
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v1_idx,
@@ -34,7 +34,7 @@ fn equivocation_slash_moves_successor_validator_root() {
         sig_a: bls_sign(&h1, &v1_bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, &v1_bls_sk),
-    };
+    });
     let block = seal_empty(
         &fx,
         &st,
@@ -91,7 +91,7 @@ fn equivocation_during_unbond_delay_still_zeros_stake() {
 
     let h1 = [11u8; 32];
     let h2 = [22u8; 32];
-    let evidence = SlashEvidence {
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 2,
         slot: 2,
         voter_index: v1_idx,
@@ -99,7 +99,7 @@ fn equivocation_during_unbond_delay_still_zeros_stake() {
         sig_a: bls_sign(&h1, &v1_bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, &v1_bls_sk),
-    };
+    });
     st = apply_block(
         &st,
         &seal_empty(
@@ -138,7 +138,7 @@ fn invalid_slash_evidence_rejects_without_state_change() {
 
     let h_bad_a = [77u8; 32];
     let h_bad_b = [88u8; 32];
-    let invalid = SlashEvidence {
+    let invalid = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v0_idx,
@@ -146,10 +146,10 @@ fn invalid_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&h_bad_a, &v2_sk),
         header_hash_b: h_bad_b,
         sig_b: bls_sign(&h_bad_b, &v2_sk),
-    };
+    });
     let h_good_a = [99u8; 32];
     let h_good_b = [100u8; 32];
-    let valid = SlashEvidence {
+    let valid = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v2_idx,
@@ -157,7 +157,7 @@ fn invalid_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&h_good_a, &v2_sk),
         header_hash_b: h_good_b,
         sig_b: bls_sign(&h_good_b, &v2_sk),
-    };
+    });
 
     let block = seal_empty(
         &fx,
@@ -182,7 +182,7 @@ fn invalid_slash_evidence_rejects_without_state_change() {
     assert_eq!(st.validators[2].stake, 1_000_000);
 }
 
-/// Valid slash evidence before invalid still rejects atomically — staging
+/// Valid slash evidence before invalid still rejects atomically ? staging
 /// must not commit the valid slash when any evidence fails.
 #[test]
 fn valid_then_invalid_slash_evidence_rejects_without_state_change() {
@@ -195,7 +195,7 @@ fn valid_then_invalid_slash_evidence_rejects_without_state_change() {
 
     let h_good_a = [99u8; 32];
     let h_good_b = [100u8; 32];
-    let valid = SlashEvidence {
+    let valid = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v2_idx,
@@ -203,10 +203,10 @@ fn valid_then_invalid_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&h_good_a, &v2_sk),
         header_hash_b: h_good_b,
         sig_b: bls_sign(&h_good_b, &v2_sk),
-    };
+    });
     let h_bad_a = [77u8; 32];
     let h_bad_b = [88u8; 32];
-    let invalid = SlashEvidence {
+    let invalid = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v0_idx,
@@ -214,7 +214,7 @@ fn valid_then_invalid_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&h_bad_a, &v2_sk),
         header_hash_b: h_bad_b,
         sig_b: bls_sign(&h_bad_b, &v2_sk),
-    };
+    });
 
     let block = seal_empty(
         &fx,
@@ -249,7 +249,7 @@ fn duplicate_slash_evidence_rejects_without_state_change() {
     let v2_idx = st.validators[2].index;
     let v2_sk = fx.secrets[2].bls.sk.clone();
 
-    let first = SlashEvidence {
+    let first = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v2_idx,
@@ -257,8 +257,8 @@ fn duplicate_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&[41u8; 32], &v2_sk),
         header_hash_b: [42u8; 32],
         sig_b: bls_sign(&[42u8; 32], &v2_sk),
-    };
-    let duplicate = SlashEvidence {
+    });
+    let duplicate = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v2_idx,
@@ -266,7 +266,7 @@ fn duplicate_slash_evidence_rejects_without_state_change() {
         sig_a: bls_sign(&[43u8; 32], &v2_sk),
         header_hash_b: [44u8; 32],
         sig_b: bls_sign(&[44u8; 32], &v2_sk),
-    };
+    });
 
     let block = seal_empty(
         &fx,
@@ -302,7 +302,7 @@ fn equivocation_slash_credits_treasury_in_validator_mode() {
 
     let h1 = [33u8; 32];
     let h2 = [44u8; 32];
-    let evidence = SlashEvidence {
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v1_idx,
@@ -310,7 +310,7 @@ fn equivocation_slash_credits_treasury_in_validator_mode() {
         sig_a: bls_sign(&h1, &v1_bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, &v1_bls_sk),
-    };
+    });
     let post = apply_block(
         &st,
         &seal_empty(

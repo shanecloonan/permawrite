@@ -91,9 +91,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | **1** | F5 stack RC gates | **Done** — CI `#29278386048` + Nightly `#29286801623` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-7c7d2ad` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 1c design | **Done** — this push | Tagged `SlashEvidence` impl (header_version gate) |
+| **4** | F5 phase 1c on-chain slash | **Done** — this push | F5 phase 4 SNARK research |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | launch-status.v7 | **Done** — this push | Human TL-5 VPS soak |
+| **7** | launch-status.v7 + fraud_proof 1c | **Done** — this push | Human TL-5 VPS soak |
 
 ---
 
@@ -127,7 +127,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **launch-status v7 + F5 phase 1c design** (this push) - testnet launch (lane 7) + protocol (lane 4): `software_ready` pin parse + `fraud_proof` block; `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md`.
+- **F5 phase 1c on-chain producer slash** (this push) - protocol (lane 4): tagged `SlashEvidence` union + `InvalidBlockEvidence` + `HEADER_VERSION_FRAUD_SLASH`=3; `apply_block` stake zero; launch-status `fraud_proof.phase_shipped=1c`.
+- **launch-status v7 + F5 phase 1c design** (8b72294) - testnet launch (lane 7) + protocol (lane 4): `software_ready` pin parse + `fraud_proof` block; `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md`.
 - **CI `#29284954973` GREEN** (`c9549e3`) - RC core (lane 1): TL-5 software-ready pin board sync.
 - **Nightly `#29284893108` GREEN** (`7c7d2ad`) - RC core (lane 1): all three jobs on Nightly board-sync head.
 - **Nightly `#29282656932` GREEN** (`fd8bad7`) - RC core (lane 1): all three jobs re-dispatch after F5 closure docs.

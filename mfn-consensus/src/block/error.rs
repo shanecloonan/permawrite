@@ -1,6 +1,5 @@
 //! Structured errors returned by [`apply_block`](super::apply::apply_block).
 
-use crate::slashing::EvidenceCheck;
 use mfn_storage::StorageProofCheck;
 
 /* ----------------------------------------------------------------------- *
@@ -190,7 +189,7 @@ pub enum BlockError {
         /// Index in `block.slashings`.
         index: usize,
         /// Reason from the slashing verifier.
-        reason: EvidenceCheck,
+        reason: crate::slashing::SlashRejectReason,
     },
     /// Producer has a payout but the block has no coinbase tx.
     #[error("coinbase required (producer has payout) but absent")]

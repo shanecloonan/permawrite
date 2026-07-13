@@ -2440,7 +2440,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
     assert_eq!(bls.pk, st.validators[0].bls_pk);
     let h1 = [11u8; 32];
     let h2 = [22u8; 32];
-    let ev = SlashEvidence {
+    let ev = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: 0,
@@ -2448,7 +2448,7 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
         sig_a: bls_sign(&h1, &bls.sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, &bls.sk),
-    };
+    });
 
     // Build a block with the evidence. Since the chain has a non-
     // empty validator set, we can't actually run apply_block without
@@ -2458,9 +2458,14 @@ fn equivocation_slash_credits_treasury_via_apply_block() {
     // but the equivocation accounting here is straightforward and
     // verifiable in isolation.
     let mut next = st.clone();
-    let chk = crate::slashing::verify_evidence(&ev, &next.validators);
+    let chk = match &ev {
+        SlashEvidence::Equivocation(inner) => {
+            crate::slashing::verify_evidence(inner, &next.validators)
+        }
+        SlashEvidence::InvalidBlock(_) => panic!("expected equivocation"),
+    };
     assert_eq!(chk, EvidenceCheck::Valid);
-    let idx = ev.voter_index as usize;
+    let idx = ev.offender_index() as usize;
     let forfeited = u128::from(next.validators[idx].stake);
     next.validators[idx].stake = 0;
     next.treasury = next.treasury.saturating_add(forfeited);

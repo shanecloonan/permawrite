@@ -86,7 +86,10 @@ pub fn build_unsealed_header_storage_ops(
         tx_root: tx_merkle_root(txs),
         storage_root: storage_merkle_root(&new_storages),
         bond_root: bond_section_merkle_root(bond_ops, storage_operator_ops),
-        slashing_root: crate::slashing::slashing_merkle_root(slashings),
+        slashing_root: crate::slashing::slashing_merkle_root_for_version(
+            slashings,
+            state.header_version,
+        ),
         storage_proof_root: mfn_storage::storage_proof_merkle_root(storage_proofs),
         validator_root: crate::consensus::validator_set_root(&state.validators),
         claims_root,

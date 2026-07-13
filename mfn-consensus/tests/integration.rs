@@ -255,8 +255,9 @@ fn chain_genesis_block1_block2_with_slashing() {
     use mfn_consensus::{
         apply_block, apply_genesis, build_genesis, build_unsealed_header, cast_vote,
         encode_finality_proof, finalize, header_signing_hash, seal_block, try_produce_slot,
-        ApplyOutcome, ConsensusParams, FinalityProof, GenesisConfig, GenesisOutput, SlashEvidence,
-        SlotContext, Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        ApplyOutcome, ConsensusParams, EquivocationEvidence, FinalityProof, GenesisConfig,
+        GenesisOutput, SlashEvidence, SlotContext, Validator, ValidatorPayout, ValidatorSecrets,
+        DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::vrf::vrf_keygen_from_seed;
 
@@ -527,7 +528,7 @@ fn chain_genesis_block1_block2_with_slashing() {
     let evil_b = [0xBBu8; 32];
     let sig_a = bls_sign(&evil_a, &s1.bls.sk);
     let sig_b = bls_sign(&evil_b, &s1.bls.sk);
-    let evidence = SlashEvidence {
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: 1,
@@ -535,7 +536,7 @@ fn chain_genesis_block1_block2_with_slashing() {
         sig_a,
         header_hash_b: evil_b,
         sig_b,
-    };
+    });
 
     let coinbase_b2 = {
         let emission_b2 = emission_at_height(2, &DEFAULT_EMISSION_PARAMS);
@@ -4213,8 +4214,9 @@ mod unbond_lifecycle {
         apply_block, apply_genesis, build_coinbase, build_genesis, build_unsealed_header,
         cast_vote, emission_at_height, encode_finality_proof, finalize, header_signing_hash,
         seal_block, sign_unbond, try_produce_slot, ApplyOutcome, BondOp, BondingParams, ChainState,
-        ConsensusParams, FinalityProof, GenesisConfig, PayoutAddress, SlashEvidence, SlotContext,
-        Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_EMISSION_PARAMS,
+        ConsensusParams, EquivocationEvidence, FinalityProof, GenesisConfig, PayoutAddress,
+        SlashEvidence, SlotContext, Validator, ValidatorPayout, ValidatorSecrets,
+        DEFAULT_EMISSION_PARAMS,
     };
     use mfn_crypto::stealth::stealth_gen;
     use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -4434,7 +4436,7 @@ mod unbond_lifecycle {
         // Block 2: equivocation evidence for v1.
         let h1 = [11u8; 32];
         let h2 = [22u8; 32];
-        let ev = SlashEvidence {
+        let ev = SlashEvidence::Equivocation(EquivocationEvidence {
             height: 2,
             slot: 2,
             voter_index: v1_idx,
@@ -4442,7 +4444,7 @@ mod unbond_lifecycle {
             sig_a: bls_sign(&h1, &v1_bls_sk),
             header_hash_b: h2,
             sig_b: bls_sign(&h2, &v1_bls_sk),
-        };
+        });
         step(&mut fx, 2, Vec::new(), vec![ev]);
         assert_eq!(
             fx.state.validators[1].stake, 0,
@@ -4593,7 +4595,7 @@ mod unbond_lifecycle {
         // Block 1: equivocate v1.
         let h1 = [33u8; 32];
         let h2 = [44u8; 32];
-        let ev = SlashEvidence {
+        let ev = SlashEvidence::Equivocation(EquivocationEvidence {
             height: 1,
             slot: 1,
             voter_index: v1_idx,
@@ -4601,7 +4603,7 @@ mod unbond_lifecycle {
             sig_a: bls_sign(&h1, &v1_bls_sk),
             header_hash_b: h2,
             sig_b: bls_sign(&h2, &v1_bls_sk),
-        };
+        });
         step(&mut fx, 1, Vec::new(), vec![ev]);
 
         // v1.stake should now be zero in the new state.

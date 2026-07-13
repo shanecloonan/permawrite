@@ -16,9 +16,9 @@ use mfn_consensus::{
     finalize, header_signing_hash, producer_coinbase_amount, seal_block, sign_register,
     sign_transaction, storage_proof_coinbase_bonus, subsidy_producer_amount,
     subsidy_treasury_credit, try_produce_slot, verify_coinbase_outputs, ApplyOutcome, BlockError,
-    BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
-    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence,
-    SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+    BondOp, ChainState, ConsensusParams, EmissionParams, EquivocationEvidence, FinalityProof,
+    GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction,
+    SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     TEST_CONSENSUS_PARAMS,
 };
@@ -590,7 +590,7 @@ fn equivocation_evidence(
 ) -> SlashEvidence {
     let h1 = [voter_index.wrapping_add(11) as u8; 32];
     let h2 = [voter_index.wrapping_add(22) as u8; 32];
-    SlashEvidence {
+    SlashEvidence::Equivocation(EquivocationEvidence {
         height,
         slot,
         voter_index,
@@ -598,7 +598,7 @@ fn equivocation_evidence(
         sig_a: bls_sign(&h1, bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, bls_sk),
-    }
+    })
 }
 
 fn register_op(seed: u8) -> BondOp {

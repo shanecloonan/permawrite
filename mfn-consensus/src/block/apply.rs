@@ -131,7 +131,8 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
     // forge a different leaf. The root commits the slashing list under
     // the header so a light client can verify it without the rest of
     // the block body.
-    let expected_slashing_root = crate::slashing::slashing_merkle_root(&block.slashings);
+    let expected_slashing_root =
+        crate::slashing::slashing_merkle_root_for_version(&block.slashings, block.header.version);
     if expected_slashing_root != block.header.slashing_root {
         errors.push(BlockError::SlashingRootMismatch);
     }
@@ -694,6 +695,9 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         let eq = crate::validator_evolution::apply_equivocation_slashings(
             &mut next.validators,
             &block.slashings,
+            &next.emission_params,
+            block.header.height,
+            block.header.version,
         );
         next.treasury = next.treasury.saturating_add(eq.forfeited_total);
         for err in eq.errors {

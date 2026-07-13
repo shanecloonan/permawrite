@@ -41,6 +41,7 @@ fn encode_block_body_parts(
     slashings: &[SlashEvidence],
     storage_proofs: &[StorageProof],
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
+    header_version: u32,
 ) {
     w.varint(txs.len() as u64);
     for tx in txs {
@@ -52,7 +53,7 @@ fn encode_block_body_parts(
     }
     w.varint(slashings.len() as u64);
     for ev in slashings {
-        w.blob(&encode_evidence(ev));
+        w.blob(&crate::slashing::encode_slash_evidence(ev, header_version));
     }
     w.varint(storage_proofs.len() as u64);
     for p in storage_proofs {
@@ -74,6 +75,7 @@ pub fn encode_block_body(
     slashings: &[SlashEvidence],
     storage_proofs: &[StorageProof],
     storage_operator_ops: &[crate::storage_operator_wire::StorageOperatorOp],
+    header_version: u32,
 ) -> Vec<u8> {
     let mut w = Writer::new();
     encode_block_body_parts(
@@ -83,6 +85,7 @@ pub fn encode_block_body(
         slashings,
         storage_proofs,
         storage_operator_ops,
+        header_version,
     );
     w.into_bytes()
 }
@@ -112,6 +115,7 @@ pub fn encode_block(b: &Block) -> Vec<u8> {
         &b.slashings,
         &b.storage_proofs,
         &b.storage_operator_ops,
+        b.header.version,
     );
     out.extend_from_slice(&body);
     out
@@ -228,7 +232,10 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
         })?;
     let header = decode_block_header(header_bytes)?;
 
-    let body = decode_block_body(r.bytes(r.remaining()).map_err(BlockDecodeError::Codec)?)?;
+    let body = decode_block_body(
+        r.bytes(r.remaining()).map_err(BlockDecodeError::Codec)?,
+        header.version,
+    )?;
 
     Ok(Block {
         header,
@@ -241,7 +248,7 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, BlockDecodeError> {
 }
 
 /// Decode body bytes from [`encode_block_body`].
-pub fn decode_block_body(bytes: &[u8]) -> Result<BlockBody, BlockDecodeError> {
+pub fn decode_block_body(bytes: &[u8], header_version: u32) -> Result<BlockBody, BlockDecodeError> {
     let mut r = Reader::new(bytes);
 
     let n_txs_raw = r.varint()?;
@@ -289,7 +296,7 @@ pub fn decode_block_body(bytes: &[u8]) -> Result<BlockBody, BlockDecodeError> {
     let mut slashings: Vec<SlashEvidence> = Vec::new();
     for index in 0..n_slash {
         let ev_bytes = r.blob()?;
-        let ev = decode_evidence(ev_bytes)
+        let ev = crate::slashing::decode_slash_evidence(ev_bytes, header_version)
             .map_err(|source| BlockDecodeError::Slashing { index, source })?;
         slashings.push(ev);
     }

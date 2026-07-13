@@ -16,10 +16,10 @@ use mfn_consensus::{
     encode_finality_proof, finalize, header_signing_hash, producer_coinbase_amount,
     producer_portion_amount, seal_block, sign_transaction, storage_proof_coinbase_bonus,
     try_produce_slot, validate_emission_params, ApplyOutcome, ChainState, ConsensusParams,
-    EmissionParams, FinalityProof, GenesisConfig, GenesisOutput, InputSpec, OutputSpec,
-    PayoutAddress, SignedTransaction, SlashEvidence, SlotContext, TransactionWire, Validator,
-    ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
-    TEST_CONSENSUS_PARAMS,
+    EmissionParams, EquivocationEvidence, FinalityProof, GenesisConfig, GenesisOutput, InputSpec,
+    OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence, SlotContext, TransactionWire,
+    Validator, ValidatorPayout, ValidatorSecrets, DEFAULT_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::clsag::ClsagRing;
 use mfn_crypto::encrypted_amount::decrypt_output_amount;
@@ -1642,7 +1642,7 @@ fn equivocation_evidence(
 ) -> SlashEvidence {
     let h1 = [voter_index.wrapping_add(11) as u8; 32];
     let h2 = [voter_index.wrapping_add(22) as u8; 32];
-    SlashEvidence {
+    SlashEvidence::Equivocation(EquivocationEvidence {
         height,
         slot,
         voter_index,
@@ -1650,7 +1650,7 @@ fn equivocation_evidence(
         sig_a: bls_sign(&h1, bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, bls_sk),
-    }
+    })
 }
 
 #[test]

@@ -11,4 +11,6 @@ pub(crate) use crate::bonding::{
     validate_stake, BondingParams,
 };
 pub(crate) use crate::consensus::Validator;
-pub(crate) use crate::slashing::{canonicalize, verify_evidence, EvidenceCheck, SlashEvidence};
+pub(crate) use crate::slashing::{
+    canonicalize, verify_equivocation_evidence, verify_slash_evidence, EvidenceCheck, SlashEvidence,
+};

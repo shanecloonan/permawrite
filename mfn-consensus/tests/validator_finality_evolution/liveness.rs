@@ -8,8 +8,8 @@ use mfn_consensus::consensus::{
 };
 use mfn_consensus::{
     apply_block, build_unsealed_header, decode_chain_checkpoint, encode_chain_checkpoint,
-    header_signing_hash, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, SlashEvidence,
-    ValidatorStats,
+    header_signing_hash, ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint,
+    EquivocationEvidence, SlashEvidence, ValidatorStats,
 };
 use mfn_crypto::point::generator_g;
 use mfn_crypto::vrf::vrf_keygen_from_seed;
@@ -177,7 +177,7 @@ fn liveness_skips_zero_stake_validator_after_equivocation() {
 
     let h1 = [33u8; 32];
     let h2 = [44u8; 32];
-    let evidence = SlashEvidence {
+    let evidence = SlashEvidence::Equivocation(EquivocationEvidence {
         height: 1,
         slot: 1,
         voter_index: v1_idx,
@@ -185,7 +185,7 @@ fn liveness_skips_zero_stake_validator_after_equivocation() {
         sig_a: bls_sign(&h1, &v1_bls_sk),
         header_hash_b: h2,
         sig_b: bls_sign(&h2, &v1_bls_sk),
-    };
+    });
     let slash_block = seal_empty(
         &fx,
         &st,

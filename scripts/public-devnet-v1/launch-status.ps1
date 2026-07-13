@@ -73,9 +73,9 @@ function Get-SoftwareReadyFromPlaybook {
 function Get-FraudProofStackMeta {
     return [ordered]@{
         schema_version          = "fraud-proof-stack.v1"
-        phase_shipped           = "1b"
+        phase_shipped           = "1c"
         list_fraud_contests_rpc = $true
-        on_chain_producer_slash = "deferred"
+        on_chain_producer_slash = "shipped"
         doc                     = "docs/FRAUD_PROOFS.md"
     }
 }

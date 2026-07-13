@@ -2,7 +2,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use mfn_consensus::{block_header_bytes, block_id, encode_block, encode_bond_op, encode_evidence};
+use mfn_consensus::{
+    block_header_bytes, block_id, encode_block, encode_bond_op, encode_slash_evidence,
+};
 use mfn_net::serve::{BlockSyncHook, LightFollowHook};
 use mfn_net::{
     BlockSyncProvider, ChainTipV1, LightFollowProvider, LightFollowRow, LightFollowV1,
@@ -114,7 +116,11 @@ impl LightFollowProvider for P2pBlockSyncHandler {
                     height: h,
                     block_id: block_id(&b.header),
                     header_wire: block_header_bytes(&b.header),
-                    slashings: b.slashings.iter().map(encode_evidence).collect(),
+                    slashings: b
+                        .slashings
+                        .iter()
+                        .map(|ev| encode_slash_evidence(ev, b.header.version))
+                        .collect(),
                     bond_ops: b.bond_ops.iter().map(encode_bond_op).collect(),
                 }
             })

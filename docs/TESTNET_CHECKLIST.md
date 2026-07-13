@@ -80,7 +80,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (`638f260`).
 - [x] **Lane 7 / launch-status v6** — treasury_telemetry + role_templates blocks (`1630905`).
 - [x] **Lane 7 / launch-status v7** — `software_ready` + `fraud_proof` blocks (this push).
-- [x] **Lane 4 / F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (this push).
+- [x] **Lane 4 / F5 phase 1c impl** — tagged `SlashEvidence` + `InvalidBlockEvidence` + `HEADER_VERSION_FRAUD_SLASH` (this push).
 - [x] **Lane 7 / role-templates rehearsal** — `vps-role-templates-rehearsal-smoke.*` plan gate (`1630905`).
 - [x] **P32 phase 4d** — operator `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1` (`4a429e4`).
 - [x] **Lane 7 / TL-5 soak evidence rehearsal** — `vps-internet-soak-evidence-rehearsal-smoke.*` (`78d236c`).

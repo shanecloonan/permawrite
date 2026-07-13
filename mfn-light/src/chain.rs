@@ -63,7 +63,7 @@ use mfn_consensus::{
     verify_block_body, verify_header, Block, BlockHeader, BodyVerifyError, BondEpochCounters,
     BondOp, BondOpError, BondingParams, ConsensusParams, GenesisConfig, HeaderCheck,
     HeaderVerifyError, PendingUnbond, SlashEvidence, Validator, ValidatorStats,
-    DEFAULT_BONDING_PARAMS,
+    DEFAULT_BONDING_PARAMS, DEFAULT_EMISSION_PARAMS,
 };
 
 /* ----------------------------------------------------------------------- *
@@ -581,7 +581,13 @@ impl LightChain {
         let mut staged_counters = self.bond_counters;
 
         // Phase A: equivocation slashings.
-        let eq = apply_equivocation_slashings(&mut staged_validators, &block.slashings);
+        let eq = apply_equivocation_slashings(
+            &mut staged_validators,
+            &block.slashings,
+            &DEFAULT_EMISSION_PARAMS,
+            block.header.height,
+            block.header.version,
+        );
         // We don't surface Equivocation errors as LightChainError —
         // `mfn-consensus::apply_block` allows the block to advance with
         // *valid* slashings even if some entries in the slashing list
@@ -690,7 +696,13 @@ impl LightChain {
         let mut staged_pending = self.pending_unbonds.clone();
         let mut staged_counters = self.bond_counters;
 
-        let eq = apply_equivocation_slashings(&mut staged_validators, slashings);
+        let eq = apply_equivocation_slashings(
+            &mut staged_validators,
+            slashings,
+            &DEFAULT_EMISSION_PARAMS,
+            header.height,
+            header.version,
+        );
         let validators_slashed_equivocation = (slashings.len() - eq.errors.len()) as u32;
 
         let bitmap = finality_bitmap_from_header(header);

@@ -18,7 +18,7 @@ use crate::block::{
 };
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase_outputs, PayoutAddress};
 use crate::emission::{block_coinbase_specs, EmissionParams};
-use crate::slashing::slashing_merkle_root;
+use crate::slashing::slashing_merkle_root_for_version;
 use crate::storage::{decode_storage_commitment, encode_storage_commitment, StorageCommitment};
 use crate::storage_operator_wire::bond_section_merkle_root;
 use crate::transaction::verify_transaction;
@@ -190,7 +190,7 @@ pub fn verify_body_root_fraud_proof(
         ),
         BodyRootFraudKind::SlashingRoot => (
             proof.block.header.slashing_root,
-            slashing_merkle_root(&proof.block.slashings),
+            slashing_merkle_root_for_version(&proof.block.slashings, proof.block.header.version),
         ),
         BodyRootFraudKind::StorageProofRoot => (
             proof.block.header.storage_proof_root,

@@ -45,6 +45,7 @@ pub fn encode_block_proposal(p: &BlockProposal) -> Vec<u8> {
         &p.slashings,
         &p.storage_proofs,
         &p.storage_operator_ops,
+        p.unsealed_header.version,
     );
     let mut w = Writer::new();
     w.push(PROPOSAL_MAGIC);
@@ -101,6 +102,7 @@ pub fn decode_block_proposal(bytes: &[u8]) -> Result<BlockProposal, ProposalWire
     let body: BlockBody = decode_block_body(
         r.blob()
             .map_err(|_| ProposalWireError::BadProposal("body".into()))?,
+        unsealed_header.version,
     )?;
     if unsealed_header.timestamp != timestamp {
         return Err(ProposalWireError::BadProposal(
