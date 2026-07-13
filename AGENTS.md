@@ -83,16 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `ba6fdce`. **CI `#29255412319` GREEN**. **Nightly `#29257619888`** (watch). **Release evidence** `ba6fdce` RC audit **go**.
+**Head:** `b6b2fdd`. **CI `#29258397993` GREEN** (revert incomplete checkpoint-v11 decode). **Nightly `#29260743960`** in progress. **Release evidence** `b6b2fdd` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 3b stack CI | **Done** — `#29255412319` GREEN on `ba6fdce` | Nightly `#29257619888` watch |
-| **2** | Release evidence refresh | **Done** — `release-evidence-ba6fdce` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research |
-| **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
+| **1** | Revert stack Nightly | **Doing** — `#29260743960` on `b6b2fdd` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-b6b2fdd` RC audit **go** | Human sign-off packet |
+| **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
+| **6** | F6 subsidy_to_treasury decode | **Aborted** — `90431fb` red CI; reverted `b6b2fdd` | Do not re-land without full EmissionParams stack |
+| **7** | TL-5 VPS soak | **Waiting** — human (software-ready pin + provision handoff) | TL-6 participant |
 
 ---
 
@@ -126,7 +127,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 phase 3b + serve fix GREEN** (`5f3947e`, `ba6fdce`) - protocol (lane 4) + RC (lane 1): ring-membership UTXO fraud wire v3 kind=3; `mfnd_fraud_proof_producer_slash_hint` ops log; CI `#29255412319` GREEN; release evidence `ba6fdce` RC audit **go**; Nightly `#29257619888` dispatched.
+- **Revert stack CI GREEN** (`b6b2fdd`) - RC ops (lane 2): revert incomplete checkpoint-v11 decode (`90431fb`); CI `#29258397993` GREEN; release evidence `b6b2fdd` RC audit **go**; Nightly `#29260743960` dispatched.
+- **Nightly GREEN + TL-5 software-ready pin** - RC core (lane 1) + testnet launch (lane 7): Nightly `#29257619888` GREEN on `ba6fdce`; `TESTNET_LAUNCH.md` software-ready pin; `VPS_PROVISION.md` TL-5 soak handoff.
+- **F5 phase 3b + serve fix GREEN** (`5f3947e`, `ba6fdce`) - protocol (lane 4) + RC (lane 1): ring-membership UTXO fraud wire v3 kind=3; `mfnd_fraud_proof_producer_slash_hint` ops log; CI `#29255412319` GREEN; release evidence `ba6fdce` RC audit **go**.
 - **F5 fraud-proof phase 3b** (`5f3947e`) - protocol (lane 4): wire v3 `RingMemberUtxo` parent UTXO witness; `fraud_proof_producer_slash_hint`.
 - **F5 stack Nightly GREEN** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6`; RC core (lane 1) all three jobs.
 - **F5 phase 3 board + CI** (`536d2a6`) - RC ops (lane 2): TESTNET_CHECKLIST phase 3; CI `#29236938900` GREEN; release evidence `536d2a6` RC audit **go**.

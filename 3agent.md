@@ -7,13 +7,27 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29255412319` GREEN on `ba6fdce` | **Doing** — Nightly `#29257619888` watch | Soak maintenance |
-| **2** RC ops | `release-evidence-ba6fdce` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29258397993` GREEN on `b6b2fdd` | **Doing** — Nightly `#29260743960` | Soak maintenance |
+| **2** RC ops | `release-evidence-b6b2fdd` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash |
+| **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | F6 phase 2 subsidy tail split | **Doing** — ci-check + land | Parameter fork `1000` bps |
-| **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+| **6** Permanence | F6 decode attempt `90431fb` **reverted** `b6b2fdd` | **Idle** — do not partial-land | Full `subsidy_to_treasury_bps` stack or leave docs-only |
+| **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-13 (TL-5 software-ready pin + Nightly GREEN)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **Nightly F5 3b** | **Done** — `#29257619888` | GREEN on `ba6fdce` (all three jobs) |
+| **Incomplete F6 decode** | **Aborted** — `b6b2fdd` | `90431fb` referenced missing `subsidy_to_treasury_bps`; reverted |
+| **TL-5 handoff** | **Doing** — this push | `TESTNET_LAUNCH` software-ready pin + `VPS_PROVISION` TL-5 soak section + provision smoke needles |
+
+**Lane 1 — Done:** Nightly `#29257619888` **Next:** watch revert CI `#29258397993`  
+**Lane 7 — Done:** software-ready pin published **Next:** human TL-5 (do not skip)  
+**Lane 6 — Aborted:** partial F6 decode — leave docs-only until full EmissionParams lands
 
 ---
 

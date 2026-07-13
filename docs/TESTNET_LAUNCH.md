@@ -6,6 +6,15 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 
 **Posture:** pre-audit experimental software; test-only value; public P2P + private RPC per [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md).
 
+### Software-ready pin (2026-07-13)
+
+| Field | Value |
+| --- | --- |
+| Release commit | `b6b2fdd` (F5 phase 3b; revert broken checkpoint v11 partial) |
+| CI | `#29258397993` GREEN |
+| RC audit | `release-evidence-b6b2fdd` **go** |
+| Next human gate | **TL-5** — provision VPS ([`VPS_PROVISION.md`](./VPS_PROVISION.md)) then `bash scripts/public-devnet-v1/vps-internet-soak.sh` |
+
 ---
 
 ## Launch phases (strict order)
