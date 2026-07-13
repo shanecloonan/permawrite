@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | macOS RPC fix `9d1710f` CI `#29230074495` GREEN | **Doing** — Nightly `#29232188307` | CI on phase 3 push |
-| **2** RC ops | `release-evidence-9d1710f` RC audit **go** | **Done** | Refresh after phase 3 CI |
+| **1** RC core | F5 phase 3 CI `#29234849464` GREEN | **Done** | Nightly on `ffc7b04` |
+| **2** RC ops | `release-evidence-ffc7b04` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 2 `12e7353` | **Doing** — phase 3 CLSAG/SPoRA wire v3 | Phase 3b ring-membership |
+| **4+6** Protocol | F5 phase 3 `ffc7b04` | **Done** | Phase 3b ring-membership |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
@@ -22,11 +22,11 @@
 | Unit | Status | Notes |
 | --- | --- | --- |
 | **macOS RPC CI fix** | **Done** — `9d1710f` | drain oversized RPC line; CI `#29230074495` GREEN |
-| **F5 fraud-proof phase 3** | **This push** | wire v3 invalid CLSAG (stateless) + invalid SPoRA (commit witness) |
+| **F5 fraud-proof phase 3** | **Done** — `ffc7b04` | wire v3 invalid CLSAG + invalid SPoRA; CI `#29234849464` GREEN |
 
-**Lane 1 — Done:** macOS RPC fix (`9d1710f`) **Doing:** Nightly `#29232188307` **Next:** CI on phase 3 push
+**Lane 1 — Done:** CI `#29234849464` GREEN **Next:** Nightly on `ffc7b04`
 
-**Lane 4 — Doing:** phase 3 CLSAG/SPoRA **Next:** phase 3b ring-membership witnesses
+**Lane 4 — Done:** phase 3 CLSAG/SPoRA (`ffc7b04`) **Next:** phase 3b ring-membership witnesses
 
 ---
 
