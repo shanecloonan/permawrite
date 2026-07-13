@@ -15,10 +15,11 @@ $Gossip = Join-Path $RepoRoot "mfn-net/src/gossip.rs"
 $NodeGossip = Join-Path $RepoRoot "mfn-node/src/p2p_gossip.rs"
 $NodeFanout = Join-Path $RepoRoot "mfn-node/src/p2p_fanout.rs"
 $FraudContest = Join-Path $RepoRoot "mfn-node/src/fraud_contest.rs"
+$MfndSmoke = Join-Path $RepoRoot "mfn-node/tests/mfnd_smoke.rs"
 $Dispatch = Join-Path $RepoRoot "mfn-rpc/src/dispatch.rs"
 $Serve = Join-Path $RepoRoot "mfn-net/src/serve.rs"
 
-foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $NodeFanout, $FraudContest, $Dispatch, $Serve)) {
+foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $NodeFanout, $FraudContest, $MfndSmoke, $Dispatch, $Serve)) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "fraud-proof-rehearsal-smoke: missing $path"
     }
@@ -68,6 +69,9 @@ if (-not (Select-String -LiteralPath $FraudContest -Pattern "FraudContestRegistr
 }
 if (-not (Select-String -LiteralPath $Dispatch -Pattern "list_fraud_contests" -Quiet)) {
     throw "fraud-proof-rehearsal-smoke: dispatch.rs missing list_fraud_contests"
+}
+if (-not (Select-String -LiteralPath $MfndSmoke -Pattern "mfnd_serve_list_fraud_contests" -Quiet)) {
+    throw "fraud-proof-rehearsal-smoke: mfnd_smoke.rs missing list_fraud_contests integration test"
 }
 
 Write-Host "fraud-proof-rehearsal-smoke: plan"

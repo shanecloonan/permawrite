@@ -2831,7 +2831,7 @@ mod tests {
         ] {
             assert!(names.contains(&expected), "missing {expected}");
         }
-        assert_eq!(names.len(), 31);
+        assert_eq!(names.len(), 32);
         fs::remove_dir_all(&root).ok();
     }
 

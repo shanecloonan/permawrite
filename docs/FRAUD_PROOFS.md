@@ -114,7 +114,8 @@ log on valid gossip. Full nodes also record contests in memory; light clients qu
 ```
 
 Returns `{ configured, contest_count, contests: [{ block_id, height, producer_index, label }] }`
-when P2P is enabled on the node.
+when P2P is enabled on the node. Integration: `mfnd_smoke.rs` exercises configured vs
+unconfigured paths over TCP.
 
 ---
 

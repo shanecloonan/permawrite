@@ -14,6 +14,7 @@ GOSSIP="$REPO_ROOT/mfn-net/src/gossip.rs"
 NODE_GOSSIP="$REPO_ROOT/mfn-node/src/p2p_gossip.rs"
 NODE_FANOUT="$REPO_ROOT/mfn-node/src/p2p_fanout.rs"
 FRAUD_CONTEST="$REPO_ROOT/mfn-node/src/fraud_contest.rs"
+MFND_SMOKE="$REPO_ROOT/mfn-node/tests/mfnd_smoke.rs"
 DISPATCH="$REPO_ROOT/mfn-rpc/src/dispatch.rs"
 
 usage() {
@@ -131,6 +132,10 @@ if ! grep -Fq "FraudContestRegistry" "$FRAUD_CONTEST"; then
 fi
 if ! grep -Fq "list_fraud_contests" "$DISPATCH"; then
   echo "fraud-proof-rehearsal-smoke: dispatch.rs missing list_fraud_contests" >&2
+  exit 1
+fi
+if ! grep -Fq "mfnd_serve_list_fraud_contests" "$MFND_SMOKE"; then
+  echo "fraud-proof-rehearsal-smoke: mfnd_smoke.rs missing list_fraud_contests integration test" >&2
   exit 1
 fi
 

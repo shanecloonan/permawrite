@@ -83,15 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `17ac4fc` + method_count fix (pending push). **CI `#29270900030`** FAIL windows/ubuntu (method_count 31→32); macos in progress. **Prior GREEN:** `#29268143470`, Nightly `#29267729234` on `5a1b221`.
+**Head:** (this push). **CI `#29274921666`** FAIL — `rpc_list_methods_sorted_includes_dispatch_names` len 31→32; fix + mfnd smokes here. **Prior:** `#29270900030` method_count smoke. **Nightly `#29267729234` GREEN** on `5a1b221`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F6 stack RC gates | **Done** — CI `#29264586158` + Nightly `#29267729234` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-ff4491b` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 1b fraud contest registry | **Done** — this push | On-chain producer slash (phase 4) |
+| **1** | F5 CI fix push | **Doing** — `rpc_list_methods` len 32 + mfnd smokes | CI green → release evidence |
+| **4** | F5 phase 1b mfnd smokes | **Done** — this push | On-chain producer slash (phase 4) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
 

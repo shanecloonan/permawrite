@@ -780,6 +780,42 @@ fn mfnd_serve_get_status_over_tcp() {
 }
 
 #[test]
+fn mfnd_serve_list_fraud_contests_unconfigured_without_p2p() {
+    let dir = unique_data_dir("serve_list_fraud_contests_off");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, sock) = spawn_mfnd_serve(&dir, &spec);
+    let resp = tcp_request_json(
+        sock,
+        r#"{"jsonrpc":"2.0","method":"list_fraud_contests","id":1}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["configured"], json!(false), "r={r}");
+    assert_eq!(r["contest_count"], json!(0), "r={r}");
+    assert_eq!(r["contests"], json!([]), "r={r}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn mfnd_serve_list_fraud_contests_configured_with_p2p() {
+    let dir = unique_data_dir("serve_list_fraud_contests_on");
+    let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
+    let (mut child, _out, _err, rpc, _p2p) = spawn_mfnd_serve_with_p2p(&dir, &spec);
+    let resp = tcp_request_json(
+        rpc,
+        r#"{"jsonrpc":"2.0","method":"list_fraud_contests","id":1}"#,
+    );
+    let r = assert_rpc2_result(&resp);
+    assert_eq!(r["configured"], json!(true), "r={r}");
+    assert_eq!(r["contest_count"], json!(0), "r={r}");
+    assert_eq!(r["contests"], json!([]), "r={r}");
+    let _ = child.kill();
+    let _ = child.wait();
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn mfnd_serve_public_rpc_bind_warns_even_with_api_key() {
     let dir = unique_data_dir("serve_public_rpc_bind_warning");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/devnet_one_validator.json");
@@ -2312,6 +2348,7 @@ fn mfnd_serve_list_methods_over_tcp() {
         .collect();
     assert!(names.contains(&"get_tip"));
     assert!(names.contains(&"list_methods"));
+    assert!(names.contains(&"list_fraud_contests"));
     let mut sorted = names.clone();
     sorted.sort_unstable();
     assert_eq!(names, sorted);
