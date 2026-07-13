@@ -83,14 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** (this push). **CI `#29274921666`** FAIL — `rpc_list_methods_sorted_includes_dispatch_names` len 31→32; fix + mfnd smokes here. **Prior:** `#29270900030` method_count smoke. **Nightly `#29267729234` GREEN** on `5a1b221`.
+**Head:** `85dad78`. **CI `#29278386048` GREEN** (F5 phase 1b complete). **Release evidence** `release-evidence-85dad78` RC audit **go**. **Nightly `#29267729234` GREEN** on `5a1b221`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 CI fix push | **Doing** — `rpc_list_methods` len 32 + mfnd smokes | CI green → release evidence |
-| **4** | F5 phase 1b mfnd smokes | **Done** — this push | On-chain producer slash (phase 4) |
+| **1** | F5 stack RC gates | **Done** — CI `#29278386048` GREEN on `85dad78` | Nightly dispatch / soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-85dad78` RC audit **go** | Human sign-off packet |
+| **4** | F5 phase 1b complete | **Done** — `85dad78` | On-chain producer slash (phase 4) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
 
@@ -126,7 +127,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 phase 1b fraud contest registry** (this push) - protocol (lane 4): `fraud_contest.rs` + gossip record + RPC `list_fraud_contests`.
+- **F5 phase 1b complete** (`85dad78`) - protocol (lane 4): fraud contest registry + `list_fraud_contests` RPC + mfnd TCP smokes; CI `#29278386048` GREEN; release evidence RC audit **go**.
+- **F5 phase 1b fraud contest registry** (`17ac4fc`) - protocol (lane 4): `fraud_contest.rs` + gossip record + RPC `list_fraud_contests`.
 - **Nightly `#29267729234` GREEN** (`5a1b221`) - RC core (lane 1): all three jobs on F6 stack.
 - **CI `#29268143470` GREEN** (`3043596`) - RC core (lane 1): docs board sync; ancestor CI for `ff4491b` `[skip ci]`.
 - **Release evidence `ff4491b`** - RC ops (lane 2): F6 stack closure + RC audit dry-run **go**.
