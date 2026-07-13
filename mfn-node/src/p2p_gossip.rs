@@ -3,7 +3,10 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use mfn_consensus::{decode_block, decode_transaction, tx_id};
+use mfn_consensus::{
+    block_id, decode_block, decode_body_root_fraud_proof, decode_transaction, tx_id,
+    verify_body_root_fraud_proof, FraudProofVerdict,
+};
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
 use mfn_store::ChainPersistence;
@@ -234,6 +237,26 @@ impl GossipHandler for P2pGossipHandler {
                 format!("applied:{height}:{bid_hex}")
             }
             Err(e) => format!("rejected:apply:{e}:height={height}"),
+        }
+    }
+
+    fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        let proof = match decode_body_root_fraud_proof(consensus_wire) {
+            Ok(p) => p,
+            Err(e) => return format!("rejected:decode:{e}"),
+        };
+        let height = proof.block.header.height;
+        let bid = block_id(&proof.block.header);
+        let mut bid_hex = String::with_capacity(64);
+        for b in bid {
+            use std::fmt::Write as _;
+            let _ = write!(bid_hex, "{b:02x}");
+        }
+        match verify_body_root_fraud_proof(&proof) {
+            Ok(FraudProofVerdict::ValidFraud { kind, .. }) => {
+                format!("valid_fraud:{kind:?}:height={height}:block_id={bid_hex}")
+            }
+            Err(e) => format!("rejected:verify:{e}"),
         }
     }
 }
@@ -491,5 +514,54 @@ mod tests {
         let stored = handler.store.read_block_log().expect("block log");
         assert_eq!(stored.len(), 1);
         assert_eq!(stored[0].header.height, 1);
+    }
+
+    #[test]
+    fn accepts_valid_tx_root_fraud_proof() {
+        let (handler, _) = handler_at_height_1();
+        let mut block = {
+            let guard = handler.chain.lock().expect("chain");
+            let header = build_unsealed_header(guard.state(), &[], &[], &[], &[], 2, 3_000);
+            seal_block(
+                header,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        block.header.tx_root = [0xAB; 32];
+        let proof = mfn_consensus::tx_root_fraud_proof(block);
+        let wire = mfn_consensus::encode_body_root_fraud_proof(&proof);
+        let label = handler.on_fraud_proof_v1(&wire);
+        assert!(
+            label.starts_with("valid_fraud:TxRoot:"),
+            "expected valid fraud, got {label}"
+        );
+    }
+
+    #[test]
+    fn rejects_consistent_block_as_not_fraud() {
+        let (handler, _) = handler_at_height_1();
+        let block = {
+            let guard = handler.chain.lock().expect("chain");
+            let header = build_unsealed_header(guard.state(), &[], &[], &[], &[], 2, 3_000);
+            seal_block(
+                header,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+        let proof = mfn_consensus::tx_root_fraud_proof(block);
+        let wire = mfn_consensus::encode_body_root_fraud_proof(&proof);
+        let label = handler.on_fraud_proof_v1(&wire);
+        assert!(
+            label.starts_with("rejected:verify:"),
+            "expected verify reject, got {label}"
+        );
     }
 }

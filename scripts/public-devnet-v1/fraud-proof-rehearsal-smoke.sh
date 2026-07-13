@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane 4 / F5 phase 0: plan-only fraud-proof doc + module wiring gate.
+# Lane 4 / F5: plan-only fraud-proof doc + module wiring gate (phase 0 + phase 1 gossip).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,6 +10,9 @@ SECURITY="$REPO_ROOT/docs/SECURITY_CONSIDERATIONS.md"
 CONSENSUS="$REPO_ROOT/mfn-consensus/src/fraud_proof.rs"
 NET="$REPO_ROOT/mfn-net/src/fraud_proof_v1.rs"
 FRAME="$REPO_ROOT/mfn-net/src/frame.rs"
+GOSSIP="$REPO_ROOT/mfn-net/src/gossip.rs"
+NODE_GOSSIP="$REPO_ROOT/mfn-node/src/p2p_gossip.rs"
+NODE_FANOUT="$REPO_ROOT/mfn-node/src/p2p_fanout.rs"
 
 usage() {
   cat <<EOF
@@ -26,7 +29,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for path in "$DOC" "$PROBLEMS" "$SECURITY" "$CONSENSUS" "$NET" "$FRAME"; do
+for path in "$DOC" "$PROBLEMS" "$SECURITY" "$CONSENSUS" "$NET" "$FRAME" "$GOSSIP" "$NODE_GOSSIP" "$NODE_FANOUT"; do
   if [[ ! -f "$path" ]]; then
     echo "fraud-proof-rehearsal-smoke: missing $path" >&2
     exit 1
@@ -52,12 +55,40 @@ if ! grep -Fq "FRAUD_PROOF_V1_TAG" "$NET"; then
   echo "fraud-proof-rehearsal-smoke: fraud_proof_v1.rs missing tag constant" >&2
   exit 1
 fi
+for needle in on_fraud_proof_v1 send_fraud_proof_v1 push_fraud_proof_gossip_to_peer fanout_fraud_proof mfnd_fraud_proof_valid; do
+  case "$needle" in
+    on_fraud_proof_v1|send_fraud_proof_v1|push_fraud_proof_gossip_to_peer)
+      if ! grep -Fq "$needle" "$GOSSIP"; then
+        echo "fraud-proof-rehearsal-smoke: gossip.rs missing phase 1: $needle" >&2
+        exit 1
+      fi
+      ;;
+    fanout_fraud_proof)
+      if ! grep -Fq "$needle" "$NODE_FANOUT"; then
+        echo "fraud-proof-rehearsal-smoke: p2p_fanout.rs missing phase 1: $needle" >&2
+        exit 1
+      fi
+      ;;
+    mfnd_fraud_proof_valid)
+      if ! grep -Fq "$needle" "$REPO_ROOT/mfn-net/src/serve.rs"; then
+        echo "fraud-proof-rehearsal-smoke: serve.rs missing phase 1 log: $needle" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      if ! grep -Fq "$needle" "$NODE_GOSSIP"; then
+        echo "fraud-proof-rehearsal-smoke: p2p_gossip.rs missing phase 1: $needle" >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
 
 echo "fraud-proof-rehearsal-smoke: plan"
 echo "  docs=docs/FRAUD_PROOFS.md"
 echo "  consensus=mfn_consensus::fraud_proof"
 echo "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-echo "  phase=0 body-root verify only; no gossip yet"
+echo "  phase=1 gossip fan-out + verify; slash deferred"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "fraud-proof-rehearsal-smoke: PASS plan-only"

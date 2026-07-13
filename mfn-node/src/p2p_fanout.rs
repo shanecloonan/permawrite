@@ -7,14 +7,16 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
 
-use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
+use mfn_consensus::{
+    block_id, decode_body_root_fraud_proof, decode_transaction, tx_id, StorageCommitment,
+};
 use mfn_net::{
-    push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_proposal_v1_to_peer,
-    push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer, push_vote_v1_to_peer, read_vote_v1_reply,
-    send_block_v1, send_chunk_v2, send_gossip_end_v1, send_proposal_v1, send_vote_v1,
-    spawn_catch_up_dial, spawn_outbound_dial, BlockSyncApplierHook, BlockSyncHook, ChainTipV1,
-    FanoutPeerSet, GossipHook, HidCounter, OutboundP2pDial, P2pSessionHooks, ProductionHook,
-    TipSnapshot,
+    push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_fraud_proof_gossip_to_peer,
+    push_proposal_v1_to_peer, push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer,
+    push_vote_v1_to_peer, read_vote_v1_reply, send_block_v1, send_chunk_v2, send_fraud_proof_v1,
+    send_gossip_end_v1, send_proposal_v1, send_vote_v1, spawn_catch_up_dial, spawn_outbound_dial,
+    BlockSyncApplierHook, BlockSyncHook, ChainTipV1, FanoutPeerSet, GossipHook, HidCounter,
+    OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_runtime::Chain;
 use mfn_store::{load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
@@ -29,6 +31,9 @@ use crate::p2p_reconnect_plan::{
     ReconnectPeerEvent,
 };
 
+/// Dedup key for body-root fraud proof mesh fan-out (**F5** phase 1).
+type FraudProofFanoutKey = ([u8; 32], u8);
+
 /// Peers that completed a successful P2P handshake (address strings suitable for `TcpStream::connect`).
 #[derive(Clone)]
 pub struct P2pPeerSet {
@@ -42,6 +47,7 @@ pub struct P2pPeerSet {
     quarantine: Arc<Mutex<PeerQuarantine>>,
     production: Arc<Mutex<Option<ProductionHook>>>,
     fanout_lock: Arc<Mutex<()>>,
+    fraud_proof_fanout_seen: Arc<Mutex<BTreeSet<FraudProofFanoutKey>>>,
     chain: Arc<Mutex<Chain>>,
     dandelion: Arc<Mutex<DandelionRelay>>,
     self_arc: Weak<Self>,
@@ -95,6 +101,7 @@ impl P2pPeerSet {
             ))),
             production: Arc::new(Mutex::new(None)),
             fanout_lock: Arc::new(Mutex::new(())),
+            fraud_proof_fanout_seen: Arc::new(Mutex::new(BTreeSet::new())),
             chain,
             dandelion: Arc::new(Mutex::new(DandelionRelay::new(
                 dandelion_config,
@@ -796,6 +803,74 @@ impl P2pPeerSet {
         self.send_on_session(peer, |sock| send_block_v1(sock, block_wire))
     }
 
+    /// Push a verified body-root fraud proof to every registered peer except `except_peer` (**F5**).
+    pub fn fanout_fraud_proof(&self, consensus_wire: &[u8], except_peer: Option<&str>) {
+        let proof = match decode_body_root_fraud_proof(consensus_wire) {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let fanout_key = (block_id(&proof.block.header), proof.kind as u8);
+        let already_seen = match self.fraud_proof_fanout_seen.lock() {
+            Ok(mut seen) => !seen.insert(fanout_key),
+            Err(_) => return,
+        };
+        if already_seen {
+            return;
+        }
+        let Some(peer_set) = self.self_arc.upgrade() else {
+            return;
+        };
+        let session_peers = peer_set.snapshot_session_peers();
+        let dial_peers = peer_set.snapshot_peers_except(except_peer);
+        if session_peers.is_empty() && dial_peers.is_empty() {
+            return;
+        }
+        let wire = consensus_wire.to_vec();
+        let genesis_id = peer_set.genesis_id;
+        let local = peer_set.local_tip();
+        let except = except_peer.map(str::to_string);
+        let lock = Arc::clone(&peer_set.fanout_lock);
+        thread::Builder::new()
+            .name("mfnd-p2p-fraud-proof-fanout".into())
+            .spawn(move || {
+                let _guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
+                let mut sent = BTreeSet::new();
+                for peer in session_peers {
+                    if except.as_deref().is_some_and(|ex| ex == peer) {
+                        continue;
+                    }
+                    if peer_set.push_fraud_proof_on_session(&peer, &wire) {
+                        sent.insert(peer);
+                    }
+                }
+                for peer in dial_peers {
+                    if except.as_deref().is_some_and(|ex| ex == peer) || sent.contains(&peer) {
+                        continue;
+                    }
+                    if peer_set.push_fraud_proof_on_session(&peer, &wire) {
+                        sent.insert(peer);
+                        continue;
+                    }
+                    if let Err(e) =
+                        push_fraud_proof_gossip_to_peer(&peer, &genesis_id, &local, &wire)
+                    {
+                        peer_set.note_peer_failure(&peer, &e.to_string());
+                        eprintln!("mfnd_p2p_fraud_proof_fanout_abort peer={peer} {e}");
+                    } else {
+                        peer_set.note_peer_success(&peer);
+                    }
+                }
+            })
+            .ok();
+    }
+
+    fn push_fraud_proof_on_session(&self, peer: &str, consensus_wire: &[u8]) -> bool {
+        self.send_on_session(peer, |sock| send_fraud_proof_v1(sock, consensus_wire))
+    }
+
     /// Push `tx_wire` to registered peers (**B7**: stem single-peer or fluff fan-out).
     fn broadcast_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
         let peers = self.snapshot_peers_except(except_peer);
@@ -990,6 +1065,10 @@ impl FanoutPeerSet for P2pPeerSet {
 
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>) {
         self.broadcast_fresh_tx(tx_wire, except_peer);
+    }
+
+    fn fanout_fraud_proof(&self, consensus_wire: &[u8], except_peer: Option<&str>) {
+        P2pPeerSet::fanout_fraud_proof(self, consensus_wire, except_peer);
     }
 
     fn boot_peer_addrs(&self) -> Vec<String> {

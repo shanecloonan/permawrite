@@ -32,7 +32,7 @@ block is valid under `apply_block`.
 
 ## Soft finality UX
 
-Until gossip + slash hooks land (phase 1), wallets should treat:
+Until producer slash hooks land (phase 1b), wallets should treat:
 
 - **0 confirmations:** tip only (weak)
 - **&lt; [`FRAUD_PROOF_SOFT_FINALITY_SLOTS`](../mfn-consensus/src/fraud_proof.rs) (32):** soft finality — prefer waiting
@@ -51,8 +51,9 @@ Consensus codec (`mfn_consensus::fraud_proof`):
 u32le version (=1) || u8 kind || encode_block(block)
 ```
 
-P2P tag reserved: `0x13` (`mfn_net::FRAUD_PROOF_V1_TAG`). Phase 0 does **not**
-fan out on the mesh yet — encode/decode only.
+P2P tag reserved: `0x13` (`mfn_net::FRAUD_PROOF_V1_TAG`). Phase 1 gossips verified
+proofs on the mesh via `send_fraud_proof_v1` / `recv_gossip_v1` / `fanout_fraud_proof`.
+Slash of the producer remains deferred.
 
 ---
 
@@ -74,8 +75,8 @@ let wire = encode_body_root_fraud_proof(&proof);
 
 | Phase | Scope |
 |---|---|
-| **0 (this)** | Body-root kinds + consensus verify + P2P tag reserve |
-| **1** | `mfnd` gossip fan-out; optional slash of producer if fraud valid + evidence age window |
+| **0 (shipped)** | Body-root kinds + consensus verify + P2P tag reserve |
+| **1 (shipped)** | `mfnd` gossip recv + verify + fan-out (`fanout_fraud_proof`); producer slash deferred |
 | **2** | Coinbase amount fraud (fee_sum + emission witness) |
 | **3** | Invalid CLSAG / SPoRA with compact witnesses (state-heavy) |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |

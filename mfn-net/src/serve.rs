@@ -550,6 +550,26 @@ impl GossipHandler for InboundGossip {
         }
         label
     }
+
+    fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        let label = self.inner.on_fraud_proof_v1(consensus_wire);
+        if let Some(rest) = label.strip_prefix("valid_fraud:") {
+            println!(
+                "mfnd_fraud_proof_valid hid={} peer={} {rest}",
+                self.hid, self.peer
+            );
+            let _ = std::io::stdout().flush();
+            if let Some(ps) = &self.fanout_peers {
+                ps.fanout_fraud_proof(consensus_wire, Some(&self.peer));
+            }
+        } else if let Some(reason) = label.strip_prefix("rejected:") {
+            eprintln!(
+                "mfnd_fraud_proof_rejected hid={} peer={} reason={reason}",
+                self.hid, self.peer
+            );
+        }
+        label
+    }
 }
 
 fn log_blocks_reply(hid: u64, peer: &str, start_height: u32, requested: u32, returned: usize) {

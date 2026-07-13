@@ -2,8 +2,7 @@
 //!
 //! After [`crate::handshake::exchange_goodbye_v1_as_listener`] / dialer goodbye, peers may
 //! exchange [`crate::frame::TxV1`] / [`crate::frame::BlockV1`] /
-//! [`crate::chunk_v1::ChunkV1`] / [`crate::chunk_v2::ChunkV2`] frames until
-//! frames until [`crate::frame::GossipEndV1`]. Admission and chain apply live in `mfn-node` via
+//! [`crate::chunk_v1::ChunkV1`] / [`crate::chunk_v2::ChunkV2`] frames until [`crate::frame::GossipEndV1`]. Admission and chain apply live in `mfn-node` via
 //! [`GossipHandler`].
 
 use std::io::{Read, Write};
@@ -15,6 +14,7 @@ use crate::frame::{
     is_tx_gossip_tag, read_frame, write_frame_io, BlockV1, ChainTipV1, FrameReadError,
     FrameWriteError, GossipEndV1, GossipPayloadDecodeError, TxStemV1, TxV1,
 };
+use crate::fraud_proof_v1::{FraudProofV1, FraudProofV1DecodeError, FRAUD_PROOF_V1_TAG};
 use crate::handshake::{tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError};
 
 /// Per-frame I/O budget while reading a gossip burst (post-goodbye).
@@ -57,6 +57,8 @@ pub trait FanoutPeerSet: Send + Sync {
     }
     /// Forward `tx_wire` to every registered peer except `except_peer`.
     fn fanout_fresh_tx(&self, tx_wire: &[u8], except_peer: Option<&str>);
+    /// Forward a verified body-root fraud proof to peers except `except_peer` (**F5**).
+    fn fanout_fraud_proof(&self, _consensus_wire: &[u8], _except_peer: Option<&str>) {}
     /// Saved P2P listen addresses for catch-up dials (**M2.3.26**).
     fn boot_peer_addrs(&self) -> Vec<String> {
         Vec::new()
@@ -92,6 +94,12 @@ pub trait GossipHandler: Send + Sync {
         let _ = (commit_hash, chunk_index, chunk_bytes, merkle_proof_wire);
         "ignored:chunk_v2".into()
     }
+
+    /// Verify or ignore one body-root fraud proof (**F5** phase 1). Default ignores.
+    fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        let _ = consensus_wire;
+        "ignored:fraud_proof_v1".into()
+    }
 }
 
 /// Counts of gossip frames handled in one burst.
@@ -103,6 +111,8 @@ pub struct GossipRecvStats {
     pub block_frames: u32,
     /// Number of [`ChunkV1`] / [`ChunkV2`] frames accepted for handling.
     pub chunk_frames: u32,
+    /// Number of [`FraudProofV1`] frames accepted for handling (**F5**).
+    pub fraud_proof_frames: u32,
 }
 
 /// Failure while receiving a gossip burst.
@@ -120,6 +130,9 @@ pub enum GossipRecvError {
     /// Merkle-proven chunk frame decode error (**B2**).
     #[error("chunk_v2: {0}")]
     ChunkV2(#[from] ChunkV2DecodeError),
+    /// Body-root fraud proof frame decode error (**F5**).
+    #[error("fraud_proof: {0}")]
+    FraudProof(#[from] FraudProofV1DecodeError),
     /// Unknown gossip tag during the burst.
     #[error("unknown gossip tag 0x{0:02x}")]
     UnknownTag(u8),
@@ -167,6 +180,11 @@ pub fn recv_gossip_v1<R: Read>(
                 );
                 stats.chunk_frames = stats.chunk_frames.saturating_add(1);
             }
+            FRAUD_PROOF_V1_TAG => {
+                let proof = FraudProofV1::decode_payload(&payload)?;
+                let _ = handler.on_fraud_proof_v1(&proof.0);
+                stats.fraud_proof_frames = stats.fraud_proof_frames.saturating_add(1);
+            }
             0x08 => {
                 GossipEndV1::decode(&payload)?;
                 return Ok(stats);
@@ -205,6 +223,15 @@ pub fn send_chunk_v1<W: Write>(
         w,
         &ChunkV1::encode_payload(commit_hash, chunk_index, chunk_bytes),
     )?;
+    Ok(())
+}
+
+/// Send one [`FraudProofV1`] frame (**F5** phase 1).
+pub fn send_fraud_proof_v1<W: Write>(
+    w: &mut W,
+    consensus_wire: &[u8],
+) -> Result<(), FrameWriteError> {
+    write_frame_io(w, &FraudProofV1::encode_payload(consensus_wire))?;
     Ok(())
 }
 
@@ -365,6 +392,22 @@ pub fn push_chunks_gossip_to_peer(
     Ok(())
 }
 
+/// Dial a peer, handshake, send one [`FraudProofV1`], then [`GossipEndV1`] (**F5**).
+pub fn push_fraud_proof_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    consensus_wire: &[u8],
+) -> Result<(), PushTxGossipError> {
+    let (mut sock, _remote) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    send_fraud_proof_v1(&mut sock, consensus_wire)?;
+    send_gossip_end_v1(&mut sock)?;
+    Ok(())
+}
+
 /// Dial a peer, complete the full handshake, send one [`TxV1`], then [`GossipEndV1`] (**M2.3.20**).
 pub fn push_tx_gossip_to_peer(
     peer_addr: &str,
@@ -514,6 +557,37 @@ mod tests {
         let stats = recv_gossip_v1(&mut Cursor::new(wire), &handler).unwrap();
         assert_eq!(stats.tx_frames, 1);
         assert_eq!(handler.tx.lock().unwrap()[0], tx_wire);
+    }
+
+    #[test]
+    fn recv_gossip_v1_fraud_proof_then_end() {
+        let consensus_wire = vec![1u8, 2, 3, 4];
+        let mut wire = Vec::new();
+        send_fraud_proof_v1(&mut wire, &consensus_wire).unwrap();
+        send_gossip_end_v1(&mut wire).unwrap();
+        struct FraudHandler {
+            expected: Vec<u8>,
+        }
+        impl GossipHandler for FraudHandler {
+            fn on_tx_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_block_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_fraud_proof_v1(&self, body: &[u8]) -> String {
+                assert_eq!(body, self.expected.as_slice());
+                "ok".into()
+            }
+        }
+        let stats = recv_gossip_v1(
+            &mut Cursor::new(wire),
+            &FraudHandler {
+                expected: consensus_wire,
+            },
+        )
+        .unwrap();
+        assert_eq!(stats.fraud_proof_frames, 1);
     }
 
     #[test]

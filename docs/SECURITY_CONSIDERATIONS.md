@@ -302,19 +302,16 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
    operator can produce the chunk; it does not prove `replication` distinct
    copies exist on independent failure domains. `replication` is enforced
    economically at upload pricing, not cryptographically per proof.
-5. **Legacy (validator-less) mode burns the producer fee share.** When
-   `state.validators` is empty there is no coinbase: the treasury share of
-   fees is credited, but the producer share (default 10%) is dropped and no
-   subsidy is minted ([`apply_block` Phase 8](../mfn-consensus/src/block/apply.rs)).
-   Acceptable for the dev/test mode this configuration is documented for;
-   listed so nobody repurposes the mode expecting producer revenue.
-6. **Storage rewards accrue to the block producer, not the proving operator.**
-   `StorageProof` has no operator payout field; per-proof rewards are folded
-   into the producer's coinbase (`apply_block` settlement). A non-producing
-   storage operator earns nothing on-chain for proving data, and a producer can
-   bank a relayed proof. This undercuts the permanence incentive and storage
-   decentralization until an operator-direct payout path ships. Full analysis
-   in [`PROBLEMS.md § 17`](./PROBLEMS.md#17-storage-rewards-are-paid-to-the-block-producer-not-to-the-operator-that-proved-the-data).
+5. **Legacy (validator-less) mode fee accounting.** When
+   `require_coinbase` is false (legacy harness / no validator payout), the
+   **full** `fee_sum` credits `treasury` — the producer share is no longer
+   dropped ([`apply_block`](../mfn-consensus/src/block/apply.rs); PROBLEMS § 16).
+   Subsidy still does not mint without a validator coinbase (intentional for
+   test harnesses).
+6. **Storage rewards and operators.** Per-proof payouts mint to operator stealth
+   keys in coinbase outputs (`StorageProof.operator_view_pub` /
+   `operator_spend_pub`; PROBLEMS § 17 **closed**). Residual: proof **inclusion**
+   remains a latency race to producers (PROBLEMS § 6).
 
 ---
 
@@ -322,10 +319,10 @@ Full treatment: [`STORAGE.md`](./STORAGE.md), [`PROBLEMS.md`](./PROBLEMS.md).
 
 | # | Area | Risk | Current mitigation | Residual status |
 |---|---|---|---|---|
-| 1 | Finality semantics | Quorum ≠ state validity | Body-root fraud proofs phase 0 ([`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md)); full nodes re-execute `apply_block` | Partially mitigated; CLSAG/SPoRA fraud + gossip open; Tier-4 SNARKs close |
-| 2 | Header binding | `utxo_root` outside signing hash | Full-node recompute + next-block `prev_hash` binding | Open design question (hard fork) |
-| 3 | BLS rogue keys | Same-message aggregation | PoP via `Register` signature over `bls_pk` | Closed for registered validators; **open at genesis** (trusted setup) |
-| 4 | Determinism | `f64` in eligibility threshold | Default `F = 1.5` exactly representable | Latent; integer fixed-point recommended |
+| 1 | Finality semantics | Quorum ≠ state validity | Body-root fraud proofs phase 0–1 ([`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md)); gossip on tag `0x13`; full nodes re-execute `apply_block` | Partially mitigated; CLSAG/SPoRA fraud + slash open; Tier-4 SNARKs close |
+| 2 | Header binding | `utxo_root` outside signing hash (v1) | Header v2 + genesis-threaded `header_version`; full-node recompute | **Partially closed:** v2 opt-in; v1 devnet + checkpoint decode default remain |
+| 3 | BLS rogue keys | Same-message aggregation | PoP via `Register`; genesis JSON `bls_register_sig_hex` + `require_validator_bls_pop` | Closed for registered validators; **partial at genesis** (Path B tooling; PROBLEMS § 13) |
+| 4 | Determinism | `f64` in eligibility threshold | Q30 integer path via `proposers_factor_q30_from_f64_bits` | **Closed** (PROBLEMS § 14) |
 | 5 | VRF interop | Non-Elligator2 hash-to-curve | Protocol-owned golden vectors | Documented deviation; RFC conformance needs fork |
 | 6 | Privacy | Decoy statistics, fee/timing/graph metadata, storage-size fingerprints | Gamma calibration; wallet-layer policy | Tier 3 removes decoy class; metadata remains |
 | 7 | Permanence | No operator bonds; latency race; access ≠ replication | Endowment pricing, replication floor at upload | Open (see PROBLEMS §§ 1, 5, 6) |

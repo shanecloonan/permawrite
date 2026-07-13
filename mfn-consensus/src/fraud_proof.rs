@@ -7,7 +7,7 @@
 //! recomputes a Merkle root that disagrees with the finalized header.
 //!
 //! Later phases (CLSAG / SPoRA / coinbase fraud) need state witnesses and
-//! stay deferred. Gossip + slash hooks are phase 1 (`mfn-net` tag `0x13`).
+//! Gossip + slash hooks: gossip shipped in phase 1 (`mfn-net` tag `0x13`); slash deferred.
 
 use crate::block::{decode_block, encode_block, tx_merkle_root, Block, BlockDecodeError};
 use crate::slashing::slashing_merkle_root;

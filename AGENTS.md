@@ -81,18 +81,18 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-12)
+## CI gate (2026-07-13)
 
-**Head:** `0039732` (F5 fraud phase 0). CI `#29211797053` RED (UTF-16 smoke.sh); fix this push.
+**Head:** (this push). **Prior:** `fa2aab2` CI `#29212422570` GREEN; Nightly `#29213250847` GREEN; release evidence `fa2aab2` RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 CI red UTF-16 smoke | **Doing** — encoding fix push | Nightly on green |
-| **2** | Release evidence refresh | **Waiting** — after green CI | Human sign-off packet |
-| **4** | F5 phase 0 UTF-8 smoke fix | **Doing** — this push | Gossip phase 1 |
-| **7** | Path B header_version smoke | **Done** — `22549d7` | TL-5 VPS soak (human) |
+| **1** | CI monitor F5 phase 1 | **In progress** — ci-check + push | Release evidence refresh after green |
+| **2** | Release evidence refresh | **Next** — after green CI | Human sign-off packet |
+| **4** | F5 phase 1 gossip fan-out | **In progress** — this push | Phase 2 coinbase fraud |
+| **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---
 
@@ -126,9 +126,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 fraud-proof phase 0** (`0039732`) - body-root fraud verify + tag `0x13`; CI red on UTF-16 `.sh` — encoding fix this push.
-
-- **F5 fraud-proof phase 0** (this push) - protocol (lane 4): body-root fraud verify + P2P tag 0x13; [FRAUD_PROOFS.md](docs/FRAUD_PROOFS.md).
+- **F5 fraud-proof phase 1** (this push) - gossip fan-out on tag `0x13`; verify + `mfnd_fraud_proof_valid`; slash deferred (lane 4).
+- **F5 fraud-proof UTF-8 smoke fix** (`fa2aab2`) - CI `#29212422570` GREEN; Nightly `#29213250847` GREEN.
+- **F5 fraud-proof phase 0** (`0039732`) - body-root fraud verify + tag `0x13`.
 - **genesis-header-version-rehearsal-smoke** (this push) - Path A v1 pin + Path B header_version:2 doc gate in ci-check.
 
 - **Genesis BLS PoP tooling + TL-9 assert** (`83b82dd`) - testnet launch (lane 7) + protocol (lane 4): `genesis-validator-bls-pop.*` + rehearsal smoke; `launch-go-no-go` uses assert scripts; `vps-execution-checklist` tl5/tl6 assert steps; `docs/interop/VRF_MFBN1.md`.

@@ -1,4 +1,4 @@
-# Lane 4 / F5 phase 0: plan-only fraud-proof doc + module wiring gate (Windows).
+# Lane 4 / F5: plan-only fraud-proof doc + module wiring gate (phase 0 + phase 1 gossip).
 param(
     [switch]$PlanOnly
 )
@@ -11,8 +11,12 @@ $Security = Join-Path $RepoRoot "docs/SECURITY_CONSIDERATIONS.md"
 $Consensus = Join-Path $RepoRoot "mfn-consensus/src/fraud_proof.rs"
 $Net = Join-Path $RepoRoot "mfn-net/src/fraud_proof_v1.rs"
 $Frame = Join-Path $RepoRoot "mfn-net/src/frame.rs"
+$Gossip = Join-Path $RepoRoot "mfn-net/src/gossip.rs"
+$NodeGossip = Join-Path $RepoRoot "mfn-node/src/p2p_gossip.rs"
+$NodeFanout = Join-Path $RepoRoot "mfn-node/src/p2p_fanout.rs"
+$Serve = Join-Path $RepoRoot "mfn-net/src/serve.rs"
 
-foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame)) {
+foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $NodeFanout, $Serve)) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "fraud-proof-rehearsal-smoke: missing $path"
     }
@@ -33,11 +37,25 @@ if (-not (Select-String -LiteralPath $Net -Pattern "FRAUD_PROOF_V1_TAG" -Quiet))
     throw "fraud-proof-rehearsal-smoke: fraud_proof_v1.rs missing tag constant"
 }
 
+$phase1 = @{
+    "on_fraud_proof_v1"            = $Gossip
+    "send_fraud_proof_v1"          = $Gossip
+    "push_fraud_proof_gossip_to_peer" = $Gossip
+    "fanout_fraud_proof"           = $NodeFanout
+    "mfnd_fraud_proof_valid"       = $Serve
+    "verify_body_root_fraud_proof" = $NodeGossip
+}
+foreach ($entry in $phase1.GetEnumerator()) {
+    if (-not (Select-String -LiteralPath $entry.Value -Pattern ([regex]::Escape($entry.Key)) -Quiet)) {
+        throw "fraud-proof-rehearsal-smoke: $($entry.Value) missing phase 1: $($entry.Key)"
+    }
+}
+
 Write-Host "fraud-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::fraud_proof"
 Write-Host "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-Write-Host "  phase=0 body-root verify only; no gossip yet"
+Write-Host "  phase=1 gossip fan-out + verify; slash deferred"
 
 if ($PlanOnly) {
     Write-Host "fraud-proof-rehearsal-smoke: PASS plan-only"

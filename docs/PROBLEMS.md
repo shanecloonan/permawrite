@@ -2,13 +2,13 @@
 
 This document is an honest inventory of real limitations, incentive misalignments, and architectural tensions in the Permawrite protocol and implementation. It does **not** invent problems for balance. Where the design appears sound under its stated assumptions, that is noted.
 
-The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16, with full analysis in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)). Items 17–18 (added in a follow-up audit) are two high-severity, vision-critical gaps: storage rewards are paid to the block producer rather than the proving operator, and there is no consensus-enforced ring size.
+The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16 in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)). Items 17–18 recorded two vision-critical gaps (**operator-direct SPoRA payout**, **consensus ring-16**); both are **closed** in the current tree. Open operator-pay pressure is now mostly **treasury inflow** (§§ 2, 4, 19) and **proof inclusion fairness** (§ 6), not mis-routed coinbase.
 
 ## Economic and Incentive Problems
 
 ### 1. Storage operators have limited skin in the game (bonding is opt-in)
 
-> **Status: partially mitigated** (B5 operator bonding + slashing shipped; public devnet enables `min_storage_operator_bond` + audit slash params). Residual: bondless tier remains valid where genesis permits `bond_amount: 0`; permanence still depends on rational operators holding data without mandatory global bonds.
+> **Status: partially mitigated** (B5 operator bonding + slashing shipped; public devnet enables `min_storage_operator_bond`, operator audit slash params, and `require_endowment_opening` / `require_endowment_range_proof` on uploads). Residual: bondless tier remains valid where genesis permits `bond_amount: 0`; permanence still depends on rational operators holding data without mandatory global bonds.
 
 Storage operators earn by winning SPoRA challenges. **Bonded** operators escrow slashable stake; missed operator-salted audits can forfeit bond to the treasury ([`B5_OPERATOR_SLASHING.md`](./B5_OPERATOR_SLASHING.md)). Unbonded operators still face only the carrot (forego future rewards on defection).
 
@@ -20,12 +20,15 @@ This remains a genuine hole for bondless deployments: the permanence guarantee s
 
 ### 2. r = 0 default makes permanence heavily dependent on continuous high privacy transaction volume
 
+> **Status: open (by design)** — permanence **does not stop** when fees dry up: the emission backstop mints operator payouts when the treasury is short ([`apply_block`](../mfn-consensus/src/block/apply.rs) settlement; `emission_backstop_only_when_treasury_short` in CI). What varies is **inflation character** (scheduled fee/treasury inflow vs emergency backstop spikes). Approved but **not yet shipped:** route 10% of block subsidy to treasury ([`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury), [`ECONOMICS.md` § 12](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break)) — see [§ 19](#19-subsidy-tail-split-approved-but-not-in-consensus-yet).
+
 After the shift to `real_yield_ppb = 0` as the expected/default case (see the two-mode endowment model), storage operators no longer receive yield harvested from individual endowments. Payouts come from:
 
 - 90% of priority fees flowing into the treasury, then out as storage rewards.
 - The tiny per-proof emission backstop (`storage_proof_reward = 0.1 MFN` per accepted proof).
+- **When treasury is empty:** settlement mints the storage-reward shortfall unconditionally (backstop).
 
-The "endowment" an uploader pays is now largely a large one-time capitalization of the treasury rather than a self-sustaining principal whose yield covers future costs. If privacy-preserving transaction volume (the primary long-term source of treasury inflows) declines or never reaches sufficient scale, the treasury drains and storage incentives collapse to the emission backstop, which is deliberately capped at a low level.
+The "endowment" an uploader pays is now largely a large one-time capitalization of the treasury rather than a self-sustaining principal whose yield covers future costs. If privacy-preserving transaction volume (the primary long-term source of treasury inflows) declines or never reaches sufficient scale, the treasury drains and operator revenue relies more on the **emission backstop** — solvency holds, but inflation becomes spikier and less predictable.
 
 This is not a hidden assumption — it is the explicit economic thesis of the project ("privacy demand funds permanence"). It is also a real concentration risk: the storage side of the system has a single point of failure in sustained high-value private economic activity.
 
@@ -37,10 +40,12 @@ At ~2.63 million slots per year this is roughly **half a million MFN per year** 
 
 ### 4. Producer and storage-operator incentives are only loosely aligned
 
-- Block producers receive the 10% fee share + subsidy/tail.
-- Storage operators are paid out of the treasury (funded by the 90% fee share + validator bonds + slashes + backstop emission).
+> **Status: partially mitigated** — operator-direct SPoRA coinbase outputs shipped (§ 17). Producers and operators no longer compete for the **same** coinbase output. Residual: funding paths still diverge — producers keep subsidy + 10% fees + tail; operators depend on treasury + backstop.
 
-The claim in the docs that "both are stake-aligned" is aspirational. A rational producer's direct revenue does not depend on the health of the storage operator set or the long-term viability of the permanence guarantees. In a low-fee or low-privacy-usage regime, producers can continue earning the tail emission while storage operators see their revenue dry up.
+- Block producers receive the 10% fee share + subsidy/tail.
+- Storage operators are paid out of the treasury (funded by the 90% fee share + validator bonds + slashes + backstop emission), with per-proof coinbase outputs to operator stealth keys.
+
+A rational producer's direct revenue still does not depend on the health of the storage operator set. In a low-fee or low-privacy-usage regime, producers can continue earning the tail emission while operators see **treasury-funded** revenue shrink and backstop minting rise (§ 2).
 
 ### 5. Adverse selection on which data actually gets reliably stored
 
@@ -49,6 +54,8 @@ Larger endowments and "hot" (frequently challenged / recently uploaded) files ar
 ## Architectural and Viability Concerns
 
 ### 6. SPoRA proof winning is a pure first-to-publish latency race
+
+> **Status: open** — no latency-fair inclusion rule in consensus yet. Mitigations are operational (many observers, replication breadth, RPC-only operators) and research-tracked in [`DECENTRALIZATION.md` § Phase C](./DECENTRALIZATION.md) (commit-reveal, VRF-weighted pools). Privacy/permanence policy rejects merging storage into validator duties to “fix” latency.
 
 The challenge is deterministic per slot. The first valid proof that reaches a producer and is included wins the reward (or the accrued yield, when `r > 0`). In a globally distributed network this strongly favors:
 
@@ -98,7 +105,7 @@ docs. Deeper analysis of every item lives in
 
 ### 11. ~~Committee finality does not attest state-transition validity~~ (partially mitigated)
 
-> **Status: fraud-proof phase 0 shipped** — [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) + [`mfn_consensus::fraud_proof`](../mfn-consensus/src/fraud_proof.rs) verify body-root mismatches (tx/bond/slashing/storage-proof roots) without the UTXO set. P2P tag `0x13` reserved. Full `apply_block` fraud (CLSAG/SPoRA/coinbase) and gossip/slash remain phase 1+.
+> **Status: fraud-proof phase 1 shipped** — [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) + [`mfn_consensus::fraud_proof`](../mfn-consensus/src/fraud_proof.rs) verify body-root mismatches; P2P tag `0x13` gossips verified proofs (`fanout_fraud_proof`). Full `apply_block` fraud (CLSAG/SPoRA/coinbase) and slash remain phase 2+.
 
 The reference voting path (`cast_vote` → `verify_producer_proof` in
 `mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF
@@ -114,7 +121,7 @@ classes. See [SECURITY_CONSIDERATIONS.md § 2](./SECURITY_CONSIDERATIONS.md#2-wh
 
 ### 12. `utxo_root` is not covered by the finality signature (partially resolved)
 
-> **Status: genesis-threaded** — header version 2 ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) appends `utxo_root` to [`header_signing_bytes`](../mfn-consensus/src/block/header.rs). [`GenesisConfig::header_version`](../mfn-consensus/src/block/genesis.rs) + JSON `header_version` (Path B) pin the chain; [`build_unsealed_header`](../mfn-consensus/src/block/builder.rs) and [`apply_block`](../mfn-consensus/src/block/apply.rs) enforce it. Public devnet v1 stays at header v1 (one-block confirmation lag via [`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)).
+> **Status: genesis-threaded** — header version 2 ([`HEADER_VERSION_UTXO_QUORUM`](../mfn-consensus/src/block/header.rs)) appends `utxo_root` to [`header_signing_bytes`](../mfn-consensus/src/block/header.rs). [`GenesisConfig::header_version`](../mfn-consensus/src/block/genesis.rs) + JSON `header_version` (Path B) pin the chain; [`build_unsealed_header`](../mfn-consensus/src/block/builder.rs) and [`apply_block`](../mfn-consensus/src/block/apply.rs) enforce it. Public devnet v1 stays at header v1 (one-block confirmation lag via [`utxo_root_quorum_confirmation_lag`](../mfn-consensus/src/header_verify/types.rs)). CI: `genesis-header-version-rehearsal-smoke`.
 
 **Historical note (v1 chains).** `header_signing_bytes` committed every
 header root **except `utxo_root`**, which appears only in `block_header_bytes`
@@ -122,17 +129,21 @@ header root **except `utxo_root`**, which appears only in `block_header_bytes`
 directly attest the post-block UTXO accumulator root; it is bound only
 transitively, one block later, via `block_id` → next header's `prev_hash`.
 
-Impact is bounded — full nodes recompute the root, and the tip inherits quorum
+Impact is bounded on v1 — full nodes recompute the root, and the tip inherits quorum
 binding after one confirmation — but (a) prior doc claims that the BLS
 aggregate covers `utxo_root` were wrong (fixed in the same change as this
 entry), and (b) any future feature that consumes the **tip** accumulator root
 (Tier-3 OoM membership proofs, light-client-backed deposits) must treat it as
-provisional for one block. Whether to add `utxo_root` to the signing bytes is
-an open hard-fork question. See [SECURITY_CONSIDERATIONS.md § 3](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
+provisional for one block on v1 chains.
+
+**Residual:** public devnet v1 stays at header v1; Path B may set `header_version: 2`.
+[`CHAIN_CHECKPOINT_VERSION`](../mfn-consensus/src/chain_checkpoint/mod.rs) v10 decode still
+defaults `header_version` to 1 — v2 chains need a future checkpoint bump for
+cold-start fidelity. See [SECURITY_CONSIDERATIONS.md § 3](./SECURITY_CONSIDERATIONS.md#3-header-commitment-coverage--what-the-quorum-actually-signs).
 
 ### 13. ~~Genesis validators bypass BLS proof-of-possession~~ (partially resolved)
 
-> **Status: tooling gate shipped** — [`genesis_config_from_json_bytes`](../mfn-runtime/src/genesis_spec.rs) accepts optional `bls_register_sig_hex` per validator (same payload as `BondOp::Register`) and rejects invalid signatures. Path B ceremonies set `require_validator_bls_pop: 1` to mandate PoP on every row. Toy Path A devnet specs remain seed-derived trusted setup (PoP optional).
+> **Status: tooling gate shipped** — [`genesis_config_from_json_bytes`](../mfn-runtime/src/genesis_spec.rs) accepts optional `bls_register_sig_hex` per validator (same payload as `BondOp::Register`) and rejects invalid signatures. Path B ceremonies set `require_validator_bls_pop: 1` to mandate PoP on every row. CLI: [`genesis-validator-bls-pop`](../scripts/public-devnet-v1/genesis-validator-bls-pop.sh); CI: `genesis-validator-bls-pop-rehearsal-smoke`. Toy Path A devnet specs remain seed-derived trusted setup (PoP optional).
 
 Same-message BLS aggregation is rogue-key-attackable without proof-of-possession. Registered validators get PoP for free via `BondOp::Register`. Genesis validators installed by `apply_genesis` still have **no on-chain PoP field** — the gap is closed at **spec-load time** for JSON genesis, not inside `apply_genesis` itself.
 
@@ -217,23 +228,47 @@ Tracked historically in [`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-q
 Monero mandates uniform rings of 16 for exactly this reason; Permawrite now matches that
 at consensus. Residual Tier-3 work (OoM over full UTXO set) remains in [`PRIVACY.md`](./PRIVACY.md).
 
+### 19. Subsidy tail split approved but not in consensus yet
+
+> **Status: open (docs-only approval)** — [`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury) and [`ECONOMICS.md` § 12](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break) approve routing **10% of block subsidy** (`subsidy_to_treasury_bps = 1000`) into the storage treasury on every block with a producer coinbase. **No such field exists** in `ChainState` / `ConsensusParams` or [`apply_block`](../mfn-consensus/src/block/apply.rs) settlement today — only the 90/10 **fee** split and emission backstop affect treasury inflow.
+
+Without this parameter, operator revenue in low-fee regimes depends almost entirely on privacy tx volume (§ 2) and emergency backstop minting. The tail subsidy still flows entirely to producers until a parameter fork ships the F6 phase-2 consensus change.
+
+### 20. Chain-native casino as treasury funding (assessed — rejected)
+
+> **Status: out of scope (not an open protocol gap)** — full analysis in [`CASINO_RANDOMNESS_FEASIBILITY.md`](./CASINO_RANDOMNESS_FEASIBILITY.md). Verdict: **do not prioritize**; not a roadmap item.
+
+Delayed-entropy games are technically possible (SPoRA already uses the same pattern), but a house-bankrolled on-chain casino would:
+
+- Increase validator/producer grinding incentives against treasury variance targets.
+- Expand regulatory and brand risk for a privacy-permanence network without improving ring policy or endowment enforcement.
+- Compete with the stated thesis that **privacy transaction fees** (not speculative gaming) fund permanence.
+
+Treasury top-ups belong in fee economics (§§ 2, 19), operator bonding (§ 1), and latency-fair SPoRA (§ 6) — not chain-native gambling.
+
 ## Areas That Appear Relatively Sound (Under Stated Assumptions)
 
-- The core privacy primitives (Pedersen + CLSAG + Bulletproofs + stealth) are well-understood and directly ported from battle-tested designs, with the important ring-membership guard added.
-- The header-binds-body commitment family (all the `*_root` fields) plus BLS finality gives strong structural guarantees once a block is finalized.
-- The two-mode endowment math (r > 0 vs r = 0 + deflation) is now cleanly implemented and validated at the parameter level.
-- Validator bonding + slashing + treasury loop is a closed, auditable economic mechanism.
+- The core privacy primitives (Pedersen + CLSAG + Bulletproofs + stealth) are well-understood and directly ported from battle-tested designs, with consensus-enforced uniform ring-16 (§ 18) and canonical reference-tx conformance (F5-P9).
+- The header-binds-body commitment family (all the `*_root` fields) plus BLS finality gives strong structural guarantees once a block is finalized; body-root fraud proofs (§ 11) give light clients a first rejection path without the UTXO set.
+- Operator-direct SPoRA coinbase outputs (§ 17) align permanence payouts with proving operators rather than block producers only.
+- Public devnet genesis enables endowment opening / range-proof gates (`require_endowment_opening`, `require_endowment_range_proof` in [`public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json); see [`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md)).
+- The two-mode endowment math (r > 0 vs r = 0 + deflation) is cleanly implemented; emission backstop guarantees operator settlement when the treasury is short (§ 2).
+- Validator bonding + slashing + treasury loop is a closed, auditable economic mechanism (B5 partial on public devnet).
+- Genesis ceremony tooling: BLS PoP verification at spec load (§ 13), optional `header_version: 2` for new chains (§ 12).
 
 These do not mean the overall system is risk-free; they mean the documented problems above are the more material open issues rather than basic cryptographic soundness of the building blocks.
 
 ---
 
 **This document should be updated whenever a material new weakness is discovered or a planned mitigation ships.** It is not marketing copy; it is part of the protocol's self-assessment.
----
 
 ## See also
 
-- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) — hardware role split, centralization pressures, and packaging improvements that preserve privacy/permanence
+- [`DECENTRALIZATION.md`](./DECENTRALIZATION.md) — hardware role split, centralization pressures, latency-fair SPoRA research
 - [`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md) — consumer storage feasibility
 - [`ECONOMICS.md`](./ECONOMICS.md) — treasury, fees, operator payouts
+- [`FEES.md`](./FEES.md) — 90/10 fee split, approved subsidy tail (§ 5.4)
+- [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) — interactive fraud proof phase 0 (§ 11)
+- [`CASINO_RANDOMNESS_FEASIBILITY.md`](./CASINO_RANDOMNESS_FEASIBILITY.md) — assessed extension, rejected (§ 20)
+- [`SECURITY_CONSIDERATIONS.md`](./SECURITY_CONSIDERATIONS.md) — protocol trust model companion
 - [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — production runbook

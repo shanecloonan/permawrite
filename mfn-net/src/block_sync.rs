@@ -12,6 +12,7 @@ use crate::frame::{
     is_tx_gossip_tag, read_frame, write_frame_io, ChainTipV1, FrameReadError, FrameWriteError,
     TxStemV1, TxV1, MAX_FRAME_PAYLOAD_LEN, TX_STEM_V1_TAG,
 };
+use crate::fraud_proof_v1::{FraudProofV1, FRAUD_PROOF_V1_TAG};
 use crate::gossip::{
     recv_gossip_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
 };
@@ -252,8 +253,8 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
             BLOCKS_V1_TAG => {
                 return BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode);
             }
-            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | CHUNK_V2_TAG | 0x06 | TX_STEM_V1_TAG
-            | 0x07 | 0x08 | 0x0b => continue,
+            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | CHUNK_V2_TAG | FRAUD_PROOF_V1_TAG
+            | 0x06 | TX_STEM_V1_TAG | 0x07 | 0x08 | 0x0b => continue,
             tag => {
                 return Err(BlockSyncRecvError::Decode(
                     BlockSyncDecodeError::UnknownTag(tag),
@@ -457,8 +458,10 @@ pub fn serve_post_handshake_v1(
                     let _ = h.on_vote_v1(&payload[1..]);
                 }
             }
-            tag if matches!(tag, 0x07 | 0x08 | CHUNK_V1_TAG | CHUNK_V2_TAG)
-                || is_tx_gossip_tag(tag) =>
+            tag if matches!(
+                tag,
+                0x07 | 0x08 | CHUNK_V1_TAG | CHUNK_V2_TAG | FRAUD_PROOF_V1_TAG
+            ) || is_tx_gossip_tag(tag) =>
             {
                 recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
                 // Keep the duplex session alive for later producer fan-out (**M7.5**).
@@ -507,6 +510,11 @@ fn recv_gossip_v1_from_first<R: Read>(
                 );
                 stats.chunk_frames = stats.chunk_frames.saturating_add(1);
             }
+            FRAUD_PROOF_V1_TAG => {
+                let proof = FraudProofV1::decode_payload(payload)?;
+                let _ = handler.on_fraud_proof_v1(&proof.0);
+                stats.fraud_proof_frames = stats.fraud_proof_frames.saturating_add(1);
+            }
             0x08 => {
                 crate::frame::GossipEndV1::decode(payload)?;
                 return Ok(());
@@ -523,6 +531,9 @@ fn recv_gossip_v1_from_first<R: Read>(
     stats.tx_frames = stats.tx_frames.saturating_add(rest.tx_frames);
     stats.block_frames = stats.block_frames.saturating_add(rest.block_frames);
     stats.chunk_frames = stats.chunk_frames.saturating_add(rest.chunk_frames);
+    stats.fraud_proof_frames = stats
+        .fraud_proof_frames
+        .saturating_add(rest.fraud_proof_frames);
     Ok(stats)
 }
 
