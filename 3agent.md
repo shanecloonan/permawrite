@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29264586158` + Nightly `#29267729234` GREEN on F6 stack | **Done** | Soak maintenance |
+| **1** RC core | F5 `17ac4fc` landed; Nightly `#29267729234` GREEN | **Doing** — CI `#29270900030` FAIL method_count; fix `543374f` ready | Push fix after macos job ends |
 | **2** RC ops | `release-evidence-ff4491b` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 1b + F6 phase 2 | **Done** | On-chain producer slash |
@@ -21,7 +21,8 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F5 phase 1b** | **Done** — this push | `FraudContestRegistry` + `list_fraud_contests` RPC |
+| **F5 phase 1b** | **Done** — `17ac4fc` | `FraudContestRegistry` + `list_fraud_contests` RPC |
+| **method_count fix** | **Done** — `543374f` (pending push) | CI `#29270900030` windows/ubuntu FAIL |
 | **TL-5** | **Waiting** — human | VPS internet soak |
 
 **Lane 4 — Done:** F5 phase 1b contest registry **Next:** on-chain producer slash  

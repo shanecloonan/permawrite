@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `ff4491b`. **CI `#29268143470` GREEN** (ancestor on `3043596`). **Nightly `#29267729234` GREEN** on F6 pin `5a1b221`. **Release evidence** `ff4491b` RC audit **go**.
+**Head:** `17ac4fc` + method_count fix (pending push). **CI `#29270900030`** FAIL windows/ubuntu (method_count 31→32); macos in progress. **Prior GREEN:** `#29268143470`, Nightly `#29267729234` on `5a1b221`.
 
 ## Current board
 
