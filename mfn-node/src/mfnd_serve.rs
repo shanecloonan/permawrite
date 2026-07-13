@@ -196,18 +196,41 @@ enum RpcRequestLine {
     Respond(Value),
 }
 
+/// After an oversized line is detected under a byte cap, discard through `\n` so the
+/// peer can finish a large write without the server closing while data is still in flight.
+fn drain_incomplete_rpc_line<R: Read>(reader: &mut R) -> Result<(), String> {
+    let mut scratch = [0u8; 4096];
+    loop {
+        let n = reader
+            .read(&mut scratch)
+            .map_err(|e| format!("mfnd serve: drain oversized request line: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        if scratch[..n].contains(&b'\n') {
+            break;
+        }
+    }
+    Ok(())
+}
+
 fn read_rpc_request_line(stream: &mut TcpStream) -> Result<RpcRequestLine, String> {
     let peer = stream
         .peer_addr()
         .map_err(|e| format!("mfnd serve: peer_addr: {e}"))?;
     configure_rpc_stream(stream)?;
-    let mut reader = BufReader::new(stream.try_clone().map_err(|e| format!("{e}"))?);
     let mut line = String::new();
-    reader
-        .by_ref()
-        .take(MFND_RPC_MAX_REQUEST_LINE_BYTES.saturating_add(1))
-        .read_line(&mut line)
-        .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
+    {
+        let mut reader = BufReader::new(&mut *stream);
+        reader
+            .by_ref()
+            .take(MFND_RPC_MAX_REQUEST_LINE_BYTES.saturating_add(1))
+            .read_line(&mut line)
+            .map_err(|e| format!("mfnd serve: read request from {peer}: {e}"))?;
+        if (line.len() as u64) > MFND_RPC_MAX_REQUEST_LINE_BYTES && !line.ends_with('\n') {
+            drain_incomplete_rpc_line(&mut reader)?;
+        }
+    }
     if (line.len() as u64) > MFND_RPC_MAX_REQUEST_LINE_BYTES {
         return Ok(RpcRequestLine::Respond(mfn_rpc::rpc_error(
             &Value::Null,
@@ -255,6 +278,7 @@ fn handle_accepted_rpc_stream(
         Ok(RpcRequestLine::Respond(resp)) => {
             log_rpc_request_outcome("unknown", &resp, read_started.elapsed());
             let _ = write_line(&mut stream, &resp);
+            let _ = stream.flush();
             return;
         }
         Err(e) => {
@@ -1203,6 +1227,12 @@ mod tests {
         let writer = std::thread::spawn(move || {
             let mut client = client;
             writeln!(client, "{oversized}").expect("write oversized request");
+            let mut resp = String::new();
+            BufReader::new(&client)
+                .read_line(&mut resp)
+                .expect("read oversized rejection response");
+            let parsed: Value = serde_json::from_str(resp.trim_end()).expect("parse rpc json");
+            assert_eq!(parsed["error"]["code"], mfn_rpc::rpc_codes::INVALID_REQUEST);
         });
         let line = read_rpc_request_line(&mut server).expect("read request line");
         match line {
@@ -1212,6 +1242,8 @@ mod tests {
                     .as_str()
                     .expect("error message")
                     .contains("request line exceeds maximum"));
+                write_line(&mut server, &resp).expect("write oversized rejection");
+                server.flush().expect("flush oversized rejection");
             }
             RpcRequestLine::Dispatch(_) => panic!("oversized request must not dispatch"),
         }

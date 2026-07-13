@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `12e7353`. **CI in progress** on push. **Prior:** `5459df7` board sync; stack CI `#29221315455` GREEN on `bd6d4d9`.
+**Head:** `12e7353` F5 phase 2. **CI `#29225657744` RED** — macOS `mfnd_serve_rejects_oversized_rpc_line` (mfnd_serve drain fix this push).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on F5 stack | **Next** — dispatch Nightly on `f3e5236` | Soak maintenance |
+| **1** | macOS RPC oversized-line CI fix | **Doing** — this push | Green CI + Nightly |
 | **2** | Release evidence refresh | **Done** — `release-evidence-f3e5236` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 2 coinbase fraud | **Done** — `12e7353` | Phase 3 CLSAG/SPoRA witnesses |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
