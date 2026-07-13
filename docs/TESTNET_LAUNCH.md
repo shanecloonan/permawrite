@@ -12,7 +12,7 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 | --- | --- |
 | Release commit | `5a1b221` (F6 phase 2 `bb94c5c` + telemetry `0d1b9ec` + TL-5 handoff) |
 | CI | `#29264586158` GREEN |
-| Nightly | `#29267729234` (dispatched on `5a1b221`) |
+| Nightly | `#29267729234` GREEN on `5a1b221` |
 | RC audit | `release-evidence-5a1b221` **go** |
 | Next human gate | **TL-5** — provision VPS ([`VPS_PROVISION.md`](./VPS_PROVISION.md)) then `bash scripts/public-devnet-v1/vps-internet-soak.sh` |
 

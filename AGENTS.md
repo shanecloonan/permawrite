@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `5a1b221`. **CI `#29264586158` GREEN** (F6 stack `bb94c5c` + `0d1b9ec`). **Nightly `#29267729234`** dispatched on `5a1b221` (in progress). Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `5a1b221` (board tip `3043596`). **CI `#29264586158` GREEN**. **Nightly `#29267729234` GREEN**. **Release evidence** `5a1b221` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on F6 stack | **Monitor** — `#29267729234` on `5a1b221` | Soak maintenance |
+| **1** | F6 stack Nightly | **Done** — `#29267729234` GREEN on `5a1b221` | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-5a1b221` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
@@ -127,7 +127,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **CI `#29264586158` GREEN** (`5a1b221`) - RC core (lane 1): full matrix on F6 stack (`bb94c5c` consensus + `0d1b9ec` telemetry); Nightly `#29267729234` auto-dispatched.
+- **Nightly `#29267729234` GREEN** (`5a1b221`) - RC core (lane 1): all three jobs on F6 stack.
+- **CI `#29264586158` GREEN** (`5a1b221`) - RC core (lane 1): full matrix on F6 stack (`bb94c5c` consensus + `0d1b9ec` telemetry).
 - **Release evidence `5a1b221`** - RC ops (lane 2): F6 stack + RC audit dry-run **go** on CI `#29264586158`.
 - **F6 phase 2 subsidy tail split** (`bb94c5c`) - permanence (lane 6): `subsidy_to_treasury_bps` + checkpoint v11; treasury credit in `apply_block`.
 - **F6 telemetry subsidy field** (`0d1b9ec`) - permanence (lane 6): `treasury-telemetry-watch` exposes `subsidy_to_treasury_bps`; ci-check plan gate.

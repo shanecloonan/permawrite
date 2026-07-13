@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29264586158` GREEN on `5a1b221` | **Monitor** — Nightly `#29267729234` | Soak maintenance |
+| **1** RC core | CI `#29264586158` + Nightly `#29267729234` GREEN on `5a1b221` | Soak maintenance | Hold Rust unless regression |
 | **2** RC ops | `release-evidence-5a1b221` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
@@ -23,9 +23,9 @@
 | --- | --- | --- |
 | **F6 + telemetry CI** | **Done** — `#29264586158` | GREEN on `5a1b221` |
 | **Release evidence** | **Done** — `release-evidence-5a1b221` | RC audit **go** |
-| **Software-ready pin** | **Done** — `TESTNET_LAUNCH.md` | Pin `5a1b221`; Nightly `#29267729234` in progress |
+| **Software-ready pin** | **Done** — `TESTNET_LAUNCH.md` | Pin `5a1b221`; Nightly `#29267729234` GREEN |
 
-**Lane 1 — Done:** CI green on F6 stack **Next:** Nightly `#29267729234` watch  
+**Lane 1 — Done:** CI `#29264586158` + Nightly `#29267729234` GREEN **Next:** soak maintenance  
 **Lane 2 — Done:** release-evidence-5a1b221 go **Next:** human sign-off packet  
 **Lane 7 — Waiting:** human TL-5 VPS soak (do not skip)
 
