@@ -12,7 +12,7 @@
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | launch-status v6 | **Observed local WIP** — FEES/emission/checkpoint (do not touch) | Telemetry watch |
+| **6** Permanence | F6 phase 2 subsidy tail split | **Doing** — ci-check + land | Parameter fork `1000` bps |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---
