@@ -558,6 +558,15 @@ impl GossipHandler for InboundGossip {
                 "mfnd_fraud_proof_valid hid={} peer={} {rest}",
                 self.hid, self.peer
             );
+            // Gossip handlers append `:slash_height=N:slash_producer=I` when the
+            // proof names a producer (**F5** phase 3b ops hook). Log a stable
+            // machine line without pulling mfn-consensus into mfn-net.
+            if let Some((height, producer_index)) = parse_fraud_producer_slash_hint(rest) {
+                println!(
+                    "mfnd_fraud_proof_producer_slash_hint hid={} peer={} height={height} producer_index={producer_index}",
+                    self.hid, self.peer
+                );
+            }
             let _ = std::io::stdout().flush();
             if let Some(ps) = &self.fanout_peers {
                 ps.fanout_fraud_proof(consensus_wire, Some(&self.peer));
@@ -569,6 +578,23 @@ impl GossipHandler for InboundGossip {
             );
         }
         label
+    }
+}
+
+/// Parse `slash_height` / `slash_producer` fields appended by node gossip labels.
+fn parse_fraud_producer_slash_hint(label_rest: &str) -> Option<(u32, u32)> {
+    let mut height: Option<u32> = None;
+    let mut producer: Option<u32> = None;
+    for part in label_rest.split(':') {
+        if let Some(v) = part.strip_prefix("slash_height=") {
+            height = v.parse().ok();
+        } else if let Some(v) = part.strip_prefix("slash_producer=") {
+            producer = v.parse().ok();
+        }
+    }
+    match (height, producer) {
+        (Some(h), Some(p)) => Some((h, p)),
+        _ => None,
     }
 }
 
@@ -1239,5 +1265,20 @@ mod tests {
                 GapCatchUpPeerEvent::CapReached { count: 1, cap: 1 },
             ]
         );
+    }
+
+    #[test]
+    fn parse_fraud_producer_slash_hint_from_gossip_label() {
+        assert_eq!(
+            parse_fraud_producer_slash_hint(
+                "RingMember:tx=0:input=1:ring=2:reason=NotInSet:slash_height=7:slash_producer=3"
+            ),
+            Some((7, 3))
+        );
+        assert_eq!(
+            parse_fraud_producer_slash_hint("TxRoot:slash_height=1"),
+            None
+        );
+        assert_eq!(parse_fraud_producer_slash_hint("TxRoot"), None);
     }
 }

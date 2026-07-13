@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 Nightly `#29238738502` GREEN | **Waiting** — CI `#29251726699` then phase 3b push | Soak maintenance |
+| **1** RC core | F5 Nightly `#29238738502` GREEN | **Doing** — await phase 3b fix CI | Soak maintenance |
 | **2** RC ops | `release-evidence-536d2a6` RC audit **go** | **Next** — refresh after phase 3b green | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 3 `ffc7b04` | **Doing** — phase 3b ring UTXO + slash hint (ci-check) | F5 phase 4 research |
+| **4+6** Protocol | phase 3b consensus `5f3947e` | **Doing** — serve.rs `mfnd_fraud_proof_producer_slash_hint` fix | F5 phase 4 research |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
