@@ -7,13 +7,26 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 Nightly `#29238738502` GREEN | **Doing** — await phase 3b fix CI | Soak maintenance |
-| **2** RC ops | `release-evidence-536d2a6` RC audit **go** | **Next** — refresh after phase 3b green | Human sign-off packet |
+| **1** RC core | CI `#29255412319` GREEN on `ba6fdce` | **Doing** — Nightly `#29257619888` watch | Soak maintenance |
+| **2** RC ops | `release-evidence-ba6fdce` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | phase 3b consensus `5f3947e` | **Doing** — serve.rs `mfnd_fraud_proof_producer_slash_hint` fix | F5 phase 4 research |
+| **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
+| **6** Permanence | launch-status v6 | **Observed local WIP** — FEES/emission/checkpoint (do not touch) | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-13 (F5 phase 3b serve slash-hint fix)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 phase 3b serve fix** | **Done** — `ba6fdce` | `mfnd_fraud_proof_producer_slash_hint` via gossip-label parse; CI `#29255412319` GREEN |
+| **Release evidence** | **Done** — `release-evidence-ba6fdce` | RC audit **go**; Nightly `#29257619888` dispatched |
+
+**Lane 1 — Done:** CI green on phase 3b stack **Next:** Nightly watch  
+**Lane 4 — Done:** phase 3b complete **Next:** F5 phase 4 research / human TL-5  
+**Lane 6 — Observed:** incomplete local FEES/emission/checkpoint WIP — leave for owning agent
 
 ---
 
@@ -21,7 +34,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F5 fraud-proof phase 3b** | **Done** — this push | wire v3 kind=3 ring UTXO witness + `fraud_proof_producer_slash_hint` |
+| **F5 fraud-proof phase 3b** | **Done** — `5f3947e` | wire v3 kind=3 ring UTXO witness + `fraud_proof_producer_slash_hint` |
 
 **Lane 4 — Done:** phase 3b ring-membership **Next:** F5 phase 4 research
 

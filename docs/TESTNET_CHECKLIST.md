@@ -47,7 +47,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **F5 fraud-proof phase 1** (`bd6d4d9`) (lanes 4+6) — gossip fan-out on `0x13`; verify + `mfnd_fraud_proof_valid`; slash deferred.
 - [x] **F5 fraud-proof phase 2** (`12e7353`) (lanes 4+6) — coinbase amount fraud wire v2; `verify_interactive_fraud_proof`.
 - [x] **F5 fraud-proof phase 3** (`ffc7b04`) (lanes 4+6) — invalid CLSAG + invalid SPoRA wire v3; `verify_tx_fraud_proof`.
-- [x] **F5 fraud-proof phase 3b** (this push) (lanes 4+6) — ring-membership UTXO witness; `TxFraudKind::RingMemberUtxo`; `fraud_proof_producer_slash_hint`.
+- [x] **F5 fraud-proof phase 3b** (`5f3947e`, `ba6fdce`) (lanes 4+6) — ring-membership UTXO witness; `TxFraudKind::RingMemberUtxo`; `fraud_proof_producer_slash_hint`.
 - [x] **P32 phase 3** (lane 5) — observer loopback-RPC hint when P2P is public (`7d39f4c`).
 - [x] **F6 fee economics** (lane 6) — [`FEES.md`](./FEES.md) plain-language fee guide + 2026-07 parameter review (`d4a5114`).
 - [x] **P32 phase 2** (lane 5) — `vps-role-*.env.example` role-separated VPS templates (`db58ae1`).

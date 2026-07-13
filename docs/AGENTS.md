@@ -280,7 +280,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 fraud-proof phase 1** (`bd6d4d9`) — gossip fan-out + verify + `mfnd_fraud_proof_valid`; slash deferred.
 - [x] **F5 fraud-proof phase 2** (`12e7353`) — coinbase amount fraud wire v2 + `verify_interactive_fraud_proof`.
 - [x] **F5 fraud-proof phase 3** (`ffc7b04`) — invalid CLSAG + invalid SPoRA wire v3; `verify_tx_fraud_proof`.
-- [x] **F5 fraud-proof phase 3b** (this push) — ring-membership UTXO witness; `TxFraudKind::RingMemberUtxo`; producer slash ops hook.
+- [x] **F5 fraud-proof phase 3b** (`5f3947e`, `ba6fdce`) — ring-membership UTXO witness; `TxFraudKind::RingMemberUtxo`; producer slash ops hook.
 - [x] **F12 phase 5b** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).
