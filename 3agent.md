@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29212422570` GREEN; Nightly `#29213250847` GREEN | **Doing** — F5 phase 1 push | Release evidence refresh |
-| **2** RC ops | `release-evidence-fa2aab2` RC audit **go** | **Next** — after F5 phase 1 CI green | Human sign-off packet |
+| **1** RC core | CI `#29221315455` GREEN (`bd6d4d9`) | **Done** | Nightly on head |
+| **2** RC ops | `release-evidence-bd6d4d9` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 0 `fa2aab2` | **Doing** — F5 phase 1 gossip (this push) | Phase 2 coinbase fraud |
+| **4+6** Protocol | F5 phase 1 `bd6d4d9` | **Done** | Phase 2 coinbase fraud |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
@@ -21,7 +21,7 @@
 
 | Unit | Status | Notes |
 | --- | --- | --- |
-| **F5 fraud-proof phase 1** | **This push** | P2P tag `0x13` recv/send/fanout; `mfnd_fraud_proof_valid` log; slash deferred |
+| **F5 fraud-proof phase 1** | **Done** — `bd6d4d9` | P2P tag `0x13` recv/send/fanout; CI `#29221315455` GREEN |
 | **F5 UTF-8 smoke fix** | **Done** — `fa2aab2` | CI `#29212422570` GREEN; Nightly `#29213250847` GREEN |
 
 **Lane 4 — Doing:** phase 1 gossip **Next:** green CI; phase 2 coinbase fraud

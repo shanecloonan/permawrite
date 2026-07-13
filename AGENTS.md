@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** (this push). **Prior:** `fa2aab2` CI `#29212422570` GREEN; Nightly `#29213250847` GREEN; release evidence `fa2aab2` RC audit **go**.
+**Head:** `bd6d4d9`. **CI `#29221315455` GREEN**. **Nightly `#29213250847` GREEN** (prior head). **Release evidence `bd6d4d9` + RC audit go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | CI monitor F5 phase 1 | **In progress** — ci-check + push | Release evidence refresh after green |
-| **2** | Release evidence refresh | **Next** — after green CI | Human sign-off packet |
-| **4** | F5 phase 1 gossip fan-out | **In progress** — this push | Phase 2 coinbase fraud |
+| **1** | Nightly monitor | **Done** — CI `#29221315455` GREEN | Nightly on `bd6d4d9` |
+| **2** | Release evidence refresh | **Done** — `release-evidence-bd6d4d9` RC audit **go** | Human sign-off packet |
+| **4** | F5 phase 1 gossip fan-out | **Done** — `bd6d4d9` | Phase 2 coinbase fraud |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---
@@ -126,7 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 fraud-proof phase 1** (this push) - gossip fan-out on tag `0x13`; verify + `mfnd_fraud_proof_valid`; slash deferred (lane 4).
+- **F5 fraud-proof phase 1** (`bd6d4d9`) - protocol (lane 4): P2P tag `0x13` recv/send/fanout; `mfnd_fraud_proof_valid` log; CI `#29221315455` GREEN; slash deferred.
 - **F5 fraud-proof UTF-8 smoke fix** (`fa2aab2`) - CI `#29212422570` GREEN; Nightly `#29213250847` GREEN.
 - **F5 fraud-proof phase 0** (`0039732`) - body-root fraud verify + tag `0x13`.
 - **genesis-header-version-rehearsal-smoke** (this push) - Path A v1 pin + Path B header_version:2 doc gate in ci-check.
