@@ -45,12 +45,14 @@ source "$HOME/.cargo/env"
 
 ## 3. Clone and build Permawrite
 
-Use the commit from TL-3 release evidence (or current `main` after green CI):
+Use the **software-ready pin** from [`TESTNET_LAUNCH.md`](./TESTNET_LAUNCH.md) (or current `main` after green CI + matching release evidence):
 
 ```bash
 git clone https://github.com/shanecloonan/permawrite.git
 cd permawrite
-git log -1 --oneline   # record for evidence
+# Prefer the pinned release commit from TESTNET_LAUNCH.md § Software-ready pin
+git checkout ba6fdce   # or later GREEN head after release-evidence refresh
+git log -1 --oneline   # record for soak evidence
 
 cargo build -p mfn-node --release --bin mfnd
 cargo build -p mfn-cli --release --bin mfn-cli
@@ -86,6 +88,22 @@ bash scripts/public-devnet-v1/vps-preflight.sh
 ```
 
 Expect `detected_public_ip=YOUR_VPS_IP`, `require_endowment_range_proof=1`, and `next=vps-internet-soak.sh`.
+
+---
+
+## 5b. TL-5 soak (human gate — do not skip)
+
+```bash
+bash scripts/public-devnet-v1/vps-execution-checklist.sh --strict
+bash scripts/public-devnet-v1/vps-internet-soak.sh
+# on PASS: archive scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt
+```
+
+Then TL-6 on the same VPS:
+
+```bash
+bash scripts/public-devnet-v1/vps-participant-rehearsal.sh
+```
 
 ---
 

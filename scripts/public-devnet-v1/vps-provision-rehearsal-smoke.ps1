@@ -16,6 +16,15 @@ foreach ($path in @($Doc, $Ops, $BindExample)) {
     }
 }
 
+$LaunchDoc = Join-Path $RepoRoot "docs\TESTNET_LAUNCH.md"
+if (-not (Test-Path -LiteralPath $LaunchDoc)) {
+    throw "vps-provision-rehearsal-smoke: missing $LaunchDoc"
+}
+$launchText = Get-Content -Raw -LiteralPath $LaunchDoc
+if ($launchText -notmatch [regex]::Escape("Software-ready pin")) {
+    throw "vps-provision-rehearsal-smoke: TESTNET_LAUNCH.md missing Software-ready pin"
+}
+
 $needles = @(
     "vps-preflight.sh",
     "vps-execution-checklist",
@@ -23,7 +32,10 @@ $needles = @(
     "vps-launch-ceremony",
     "publish-seed-nodes",
     "TESTNET_INVITE.md",
-    "VPS_SINGLE_BOX_LAUNCH.md"
+    "VPS_SINGLE_BOX_LAUNCH.md",
+    "TESTNET_LAUNCH.md",
+    "Software-ready pin",
+    "vps-participant-rehearsal.sh"
 )
 $docText = Get-Content -Raw -LiteralPath $Doc
 foreach ($n in $needles) {

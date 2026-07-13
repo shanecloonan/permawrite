@@ -32,6 +32,16 @@ for f in "$DOC" "$OPS" "$BIND_EXAMPLE"; do
   fi
 done
 
+LAUNCH_DOC="$REPO_ROOT/docs/TESTNET_LAUNCH.md"
+if [[ ! -f "$LAUNCH_DOC" ]]; then
+  echo "vps-provision-rehearsal-smoke: missing $LAUNCH_DOC" >&2
+  exit 1
+fi
+if ! grep -qF "Software-ready pin" "$LAUNCH_DOC"; then
+  echo "vps-provision-rehearsal-smoke: TESTNET_LAUNCH.md missing Software-ready pin" >&2
+  exit 1
+fi
+
 for needle in \
   "vps-preflight.sh" \
   "vps-execution-checklist" \
@@ -40,6 +50,9 @@ for needle in \
   "publish-seed-nodes" \
   "TESTNET_INVITE.md" \
   "VPS_SINGLE_BOX_LAUNCH.md" \
+  "TESTNET_LAUNCH.md" \
+  "Software-ready pin" \
+  "vps-participant-rehearsal.sh" \
   ; do
   if ! grep -qF -- "$needle" "$DOC"; then
     echo "vps-provision-rehearsal-smoke: VPS_PROVISION.md missing: $needle" >&2
