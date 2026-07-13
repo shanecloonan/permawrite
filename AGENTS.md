@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `536d2a6`. **CI `#29236938900` GREEN**. **Nightly `#29236857495` + `#29238738502` GREEN** (F5 phase 3 stack). **Release evidence** `536d2a6` RC audit **go**.
+**Head:** `5f3947e` phase 3b (CI `#29253301274` RED — missing `mfnd_fraud_proof_producer_slash_hint` in serve.rs). **Fix:** this push.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 stack Nightly | **Done** — `#29238738502` on `536d2a6` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-536d2a6` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 3b ring-membership fraud | **Done** — this push | F5 phase 4 research |
+| **1** | phase 3b CI fix | **Doing** — serve.rs slash-hint log | Green CI + Nightly |
+| **2** | Release evidence refresh | **Done** — `release-evidence-536d2a6` RC audit **go** | Refresh after 3b CI green |
+| **4** | F5 phase 3b ring-membership fraud | **Doing** — serve.rs hook | F5 phase 4 research |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---
