@@ -83,14 +83,14 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `ffc7b04` F5 phase 3. **CI `#29234849464` GREEN**. **Nightly** auto-dispatch pending. **Release evidence** `ffc7b04` RC audit **go**.
+**Head:** `536d2a6`. **CI `#29236938900` GREEN**. **Nightly `#29236857495` + `#29238738502` GREEN** (F5 phase 3 stack). **Release evidence** `536d2a6` RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Nightly on F5 phase 3 stack | **Next** — dispatch after board sync | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-ffc7b04` RC audit **go** | Human sign-off packet |
+| **1** | F5 stack Nightly | **Done** — `#29238738502` on `536d2a6` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-536d2a6` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 3 CLSAG/SPoRA fraud | **Done** — `ffc7b04` | Phase 3b ring-membership |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
@@ -126,6 +126,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **F5 stack Nightly GREEN** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6`; RC core (lane 1) all three jobs.
+- **F5 phase 3 board + CI** (`536d2a6`) - RC ops (lane 2): TESTNET_CHECKLIST phase 3; CI `#29236938900` GREEN; release evidence `536d2a6` RC audit **go**.
 - **F5 fraud-proof phase 3** (`ffc7b04`) - protocol (lane 4): wire v3 invalid CLSAG + invalid SPoRA; gossip admission; CI `#29234849464` GREEN; release evidence `ffc7b04` RC audit **go**.
 - **macOS RPC oversized-line CI fix** (`9d1710f`) - RC core (lane 1): drain oversized request through newline before JSON-RPC reject; fixes `mfnd_serve_rejects_oversized_rpc_line` on macOS; CI `#29230074495` GREEN; Nightly `#29232188307` GREEN; release evidence `9d1710f` RC audit **go**.
 - **Board sync `f3e5236`** - RC ops (lane 2): 3agent F5 phase 1 Done row; release evidence `f3e5236` RC audit **go**.

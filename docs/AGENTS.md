@@ -85,6 +85,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **CI #28871239057 GREEN** on `837069a` (B-11 + B7 + B9 + F7/B15 stack).
 - [x] Release evidence refresh on green CI (lane 2) — `release-evidence-96462aa` (this commit).
 - [x] Nightly re-dispatch after M2.5.66 — **Nightly #28968584904** all three green (~7m; closes `start_mesh_fail`).
+- [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
 
 ### Do not start (other lanes)
 
