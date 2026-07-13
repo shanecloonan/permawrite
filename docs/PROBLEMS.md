@@ -228,11 +228,11 @@ Tracked historically in [`ECONOMICS.md § 10`](./ECONOMICS.md#10-open-economic-q
 Monero mandates uniform rings of 16 for exactly this reason; Permawrite now matches that
 at consensus. Residual Tier-3 work (OoM over full UTXO set) remains in [`PRIVACY.md`](./PRIVACY.md).
 
-### 19. Subsidy tail split approved but not in consensus yet
+### 19. Subsidy tail split — consensus shipped, parameter fork pending
 
-> **Status: open (docs-only approval)** — [`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury) and [`ECONOMICS.md` § 12](./ECONOMICS.md#12-permanence-durability-vs-arweave--is-this-model-more-likely-to-break) approve routing **10% of block subsidy** (`subsidy_to_treasury_bps = 1000`) into the storage treasury on every block with a producer coinbase. **No such field exists** in `ChainState` / `ConsensusParams` or [`apply_block`](../mfn-consensus/src/block/apply.rs) settlement today — only the 90/10 **fee** split and emission backstop affect treasury inflow.
+> **Status: partial** — **F6 phase 2** landed in consensus: `EmissionParams.subsidy_to_treasury_bps` (checkpoint **v11**), [`subsidy_treasury_credit`](../mfn-consensus/src/emission.rs) credits the storage treasury on coinbase blocks, and [`subsidy_producer_amount`](../mfn-consensus/src/emission.rs) / [`apply_block`](../mfn-consensus/src/block/apply.rs) partition the subsidy. Default genesis value is **`0`** (legacy behavior). [`FEES.md` § 5.4](./FEES.md#54-subsidy-tail-split--approved-for-next-parameter-fork-10--treasury) still targets **`subsidy_to_treasury_bps = 1000`** on a named parameter fork — not enabled on public devnet (`genesis_id` preservation).
 
-Without this parameter, operator revenue in low-fee regimes depends almost entirely on privacy tx volume (§ 2) and emergency backstop minting. The tail subsidy still flows entirely to producers until a parameter fork ships the F6 phase-2 consensus change.
+Until that fork, operator revenue in low-fee regimes depends almost entirely on privacy tx volume (§ 2) and emergency backstop minting. The tail subsidy still flows entirely to producers on live chains with `subsidy_to_treasury_bps = 0`.
 
 ### 20. Chain-native casino as treasury funding (assessed — rejected)
 

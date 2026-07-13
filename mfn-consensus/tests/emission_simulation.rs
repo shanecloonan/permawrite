@@ -41,6 +41,7 @@ const SIM_EMISSION: EmissionParams = EmissionParams {
     tail_emission: 50,
     storage_proof_reward: 25,
     fee_to_treasury_bps: 9000,
+    subsidy_to_treasury_bps: 0,
 };
 
 const SIM_PPB_ENDOWMENT: EndowmentParams = EndowmentParams {

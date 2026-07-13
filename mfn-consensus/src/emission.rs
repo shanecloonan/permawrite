@@ -53,6 +53,10 @@ pub struct EmissionParams {
     ///
     /// Default `9000` = 90% to treasury, 10% producer tip.
     pub fee_to_treasury_bps: u16,
+    /// Fraction of each block's emission subsidy credited to the storage
+    /// treasury before storage-reward drain (**F6** tail split). Remainder
+    /// goes to the producer coinbase. Default `0` preserves legacy behavior.
+    pub subsidy_to_treasury_bps: u16,
 }
 
 /// Defaults from the whitepaper / protocol.
@@ -67,6 +71,7 @@ pub const DEFAULT_EMISSION_PARAMS: EmissionParams = EmissionParams {
     tail_emission: (50 * MFN_BASE) >> 8,
     storage_proof_reward: MFN_BASE / 10,
     fee_to_treasury_bps: 9000,
+    subsidy_to_treasury_bps: 0,
 };
 
 /// Errors returned by [`validate_emission_params`].
@@ -88,6 +93,12 @@ pub enum EmissionError {
     /// `fee_to_treasury_bps > 10000`.
     #[error("fee_to_treasury_bps must be in [0, 10000] (got {got})")]
     BadFeeBps {
+        /// Configured value.
+        got: u16,
+    },
+    /// `subsidy_to_treasury_bps > 10000`.
+    #[error("subsidy_to_treasury_bps must be in [0, 10000] (got {got})")]
+    BadSubsidyBps {
         /// Configured value.
         got: u16,
     },
@@ -123,6 +134,11 @@ pub fn validate_emission_params(p: &EmissionParams) -> Result<(), EmissionError>
     if p.fee_to_treasury_bps > 10_000 {
         return Err(EmissionError::BadFeeBps {
             got: p.fee_to_treasury_bps,
+        });
+    }
+    if p.subsidy_to_treasury_bps > 10_000 {
+        return Err(EmissionError::BadSubsidyBps {
+            got: p.subsidy_to_treasury_bps,
         });
     }
     if p.halving_count > 0 {
@@ -310,12 +326,23 @@ pub fn storage_proof_coinbase_bonus(
         .fold(0u128, u128::saturating_add)
 }
 
-/// Producer coinbase portion only: block subsidy + producer fee share.
+/// Treasury tranche of block subsidy when a producer coinbase is required.
+pub fn subsidy_treasury_credit(height: u64, params: &EmissionParams) -> u128 {
+    let subsidy = u128::from(emission_at_height(height, params));
+    subsidy * u128::from(params.subsidy_to_treasury_bps) / 10_000
+}
+
+/// Producer coinbase subsidy tranche after the F6 tail split.
+pub fn subsidy_producer_amount(height: u64, params: &EmissionParams) -> u128 {
+    let subsidy = u128::from(emission_at_height(height, params));
+    subsidy.saturating_sub(subsidy_treasury_credit(height, params))
+}
+
+/// Producer coinbase portion only: producer subsidy tranche + producer fee share.
 pub fn producer_portion_amount(height: u64, params: &EmissionParams, fee_sum: u128) -> u64 {
     let treasury_fee = fee_sum * u128::from(params.fee_to_treasury_bps) / 10_000;
     let producer_fee = fee_sum.saturating_sub(treasury_fee);
-    let subsidy = u128::from(emission_at_height(height, params));
-    let total = subsidy.saturating_add(producer_fee);
+    let total = subsidy_producer_amount(height, params).saturating_add(producer_fee);
     u64::try_from(total).unwrap_or(u64::MAX)
 }
 
@@ -364,8 +391,7 @@ pub fn producer_coinbase_amount(
     let storage_reward_total = u128::from(params.storage_proof_reward)
         .saturating_mul(accepted_storage_proofs as u128)
         .saturating_add(storage_bonus);
-    let subsidy = u128::from(emission_at_height(height, params));
-    let total = subsidy
+    let total = subsidy_producer_amount(height, params)
         .saturating_add(producer_fee)
         .saturating_add(storage_reward_total);
     u64::try_from(total).unwrap_or(u64::MAX)
@@ -432,6 +458,7 @@ mod tests {
             tail_emission: 1,
             storage_proof_reward: 0,
             fee_to_treasury_bps: 0,
+            subsidy_to_treasury_bps: 0,
         };
         let mut total: u128 = 0;
         for h in 1..=12u64 {
@@ -477,6 +504,26 @@ mod tests {
             validate_emission_params(&p),
             Err(EmissionError::HalvingCountTooLarge { .. })
         ));
+    }
+
+    #[test]
+    fn validate_rejects_bad_subsidy_bps() {
+        let mut p = DEFAULT_EMISSION_PARAMS;
+        p.subsidy_to_treasury_bps = 10_001;
+        assert!(matches!(
+            validate_emission_params(&p),
+            Err(EmissionError::BadSubsidyBps { .. })
+        ));
+    }
+
+    #[test]
+    fn subsidy_tail_split_partitions_emission() {
+        let mut p = DEFAULT_EMISSION_PARAMS;
+        p.subsidy_to_treasury_bps = 1000;
+        let h = 1;
+        let subsidy = u128::from(emission_at_height(h, &p));
+        assert_eq!(subsidy_treasury_credit(h, &p), subsidy / 10);
+        assert_eq!(subsidy_producer_amount(h, &p), subsidy - subsidy / 10);
     }
 
     #[test]

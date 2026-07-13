@@ -41,6 +41,7 @@ const PROP_MIXED_EMISSION: EmissionParams = EmissionParams {
     tail_emission: 50,
     storage_proof_reward: 25,
     fee_to_treasury_bps: 9000,
+    subsidy_to_treasury_bps: 0,
 };
 
 /// Genesis UTXO value large enough for many fee-bearing self-transfers.

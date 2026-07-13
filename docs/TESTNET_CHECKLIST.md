@@ -72,6 +72,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
 - [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).
 - [x] **Lane 7 / TL-5 VPS provision rehearsal** — `vps-provision-rehearsal-smoke.*` plan-only gate on `VPS_PROVISION.md` (this push).
+- [x] **Lane 7 / TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin (`ba6fdce` + CI/Nightly GREEN) + `VPS_PROVISION` TL-5 soak handoff; provision smoke gates pin (this push).
 - [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (this push).
 - [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (`638f260`).
 - [x] **Lane 7 / launch-status v6** — treasury_telemetry + role_templates blocks (`1630905`).
@@ -84,6 +85,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / launch-status v5** — execution checklist cross-link + ceremony v2 pre-step (`cf2c05d`).
 - [x] **P32 phase 4b** — PM23 runtime env lint on mfnd + mfn-storage-operator (`638f260`).
 - [x] **Lane 6 / F6 tail split (docs)** — `FEES.md` §5.4 approves 10% subsidy tail → treasury for next parameter fork (`9a2673a`; implementation deferred).
+- [x] **F6 phase 2 subsidy tail split (consensus)** (lane 6) — `subsidy_to_treasury_bps` + checkpoint v11; `apply_block` treasury credit; RPC `get_chain_params` (this push).
 - [x] **Lane 6 / F6 Arweave comparison** — `ECONOMICS.md` §12 permanence durability vs Arweave (`bff1b70`).
 - [x] **Lane 4 / genesis header_version rehearsal** — `genesis-header-version-rehearsal-smoke.*` Path B v2 doc gate (this push).
 - [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.

@@ -8,14 +8,16 @@ use super::{ChainCheckpoint, CHAIN_CHECKPOINT_MAGIC, CHAIN_CHECKPOINT_VERSION};
  *  Encode                                                                   *
  * ----------------------------------------------------------------------- */
 
-pub(crate) fn encode_emission_params(w: &mut Writer, p: &EmissionParams) {
+pub(crate) fn encode_emission_params(w: &mut Writer, p: &EmissionParams, checkpoint_version: u32) {
     w.u64(p.initial_reward);
     w.u64(p.halving_period);
     w.u32(p.halving_count);
     w.u64(p.tail_emission);
     w.u64(p.storage_proof_reward);
-    // u16 — emit as 2 BE bytes.
     w.push(&p.fee_to_treasury_bps.to_be_bytes());
+    if checkpoint_version >= 11 {
+        w.push(&p.subsidy_to_treasury_bps.to_be_bytes());
+    }
 }
 
 pub(crate) fn encode_endowment_params(
@@ -138,7 +140,11 @@ pub fn encode_chain_checkpoint(parts: &ChainCheckpoint) -> Vec<u8> {
     // ---- Frozen params ----
     encode_consensus_params(&mut w, &parts.state.params);
     encode_bonding_params(&mut w, &parts.state.bonding_params);
-    encode_emission_params(&mut w, &parts.state.emission_params);
+    encode_emission_params(
+        &mut w,
+        &parts.state.emission_params,
+        CHAIN_CHECKPOINT_VERSION,
+    );
     encode_endowment_params(
         &mut w,
         &parts.state.endowment_params,

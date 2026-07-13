@@ -12,7 +12,7 @@
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | F6 decode attempt `90431fb` **reverted** `b6b2fdd` | **Idle** — do not partial-land | Full `subsidy_to_treasury_bps` stack or leave docs-only |
+| **6** Permanence | F6 phase 2 subsidy tail split | **Done** — this push | Parameter fork `1000` bps |
 | **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---
@@ -23,6 +23,7 @@
 | --- | --- | --- |
 | **Nightly F5 3b** | **Done** — `#29257619888` | GREEN on `ba6fdce` (all three jobs) |
 | **Incomplete F6 decode** | **Aborted** — `b6b2fdd` | `90431fb` referenced missing `subsidy_to_treasury_bps`; reverted |
+| **F6 phase 2 consensus** | **Done** — this push | Full `subsidy_to_treasury_bps` stack + checkpoint v11 + settlement test |
 | **TL-5 handoff** | **Doing** — this push | `TESTNET_LAUNCH` software-ready pin + `VPS_PROVISION` TL-5 soak section + provision smoke needles |
 
 **Lane 1 — Done:** Nightly `#29257619888` **Next:** watch revert CI `#29258397993`  

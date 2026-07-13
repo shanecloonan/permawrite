@@ -86,6 +86,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] Release evidence refresh on green CI (lane 2) — `release-evidence-96462aa` (this commit).
 - [x] Nightly re-dispatch after M2.5.66 — **Nightly #28968584904** all three green (~7m; closes `start_mesh_fail`).
 - [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
+- [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
+- [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
 
 ### Do not start (other lanes)
 
@@ -289,6 +291,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 4d** — operator template `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1`; storage-operator aborts on validator seed env (`4a429e4`).
 - [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (`b4cab93`).
 - [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
+- [x] **TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin + provision smoke needles + VPS_PROVISION TL-5 soak section (this push).
 - [x] **F12 phase 5b demo live** — `demo-web-f12-rehearsal-smoke --live` (`8b4f0ee`).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 
@@ -356,7 +359,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B1 phase 2d** — public devnet flip to `require_endowment_range_proof: 1` (`2958cfa`; CI `#28995960877` GREEN).
 - [x] **B1 phase 2e** — WASM upload merges live `get_chain_params.endowment`; RPC exposes endowment policy flags (`bbe1d9f`; CI `#28999593529` GREEN).
 - [x] **F6 fee economics docs** (`d4a5114`) — [`FEES.md`](./FEES.md) plain-language fee breakdown + 2026-07 parameter review; `ECONOMICS.md` §3/§7/§8/§10 sync.
-- [x] **F6 tail split approved (docs)** (`9a2673a`) — `FEES.md` §5.4: 10% subsidy tail → treasury for next parameter fork (implementation deferred).
+- [x] **F6 tail split approved (docs)** (`9a2673a`) — `FEES.md` §5.4: 10% subsidy tail → treasury for next parameter fork.
+- [x] **F6 phase 2 subsidy tail split (consensus)** (this push) — `subsidy_to_treasury_bps`, checkpoint v11, `subsidy_treasury_credit`, `apply_block` credit, RPC exposure.
 - [x] **F6 Arweave durability comparison** (`bff1b70`) — `ECONOMICS.md` §12 vs Arweave permanence model.
 - [x] **F6 treasury telemetry watch** (`808529a`) — `treasury-telemetry-watch.*` read-only helper.
 

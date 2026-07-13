@@ -353,6 +353,7 @@ fn chain_params_json(chain: &Chain) -> Value {
             "tail_emission": e.tail_emission,
             "storage_proof_reward": e.storage_proof_reward,
             "fee_to_treasury_bps": e.fee_to_treasury_bps,
+            "subsidy_to_treasury_bps": e.subsidy_to_treasury_bps,
         },
         "endowment": {
             "cost_per_byte_year_ppb": end.cost_per_byte_year_ppb,
@@ -1660,6 +1661,10 @@ mod tests {
         assert_eq!(
             v["result"]["emission"]["fee_to_treasury_bps"],
             json!(DEFAULT_EMISSION_PARAMS.fee_to_treasury_bps)
+        );
+        assert_eq!(
+            v["result"]["emission"]["subsidy_to_treasury_bps"],
+            json!(DEFAULT_EMISSION_PARAMS.subsidy_to_treasury_bps)
         );
         assert_eq!(
             v["result"]["endowment"]["min_replication"],

@@ -92,7 +92,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **1** | Revert stack Nightly | **Doing** — `#29260743960` on `b6b2fdd` | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-b6b2fdd` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
-| **6** | F6 subsidy_to_treasury decode | **Aborted** — `90431fb` red CI; reverted `b6b2fdd` | Do not re-land without full EmissionParams stack |
+| **6** | F6 phase 2 subsidy tail split | **Done** — this push | Parameter fork `1000` bps |
 | **7** | TL-5 VPS soak | **Waiting** — human (software-ready pin + provision handoff) | TL-6 participant |
 
 ---

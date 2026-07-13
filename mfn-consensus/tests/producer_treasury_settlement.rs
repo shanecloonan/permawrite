@@ -14,10 +14,11 @@ use mfn_consensus::{
     apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
     build_genesis, build_unsealed_header, cast_vote, emission_at_height, encode_finality_proof,
     finalize, header_signing_hash, producer_coinbase_amount, seal_block, sign_register,
-    sign_transaction, storage_proof_coinbase_bonus, try_produce_slot, verify_coinbase_outputs,
-    ApplyOutcome, BlockError, BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof,
-    GenesisConfig, GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction,
-    SlashEvidence, SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+    sign_transaction, storage_proof_coinbase_bonus, subsidy_producer_amount,
+    subsidy_treasury_credit, try_produce_slot, verify_coinbase_outputs, ApplyOutcome, BlockError,
+    BondOp, ChainState, ConsensusParams, EmissionParams, FinalityProof, GenesisConfig,
+    GenesisOutput, InputSpec, OutputSpec, PayoutAddress, SignedTransaction, SlashEvidence,
+    SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
     DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     TEST_CONSENSUS_PARAMS,
 };
@@ -40,6 +41,7 @@ const TEST_EMISSION: EmissionParams = EmissionParams {
     tail_emission: 50,
     storage_proof_reward: 25,
     fee_to_treasury_bps: 9000,
+    subsidy_to_treasury_bps: 0,
 };
 
 fn fee_split(fee: u128, bps: u16) -> (u128, u128) {
@@ -858,6 +860,67 @@ fn fee_only_block_credits_treasury_ninety_percent() {
     assert_eq!(
         st.treasury,
         treasury_after_settlement(before, u128::from(fee), 0, &TEST_EMISSION)
+    );
+}
+
+#[test]
+fn subsidy_tail_split_credits_treasury() {
+    let fixture = ValidatorFixture::three_validators();
+    let initial = 50_000_000_000u64;
+    let mut split_emission = TEST_EMISSION;
+    split_emission.subsidy_to_treasury_bps = 1000;
+    let (mut st, spend, input_pad) = genesis_validator_with_funded_utxo(
+        split_emission,
+        initial,
+        &fixture,
+        None,
+        DEFAULT_ENDOWMENT_PARAMS,
+        false,
+    );
+
+    let fee = 10_000u64;
+    let (signed, _, _) = spend.sign_self_transfer(&input_pad, fee);
+    let before = st.treasury;
+    let height = 1u32;
+    let coinbase = build_validator_coinbase(
+        u64::from(height),
+        &split_emission,
+        u128::from(fee),
+        &fixture.payout,
+        &st,
+        1,
+        &[],
+        &DEFAULT_ENDOWMENT_PARAMS,
+    );
+    match apply_validator_block(
+        &fixture,
+        &st,
+        height,
+        vec![coinbase, signed.tx],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        1,
+    ) {
+        ApplyOutcome::Ok { state, .. } => st = state,
+        ApplyOutcome::Err { errors, .. } => panic!("{errors:?}"),
+    }
+
+    let (treasury_share, _) = fee_split(u128::from(fee), split_emission.fee_to_treasury_bps);
+    let subsidy_credit = subsidy_treasury_credit(u64::from(height), &split_emission);
+    assert_eq!(
+        subsidy_credit,
+        u128::from(emission_at_height(u64::from(height), &split_emission)) / 10
+    );
+    assert_eq!(st.treasury, before + treasury_share + subsidy_credit);
+
+    let producer_subsidy = subsidy_producer_amount(u64::from(height), &split_emission);
+    let (_, producer_fee) = fee_split(u128::from(fee), split_emission.fee_to_treasury_bps);
+    let expected_producer =
+        producer_coinbase_amount(u64::from(height), &split_emission, u128::from(fee), 0, 0);
+    assert_eq!(
+        expected_producer,
+        u64::try_from(producer_subsidy + producer_fee).unwrap_or(u64::MAX)
     );
 }
 

@@ -1038,6 +1038,13 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         .saturating_add(storage_bonus_total);
 
     let mut pending_treasury = next.treasury.saturating_add(treasury_fee_credit);
+    if require_coinbase {
+        pending_treasury =
+            pending_treasury.saturating_add(crate::emission::subsidy_treasury_credit(
+                u64::from(block.header.height),
+                &emission_params,
+            ));
+    }
     let storage_from_treasury = pending_treasury.min(storage_reward_total);
     pending_treasury -= storage_from_treasury;
     next.treasury = pending_treasury;

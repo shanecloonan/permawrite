@@ -337,13 +337,13 @@ fn rejects_unsupported_version() {
         state: fresh_state(),
     };
     let mut bytes = encode_chain_checkpoint(&cp);
-    // Bytes 4..8 are the version, big-endian. Flip to 11 (unsupported).
-    bytes[4..8].copy_from_slice(&11u32.to_be_bytes());
+    // Bytes 4..8 are the version, big-endian. Flip to 12 (unsupported).
+    bytes[4..8].copy_from_slice(&12u32.to_be_bytes());
     let plen = bytes.len() - 32;
     let new_tag = dhash(CHAIN_CHECKPOINT, &[&bytes[..plen]]);
     bytes[plen..].copy_from_slice(&new_tag);
     match decode_chain_checkpoint(&bytes) {
-        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 11),
+        Err(ChainCheckpointError::UnsupportedVersion { got }) => assert_eq!(got, 12),
         other => panic!("expected UnsupportedVersion, got {other:?}"),
     }
 }
@@ -400,7 +400,7 @@ fn rejects_duplicate_validator_index() {
     w.varint(0); // block_ids
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
-    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
+    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS, 1);
     encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0); // bond_epoch_id
@@ -443,7 +443,7 @@ fn rejects_stats_validators_mismatch() {
     w.varint(0);
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
-    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
+    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS, 1);
     encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0);
@@ -489,7 +489,7 @@ fn rejects_next_index_at_or_below_max_assigned() {
     w.varint(0);
     encode_consensus_params(&mut w, &DEFAULT_CONSENSUS_PARAMS);
     encode_bonding_params(&mut w, &DEFAULT_BONDING_PARAMS);
-    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS);
+    encode_emission_params(&mut w, &DEFAULT_EMISSION_PARAMS, 1);
     encode_endowment_params(&mut w, &DEFAULT_ENDOWMENT_PARAMS, 1);
     encode_u128(&mut w, 0);
     w.u64(0);

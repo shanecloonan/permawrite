@@ -224,10 +224,14 @@ treasury buffer builds faster early, which is desirable.
 4. **Respects tail-continuity.** Total emission unchanged; no upward jump
    at the tail boundary ([`ECONOMICS.md § 2`](./ECONOMICS.md#2-subsidy-curve--bitcoin-halvings-monero-tail)).
 
-**Not yet in code.** `EmissionParams` are frozen at genesis today. Shipping
-requires a consensus change: new `subsidy_to_treasury_bps` field,
-`apply_block` treasury credit, `producer_portion_amount` adjustment, and
-settlement test updates. Track as **F6 phase 2** on lane 6.
+**Shipped in consensus (F6 phase 2).** `EmissionParams.subsidy_to_treasury_bps`
+defaults to `0` at genesis; checkpoint **v11** persists the field.
+[`apply_block`](../mfn-consensus/src/block/apply.rs) credits
+`subsidy_treasury_credit(height)` to `ChainState.treasury` on producer-coinbase
+blocks; [`producer_portion_amount`](../mfn-consensus/src/emission.rs) and
+[`get_chain_params`](../mfn-rpc/src/dispatch.rs) expose the parameter.
+**Enabling `1000` on public devnet** remains a separate parameter-fork decision
+(same `genesis_id` policy as other emission knobs).
 
 **Do not combine with** raising `fee_to_treasury_bps` in the same fork — one
 lever at a time so telemetry can attribute effects.
