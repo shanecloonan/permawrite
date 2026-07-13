@@ -88,6 +88,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
 - [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
 - [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
+- [x] **CI `#29264586158` GREEN** — F6 stack (`bb94c5c` + `0d1b9ec` + `5a1b221`); Nightly `#29267729234` auto-dispatched.
 
 ### Do not start (other lanes)
 
@@ -124,6 +125,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **Release evidence refresh** — `release-evidence-1c633e7` + RC audit dry-run **go** (CI `#28968642140` on `89f3498`).
 
 - [x] **Release evidence refresh** — `release-evidence-b16cb49` + RC audit dry-run **go** (CI `#29055006785` on `b16cb49`).
+- [x] **Release evidence refresh** — `release-evidence-5a1b221` + RC audit dry-run **go** (CI `#29264586158` on F6 stack).
 
 ### Next
 
