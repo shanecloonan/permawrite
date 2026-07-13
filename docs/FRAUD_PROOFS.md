@@ -143,6 +143,75 @@ let wire = encode_body_root_fraud_proof(&proof);
 | **3 (shipped)** | Invalid CLSAG + invalid SPoRA (`verify_tx_fraud_proof`); wire version 3 |
 | **3b (shipped)** | Ring-membership UTXO witness + producer slash ops hints |
 | **1b (shipped)** | In-memory fraud contest registry + RPC `list_fraud_contests` |
+| **1c (design)** | On-chain `InvalidBlockSlashEvidence` — producer stake zero on valid interactive fraud (see below) |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 
 See [`F5.md` §F5](./F5.md).
+
+---
+
+## Phase 1c — on-chain producer slash (design)
+
+**Status:** design only (not shipped). Phase **1b** gives light clients `list_fraud_contests`; phase **1c** closes the economic loop by zeroing producer stake when a block is *provably invalid* under the interactive fraud stack.
+
+### Problem
+
+Today [`SlashEvidence`](../../mfn-consensus/src/slashing.rs) is **equivocation-only** (two conflicting BLS signatures at the same slot). A producer who includes an invalid body (wrong coinbase, bad CLSAG, etc.) is only logged via [`fraud_proof_producer_slash_hint`](../../mfn-consensus/src/fraud_proof.rs) — no on-chain penalty.
+
+### Goal
+
+Anyone who holds a gossip-verified interactive fraud proof can include **invalid-block slash evidence** in a later block. `apply_block` verifies the fraud wire, attributes fault to the producer named in `producer_proof`, and zeroes that validator's stake (same outcome as equivocation slash).
+
+### Evidence shape (proposed)
+
+Tagged union in `mfn-consensus/src/slashing.rs` (replaces flat `SlashEvidence` struct):
+
+| Variant | When | Payload |
+| --- | --- | --- |
+| `Equivocation` | Two conflicting header sigs at same slot | Current fields (`height`, `slot`, `voter_index`, `header_hash_a/b`, `sig_a/b`) |
+| `InvalidBlock` | Valid interactive fraud against a finalized header | `height`, `block_id`, `producer_index`, `fraud_proof_wire` |
+
+Wire encoding: leading `u8` kind tag (`0` = equivocation, `1` = invalid-block) then variant body. Canonical sort order for Merkle leaves uses `(kind, height, block_id, producer_index)` for invalid-block and existing lexicographic rule for equivocation.
+
+`InvalidBlock` verification (`verify_invalid_block_evidence`):
+
+1. `verify_interactive_fraud_proof(&fraud_proof_wire)` → `ValidFraud`.
+2. `fraud_proof_contested_block(&fraud_proof_wire)` → `(height, block_id, producer_index)` matches evidence fields.
+3. `producer_index` is `Some` and matches `decode_producer_proof` on the attached block header.
+4. `validators[producer_index].stake > 0` at slash application height.
+5. Contested `height` is **strictly below** the block that includes the evidence (cannot slash in the same block as the fraud).
+
+### `apply_block` integration
+
+- Extend [`apply_equivocation_slashings`](../../mfn-consensus/src/validator_evolution/equivocation.rs) (or rename to `apply_slashings`) to branch on evidence kind.
+- Invalid-block path calls the same stake-zero primitive as equivocation; bond/treasury routing unchanged.
+- `slashing_merkle_root` hashes tagged leaves via `SLASHING_LEAF` domain separation per variant.
+
+### Consensus fork gate
+
+Requires **`header_version` bump** (checkpoint v12+) because `slashings` wire shape changes. Public devnet genesis stays on current version until TL-7 ceremony; phase 1c ships behind the version gate with ignored integration tests on synthetic chains.
+
+### P2P / mempool
+
+- Gossip tag `0x13` unchanged; evidence construction is local once fraud is verified.
+- Mempool accepts slash txs only when evidence verifies against current validator set snapshot.
+- Dedup: same `(block_id, fraud_proof_wire_hash)` cannot slash twice.
+
+### Tests (acceptance)
+
+| Test | Crate | Assert |
+| --- | --- | --- |
+| `invalid_block_slash_evidence_roundtrip` | `mfn-consensus` | encode/decode + Merkle root stable |
+| `apply_block_zeros_producer_on_coinbase_fraud` | `mfn-consensus` | synthetic chain; producer stake → 0 |
+| `invalid_block_slash_rejects_same_height` | `mfn-consensus` | evidence in block H cannot target block H |
+| `mfnd_gossip_fraud_to_slash_hint` | `mfn-node` | ops log still emitted; registry + future slash builder |
+
+### Non-goals (phase 1c)
+
+- SNARK/STARK validity proofs (phase **4**).
+- Operator storage fraud slash (separate B5 audit path).
+- Automatic slash inclusion in block builder (proposer may omit; anyone can include in next block).
+
+### Launch-status linkage
+
+`launch-status.v7` exposes `fraud_proof.on_chain_producer_slash: "deferred"` until phase 1c ships; then flip to `"shipped"` with `phase_shipped: "1c"`.

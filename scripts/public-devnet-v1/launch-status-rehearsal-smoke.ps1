@@ -1,4 +1,4 @@
-# Lane 7: plan-only launch-status v6 schema rehearsal (Windows).
+# Lane 7: plan-only launch-status v7 schema rehearsal (Windows).
 param(
     [switch]$PlanOnly
 )
@@ -7,8 +7,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $launch = & powershell -NoProfile -File (Join-Path $ScriptDir "launch-status.ps1") -Json | ConvertFrom-Json
 
-if ($launch.schema_version -ne "launch-status.v6") {
-    throw "launch-status-rehearsal-smoke: expected launch-status.v6 got $($launch.schema_version)"
+if ($launch.schema_version -ne "launch-status.v7") {
+    throw "launch-status-rehearsal-smoke: expected launch-status.v7 got $($launch.schema_version)"
 }
 if ($launch.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
     throw "launch-status-rehearsal-smoke: unexpected checkpoint_log.path $($launch.checkpoint_log.path)"
@@ -31,14 +31,34 @@ if ($launch.role_templates.schema_version -ne "vps-role-templates.v1") {
 if ($launch.role_templates.templates.Count -lt 4) {
     throw "launch-status-rehearsal-smoke: role_templates.templates expected >= 4"
 }
+if (-not $launch.software_ready) {
+    throw "launch-status-rehearsal-smoke: software_ready block missing"
+}
+if ($launch.software_ready.schema_version -ne "software-ready-pin.v1") {
+    throw "launch-status-rehearsal-smoke: software_ready.schema_version expected software-ready-pin.v1"
+}
+if (-not $launch.software_ready.release_commit) {
+    throw "launch-status-rehearsal-smoke: software_ready.release_commit empty"
+}
+if (-not $launch.fraud_proof) {
+    throw "launch-status-rehearsal-smoke: fraud_proof block missing"
+}
+if ($launch.fraud_proof.phase_shipped -ne "1b") {
+    throw "launch-status-rehearsal-smoke: fraud_proof.phase_shipped expected 1b got $($launch.fraud_proof.phase_shipped)"
+}
+if (-not $launch.fraud_proof.list_fraud_contests_rpc) {
+    throw "launch-status-rehearsal-smoke: fraud_proof.list_fraud_contests_rpc expected true"
+}
 
 Write-Host "launch-status-rehearsal-smoke: plan"
-Write-Host "  schema=launch-status.v6"
+Write-Host "  schema=launch-status.v7"
 Write-Host "  checkpoint_log.path=$($launch.checkpoint_log.path)"
 Write-Host "  checkpoint_log.entry_count=$($launch.checkpoint_log.entry_count)"
 Write-Host "  execution_checklist=$($launch.execution_checklist.schema_version)"
 Write-Host "  treasury_telemetry=$($launch.treasury_telemetry.schema_version)"
 Write-Host "  role_templates=$($launch.role_templates.schema_version)"
+Write-Host "  software_ready_pin=$($launch.software_ready.release_commit) head_matches_pin=$($launch.software_ready.head_matches_pin)"
+Write-Host "  fraud_proof_phase=$($launch.fraud_proof.phase_shipped)"
 Write-Host "  helper=launch-status.ps1 -Json"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {

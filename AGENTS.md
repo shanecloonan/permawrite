@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `7c7d2ad`. **CI `#29282756390` GREEN** (docs on `7c7d2ad`). **Functional pin:** `85dad78` — CI `#29278386048` GREEN; Nightly `#29280436031` + `#29282656932` GREEN. **Release evidence** `release-evidence-7c7d2ad` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `5c6ce1b`. **CI `#29284954973` GREEN** on `c9549e3`. **Functional pin:** `85dad78` — CI `#29278386048` GREEN. **Nightly `#29280436031` / `#29284893108` / `#29286801623` GREEN**. **Release evidence** `release-evidence-7c7d2ad` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 stack RC gates | **Done** — CI `#29278386048` + Nightly `#29280436031`/`#29282656932` GREEN | Soak maintenance |
+| **1** | F5 stack RC gates | **Done** — CI `#29278386048` + Nightly `#29286801623` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-7c7d2ad` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 1b complete | **Done** — `85dad78` | On-chain producer slash (phase 4) |
+| **4** | F5 phase 1c design | **Done** — this push | Tagged `SlashEvidence` impl (header_version gate) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | TL-5 software-ready pin | **Done** — `TESTNET_LAUNCH` pin `85dad78` | Human TL-5 VPS soak |
+| **7** | launch-status.v7 | **Done** — this push | Human TL-5 VPS soak |
 
 ---
 
@@ -127,7 +127,10 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **Nightly `#29282656932` GREEN** (`7c7d2ad`) - RC core (lane 1): all three jobs on docs-head stack (re-dispatch after F5 closure).
+- **launch-status v7 + F5 phase 1c design** (this push) - testnet launch (lane 7) + protocol (lane 4): `software_ready` pin parse + `fraud_proof` block; `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md`.
+- **CI `#29284954973` GREEN** (`c9549e3`) - RC core (lane 1): TL-5 software-ready pin board sync.
+- **Nightly `#29284893108` GREEN** (`7c7d2ad`) - RC core (lane 1): all three jobs on Nightly board-sync head.
+- **Nightly `#29282656932` GREEN** (`fd8bad7`) - RC core (lane 1): all three jobs re-dispatch after F5 closure docs.
 - **TL-5 software-ready pin refresh** (this push) - testnet launch (lane 7): `TESTNET_LAUNCH.md` pin `85dad78` (F5+F6 stack); CI `#29278386048` + Nightly `#29280436031` GREEN.
 - **CI `#29282756390` GREEN** (`7c7d2ad`) - RC core (lane 1): docs board sync on Nightly `#29280436031` closure.
 - **Nightly `#29280436031` GREEN** (`85dad78`) - RC core (lane 1): all three jobs on F5 phase 1b complete stack.

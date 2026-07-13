@@ -88,9 +88,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
 - [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
 - [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
-- [x] **F5 stack RC gates** — CI `#29278386048` + Nightly `#29280436031`/`#29282656932` GREEN on `85dad78`; docs head `#29282756390` GREEN (`7c7d2ad`).
-- [x] **CI `#29278386048` GREEN** — F5 phase 1b complete (`85dad78`); Nightly `#29280436031` + `#29282656932` GREEN.
-- [x] **CI `#29282756390` GREEN** — docs board sync on `7c7d2ad`.
+- [x] **F5 stack RC gates** — CI `#29278386048` + `#29284954973` GREEN; Nightly `#29280436031` / `#29284893108` / `#29286801623` GREEN; functional pin `85dad78`.
 
 ### Do not start (other lanes)
 
@@ -205,8 +203,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **B-11 public devnet enable** — genesis spec `endowment` section + `require_endowment_opening: 1` in `public_devnet_v1.json` (same `genesis_id`; operators must sync byte-identical JSON).
 - [x] **B2 ChunkV2** (`20954b0`) — Merkle-path chunk gossip tag `0x12`; `validate_gossip_chunk_v2` + `on_chunk_v2`; fan-out/operator push emit proofs; inbound `ChunkV1` retained.
 - [x] **F7 consensus tail** (this commit) — `RingPolicy.min_input_count` at `verify_transaction` (with lane 5).
+- [x] **F5 fraud-proof phase 1b** (`85dad78`) — `FraudContestRegistry` + RPC `list_fraud_contests`; CI `#29278386048` GREEN.
+- [x] **F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (this push).
 
 ### Next
+
+- [ ] **F5 phase 1c impl** — tagged `SlashEvidence` union + `apply_block` stake zero (`header_version` bump).
 
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
@@ -413,6 +415,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **launch-status v3** — local RC gates + `permanence-demo.sh` log-lock parity
 - [x] **launch-status v5** — execution_checklist block + TL-5 next_action via vps-execution-checklist.v2 (this push)
 - [x] **launch-status v6** — treasury_telemetry + role_templates blocks (this push)
+- [x] **launch-status v7** — `software_ready` pin parse + `fraud_proof` block (this push)
 - [x] **vps-role-templates-rehearsal-smoke** — plan gate on all four role env templates (this push)
 - [x] **vps-execution-checklist-rehearsal-smoke** — ci-check gate on TL-5/TL-6 preflight checklist (`8a49f7e`)
 - [x] **launch-go-no-go-rehearsal-smoke** — ci-check gate on TL-9 pre-launch go/no-go JSON (`bbc57a1`)

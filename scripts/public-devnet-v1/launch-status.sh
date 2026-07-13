@@ -150,7 +150,7 @@ if [[ "$JSON" -eq 1 ]]; then
   export checkpoint_log_exists checkpoint_log_entries checkpoint_log_published checkpoint_log_verified
   export CHECKPOINT_LOG_REL ci_run ci_status ci_conclusion ci_msg
   python3 - <<'PY'
-import json, os, pathlib
+import json, os, pathlib, re
 
 repo = pathlib.Path(os.environ["REPO_ROOT"])
 missing = []
@@ -165,8 +165,53 @@ if verified_raw == "1":
 elif verified_raw == "0":
     verified = False
 
+software_ready = None
+playbook_path = repo / "docs" / "TESTNET_LAUNCH.md"
+if playbook_path.is_file():
+    text = playbook_path.read_text(encoding="utf-8")
+    pin = {
+        "schema_version": "software-ready-pin.v1",
+        "playbook": "docs/TESTNET_LAUNCH.md",
+        "release_commit": "",
+        "ci_run_id": "",
+        "nightly": "",
+        "release_evidence": "",
+    }
+    m = re.search(r"\|\s*Release commit\s*\|\s*`([0-9a-f]+)`", text)
+    if m:
+        pin["release_commit"] = m.group(1)
+    m = re.search(r"\|\s*CI\s*\|\s*`#(\d+)`", text)
+    if m:
+        pin["ci_run_id"] = m.group(1)
+    m = re.search(r"\|\s*Nightly\s*\|\s*(.+?)\s*\|", text)
+    if m:
+        pin["nightly"] = re.sub(r"\s+", " ", m.group(1)).strip()
+    m = re.search(r"release-evidence-([0-9a-f]+)", text)
+    if m:
+        pin["release_evidence"] = f"release-evidence-{m.group(1)}"
+    full_head = ""
+    try:
+        import subprocess
+        full_head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()
+    except Exception:
+        pass
+    pin["head_matches_pin"] = bool(
+        pin["release_commit"] and full_head.startswith(pin["release_commit"])
+    )
+    software_ready = pin
+
+fraud_proof = {
+    "schema_version": "fraud-proof-stack.v1",
+    "phase_shipped": "1b",
+    "list_fraud_contests_rpc": True,
+    "on_chain_producer_slash": "deferred",
+    "doc": "docs/FRAUD_PROOFS.md",
+}
+
 print(json.dumps({
-    "schema_version": "launch-status.v6",
+    "schema_version": "launch-status.v7",
     "lane": 7,
     "playbook": os.environ["PLAYBOOK"],
     "invite_packet": "docs/TESTNET_INVITE.md",
@@ -221,6 +266,8 @@ print(json.dumps({
         "verified": verified,
     },
     "release_binaries_missing": missing,
+    "software_ready": software_ready,
+    "fraud_proof": fraud_proof,
     "ci": {
         "message": os.environ["ci_msg"],
         "run_id": os.environ.get("ci_run", ""),
@@ -237,6 +284,18 @@ echo "launch-status: genesis_id=$genesis_id seed_nodes=$seed_count internet_faci
 echo "launch-status: local_rc_complete=$([[ $local_rc_complete -eq 1 ]] && echo true || echo false) local_mfer_no_observer=$local_mfer_no_observer local_mfer_observer=$local_mfer_observer"
 echo "launch-status: vps_soak_evidence=$([[ $tl5_evidence -eq 1 ]] && echo true || echo false) vps_rehearsal_evidence=$([[ $tl6_evidence -eq 1 ]] && echo true || echo false)"
 echo "launch-status: release_evidence_archived=$([[ $release_evidence_archived -eq 1 ]] && echo true || echo false) rc_audit_go=$([[ $rc_audit_go -eq 1 ]] && echo true || echo false)"
+if [[ -f "$REPO_ROOT/docs/TESTNET_LAUNCH.md" ]]; then
+  sw_pin="$(python3 -c "
+import re, pathlib, subprocess
+text = pathlib.Path('$REPO_ROOT/docs/TESTNET_LAUNCH.md').read_text(encoding='utf-8')
+m = re.search(r'\|\s*Release commit\s*\|\s*\`([0-9a-f]+)\`', text)
+pin = m.group(1) if m else ''
+head = subprocess.check_output(['git','rev-parse','HEAD'], cwd='$REPO_ROOT', text=True).strip()
+match = 'true' if pin and head.startswith(pin) else 'false'
+print(f'{pin} head_matches_pin={match}')
+" 2>/dev/null || echo 'unknown')"
+  echo "launch-status: software_ready_pin=$sw_pin"
+fi
 echo "launch-status: checkpoint_log_entries=$checkpoint_log_entries published=$([[ $checkpoint_log_published -eq 1 ]] && echo true || echo false) verified=${checkpoint_log_verified:-unknown}"
 if [[ ${#missing_bins[@]} -gt 0 ]]; then
   echo "launch-status: missing_release_binaries=${missing_bins[*]}"

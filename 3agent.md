@@ -7,13 +7,26 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 complete `85dad78`; CI + Nightly GREEN (`#29282656932`) | **Done** | Soak maintenance |
+| **1** RC core | F5 `85dad78`; CI `#29284954973` + Nightly `#29286801623` GREEN | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1b `85dad78` + F6 stack | **Done** | On-chain producer slash |
+| **4+6** Protocol | F5 phase 1c design (this push) | **Done** | `InvalidBlockSlashEvidence` impl (header_version gate) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | Software-ready pin `85dad78` + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+| **7** Testnet | launch-status.v7 (this push) | **Done** | Human TL-5 VPS soak → TL-6 |
+
+---
+
+## Session — 2026-07-13 (launch-status v7 + F5 phase 1c design)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **launch-status.v7** | **Done** — this push | `software_ready` pin parse + `fraud_proof` block; rehearsal smokes + ci-check |
+| **F5 phase 1c design** | **Done** — this push | `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` + `PROBLEMS.md` |
+| **TL-5** | **Waiting** — human | VPS internet soak |
+
+**Lane 4 — Done:** phase 1c design **Next:** tagged `SlashEvidence` impl  
+**Lane 7 — Done:** launch-status v7 **Next:** human TL-5 VPS soak
 
 ---
 

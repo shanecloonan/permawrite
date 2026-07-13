@@ -32,6 +32,54 @@ function Get-HeadSha {
     }
 }
 
+function Get-FullHeadSha {
+    Push-Location $RepoRoot
+    try {
+        return (git rev-parse HEAD 2>$null)
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-SoftwareReadyFromPlaybook {
+    $playbookPath = Join-Path $RepoRoot "docs\TESTNET_LAUNCH.md"
+    if (-not (Test-Path -LiteralPath $playbookPath)) {
+        return $null
+    }
+    $text = Get-Content -Raw -Encoding UTF8 $playbookPath
+    $pin = [ordered]@{
+        schema_version   = "software-ready-pin.v1"
+        playbook         = "docs/TESTNET_LAUNCH.md"
+        release_commit   = ""
+        ci_run_id        = ""
+        nightly          = ""
+        release_evidence = ""
+    }
+    if ($text -match '\|\s*Release commit\s*\|\s*`([0-9a-f]+)`') {
+        $pin.release_commit = $Matches[1]
+    }
+    if ($text -match '\|\s*CI\s*\|\s*`#(\d+)`') {
+        $pin.ci_run_id = $Matches[1]
+    }
+    if ($text -match '\|\s*Nightly\s*\|\s*(.+?)\s*\|') {
+        $pin.nightly = ($Matches[1] -replace '\s+', ' ').Trim()
+    }
+    if ($text -match 'release-evidence-([0-9a-f]+)') {
+        $pin.release_evidence = "release-evidence-$($Matches[1])"
+    }
+    return $pin
+}
+
+function Get-FraudProofStackMeta {
+    return [ordered]@{
+        schema_version          = "fraud-proof-stack.v1"
+        phase_shipped           = "1b"
+        list_fraud_contests_rpc = $true
+        on_chain_producer_slash = "deferred"
+        doc                     = "docs/FRAUD_PROOFS.md"
+    }
+}
+
 function Get-CiSummary {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
         return @{ message = "gh not on PATH" }
@@ -182,10 +230,20 @@ if ($seedCount -gt 0) {
 
 $ci = Get-CiSummary
 $head = Get-HeadSha
+$fullHead = Get-FullHeadSha
+$softwareReady = Get-SoftwareReadyFromPlaybook
+$fraudProof = Get-FraudProofStackMeta
+$headMatchesPin = $false
+if ($softwareReady -and $softwareReady.release_commit -and $fullHead) {
+    $headMatchesPin = $fullHead.StartsWith($softwareReady.release_commit)
+}
+if ($softwareReady) {
+    $softwareReady.head_matches_pin = $headMatchesPin
+}
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v6"
+    schema_version         = "launch-status.v7"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"
@@ -234,6 +292,8 @@ $report = [ordered]@{
     rc_audit_file          = $(if ($rcAuditFile) { $rcAuditFile } else { "" })
     checkpoint_log         = $checkpointLog
     release_binaries_missing = $missingBins
+    software_ready         = $softwareReady
+    fraud_proof            = $fraudProof
     ci                     = $ci
 }
 
@@ -247,6 +307,9 @@ Write-Host "launch-status: genesis_id=$genesisId seed_nodes=$seedCount internet_
 Write-Host "launch-status: local_rc_complete=$localRcComplete local_mfer_no_observer=$localMferNoObserver local_mfer_observer=$localMferObserver"
 Write-Host "launch-status: vps_soak_evidence=$tl5Evidence vps_rehearsal_evidence=$tl6Evidence"
 Write-Host "launch-status: release_evidence_archived=$releaseEvidenceArchived rc_audit_go=$rcAuditGo"
+if ($softwareReady -and $softwareReady.release_commit) {
+    Write-Host "launch-status: software_ready_pin=$($softwareReady.release_commit) head_matches_pin=$headMatchesPin"
+}
 Write-Host "launch-status: checkpoint_log_entries=$($checkpointLog.entry_count) published=$($checkpointLog.published) verified=$($checkpointLog.verified)"
 if ($missingBins.Count -gt 0) {
     Write-Host "launch-status: missing_release_binaries=$($missingBins -join ',')"
