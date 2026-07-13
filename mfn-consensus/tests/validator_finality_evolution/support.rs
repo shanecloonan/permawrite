@@ -9,7 +9,7 @@ use mfn_consensus::consensus::{
 use mfn_consensus::{
     apply_genesis, build_genesis, build_unsealed_header, header_signing_hash, seal_block, Block,
     BondOp, ChainState, ConsensusParams, GenesisConfig, SlashEvidence, ValidatorStats,
-    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
+    DEFAULT_EMISSION_PARAMS, HEADER_VERSION_FRAUD_SLASH, TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::vrf::{vrf_keygen_from_seed, vrf_prove};
 use mfn_storage::DEFAULT_ENDOWMENT_PARAMS;
@@ -38,6 +38,33 @@ pub fn boot_three_validators(liveness_max_missed: u32) -> Fixture {
         liveness_max_missed,
         DEFAULT_BONDING_PARAMS.unbond_delay_heights,
     )
+}
+
+/// Like [`boot_three_validators`] with genesis header v3 (invalid-block slash wire).
+pub fn boot_three_validators_fraud_slash(liveness_max_missed: u32) -> Fixture {
+    let mut fx = boot_three_validators_cfg(
+        liveness_max_missed,
+        DEFAULT_BONDING_PARAMS.unbond_delay_heights,
+    );
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: Vec::new(),
+        initial_storage_operators: Vec::new(),
+        validators: fx.state.validators.clone(),
+        params: fx.params,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+        bonding_params: Some(BondingParams {
+            min_validator_stake: 100_000,
+            unbond_delay_heights: DEFAULT_BONDING_PARAMS.unbond_delay_heights,
+            ..DEFAULT_BONDING_PARAMS
+        }),
+        header_version: HEADER_VERSION_FRAUD_SLASH,
+    };
+    let genesis = build_genesis(&cfg);
+    fx.state = apply_genesis(&genesis, &cfg).expect("genesis v3");
+    fx
 }
 
 /// Algorand-style `F = 1` with a dust-stake validator whose eligibility
