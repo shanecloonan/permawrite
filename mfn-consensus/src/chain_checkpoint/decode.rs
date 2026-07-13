@@ -8,10 +8,7 @@ use super::{ChainCheckpoint, ChainCheckpointError, CHAIN_CHECKPOINT_MAGIC};
  *  Decode                                                                   *
  * ----------------------------------------------------------------------- */
 
-fn decode_emission_params(
-    r: &mut Reader<'_>,
-    checkpoint_version: u32,
-) -> Result<EmissionParams, ChainCheckpointError> {
+fn decode_emission_params(r: &mut Reader<'_>) -> Result<EmissionParams, ChainCheckpointError> {
     Ok(EmissionParams {
         initial_reward: read_u64(r, "emission_params.initial_reward")?,
         halving_period: read_u64(r, "emission_params.halving_period")?,
@@ -19,11 +16,6 @@ fn decode_emission_params(
         tail_emission: read_u64(r, "emission_params.tail_emission")?,
         storage_proof_reward: read_u64(r, "emission_params.storage_proof_reward")?,
         fee_to_treasury_bps: read_u16(r, "emission_params.fee_to_treasury_bps")?,
-        subsidy_to_treasury_bps: if checkpoint_version >= 11 {
-            read_u16(r, "emission_params.subsidy_to_treasury_bps")?
-        } else {
-            0
-        },
     })
 }
 
@@ -321,7 +313,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
         return Err(ChainCheckpointError::BadMagic { got: magic });
     }
     let version = read_u32(&mut r, "version")?;
-    if !(1..=11).contains(&version) {
+    if !(1..=10).contains(&version) {
         return Err(ChainCheckpointError::UnsupportedVersion { got: version });
     }
 
@@ -342,7 +334,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
 
     let params = decode_consensus_params(&mut r)?;
     let bonding_params = decode_bonding_params(&mut r)?;
-    let emission_params = decode_emission_params(&mut r, version)?;
+    let emission_params = decode_emission_params(&mut r)?;
     let endowment_params = decode_endowment_params(&mut r, version)?;
 
     let treasury = read_u128(&mut r, "treasury")?;
@@ -478,7 +470,7 @@ pub fn decode_chain_checkpoint(bytes: &[u8]) -> Result<ChainCheckpoint, ChainChe
     let claims = match version {
         1 => BTreeMap::new(),
         2 => decode_claims_state_v2(&mut r)?,
-        3..=11 => decode_claims_state_v3(&mut r)?,
+        3..=10 => decode_claims_state_v3(&mut r)?,
         _ => {
             return Err(ChainCheckpointError::UnsupportedVersion { got: version });
         }
