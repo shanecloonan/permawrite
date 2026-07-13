@@ -363,6 +363,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F6 phase 2 subsidy tail split (consensus)** (this push) — `subsidy_to_treasury_bps`, checkpoint v11, `subsidy_treasury_credit`, `apply_block` credit, RPC exposure.
 - [x] **F6 Arweave durability comparison** (`bff1b70`) — `ECONOMICS.md` §12 vs Arweave permanence model.
 - [x] **F6 treasury telemetry watch** (`808529a`) — `treasury-telemetry-watch.*` read-only helper.
+- [x] **F6 telemetry subsidy field** (this push) — `subsidy_to_treasury_bps` in treasury-telemetry-watch + ci-check plan gate.
 
 ### Next
 

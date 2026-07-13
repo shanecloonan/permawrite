@@ -12,7 +12,7 @@
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | F6 telemetry subsidy field | **Done** — this push | Parameter fork `1000` bps (TL-7 Path B) |
+| **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---

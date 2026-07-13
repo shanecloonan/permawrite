@@ -83,16 +83,16 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `ed8743f`. **CI** in progress on F6+TL-5 push (`bb94c5c`, `ed8743f`). Prior **`b6b2fdd`** CI `#29258397993` GREEN. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `0d1b9ec`. **CI** monitor on F6 telemetry push. Prior **F6+TL-5** stack (`bb94c5c`, `ed8743f`) pushed. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F6+TL-5 push CI | **Monitor** — `ed8743f` | Nightly on green head |
-| **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
+| **1** | F6 telemetry push CI | **Monitor** — `0d1b9ec` | Release evidence on green |
+| **2** | Release evidence refresh | **Waiting** — after CI green on `0d1b9ec` | Human sign-off packet |
 | **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
-| **6** | F6 telemetry subsidy field | **Done** — this push | Parameter fork `1000` bps (TL-7 Path B) |
+| **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
 
 ---
@@ -129,7 +129,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 - **F6 telemetry subsidy field** (this push) - permanence (lane 6): `treasury-telemetry-watch.*` reports `subsidy_to_treasury_bps`; ci-check plan gate.
 - **F6 telemetry subsidy field** (this push) - permanence (lane 6): `subsidy_to_treasury_bps` in `treasury-telemetry-watch.*` + ci-check plan gate.
-- **F6 phase 2 subsidy tail split** (`bb94c5c`) - permanence (lane 6): `subsidy_to_treasury_bps` + checkpoint v11; treasury credit in `apply_block`.
+- **F6 telemetry subsidy field** (`0d1b9ec`) - permanence (lane 6): `treasury-telemetry-watch` exposes `subsidy_to_treasury_bps`; ci-check plan gate.
 - **TL-5 VPS provision handoff** (`ed8743f`) - testnet launch (lane 7): `VPS_PROVISION.md` software-ready pin + rehearsal smoke gates.
 - **Nightly `#29260743960` GREEN** (`b6b2fdd`) - RC core (lane 1): all three jobs on revert head after `90431fb` checkpoint decode abort.
 - **Revert stack CI GREEN** (`b6b2fdd`) - RC ops (lane 2): revert incomplete checkpoint-v11 decode (`90431fb`); CI `#29258397993` GREEN; release evidence `b6b2fdd` RC audit **go**; Nightly `#29260743960` dispatched.
