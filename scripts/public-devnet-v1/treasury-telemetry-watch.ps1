@@ -38,7 +38,7 @@ if (-not (Test-Path -LiteralPath $FeesDoc)) {
 if ($PlanOnly -or -not $Rpc) {
     Write-Host "treasury-telemetry-watch: plan"
     Write-Host "  rpc_method=get_chain_params"
-    Write-Host "  fields=treasury_base_units,tip_height,emission.fee_to_treasury_bps"
+    Write-Host "  fields=treasury_base_units,tip_height,emission.fee_to_treasury_bps,emission.subsidy_to_treasury_bps"
     Write-Host "  triggers=docs/FEES.md §5.4 revisit (treasury pinned near zero + backstop majority blocks)"
     Write-Host "  command=treasury-telemetry-watch.ps1 -Rpc 127.0.0.1:18731"
     if ($Json) {
@@ -69,12 +69,13 @@ $report = [ordered]@{
     treasury_base_units = [string]$result.treasury_base_units
     tip_height          = $result.tip_height
     fee_to_treasury_bps = $result.emission.fee_to_treasury_bps
+    subsidy_to_treasury_bps = $result.emission.subsidy_to_treasury_bps
     revisit_doc         = "docs/FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury"
 }
 
 if ($Json) {
     $report | ConvertTo-Json -Depth 4
 } else {
-    Write-Host "treasury-telemetry-watch: rpc=$Rpc treasury_base_units=$($report.treasury_base_units) tip_height=$($report.tip_height) fee_to_treasury_bps=$($report.fee_to_treasury_bps)"
+    Write-Host "treasury-telemetry-watch: rpc=$Rpc treasury_base_units=$($report.treasury_base_units) tip_height=$($report.tip_height) fee_to_treasury_bps=$($report.fee_to_treasury_bps) subsidy_to_treasury_bps=$($report.subsidy_to_treasury_bps)"
     Write-Host "treasury-telemetry-watch: revisit triggers in docs/FEES.md §5.4"
 }

@@ -39,7 +39,7 @@ fi
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "treasury-telemetry-watch: plan"
   echo "  rpc_method=get_chain_params"
-  echo "  fields=treasury_base_units,tip_height,emission.fee_to_treasury_bps"
+  echo "  fields=treasury_base_units,tip_height,emission.fee_to_treasury_bps,emission.subsidy_to_treasury_bps"
   echo "  triggers=docs/FEES.md §5.4 revisit (treasury pinned near zero + backstop majority blocks)"
   echo "  command=$(basename "$0") --rpc 127.0.0.1:18731"
   if [[ "$JSON" -eq 1 ]]; then
@@ -79,6 +79,7 @@ treasury = result.get("treasury_base_units", "")
 tip = result.get("tip_height", result.get("height", ""))
 emission = result.get("emission") or {}
 bps = emission.get("fee_to_treasury_bps", "")
+subsidy_bps = emission.get("subsidy_to_treasury_bps", "")
 print(json.dumps({
     "schema_version": "treasury-telemetry-watch.v1",
     "mode": "live",
@@ -86,6 +87,7 @@ print(json.dumps({
     "treasury_base_units": str(treasury),
     "tip_height": tip,
     "fee_to_treasury_bps": bps,
+    "subsidy_to_treasury_bps": subsidy_bps,
     "revisit_doc": "docs/FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury",
 }, indent=2))
 PY
@@ -97,6 +99,7 @@ else
   treasury="$(python3 -c "import json,sys; print(json.load(sys.stdin)['treasury_base_units'])" <<<"$report")"
   tip="$(python3 -c "import json,sys; print(json.load(sys.stdin)['tip_height'])" <<<"$report")"
   bps="$(python3 -c "import json,sys; print(json.load(sys.stdin)['fee_to_treasury_bps'])" <<<"$report")"
-  echo "treasury-telemetry-watch: rpc=$RPC treasury_base_units=$treasury tip_height=$tip fee_to_treasury_bps=$bps"
+  subsidy_bps="$(python3 -c "import json,sys; print(json.load(sys.stdin)['subsidy_to_treasury_bps'])" <<<"$report")"
+  echo "treasury-telemetry-watch: rpc=$RPC treasury_base_units=$treasury tip_height=$tip fee_to_treasury_bps=$bps subsidy_to_treasury_bps=$subsidy_bps"
   echo "treasury-telemetry-watch: revisit triggers in docs/FEES.md §5.4"
 fi

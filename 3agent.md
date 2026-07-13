@@ -7,12 +7,12 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29258397993` GREEN on `b6b2fdd` | **Doing** — Nightly `#29260743960` | Soak maintenance |
+| **1** RC core | Nightly `#29260743960` GREEN on `b6b2fdd` | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-b6b2fdd` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
-| **6** Permanence | F6 phase 2 subsidy tail split | **Done** — this push | Parameter fork `1000` bps |
+| **6** Permanence | F6 telemetry subsidy field | **Done** — this push | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---
