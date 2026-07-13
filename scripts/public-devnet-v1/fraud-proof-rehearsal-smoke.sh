@@ -13,6 +13,8 @@ FRAME="$REPO_ROOT/mfn-net/src/frame.rs"
 GOSSIP="$REPO_ROOT/mfn-net/src/gossip.rs"
 NODE_GOSSIP="$REPO_ROOT/mfn-node/src/p2p_gossip.rs"
 NODE_FANOUT="$REPO_ROOT/mfn-node/src/p2p_fanout.rs"
+FRAUD_CONTEST="$REPO_ROOT/mfn-node/src/fraud_contest.rs"
+DISPATCH="$REPO_ROOT/mfn-rpc/src/dispatch.rs"
 
 usage() {
   cat <<EOF
@@ -29,7 +31,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for path in "$DOC" "$PROBLEMS" "$SECURITY" "$CONSENSUS" "$NET" "$FRAME" "$GOSSIP" "$NODE_GOSSIP" "$NODE_FANOUT"; do
+for path in "$DOC" "$PROBLEMS" "$SECURITY" "$CONSENSUS" "$NET" "$FRAME" "$GOSSIP" "$NODE_GOSSIP" "$NODE_FANOUT" "$FRAUD_CONTEST" "$DISPATCH"; do
   if [[ ! -f "$path" ]]; then
     echo "fraud-proof-rehearsal-smoke: missing $path" >&2
     exit 1
@@ -123,6 +125,14 @@ if ! grep -Fq "RingMember" "$NODE_GOSSIP"; then
   echo "fraud-proof-rehearsal-smoke: p2p_gossip.rs missing RingMember verdict handling" >&2
   exit 1
 fi
+if ! grep -Fq "FraudContestRegistry" "$FRAUD_CONTEST"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_contest.rs missing FraudContestRegistry" >&2
+  exit 1
+fi
+if ! grep -Fq "list_fraud_contests" "$DISPATCH"; then
+  echo "fraud-proof-rehearsal-smoke: dispatch.rs missing list_fraud_contests" >&2
+  exit 1
+fi
 
 if ! grep -Fq "InvalidClsag" "$CONSENSUS"; then
   echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 3 InvalidClsag" >&2
@@ -137,7 +147,7 @@ echo "fraud-proof-rehearsal-smoke: plan"
 echo "  docs=docs/FRAUD_PROOFS.md"
 echo "  consensus=mfn_consensus::fraud_proof"
 echo "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-echo "  phase=3b ring UTXO witness + producer slash ops hint"
+echo "  phase=1b fraud contest registry + list_fraud_contests RPC"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "fraud-proof-rehearsal-smoke: PASS plan-only"

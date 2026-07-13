@@ -48,6 +48,7 @@ pub(super) fn serve_rpc_method_names() -> Vec<&'static str> {
         "get_status",
         "get_tip",
         "list_data_roots_with_claims",
+        "list_fraud_contests",
         "list_methods",
         "list_recent_claims",
         "list_recent_uploads",
@@ -89,6 +90,7 @@ fn rpc_method_class(method: &str) -> Option<RpcMethodClass> {
         | "get_status"
         | "get_tip"
         | "list_data_roots_with_claims"
+        | "list_fraud_contests"
         | "list_methods"
         | "list_recent_claims"
         | "list_recent_uploads"

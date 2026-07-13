@@ -14,9 +14,11 @@ $Frame = Join-Path $RepoRoot "mfn-net/src/frame.rs"
 $Gossip = Join-Path $RepoRoot "mfn-net/src/gossip.rs"
 $NodeGossip = Join-Path $RepoRoot "mfn-node/src/p2p_gossip.rs"
 $NodeFanout = Join-Path $RepoRoot "mfn-node/src/p2p_fanout.rs"
+$FraudContest = Join-Path $RepoRoot "mfn-node/src/fraud_contest.rs"
+$Dispatch = Join-Path $RepoRoot "mfn-rpc/src/dispatch.rs"
 $Serve = Join-Path $RepoRoot "mfn-net/src/serve.rs"
 
-foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $NodeFanout, $Serve)) {
+foreach ($path in @($Doc, $Problems, $Security, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $NodeFanout, $FraudContest, $Dispatch, $Serve)) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "fraud-proof-rehearsal-smoke: missing $path"
     }
@@ -61,12 +63,18 @@ if (-not (Select-String -LiteralPath $Serve -Pattern ([regex]::Escape("mfnd_frau
 if (-not (Select-String -LiteralPath $NodeGossip -Pattern ([regex]::Escape("RingMember")) -Quiet)) {
     throw "fraud-proof-rehearsal-smoke: p2p_gossip.rs missing RingMember verdict handling"
 }
+if (-not (Select-String -LiteralPath $FraudContest -Pattern "FraudContestRegistry" -Quiet)) {
+    throw "fraud-proof-rehearsal-smoke: fraud_contest.rs missing FraudContestRegistry"
+}
+if (-not (Select-String -LiteralPath $Dispatch -Pattern "list_fraud_contests" -Quiet)) {
+    throw "fraud-proof-rehearsal-smoke: dispatch.rs missing list_fraud_contests"
+}
 
 Write-Host "fraud-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::fraud_proof"
 Write-Host "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-Write-Host "  phase=3b ring UTXO witness + producer slash ops hint"
+Write-Host "  phase=1b fraud contest registry + list_fraud_contests RPC"
 
 if ($PlanOnly) {
     Write-Host "fraud-proof-rehearsal-smoke: PASS plan-only"

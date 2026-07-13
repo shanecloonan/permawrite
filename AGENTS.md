@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `5a1b221` (board tip `3043596`). **CI `#29264586158` GREEN**. **Nightly `#29267729234` GREEN**. **Release evidence** `5a1b221` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `ff4491b`. **CI `#29268143470` GREEN** (ancestor on `3043596`). **Nightly `#29267729234` GREEN** on F6 pin `5a1b221`. **Release evidence** `ff4491b` RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F6 stack Nightly | **Done** — `#29267729234` GREEN on `5a1b221` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-5a1b221` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
+| **1** | F6 stack RC gates | **Done** — CI `#29264586158` + Nightly `#29267729234` | Soak maintenance |
+| **2** | Release evidence refresh | **Done** — `release-evidence-ff4491b` RC audit **go** | Human sign-off packet |
+| **4** | F5 phase 1b fraud contest registry | **Done** — this push | On-chain producer slash (phase 4) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
 
@@ -127,9 +127,10 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **F5 phase 1b fraud contest registry** (this push) - protocol (lane 4): `fraud_contest.rs` + gossip record + RPC `list_fraud_contests`.
 - **Nightly `#29267729234` GREEN** (`5a1b221`) - RC core (lane 1): all three jobs on F6 stack.
-- **CI `#29264586158` GREEN** (`5a1b221`) - RC core (lane 1): full matrix on F6 stack (`bb94c5c` consensus + `0d1b9ec` telemetry).
-- **Release evidence `5a1b221`** - RC ops (lane 2): F6 stack + RC audit dry-run **go** on CI `#29264586158`.
+- **CI `#29268143470` GREEN** (`3043596`) - RC core (lane 1): docs board sync; ancestor CI for `ff4491b` `[skip ci]`.
+- **Release evidence `ff4491b`** - RC ops (lane 2): F6 stack closure + RC audit dry-run **go**.
 - **F6 phase 2 subsidy tail split** (`bb94c5c`) - permanence (lane 6): `subsidy_to_treasury_bps` + checkpoint v11; treasury credit in `apply_block`.
 - **F6 telemetry subsidy field** (`0d1b9ec`) - permanence (lane 6): `treasury-telemetry-watch` exposes `subsidy_to_treasury_bps`; ci-check plan gate.
 - **TL-5 VPS provision handoff** (`ed8743f`) - testnet launch (lane 7): `VPS_PROVISION.md` software-ready pin + rehearsal smoke gates.

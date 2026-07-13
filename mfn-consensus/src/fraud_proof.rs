@@ -947,6 +947,18 @@ pub fn fraud_proof_producer_slash_hint(consensus_wire: &[u8]) -> Option<FraudPro
     })
 }
 
+/// Block identity for any valid interactive fraud attachment (producer index
+/// optional — `None` when `producer_proof` is absent on test harness blocks).
+pub fn fraud_proof_contested_block(consensus_wire: &[u8]) -> Option<(u32, [u8; 32], Option<u32>)> {
+    use crate::block::block_id;
+    use crate::consensus::decode_producer_proof;
+    let block = fraud_proof_attached_block(consensus_wire)?;
+    let producer_index = decode_producer_proof(&block.header.producer_proof)
+        .ok()
+        .map(|p| p.validator_index);
+    Some((block.header.height, block_id(&block.header), producer_index))
+}
+
 fn fraud_proof_attached_block(consensus_wire: &[u8]) -> Option<Block> {
     if consensus_wire.len() < 4 {
         return None;

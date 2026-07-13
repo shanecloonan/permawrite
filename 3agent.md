@@ -7,13 +7,25 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29264586158` + Nightly `#29267729234` GREEN on `5a1b221` | Soak maintenance | Hold Rust unless regression |
-| **2** RC ops | `release-evidence-5a1b221` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29264586158` + Nightly `#29267729234` GREEN on F6 stack | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-ff4491b` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 3b `5f3947e` + `ba6fdce` | **Done** | F5 phase 4 / on-chain slash (not blocking TL-5) |
+| **4+6** Protocol | F5 phase 1b + F6 phase 2 | **Done** | On-chain producer slash |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-13 (F5 phase 1b fraud contests)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 phase 1b** | **Done** — this push | `FraudContestRegistry` + `list_fraud_contests` RPC |
+| **TL-5** | **Waiting** — human | VPS internet soak |
+
+**Lane 4 — Done:** F5 phase 1b contest registry **Next:** on-chain producer slash  
+**Lane 7 — Waiting:** human TL-5 VPS soak
 
 ---
 

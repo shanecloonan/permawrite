@@ -88,7 +88,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
 - [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
 - [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
-- [x] **CI `#29264586158` GREEN** — F6 stack (`bb94c5c` + `0d1b9ec` + `5a1b221`); Nightly `#29267729234` auto-dispatched.
+- [x] **CI `#29264586158` GREEN** — F6 stack (`bb94c5c` + `0d1b9ec` + `5a1b221`); Nightly `#29267729234` GREEN (all three jobs).
 
 ### Do not start (other lanes)
 
@@ -285,6 +285,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 fraud-proof phase 2** (`12e7353`) — coinbase amount fraud wire v2 + `verify_interactive_fraud_proof`.
 - [x] **F5 fraud-proof phase 3** (`ffc7b04`) — invalid CLSAG + invalid SPoRA wire v3; `verify_tx_fraud_proof`.
 - [x] **F5 fraud-proof phase 3b** (`5f3947e`, `ba6fdce`) — ring-membership UTXO witness; `TxFraudKind::RingMemberUtxo`; producer slash ops hook.
+- [x] **F5 fraud-proof phase 1b** (this push) — `FraudContestRegistry` + RPC `list_fraud_contests`; on-chain slash still deferred.
 - [x] **F12 phase 5b** — `demo-web-f12-rehearsal-smoke --live` CLI + WASM crypto path (this push).
 - [x] **P32 phase 2** — `vps-role-*.env.example` templates + OPERATORS.md cross-links (`db58ae1`).
 - [x] **P32 phase 3** — observer loopback-RPC hint when P2P is public (`7d39f4c`).

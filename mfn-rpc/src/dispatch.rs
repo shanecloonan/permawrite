@@ -510,6 +510,9 @@ pub type P2pStatusHook = Arc<dyn Fn() -> Value + Send + Sync>;
 /// Diverse boot peers for checkpoint summaries (**F12** phase 0).
 pub type P2pAnchorPeersHook = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
 
+/// Contested blocks from verified P2P fraud proofs (**F5** phase 1b).
+pub type FraudContestsHook = Arc<dyn Fn() -> Value + Send + Sync>;
+
 /// Optional hooks for `mfnd serve` dispatch (**M2.3.20** mempool fan-out).
 #[derive(Clone, Default)]
 pub struct ServeDispatchOpts {
@@ -541,6 +544,8 @@ pub struct ServeDispatchOpts {
     pub p2p_status: Option<P2pStatusHook>,
     /// Diverse session/durable peers for [`get_light_snapshot`] anchor list (**F12**).
     pub p2p_anchor_peers: Option<P2pAnchorPeersHook>,
+    /// P2P-verified fraud contests for [`list_fraud_contests`] (**F5** phase 1b).
+    pub fraud_contests: Option<FraudContestsHook>,
     /// Persist `proof_pool.bytes` after admit/clear (**M3.23**).
     pub on_proof_pool_change: Option<ProofPoolPersistHook>,
 }
@@ -647,6 +652,21 @@ fn dispatch_serve_methods(
                 return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
             }
             rpc_success(id, serve_rpc_methods_json_result())
+        }
+        "list_fraud_contests" => {
+            if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "list_fraud_contests")
+            {
+                return rpc_error(id, rpc_codes::INVALID_PARAMS, msg);
+            }
+            let body = match opts.fraud_contests.as_ref() {
+                Some(hook) => hook(),
+                None => json!({
+                    "configured": false,
+                    "contest_count": 0,
+                    "contests": [],
+                }),
+            };
+            rpc_success(id, body)
         }
         "get_status" => {
             if let Err(msg) = reject_nonempty_empty_params(req.get("params"), "get_status") {
@@ -2799,6 +2819,7 @@ mod tests {
             "get_status",
             "get_tip",
             "list_data_roots_with_claims",
+            "list_fraud_contests",
             "list_methods",
             "list_recent_claims",
             "list_recent_uploads",
@@ -3007,7 +3028,53 @@ mod tests {
             r#"{"jsonrpc":"2.0","method":"list_methods","params":{},"id":1}"#,
         );
         assert_eq!(v["error"], Value::Null);
-        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 31);
+        assert_eq!(v["result"]["methods"].as_array().unwrap().len(), 32);
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_fraud_contests_unconfigured_when_hook_absent() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_fraud_contests_off");
+        let v = parse_and_dispatch_serve(
+            &store,
+            &mut c,
+            &mut p,
+            r#"{"jsonrpc":"2.0","method":"list_fraud_contests","id":1}"#,
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["configured"], json!(false));
+        assert_eq!(v["result"]["contest_count"], json!(0));
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rpc_list_fraud_contests_returns_hook_snapshot() {
+        let (store, mut c, mut p, root) = test_store_chain_pool("rpc_fraud_contests_on");
+        let hook: FraudContestsHook = Arc::new(|| {
+            json!({
+                "configured": true,
+                "contest_count": 1,
+                "contests": [{
+                    "block_id": "aa".repeat(32),
+                    "height": 7,
+                    "producer_index": 2,
+                    "label": "valid_fraud:TxRoot:height=7",
+                }],
+            })
+        });
+        let v = parse_and_dispatch_serve_opts(
+            &store,
+            &mut c,
+            &mut p,
+            None,
+            r#"{"jsonrpc":"2.0","method":"list_fraud_contests","id":1}"#,
+            ServeDispatchOpts {
+                fraud_contests: Some(hook),
+                ..ServeDispatchOpts::default()
+            },
+        );
+        assert_eq!(v["error"], Value::Null);
+        assert_eq!(v["result"]["contest_count"], json!(1));
         fs::remove_dir_all(&root).ok();
     }
 

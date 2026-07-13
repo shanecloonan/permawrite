@@ -4,14 +4,18 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{
-    block_id, decode_block, decode_transaction, fraud_proof_producer_slash_hint, tx_id,
-    verify_interactive_fraud_proof, CoinbaseAmountFraudVerdict, FraudProofVerdict,
-    InteractiveFraudVerdict, TxFraudVerdict, DEFAULT_EMISSION_PARAMS,
+    block_id, decode_block, decode_transaction, fraud_proof_contested_block,
+    fraud_proof_producer_slash_hint, tx_id, verify_interactive_fraud_proof,
+    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict, TxFraudVerdict,
+    DEFAULT_EMISSION_PARAMS,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
 use mfn_store::ChainPersistence;
 
+use crate::fraud_contest::{
+    new_fraud_contest_registry, FraudContestEntry, FraudContestRegistryCell,
+};
 use crate::p2p_chunk_fanout::new_storage_commits_in_block;
 use crate::p2p_fanout::P2pPeerSet;
 
@@ -34,6 +38,7 @@ pub struct P2pGossipHandler {
     store: Arc<dyn ChainPersistence + Send + Sync>,
     tip_cell: TipSnapshot,
     peers: Option<Arc<P2pPeerSet>>,
+    contests: FraudContestRegistryCell,
 }
 
 impl P2pGossipHandler {
@@ -53,7 +58,13 @@ impl P2pGossipHandler {
             store,
             tip_cell,
             peers,
+            contests: new_fraud_contest_registry(),
         })
+    }
+
+    /// Shared fraud contest registry for RPC [`list_fraud_contests`].
+    pub fn contests(&self) -> FraudContestRegistryCell {
+        Arc::clone(&self.contests)
     }
 
     fn refresh_tip_cell(&self, chain: &Chain) {
@@ -264,12 +275,13 @@ impl GossipHandler for P2pGossipHandler {
                         use std::fmt::Write as _;
                         let _ = write!(bid_hex, "{b:02x}");
                     }
-                    return format!(
+                    format!(
                         "valid_fraud:{kind:?}:height={}:block_id={bid_hex}",
                         p.block.header.height
-                    );
+                    )
+                } else {
+                    "valid_fraud:body_root".into()
                 }
-                "valid_fraud:body_root".into()
             }
             Ok(InteractiveFraudVerdict::CoinbaseAmount(
                 CoinbaseAmountFraudVerdict::ValidFraud { height, .. },
@@ -308,6 +320,18 @@ impl GossipHandler for P2pGossipHandler {
             Err(e) => format!("rejected:verify:{e}"),
         };
         if label.starts_with("valid_fraud:") {
+            if let Some((height, block_id, producer_index)) =
+                fraud_proof_contested_block(consensus_wire)
+            {
+                if let Ok(mut g) = self.contests.lock() {
+                    g.record(FraudContestEntry {
+                        block_id,
+                        height,
+                        producer_index: producer_index.unwrap_or(u32::MAX),
+                        label: label.clone(),
+                    });
+                }
+            }
             fraud_label_with_slash_hint(label, consensus_wire)
         } else {
             label
@@ -593,6 +617,9 @@ mod tests {
             label.starts_with("valid_fraud:TxRoot:"),
             "expected valid fraud, got {label}"
         );
+        let contests_cell = handler.contests();
+        let contests = contests_cell.lock().expect("contests");
+        assert_eq!(contests.len(), 1, "valid fraud should register a contest");
     }
 
     #[test]

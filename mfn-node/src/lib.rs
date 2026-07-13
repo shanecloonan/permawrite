@@ -23,6 +23,7 @@
 
 mod archive_export;
 mod dandelion;
+mod fraud_contest;
 mod mfnd_cli;
 mod mfnd_serve;
 mod node_store;

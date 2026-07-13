@@ -32,7 +32,7 @@ block is valid under `apply_block`.
 
 ## Soft finality UX
 
-Until producer slash hooks land (phase 1b), wallets should treat:
+Until on-chain producer slash lands, wallets should treat:
 
 - **0 confirmations:** tip only (weak)
 - **&lt; [`FRAUD_PROOF_SOFT_FINALITY_SLOTS`](../mfn-consensus/src/fraud_proof.rs) (32):** soft finality — prefer waiting
@@ -103,8 +103,18 @@ encode_block(block)
 - **Present (`tag=1`)** — challenger supplies the on-chain commit for `P`; fraud when ring `C` ≠ parent commit (`RingMemberCommitMismatch`).
 
 Producer slash hooks: `fraud_proof_producer_slash_hint` + `mfnd_fraud_proof_producer_slash_hint`
-log on valid gossip. On-chain producer slash for invalid blocks remains deferred
+log on valid gossip. Full nodes also record contests in memory; light clients query
+`list_fraud_contests` RPC. On-chain producer slash for invalid blocks remains deferred
 (equivocation evidence only today).
+
+### Phase 1b RPC
+
+```json
+{"jsonrpc":"2.0","method":"list_fraud_contests","id":1}
+```
+
+Returns `{ configured, contest_count, contests: [{ block_id, height, producer_index, label }] }`
+when P2P is enabled on the node.
 
 ---
 
@@ -130,7 +140,8 @@ let wire = encode_body_root_fraud_proof(&proof);
 | **1 (shipped)** | `mfnd` gossip recv + verify + fan-out (`fanout_fraud_proof`); producer slash deferred |
 | **2 (shipped)** | Coinbase amount fraud (`verify_coinbase_amount_fraud_proof`); wire version 2 |
 | **3 (shipped)** | Invalid CLSAG + invalid SPoRA (`verify_tx_fraud_proof`); wire version 3 |
-| **3b (shipped)** | Ring-membership UTXO witness + producer slash hooks (ops hint) |
+| **3b (shipped)** | Ring-membership UTXO witness + producer slash ops hints |
+| **1b (shipped)** | In-memory fraud contest registry + RPC `list_fraud_contests` |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 
 See [`F5.md` §F5](./F5.md).

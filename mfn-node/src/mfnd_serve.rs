@@ -27,6 +27,7 @@ use mfn_store::{
 };
 use serde_json::{json, Value};
 
+use crate::fraud_contest::FraudContestRegistryCell;
 use crate::p2p_block_sync::P2pBlockSyncHandler;
 use crate::p2p_fanout::{
     spawn_committee_catch_up_loop, spawn_peer_diversity_redial_loop, spawn_reconnect_saved_peers,
@@ -56,6 +57,7 @@ type P2pServeHooks = (
     Option<BlockSyncApplierHook>,
     Option<Arc<P2pPeerSet>>,
     Option<mfn_net::ProductionHook>,
+    Option<FraudContestRegistryCell>,
 );
 
 /// Maximum accepted newline-delimited JSON-RPC request line.
@@ -415,6 +417,15 @@ fn next_block_context(chain: &Chain) -> ([u8; 32], u32) {
     (prev, next_height)
 }
 
+fn hex32(id: &[u8; 32]) -> String {
+    let mut s = String::with_capacity(64);
+    for b in id {
+        use std::fmt::Write as _;
+        let _ = write!(s, "{b:02x}");
+    }
+    s
+}
+
 struct ServeDispatchState<'a> {
     store: &'a Arc<dyn ChainPersistence + Send + Sync>,
     fanout_peers: Option<&'a Arc<P2pPeerSet>>,
@@ -426,6 +437,7 @@ struct ServeDispatchState<'a> {
     rpc_in_flight: Arc<AtomicUsize>,
     rpc_listen: &'a str,
     local_p2p_listen: Option<std::net::SocketAddr>,
+    fraud_contests: Option<FraudContestRegistryCell>,
 }
 
 fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
@@ -440,6 +452,7 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         rpc_in_flight,
         rpc_listen,
         local_p2p_listen,
+        fraud_contests,
     } = state;
     let store_persist = Arc::clone(store);
     let store_proof = Arc::clone(store);
@@ -509,6 +522,31 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
             ps.snapshot_checkpoint_anchor_peers(mfn_net::DEFAULT_CHECKPOINT_ANCHOR_PEER_COUNT)
         }) as mfn_rpc::P2pAnchorPeersHook
     });
+    let fraud_contests_hook = fraud_contests.map(|cell| {
+        Arc::new(move || {
+            let guard = match cell.lock() {
+                Ok(g) => g,
+                Err(_) => return json!({ "configured": true, "contests": [] }),
+            };
+            let contests: Vec<Value> = guard
+                .list()
+                .into_iter()
+                .map(|e| {
+                    json!({
+                        "block_id": hex32(&e.block_id),
+                        "height": e.height,
+                        "producer_index": e.producer_index,
+                        "label": e.label,
+                    })
+                })
+                .collect();
+            json!({
+                "configured": true,
+                "contest_count": guard.len(),
+                "contests": contests,
+            })
+        }) as mfn_rpc::FraudContestsHook
+    });
     ServeDispatchOpts {
         genesis: Some(genesis),
         rpc_api_key,
@@ -525,6 +563,7 @@ fn serve_dispatch_opts(state: ServeDispatchState<'_>) -> ServeDispatchOpts {
         p2p_light_follow_quorum: Some(p2p_light_follow_quorum),
         p2p_status,
         p2p_anchor_peers,
+        fraud_contests: fraud_contests_hook,
     }
 }
 
@@ -744,6 +783,7 @@ pub(crate) fn run_serve(
         block_applier_hook,
         fanout_peers,
         production_hook,
+        fraud_contests,
     ): P2pServeHooks = if p2p_enabled {
         let tip_cell = Arc::new(Mutex::new({
             let guard = chain
@@ -774,6 +814,7 @@ pub(crate) fn run_serve(
             Arc::clone(&tip_cell),
             Some(Arc::clone(&fanout)),
         );
+        let fraud_contests_cell = hook.contests();
         let (sync_hook, light_follow_hook) =
             P2pBlockSyncHandler::new_hooks(Arc::clone(&chain), Arc::clone(&store));
         let gossip_hook: mfn_net::GossipHook = hook.clone();
@@ -898,9 +939,10 @@ pub(crate) fn run_serve(
             Some(applier_hook),
             Some(fanout),
             production_hook,
+            Some(fraud_contests_cell),
         )
     } else {
-        (None, None, None, None, None, None, None, None)
+        (None, None, None, None, None, None, None, None, None)
     };
 
     log_chain_identity(&genesis_id, network_label);
@@ -1022,6 +1064,7 @@ pub(crate) fn run_serve(
         rpc_in_flight: Arc::clone(&rpc_in_flight),
         rpc_listen,
         local_p2p_listen,
+        fraud_contests,
     });
 
     #[cfg(unix)]
