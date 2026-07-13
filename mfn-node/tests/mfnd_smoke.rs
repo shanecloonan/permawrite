@@ -761,7 +761,7 @@ fn mfnd_serve_get_status_over_tcp() {
     assert_eq!(r["mempool"]["pool_len"], json!(0), "r={r}");
     assert_eq!(r["proof_pool"]["configured"], json!(true), "r={r}");
     assert_eq!(r["rpc"]["auth_enabled"], json!(false), "r={r}");
-    assert_eq!(r["rpc"]["method_count"], json!(31), "r={r}");
+    assert_eq!(r["rpc"]["method_count"], json!(32), "r={r}");
     assert_eq!(r["rpc"]["max_in_flight"], json!(64), "r={r}");
     assert_eq!(r["rpc"]["current_in_flight"], json!(1), "r={r}");
     assert_eq!(

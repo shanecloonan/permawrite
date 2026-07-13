@@ -2857,7 +2857,7 @@ mod tests {
         assert_eq!(v["result"]["mempool"]["pool_len"], json!(0));
         assert_eq!(v["result"]["proof_pool"]["configured"], json!(false));
         assert_eq!(v["result"]["rpc"]["auth_enabled"], json!(true));
-        assert_eq!(v["result"]["rpc"]["method_count"], json!(31));
+        assert_eq!(v["result"]["rpc"]["method_count"], json!(32));
         assert_eq!(v["result"]["rpc"]["max_in_flight"], Value::Null);
         assert_eq!(v["result"]["rpc"]["current_in_flight"], Value::Null);
         assert_eq!(v["result"]["rpc"]["max_request_line_bytes"], Value::Null);
