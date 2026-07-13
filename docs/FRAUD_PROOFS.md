@@ -202,8 +202,8 @@ Requires **`header_version` bump** (checkpoint v12+) because `slashings` wire sh
 | Test | Crate | Assert |
 | --- | --- | --- |
 | `invalid_block_slash_evidence_roundtrip` | `mfn-consensus` | encode/decode + Merkle root stable |
-| `apply_block_zeros_producer_on_coinbase_fraud` | `mfn-consensus` | synthetic chain; producer stake → 0 |
-| `invalid_block_slash_rejects_same_height` | `mfn-consensus` | evidence in block H cannot target block H |
+| `apply_block_zeros_producer_on_coinbase_fraud` | `mfn-consensus` | synthetic chain; producer stake → 0 (**shipped** `69c0531`) |
+| `invalid_block_slash_rejects_same_height` | `mfn-consensus` | evidence in block H cannot target block H (**shipped** `69c0531`) |
 | `mfnd_gossip_fraud_to_slash_hint` | `mfn-node` | ops log still emitted; registry + future slash builder |
 
 ### Non-goals (phase 1c)
