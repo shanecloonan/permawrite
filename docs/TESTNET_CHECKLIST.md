@@ -74,7 +74,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **Lane 7 / TL-8 publish seeds rehearsal smoke** — `publish-seed-nodes-rehearsal-smoke.*` fixture dry-run + doc gate (`05e2772`).
 - [x] **F12 phase 5 demo web** — `demo/web` checkpoint log verify + cross-check UI; `demo-web-f12-rehearsal-smoke.*` (`05e2772`).
 - [x] **Lane 7 / TL-5 VPS provision rehearsal** — `vps-provision-rehearsal-smoke.*` plan-only gate on `VPS_PROVISION.md` (this push).
-- [x] **Lane 7 / TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin (`5a1b221` F6 stack + CI `#29264586158` GREEN) + `VPS_PROVISION` TL-5 soak handoff; provision smoke gates pin.
+- [x] **Lane 7 / TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin (`85dad78` F5+F6 stack + CI `#29278386048` + Nightly `#29280436031` GREEN) + `VPS_PROVISION` TL-5 soak handoff (this push).
 - [x] **Lane 6 / F6 phase 2** — `subsidy_to_treasury_bps` consensus (`bb94c5c`) + telemetry (`0d1b9ec`).
 - [x] **P32 phase 4c** — VPS templates default `MFND_PM23_HARD_FAIL=1`; preflight warns when unset on public IP (this push).
 - [x] **Lane 7 / TL-8 publish checkpoint log rehearsal** — `publish-checkpoint-log-rehearsal-smoke.*` doc + plan gate (`638f260`).

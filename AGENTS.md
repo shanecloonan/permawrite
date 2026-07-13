@@ -83,7 +83,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `fd8bad7`. **CI `#29280582868` GREEN** (docs board sync). **Prior:** `#29278386048` GREEN on `85dad78` (F5 complete). **Nightly `#29280436031` GREEN** on `85dad78`. **Release evidence** `release-evidence-85dad78` RC audit **go**.
+**Head:** `7c7d2ad`. **CI `#29282756390` GREEN** (docs on `7c7d2ad`). **Functional pin:** `85dad78` — CI `#29278386048` GREEN + Nightly `#29280436031` / `#29282656932` GREEN. **Release evidence** `release-evidence-85dad78` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
@@ -93,7 +93,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | Release evidence refresh | **Done** — `release-evidence-85dad78` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 1b complete | **Done** — `85dad78` | On-chain producer slash (phase 4) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
+| **7** | TL-5 software-ready pin | **Done** — `TESTNET_LAUNCH` pin `85dad78` | Human TL-5 VPS soak |
 
 ---
 
@@ -127,6 +127,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **TL-5 software-ready pin refresh** (this push) - testnet launch (lane 7): `TESTNET_LAUNCH.md` pin `85dad78` (F5+F6 stack); CI `#29278386048` + Nightly `#29280436031` GREEN.
+- **CI `#29282756390` GREEN** (`7c7d2ad`) - RC core (lane 1): docs board sync on Nightly `#29280436031` closure.
 - **Nightly `#29280436031` GREEN** (`85dad78`) - RC core (lane 1): all three jobs on F5 phase 1b complete stack.
 - **F5 phase 1b complete** (`85dad78`) - protocol (lane 4): fraud contest registry + `list_fraud_contests` RPC + mfnd TCP smokes; CI `#29278386048` GREEN; release evidence RC audit **go**.
 - **F5 phase 1b fraud contest registry** (`17ac4fc`) - protocol (lane 4): `fraud_contest.rs` + gossip record + RPC `list_fraud_contests`.

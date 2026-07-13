@@ -89,6 +89,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
 - [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
 - [x] **CI `#29264586158` GREEN** — F6 stack (`bb94c5c` + `0d1b9ec` + `5a1b221`); Nightly `#29267729234` GREEN (all three jobs).
+- [x] **CI `#29278386048` GREEN** — F5 phase 1b complete (`85dad78`); Nightly `#29280436031` + `#29282656932` GREEN.
+- [x] **CI `#29282756390` GREEN** — docs board sync on `7c7d2ad`.
 
 ### Do not start (other lanes)
 
@@ -294,7 +296,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **P32 phase 4d** — operator template `MFN_STORAGE_OPERATOR_PM23_HARD_FAIL=1`; storage-operator aborts on validator seed env (`4a429e4`).
 - [x] **P32 phase 4e** — observer template `MFND_PM23_HARD_FAIL=1` (`b4cab93`).
 - [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
-- [x] **TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin + provision smoke needles + VPS_PROVISION TL-5 soak section (this push).
+- [x] **TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin `85dad78` (F5+F6 stack; CI `#29278386048` + Nightly `#29280436031` GREEN).
 - [x] **F12 phase 5b demo live** — `demo-web-f12-rehearsal-smoke --live` (`8b4f0ee`).
 - [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
 

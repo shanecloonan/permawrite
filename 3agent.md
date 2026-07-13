@@ -10,10 +10,10 @@
 | **1** RC core | F5 complete `85dad78`; CI `#29278386048` + Nightly `#29280436031` GREEN | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-85dad78` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1b `17ac4fc` + mfnd smokes | **Done** — this push | On-chain producer slash |
+| **4+6** Protocol | F5 phase 1b `85dad78` + F6 stack | **Done** | On-chain producer slash |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | Software-ready pin + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+| **7** Testnet | Software-ready pin `85dad78` + VPS_PROVISION TL-5 handoff | **Waiting** — human TL-5 VPS soak | TL-6 participant |
 
 ---
 
