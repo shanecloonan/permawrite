@@ -7,9 +7,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
 
-use mfn_consensus::{
-    block_id, decode_body_root_fraud_proof, decode_transaction, tx_id, StorageCommitment,
-};
+use mfn_consensus::{decode_transaction, tx_id, StorageCommitment};
 use mfn_net::{
     push_block_gossip_to_peer, push_chunks_gossip_to_peer, push_fraud_proof_gossip_to_peer,
     push_proposal_v1_to_peer, push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer,
@@ -805,11 +803,10 @@ impl P2pPeerSet {
 
     /// Push a verified body-root fraud proof to every registered peer except `except_peer` (**F5**).
     pub fn fanout_fraud_proof(&self, consensus_wire: &[u8], except_peer: Option<&str>) {
-        let proof = match decode_body_root_fraud_proof(consensus_wire) {
-            Ok(p) => p,
-            Err(_) => return,
+        let fanout_key = match mfn_consensus::fraud_proof_fanout_key(consensus_wire) {
+            Some(k) => k,
+            None => return,
         };
-        let fanout_key = (block_id(&proof.block.header), proof.kind as u8);
         let already_seen = match self.fraud_proof_fanout_seen.lock() {
             Ok(mut seen) => !seen.insert(fanout_key),
             Err(_) => return,

@@ -55,6 +55,20 @@ P2P tag reserved: `0x13` (`mfn_net::FRAUD_PROOF_V1_TAG`). Phase 1 gossips verifi
 proofs on the mesh via `send_fraud_proof_v1` / `recv_gossip_v1` / `fanout_fraud_proof`.
 Slash of the producer remains deferred.
 
+### Phase 2 wire (coinbase amount)
+
+```text
+u32le version (=2)
+u128le fee_sum
+u16le settlement_count
+  repeat: u32le proof_wire_len || proof_wire || u128le bonus
+view_pub || spend_pub   (producer payout witness)
+encode_block(block)
+```
+
+Verifier supplies chain [`EmissionParams`](../mfn-consensus/src/emission.rs); challenger must attach
+`fee_sum` and per-proof settlement bonuses that match the body.
+
 ---
 
 ## API
@@ -77,7 +91,7 @@ let wire = encode_body_root_fraud_proof(&proof);
 |---|---|
 | **0 (shipped)** | Body-root kinds + consensus verify + P2P tag reserve |
 | **1 (shipped)** | `mfnd` gossip recv + verify + fan-out (`fanout_fraud_proof`); producer slash deferred |
-| **2** | Coinbase amount fraud (fee_sum + emission witness) |
+| **2 (shipped)** | Coinbase amount fraud (`verify_coinbase_amount_fraud_proof`); wire version 2 |
 | **3** | Invalid CLSAG / SPoRA with compact witnesses (state-heavy) |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 

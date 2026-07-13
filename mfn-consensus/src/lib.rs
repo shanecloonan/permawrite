@@ -155,9 +155,13 @@ pub use emission::{
 };
 #[cfg(feature = "bls")]
 pub use fraud_proof::{
-    decode_body_root_fraud_proof, encode_body_root_fraud_proof, tx_root_fraud_proof,
-    verify_body_root_fraud_proof, BodyRootFraudKind, BodyRootFraudProof, FraudProofError,
-    FraudProofVerdict, FRAUD_PROOF_SOFT_FINALITY_SLOTS, FRAUD_PROOF_VERSION,
+    decode_body_root_fraud_proof, decode_coinbase_amount_fraud_proof, encode_body_root_fraud_proof,
+    encode_coinbase_amount_fraud_proof, fraud_proof_fanout_key, recompute_block_fee_sum,
+    tx_root_fraud_proof, verify_body_root_fraud_proof, verify_coinbase_amount_fraud_proof,
+    verify_interactive_fraud_proof, BodyRootFraudKind, BodyRootFraudProof,
+    CoinbaseAmountFraudProof, CoinbaseAmountFraudVerdict, FraudProofError, FraudProofVerdict,
+    InteractiveFraudVerdict, COINBASE_FRAUD_DEDUP_KIND, COINBASE_FRAUD_PROOF_VERSION,
+    FRAUD_PROOF_SOFT_FINALITY_SLOTS, FRAUD_PROOF_VERSION,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

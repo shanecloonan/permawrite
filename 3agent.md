@@ -10,10 +10,20 @@
 | **1** RC core | CI `#29221315455` GREEN (`bd6d4d9`) | **Next** — Nightly on `f3e5236` | Soak maintenance |
 | **2** RC ops | `release-evidence-f3e5236` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1 `bd6d4d9` | **Done** | Phase 2 coinbase fraud |
+| **4+6** Protocol | F5 phase 1 `bd6d4d9` | **Doing** — F5 phase 2 coinbase fraud (this push) | Phase 3 CLSAG/SPoRA witnesses |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-13 (F5 phase 2 coinbase amount fraud)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 fraud-proof phase 2** | **This push** | `verify_coinbase_amount_fraud_proof` wire v2; `verify_interactive_fraud_proof` in mfnd |
+
+**Lane 4 — Doing:** phase 2 coinbase **Next:** green CI; phase 3 CLSAG witnesses
 
 ---
 

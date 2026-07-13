@@ -91,7 +91,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | **1** | Nightly on F5 stack | **Next** — dispatch Nightly on `f3e5236` | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-f3e5236` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 1 gossip fan-out | **Done** — `bd6d4d9` | Phase 2 coinbase fraud |
+| **4** | F5 phase 2 coinbase fraud | **Doing** — this push | Phase 3 CLSAG/SPoRA witnesses |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---

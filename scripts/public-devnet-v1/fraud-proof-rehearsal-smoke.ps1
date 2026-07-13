@@ -43,11 +43,16 @@ $phase1 = @{
     "push_fraud_proof_gossip_to_peer" = $Gossip
     "fanout_fraud_proof"           = $NodeFanout
     "mfnd_fraud_proof_valid"       = $Serve
-    "verify_body_root_fraud_proof" = $NodeGossip
+    "verify_interactive_fraud_proof" = $NodeGossip
 }
 foreach ($entry in $phase1.GetEnumerator()) {
     if (-not (Select-String -LiteralPath $entry.Value -Pattern ([regex]::Escape($entry.Key)) -Quiet)) {
         throw "fraud-proof-rehearsal-smoke: $($entry.Value) missing phase 1: $($entry.Key)"
+    }
+}
+foreach ($needle in @("verify_coinbase_amount_fraud_proof", "verify_interactive_fraud_proof", "COINBASE_FRAUD_PROOF_VERSION")) {
+    if (-not (Select-String -LiteralPath $Consensus -Pattern ([regex]::Escape($needle)) -Quiet)) {
+        throw "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2: $needle"
     }
 }
 
@@ -55,7 +60,7 @@ Write-Host "fraud-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::fraud_proof"
 Write-Host "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-Write-Host "  phase=1 gossip fan-out + verify; slash deferred"
+Write-Host "  phase=2 coinbase amount fraud + phase 1 gossip; slash deferred"
 
 if ($PlanOnly) {
     Write-Host "fraud-proof-rehearsal-smoke: PASS plan-only"

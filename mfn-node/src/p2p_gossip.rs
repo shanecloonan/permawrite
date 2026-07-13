@@ -4,8 +4,9 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{
-    block_id, decode_block, decode_body_root_fraud_proof, decode_transaction, tx_id,
-    verify_body_root_fraud_proof, FraudProofVerdict,
+    block_id, decode_block, decode_transaction, tx_id, verify_interactive_fraud_proof,
+    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict,
+    DEFAULT_EMISSION_PARAMS,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
@@ -241,20 +242,38 @@ impl GossipHandler for P2pGossipHandler {
     }
 
     fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
-        let proof = match decode_body_root_fraud_proof(consensus_wire) {
-            Ok(p) => p,
-            Err(e) => return format!("rejected:decode:{e}"),
-        };
-        let height = proof.block.header.height;
-        let bid = block_id(&proof.block.header);
-        let mut bid_hex = String::with_capacity(64);
-        for b in bid {
-            use std::fmt::Write as _;
-            let _ = write!(bid_hex, "{b:02x}");
-        }
-        match verify_body_root_fraud_proof(&proof) {
-            Ok(FraudProofVerdict::ValidFraud { kind, .. }) => {
-                format!("valid_fraud:{kind:?}:height={height}:block_id={bid_hex}")
+        match verify_interactive_fraud_proof(consensus_wire, &DEFAULT_EMISSION_PARAMS) {
+            Ok(InteractiveFraudVerdict::BodyRoot(FraudProofVerdict::ValidFraud {
+                kind, ..
+            })) => {
+                if let Ok(p) = mfn_consensus::decode_body_root_fraud_proof(consensus_wire) {
+                    let bid = block_id(&p.block.header);
+                    let mut bid_hex = String::with_capacity(64);
+                    for b in bid {
+                        use std::fmt::Write as _;
+                        let _ = write!(bid_hex, "{b:02x}");
+                    }
+                    return format!(
+                        "valid_fraud:{kind:?}:height={}:block_id={bid_hex}",
+                        p.block.header.height
+                    );
+                }
+                "valid_fraud:body_root".into()
+            }
+            Ok(InteractiveFraudVerdict::CoinbaseAmount(
+                CoinbaseAmountFraudVerdict::ValidFraud { height, .. },
+            )) => {
+                if let Ok(p) = mfn_consensus::decode_coinbase_amount_fraud_proof(consensus_wire) {
+                    let bid = block_id(&p.block.header);
+                    let mut bid_hex = String::with_capacity(64);
+                    for b in bid {
+                        use std::fmt::Write as _;
+                        let _ = write!(bid_hex, "{b:02x}");
+                    }
+                    format!("valid_fraud:CoinbaseAmount:height={height}:block_id={bid_hex}")
+                } else {
+                    format!("valid_fraud:CoinbaseAmount:height={height}")
+                }
             }
             Err(e) => format!("rejected:verify:{e}"),
         }

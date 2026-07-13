@@ -83,12 +83,24 @@ for needle in on_fraud_proof_v1 send_fraud_proof_v1 push_fraud_proof_gossip_to_p
       ;;
   esac
 done
+if ! grep -Fq "verify_coinbase_amount_fraud_proof" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2 verify_coinbase_amount_fraud_proof" >&2
+  exit 1
+fi
+if ! grep -Fq "verify_interactive_fraud_proof" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing verify_interactive_fraud_proof" >&2
+  exit 1
+fi
+if ! grep -Fq "COINBASE_FRAUD_PROOF_VERSION" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing COINBASE_FRAUD_PROOF_VERSION" >&2
+  exit 1
+fi
 
 echo "fraud-proof-rehearsal-smoke: plan"
 echo "  docs=docs/FRAUD_PROOFS.md"
 echo "  consensus=mfn_consensus::fraud_proof"
 echo "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-echo "  phase=1 gossip fan-out + verify; slash deferred"
+echo "  phase=2 coinbase amount fraud + phase 1 gossip; slash deferred"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "fraud-proof-rehearsal-smoke: PASS plan-only"
