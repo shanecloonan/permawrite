@@ -12,8 +12,8 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 | --- | --- |
 | Release commit | `85dad78` (F5 phase 1b `17ac4fc` + F6 stack `5a1b221` + mfnd smokes) |
 | CI | `#29278386048` GREEN |
-| Nightly | `#29280436031` GREEN on `85dad78` |
-| RC audit | `release-evidence-85dad78` **go** |
+| Nightly | `#29280436031` + `#29282656932` GREEN on `85dad78` |
+| RC audit | `release-evidence-85dad78` / `release-evidence-7c7d2ad` **go** |
 | Next human gate | **TL-5** — provision VPS ([`VPS_PROVISION.md`](./VPS_PROVISION.md)) then `bash scripts/public-devnet-v1/vps-internet-soak.sh` |
 
 ---

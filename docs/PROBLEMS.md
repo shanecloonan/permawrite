@@ -105,7 +105,7 @@ docs. Deeper analysis of every item lives in
 
 ### 11. ~~Committee finality does not attest state-transition validity~~ (partially mitigated)
 
-> **Status: fraud-proof phase 3b shipped** — body-root (v1) + coinbase (v2) + CLSAG/SPoRA/ring UTXO (v3) verify via `verify_interactive_fraud_proof`; `fraud_proof_producer_slash_hint` + `mfnd_fraud_proof_producer_slash_hint` ops hook; on-chain producer slash deferred.
+> **Status: fraud-proof phase 3b + 1b shipped** — body-root (v1) + coinbase (v2) + CLSAG/SPoRA/ring UTXO (v3) verify via `verify_interactive_fraud_proof`; `fraud_proof_producer_slash_hint` + `mfnd_fraud_proof_producer_slash_hint` ops hook; phase **1b** adds in-memory `FraudContestRegistry` + RPC `list_fraud_contests` for light-client contest polling; on-chain producer slash deferred.
 
 The reference voting path (`cast_vote` → `verify_producer_proof` in
 `mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF

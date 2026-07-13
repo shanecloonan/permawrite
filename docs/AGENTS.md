@@ -88,7 +88,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 3 stack Nightly** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6` all three green.
 - [x] **F5 phase 3b Nightly** — `#29257619888` GREEN on `ba6fdce` (all three jobs).
 - [x] **CI `#29255412319` GREEN** — F5 phase 3b + serve slash-hint (`ba6fdce`).
-- [x] **CI `#29264586158` GREEN** — F6 stack (`bb94c5c` + `0d1b9ec` + `5a1b221`); Nightly `#29267729234` GREEN (all three jobs).
+- [x] **F5 stack RC gates** — CI `#29278386048` + Nightly `#29280436031`/`#29282656932` GREEN on `85dad78`; docs head `#29282756390` GREEN (`7c7d2ad`).
 - [x] **CI `#29278386048` GREEN** — F5 phase 1b complete (`85dad78`); Nightly `#29280436031` + `#29282656932` GREEN.
 - [x] **CI `#29282756390` GREEN** — docs board sync on `7c7d2ad`.
 

@@ -7,8 +7,8 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 complete `85dad78`; CI `#29278386048` + Nightly `#29280436031` GREEN | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-85dad78` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | F5 complete `85dad78`; CI + Nightly GREEN (`#29282656932`) | **Done** | Soak maintenance |
+| **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 1b `85dad78` + F6 stack | **Done** | On-chain producer slash |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
