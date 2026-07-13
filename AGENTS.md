@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `b6b2fdd`. **CI `#29258397993` GREEN** (revert incomplete checkpoint-v11 decode). **Nightly `#29260743960`** in progress. **Release evidence** `b6b2fdd` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `ed8743f`. **CI** in progress on F6+TL-5 push (`bb94c5c`, `ed8743f`). Prior **`b6b2fdd`** CI `#29258397993` GREEN. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | Revert stack Nightly | **Doing** — `#29260743960` on `b6b2fdd` | Soak maintenance |
-| **2** | Release evidence refresh | **Done** — `release-evidence-b6b2fdd` RC audit **go** | Human sign-off packet |
+| **1** | F6+TL-5 push CI | **Monitor** — `ed8743f` | Nightly on green head |
+| **2** | Release evidence refresh | **Waiting** — after CI green | Human sign-off packet |
 | **4** | F5 phase 3b ring-membership fraud | **Done** — `5f3947e` + `ba6fdce` | F5 phase 4 research (not blocking TL-5) |
-| **6** | F6 phase 2 subsidy tail split | **Done** — this push | Parameter fork `1000` bps |
-| **7** | TL-5 VPS soak | **Waiting** — human (software-ready pin + provision handoff) | TL-6 participant |
+| **6** | F6 phase 2 subsidy tail split | **Done** — `bb94c5c` | Parameter fork `1000` bps |
+| **7** | TL-5 VPS soak | **Waiting** — human (`ed8743f` provision handoff) | TL-6 participant |
 
 ---
 
@@ -127,6 +127,8 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **F6 phase 2 subsidy tail split** (`bb94c5c`) - permanence (lane 6): `subsidy_to_treasury_bps` + checkpoint v11; treasury credit in `apply_block`.
+- **TL-5 VPS provision handoff** (`ed8743f`) - testnet launch (lane 7): `VPS_PROVISION.md` software-ready pin + rehearsal smoke gates.
 - **Revert stack CI GREEN** (`b6b2fdd`) - RC ops (lane 2): revert incomplete checkpoint-v11 decode (`90431fb`); CI `#29258397993` GREEN; release evidence `b6b2fdd` RC audit **go**; Nightly `#29260743960` dispatched.
 - **Nightly GREEN + TL-5 software-ready pin** - RC core (lane 1) + testnet launch (lane 7): Nightly `#29257619888` GREEN on `ba6fdce`; `TESTNET_LAUNCH.md` software-ready pin; `VPS_PROVISION.md` TL-5 soak handoff.
 - **F5 phase 3b + serve fix GREEN** (`5f3947e`, `ba6fdce`) - protocol (lane 4) + RC (lane 1): ring-membership UTXO fraud wire v3 kind=3; `mfnd_fraud_proof_producer_slash_hint` ops log; CI `#29255412319` GREEN; release evidence `ba6fdce` RC audit **go**.
