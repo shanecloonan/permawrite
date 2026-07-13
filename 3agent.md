@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 complete `85dad78`; CI `#29278386048` GREEN | **Done** | Nightly dispatch / soak maintenance |
+| **1** RC core | F5 complete `85dad78`; CI `#29278386048` + Nightly `#29280436031` GREEN | **Done** | Soak maintenance |
 | **2** RC ops | `release-evidence-85dad78` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 1b `17ac4fc` + mfnd smokes | **Done** — this push | On-chain producer slash |
@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | **F5 phase 1b** | **Done** — `17ac4fc` | `FraudContestRegistry` + `list_fraud_contests` RPC |
 | **method_count fix** | **Done** — `543374f`/`7b0587c` | CI `#29270900030` + `#29274921666` (len assert) |
-| **F5 complete** | **Done** — `85dad78` | CI `#29278386048` GREEN; release evidence RC audit **go** |
+| **F5 complete** | **Done** — `85dad78` | CI `#29278386048` + Nightly `#29280436031` GREEN |
 | **TL-5** | **Waiting** — human | VPS internet soak |
 
 **Lane 4 — Done:** F5 phase 1b contest registry **Next:** on-chain producer slash  

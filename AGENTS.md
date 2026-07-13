@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `85dad78`. **CI `#29278386048` GREEN** (F5 phase 1b complete). **Release evidence** `release-evidence-85dad78` RC audit **go**. **Nightly `#29267729234` GREEN** on `5a1b221`.
+**Head:** `fd8bad7`. **CI `#29280582868` GREEN** (docs board sync). **Prior:** `#29278386048` GREEN on `85dad78` (F5 complete). **Nightly `#29280436031` GREEN** on `85dad78`. **Release evidence** `release-evidence-85dad78` RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 stack RC gates | **Done** — CI `#29278386048` GREEN on `85dad78` | Nightly dispatch / soak maintenance |
+| **1** | F5 stack RC gates | **Done** — CI `#29278386048` + Nightly `#29280436031` GREEN | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-85dad78` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 1b complete | **Done** — `85dad78` | On-chain producer slash (phase 4) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
@@ -127,6 +127,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **Nightly `#29280436031` GREEN** (`85dad78`) - RC core (lane 1): all three jobs on F5 phase 1b complete stack.
 - **F5 phase 1b complete** (`85dad78`) - protocol (lane 4): fraud contest registry + `list_fraud_contests` RPC + mfnd TCP smokes; CI `#29278386048` GREEN; release evidence RC audit **go**.
 - **F5 phase 1b fraud contest registry** (`17ac4fc`) - protocol (lane 4): `fraud_contest.rs` + gossip record + RPC `list_fraud_contests`.
 - **Nightly `#29267729234` GREEN** (`5a1b221`) - RC core (lane 1): all three jobs on F6 stack.
