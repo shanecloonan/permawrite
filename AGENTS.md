@@ -91,7 +91,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | --- | --- | --- | --- |
 | **1** | F5 stack Nightly | **Done** — `#29238738502` on `536d2a6` | Soak maintenance |
 | **2** | Release evidence refresh | **Done** — `release-evidence-536d2a6` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 3 CLSAG/SPoRA fraud | **Done** — `ffc7b04` | Phase 3b ring-membership |
+| **4** | F5 phase 3b ring-membership fraud | **Done** — this push | F5 phase 4 research |
 | **7** | TL-5 VPS soak | **Waiting** — human | TL-6 participant |
 
 ---
@@ -126,6 +126,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
+- **F5 fraud-proof phase 3b** (this push) - protocol (lane 4): wire v3 `RingMemberUtxo` parent UTXO witness; `fraud_proof_producer_slash_hint` + `mfnd_fraud_proof_producer_slash_hint`.
 - **F5 stack Nightly GREEN** — `#29236857495` on `ffc7b04` + `#29238738502` on `536d2a6`; RC core (lane 1) all three jobs.
 - **F5 phase 3 board + CI** (`536d2a6`) - RC ops (lane 2): TESTNET_CHECKLIST phase 3; CI `#29236938900` GREEN; release evidence `536d2a6` RC audit **go**.
 - **F5 fraud-proof phase 3** (`ffc7b04`) - protocol (lane 4): wire v3 invalid CLSAG + invalid SPoRA; gossip admission; CI `#29234849464` GREEN; release evidence `ffc7b04` RC audit **go**.

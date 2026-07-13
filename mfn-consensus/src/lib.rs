@@ -157,14 +157,15 @@ pub use emission::{
 pub use fraud_proof::{
     decode_body_root_fraud_proof, decode_coinbase_amount_fraud_proof, decode_tx_fraud_proof,
     encode_body_root_fraud_proof, encode_coinbase_amount_fraud_proof, encode_tx_fraud_proof,
-    fraud_proof_fanout_key, recompute_block_fee_sum, tx_root_fraud_proof,
-    verify_body_root_fraud_proof, verify_coinbase_amount_fraud_proof,
+    fraud_proof_fanout_key, fraud_proof_producer_slash_hint, recompute_block_fee_sum,
+    tx_root_fraud_proof, verify_body_root_fraud_proof, verify_coinbase_amount_fraud_proof,
     verify_interactive_fraud_proof, verify_tx_fraud_proof, BodyRootFraudKind, BodyRootFraudProof,
-    ClsagFraudVerdict, CoinbaseAmountFraudProof, CoinbaseAmountFraudVerdict, FraudProofError,
-    FraudProofVerdict, InteractiveFraudVerdict, SporaFraudVerdict, TxFraudKind, TxFraudProof,
-    TxFraudVerdict, CLSAG_FRAUD_DEDUP_KIND, COINBASE_FRAUD_DEDUP_KIND,
+    ClsagFraudVerdict, CoinbaseAmountFraudProof, CoinbaseAmountFraudVerdict,
+    FraudProducerSlashHint, FraudProofError, FraudProofVerdict, InteractiveFraudVerdict,
+    ParentUtxoWitness, RingMemberFraudReason, RingMemberFraudVerdict, SporaFraudVerdict,
+    TxFraudKind, TxFraudProof, TxFraudVerdict, CLSAG_FRAUD_DEDUP_KIND, COINBASE_FRAUD_DEDUP_KIND,
     COINBASE_FRAUD_PROOF_VERSION, FRAUD_PROOF_SOFT_FINALITY_SLOTS, FRAUD_PROOF_VERSION,
-    SPORA_FRAUD_DEDUP_KIND, TX_FRAUD_PROOF_VERSION,
+    RING_FRAUD_DEDUP_KIND, SPORA_FRAUD_DEDUP_KIND, TX_FRAUD_PROOF_VERSION,
 };
 #[cfg(feature = "bls")]
 pub use header_verify::{

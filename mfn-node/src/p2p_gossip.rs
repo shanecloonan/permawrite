@@ -4,9 +4,9 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use mfn_consensus::{
-    block_id, decode_block, decode_transaction, tx_id, verify_interactive_fraud_proof,
-    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict, TxFraudVerdict,
-    DEFAULT_EMISSION_PARAMS,
+    block_id, decode_block, decode_transaction, fraud_proof_producer_slash_hint, tx_id,
+    verify_interactive_fraud_proof, CoinbaseAmountFraudVerdict, FraudProofVerdict,
+    InteractiveFraudVerdict, TxFraudVerdict, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
@@ -14,6 +14,17 @@ use mfn_store::ChainPersistence;
 
 use crate::p2p_chunk_fanout::new_storage_commits_in_block;
 use crate::p2p_fanout::P2pPeerSet;
+
+fn fraud_label_with_slash_hint(base: String, consensus_wire: &[u8]) -> String {
+    if let Some(hint) = fraud_proof_producer_slash_hint(consensus_wire) {
+        format!(
+            "{base}:slash_height={}:slash_producer={}",
+            hint.height, hint.producer_index
+        )
+    } else {
+        base
+    }
+}
 
 /// Shared chain + mempool + store for inbound gossip (**M2.3.16**).
 pub struct P2pGossipHandler {
@@ -242,7 +253,7 @@ impl GossipHandler for P2pGossipHandler {
     }
 
     fn on_fraud_proof_v1(&self, consensus_wire: &[u8]) -> String {
-        match verify_interactive_fraud_proof(consensus_wire, &DEFAULT_EMISSION_PARAMS) {
+        let label = match verify_interactive_fraud_proof(consensus_wire, &DEFAULT_EMISSION_PARAMS) {
             Ok(InteractiveFraudVerdict::BodyRoot(FraudProofVerdict::ValidFraud {
                 kind, ..
             })) => {
@@ -288,7 +299,18 @@ impl GossipHandler for P2pGossipHandler {
                     v.proof_index, v.reason
                 )
             }
+            Ok(InteractiveFraudVerdict::Tx(TxFraudVerdict::RingMember(v))) => {
+                format!(
+                    "valid_fraud:RingMember:tx={}:input={}:ring={}:reason={:?}",
+                    v.tx_index, v.input_index, v.ring_index, v.reason
+                )
+            }
             Err(e) => format!("rejected:verify:{e}"),
+        };
+        if label.starts_with("valid_fraud:") {
+            fraud_label_with_slash_hint(label, consensus_wire)
+        } else {
+            label
         }
     }
 }

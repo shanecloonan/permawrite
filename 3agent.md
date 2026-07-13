@@ -7,13 +7,23 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 Nightly `#29238738502` GREEN | **Done** | Soak maintenance |
-| **2** RC ops | `release-evidence-536d2a6` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | F5 Nightly `#29238738502` GREEN | **Waiting** — CI `#29251726699` then phase 3b push | Soak maintenance |
+| **2** RC ops | `release-evidence-536d2a6` RC audit **go** | **Next** — refresh after phase 3b green | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 3 `ffc7b04` | **Done** | Phase 3b ring-membership |
+| **4+6** Protocol | F5 phase 3 `ffc7b04` | **Doing** — phase 3b ring UTXO + slash hint (ci-check) | F5 phase 4 research |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | launch-status v6 | **Done** | Telemetry watch |
 | **7** Testnet | All software gates | **Waiting** — human TL-5 VPS soak | TL-6 participant |
+
+---
+
+## Session — 2026-07-13 (F5 phase 3b ring-membership fraud)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 fraud-proof phase 3b** | **Done** — this push | wire v3 kind=3 ring UTXO witness + `fraud_proof_producer_slash_hint` |
+
+**Lane 4 — Done:** phase 3b ring-membership **Next:** F5 phase 4 research
 
 ---
 

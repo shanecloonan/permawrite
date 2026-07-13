@@ -73,10 +73,12 @@ Verifier supplies chain [`EmissionParams`](../mfn-consensus/src/emission.rs); ch
 
 ```text
 u32le version (=3)
-u8 kind (=1 invalid CLSAG, =2 invalid SPoRA)
+u8 kind (=1 invalid CLSAG, =2 invalid SPoRA, =3 ring UTXO)
 u16le index   (tx index or storage_proof index)
 if kind=2:
   u32le commit_wire_len || encode_storage_commitment(witness)
+if kind=3:
+  u16le input_index || u16le ring_index || parent_utxo_witness
 encode_block(block)
 ```
 
@@ -87,8 +89,22 @@ encode_block(block)
   witness; verifier runs [`verify_storage_proof`](../mfn-storage/src/spora.rs) against
   `prev_hash` + `slot` from the block header.
 
-Ring-membership fraud (fabricated ring mint) remains a follow-up: it needs UTXO witnesses and
-producer slash hooks (phase 3b).
+Ring-membership fraud (fabricated ring mint) uses wire v3 `kind=3`:
+
+```text
+u16le input_index
+u16le ring_index
+u8 parent_witness_tag (=0 absent, =1 present)
+if tag=1: [u8;32] parent_commit || u32le parent_height
+encode_block(block)
+```
+
+- **Absent (`tag=0`)** — challenger attests ring `P` was not in the parent UTXO map (`RingMemberNotInUtxoSet`).
+- **Present (`tag=1`)** — challenger supplies the on-chain commit for `P`; fraud when ring `C` ≠ parent commit (`RingMemberCommitMismatch`).
+
+Producer slash hooks: `fraud_proof_producer_slash_hint` + `mfnd_fraud_proof_producer_slash_hint`
+log on valid gossip. On-chain producer slash for invalid blocks remains deferred
+(equivocation evidence only today).
 
 ---
 
@@ -114,7 +130,7 @@ let wire = encode_body_root_fraud_proof(&proof);
 | **1 (shipped)** | `mfnd` gossip recv + verify + fan-out (`fanout_fraud_proof`); producer slash deferred |
 | **2 (shipped)** | Coinbase amount fraud (`verify_coinbase_amount_fraud_proof`); wire version 2 |
 | **3 (shipped)** | Invalid CLSAG + invalid SPoRA (`verify_tx_fraud_proof`); wire version 3 |
-| **3b** | Ring-membership mint fraud + producer slash hooks |
+| **3b (shipped)** | Ring-membership UTXO witness + producer slash hooks (ops hint) |
 | **4** | SNARK / STARK validity proofs (Tier-4 / P11) |
 
 See [`F5.md` §F5](./F5.md).

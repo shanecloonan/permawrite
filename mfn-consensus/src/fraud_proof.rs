@@ -9,10 +9,12 @@
 //! Later phases (CLSAG / SPoRA) attach compact witnesses. Coinbase amount fraud
 //! (phase 2) uses fee_sum + settlement witnesses; phase 3 adds invalid CLSAG
 //! (stateless) and invalid SPoRA (parent-state `StorageCommitment` witness).
-//! Gossip ships on `mfn-net` tag `0x13`; slash deferred.
+//! Phase 3b adds ring-membership mint fraud (parent UTXO witness) and producer
+//! slash hooks (`fraud_proof_producer_slash_hint`). Gossip ships on `mfn-net`
+//! tag `0x13`; on-chain producer slash for invalid blocks remains deferred.
 
 use crate::block::{
-    decode_block, encode_block, tx_merkle_root, Block, BlockDecodeError, RingPolicy,
+    decode_block, encode_block, tx_merkle_root, Block, BlockDecodeError, RingPolicy, UtxoEntry,
 };
 use crate::coinbase::{is_coinbase_shaped, verify_coinbase_outputs, PayoutAddress};
 use crate::emission::{block_coinbase_specs, EmissionParams};
@@ -44,6 +46,9 @@ pub const CLSAG_FRAUD_DEDUP_KIND: u8 = 6;
 
 /// Dedup tag for invalid-SPoRA fraud fan-out.
 pub const SPORA_FRAUD_DEDUP_KIND: u8 = 7;
+
+/// Dedup tag for ring-membership fraud fan-out.
+pub const RING_FRAUD_DEDUP_KIND: u8 = 8;
 
 /// Soft confirmation guidance for light clients (slots to wait for fraud).
 ///
@@ -150,6 +155,21 @@ pub enum FraudProofError {
     /// Storage commitment witness decode failed.
     #[error("storage commitment decode: {0}")]
     StorageCommitmentDecode(String),
+    /// Ring fraud requires `input_index` and `ring_index`.
+    #[error("missing ring indices for ring-membership fraud")]
+    MissingRingIndices,
+    /// Ring fraud requires a parent UTXO witness.
+    #[error("missing parent UTXO witness for ring-membership fraud")]
+    MissingParentUtxoWitness,
+    /// Parent UTXO witness decode failed.
+    #[error("parent UTXO witness decode: {0}")]
+    ParentUtxoWitnessDecode(String),
+    /// Ring column length mismatch inside the disputed input.
+    #[error("input {input}: ring P/C length mismatch")]
+    RingLengthMismatch {
+        /// Input index in the tx.
+        input: usize,
+    },
 }
 
 /// Recompute the body root named by `kind` and compare to the header.
@@ -446,6 +466,8 @@ pub enum TxFraudKind {
     InvalidClsag = 1,
     /// `verify_storage_proof` rejects the proof at `index` given witness commit.
     InvalidSpora = 2,
+    /// Parent-state UTXO witness shows ring member absent or commit mismatch.
+    RingMemberUtxo = 3,
 }
 
 impl TxFraudKind {
@@ -454,9 +476,19 @@ impl TxFraudKind {
         match v {
             1 => Some(Self::InvalidClsag),
             2 => Some(Self::InvalidSpora),
+            3 => Some(Self::RingMemberUtxo),
             _ => None,
         }
     }
+}
+
+/// Parent-state witness for one ring member at block application time.
+#[derive(Debug, Clone)]
+pub enum ParentUtxoWitness {
+    /// `one_time_addr` was not in the parent UTXO map.
+    Absent,
+    /// On-chain entry for the ring member's `P` key.
+    Present(UtxoEntry),
 }
 
 /// CLSAG or SPoRA invalidity challenge (**F5** phase 3).
@@ -466,8 +498,14 @@ pub struct TxFraudProof {
     pub version: u32,
     /// Which check failed.
     pub kind: TxFraudKind,
-    /// `txs` index (CLSAG) or `storage_proofs` index (SPoRA).
+    /// `txs` index (CLSAG / ring) or `storage_proofs` index (SPoRA).
     pub index: u16,
+    /// Input index for [`TxFraudKind::RingMemberUtxo`].
+    pub input_index: Option<u16>,
+    /// Ring index for [`TxFraudKind::RingMemberUtxo`].
+    pub ring_index: Option<u16>,
+    /// Parent UTXO witness for [`TxFraudKind::RingMemberUtxo`].
+    pub parent_utxo_witness: Option<ParentUtxoWitness>,
     /// Parent-state commitment witness (required for [`TxFraudKind::InvalidSpora`]).
     pub storage_commit_witness: Option<StorageCommitment>,
     /// Full block including the disputed tx or storage proof.
@@ -492,6 +530,28 @@ pub struct SporaFraudVerdict {
     pub reason: StorageProofCheck,
 }
 
+/// Why a ring member fails the chain-level UTXO guard.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RingMemberFraudReason {
+    /// Ring `P` was not in the parent UTXO set.
+    NotInUtxoSet,
+    /// Ring `C` does not match the on-chain commitment for `P`.
+    CommitMismatch,
+}
+
+/// Outcome of [`verify_tx_fraud_proof`] for ring-membership fraud.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RingMemberFraudVerdict {
+    /// Index in `block.txs`.
+    pub tx_index: usize,
+    /// Input index within the tx.
+    pub input_index: usize,
+    /// Ring index within the input.
+    pub ring_index: usize,
+    /// Which `apply_block` ring guard would reject.
+    pub reason: RingMemberFraudReason,
+}
+
 /// Verify a phase-3 CLSAG or SPoRA fraud proof.
 pub fn verify_tx_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, FraudProofError> {
     if proof.version != TX_FRAUD_PROOF_VERSION {
@@ -500,6 +560,7 @@ pub fn verify_tx_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, Fra
     match proof.kind {
         TxFraudKind::InvalidClsag => verify_clsag_fraud_proof(proof),
         TxFraudKind::InvalidSpora => verify_spora_fraud_proof(proof),
+        TxFraudKind::RingMemberUtxo => verify_ring_member_utxo_fraud_proof(proof),
     }
 }
 
@@ -558,6 +619,116 @@ fn verify_spora_fraud_proof(proof: &TxFraudProof) -> Result<TxFraudVerdict, Frau
     }))
 }
 
+fn verify_ring_member_utxo_fraud_proof(
+    proof: &TxFraudProof,
+) -> Result<TxFraudVerdict, FraudProofError> {
+    let tx_index = usize::from(proof.index);
+    let input_index = usize::from(
+        proof
+            .input_index
+            .ok_or(FraudProofError::MissingRingIndices)?,
+    );
+    let ring_index = usize::from(
+        proof
+            .ring_index
+            .ok_or(FraudProofError::MissingRingIndices)?,
+    );
+    let witness = proof
+        .parent_utxo_witness
+        .as_ref()
+        .ok_or(FraudProofError::MissingParentUtxoWitness)?;
+    let tx = proof
+        .block
+        .txs
+        .get(tx_index)
+        .ok_or(FraudProofError::IndexOutOfRange {
+            kind: "tx",
+            index: proof.index,
+            len: proof.block.txs.len(),
+        })?;
+    if tx_index == 0 && is_coinbase_shaped(tx) {
+        return Err(FraudProofError::CoinbaseNotClsagTarget(tx_index));
+    }
+    let inp = tx
+        .inputs
+        .get(input_index)
+        .ok_or(FraudProofError::IndexOutOfRange {
+            kind: "input",
+            index: proof.input_index.unwrap_or(0),
+            len: tx.inputs.len(),
+        })?;
+    if inp.ring.p.len() != inp.ring.c.len() {
+        return Err(FraudProofError::RingLengthMismatch { input: input_index });
+    }
+    let (_p, c) = inp
+        .ring
+        .p
+        .get(ring_index)
+        .zip(inp.ring.c.get(ring_index))
+        .ok_or(FraudProofError::IndexOutOfRange {
+            kind: "ring",
+            index: proof.ring_index.unwrap_or(0),
+            len: inp.ring.p.len(),
+        })?;
+    let reason = match witness {
+        ParentUtxoWitness::Absent => RingMemberFraudReason::NotInUtxoSet,
+        ParentUtxoWitness::Present(entry) => {
+            if entry.commit == *c {
+                return Err(FraudProofError::NotFraud);
+            }
+            RingMemberFraudReason::CommitMismatch
+        }
+    };
+    Ok(TxFraudVerdict::RingMember(RingMemberFraudVerdict {
+        tx_index,
+        input_index,
+        ring_index,
+        reason,
+    }))
+}
+
+fn encode_parent_utxo_witness(witness: &ParentUtxoWitness) -> Vec<u8> {
+    let mut out = Vec::new();
+    match witness {
+        ParentUtxoWitness::Absent => out.push(0),
+        ParentUtxoWitness::Present(entry) => {
+            out.push(1);
+            out.extend_from_slice(&entry.commit.compress().to_bytes());
+            out.extend_from_slice(&entry.height.to_le_bytes());
+        }
+    }
+    out
+}
+
+fn decode_parent_utxo_witness(bytes: &[u8]) -> Result<ParentUtxoWitness, FraudProofError> {
+    if bytes.is_empty() {
+        return Err(FraudProofError::ParentUtxoWitnessDecode(
+            "witness too short".into(),
+        ));
+    }
+    match bytes[0] {
+        0 => Ok(ParentUtxoWitness::Absent),
+        1 => {
+            if bytes.len() < 37 {
+                return Err(FraudProofError::ParentUtxoWitnessDecode(
+                    "truncated present witness".into(),
+                ));
+            }
+            let commit = curve25519_dalek::edwards::CompressedEdwardsY::from_slice(&bytes[1..33])
+                .map_err(|e| FraudProofError::ParentUtxoWitnessDecode(e.to_string()))?
+                .decompress()
+                .ok_or_else(|| {
+                    FraudProofError::ParentUtxoWitnessDecode("invalid commit point".into())
+                })?;
+            let height = u32::from_le_bytes([bytes[33], bytes[34], bytes[35], bytes[36]]);
+            Ok(ParentUtxoWitness::Present(UtxoEntry { commit, height }))
+        }
+        tag => Err(FraudProofError::ParentUtxoWitnessDecode(format!(
+            "unknown witness tag {tag}"
+        ))),
+    }
+}
+
 /// Unified phase-3 verdict for gossip admission.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TxFraudVerdict {
@@ -565,6 +736,8 @@ pub enum TxFraudVerdict {
     InvalidClsag(ClsagFraudVerdict),
     /// SPoRA proof failure given parent-state commitment witness.
     InvalidSpora(SporaFraudVerdict),
+    /// Ring member absent from parent UTXO or commit mismatch.
+    RingMember(RingMemberFraudVerdict),
 }
 
 /// Encode a phase-3 fraud proof for P2P / archive.
@@ -584,6 +757,17 @@ pub fn encode_tx_fraud_proof(proof: &TxFraudProof) -> Vec<u8> {
         let len = u32::try_from(commit_wire.len()).unwrap_or(u32::MAX);
         out.extend_from_slice(&len.to_le_bytes());
         out.extend_from_slice(&commit_wire);
+    } else if proof.kind == TxFraudKind::RingMemberUtxo {
+        let input_index = proof.input_index.expect("ring fraud requires input_index");
+        let ring_index = proof.ring_index.expect("ring fraud requires ring_index");
+        out.extend_from_slice(&input_index.to_le_bytes());
+        out.extend_from_slice(&ring_index.to_le_bytes());
+        out.extend_from_slice(&encode_parent_utxo_witness(
+            proof
+                .parent_utxo_witness
+                .as_ref()
+                .expect("ring fraud requires parent UTXO witness"),
+        ));
     }
     out.extend_from_slice(&encode_block(&proof.block));
     out
@@ -600,40 +784,80 @@ pub fn decode_tx_fraud_proof(bytes: &[u8]) -> Result<TxFraudProof, FraudProofErr
     let kind = TxFraudKind::from_u8(bytes[4]).ok_or(FraudProofError::UnknownKind(bytes[4]))?;
     let index = u16::from_le_bytes([bytes[5], bytes[6]]);
     let mut offset = 7usize;
-    let storage_commit_witness = if kind == TxFraudKind::InvalidSpora {
-        if offset + 4 > bytes.len() {
-            return Err(FraudProofError::BlockDecode(
-                "truncated commitment length".into(),
-            ));
-        }
-        let wire_len = usize::try_from(u32::from_le_bytes([
-            bytes[offset],
-            bytes[offset + 1],
-            bytes[offset + 2],
-            bytes[offset + 3],
-        ]))
-        .unwrap_or(usize::MAX);
-        offset = offset.saturating_add(4);
-        if offset.saturating_add(wire_len) > bytes.len() {
-            return Err(FraudProofError::BlockDecode(
-                "truncated commitment wire".into(),
-            ));
-        }
-        let wire = &bytes[offset..offset.saturating_add(wire_len)];
-        offset = offset.saturating_add(wire_len);
-        Some(
-            decode_storage_commitment(wire)
-                .map_err(|e| FraudProofError::StorageCommitmentDecode(e.to_string()))?,
-        )
-    } else {
-        None
-    };
+    let (input_index, ring_index, parent_utxo_witness, storage_commit_witness) =
+        if kind == TxFraudKind::InvalidSpora {
+            if offset + 4 > bytes.len() {
+                return Err(FraudProofError::BlockDecode(
+                    "truncated commitment length".into(),
+                ));
+            }
+            let wire_len = usize::try_from(u32::from_le_bytes([
+                bytes[offset],
+                bytes[offset + 1],
+                bytes[offset + 2],
+                bytes[offset + 3],
+            ]))
+            .unwrap_or(usize::MAX);
+            offset = offset.saturating_add(4);
+            if offset.saturating_add(wire_len) > bytes.len() {
+                return Err(FraudProofError::BlockDecode(
+                    "truncated commitment wire".into(),
+                ));
+            }
+            let wire = &bytes[offset..offset.saturating_add(wire_len)];
+            offset = offset.saturating_add(wire_len);
+            let commit = decode_storage_commitment(wire)
+                .map_err(|e| FraudProofError::StorageCommitmentDecode(e.to_string()))?;
+            (None, None, None, Some(commit))
+        } else if kind == TxFraudKind::RingMemberUtxo {
+            if offset + 4 > bytes.len() {
+                return Err(FraudProofError::BlockDecode(
+                    "truncated ring indices".into(),
+                ));
+            }
+            let input_index = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]);
+            let ring_index = u16::from_le_bytes([bytes[offset + 2], bytes[offset + 3]]);
+            offset = offset.saturating_add(4);
+            if offset >= bytes.len() {
+                return Err(FraudProofError::BlockDecode(
+                    "truncated parent UTXO witness".into(),
+                ));
+            }
+            let witness_wire = match bytes[offset] {
+                0 => {
+                    offset = offset.saturating_add(1);
+                    &bytes[offset - 1..offset]
+                }
+                1 => {
+                    if offset.saturating_add(37) > bytes.len() {
+                        return Err(FraudProofError::BlockDecode(
+                            "truncated parent UTXO witness".into(),
+                        ));
+                    }
+                    let wire = &bytes[offset..offset.saturating_add(37)];
+                    offset = offset.saturating_add(37);
+                    wire
+                }
+                tag => {
+                    return Err(FraudProofError::ParentUtxoWitnessDecode(format!(
+                        "unknown witness tag {tag}"
+                    )));
+                }
+            };
+            let witness = decode_parent_utxo_witness(witness_wire)?;
+            (Some(input_index), Some(ring_index), Some(witness), None)
+        } else {
+            (None, None, None, None)
+        };
     let block = decode_block(&bytes[offset..])
         .map_err(|e: BlockDecodeError| FraudProofError::BlockDecode(e.to_string()))?;
     Ok(TxFraudProof {
         version,
         kind,
         index,
+        input_index,
+        ring_index,
+        parent_utxo_witness,
         storage_commit_witness,
         block,
     })
@@ -688,10 +912,61 @@ pub fn fraud_proof_fanout_key(consensus_wire: &[u8]) -> Option<([u8; 32], u8)> {
         let kind_tag = match p.kind {
             TxFraudKind::InvalidClsag => CLSAG_FRAUD_DEDUP_KIND,
             TxFraudKind::InvalidSpora => SPORA_FRAUD_DEDUP_KIND,
+            TxFraudKind::RingMemberUtxo => RING_FRAUD_DEDUP_KIND,
         };
         return Some((block_id(&p.block.header), kind_tag));
     }
     None
+}
+
+/// Producer slash hook (**F5** phase 3b): identifies the block producer when
+/// interactive fraud is valid. On-chain slashing remains equivocation-only;
+/// this is an ops hook for PM1 bonding and future invalid-block evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FraudProducerSlashHint {
+    /// Block height attached to the fraud proof.
+    pub height: u32,
+    /// `block_id` of the disputed header.
+    pub block_id: [u8; 32],
+    /// Producer validator index from `header.producer_proof`.
+    pub producer_index: u32,
+}
+
+/// Extract producer slash hint from any decodable interactive fraud wire.
+pub fn fraud_proof_producer_slash_hint(consensus_wire: &[u8]) -> Option<FraudProducerSlashHint> {
+    use crate::block::block_id;
+    use crate::consensus::decode_producer_proof;
+    let block = fraud_proof_attached_block(consensus_wire)?;
+    let producer_index = decode_producer_proof(&block.header.producer_proof)
+        .ok()
+        .map(|p| p.validator_index)?;
+    Some(FraudProducerSlashHint {
+        height: block.header.height,
+        block_id: block_id(&block.header),
+        producer_index,
+    })
+}
+
+fn fraud_proof_attached_block(consensus_wire: &[u8]) -> Option<Block> {
+    if consensus_wire.len() < 4 {
+        return None;
+    }
+    let version = u32::from_le_bytes([
+        consensus_wire[0],
+        consensus_wire[1],
+        consensus_wire[2],
+        consensus_wire[3],
+    ]);
+    match version {
+        FRAUD_PROOF_VERSION => decode_body_root_fraud_proof(consensus_wire)
+            .ok()
+            .map(|p| p.block),
+        COINBASE_FRAUD_PROOF_VERSION => decode_coinbase_amount_fraud_proof(consensus_wire)
+            .ok()
+            .map(|p| p.block),
+        TX_FRAUD_PROOF_VERSION => decode_tx_fraud_proof(consensus_wire).ok().map(|p| p.block),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -940,6 +1215,9 @@ mod tests {
             version: TX_FRAUD_PROOF_VERSION,
             kind: TxFraudKind::InvalidClsag,
             index: 0,
+            input_index: None,
+            ring_index: None,
+            parent_utxo_witness: None,
             storage_commit_witness: None,
             block,
         };
@@ -1012,6 +1290,9 @@ mod tests {
             version: TX_FRAUD_PROOF_VERSION,
             kind: TxFraudKind::InvalidSpora,
             index: 0,
+            input_index: None,
+            ring_index: None,
+            parent_utxo_witness: None,
             storage_commit_witness: Some(built.commit.clone()),
             block,
         };
@@ -1023,6 +1304,268 @@ mod tests {
                 assert!(!v.reason.is_valid());
             }
             _ => panic!("expected SPoRA fraud"),
+        }
+        verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
+    }
+
+    #[test]
+    fn ring_member_absent_utxo_fraud_round_trip() {
+        use curve25519_dalek::Scalar;
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::stealth::stealth_gen;
+        use mfn_crypto::{generator_g, generator_h, random_scalar};
+
+        use crate::block::GenesisOutput;
+        use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+        const RING: usize = 16;
+        let init_value = 1_000_000u64;
+        let init_blinding = random_scalar();
+        let signer_spend = random_scalar();
+        let signer_p = generator_g() * signer_spend;
+        let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+        let fake_slot = 7usize;
+        let mut decoys = Vec::with_capacity(RING - 1);
+        let mut initial_outputs = vec![GenesisOutput {
+            one_time_addr: signer_p,
+            amount: signer_c,
+        }];
+        for i in 0..RING - 1 {
+            let spend = random_scalar();
+            let blinding = random_scalar();
+            let p = generator_g() * spend;
+            let c = (generator_g() * blinding) + (generator_h() * Scalar::from(1u64 + i as u64));
+            decoys.push((p, c));
+            initial_outputs.push(GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            });
+        }
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs,
+            initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
+            validators: Vec::new(),
+            params: TEST_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+            header_version: HEADER_VERSION,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).expect("genesis");
+        let mut ring_p = Vec::with_capacity(RING);
+        let mut ring_c = Vec::with_capacity(RING);
+        for slot in 0..RING {
+            if slot == 0 {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else if slot == fake_slot {
+                ring_p.push(generator_g() * random_scalar());
+                ring_c.push(generator_g() * random_scalar());
+            } else {
+                let decoy_idx = if slot < fake_slot { slot - 1 } else { slot - 2 };
+                let (dp, dc) = decoys[decoy_idx];
+                ring_p.push(dp);
+                ring_c.push(dc);
+            }
+        }
+        let w = stealth_gen();
+        let r = Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        };
+        let signed = sign_transaction(
+            vec![InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx: 0,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
+            }],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value: init_value - 2_000,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value: 1_000,
+                    storage: None,
+                },
+            ],
+            1_000,
+            b"absent".to_vec(),
+        )
+        .expect("sign");
+        let block = {
+            let header = build_unsealed_header(
+                &state0,
+                std::slice::from_ref(&signed.tx),
+                &[],
+                &[],
+                &[],
+                1,
+                1,
+            );
+            seal_block(header, vec![signed.tx], vec![], vec![], vec![], vec![])
+        };
+        let proof = TxFraudProof {
+            version: TX_FRAUD_PROOF_VERSION,
+            kind: TxFraudKind::RingMemberUtxo,
+            index: 0,
+            input_index: Some(0),
+            ring_index: Some(fake_slot as u16),
+            parent_utxo_witness: Some(ParentUtxoWitness::Absent),
+            storage_commit_witness: None,
+            block,
+        };
+        let wire = encode_tx_fraud_proof(&proof);
+        match verify_tx_fraud_proof(&decode_tx_fraud_proof(&wire).expect("decode")).expect("fraud")
+        {
+            TxFraudVerdict::RingMember(v) => {
+                assert_eq!(v.reason, RingMemberFraudReason::NotInUtxoSet);
+            }
+            _ => panic!("expected absent ring fraud"),
+        }
+        verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
+    }
+
+    #[test]
+    fn ring_member_commit_mismatch_fraud_round_trip() {
+        use curve25519_dalek::Scalar;
+        use mfn_crypto::clsag::ClsagRing;
+        use mfn_crypto::stealth::stealth_gen;
+        use mfn_crypto::{generator_g, generator_h, random_scalar};
+
+        use crate::block::GenesisOutput;
+        use crate::transaction::{sign_transaction, InputSpec, OutputSpec, Recipient};
+
+        const RING: usize = 16;
+        let init_value = 1_000_000u64;
+        let init_blinding = random_scalar();
+        let signer_spend = random_scalar();
+        let signer_p = generator_g() * signer_spend;
+        let signer_c = (generator_g() * init_blinding) + (generator_h() * Scalar::from(init_value));
+        let inflated_slot = 5usize;
+        let mut decoys = Vec::with_capacity(RING - 1);
+        let mut initial_outputs = vec![GenesisOutput {
+            one_time_addr: signer_p,
+            amount: signer_c,
+        }];
+        for i in 0..RING - 1 {
+            let spend = random_scalar();
+            let blinding = random_scalar();
+            let p = generator_g() * spend;
+            let c = (generator_g() * blinding) + (generator_h() * Scalar::from(100u64 + i as u64));
+            decoys.push((p, c));
+            initial_outputs.push(GenesisOutput {
+                one_time_addr: p,
+                amount: c,
+            });
+        }
+        let cfg = GenesisConfig {
+            timestamp: 0,
+            initial_outputs,
+            initial_storage: Vec::new(),
+            initial_storage_operators: Vec::new(),
+            validators: Vec::new(),
+            params: TEST_CONSENSUS_PARAMS,
+            emission_params: DEFAULT_EMISSION_PARAMS,
+            endowment_params: DEFAULT_ENDOWMENT_PARAMS,
+            bonding_params: None,
+            header_version: HEADER_VERSION,
+        };
+        let g = build_genesis(&cfg);
+        let state0 = apply_genesis(&g, &cfg).expect("genesis");
+        let inflated_c =
+            (generator_g() * random_scalar()) + (generator_h() * Scalar::from(1_000_000_000u64));
+        let mut ring_p = Vec::with_capacity(RING);
+        let mut ring_c = Vec::with_capacity(RING);
+        for slot in 0..RING {
+            if slot == 0 {
+                ring_p.push(signer_p);
+                ring_c.push(signer_c);
+            } else {
+                let (dp, dc) = decoys[slot - 1];
+                ring_p.push(dp);
+                ring_c.push(if slot == inflated_slot {
+                    inflated_c
+                } else {
+                    dc
+                });
+            }
+        }
+        let w = stealth_gen();
+        let r = Recipient {
+            view_pub: w.view_pub,
+            spend_pub: w.spend_pub,
+        };
+        let signed = sign_transaction(
+            vec![InputSpec {
+                ring: ClsagRing {
+                    p: ring_p,
+                    c: ring_c,
+                },
+                signer_idx: 0,
+                spend_priv: signer_spend,
+                value: init_value,
+                blinding: init_blinding,
+            }],
+            vec![
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value: init_value - 2_000,
+                    storage: None,
+                },
+                OutputSpec::ToRecipient {
+                    recipient: r,
+                    value: 1_000,
+                    storage: None,
+                },
+            ],
+            1_000,
+            b"mismatch".to_vec(),
+        )
+        .expect("sign");
+        let block = {
+            let header = build_unsealed_header(
+                &state0,
+                std::slice::from_ref(&signed.tx),
+                &[],
+                &[],
+                &[],
+                1,
+                1,
+            );
+            seal_block(header, vec![signed.tx], vec![], vec![], vec![], vec![])
+        };
+        let (_, real_dc) = decoys[inflated_slot - 1];
+        let proof = TxFraudProof {
+            version: TX_FRAUD_PROOF_VERSION,
+            kind: TxFraudKind::RingMemberUtxo,
+            index: 0,
+            input_index: Some(0),
+            ring_index: Some(inflated_slot as u16),
+            parent_utxo_witness: Some(ParentUtxoWitness::Present(UtxoEntry {
+                commit: real_dc,
+                height: 0,
+            })),
+            storage_commit_witness: None,
+            block,
+        };
+        let wire = encode_tx_fraud_proof(&proof);
+        match verify_tx_fraud_proof(&decode_tx_fraud_proof(&wire).expect("decode")).expect("fraud")
+        {
+            TxFraudVerdict::RingMember(v) => {
+                assert_eq!(v.reason, RingMemberFraudReason::CommitMismatch);
+            }
+            _ => panic!("expected mismatch ring fraud"),
         }
         verify_interactive_fraud_proof(&wire, &DEFAULT_EMISSION_PARAMS).expect("interactive");
     }

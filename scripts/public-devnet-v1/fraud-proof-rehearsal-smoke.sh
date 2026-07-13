@@ -103,8 +103,24 @@ if ! grep -Fq "verify_tx_fraud_proof" "$CONSENSUS"; then
   echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 3 verify_tx_fraud_proof" >&2
   exit 1
 fi
-if ! grep -Fq "TX_FRAUD_PROOF_VERSION" "$CONSENSUS"; then
-  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing TX_FRAUD_PROOF_VERSION" >&2
+if ! grep -Fq "RingMemberUtxo" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 3b RingMemberUtxo" >&2
+  exit 1
+fi
+if ! grep -Fq "RING_FRAUD_DEDUP_KIND" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing RING_FRAUD_DEDUP_KIND" >&2
+  exit 1
+fi
+if ! grep -Fq "fraud_proof_producer_slash_hint" "$CONSENSUS"; then
+  echo "fraud-proof-rehearsal-smoke: fraud_proof.rs missing fraud_proof_producer_slash_hint" >&2
+  exit 1
+fi
+if ! grep -Fq "mfnd_fraud_proof_producer_slash_hint" "$REPO_ROOT/mfn-net/src/serve.rs"; then
+  echo "fraud-proof-rehearsal-smoke: serve.rs missing mfnd_fraud_proof_producer_slash_hint" >&2
+  exit 1
+fi
+if ! grep -Fq "RingMember" "$NODE_GOSSIP"; then
+  echo "fraud-proof-rehearsal-smoke: p2p_gossip.rs missing RingMember verdict handling" >&2
   exit 1
 fi
 
@@ -121,7 +137,7 @@ echo "fraud-proof-rehearsal-smoke: plan"
 echo "  docs=docs/FRAUD_PROOFS.md"
 echo "  consensus=mfn_consensus::fraud_proof"
 echo "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-echo "  phase=3 CLSAG/SPoRA + phase 2 coinbase + phase 1 gossip; slash deferred"
+echo "  phase=3b ring UTXO witness + producer slash ops hint"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "fraud-proof-rehearsal-smoke: PASS plan-only"

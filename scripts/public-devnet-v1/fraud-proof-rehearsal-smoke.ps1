@@ -50,17 +50,23 @@ foreach ($entry in $phase1.GetEnumerator()) {
         throw "fraud-proof-rehearsal-smoke: $($entry.Value) missing phase 1: $($entry.Key)"
     }
 }
-foreach ($needle in @("verify_coinbase_amount_fraud_proof", "verify_interactive_fraud_proof", "COINBASE_FRAUD_PROOF_VERSION", "verify_tx_fraud_proof", "TX_FRAUD_PROOF_VERSION", "InvalidClsag", "InvalidSpora")) {
+foreach ($needle in @("verify_coinbase_amount_fraud_proof", "verify_interactive_fraud_proof", "COINBASE_FRAUD_PROOF_VERSION", "verify_tx_fraud_proof", "TX_FRAUD_PROOF_VERSION", "InvalidClsag", "InvalidSpora", "RingMemberUtxo", "RING_FRAUD_DEDUP_KIND", "fraud_proof_producer_slash_hint")) {
     if (-not (Select-String -LiteralPath $Consensus -Pattern ([regex]::Escape($needle)) -Quiet)) {
-        throw "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2/3: $needle"
+        throw "fraud-proof-rehearsal-smoke: fraud_proof.rs missing phase 2/3/3b: $needle"
     }
+}
+if (-not (Select-String -LiteralPath $Serve -Pattern ([regex]::Escape("mfnd_fraud_proof_producer_slash_hint")) -Quiet)) {
+    throw "fraud-proof-rehearsal-smoke: serve.rs missing mfnd_fraud_proof_producer_slash_hint"
+}
+if (-not (Select-String -LiteralPath $NodeGossip -Pattern ([regex]::Escape("RingMember")) -Quiet)) {
+    throw "fraud-proof-rehearsal-smoke: p2p_gossip.rs missing RingMember verdict handling"
 }
 
 Write-Host "fraud-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::fraud_proof"
 Write-Host "  p2p_tag=0x13 FRAUD_PROOF_V1_TAG"
-Write-Host "  phase=3 CLSAG/SPoRA + phase 2 coinbase + phase 1 gossip; slash deferred"
+Write-Host "  phase=3b ring UTXO witness + producer slash ops hint"
 
 if ($PlanOnly) {
     Write-Host "fraud-proof-rehearsal-smoke: PASS plan-only"
