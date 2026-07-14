@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** F5 phase 4a (this push). **CI `#29296558290` in progress** on `276e775` (board sync). Prior **CI `#29294927626` GREEN** on F5 phase 1c stack.
+**Head:** `e385390`. **CI `#29298069061` GREEN** on F5 phase 4a stack. **Nightly `#29299418927` dispatched**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 4a CI + Nightly | **Doing** — local ci-check + push | Nightly dispatch on GREEN |
-| **2** | Release evidence refresh | **Doing** — refresh on 4a head | Human sign-off packet |
-| **4** | F5 phase 4a validity proof | **Doing** — this push | Phase 4b STARK backend research |
+| **1** | F5 phase 4a Nightly | **Doing** — Nightly `#29299418927` | Pin refresh after Nightly GREEN |
+| **2** | Release evidence refresh | **Done** — `release-evidence-e385390` | Human sign-off packet |
+| **4** | F5 phase 4a validity proof | **Done** — `e385390` | Phase 4b STARK backend research |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | launch-status.v8 + validity 4a | **Doing** — this push | Human TL-5 VPS soak |
+| **7** | launch-status.v8 + validity 4a | **Done** — `e385390` | Human TL-5 VPS soak |
 
 ---
 
@@ -127,7 +127,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 phase 4 SNARK/STARK research** (this push) - protocol (lane 4): `FRAUD_PROOFS.md` § Phase 4 design — wire/fork gate, STARK-first 4a recommendation, acceptance tests.
+- **CI `#29298069061` GREEN** (`e385390`) - RC core (lane 1): F5 phase 4a validity proof wire + launch-status v8; full matrix pass.
+- **F5 phase 4a validity proof wire** (`e385390`) - protocol (lanes 4+7): apply-block replay witness in `mfn-consensus`; P2P tag `0x14`; launch-status v8; validity-proof-rehearsal-smoke plan gate.
+- **F5 phase 4 SNARK/STARK research** (`c2d46f3`) - protocol (lane 4): `FRAUD_PROOFS.md` § Phase 4 design — wire/fork gate, STARK-first 4a recommendation, acceptance tests.
 - **CI `#29294927626` GREEN** (`105ea22`) - RC core (lane 1): F5 phase 1c stack + genesis header v3 rehearsal smoke.
 - **F5 phase 1c integration tests** (`69c0531`) - protocol (lane 4): `invalid_block_slash_zeros_producer_on_coinbase_fraud` + same-height reject.
 - **launch-status v7 + F5 phase 1c design** (8b72294) - testnet launch (lane 7) + protocol (lane 4): `software_ready` pin parse + `fraud_proof` block; `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md`.
