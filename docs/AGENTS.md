@@ -207,10 +207,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (8b72294).
 - [x] **F5 phase 1c integration tests** — `invalid_block_slash_zeros_producer_on_coinbase_fraud` + same-height reject (`69c0531`).
 - [x] **F5 phase 1c genesis_spec v3** — `accepts_header_version_three` + rejects v4 (`be9c760`).
+- [x] **F5 phase 4 research** — SNARK/STARK validity proof design in `FRAUD_PROOFS.md` § Phase 4 (this push).
 
 ### Next
 
-- [ ] **F5 phase 4** — SNARK/STARK validity proofs research.
+- [ ] **F5 phase 4a** — validity proof prototype spike (STARK tx+coinbase+SPoRA batch).
 
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).

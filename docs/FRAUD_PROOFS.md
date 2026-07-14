@@ -214,4 +214,109 @@ Requires **`header_version` bump** (checkpoint v12+) because `slashings` wire sh
 
 ### Launch-status linkage
 
-`launch-status.v7` exposes `fraud_proof.on_chain_producer_slash: "deferred"` until phase 1c ships; then flip to `"shipped"` with `phase_shipped: "1c"`.
+`launch-status.v7` exposes `fraud_proof.on_chain_producer_slash: "shipped"` with `phase_shipped: "1c"` (since `83fdca7`).
+
+---
+
+## Phase 4 — SNARK / STARK validity proofs (research)
+
+**Status:** research (lane 4). Interactive fraud (phases 0–1c) closes the public-testnet light-client gap; phase 4 is the **Tier-4** path to constant-size block validity and compressed fraud witnesses ([`P18`](./F5.md), [`ROADMAP.md` § Tier 3 → Tier 4](./ROADMAP.md)).
+
+### Problem interactive fraud leaves open
+
+Phases 0–3b ship **witness-heavy** challenges: a fraud proof carries the full contested `block` (or large tx/storage witnesses). Light clients can verify without the UTXO set, but:
+
+| Limitation | Impact |
+| --- | --- |
+| Proof size ∝ block body | Bandwidth cost scales with txs, storage proofs, slash evidence |
+| Per-class verifiers | CLSAG, SPoRA, coinbase, body-root each need separate logic |
+| Soft finality window | Honest quorum + 32-slot uncontested rule; no succinct “valid state transition” attestation |
+| Root-consistent invalid bodies | Malicious producer can craft bodies whose Merkle roots match while `apply_block` would still reject (mitigated only when a challenger posts the right fraud class) |
+
+Phase **1c** adds economic penalty (producer stake zero) once someone includes slash evidence — but constructing that evidence still requires the full interactive wire.
+
+### Goal
+
+One **succinct validity proof** per block (or per epoch) that attests:
+
+```text
+apply_block(parent_state, block) succeeds  OR  block_id is rejected with a deterministic error code
+```
+
+Light clients verify the SNARK/STARK in constant time (~milliseconds) instead of re-running interactive fraud classes or trusting quorum alone. Fraud proofs compress to “here is a block + validity proof that disagrees with the header quorum” — or disappear entirely when validity proofs ship in-headers.
+
+### Proof statement (candidate)
+
+Partition into sub-circuits aligned with existing `apply_block` gates (reuse test vectors from `mfn-consensus` integration + proptest suites):
+
+| Sub-circuit | Witness | Public inputs |
+| --- | --- | --- |
+| Header binding | `header_signing_bytes`, BLS sig aggregate (optional cross-check) | `block_id`, `prev_hash`, roots |
+| Tx ingress | CLSAG + range + balance per tx | `tx_root`, ring policy params |
+| Coinbase | emission + fee_sum + settlements | `coinbase` fields, `EmissionParams` digest |
+| Storage proofs | SPoRA verify per proof | `storage_proof_root`, operator registry snapshot |
+| Bond / slash / operator ops | Schnorr + Merkle paths | respective section roots |
+| State transition digest | full `apply_block` on witness state | `utxo_root`, `treasury`, `validator_root` (post-state) |
+
+**Phase 4a (minimal):** prove “all txs + coinbase + storage proofs in this block are individually valid under parent state digest” without proving full UTXO accumulator update (lighter fork gate).
+
+**Phase 4b (full):** recursive aggregation over 4a sub-proofs + UTXO/bond/validator delta = complete `apply_block` digest. Matches [`P18`](./F5.md) / Tier 4 in [`PRIVACY.md`](./PRIVACY.md).
+
+### Backend candidates
+
+| Backend | Pros | Cons | Permawrite fit |
+| --- | --- | --- | --- |
+| **STARK (Winterfell / Plonky2 STARK)** | Transparent setup; post-quantum friendly narrative | Larger proofs; prover RAM | Aligns with “no trusted setup” docs; good for public testnet story |
+| **Halo2 / Nova recursion** | Small proofs; Rust ecosystem | Curve setup assumptions | Natural if we stay on Pasta/BLS12-381 family for recursion |
+| **Groth16 per sub-circuit** | Mature CLSAG-adjacent tooling (limited) | Trusted setup per circuit; awkward recursion | Poor fit for open ceremony |
+
+**Recommendation (2026-07):** prototype **4a** with a STARK backend for tx+coinbase+SPoRA batch verify (deterministic, no trusted setup); keep Halo2/Nova as fallback if proof size on block-heavy workloads exceeds gossip budget. SPoRA stays Merkle-native — SNARK wraps existing `verify_storage_proof`, does not replace operator challenges ([`STORAGE.md` § Why we don't use ZK SNARKs](./STORAGE.md#why-we-dont-use-zk-snarks-here-yet)).
+
+### Wire / fork gate
+
+| Artifact | Proposal |
+| --- | --- |
+| Header field | `validity_proof` blob (optional until phase 4 ships) |
+| `header_version` | Bump to **4** (after 1c's version 3 slash wire) |
+| Checkpoint | v13+ carries validity-proof params (circuit digest, max proof bytes) |
+| Gossip | New tag `0x14` reserved for standalone validity proofs (full nodes); headers carry succinct proof at finalize |
+| Mempool | Reject blocks with invalid validity proof when `require_validity_proof: 1` |
+
+Public devnet stays on header v1 until TL-7; phase 4 ships behind version gate like phase 1c.
+
+### Relationship to phase 1c slash
+
+Invalid-block slash evidence can shrink to:
+
+```text
+(height, block_id, producer_index, validity_proof_ref)
+```
+
+where `validity_proof_ref` is a hash of a succinct proof that `apply_block` rejects the contested block — instead of embedding the full interactive fraud wire. Slashing verification calls the same validity verifier used for block acceptance.
+
+### Acceptance tests (phase 4a)
+
+| Test | Crate | Assert |
+| --- | --- | --- |
+| `validity_proof_roundtrip` | `mfn-consensus` | encode/decode; max size bound |
+| `validity_proof_rejects_tampered_block` | `mfn-consensus` | flip one tx byte → verify fails |
+| `validity_proof_accepts_empty_block` | `mfn-consensus` | genesis→height-1 empty chain |
+| `mfnd_validity_proof_gossip` | `mfn-node` | tag `0x14` recv + verify + ops log |
+| `ignored_apply_block_validity_equivalence` | `mfn-consensus` | SNARK verdict matches `apply_block` on proptest seeds |
+
+### Non-goals (phase 4)
+
+- Replacing SPoRA Merkle challenges with ZK storage proofs (see [`STORAGE_ACCESSIBILITY.md` § Phase D](./STORAGE_ACCESSIBILITY.md)).
+- P11 curve-tree / OoM membership (separate Tier-3 fork).
+- Wallet-side proof generation at phase 4a (block producer or dedicated prover service only).
+
+### Dependencies
+
+- **P18** — recursive SNARK block validity (F5 phase 4 implements the F5-facing slice).
+- **F7** — canonical input-count shapes reduce circuit variability.
+- **F10** — purge `f64` from consensus before embedding economics in circuits.
+- **TL-7** — genesis ceremony pins `header_version` + validity-proof params together.
+
+### Launch-status linkage (future)
+
+Extend `launch-status.v8` with `fraud_proof.validity_proof: "deferred" | "research" | "shipped"` and `validity_proof_phase: "4a" | "4b"`.

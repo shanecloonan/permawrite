@@ -83,15 +83,15 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `105ea22`. **CI `#29294927626` GREEN** on F5 phase 1c stack (`69c0531`+`be9c760`+`105ea22`). **Functional pin:** `85dad78` (refresh release evidence next).
+**Head:** `253764a`. **CI `#29294927626` GREEN** on F5 phase 1c stack. **Nightly `#29296433903` dispatched**. **Release evidence** `release-evidence-105ea22` RC audit **go**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 1c CI | **Done** — CI `#29294927626` GREEN on `105ea22` | Nightly dispatch + pin refresh |
-| **2** | Release evidence refresh | **Done** — `release-evidence-7c7d2ad` RC audit **go** | Re-run evidence when CI green |
-| **4** | F5 phase 4 SNARK research | **Doing** — `FRAUD_PROOFS.md` phase 4 design | Phase 4a prototype spike |
+| **1** | F5 phase 1c CI + Nightly | **Done** — CI `#29294927626` GREEN; Nightly `#29296433903` dispatched | Pin refresh after Nightly GREEN |
+| **2** | Release evidence refresh | **Done** — `release-evidence-105ea22` RC audit **go** | Human sign-off packet |
+| **4** | F5 phase 4 SNARK research | **Done** — `FRAUD_PROOFS.md` § Phase 4 (this push) | Phase 4a prototype spike |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** | launch-status.v7 + fraud_proof 1c | **Done** — `8b72294`+`83fdca7` | Human TL-5 VPS soak |
 
@@ -127,7 +127,9 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## Recently completed
 
-- **F5 phase 1c on-chain producer slash** (this push) - protocol (lane 4): tagged `SlashEvidence` union + `InvalidBlockEvidence` + `HEADER_VERSION_FRAUD_SLASH`=3; `apply_block` stake zero; launch-status `fraud_proof.phase_shipped=1c`.
+- **F5 phase 4 SNARK/STARK research** (this push) - protocol (lane 4): `FRAUD_PROOFS.md` § Phase 4 design — wire/fork gate, STARK-first 4a recommendation, acceptance tests.
+- **CI `#29294927626` GREEN** (`105ea22`) - RC core (lane 1): F5 phase 1c stack + genesis header v3 rehearsal smoke.
+- **F5 phase 1c integration tests** (`69c0531`) - protocol (lane 4): `invalid_block_slash_zeros_producer_on_coinbase_fraud` + same-height reject.
 - **launch-status v7 + F5 phase 1c design** (8b72294) - testnet launch (lane 7) + protocol (lane 4): `software_ready` pin parse + `fraud_proof` block; `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md`.
 - **CI `#29284954973` GREEN** (`c9549e3`) - RC core (lane 1): TL-5 software-ready pin board sync.
 - **Nightly `#29284893108` GREEN** (`7c7d2ad`) - RC core (lane 1): all three jobs on Nightly board-sync head.

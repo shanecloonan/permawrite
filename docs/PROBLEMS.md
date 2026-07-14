@@ -105,7 +105,7 @@ docs. Deeper analysis of every item lives in
 
 ### 11. ~~Committee finality does not attest state-transition validity~~ (partially mitigated)
 
-> **Status: fraud-proof phase 3b + 1b + 1c shipped** — body-root (v1) + coinbase (v2) + CLSAG/SPoRA/ring UTXO (v3) verify via `verify_interactive_fraud_proof`; phase **1b** `FraudContestRegistry` + RPC `list_fraud_contests`; phase **1c** on-chain `InvalidBlockEvidence` slash behind `HEADER_VERSION_FRAUD_SLASH` (3); public devnet stays header v1 until TL-7.
+> **Status: fraud-proof phase 3b + 1b + 1c shipped** — body-root (v1) + coinbase (v2) + CLSAG/SPoRA/ring UTXO (v3) verify via `verify_interactive_fraud_proof`; phase **1b** `FraudContestRegistry` + RPC `list_fraud_contests`; phase **1c** on-chain `InvalidBlockEvidence` slash behind `HEADER_VERSION_FRAUD_SLASH` (3); public devnet stays header v1 until TL-7. Phase **4** (SNARK/STARK succinct validity) is **research** — see [`FRAUD_PROOFS.md` § Phase 4](./FRAUD_PROOFS.md#phase-4--snark--stark-validity-proofs-research).
 
 The reference voting path (`cast_vote` → `verify_producer_proof` in
 `mfn-consensus/src/consensus/engine.rs`) verifies the producer's VRF
