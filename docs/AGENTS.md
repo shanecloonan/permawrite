@@ -209,10 +209,11 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 1c genesis_spec v3** — `accepts_header_version_three` + rejects v4 (`be9c760`).
 - [x] **F5 phase 4 research** — SNARK/STARK validity proof design in `FRAUD_PROOFS.md` § Phase 4 (`c2d46f3`).
 - [x] **F5 phase 4a** — apply-block replay witness + P2P tag `0x14` + launch-status v8 (e385390; CI #29298069061 GREEN).
+- [x] **F5 phase 4b** — STARK digest-stub witness kind 2 + domain-separated circuit digest + launch-status v9 (`8f814cf`; this push).
 
 ### Next
 
-- [ ] **F5 phase 4b** — STARK backend spike (tx+coinbase+SPoRA batch circuit).
+- [ ] **F5 phase 4b.1** — Winterfell tx+coinbase+SPoRA batch circuit.
 
 - [x] **B3 phase 1** — operator-salted SPoRA challenge derivation (`mfn-storage`; `eea59aa`).
 - [x] **B3 phase 2** — per-operator proof slots + `apply_block` wire (checkpoint v5; flag off on public genesis).
