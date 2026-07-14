@@ -7,13 +7,27 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 phase 1c stack `be9c760`; CI `#29291186030` FAIL fixed | **Doing** — CI on genesis_spec v3 fix | Green CI + Nightly dispatch |
-| **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | F5 phase 1c stack `105ea22`; CI `#29294927626` GREEN | **Done** | Nightly dispatch + pin refresh |
+| **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Re-run evidence when CI green |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1c impl (`HEADER_VERSION_FRAUD_SLASH`) | **Done** — this push | Full apply_block producer slash integration test |
+| **4+6** Protocol | F5 phase 1c integration + genesis_spec v3 | **Done** — `69c0531`+`be9c760` | F5 phase 4 SNARK research (`FRAUD_PROOFS.md`) |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | launch-status.v7 fraud_proof 1c | **Done** — this push | Human TL-5 VPS soak → TL-6 |
+| **7** Testnet | launch-status.v7 fraud_proof 1c | **Done** — `8b72294`+`83fdca7` | Human TL-5 VPS soak → TL-6 |
+
+---
+
+## Session — 2026-07-13 (F5 phase 1c CI fix + phase 4 research)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **genesis_spec v3 fix** | **Done** — `be9c760` | `accepts_header_version_three`; rejects v4 |
+| **rehearsal smoke gate** | **Done** — `105ea22` | genesis-header-version-rehearsal-smoke needles |
+| **F5 phase 4 research** | **Doing** — this push | SNARK/STARK validity proof design in `FRAUD_PROOFS.md` |
+| **CI #29294927626** | **In progress** | `105ea22` stack |
+
+**Lane 1 — Doing:** CI `#29294927626` **Next:** Nightly dispatch after green  
+**Lane 4 — Doing:** phase 4 research doc **Next:** phase 4a prototype spike
 
 ---
 
