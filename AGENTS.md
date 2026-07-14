@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `253764a`. **CI `#29294927626` GREEN** on F5 phase 1c stack. **Nightly `#29296433903` dispatched**. **Release evidence** `release-evidence-105ea22` RC audit **go**.
+**Head:** F5 phase 4a (this push). **CI `#29296558290` in progress** on `276e775` (board sync). Prior **CI `#29294927626` GREEN** on F5 phase 1c stack.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 1c CI + Nightly | **Done** — CI `#29294927626` GREEN; Nightly `#29296433903` dispatched | Pin refresh after Nightly GREEN |
-| **2** | Release evidence refresh | **Done** — `release-evidence-105ea22` RC audit **go** | Human sign-off packet |
-| **4** | F5 phase 4 SNARK research | **Done** — `FRAUD_PROOFS.md` § Phase 4 (this push) | Phase 4a prototype spike |
+| **1** | F5 phase 4a CI + Nightly | **Doing** — local ci-check + push | Nightly dispatch on GREEN |
+| **2** | Release evidence refresh | **Doing** — refresh on 4a head | Human sign-off packet |
+| **4** | F5 phase 4a validity proof | **Doing** — this push | Phase 4b STARK backend research |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | launch-status.v7 + fraud_proof 1c | **Done** — `8b72294`+`83fdca7` | Human TL-5 VPS soak |
+| **7** | launch-status.v8 + validity 4a | **Doing** — this push | Human TL-5 VPS soak |
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane 7: plan-only launch-status v7 schema rehearsal.
+# Lane 7: plan-only launch-status v8 schema rehearsal.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +8,7 @@ usage() {
   cat <<EOF
 usage: $(basename "$0") [--plan-only]
 
-Validates launch-status.v7 JSON schema + checkpoint_log + execution_checklist (no VPS required).
+Validates launch-status.v8 JSON schema + checkpoint_log + execution_checklist (no VPS required).
 EOF
 }
 
@@ -26,7 +26,7 @@ export JSON="$json"
 python3 - <<'PY'
 import json, os, sys
 doc = json.loads(os.environ["JSON"])
-assert doc.get("schema_version") == "launch-status.v7", doc.get("schema_version")
+assert doc.get("schema_version") == "launch-status.v8", doc.get("schema_version")
 cl = doc.get("checkpoint_log") or {}
 assert cl.get("path") == "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl", cl.get("path")
 for key in ("exists", "entry_count", "published"):
@@ -47,8 +47,11 @@ fp = doc.get("fraud_proof") or {}
 assert fp.get("phase_shipped") == "1c", fp.get("phase_shipped")
 assert fp.get("on_chain_producer_slash") == "shipped", fp.get("on_chain_producer_slash")
 assert fp.get("list_fraud_contests_rpc") is True, fp.get("list_fraud_contests_rpc")
+assert fp.get("validity_proof") == "research", fp.get("validity_proof")
+assert fp.get("validity_proof_phase") == "4a", fp.get("validity_proof_phase")
+assert fp.get("p2p_tag_validity") == "0x14", fp.get("p2p_tag_validity")
 print("launch-status-rehearsal-smoke: plan")
-print("  schema=launch-status.v7")
+print("  schema=launch-status.v8")
 print(f"  checkpoint_log.path={cl.get('path')}")
 print(f"  checkpoint_log.entry_count={cl.get('entry_count')}")
 print(f"  execution_checklist={ec.get('schema_version')}")
@@ -56,6 +59,7 @@ print(f"  treasury_telemetry={tt.get('schema_version')}")
 print(f"  role_templates={rt.get('schema_version')}")
 print(f"  software_ready_pin={sr.get('release_commit')} head_matches_pin={sr.get('head_matches_pin')}")
 print(f"  fraud_proof_phase={fp.get('phase_shipped')}")
+print(f"  validity_proof={fp.get('validity_proof')}")
 print("  helper=launch-status.sh --json")
 PY
 

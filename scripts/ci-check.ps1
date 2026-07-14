@@ -144,7 +144,7 @@ if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log-rehearsal-smoke:
     exit 1
 }
 $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v7") {
+if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v8") {
     $launchStatus | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
@@ -236,6 +236,11 @@ if ($genesisHeaderVersionPlan -notmatch "genesis-header-version-rehearsal-smoke:
 $fraudProofPlan = (powershell -NoProfile -File scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($fraudProofPlan -notmatch "fraud-proof-rehearsal-smoke: PASS plan-only" -or $fraudProofPlan -notmatch "FRAUD_PROOF_V1_TAG") {
     $fraudProofPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$validityProofPlan = (powershell -NoProfile -File scripts/public-devnet-v1/validity-proof-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($validityProofPlan -notmatch "validity-proof-rehearsal-smoke: PASS plan-only" -or $validityProofPlan -notmatch "VALIDITY_PROOF_V1_TAG") {
+    $validityProofPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $fixtureEvidenceDir = "scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1"

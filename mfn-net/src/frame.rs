@@ -35,6 +35,9 @@
 //!
 //! **F5** reserves tag `0x13` ([`crate::fraud_proof_v1::FRAUD_PROOF_V1_TAG`]) for interactive
 //! body-root fraud proofs; gossip fan-out is phase 1.
+//!
+//! **F5 phase 4a** reserves tag `0x14` ([`crate::validity_proof_v1::VALIDITY_PROOF_V1_TAG`]) for
+//! succinct validity proofs (apply-block replay witness in phase 4a).
 
 use std::io::{Read, Write};
 

@@ -163,6 +163,9 @@ genesis_header_version_plan="$(bash scripts/public-devnet-v1/genesis-header-vers
 fraud_proof_plan="$(bash scripts/public-devnet-v1/fraud-proof-rehearsal-smoke.sh --plan-only)"
 [[ "$fraud_proof_plan" == *"fraud-proof-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$fraud_proof_plan" >&2; exit 1; }
 [[ "$fraud_proof_plan" == *"FRAUD_PROOF_V1_TAG"* ]] || { printf '%s\n' "$fraud_proof_plan" >&2; exit 1; }
+validity_proof_plan="$(bash scripts/public-devnet-v1/validity-proof-rehearsal-smoke.sh --plan-only)"
+[[ "$validity_proof_plan" == *"validity-proof-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$validity_proof_plan" >&2; exit 1; }
+[[ "$validity_proof_plan" == *"VALIDITY_PROOF_V1_TAG"* ]] || { printf '%s\n' "$validity_proof_plan" >&2; exit 1; }
 bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh scripts/public-devnet-v1/fixtures/participant-rehearsal-evidence-v1
 bad_evidence_dir="$(mktemp -d)"
 if bash scripts/public-devnet-v1/assert-participant-smoke-evidence.sh "$bad_evidence_dir" >/dev/null 2>&1; then

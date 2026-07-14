@@ -20,6 +20,7 @@ use crate::light_follow::{
     GetLightFollowV1, LightFollowProvider, GET_LIGHT_FOLLOW_V1_TAG, LIGHT_FOLLOW_V1_TAG,
 };
 use crate::production::{ProductionHandler, PROPOSAL_V1_TAG, VOTE_V1_TAG};
+use crate::validity_proof_v1::{ValidityProofV1, VALIDITY_PROOF_V1_TAG};
 
 /// Maximum blocks returned per [`GetBlocksByHeightV1`] (defense in depth).
 pub const MAX_BLOCKS_PER_GET_V1: u32 = 64;
@@ -253,8 +254,17 @@ pub fn recv_blocks_v1<R: Read>(r: &mut R) -> Result<BlocksV1, BlockSyncRecvError
             BLOCKS_V1_TAG => {
                 return BlocksV1::decode_payload(&payload).map_err(BlockSyncRecvError::Decode);
             }
-            PROPOSAL_V1_TAG | VOTE_V1_TAG | CHUNK_V1_TAG | CHUNK_V2_TAG | FRAUD_PROOF_V1_TAG
-            | 0x06 | TX_STEM_V1_TAG | 0x07 | 0x08 | 0x0b => continue,
+            PROPOSAL_V1_TAG
+            | VOTE_V1_TAG
+            | CHUNK_V1_TAG
+            | CHUNK_V2_TAG
+            | FRAUD_PROOF_V1_TAG
+            | VALIDITY_PROOF_V1_TAG
+            | 0x06
+            | TX_STEM_V1_TAG
+            | 0x07
+            | 0x08
+            | 0x0b => continue,
             tag => {
                 return Err(BlockSyncRecvError::Decode(
                     BlockSyncDecodeError::UnknownTag(tag),
@@ -460,7 +470,11 @@ pub fn serve_post_handshake_v1(
             }
             tag if matches!(
                 tag,
-                0x07 | 0x08 | CHUNK_V1_TAG | CHUNK_V2_TAG | FRAUD_PROOF_V1_TAG
+                0x07 | 0x08
+                    | CHUNK_V1_TAG
+                    | CHUNK_V2_TAG
+                    | FRAUD_PROOF_V1_TAG
+                    | VALIDITY_PROOF_V1_TAG
             ) || is_tx_gossip_tag(tag) =>
             {
                 recv_gossip_v1_from_first(stream, &payload, tag, gossip)?;
@@ -515,6 +529,11 @@ fn recv_gossip_v1_from_first<R: Read>(
                 let _ = handler.on_fraud_proof_v1(&proof.0);
                 stats.fraud_proof_frames = stats.fraud_proof_frames.saturating_add(1);
             }
+            VALIDITY_PROOF_V1_TAG => {
+                let proof = ValidityProofV1::decode_payload(payload)?;
+                let _ = handler.on_validity_proof_v1(&proof.0);
+                stats.validity_proof_frames = stats.validity_proof_frames.saturating_add(1);
+            }
             0x08 => {
                 crate::frame::GossipEndV1::decode(payload)?;
                 return Ok(());
@@ -534,6 +553,9 @@ fn recv_gossip_v1_from_first<R: Read>(
     stats.fraud_proof_frames = stats
         .fraud_proof_frames
         .saturating_add(rest.fraud_proof_frames);
+    stats.validity_proof_frames = stats
+        .validity_proof_frames
+        .saturating_add(rest.validity_proof_frames);
     Ok(stats)
 }
 

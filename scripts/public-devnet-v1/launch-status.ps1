@@ -72,10 +72,13 @@ function Get-SoftwareReadyFromPlaybook {
 
 function Get-FraudProofStackMeta {
     return [ordered]@{
-        schema_version          = "fraud-proof-stack.v1"
+        schema_version          = "fraud-proof-stack.v2"
         phase_shipped           = "1c"
         list_fraud_contests_rpc = $true
         on_chain_producer_slash = "shipped"
+        validity_proof          = "research"
+        validity_proof_phase    = "4a"
+        p2p_tag_validity        = "0x14"
         doc                     = "docs/FRAUD_PROOFS.md"
     }
 }
@@ -243,7 +246,7 @@ if ($softwareReady) {
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v7"
+    schema_version         = "launch-status.v8"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"

@@ -39,6 +39,7 @@ pub mod production;
 pub mod serve;
 pub mod socks5;
 pub mod transport;
+pub mod validity_proof_v1;
 
 pub use block_sync::{
     pull_blocks_to_tip, recv_blocks_v1, send_get_blocks_by_height_v1, serve_post_handshake_v1,
@@ -63,9 +64,10 @@ pub use fraud_proof_v1::{FraudProofV1, FraudProofV1DecodeError, FRAUD_PROOF_V1_T
 pub use gossip::{
     push_block_gossip_to_peer, push_chunk_gossip_to_peer, push_chunks_gossip_to_peer,
     push_fraud_proof_gossip_to_peer, push_tx_gossip_to_peer, push_tx_stem_gossip_to_peer,
-    recv_gossip_v1, send_block_v1, send_chunk_v1, send_chunk_v2, send_fraud_proof_v1,
-    send_gossip_end_v1, send_tx_stem_v1, send_tx_v1, FanoutPeerSet, GossipHandler, GossipRecvError,
-    GossipRecvStats, PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
+    push_validity_proof_gossip_to_peer, recv_gossip_v1, send_block_v1, send_chunk_v1,
+    send_chunk_v2, send_fraud_proof_v1, send_gossip_end_v1, send_tx_stem_v1, send_tx_v1,
+    send_validity_proof_v1, FanoutPeerSet, GossipHandler, GossipRecvError, GossipRecvStats,
+    PushTxGossipError, P2P_GOSSIP_IO_TIMEOUT,
 };
 pub use handshake::{
     exchange_chain_tip_v1_as_dialer, exchange_chain_tip_v1_as_listener,
@@ -105,6 +107,9 @@ pub use transport::{
     active_p2p_transport, init_active_p2p_transport, init_active_p2p_transport_from_env,
     tcp_connect_with_timeout, P2pTransportConfig, P2pTransportKind, DEFAULT_TOR_SOCKS5,
     MFND_P2P_ONION_ENV, MFND_P2P_TRANSPORT_ENV, MFND_TOR_SOCKS5_ENV,
+};
+pub use validity_proof_v1::{
+    ValidityProofV1 as NetValidityProofV1, ValidityProofV1DecodeError, VALIDITY_PROOF_V1_TAG,
 };
 
 /// Tunables for a future gossip listener + dialer (no sockets are opened by this struct).

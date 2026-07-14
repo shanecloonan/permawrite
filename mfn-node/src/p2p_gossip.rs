@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use mfn_consensus::{
     block_id, decode_block, decode_transaction, fraud_proof_contested_block,
     fraud_proof_producer_slash_hint, tx_id, verify_interactive_fraud_proof,
-    CoinbaseAmountFraudVerdict, FraudProofVerdict, InteractiveFraudVerdict, TxFraudVerdict,
-    DEFAULT_EMISSION_PARAMS,
+    verify_validity_proof_v1, CoinbaseAmountFraudVerdict, FraudProofVerdict,
+    InteractiveFraudVerdict, TxFraudVerdict, ValidityProofVerdict, DEFAULT_EMISSION_PARAMS,
 };
 use mfn_net::{BlockSyncApplier, GossipHandler, TipSnapshot};
 use mfn_runtime::{AdmitError, AdmitOutcome, Chain, Mempool, ProofPool};
@@ -337,6 +337,15 @@ impl GossipHandler for P2pGossipHandler {
             label
         }
     }
+
+    fn on_validity_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        match verify_validity_proof_v1(consensus_wire) {
+            Ok(ValidityProofVerdict::ValidAccept { height }) => {
+                format!("valid_validity:height={height}")
+            }
+            Err(e) => format!("rejected:verify:{e}"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -344,7 +353,8 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use mfn_consensus::{
-        build_genesis, build_unsealed_header, encode_block, seal_block, GenesisConfig,
+        build_apply_block_replay_validity_proof, build_genesis, build_unsealed_header,
+        encode_block, encode_validity_proof_v1, seal_block, GenesisConfig,
         DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
     };
     use mfn_net::GossipHandler;
@@ -643,6 +653,33 @@ mod tests {
         assert!(
             label.starts_with("rejected:verify:"),
             "expected verify reject, got {label}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_apply_block_replay_validity_proof() {
+        let (handler, _) = handler_at_height_1();
+        let (parent, genesis_id, block) = {
+            let guard = handler.chain.lock().expect("chain");
+            let st = guard.state().clone();
+            let gid = *guard.genesis_id();
+            let unsealed = build_unsealed_header(&st, &[], &[], &[], &[], 2, 2_000);
+            let block = seal_block(
+                unsealed,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            );
+            (st, gid, block)
+        };
+        let proof = build_apply_block_replay_validity_proof(genesis_id, &parent, &block);
+        let wire = encode_validity_proof_v1(&proof);
+        let label = handler.on_validity_proof_v1(&wire);
+        assert!(
+            label.starts_with("valid_validity:height=2"),
+            "expected valid validity, got {label}"
         );
     }
 }

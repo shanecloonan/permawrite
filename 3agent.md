@@ -7,13 +7,38 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29294927626` GREEN; Nightly dispatched | **Doing** — monitor Nightly | Pin refresh after Nightly GREEN |
-| **2** RC ops | `release-evidence-105ea22` RC audit **go** | **Done** | Human sign-off packet |
+| **1** RC core | CI `#29294927626` GREEN | **Doing** — F5 4a ci-check + push | Nightly dispatch on GREEN |
+| **2** RC ops | `release-evidence-105ea22` | **Doing** — refresh on 4a head | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 4 research `c2d46f3` | **Done** | Phase 4a prototype spike |
+| **4+6** Protocol | F5 phase 4 research `c2d46f3` | **Doing** — phase 4a this push | Phase 4b STARK backend |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | launch-status.v7 fraud_proof 1c | **Done** — `8b72294`+`83fdca7` | Human TL-5 VPS soak → TL-6 |
+| **7** Testnet | launch-status.v7 | **Doing** — launch-status.v8 this push | Human TL-5 VPS soak → TL-6 |
+
+---
+
+## Session — 2026-07-13 (F5 phase 4a validity proof wire)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 phase 4a** | **Doing** — this push | apply-block replay witness; P2P tag `0x14`; launch-status v8 |
+| **validity-proof-rehearsal-smoke** | **Doing** — this push | plan-only gate in ci-check |
+
+**Lane 4 — Doing:** phase 4a wire **Next:** phase 4b STARK backend  
+**Lane 7 — Doing:** launch-status v8 **Next:** human TL-5 VPS soak
+
+---
+
+## Session — 2026-07-14 (F5 phase 4a validity proof wire)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 phase 4a** | **Doing** — this push | `validity_proof` replay witness + P2P tag `0x14` + mfnd gossip verify |
+| **Nightly #29296433903** | **Done** — GREEN | F5 1c stack on `105ea22` |
+| **TL-5** | **Waiting** — human | VPS internet soak |
+
+**Lane 4 — Doing:** phase 4a wire **Next:** phase 4b STARK spike  
+**Lane 1 — Done:** Nightly GREEN **Next:** pin refresh after this push CI
 
 ---
 

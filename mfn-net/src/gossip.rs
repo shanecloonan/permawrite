@@ -16,6 +16,9 @@ use crate::frame::{
 };
 use crate::fraud_proof_v1::{FraudProofV1, FraudProofV1DecodeError, FRAUD_PROOF_V1_TAG};
 use crate::handshake::{tcp_connect_peer_v1_handshake_with_tip_exchange, HelloHandshakeError};
+use crate::validity_proof_v1::{
+    ValidityProofV1, ValidityProofV1DecodeError, VALIDITY_PROOF_V1_TAG,
+};
 
 /// Per-frame I/O budget while reading a gossip burst (post-goodbye).
 pub const P2P_GOSSIP_IO_TIMEOUT: Duration = Duration::from_secs(10);
@@ -100,6 +103,12 @@ pub trait GossipHandler: Send + Sync {
         let _ = consensus_wire;
         "ignored:fraud_proof_v1".into()
     }
+
+    /// Verify or ignore one validity proof (**F5** phase 4a). Default ignores.
+    fn on_validity_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        let _ = consensus_wire;
+        "ignored:validity_proof_v1".into()
+    }
 }
 
 /// Counts of gossip frames handled in one burst.
@@ -113,6 +122,8 @@ pub struct GossipRecvStats {
     pub chunk_frames: u32,
     /// Number of [`FraudProofV1`] frames accepted for handling (**F5**).
     pub fraud_proof_frames: u32,
+    /// Number of [`ValidityProofV1`] frames accepted for handling (**F5** phase 4a).
+    pub validity_proof_frames: u32,
 }
 
 /// Failure while receiving a gossip burst.
@@ -133,6 +144,9 @@ pub enum GossipRecvError {
     /// Body-root fraud proof frame decode error (**F5**).
     #[error("fraud_proof: {0}")]
     FraudProof(#[from] FraudProofV1DecodeError),
+    /// Validity proof frame decode error (**F5** phase 4a).
+    #[error("validity_proof: {0}")]
+    ValidityProof(#[from] ValidityProofV1DecodeError),
     /// Unknown gossip tag during the burst.
     #[error("unknown gossip tag 0x{0:02x}")]
     UnknownTag(u8),
@@ -185,6 +199,11 @@ pub fn recv_gossip_v1<R: Read>(
                 let _ = handler.on_fraud_proof_v1(&proof.0);
                 stats.fraud_proof_frames = stats.fraud_proof_frames.saturating_add(1);
             }
+            VALIDITY_PROOF_V1_TAG => {
+                let proof = ValidityProofV1::decode_payload(&payload)?;
+                let _ = handler.on_validity_proof_v1(&proof.0);
+                stats.validity_proof_frames = stats.validity_proof_frames.saturating_add(1);
+            }
             0x08 => {
                 GossipEndV1::decode(&payload)?;
                 return Ok(stats);
@@ -232,6 +251,15 @@ pub fn send_fraud_proof_v1<W: Write>(
     consensus_wire: &[u8],
 ) -> Result<(), FrameWriteError> {
     write_frame_io(w, &FraudProofV1::encode_payload(consensus_wire))?;
+    Ok(())
+}
+
+/// Send one [`ValidityProofV1`] frame (**F5** phase 4a).
+pub fn send_validity_proof_v1<W: Write>(
+    w: &mut W,
+    consensus_wire: &[u8],
+) -> Result<(), FrameWriteError> {
+    write_frame_io(w, &ValidityProofV1::encode_payload(consensus_wire))?;
     Ok(())
 }
 
@@ -404,6 +432,22 @@ pub fn push_fraud_proof_gossip_to_peer(
     let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
     send_fraud_proof_v1(&mut sock, consensus_wire)?;
+    send_gossip_end_v1(&mut sock)?;
+    Ok(())
+}
+
+/// Dial a peer, handshake, send one [`ValidityProofV1`], then [`GossipEndV1`] (**F5** phase 4a).
+pub fn push_validity_proof_gossip_to_peer(
+    peer_addr: &str,
+    genesis_id: &[u8; 32],
+    local_tip: &ChainTipV1,
+    consensus_wire: &[u8],
+) -> Result<(), PushTxGossipError> {
+    let (mut sock, _remote) =
+        tcp_connect_peer_v1_handshake_with_tip_exchange(peer_addr, genesis_id, local_tip)?;
+    let _ = sock.set_read_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    let _ = sock.set_write_timeout(Some(P2P_GOSSIP_IO_TIMEOUT));
+    send_validity_proof_v1(&mut sock, consensus_wire)?;
     send_gossip_end_v1(&mut sock)?;
     Ok(())
 }
@@ -588,6 +632,37 @@ mod tests {
         )
         .unwrap();
         assert_eq!(stats.fraud_proof_frames, 1);
+    }
+
+    #[test]
+    fn recv_gossip_v1_validity_proof_then_end() {
+        let consensus_wire = vec![9u8, 8, 7, 6];
+        let mut wire = Vec::new();
+        send_validity_proof_v1(&mut wire, &consensus_wire).unwrap();
+        send_gossip_end_v1(&mut wire).unwrap();
+        struct ValidityHandler {
+            expected: Vec<u8>,
+        }
+        impl GossipHandler for ValidityHandler {
+            fn on_tx_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_block_v1(&self, _: &[u8]) -> String {
+                "unused".into()
+            }
+            fn on_validity_proof_v1(&self, body: &[u8]) -> String {
+                assert_eq!(body, self.expected.as_slice());
+                "ok".into()
+            }
+        }
+        let stats = recv_gossip_v1(
+            &mut Cursor::new(wire),
+            &ValidityHandler {
+                expected: consensus_wire,
+            },
+        )
+        .unwrap();
+        assert_eq!(stats.validity_proof_frames, 1);
     }
 
     #[test]

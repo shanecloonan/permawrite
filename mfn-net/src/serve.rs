@@ -579,6 +579,23 @@ impl GossipHandler for InboundGossip {
         }
         label
     }
+
+    fn on_validity_proof_v1(&self, consensus_wire: &[u8]) -> String {
+        let label = self.inner.on_validity_proof_v1(consensus_wire);
+        if let Some(rest) = label.strip_prefix("valid_accept:") {
+            println!(
+                "mfnd_validity_proof_valid hid={} peer={} {rest}",
+                self.hid, self.peer
+            );
+            let _ = std::io::stdout().flush();
+        } else if let Some(reason) = label.strip_prefix("rejected:") {
+            eprintln!(
+                "mfnd_validity_proof_rejected hid={} peer={} reason={reason}",
+                self.hid, self.peer
+            );
+        }
+        label
+    }
 }
 
 /// Parse `slash_height` / `slash_producer` fields appended by node gossip labels.

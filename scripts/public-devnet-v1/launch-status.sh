@@ -203,15 +203,18 @@ if playbook_path.is_file():
     software_ready = pin
 
 fraud_proof = {
-    "schema_version": "fraud-proof-stack.v1",
+    "schema_version": "fraud-proof-stack.v2",
     "phase_shipped": "1c",
     "list_fraud_contests_rpc": True,
     "on_chain_producer_slash": "shipped",
+    "validity_proof": "research",
+    "validity_proof_phase": "4a",
+    "p2p_tag_validity": "0x14",
     "doc": "docs/FRAUD_PROOFS.md",
 }
 
 print(json.dumps({
-    "schema_version": "launch-status.v7",
+    "schema_version": "launch-status.v8",
     "lane": 7,
     "playbook": os.environ["PLAYBOOK"],
     "invite_packet": "docs/TESTNET_INVITE.md",

@@ -294,14 +294,20 @@ Invalid-block slash evidence can shrink to:
 
 where `validity_proof_ref` is a hash of a succinct proof that `apply_block` rejects the contested block — instead of embedding the full interactive fraud wire. Slashing verification calls the same validity verifier used for block acceptance.
 
+### Shipped implementation (phase 4a)
+
+- **Consensus:** mfn_consensus::validity_proof — build_apply_block_replay_validity_proof, encode_validity_proof_v1 / decode_validity_proof_v1, and verify_validity_proof_v1 (apply-block replay witness; STARK proof_bytes reserved).
+- **P2P:** mfn_net::VALIDITY_PROOF_V1_TAG (0x14) frames consensus wire via ValidityProofV1::encode_payload / decode_payload; recv_gossip_v1 dispatches to on_validity_proof_v1.
+- **Node:** mfn-node P2pGossipHandler::on_validity_proof_v1 calls verify_validity_proof_v1 and logs mfnd_validity_proof_valid / mfnd_validity_proof_rejected.
+
 ### Acceptance tests (phase 4a)
 
 | Test | Crate | Assert |
 | --- | --- | --- |
-| `validity_proof_roundtrip` | `mfn-consensus` | encode/decode; max size bound |
-| `validity_proof_rejects_tampered_block` | `mfn-consensus` | flip one tx byte → verify fails |
-| `validity_proof_accepts_empty_block` | `mfn-consensus` | genesis→height-1 empty chain |
-| `mfnd_validity_proof_gossip` | `mfn-node` | tag `0x14` recv + verify + ops log |
+| `validity_proof_roundtrip` | `mfn-consensus` | encode/decode; max size bound (**shipped** phase 4a) |
+| `validity_proof_rejects_tampered_block` | `mfn-consensus` | flip one tx byte → verify fails (**shipped** phase 4a) |
+| `validity_proof_accepts_empty_block` | `mfn-consensus` | genesis→height-1 empty chain (**shipped** phase 4a) |
+| `mfnd_validity_proof_gossip` | `mfn-node` | tag `0x14` recv + verify + ops log (**shipped** phase 4a) |
 | `ignored_apply_block_validity_equivalence` | `mfn-consensus` | SNARK verdict matches `apply_block` on proptest seeds |
 
 ### Non-goals (phase 4)
@@ -319,4 +325,4 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 
 ### Launch-status linkage (future)
 
-Extend `launch-status.v8` with `fraud_proof.validity_proof: "deferred" | "research" | "shipped"` and `validity_proof_phase: "4a" | "4b"`.
+Extend `launch-status.v8` with `fraud_proof.validity_proof: "research"` and `validity_proof_phase: "4a"` (shipped).
