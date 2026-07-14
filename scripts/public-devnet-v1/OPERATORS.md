@@ -680,7 +680,7 @@ If an outbound dial fails with `reason=genesis_mismatch ...`, the peer is on a d
 
 Full runbook: [`docs/TESTNET.md`](../../docs/TESTNET.md).
 
-New participants should start with the role-based [Join the testnet](../../docs/TESTNET.md#join-the-testnet) path before choosing observer, wallet, storage-operator, or validator commands.
+New participants should start with [`JOIN_TESTNET.md`](../../docs/JOIN_TESTNET.md), then the role-based [Join the testnet](../../docs/TESTNET.md#join-the-testnet) path before choosing observer, wallet, storage-operator, or validator commands.
 
 ## Firewall
 

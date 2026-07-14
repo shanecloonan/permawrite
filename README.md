@@ -6,10 +6,10 @@
 
 *Monero-grade financial privacy fused with Arweave-grade data permanence — in a single chain.*
 
-[![Status](https://img.shields.io/badge/status-controlled_public_devnet-orange)](#status)
+[![Status](https://img.shields.io/badge/status-experimental_testnet-yellow)](#status)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
 
-[**Overview**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Public devnet runbook**](./docs/TESTNET.md)
+[**Join the testnet**](./docs/JOIN_TESTNET.md) &nbsp;·&nbsp; [**Overview**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Operator runbook**](./docs/TESTNET.md)
 
 </div>
 
@@ -62,7 +62,8 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**CONTRIBUTING.md**](./CONTRIBUTING.md) — how to set up, what conventions to follow, how the test gate works
 - [**CODEBASE_STATS.md**](./CODEBASE_STATS.md) — auto-generated line counts / file breakdown (regenerate via `node scripts/codebase-stats.mjs`)
 - [**IMPLEMENTATION_STATUS.md**](./IMPLEMENTATION_STATUS.md) — Rust implementation status and module map
-- [**docs/TESTNET.md**](./docs/TESTNET.md) — controlled public-devnet runbook, health checks, launch gates, and recovery guidance
+- [**docs/JOIN_TESTNET.md**](./docs/JOIN_TESTNET.md) — **start here to join the live testnet** (sync, wallet, upload)
+- [**docs/TESTNET.md**](./docs/TESTNET.md) — full operator runbook, local mesh, health checks, and recovery
 - [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — release-candidate threat model and residual-risk checklist (deployment/ops; the protocol-crypto counterpart is [docs/SECURITY_CONSIDERATIONS.md](./docs/SECURITY_CONSIDERATIONS.md))
 - [**SECURITY.md**](./SECURITY.md) — pre-audit security posture and vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
@@ -90,14 +91,14 @@ Each crate has its own README with public API summary, test counts, and links in
 
 ## Status
 
-**Controlled public-devnet implementation, pre-audit.** Permawrite now has an end-to-end Rust stack: consensus/state transition, persistence, JSON-RPC dispatch, the `mfnd` daemon, P2P handshake/gossip/sync paths, wallet CLI flows, storage-operator tooling, public-devnet scripts, health checks, support bundles, and launch go/no-go guidance. It is still experimental software and not an incentivized or production network.
+**Internet-facing experimental testnet, pre-audit.** A live `public-devnet-v1` mesh is reachable on the public internet (boot peers in [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md)). Permawrite has an end-to-end Rust stack: consensus/state transition, persistence, JSON-RPC dispatch, the `mfnd` daemon, P2P handshake/gossip/sync paths, wallet CLI flows, storage-operator tooling, health checks, and support bundles. It is still experimental software — test-only value, not an incentivized or production network.
 
 Release truth is intentionally split into three levels:
 
 | Level | Current status | What it means |
 | --- | --- | --- |
-| Controlled public devnet | Live in docs/scripts | Operators can run the documented `public_devnet_v1` flow, local mesh, health checks, wallet/storage demos, support bundles, and recovery helpers. |
-| Internet-facing experimental testnet | Release-candidate gated | Requires the launch checklist, local CI mirror, ignored/nightly smoke coverage, green GitHub CI, private RPC posture, replaced test keys for non-toy deployments, and named operator watch. |
+| Internet-facing experimental testnet | **Live** (2026-07-14) | Boot peers published; outsiders can sync via P2P, run a local wallet, and upload data. Join: [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md). |
+| Local / controlled devnet | Live in docs/scripts | Same chain identity; run a private loopback mesh with `scripts/public-devnet-v1/start-all.*` for development and rehearsal. |
 | Incentivized/adversarial testnet | Not ready | Requires deeper hardening, broader adversarial testing, operational rehearsal, and independent security review. |
 
 Important security posture:
@@ -116,7 +117,7 @@ High-level crate status:
 | Networking and light clients | `mfn-net`, `mfn-light` | P2P handshake, gossip, block/light-follow sync hardening, peer hygiene, and light-client verification are live. |
 | Wallet, storage, and browser clients | `mfn-wallet`, `mfn-cli`, `mfn-storage-operator`, `mfn-wasm` | Wallet scan/send/upload/claim flows, permanence artifacts, storage-operator proof flows, JSON support records, and WASM packaging are active; UX remains devnet-grade. |
 
-Detailed module-level implementation status lives in [`IMPLEMENTATION_STATUS.md`](./IMPLEMENTATION_STATUS.md). The controlled public-devnet runbook lives in [`docs/TESTNET.md`](./docs/TESTNET.md), and the launch checklist lives in [`scripts/public-devnet-v1/OPERATORS.md`](./scripts/public-devnet-v1/OPERATORS.md#launch-gono-go-checklist).
+Detailed module-level implementation status lives in [`IMPLEMENTATION_STATUS.md`](./IMPLEMENTATION_STATUS.md). New participants start at [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md); operators use [`docs/TESTNET.md`](./docs/TESTNET.md) and [`scripts/public-devnet-v1/OPERATORS.md`](./scripts/public-devnet-v1/OPERATORS.md#launch-gono-go-checklist).
 
 ---
 
@@ -133,6 +134,12 @@ The full mechanics of `apply_block` are illustrated in [`docs/ARCHITECTURE.md`](
 ---
 
 ## Quick start
+
+### Join the live testnet
+
+See **[`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md)** — clone, build `mfnd` + `mfn-cli`, sync from boot peers `5.161.201.73:19001–19003`, create a wallet, and upload data.
+
+### Build and test from source
 
 ```bash
 # Install Rust if you haven't: https://rustup.rs
@@ -227,7 +234,7 @@ permawrite/
 
 - **Not audited.** The code is written with production discipline (constant-time where required, no `unsafe`, explicit errors, broad tests), but it has not had third-party cryptographic or operational review.
 - **Not a re-implementation of an existing chain.** Permawrite's design — endowment-funded permanent storage rewards, OoM-based log-size ring signatures over the full UTXO set, hybrid emission + fee-treasury tokenomics — is novel. The closest two precedents (Monero for privacy, Arweave for permanence) each only solve one half.
-- **Not production or incentivized-testnet ready.** The controlled public-devnet path exists, but any internet-facing release candidate must pass the documented launch gates, keep RPC private or explicitly protected, and replace public test keys for non-toy deployments.
+- **Not production or incentivized-testnet ready.** An experimental testnet is live, but it uses public toy validator keys, has no audit, and carries test-only economic value. Keep RPC private; do not treat uploads or balances as permanent or safe.
 - **Not secure public RPC.** The daemon has devnet RPC guards, but direct internet exposure remains high risk without firewall/VPN/SSH/TLS/rate-limit controls.
 
 ---

@@ -1,6 +1,8 @@
-# Permawrite public devnet (M2.4)
+# Permawrite testnet / public-devnet runbook (M2.4)
 
-This document describes how to run a **three-validator devnet** on loopback or LAN using the reference daemon `mfnd`. The chain is the same MFBN-1 consensus stack used in CI; privacy and permanence economics are live in consensus, while wallet-facing tooling remains library-only until M3.
+**New users joining the live internet mesh:** start with [**JOIN_TESTNET.md**](./JOIN_TESTNET.md) — this file is the full operator runbook (local mesh, health checks, recovery).
+
+This document describes how to run a **three-validator mesh** on loopback, LAN, or the published internet seeds using the reference daemon `mfnd`. The chain is the same MFBN-1 consensus stack used in CI; privacy and permanence economics are live in consensus.
 
 **Security warning.** The validator seeds in [`mfn-node/testdata/public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json) are **public, deterministic test keys**. Never fund them on a network you care about. Follow the [test-key replacement runbook](../scripts/public-devnet-v1/OPERATORS.md#replacing-public-test-keys) before any shared, production-like, or incentivized deployment.
 
@@ -58,6 +60,8 @@ Operational recovery: before joining a shared network, read the [backup, upgrade
 ---
 
 ## Join The Testnet
+
+**Short path for outsiders:** [`JOIN_TESTNET.md`](./JOIN_TESTNET.md).
 
 Pick the lightest role that matches what you want to test:
 

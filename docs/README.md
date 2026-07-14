@@ -8,6 +8,10 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 
 ## Reading paths
 
+### Want to join the live testnet?
+
+- 🌐 [**JOIN_TESTNET.md**](./JOIN_TESTNET.md) — sync from boot peers, create a wallet, get test funds, upload permanent data
+
 ### Just want to understand what this is?
 
 - 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Intuition first, with links to the technical specs.

@@ -14,7 +14,7 @@ Public runtime and store types are re-exported from `mfn-node` for compatibility
 
 ## Status
 
-`mfnd` is a controlled public-devnet daemon, not production software. It supports:
+`mfnd` is an experimental testnet daemon, not production software. It supports:
 
 - `status`, `save`, `run`, `step`, and `serve`.
 - Versioned JSON genesis files.
@@ -23,7 +23,7 @@ Public runtime and store types are re-exported from `mfn-node` for compatibility
 - Mempool, block/header, checkpoint, upload, claims, operator, and light-follow RPC surfaces.
 - P2P boot dials, peer persistence, reconnect caps, genesis mismatch quarantine, block sync, tx/block gossip, production messages, and chunk fan-out/inbox flows.
 
-The security posture is the same as the repo: pre-audit, experimental, and intended for controlled devnet/release-candidate operation only.
+The security posture is the same as the repo: pre-audit, experimental, and intended for testnet / controlled-devnet operation only.
 
 ---
 
@@ -82,7 +82,8 @@ Dev-dependencies include `curve25519-dalek`, `hex`, `mfn-light`, `mfn-wallet`, a
 
 ## See Also
 
-- [`docs/TESTNET.md`](../docs/TESTNET.md) — controlled public-devnet runbook.
+- [`docs/JOIN_TESTNET.md`](../docs/JOIN_TESTNET.md) — join the live testnet.
+- [`docs/TESTNET.md`](../docs/TESTNET.md) — full operator / local-mesh runbook.
 - [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) — operator commands and launch gates.
 - [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) — repository-wide implementation status.
 - [`docs/ROADMAP.md`](../docs/ROADMAP.md) — milestone history and next work.

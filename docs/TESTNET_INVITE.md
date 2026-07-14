@@ -1,6 +1,8 @@
 # Public testnet invite packet (Lane 7 / TL-8)
 
-Use this **after** the operator completes TL-5–TL-9 on a VPS and publishes `seed_nodes`. Share this document — not validator seeds, RPC URLs, or wallet files.
+**New users:** start with the simpler step-by-step guide in [**JOIN_TESTNET.md**](./JOIN_TESTNET.md).
+
+Use this document for operator launch evidence and network identity details. Share it — not validator seeds, RPC URLs, or wallet files.
 
 **Posture:** pre-audit experimental testnet; test-only value; no production safety claims.
 

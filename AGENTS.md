@@ -93,7 +93,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | Release evidence | **Doing** — refresh on 4b.1 head | Human sign-off packet |
 | **4** | F5 phase 4b.1 Winterfell | **Done** — this push | Recursive aggregation (4b.2) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | TL-8 seeds + invite | **Done** — `5.161.201.73` seeds + automatable go/no-go PASS | Share TESTNET_INVITE.md |
+| **7** | Front-matter + JOIN_TESTNET | **Doing** — this push (docs-only) | TL-9 named watchers; share invite |
 
 ---
 
