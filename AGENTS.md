@@ -83,13 +83,13 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-13)
 
-**Head:** `5c6ce1b`. **CI `#29284954973` GREEN** on `c9549e3`. **Functional pin:** `85dad78` — CI `#29278386048` GREEN. **Nightly `#29280436031` / `#29284893108` / `#29286801623` GREEN**. **Release evidence** `release-evidence-7c7d2ad` RC audit **go**. Software-ready pin in [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md).
+**Head:** `be9c760`. **CI `#29291186030` FAIL** fixed — `genesis_spec` accepts header v3 (`be9c760`). **Functional pin:** `85dad78`.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 stack RC gates | **Done** — CI `#29278386048` + Nightly `#29286801623` GREEN | Soak maintenance |
+| **1** | F5 phase 1c CI | **Doing** — CI on `be9c760` genesis_spec v3 fix | Green CI → Nightly dispatch |
 | **2** | Release evidence refresh | **Done** — `release-evidence-7c7d2ad` RC audit **go** | Human sign-off packet |
 | **4** | F5 phase 1c on-chain slash | **Done** — this push | F5 phase 4 SNARK research |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |

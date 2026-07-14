@@ -7,7 +7,7 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 `85dad78`; CI `#29284954973` + Nightly `#29286801623` GREEN | **Done** | Soak maintenance |
+| **1** RC core | F5 phase 1c stack `be9c760`; CI `#29291186030` FAIL fixed | **Doing** — CI on genesis_spec v3 fix | Green CI + Nightly dispatch |
 | **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
 | **4+6** Protocol | F5 phase 1c impl (`HEADER_VERSION_FRAUD_SLASH`) | **Done** — this push | Full apply_block producer slash integration test |

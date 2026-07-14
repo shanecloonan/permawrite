@@ -205,7 +205,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F7 consensus tail** (this commit) — `RingPolicy.min_input_count` at `verify_transaction` (with lane 5).
 - [x] **F5 fraud-proof phase 1b** (`85dad78`) — `FraudContestRegistry` + RPC `list_fraud_contests`; CI `#29278386048` GREEN.
 - [x] **F5 phase 1c design** — `InvalidBlockSlashEvidence` spec in `FRAUD_PROOFS.md` (8b72294).
-- [x] **F5 phase 1c impl** — tagged `SlashEvidence` + `InvalidBlockEvidence` + `HEADER_VERSION_FRAUD_SLASH` (this push).
+- [x] **F5 phase 1c integration tests** — `invalid_block_slash_zeros_producer_on_coinbase_fraud` + same-height reject (`69c0531`).
+- [x] **F5 phase 1c genesis_spec v3** — `accepts_header_version_three` + rejects v4 (`be9c760`).
 
 ### Next
 

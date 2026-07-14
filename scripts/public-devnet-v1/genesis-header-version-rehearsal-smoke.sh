@@ -66,6 +66,14 @@ if ! grep -qF -- "accepts_header_version_two" "$GENESIS_SPEC"; then
   echo "genesis-header-version-rehearsal-smoke: genesis_spec.rs missing accepts_header_version_two test" >&2
   exit 1
 fi
+if ! grep -qF -- "HEADER_VERSION_FRAUD_SLASH" "$HEADER_RS"; then
+  echo "genesis-header-version-rehearsal-smoke: header.rs missing HEADER_VERSION_FRAUD_SLASH" >&2
+  exit 1
+fi
+if ! grep -qF -- "accepts_header_version_three" "$GENESIS_SPEC"; then
+  echo "genesis-header-version-rehearsal-smoke: genesis_spec.rs missing accepts_header_version_three test" >&2
+  exit 1
+fi
 
 if grep -qF -- '"header_version": 2' "$GENESIS"; then
   echo "genesis-header-version-rehearsal-smoke: public_devnet_v1.json must stay header v1 (Path A)" >&2
@@ -75,7 +83,8 @@ fi
 echo "genesis-header-version-rehearsal-smoke: plan"
 echo "  path_a=public_devnet_v1.json defaults header v1"
 echo "  path_b=optional header_version: 2 in fresh genesis JSON"
-echo "  consensus=HEADER_VERSION_UTXO_QUORUM signing bytes"
+echo "  path_c=optional header_version: 3 (F5 invalid-block slash wire)"
+echo "  consensus=HEADER_VERSION_UTXO_QUORUM + HEADER_VERSION_FRAUD_SLASH"
 echo "  docs=TESTNET_GENESIS_CEREMONY.md SECURITY_CONSIDERATIONS.md PROBLEMS.md"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then

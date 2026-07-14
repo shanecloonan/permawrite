@@ -37,6 +37,12 @@ if (-not (Select-String -LiteralPath $HeaderRs -Pattern "HEADER_VERSION_UTXO_QUO
 if (-not (Select-String -LiteralPath $GenesisRs -Pattern "header_version" -Quiet)) {
     throw "genesis-header-version-rehearsal-smoke: genesis.rs missing header_version field"
 }
+if (-not (Select-String -LiteralPath $HeaderRs -Pattern "HEADER_VERSION_FRAUD_SLASH" -Quiet)) {
+    throw "genesis-header-version-rehearsal-smoke: header.rs missing HEADER_VERSION_FRAUD_SLASH"
+}
+if (-not (Select-String -LiteralPath $GenesisSpec -Pattern "accepts_header_version_three" -Quiet)) {
+    throw "genesis-header-version-rehearsal-smoke: genesis_spec.rs missing accepts_header_version_three test"
+}
 if (-not (Select-String -LiteralPath $GenesisSpec -Pattern "accepts_header_version_two" -Quiet)) {
     throw "genesis-header-version-rehearsal-smoke: genesis_spec.rs missing accepts_header_version_two test"
 }
@@ -48,6 +54,7 @@ if ($genesisText -match '"header_version"\s*:\s*2') {
 
 Write-Host "genesis-header-version-rehearsal-smoke: plan"
 Write-Host "  path_a=public_devnet_v1.json defaults header v1"
+Write-Host "  path_c=optional header_version: 3 (F5 invalid-block slash wire)"
 Write-Host "  path_b=optional header_version: 2 in fresh genesis JSON"
 Write-Host "  consensus=HEADER_VERSION_UTXO_QUORUM signing bytes"
 Write-Host "  docs=TESTNET_GENESIS_CEREMONY.md SECURITY_CONSIDERATIONS.md PROBLEMS.md"
