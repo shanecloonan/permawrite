@@ -6,7 +6,7 @@
 
 *Monero-grade financial privacy fused with Arweave-grade data permanence — in a single chain.*
 
-[![Status](https://img.shields.io/badge/status-experimental_testnet-yellow)](#status)
+[![Status](https://img.shields.io/badge/status-public_testnet-yellow)](#status)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
 
 [**Join the testnet**](./docs/JOIN_TESTNET.md) &nbsp;·&nbsp; [**Overview**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Operator runbook**](./docs/TESTNET.md)
@@ -27,7 +27,7 @@ These two halves aren't bolted together. They **share the economics**: the prior
 The full vision and the design rationale live in [**docs/OVERVIEW.md**](./docs/OVERVIEW.md). The whitepaper-grade technical spec lives in [**docs/ARCHITECTURE.md**](./docs/ARCHITECTURE.md).
 
 <p align="center">
-  <img src="./docs/img/architecture-stack.svg" alt="Permawrite crate dependency stack: mfn-crypto and mfn-bls form the primitive layer, mfn-storage builds storage proofs on top of mfn-crypto, mfn-consensus is the state machine, mfn-runtime / mfn-store / mfn-rpc / mfn-net / mfn-node compose the daemon, and mfn-wallet / mfn-cli / mfn-storage-operator / mfn-wasm are active devnet-grade client and operator crates." width="100%">
+  <img src="./docs/img/architecture-stack.svg" alt="Permawrite crate dependency stack: mfn-crypto and mfn-bls form the primitive layer, mfn-storage builds storage proofs on top of mfn-crypto, mfn-consensus is the state machine, mfn-runtime / mfn-store / mfn-rpc / mfn-net / mfn-node compose the daemon, and mfn-wallet / mfn-cli / mfn-storage-operator / mfn-wasm are active testnet-grade client and operator crates." width="100%">
 </p>
 
 ---
@@ -64,7 +64,7 @@ Whitepaper-grade specifications. Math, wire formats, hash domains, derivations.
 - [**IMPLEMENTATION_STATUS.md**](./IMPLEMENTATION_STATUS.md) — Rust implementation status and module map
 - [**docs/JOIN_TESTNET.md**](./docs/JOIN_TESTNET.md) — **start here to join the live testnet** (sync, wallet, upload)
 - [**docs/TESTNET.md**](./docs/TESTNET.md) — full operator runbook, local mesh, health checks, and recovery
-- [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — release-candidate threat model and residual-risk checklist (deployment/ops; the protocol-crypto counterpart is [docs/SECURITY_CONSIDERATIONS.md](./docs/SECURITY_CONSIDERATIONS.md))
+- [**docs/PUBLIC_DEVNET_THREAT_MODEL.md**](./docs/PUBLIC_DEVNET_THREAT_MODEL.md) — public-testnet / ops threat model and residual-risk checklist (the protocol-crypto counterpart is [docs/SECURITY_CONSIDERATIONS.md](./docs/SECURITY_CONSIDERATIONS.md))
 - [**SECURITY.md**](./SECURITY.md) — pre-audit security posture and vulnerability disclosure
 - [**docs/ROADMAP.md**](./docs/ROADMAP.md) — what's live, what's next, the tier-by-tier rollout
 
@@ -91,21 +91,19 @@ Each crate has its own README with public API summary, test counts, and links in
 
 ## Status
 
-**Internet-facing experimental testnet, pre-audit.** A live `public-devnet-v1` mesh is reachable on the public internet (boot peers in [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md)). Permawrite has an end-to-end Rust stack: consensus/state transition, persistence, JSON-RPC dispatch, the `mfnd` daemon, P2P handshake/gossip/sync paths, wallet CLI flows, storage-operator tooling, health checks, and support bundles. It is still experimental software — test-only value, not an incentivized or production network.
-
-Release truth is intentionally split into three levels:
+**Experimental public testnet — live and pre-audit.** Outsiders can sync over P2P, run a local wallet, and upload data. Network identity is still `public-devnet-v1` on the wire (boot peers in [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md)). Permawrite ships an end-to-end Rust stack: consensus/state transition, persistence, JSON-RPC, `mfnd`, P2P, wallet CLI, storage-operator tooling, health checks, and support bundles. Economic value is **test-only** — not incentivized, not production.
 
 | Level | Current status | What it means |
 | --- | --- | --- |
-| Internet-facing experimental testnet | **Live** (2026-07-14) | Boot peers published; outsiders can sync via P2P, run a local wallet, and upload data. Join: [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md). |
-| Local / controlled devnet | Live in docs/scripts | Same chain identity; run a private loopback mesh with `scripts/public-devnet-v1/start-all.*` for development and rehearsal. |
-| Incentivized/adversarial testnet | Not ready | Requires deeper hardening, broader adversarial testing, operational rehearsal, and independent security review. |
+| **Public testnet** | **Live** (2026-07-14) | Internet boot peers published; join via [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md). Pre-audit experimental software. |
+| Local developer mesh | Live in docs/scripts | Same chain identity on loopback via `scripts/public-devnet-v1/start-all.*` for development and rehearsal. |
+| Incentivized / adversarial testnet | Not ready | Needs deeper hardening, broader adversarial testing, operational rehearsal, and independent security review. |
 
 Important security posture:
 
 - Permawrite is **pre-audit**. Do not treat any deployment as production custody or production permanence.
-- JSON-RPC is a devnet control plane. Keep it loopback-only, VPN/SSH-only, or behind explicit firewall/TLS controls. API keys gate write/admin methods; public read methods remain unauthenticated.
-- The public devnet genesis contains public deterministic validator seeds. Replace them before any shared, production-like, incentivized, or non-toy deployment.
+- JSON-RPC stays private: loopback-only, VPN/SSH-only, or behind explicit firewall/TLS controls. API keys gate write/admin methods; public read methods remain unauthenticated.
+- The public-testnet genesis currently uses public deterministic validator seeds (Path A). Replace them before any shared, production-like, incentivized, or non-toy deployment.
 
 High-level crate status:
 
@@ -113,9 +111,9 @@ High-level crate status:
 | --- | --- | --- |
 | Privacy and consensus primitives | `mfn-crypto`, `mfn-bls`, `mfn-storage`, `mfn-consensus` | Tier-1 privacy, storage proofs, endowment accounting, validator rotation, finality, checkpoint/wire codecs, and protocol vectors are live. |
 | Node runtime and persistence | `mfn-runtime`, `mfn-store`, `mfn-node` | `Chain`, `Mempool`, producer helpers, filesystem/`redb` persistence, JSON genesis, `step`, and `serve` are live. |
-| RPC and operations | `mfn-rpc`, `mfn-cli`, `scripts/public-devnet-v1` | JSON-RPC method classification, optional API-key enforcement, status diagnostics, RPC DoS guards, public-devnet health checks, CI/preflight helpers, and operator runbooks are live. |
+| RPC and operations | `mfn-rpc`, `mfn-cli`, `scripts/public-devnet-v1` | JSON-RPC method classification, optional API-key enforcement, status diagnostics, RPC DoS guards, testnet health checks, CI/preflight helpers, and operator runbooks are live. |
 | Networking and light clients | `mfn-net`, `mfn-light` | P2P handshake, gossip, block/light-follow sync hardening, peer hygiene, and light-client verification are live. |
-| Wallet, storage, and browser clients | `mfn-wallet`, `mfn-cli`, `mfn-storage-operator`, `mfn-wasm` | Wallet scan/send/upload/claim flows, permanence artifacts, storage-operator proof flows, JSON support records, and WASM packaging are active; UX remains devnet-grade. |
+| Wallet, storage, and browser clients | `mfn-wallet`, `mfn-cli`, `mfn-storage-operator`, `mfn-wasm` | Wallet scan/send/upload/claim flows, permanence artifacts, storage-operator proof flows, JSON support records, and WASM packaging are active; UX remains testnet-grade. |
 
 Detailed module-level implementation status lives in [`IMPLEMENTATION_STATUS.md`](./IMPLEMENTATION_STATUS.md). New participants start at [`docs/JOIN_TESTNET.md`](./docs/JOIN_TESTNET.md); operators use [`docs/TESTNET.md`](./docs/TESTNET.md) and [`scripts/public-devnet-v1/OPERATORS.md`](./scripts/public-devnet-v1/OPERATORS.md#launch-gono-go-checklist).
 
@@ -234,8 +232,8 @@ permawrite/
 
 - **Not audited.** The code is written with production discipline (constant-time where required, no `unsafe`, explicit errors, broad tests), but it has not had third-party cryptographic or operational review.
 - **Not a re-implementation of an existing chain.** Permawrite's design — endowment-funded permanent storage rewards, OoM-based log-size ring signatures over the full UTXO set, hybrid emission + fee-treasury tokenomics — is novel. The closest two precedents (Monero for privacy, Arweave for permanence) each only solve one half.
-- **Not production or incentivized-testnet ready.** An experimental testnet is live, but it uses public toy validator keys, has no audit, and carries test-only economic value. Keep RPC private; do not treat uploads or balances as permanent or safe.
-- **Not secure public RPC.** The daemon has devnet RPC guards, but direct internet exposure remains high risk without firewall/VPN/SSH/TLS/rate-limit controls.
+- **Not production or incentivized-testnet ready.** The public testnet is live, but it uses public toy validator keys, has no audit, and carries test-only economic value. Keep RPC private; do not treat uploads or balances as permanent or safe.
+- **Not secure public RPC.** The daemon has testnet RPC guards, but direct internet exposure remains high risk without firewall/VPN/SSH/TLS/rate-limit controls.
 
 ---
 

@@ -188,7 +188,7 @@ After installing tools, open a fresh shell so PATH changes are visible, rerun `p
 
 ## Launch go/no-go checklist
 
-Use this checklist before advertising a public testnet endpoint, publishing seed nodes, or asking outside operators to join. A single unchecked critical item is a no-go. This project is pre-audit; passing this checklist means "acceptable experimental public-devnet risk," not production safety. Review the [public-devnet threat model](../../docs/PUBLIC_DEVNET_THREAT_MODEL.md) before signing off.
+Use this checklist before advertising a public testnet endpoint, publishing seed nodes, or asking outside operators to join. A single unchecked critical item is a no-go. This project is pre-audit; passing this checklist means "acceptable experimental public-testnet risk," not production safety. Review the [public testnet threat model](../../docs/PUBLIC_DEVNET_THREAT_MODEL.md) before signing off.
 
 ### Critical no-go items
 

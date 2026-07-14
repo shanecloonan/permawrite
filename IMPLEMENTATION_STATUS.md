@@ -6,14 +6,14 @@ Mark `[x]` only when the Rust module is implemented, documented, and covered by 
 
 ## Release posture
 
-Permawrite is an **internet-facing experimental testnet implementation**, not production software. The Rust stack includes the reference daemon, JSON-RPC control plane, P2P sync/gossip paths, wallet CLI flows, storage-operator tooling, public-devnet helper scripts, health checks, support bundles, and operator runbooks. A live mesh is reachable on the public internet; new participants start at [`docs/JOIN_TESTNET.md`](docs/JOIN_TESTNET.md). It remains **pre-audit experimental software** with test-only economic value; public RPC exposure, public deterministic validator seeds, wallet seed handling, storage artifact backup, and operator mistakes are still launch-critical risks.
+Permawrite is an **experimental public testnet** implementation, not production software. The Rust stack includes the reference daemon, JSON-RPC control plane, P2P sync/gossip paths, wallet CLI flows, storage-operator tooling, launch helper scripts, health checks, support bundles, and operator runbooks. A live mesh is reachable on the public internet; new participants start at [`docs/JOIN_TESTNET.md`](docs/JOIN_TESTNET.md). It remains **pre-audit** with test-only economic value; public RPC exposure, public deterministic validator seeds, wallet seed handling, storage artifact backup, and operator mistakes are still critical risks.
 
 Use these status levels when publishing or reviewing a release candidate:
 
 | Level | Status | Required evidence |
 | --- | --- | --- |
-| Internet-facing experimental testnet | [x] live | Boot peers published, VPS soak + participant rehearsal evidence, [`docs/JOIN_TESTNET.md`](docs/JOIN_TESTNET.md), green CI on release commit, private RPC posture. |
-| Local / controlled devnet | [x] live | `docs/TESTNET.md`, `scripts/public-devnet-v1/OPERATORS.md`, local health checks, support/recovery helpers, and green local CI mirror. |
+| Public testnet | [x] live | Boot peers published, VPS soak + participant rehearsal evidence, [`docs/JOIN_TESTNET.md`](docs/JOIN_TESTNET.md), green CI on release commit, private RPC posture. |
+| Local developer mesh | [x] live | `docs/TESTNET.md`, `scripts/public-devnet-v1/OPERATORS.md`, local health checks, support/recovery helpers, and green local CI mirror. |
 | Incentivized/adversarial testnet | [ ] not ready | Requires deeper threat modeling, broader adversarial testing, external security review, rehearsed incident response, and production-grade operator custody procedures. |
 
 ## Crates and modules

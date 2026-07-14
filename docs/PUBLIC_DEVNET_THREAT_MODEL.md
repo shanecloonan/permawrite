@@ -1,15 +1,17 @@
-# Public Devnet Threat Model
+# Public Testnet Threat Model
 
-Permawrite is **pre-mainnet, pre-audit** software. This threat model covers the controlled public-devnet and release-candidate path only. It does not claim production security, custody safety, or adversarial/incentivized-testnet readiness.
+> Filename remains `PUBLIC_DEVNET_THREAT_MODEL.md` for stable links; “devnet” on-disk ids (`public-devnet-v1`) are the wire network name.
 
-The safest public-devnet shape is public P2P plus private RPC: validators and observers can accept P2P peers, while JSON-RPC stays on loopback, VPN, SSH tunnel, or a tightly firewalled/TLS-terminated operator endpoint.
+Permawrite is **pre-mainnet, pre-audit** software. This threat model covers the **experimental public testnet** and operator launch path only. It does not claim production security, custody safety, or adversarial/incentivized-testnet readiness.
+
+The safest public-testnet shape is public P2P plus private RPC: validators and observers can accept P2P peers, while JSON-RPC stays on loopback, VPN, SSH tunnel, or a tightly firewalled/TLS-terminated operator endpoint. A public-safe HTTP read proxy may serve status pages only.
 
 ## Release Posture
 
 | Level | Allowed goal | Not allowed to claim |
 | --- | --- | --- |
-| Controlled public devnet | Exercise sync, wallet, storage, proof, recovery, and operator runbooks with known experimental risk. | Production safety, real custody, or audit-grade privacy/security. |
-| Internet-facing experimental testnet | Invite outside operators only after launch go/no-go, local CI, ignored/nightly smokes, GitHub CI, private-RPC review, and key-replacement review pass. | That public RPC is safe, that public deterministic test keys are acceptable for value, or that the network is economically hardened. |
+| Local developer mesh | Exercise sync, wallet, storage, proof, recovery, and operator runbooks on loopback with known experimental risk. | Production safety, real custody, or audit-grade privacy/security. |
+| Public testnet (current) | Invite outside participants after launch go/no-go, CI, private-RPC review, and key-policy review. | That public wallet RPC is safe, that toy validator keys are fine for real value, or that the network is economically hardened. |
 | Incentivized/adversarial testnet | Future target after deeper hardening and independent review. | Current readiness. |
 
 ## Assets

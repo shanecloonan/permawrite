@@ -1,6 +1,6 @@
-# Join the Permawrite testnet
+# Join the Permawrite public testnet
 
-**Experimental testnet — pre-audit, test-only value, no production safety claims.**
+**Experimental public testnet — pre-audit, test-only value, no production safety claims.**
 
 A live mesh is on the public internet. You can sync blocks, use a wallet, upload permanent data, and run a storage operator. This is the shortest path from zero to participating.
 

@@ -13,7 +13,7 @@ Human decision gate **after** TL-5 soak and TL-6 participant rehearsal PASS on t
 
 ---
 
-## Path A — Toy keys (recommended for first internet-facing experimental testnet)
+## Path A — Toy keys (recommended for first experimental public testnet)
 
 **Use when:** invite-only experimental testnet, no real value, operators understand seeds are public.
 

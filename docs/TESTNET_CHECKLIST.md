@@ -136,7 +136,7 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] Keep the CI mirror's wasm-pack package build compatible with `mfn-wasm` package metadata and full-feature demo exports.
 - [x] Add a public-testnet launch go/no-go checklist for release candidates and outside-operator invites.
 - [x] Require `rpc.public_bind` / `rpc.listen_addr` verification in the launch go/no-go checklist.
-- [x] Reconcile top-level status docs so `README.md` and `IMPLEMENTATION_STATUS.md` distinguish controlled public devnet, internet-facing release candidate gates, and incentivized/adversarial testnet readiness without implying audit-grade safety.
+- [x] Reconcile top-level status docs so `README.md` and `IMPLEMENTATION_STATUS.md` distinguish local developer mesh, experimental public testnet, and incentivized/adversarial testnet readiness without implying audit-grade safety.
 - [x] Add a public-devnet threat model covering RPC, P2P, wallet seeds, storage artifacts, genesis/manifest, validator keys, DoS, data loss, and operator mistakes.
 - [x] Add a release-candidate evidence generator that captures commit, CI status, stats timestamp, genesis id, health-check status, RPC posture, and operator sign-off fields.
 - [x] Add machine-readable JSON output to the release-candidate evidence generator for archiving and CI/dashboard ingestion.

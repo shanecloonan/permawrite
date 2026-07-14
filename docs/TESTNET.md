@@ -1,14 +1,14 @@
-# Permawrite testnet / public-devnet runbook (M2.4)
+# Permawrite public testnet operator runbook (M2.4)
 
 **New users joining the live internet mesh:** start with [**JOIN_TESTNET.md**](./JOIN_TESTNET.md) — this file is the full operator runbook (local mesh, health checks, recovery).
 
-This document describes how to run a **three-validator mesh** on loopback, LAN, or the published internet seeds using the reference daemon `mfnd`. The chain is the same MFBN-1 consensus stack used in CI; privacy and permanence economics are live in consensus.
+This document describes how to run a **three-validator mesh** on loopback, LAN, or the published internet seeds using the reference daemon `mfnd`. Wire network id remains `public-devnet-v1`; the public posture is an **experimental public testnet**. Privacy and permanence economics are live in consensus.
 
 **Security warning.** The validator seeds in [`mfn-node/testdata/public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json) are **public, deterministic test keys**. Never fund them on a network you care about. Follow the [test-key replacement runbook](../scripts/public-devnet-v1/OPERATORS.md#replacing-public-test-keys) before any shared, production-like, or incentivized deployment.
 
 **RPC exposure warning.** Keep `--rpc-listen` on `127.0.0.1` unless you have an explicit firewall/TLS plan. If RPC must be reachable by wallets or operators, start `mfnd serve` with `--rpc-api-key <KEY>` or `MFND_RPC_API_KEY=<KEY>` and give clients the same key with `mfn-cli --rpc-api-key <KEY>` or `MFN_RPC_API_KEY=<KEY>`. The key gates `wallet-write` and `operator-admin` methods; public read methods remain open by design.
 
-Read the [public-devnet threat model](PUBLIC_DEVNET_THREAT_MODEL.md) before advertising seed nodes, sharing RPC endpoints, or inviting outside operators. It separates controlled public devnet, internet-facing release-candidate gates, and future incentivized/adversarial readiness.
+Read the [public testnet threat model](PUBLIC_DEVNET_THREAT_MODEL.md) before advertising seed nodes, sharing RPC endpoints, or inviting outside operators. It separates local developer mesh, public-testnet gates, and future incentivized/adversarial readiness.
 
 `mfnd serve` prints `mfnd_rpc_public_bind_warning` for every non-loopback RPC bind, including auth-enabled binds, because public read methods remain unauthenticated and the daemon does not terminate TLS.
 

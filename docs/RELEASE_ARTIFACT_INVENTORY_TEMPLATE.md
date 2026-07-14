@@ -1,13 +1,13 @@
 # Release-Candidate Artifact Inventory Template
 
-Use this template for every public-devnet release candidate before publishing endpoints, seed nodes, binaries, or operator instructions. This is an inventory, not an approval by itself. Every path, checksum, and reviewer entry must be filled in or explicitly marked `not applicable` with a reason.
+Use this template for every public-testnet release candidate before publishing endpoints, seed nodes, binaries, or operator instructions. This is an inventory, not an approval by itself. Every path, checksum, and reviewer entry must be filled in or explicitly marked `not applicable` with a reason.
 
 Permawrite is pre-audit experimental software. Do not place secrets in this inventory: no wallet seeds, validator seeds, RPC API keys, private SSH keys, private `peers.json`, or unpublished operator contact credentials.
 
 ## Release Identity
 
 - Release candidate name:
-- Intended network: `controlled public devnet` / `internet-facing experimental testnet` / other:
+- Intended network: `local developer mesh` / `experimental public testnet` / other:
 - Git branch:
 - Git commit:
 - Working tree state: `clean` / `dirty with written exception`:

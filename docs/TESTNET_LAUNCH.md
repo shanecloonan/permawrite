@@ -1,6 +1,6 @@
 # Internet-facing testnet launch (Lane 7)
 
-Ordered path from **controlled local devnet** to **internet-facing experimental testnet**. This is the sole charter for **Lane 7**; other lanes must not duplicate these units.
+Ordered path from a **local developer mesh** to the **experimental public testnet**. This is the sole charter for **Lane 7**; other lanes must not duplicate these units.
 
 **Not in scope:** incentivized/adversarial testnet, protocol hardening (lanes 4–6), CI/Nightly fixes (lane 1), release-evidence *tooling* (lane 2).
 
