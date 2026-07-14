@@ -77,9 +77,9 @@ function Get-FraudProofStackMeta {
         list_fraud_contests_rpc = $true
         on_chain_producer_slash = "shipped"
         validity_proof          = "research"
-        validity_proof_phase    = "4b"
+        validity_proof_phase    = "4b.1"
         p2p_tag_validity        = "0x14"
-        stark_backend           = "digest-stub"
+        stark_backend           = "winterfell"
         doc                     = "docs/FRAUD_PROOFS.md"
     }
 }
@@ -247,7 +247,7 @@ if ($softwareReady) {
 $internetFacing = ($seedCount -gt 0)
 
 $report = [ordered]@{
-    schema_version         = "launch-status.v9"
+    schema_version         = "launch-status.v10"
     lane                   = 7
     playbook               = $Playbook
     invite_packet          = "docs/TESTNET_INVITE.md"

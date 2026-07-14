@@ -13,6 +13,8 @@ use mfn_crypto::codec::{Reader, Writer};
 use thiserror::Error;
 
 use crate::validity_stark_stub;
+#[cfg(feature = "winterfell")]
+use crate::validity_stark_winterfell;
 
 /// Wire format version for [`ValidityProofV1`].
 pub const VALIDITY_PROOF_V1_VERSION: u32 = 1;
@@ -22,6 +24,9 @@ pub const VALIDITY_WITNESS_APPLY_BLOCK_REPLAY: u8 = 1;
 
 /// Witness kind: STARK digest stub over parent checkpoint + block wire (phase **4b**).
 pub const VALIDITY_WITNESS_STARK_DIGEST_STUB: u8 = 2;
+
+/// Witness kind: Winterfell STARK batch binding (phase **4b.1**).
+pub const VALIDITY_WITNESS_STARK_WINTERFELL: u8 = 3;
 
 /// Upper bound on encoded validity-proof bytes (matches P2P frame budget).
 pub const MAX_VALIDITY_PROOF_BYTES: usize = 4 * 1024 * 1024;
@@ -102,6 +107,10 @@ pub enum ValidityProofError {
     /// STARK digest stub verification failed.
     #[error("stark digest stub: {0}")]
     StarkStub(#[from] validity_stark_stub::StarkStubError),
+    /// Winterfell batch STARK verification failed.
+    #[cfg(feature = "winterfell")]
+    #[error("stark winterfell batch: {0}")]
+    StarkWinterfell(#[from] validity_stark_winterfell::WinterfellBatchError),
 }
 
 /// Build an apply-block replay proof from a known parent tip and child block.
@@ -143,6 +152,25 @@ pub fn build_stark_digest_stub_validity_proof(
     )
     .to_vec();
     proof
+}
+
+/// Build a phase **4b.1** validity proof with a Winterfell batch-binding STARK.
+#[cfg(feature = "winterfell")]
+pub fn build_stark_winterfell_validity_proof(
+    genesis_id: [u8; 32],
+    parent: &ChainState,
+    block: &Block,
+) -> Result<ValidityProofV1, ValidityProofError> {
+    let circuit_digest = validity_stark_stub::validity_stark_batch_v1_circuit_digest();
+    let mut proof = build_apply_block_replay_validity_proof(genesis_id, parent, block);
+    proof.witness_kind = VALIDITY_WITNESS_STARK_WINTERFELL;
+    proof.circuit_digest = circuit_digest;
+    proof.proof_bytes = validity_stark_winterfell::prove_batch_binding_stark(
+        &proof.parent_checkpoint,
+        &proof.block_wire,
+        &circuit_digest,
+    )?;
+    Ok(proof)
 }
 
 /// Encode a [`ValidityProofV1`] for P2P / archive.
@@ -225,6 +253,26 @@ pub fn verify_validity_proof_v1(wire: &[u8]) -> Result<ValidityProofVerdict, Val
                 &proof.circuit_digest,
                 &proof.proof_bytes,
             )?;
+        }
+        VALIDITY_WITNESS_STARK_WINTERFELL => {
+            #[cfg(not(feature = "winterfell"))]
+            {
+                return Err(ValidityProofError::UnknownWitnessKind {
+                    got: proof.witness_kind,
+                });
+            }
+            #[cfg(feature = "winterfell")]
+            {
+                if proof.proof_bytes.is_empty() {
+                    return Err(ValidityProofError::StarkProofNotSupported);
+                }
+                validity_stark_winterfell::verify_batch_binding_stark(
+                    &proof.parent_checkpoint,
+                    &proof.block_wire,
+                    &proof.circuit_digest,
+                    &proof.proof_bytes,
+                )?;
+            }
         }
         got => {
             return Err(ValidityProofError::UnknownWitnessKind { got });
@@ -341,6 +389,34 @@ mod tests {
         let unsealed = build_unsealed_header(&parent, &[], &[], &[], &[], 1, 100);
         let block = seal_block(unsealed, vec![], vec![], vec![], vec![], vec![]);
         let mut proof = build_stark_digest_stub_validity_proof(genesis_id, &parent, &block);
+        proof.proof_bytes[0] ^= 0x01;
+        assert!(verify_validity_proof_v1(&encode_validity_proof_v1(&proof)).is_err());
+    }
+
+    #[cfg(feature = "winterfell")]
+    #[test]
+    fn stark_winterfell_accepts_valid_proof() {
+        let (parent, genesis_id) = legacy_genesis();
+        let unsealed = build_unsealed_header(&parent, &[], &[], &[], &[], 1, 100);
+        let block = seal_block(unsealed, vec![], vec![], vec![], vec![], vec![]);
+        let proof =
+            build_stark_winterfell_validity_proof(genesis_id, &parent, &block).expect("build");
+        assert_eq!(proof.witness_kind, VALIDITY_WITNESS_STARK_WINTERFELL);
+        assert!(!proof.proof_bytes.is_empty());
+        let wire = encode_validity_proof_v1(&proof);
+        match verify_validity_proof_v1(&wire).expect("verify") {
+            ValidityProofVerdict::ValidAccept { height } => assert_eq!(height, 1),
+        }
+    }
+
+    #[cfg(feature = "winterfell")]
+    #[test]
+    fn stark_winterfell_rejects_bad_proof() {
+        let (parent, genesis_id) = legacy_genesis();
+        let unsealed = build_unsealed_header(&parent, &[], &[], &[], &[], 1, 100);
+        let block = seal_block(unsealed, vec![], vec![], vec![], vec![], vec![]);
+        let mut proof =
+            build_stark_winterfell_validity_proof(genesis_id, &parent, &block).expect("build");
         proof.proof_bytes[0] ^= 0x01;
         assert!(verify_validity_proof_v1(&encode_validity_proof_v1(&proof)).is_err());
     }

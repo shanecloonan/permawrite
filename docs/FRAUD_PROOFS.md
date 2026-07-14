@@ -306,6 +306,12 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 - **STARK digest stub:** `mfn_consensus::validity_stark_stub` — tx+coinbase+SPoRA batch circuit digest + 32-byte proof binding; `VALIDITY_WITNESS_STARK_DIGEST_STUB` (kind `2`) wraps replay witness.
 - **Builder:** `build_stark_digest_stub_validity_proof` — producer-side stub until Winterfell backend lands.
 
+### Shipped implementation (phase 4b.1)
+
+- **Winterfell STARK:** `mfn_consensus::validity_stark_winterfell` — batch-binding AIR over parent checkpoint + block wire chunks with public tx/coinbase/SPoRA metadata; Blake3-256 Winterfell prover/verifier.
+- **Witness kind `3`:** `VALIDITY_WITNESS_STARK_WINTERFELL` via `build_stark_winterfell_validity_proof`; verifier still replays `apply_block` after STARK check.
+- **Launch-status:** `launch-status.v10` exposes `validity_proof_phase: "4b.1"` and `stark_backend: "winterfell"`.
+
 ### Acceptance tests (phase 4a)
 
 | Test | Crate | Assert |
@@ -331,4 +337,4 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 
 ### Launch-status linkage (future)
 
-Extend `launch-status.v9` with `validity_proof_phase: "4b"` and `stark_backend: "digest-stub"` (shipped).
+Extend `launch-status.v10` with `validity_proof_phase: "4b.1"` and `stark_backend: "winterfell"` (shipped).

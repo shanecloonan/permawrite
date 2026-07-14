@@ -1,4 +1,4 @@
-# Lane 7: plan-only launch-status v9 schema rehearsal (Windows).
+# Lane 7: plan-only launch-status v10 schema rehearsal (Windows).
 param(
     [switch]$PlanOnly
 )
@@ -7,8 +7,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $launch = & powershell -NoProfile -File (Join-Path $ScriptDir "launch-status.ps1") -Json | ConvertFrom-Json
 
-if ($launch.schema_version -ne "launch-status.v9") {
-    throw "launch-status-rehearsal-smoke: expected launch-status.v9 got $($launch.schema_version)"
+if ($launch.schema_version -ne "launch-status.v10") {
+    throw "launch-status-rehearsal-smoke: expected launch-status.v10 got $($launch.schema_version)"
 }
 if ($launch.checkpoint_log.path -ne "mfn-node/testdata/public_devnet_v1.checkpoints.jsonl") {
     throw "launch-status-rehearsal-smoke: unexpected checkpoint_log.path $($launch.checkpoint_log.path)"
@@ -52,11 +52,11 @@ if ($launch.fraud_proof.on_chain_producer_slash -ne "shipped") {
 if ($launch.fraud_proof.validity_proof -ne "research") {
     throw "launch-status-rehearsal-smoke: fraud_proof.validity_proof expected research got $($launch.fraud_proof.validity_proof)"
 }
-if ($launch.fraud_proof.validity_proof_phase -ne "4b") {
-    throw "launch-status-rehearsal-smoke: fraud_proof.validity_proof_phase expected 4b"
+if ($launch.fraud_proof.validity_proof_phase -ne "4b.1") {
+    throw "launch-status-rehearsal-smoke: fraud_proof.validity_proof_phase expected 4b.1"
 }
-if ($launch.fraud_proof.stark_backend -ne "digest-stub") {
-    throw "launch-status-rehearsal-smoke: fraud_proof.stark_backend expected digest-stub"
+if ($launch.fraud_proof.stark_backend -ne "winterfell") {
+    throw "launch-status-rehearsal-smoke: fraud_proof.stark_backend expected winterfell"
 }
 if ($launch.fraud_proof.p2p_tag_validity -ne "0x14") {
     throw "launch-status-rehearsal-smoke: fraud_proof.p2p_tag_validity expected 0x14"
@@ -66,7 +66,7 @@ if (-not $launch.fraud_proof.list_fraud_contests_rpc) {
 }
 
 Write-Host "launch-status-rehearsal-smoke: plan"
-Write-Host "  schema=launch-status.v9"
+Write-Host "  schema=launch-status.v10"
 Write-Host "  checkpoint_log.path=$($launch.checkpoint_log.path)"
 Write-Host "  checkpoint_log.entry_count=$($launch.checkpoint_log.entry_count)"
 Write-Host "  execution_checklist=$($launch.execution_checklist.schema_version)"

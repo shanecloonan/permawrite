@@ -144,7 +144,7 @@ if ($publishCheckpointLogPlan -notmatch "publish-checkpoint-log-rehearsal-smoke:
     exit 1
 }
 $launchStatus = (powershell -NoProfile -File scripts/public-devnet-v1/launch-status-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
-if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v9") {
+if ($launchStatus -notmatch "launch-status-rehearsal-smoke: PASS plan-only" -or $launchStatus -notmatch "schema=launch-status.v10") {
     $launchStatus | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }

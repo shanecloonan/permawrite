@@ -187,3 +187,6 @@ pub const VALIDITY_STARK_BATCH_V1: Domain = b"MFBN-1/validity-stark-batch-v1";
 
 /// STARK stub proof binding domain.
 pub const VALIDITY_STARK_STUB_PROOF: Domain = b"MFBN-1/validity-stark-stub-proof";
+
+/// Winterfell batch chunk domain for F5 phase 4b.1.
+pub const VALIDITY_STARK_WINTERFELL_BATCH: Domain = b"MFBN-1/validity-stark-winterfell-batch";

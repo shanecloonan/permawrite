@@ -23,7 +23,7 @@ mfn-net = { path = "../mfn-net" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-bls = { path = "../mfn-bls" }
 mfn-storage = { path = "../mfn-storage" }
-mfn-consensus = { path = "../mfn-consensus" }
+mfn-consensus = { path = "../mfn-consensus", features = ["bls", "winterfell"] }
 
 thiserror = { workspace = true }
 serde = { workspace = true }

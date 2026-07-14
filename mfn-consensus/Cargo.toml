@@ -12,9 +12,10 @@ description = "Permawrite — state-transition function: transactions, coinbase,
 all = "warn"
 
 [features]
-default = ["bls"]
+default = ["bls", "winterfell"]
 # Full BLS12-381 consensus (nodes). Off for `wasm32` wallet scan/sign builds.
 bls = ["dep:mfn-bls"]
+winterfell = ["dep:winterfell", "dep:winter-utils"]
 
 [dependencies]
 mfn-crypto = { path = "../mfn-crypto" }
@@ -29,6 +30,8 @@ rand_core = { workspace = true }
 
 thiserror = { workspace = true }
 hex = { workspace = true }
+winterfell = { version = "0.10.1", optional = true }
+winter-utils = { version = "0.10.2", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

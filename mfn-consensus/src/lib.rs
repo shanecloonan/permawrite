@@ -85,6 +85,8 @@ pub mod validator_evolution;
 pub mod validity_proof;
 #[cfg(feature = "bls")]
 pub mod validity_stark_stub;
+#[cfg(all(feature = "bls", feature = "winterfell"))]
+pub mod validity_stark_winterfell;
 
 #[cfg(feature = "bls")]
 pub use block::{
@@ -214,4 +216,8 @@ pub use validity_proof::{
     ValidityProofError, ValidityProofV1, ValidityProofVerdict, MAX_VALIDITY_PROOF_BYTES,
     VALIDITY_PROOF_V1_VERSION, VALIDITY_WITNESS_APPLY_BLOCK_REPLAY,
     VALIDITY_WITNESS_STARK_DIGEST_STUB,
+};
+#[cfg(all(feature = "bls", feature = "winterfell"))]
+pub use validity_proof::{
+    build_stark_winterfell_validity_proof, VALIDITY_WITNESS_STARK_WINTERFELL,
 };

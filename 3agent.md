@@ -7,13 +7,28 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29298069061` + Nightly `#29299418927` GREEN on `e385390` | **Doing** — monitor 4b CI | TL-5 human soak |
-| **2** RC ops | `release-evidence-e385390` | **Done** | Human sign-off packet |
-| **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 4a `e385390` | **Doing** — phase 4b STARK stub | Winterfell circuit |
+| **1** RC core | CI `#29301681465` + Nightly `#29302920403` GREEN on `946341c` | **Doing** — monitor 4b.1 CI | Nightly dispatch after GREEN |
+| **2** RC ops | `release-evidence-e385390` | **Done** | Refresh evidence on 4b.1 head |
+| **3** Onboarding | checklist v2 + TL-5/6 evidence `ba2ec08` | **Done** | TL-7 genesis sign-off |
+| **4** Protocol | F5 phase 4b `946341c` | **Doing** — phase 4b.1 Winterfell | phase 4b.2 recursive aggregation |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** Testnet | launch-status.v8 | **Done** — `e385390` | Human TL-5 VPS soak → TL-6 |
+| **7** Testnet | TL-5/TL-6 Hetzner evidence `ba2ec08` | **Done** | Human TL-7 genesis ceremony |
+
+---
+
+## Session — 2026-07-14 (F5 phase 4b.1 Winterfell STARK)
+
+| Unit | Status | Notes |
+| --- | --- | --- |
+| **F5 phase 4b.1** | **Doing** — this push | Winterfell batch-binding AIR + witness kind `3` + launch-status v10 |
+| **CI #29301681465** | **Done** — GREEN | 4b stack on `946341c` |
+| **Nightly #29302920403** | **Done** — GREEN | dispatched on 4b head |
+| **TL-5/TL-6** | **Done** — `ba2ec08` | Hetzner `5.161.201.73` soak + participant evidence archived |
+
+**Lane 4 — Doing:** Winterfell circuit **Next:** 4b.2 recursive aggregation  
+**Lane 1 — Next:** Nightly on 4b.1 after CI GREEN  
+**Lane 7 — Next:** TL-7 genesis sign-off (human)
 
 ---
 
