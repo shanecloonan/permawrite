@@ -1,0 +1,17 @@
+[Unit]
+Description=Permawrite observer HTTP JSON-RPC proxy (public-safe)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/permawrite
+Environment=MFND_RPC=127.0.0.1:18734
+Environment=PROXY_HOST=0.0.0.0
+Environment=PROXY_PORT=8787
+ExecStart=/usr/bin/node /root/permawrite/scripts/public-devnet-v1/observer-rpc-proxy.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

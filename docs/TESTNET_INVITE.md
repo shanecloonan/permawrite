@@ -8,6 +8,8 @@ Use this document for operator launch evidence and network identity details. Sha
 
 **Live (2026-07-14):** boot peers `5.161.201.73:19001`, `:19002`, `:19003` — see manifest `seed_nodes`. Mesh operator: restart with `vps-start-all.sh` on the VPS if dials fail.
 
+**Public read-RPC proxy (observer, public-safe methods only):** `http://5.161.201.73:8787/rpc` — HTTP→TCP bridge for status pages / lite explorers. Not a wallet-write endpoint. Validators still keep RPC on loopback.
+
 ---
 
 ## Network identity

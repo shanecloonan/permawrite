@@ -85,6 +85,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-7 Path B header_version (CI) | `bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only` |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
+| Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
