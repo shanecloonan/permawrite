@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | F5 phase 1c stack `105ea22`; CI `#29294927626` GREEN | **Done** | Nightly dispatch + pin refresh |
-| **2** RC ops | `release-evidence-7c7d2ad` RC audit **go** | **Done** | Re-run evidence when CI green |
+| **1** RC core | CI `#29294927626` GREEN; Nightly dispatched | **Doing** — monitor Nightly | Pin refresh after Nightly GREEN |
+| **2** RC ops | `release-evidence-105ea22` RC audit **go** | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 1c integration + genesis_spec v3 | **Done** — `69c0531`+`be9c760` | F5 phase 4 SNARK research (`FRAUD_PROOFS.md`) |
+| **4+6** Protocol | F5 phase 4 research `c2d46f3` | **Done** | Phase 4a prototype spike |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** Testnet | launch-status.v7 fraud_proof 1c | **Done** — `8b72294`+`83fdca7` | Human TL-5 VPS soak → TL-6 |
@@ -23,11 +23,11 @@
 | --- | --- | --- |
 | **genesis_spec v3 fix** | **Done** — `be9c760` | `accepts_header_version_three`; rejects v4 |
 | **rehearsal smoke gate** | **Done** — `105ea22` | genesis-header-version-rehearsal-smoke needles |
-| **F5 phase 4 research** | **Doing** — this push | SNARK/STARK validity proof design in `FRAUD_PROOFS.md` |
-| **CI #29294927626** | **In progress** | `105ea22` stack |
+| **F5 phase 4 research** | **Done** — this push | SNARK/STARK validity proof design in `FRAUD_PROOFS.md` |
+| **CI #29294927626** | **Done** — GREEN | Nightly `#29296433903` in progress |
 
-**Lane 1 — Doing:** CI `#29294927626` **Next:** Nightly dispatch after green  
-**Lane 4 — Doing:** phase 4 research doc **Next:** phase 4a prototype spike
+**Lane 1 — Doing:** Nightly `#29296433903` **Next:** pin refresh after GREEN  
+**Lane 4 — Done:** phase 4 research doc **Next:** phase 4a prototype spike
 
 ---
 
