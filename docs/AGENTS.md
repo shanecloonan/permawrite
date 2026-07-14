@@ -157,7 +157,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Next
 
-- [ ] TL-6 VPS participant rehearsal (human VPS).
+- [x] **TL-6 VPS participant rehearsal** — Hetzner `5.161.201.73` PASS (`vps-participant-rehearsal-observer-linux-20260714T030600Z.txt`).
 
 ### Do not start
 
@@ -305,7 +305,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **vps-provision-rehearsal-smoke** — TL-5 VPS_PROVISION.md plan gate (`a91fbe3`).
 - [x] **TL-5 software-ready pin** — `TESTNET_LAUNCH.md` pin `85dad78` (F5+F6 stack; CI `#29278386048` + Nightly `#29280436031` GREEN).
 - [x] **F12 phase 5b demo live** — `demo-web-f12-rehearsal-smoke --live` (`8b4f0ee`).
-- [ ] **TL-5** — VPS internet soak (lane 7, human VPS).
+- [x] **TL-5** — Hetzner internet soak PASS `max_height=59` (lane 7; this push).
 
 ### Done (recent)
 
@@ -443,12 +443,12 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] *(awaiting VPS provision for TL-5/6 execution)*
+- [ ] **TL-7 human sign-off** — Path A (toy keys) or Path B (fresh genesis)
 
 ### Next
 
-- [ ] **TL-5 execution** — run soak on provisioned VPS; archive PASS evidence (height ≥ 10)
-- [ ] **TL-6 execution** — `vps-participant-rehearsal.sh` on same VPS after TL-5
+- [x] **TL-5 execution** — Hetzner `5.161.201.73` soak PASS `max_height=59` (this push).
+- [x] **TL-6 execution** — participant rehearsal PASS on same VPS (this push).
 - [ ] **TL-7 human sign-off** — Path A (toy keys) or Path B (fresh genesis)
 - [ ] **TL-8** — `publish-seed-nodes.sh --apply` after TL-7
 - [ ] **TL-9** — `launch-go-no-go.sh` + named watchers before invite

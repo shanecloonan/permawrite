@@ -14,7 +14,9 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 | CI | `#29298069061` GREEN |
 | Nightly | `#29299418927` GREEN (functional `e385390`) |
 | RC audit | `release-evidence-e385390` **go** (local refresh) |
-| Next human gate | **TL-5** — provision VPS ([`VPS_PROVISION.md`](./VPS_PROVISION.md)) then `bash scripts/public-devnet-v1/vps-internet-soak.sh` |
+| VPS TL-5 soak | PASS `max_height=59` — `vps-internet-soak-linux-10000ms-slot-20260714T030102Z.txt` on Hetzner `5.161.201.73` |
+| VPS TL-6 rehearsal | PASS — `vps-participant-rehearsal-observer-linux-20260714T030600Z.txt` |
+| Next human gate | **TL-7** — genesis ceremony ([`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md)) then TL-8 `seed_nodes` |
 
 ---
 

@@ -93,7 +93,7 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 | **2** | Release evidence refresh | **Done** — `release-evidence-e385390` | Human sign-off packet |
 | **4** | F5 phase 4b STARK digest stub | **Doing** — this push | Winterfell circuit (4b.1) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | TESTNET_LAUNCH pin refresh | **Doing** — pin `e385390` | Human TL-5 VPS soak |
+| **7** | TL-5/TL-6 VPS evidence | **Done** — Hetzner `5.161.201.73` | TL-7 genesis sign-off |
 
 ---
 

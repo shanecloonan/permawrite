@@ -376,7 +376,7 @@ archive_rehearsal_smoke_evidence() {
   case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) platform="windows" ;;
   esac
-  stamp="$(date -u +"%Y%m%dTHHmmssZ")"
+  stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
   local dandelion_label=""
   if (( DANDELION == 1 )); then dandelion_label="-dandelion"; fi
   local prefix="participant-rehearsal"

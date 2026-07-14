@@ -96,8 +96,8 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] **CI `#29264586158` GREEN** + `release-evidence-5a1b221` RC audit **go** (F6 stack `5a1b221`; lanes 1+2).
 - [x] **Lane 6 / F6 Arweave comparison** — `ECONOMICS.md` §12 permanence durability vs Arweave (`bff1b70`).
 - [x] **Lane 4 / genesis header_version rehearsal** — `genesis-header-version-rehearsal-smoke.*` Path B v2 doc gate (this push).
-- [ ] **Lane 7 / TL-5 execution** — run soak on VPS; archive `vps-internet-soak-linux-*.txt` on PASS.
-- [ ] **Lane 7 / TL-6** — VPS participant rehearsal (`vps-participant-rehearsal.sh`; evidence on PASS).
+- [x] **Lane 7 / TL-5 execution** — Hetzner `5.161.201.73` soak PASS `max_height=59` (`vps-internet-soak-linux-10000ms-slot-20260714T030102Z.txt`; `e385390`).
+- [x] **Lane 7 / TL-6** — VPS participant rehearsal PASS (`vps-participant-rehearsal-observer-linux-20260714T030600Z.txt`; `e385390`).
 - [x] **Lane 7 / TL-7–TL-9 tooling** — genesis ceremony, `publish-seed-nodes`, `launch-go-no-go` (`03de79a`).
 - [x] **Lane 7 / TL-5 preflight rehearsal** — `vps-preflight-rehearsal-smoke.*` plan-only gate on VPS preflight docs + script wiring (`9da922a`; ci-check/GHA wired `c1f9597`).
 - [x] **Lane 7 / TL-8 invite rehearsal** — `testnet-invite-rehearsal-smoke.*` plan-only gate on `TESTNET_INVITE.md` packet (`9da922a`; ci-check/GHA wired `c1f9597`); live invite still blocked on VPS evidence + published seeds.
