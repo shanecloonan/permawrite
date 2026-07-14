@@ -6,14 +6,14 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 
 **Posture:** pre-audit experimental software; test-only value; public P2P + private RPC per [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md).
 
-### Software-ready pin (2026-07-13)
+### Software-ready pin (2026-07-14)
 
 | Field | Value |
 | --- | --- |
-| Release commit | `85dad78` (F5 phase 1b `17ac4fc` + F6 stack `5a1b221` + mfnd smokes) |
-| CI | `#29278386048` GREEN |
-| Nightly | `#29280436031` + `#29284893108` + `#29286801623` GREEN (functional `85dad78`; docs heads through `5c6ce1b`) |
-| RC audit | `release-evidence-85dad78` / `release-evidence-7c7d2ad` **go** |
+| Release commit | `e385390` (F5 phase 4a validity proof + launch-status v8; F5 1c slash stack) |
+| CI | `#29298069061` GREEN |
+| Nightly | `#29299418927` GREEN (functional `e385390`) |
+| RC audit | `release-evidence-e385390` **go** (local refresh) |
 | Next human gate | **TL-5** — provision VPS ([`VPS_PROVISION.md`](./VPS_PROVISION.md)) then `bash scripts/public-devnet-v1/vps-internet-soak.sh` |
 
 ---

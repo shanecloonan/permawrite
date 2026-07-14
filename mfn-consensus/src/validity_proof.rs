@@ -1,4 +1,4 @@
-//! Succinct block validity proofs (**F5** phase 4a).
+//! Succinct block validity proofs (**F5** phases 4a-4b).
 //!
 //! Phase **4a** ships the wire format and an **apply-block replay** witness
 //! (witness-heavy prototype before STARK backends). Full nodes verify by
@@ -12,11 +12,16 @@ use crate::chain_checkpoint::{decode_chain_checkpoint, encode_chain_checkpoint, 
 use mfn_crypto::codec::{Reader, Writer};
 use thiserror::Error;
 
+use crate::validity_stark_stub;
+
 /// Wire format version for [`ValidityProofV1`].
 pub const VALIDITY_PROOF_V1_VERSION: u32 = 1;
 
 /// Witness kind: parent checkpoint + block wire; verifier replays `apply_block`.
 pub const VALIDITY_WITNESS_APPLY_BLOCK_REPLAY: u8 = 1;
+
+/// Witness kind: STARK digest stub over parent checkpoint + block wire (phase **4b**).
+pub const VALIDITY_WITNESS_STARK_DIGEST_STUB: u8 = 2;
 
 /// Upper bound on encoded validity-proof bytes (matches P2P frame budget).
 pub const MAX_VALIDITY_PROOF_BYTES: usize = 4 * 1024 * 1024;
@@ -92,8 +97,11 @@ pub enum ValidityProofError {
         errors: Vec<crate::block::BlockError>,
     },
     /// STARK proof bytes present but not yet verified in phase 4a.
-    #[error("stark proof bytes not supported in phase 4a")]
+    #[error("stark proof bytes not supported for replay witness in phase 4a")]
     StarkProofNotSupported,
+    /// STARK digest stub verification failed.
+    #[error("stark digest stub: {0}")]
+    StarkStub(#[from] validity_stark_stub::StarkStubError),
 }
 
 /// Build an apply-block replay proof from a known parent tip and child block.
@@ -116,6 +124,25 @@ pub fn build_apply_block_replay_validity_proof(
         circuit_digest: [0u8; 32],
         proof_bytes: Vec::new(),
     }
+}
+
+/// Build a phase **4b** validity proof with digest stub proof_bytes.
+pub fn build_stark_digest_stub_validity_proof(
+    genesis_id: [u8; 32],
+    parent: &ChainState,
+    block: &Block,
+) -> ValidityProofV1 {
+    let circuit_digest = validity_stark_stub::validity_stark_batch_v1_circuit_digest();
+    let mut proof = build_apply_block_replay_validity_proof(genesis_id, parent, block);
+    proof.witness_kind = VALIDITY_WITNESS_STARK_DIGEST_STUB;
+    proof.circuit_digest = circuit_digest;
+    proof.proof_bytes = validity_stark_stub::stark_digest_stub_proof_bytes(
+        &proof.parent_checkpoint,
+        &proof.block_wire,
+        &circuit_digest,
+    )
+    .to_vec();
+    proof
 }
 
 /// Encode a [`ValidityProofV1`] for P2P / archive.
@@ -179,19 +206,29 @@ pub fn decode_validity_proof_v1(bytes: &[u8]) -> Result<ValidityProofV1, Validit
     })
 }
 
-/// Verify a phase **4a** validity proof (apply-block replay witness today).
+/// Verify a validity proof (replay and/or STARK digest stub).
 pub fn verify_validity_proof_v1(wire: &[u8]) -> Result<ValidityProofVerdict, ValidityProofError> {
     let proof = decode_validity_proof_v1(wire)?;
     if proof.version != VALIDITY_PROOF_V1_VERSION {
         return Err(ValidityProofError::UnsupportedVersion { got: proof.version });
     }
-    if proof.witness_kind != VALIDITY_WITNESS_APPLY_BLOCK_REPLAY {
-        return Err(ValidityProofError::UnknownWitnessKind {
-            got: proof.witness_kind,
-        });
-    }
-    if !proof.proof_bytes.is_empty() {
-        return Err(ValidityProofError::StarkProofNotSupported);
+    match proof.witness_kind {
+        VALIDITY_WITNESS_APPLY_BLOCK_REPLAY => {
+            if !proof.proof_bytes.is_empty() {
+                return Err(ValidityProofError::StarkProofNotSupported);
+            }
+        }
+        VALIDITY_WITNESS_STARK_DIGEST_STUB => {
+            validity_stark_stub::verify_stark_digest_stub(
+                &proof.parent_checkpoint,
+                &proof.block_wire,
+                &proof.circuit_digest,
+                &proof.proof_bytes,
+            )?;
+        }
+        got => {
+            return Err(ValidityProofError::UnknownWitnessKind { got });
+        }
     }
     let cp = decode_chain_checkpoint(&proof.parent_checkpoint)?;
     let block = decode_block(&proof.block_wire)?;
@@ -283,5 +320,28 @@ mod tests {
             verify_validity_proof_v1(&wire),
             Err(ValidityProofError::BlockIdMismatch)
         ));
+    }
+
+    #[test]
+    fn stark_digest_stub_accepts_valid_proof() {
+        let (parent, genesis_id) = legacy_genesis();
+        let unsealed = build_unsealed_header(&parent, &[], &[], &[], &[], 1, 100);
+        let block = seal_block(unsealed, vec![], vec![], vec![], vec![], vec![]);
+        let proof = build_stark_digest_stub_validity_proof(genesis_id, &parent, &block);
+        assert_eq!(proof.witness_kind, VALIDITY_WITNESS_STARK_DIGEST_STUB);
+        let wire = encode_validity_proof_v1(&proof);
+        match verify_validity_proof_v1(&wire).expect("verify") {
+            ValidityProofVerdict::ValidAccept { height } => assert_eq!(height, 1),
+        }
+    }
+
+    #[test]
+    fn stark_digest_stub_rejects_bad_digest() {
+        let (parent, genesis_id) = legacy_genesis();
+        let unsealed = build_unsealed_header(&parent, &[], &[], &[], &[], 1, 100);
+        let block = seal_block(unsealed, vec![], vec![], vec![], vec![], vec![]);
+        let mut proof = build_stark_digest_stub_validity_proof(genesis_id, &parent, &block);
+        proof.proof_bytes[0] ^= 0x01;
+        assert!(verify_validity_proof_v1(&encode_validity_proof_v1(&proof)).is_err());
     }
 }

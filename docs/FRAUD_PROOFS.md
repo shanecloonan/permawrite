@@ -300,6 +300,12 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 - **P2P:** mfn_net::VALIDITY_PROOF_V1_TAG (0x14) frames consensus wire via ValidityProofV1::encode_payload / decode_payload; recv_gossip_v1 dispatches to on_validity_proof_v1.
 - **Node:** mfn-node P2pGossipHandler::on_validity_proof_v1 calls verify_validity_proof_v1 and logs mfnd_validity_proof_valid / mfnd_validity_proof_rejected.
 
+
+### Shipped implementation (phase 4b)
+
+- **STARK digest stub:** `mfn_consensus::validity_stark_stub` — tx+coinbase+SPoRA batch circuit digest + 32-byte proof binding; `VALIDITY_WITNESS_STARK_DIGEST_STUB` (kind `2`) wraps replay witness.
+- **Builder:** `build_stark_digest_stub_validity_proof` — producer-side stub until Winterfell backend lands.
+
 ### Acceptance tests (phase 4a)
 
 | Test | Crate | Assert |
@@ -325,4 +331,4 @@ where `validity_proof_ref` is a hash of a succinct proof that `apply_block` reje
 
 ### Launch-status linkage (future)
 
-Extend `launch-status.v8` with `fraud_proof.validity_proof: "research"` and `validity_proof_phase: "4a"` (shipped).
+Extend `launch-status.v9` with `validity_proof_phase: "4b"` and `stark_backend: "digest-stub"` (shipped).

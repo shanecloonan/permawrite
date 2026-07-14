@@ -181,3 +181,9 @@ pub const LIGHT_CHECKPOINT: Domain = b"MFBN-1/light-checkpoint";
 /// checkpoint passed to the full-node decoder (or vice-versa) fails the
 /// integrity check rather than silently producing a wrong-shape decode.
 pub const CHAIN_CHECKPOINT: Domain = b"MFBN-1/chain-checkpoint";
+
+/// Circuit digest domain for F5 phase 4b batch STARK.
+pub const VALIDITY_STARK_BATCH_V1: Domain = b"MFBN-1/validity-stark-batch-v1";
+
+/// STARK stub proof binding domain.
+pub const VALIDITY_STARK_STUB_PROOF: Domain = b"MFBN-1/validity-stark-stub-proof";

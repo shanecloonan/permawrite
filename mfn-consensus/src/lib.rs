@@ -83,6 +83,8 @@ pub mod transaction;
 pub mod validator_evolution;
 #[cfg(feature = "bls")]
 pub mod validity_proof;
+#[cfg(feature = "bls")]
+pub mod validity_stark_stub;
 
 #[cfg(feature = "bls")]
 pub use block::{
@@ -207,7 +209,9 @@ pub use validator_evolution::{
 };
 #[cfg(feature = "bls")]
 pub use validity_proof::{
-    build_apply_block_replay_validity_proof, decode_validity_proof_v1, encode_validity_proof_v1,
-    verify_validity_proof_v1, ValidityProofError, ValidityProofV1, ValidityProofVerdict,
-    MAX_VALIDITY_PROOF_BYTES, VALIDITY_PROOF_V1_VERSION, VALIDITY_WITNESS_APPLY_BLOCK_REPLAY,
+    build_apply_block_replay_validity_proof, build_stark_digest_stub_validity_proof,
+    decode_validity_proof_v1, encode_validity_proof_v1, verify_validity_proof_v1,
+    ValidityProofError, ValidityProofV1, ValidityProofVerdict, MAX_VALIDITY_PROOF_BYTES,
+    VALIDITY_PROOF_V1_VERSION, VALIDITY_WITNESS_APPLY_BLOCK_REPLAY,
+    VALIDITY_WITNESS_STARK_DIGEST_STUB,
 };

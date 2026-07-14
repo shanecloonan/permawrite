@@ -353,9 +353,10 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use mfn_consensus::{
-        build_apply_block_replay_validity_proof, build_genesis, build_unsealed_header,
-        encode_block, encode_validity_proof_v1, seal_block, GenesisConfig,
-        DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+        build_apply_block_replay_validity_proof, build_genesis,
+        build_stark_digest_stub_validity_proof, build_unsealed_header, encode_block,
+        encode_validity_proof_v1, seal_block, GenesisConfig, DEFAULT_CONSENSUS_PARAMS,
+        DEFAULT_EMISSION_PARAMS,
     };
     use mfn_net::GossipHandler;
     use mfn_runtime::{ChainConfig, Mempool, MempoolConfig, ProofPool, ProofPoolConfig};
@@ -680,6 +681,33 @@ mod tests {
         assert!(
             label.starts_with("valid_validity:height=2"),
             "expected valid validity, got {label}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_stark_digest_stub_validity_proof() {
+        let (handler, _) = handler_at_height_1();
+        let (parent, genesis_id, block) = {
+            let guard = handler.chain.lock().expect("chain");
+            let st = guard.state().clone();
+            let gid = *guard.genesis_id();
+            let unsealed = build_unsealed_header(&st, &[], &[], &[], &[], 2, 2_000);
+            let block = seal_block(
+                unsealed,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            );
+            (st, gid, block)
+        };
+        let proof = build_stark_digest_stub_validity_proof(genesis_id, &parent, &block);
+        let wire = encode_validity_proof_v1(&proof);
+        let label = handler.on_validity_proof_v1(&wire);
+        assert!(
+            label.starts_with("valid_validity:height=2"),
+            "expected valid stark stub validity, got {label}"
         );
     }
 }

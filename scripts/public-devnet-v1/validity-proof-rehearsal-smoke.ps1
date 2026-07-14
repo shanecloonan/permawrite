@@ -1,4 +1,4 @@
-# Lane 4 / F5 phase 4a: plan-only validity-proof wire + P2P tag gate.
+# Lane 4 / F5 phase 4b: plan-only validity-proof wire + P2P tag gate.
 param(
     [switch]$PlanOnly
 )
@@ -19,13 +19,16 @@ foreach ($path in @($Doc, $Consensus, $Net, $Frame, $Gossip, $NodeGossip, $Serve
     }
 }
 
-foreach ($needle in @("verify_validity_proof_v1", "VALIDITY_PROOF_V1_TAG", "0x14", "phase 4a")) {
+foreach ($needle in @("verify_validity_proof_v1", "VALIDITY_PROOF_V1_TAG", "0x14", "phase 4b")) {
     if (-not (Select-String -LiteralPath $Doc -Pattern ([regex]::Escape($needle)) -Quiet)) {
         throw "validity-proof-rehearsal-smoke: FRAUD_PROOFS.md missing: $needle"
     }
 }
 if (-not (Select-String -LiteralPath $Consensus -Pattern "build_apply_block_replay_validity_proof" -Quiet)) {
     throw "validity-proof-rehearsal-smoke: validity_proof.rs missing replay builder"
+}
+if (-not (Select-String -LiteralPath $Consensus -Pattern "build_stark_digest_stub_validity_proof" -Quiet)) {
+    throw "validity-proof-rehearsal-smoke: validity_proof.rs missing stark stub builder"
 }
 if (-not (Select-String -LiteralPath $Net -Pattern "VALIDITY_PROOF_V1_TAG" -Quiet)) {
     throw "validity-proof-rehearsal-smoke: validity_proof_v1.rs missing tag constant"
@@ -51,7 +54,7 @@ Write-Host "validity-proof-rehearsal-smoke: plan"
 Write-Host "  docs=docs/FRAUD_PROOFS.md"
 Write-Host "  consensus=mfn_consensus::validity_proof"
 Write-Host "  p2p_tag=0x14 VALIDITY_PROOF_V1_TAG"
-Write-Host "  witness=apply_block_replay (STARK deferred)"
+Write-Host "  witness=apply_block_replay + stark_digest_stub (phase 4b)"
 
 if ($PlanOnly -or -not $PSBoundParameters.ContainsKey("PlanOnly")) {
     Write-Host "validity-proof-rehearsal-smoke: PASS plan-only"

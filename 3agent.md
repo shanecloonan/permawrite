@@ -7,10 +7,10 @@
 
 | Agent / lane | Done | Doing | Next |
 | --- | --- | --- | --- |
-| **1** RC core | CI `#29298069061` GREEN on `e385390`; Nightly `#29296433903` GREEN | **Doing** — Nightly dispatch on 4a head | Release evidence refresh (lane 2) |
-| **2** RC ops | `release-evidence-105ea22` | **Doing** — refresh on 4a GREEN | Human sign-off packet |
+| **1** RC core | CI `#29298069061` + Nightly `#29299418927` GREEN on `e385390` | **Doing** — monitor 4b CI | TL-5 human soak |
+| **2** RC ops | `release-evidence-e385390` | **Done** | Human sign-off packet |
 | **3** Onboarding | checklist v2 | **Done** | TL-5 VPS soak (human) |
-| **4+6** Protocol | F5 phase 4a `e385390` | **Done** | Phase 4b STARK backend |
+| **4+6** Protocol | F5 phase 4a `e385390` | **Doing** — phase 4b STARK stub | Winterfell circuit |
 | **5** Privacy | P32 4e + F12 live | **Done** | TL-5 VPS soak (human) |
 | **6** Permanence | F6 telemetry `0d1b9ec` | **Done** | Parameter fork `1000` bps (TL-7 Path B) |
 | **7** Testnet | launch-status.v8 | **Done** — `e385390` | Human TL-5 VPS soak → TL-6 |

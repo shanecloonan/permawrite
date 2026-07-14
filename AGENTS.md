@@ -81,19 +81,19 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ---
 
-## CI gate (2026-07-13)
+## CI gate (2026-07-14)
 
-**Head:** `e385390`. **CI `#29298069061` GREEN** on F5 phase 4a stack. **Nightly `#29299418927` dispatched**.
+**Head:** F5 phase 4b (pending push). **CI `#29298069061` GREEN** on `e385390`. **Nightly `#29299418927` GREEN**.
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 4a Nightly | **Doing** — Nightly `#29299418927` | Pin refresh after Nightly GREEN |
+| **1** | F5 phase 4a Nightly | **Done** — Nightly `#29299418927` GREEN | Monitor CI on 4b push |
 | **2** | Release evidence refresh | **Done** — `release-evidence-e385390` | Human sign-off packet |
-| **4** | F5 phase 4a validity proof | **Done** — `e385390` | Phase 4b STARK backend research |
+| **4** | F5 phase 4b STARK digest stub | **Doing** — this push | Winterfell circuit (4b.1) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | launch-status.v8 + validity 4a | **Done** — `e385390` | Human TL-5 VPS soak |
+| **7** | TESTNET_LAUNCH pin refresh | **Doing** — pin `e385390` | Human TL-5 VPS soak |
 
 ---
 

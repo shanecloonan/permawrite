@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane 4 / F5 phase 4a: plan-only validity-proof wire + P2P tag gate.
+# Lane 4 / F5 phase 4b: plan-only validity-proof wire + P2P tag gate.
 set -euo pipefail
 
 usage() {
@@ -32,7 +32,7 @@ for path in "$DOC" "$CONSENSUS" "$NET" "$FRAME" "$GOSSIP" "$NODE_GOSSIP" "$SERVE
   fi
 done
 
-for needle in verify_validity_proof_v1 VALIDITY_PROOF_V1_TAG 0x14 "phase 4a"; do
+for needle in verify_validity_proof_v1 VALIDITY_PROOF_V1_TAG 0x14 "phase 4b"; do
   if ! grep -Fq "$needle" "$DOC"; then
     echo "validity-proof-rehearsal-smoke: FRAUD_PROOFS.md missing: $needle" >&2
     exit 1
@@ -40,6 +40,10 @@ for needle in verify_validity_proof_v1 VALIDITY_PROOF_V1_TAG 0x14 "phase 4a"; do
 done
 if ! grep -Fq build_apply_block_replay_validity_proof "$CONSENSUS"; then
   echo "validity-proof-rehearsal-smoke: validity_proof.rs missing replay builder" >&2
+  exit 1
+fi
+if ! grep -q build_stark_digest_stub_validity_proof "$CONSENSUS"; then
+  echo "validity-proof-rehearsal-smoke: validity_proof.rs missing stark stub builder" >&2
   exit 1
 fi
 if ! grep -Fq VALIDITY_PROOF_V1_TAG "$NET"; then
@@ -71,7 +75,7 @@ echo "validity-proof-rehearsal-smoke: plan"
 echo "  docs=docs/FRAUD_PROOFS.md"
 echo "  consensus=mfn_consensus::validity_proof"
 echo "  p2p_tag=0x14 VALIDITY_PROOF_V1_TAG"
-echo "  witness=apply_block_replay (STARK deferred)"
+echo "  witness=apply_block_replay + stark_digest_stub (phase 4b)"
 
 if [[ "$PLAN_ONLY" -eq 1 ]]; then
   echo "validity-proof-rehearsal-smoke: PASS plan-only"
