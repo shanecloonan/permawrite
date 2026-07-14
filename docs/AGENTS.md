@@ -444,7 +444,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **Front-matter + JOIN_TESTNET** — README / status rebrand to experimental testnet + [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) (this push)
+- [ ] *(idle — next is TL-9 named watchers)*
 
 ### Next
 
@@ -452,6 +452,7 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **TL-6 execution** — participant rehearsal PASS (`ba2ec08`).
 - [x] **TL-7** — Path A toy keys (`tl7-genesis-signoff-path-a-20260714.txt`).
 - [x] **TL-8** — `seed_nodes` + checkpoint log published (`11eabbd`).
+- [x] **Front-matter + JOIN_TESTNET** — experimental testnet rebrand + [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) (`4b137bc`).
 - [ ] **TL-9** — named watchers + share [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) / [`JOIN_TESTNET.md`](./JOIN_TESTNET.md)
 
 ### Do not start
