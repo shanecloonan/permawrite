@@ -41,6 +41,8 @@ const PUBLIC_SAFE = new Set([
   "list_recent_claims",
   "list_recent_uploads",
   "list_utxos",
+  // Browser wallet submit (testnet only). Rate-limit separately if abused.
+  "submit_tx",
 ]);
 
 const [mfndHost, mfndPortStr] = MFND_RPC.split(":");
