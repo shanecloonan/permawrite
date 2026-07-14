@@ -39,10 +39,6 @@ set +e
 combined="$(bash "$SCRIPT_DIR/launch-go-no-go.sh" --json 2>&1)"
 exit_code=$?
 set -e
-if [[ "$exit_code" -eq 0 ]]; then
-  echo "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence" >&2
-  exit 1
-fi
 
 report="$(printf '%s' "$combined" | python3 -c "
 import json, re, sys
@@ -70,16 +66,27 @@ if [[ "$genesis_id" != "$expected_genesis" ]]; then
   echo "launch-go-no-go-rehearsal-smoke: unexpected genesis_id $genesis_id" >&2
   exit 1
 fi
-if [[ "$automatable_pass" != "False" && "$automatable_pass" != "false" ]]; then
-  echo "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false got $automatable_pass" >&2
-  exit 1
+if [[ "$seed_count" -ge 3 && "$exit_code" -eq 0 ]]; then
+  if [[ "$automatable_pass" != "True" && "$automatable_pass" != "true" ]]; then
+    echo "launch-go-no-go-rehearsal-smoke: post-TL-8 automatable_pass must be true when seed_nodes>=3 and exit 0" >&2
+    exit 1
+  fi
+else
+  if [[ "$automatable_pass" != "False" && "$automatable_pass" != "false" ]]; then
+    echo "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false got $automatable_pass" >&2
+    exit 1
+  fi
+  if [[ "$exit_code" -eq 0 ]]; then
+    echo "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence" >&2
+    exit 1
+  fi
 fi
 
 echo "launch-go-no-go-rehearsal-smoke: plan"
 echo "  schema=$schema_version"
 echo "  genesis_id=$genesis_id"
 echo "  seed_nodes_count=$seed_count"
-echo "  automatable_pass=false"
+echo "  automatable_pass=$automatable_pass"
 echo "  checkpoint=Schnorr verify required when seed_nodes>=3 (mfn-cli checkpoint-log verify)"
 echo "  helper=launch-go-no-go.sh [--json]"
 

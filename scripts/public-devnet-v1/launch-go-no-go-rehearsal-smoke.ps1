@@ -45,11 +45,17 @@ $expectedGenesis = "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42
 if ($report.genesis_id -ne $expectedGenesis) {
     throw "launch-go-no-go-rehearsal-smoke: unexpected genesis_id $($report.genesis_id)"
 }
-if ($report.automatable_pass -ne $false) {
-    throw "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false"
-}
-if ($proc.ExitCode -eq 0) {
-    throw "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence"
+if ($report.seed_nodes_count -ge 3 -and $proc.ExitCode -eq 0) {
+    if (-not $report.automatable_pass) {
+        throw "launch-go-no-go-rehearsal-smoke: post-TL-8 automatable_pass must be true when seed_nodes>=3 and exit 0"
+    }
+} else {
+    if ($report.automatable_pass -ne $false) {
+        throw "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false"
+    }
+    if ($proc.ExitCode -eq 0) {
+        throw "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence"
+    }
 }
 
 Write-Host "launch-go-no-go-rehearsal-smoke: plan"

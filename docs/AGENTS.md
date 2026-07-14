@@ -209,7 +209,8 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 - [x] **F5 phase 1c genesis_spec v3** — `accepts_header_version_three` + rejects v4 (`be9c760`).
 - [x] **F5 phase 4 research** — SNARK/STARK validity proof design in `FRAUD_PROOFS.md` § Phase 4 (`c2d46f3`).
 - [x] **F5 phase 4a** — apply-block replay witness + P2P tag `0x14` + launch-status v8 (e385390; CI #29298069061 GREEN).
-- [x] **F5 phase 4b** — STARK digest-stub witness kind 2 + domain-separated circuit digest + launch-status v9 (`8f814cf`; this push).
+- [x] **F5 phase 4b** — STARK digest-stub witness kind 2 + domain-separated circuit digest + launch-status v9 (`8f814cf`; `946341c`).
+- [ ] **F5 phase 4b.1** — Winterfell batch-binding STARK + witness kind 3 + launch-status v10 (**Doing** — this push).
 
 ### Next
 
@@ -443,15 +444,15 @@ When **Doing** is empty, set lane status to **Idle** on the master board and lis
 
 ### Doing
 
-- [ ] **TL-7 human sign-off** — Path A (toy keys) or Path B (fresh genesis)
+- [ ] **TL-9** — named launch-day watchers sign-off (manual)
 
 ### Next
 
-- [x] **TL-5 execution** — Hetzner `5.161.201.73` soak PASS `max_height=59` (this push).
-- [x] **TL-6 execution** — participant rehearsal PASS on same VPS (this push).
-- [ ] **TL-7 human sign-off** — Path A (toy keys) or Path B (fresh genesis)
-- [ ] **TL-8** — `publish-seed-nodes.sh --apply` after TL-7
-- [ ] **TL-9** — `launch-go-no-go.sh` + named watchers before invite
+- [x] **TL-5 execution** — Hetzner `5.161.201.73` soak PASS `max_height=59` (`ba2ec08`).
+- [x] **TL-6 execution** — participant rehearsal PASS (`ba2ec08`).
+- [x] **TL-7** — Path A toy keys (`tl7-genesis-signoff-path-a-20260714.txt`).
+- [x] **TL-8** — `seed_nodes` + checkpoint log published (this push).
+- [ ] **TL-9** — named watchers + share [`TESTNET_INVITE.md`](./TESTNET_INVITE.md)
 
 ### Do not start
 

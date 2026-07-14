@@ -10,13 +10,16 @@ Ordered path from **controlled local devnet** to **internet-facing experimental 
 
 | Field | Value |
 | --- | --- |
-| Release commit | `e385390` (F5 phase 4a validity proof + launch-status v8; F5 1c slash stack) |
-| CI | `#29298069061` GREEN |
-| Nightly | `#29299418927` GREEN (functional `e385390`) |
-| RC audit | `release-evidence-e385390` **go** (local refresh) |
-| VPS TL-5 soak | PASS `max_height=59` — `vps-internet-soak-linux-10000ms-slot-20260714T030102Z.txt` on Hetzner `5.161.201.73` |
-| VPS TL-6 rehearsal | PASS — `vps-participant-rehearsal-observer-linux-20260714T030600Z.txt` |
-| Next human gate | **TL-7** — genesis ceremony ([`TESTNET_GENESIS_CEREMONY.md`](./TESTNET_GENESIS_CEREMONY.md)) then TL-8 `seed_nodes` |
+| Release commit | `ba2ec08` (TL-5/TL-6 VPS evidence on `e385390` stack) |
+| CI | `#29298069061` GREEN on `e385390` |
+| Nightly | `#29299418927` GREEN |
+| RC audit | `release-evidence-e385390` **go** |
+| VPS | Hetzner `5.161.201.73` — mesh running for TL-8 |
+| `seed_nodes` | `5.161.201.73:19001`, `:19002`, `:19003` |
+| Checkpoint log | `public_devnet_v1.checkpoints.jsonl` (1 entry, tip_height=3) |
+| TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
+| Automatable go/no-go | PASS (`launch-go-no-go-20260714.json`) |
+| **Invite** | Share [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) — TL-9 named watchers still manual |
 
 ---
 

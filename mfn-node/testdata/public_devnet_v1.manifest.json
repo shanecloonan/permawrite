@@ -9,7 +9,11 @@
     "protocol_version": 1,
     "network_magic": 0
   },
-  "seed_nodes": [],
+  "seed_nodes": [
+    "5.161.201.73:19001",
+    "5.161.201.73:19002",
+    "5.161.201.73:19003"
+  ],
   "observer_rpc": null,
   "replication_peers": [],
   "replication_peers_examples": [

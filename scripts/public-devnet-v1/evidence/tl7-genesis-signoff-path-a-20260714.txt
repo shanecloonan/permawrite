@@ -1,0 +1,7 @@
+TL-7 decision: Path A (toy keys)
+genesis_id: 454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005
+VPS: 5.161.201.73 (Hetzner)
+VPS evidence: vps-internet-soak-linux-10000ms-slot-20260714T030102Z.txt + vps-participant-rehearsal-observer-linux-20260714T030600Z.txt
+Residual risk accepted: public toy validator seeds in repo; invite-only experimental testnet.
+Named approver: shane (launch operator)
+Date (UTC): 2026-07-14T04:00:00Z

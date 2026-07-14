@@ -1,0 +1,11 @@
+{
+  "schema_version": "launch-go-no-go.v1",
+  "head_sha": "ba2ec08",
+  "genesis_id": "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005",
+  "seed_nodes_count": 3,
+  "automatable_pass": true,
+  "tl5_evidence": "vps-internet-soak-linux-10000ms-slot-20260714T030102Z.txt",
+  "tl6_evidence": "vps-participant-rehearsal-observer-linux-20260714T030600Z.txt",
+  "checkpoint_log_entries": 1,
+  "checkpoint_log_verified": true
+}

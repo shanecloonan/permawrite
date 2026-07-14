@@ -83,17 +83,17 @@ Add lanes 8+ in [`docs/AGENTS.md`](docs/AGENTS.md) when needed. Split lanes befo
 
 ## CI gate (2026-07-14)
 
-**Head:** F5 phase 4b (pending push). **CI `#29298069061` GREEN** on `e385390`. **Nightly `#29299418927` GREEN**.
+**Head:** F5 phase 4b.1 Winterfell (this push). **CI `#29301681465` GREEN** on `946341c`. **Nightly `#29302920403` GREEN**. **TL-5/TL-6 evidence** landed `ba2ec08` (CI `#29303150436` may need triage).
 
 ## Current board
 
 | Lane | Current unit | Status | Next handoff |
 | --- | --- | --- | --- |
-| **1** | F5 phase 4a Nightly | **Done** — Nightly `#29299418927` GREEN | Monitor CI on 4b push |
-| **2** | Release evidence refresh | **Done** — `release-evidence-e385390` | Human sign-off packet |
-| **4** | F5 phase 4b STARK digest stub | **Doing** — this push | Winterfell circuit (4b.1) |
+| **1** | F5 4b CI/Nightly | **Done** — `#29301681465` + `#29302920403` GREEN | Monitor 4b.1 CI + Nightly |
+| **2** | Release evidence | **Done** — `release-evidence-e385390` | Refresh on 4b.1 head |
+| **4** | F5 phase 4b.1 Winterfell | **Doing** — this push | Recursive aggregation (4b.2) |
 | **6** | F6 telemetry subsidy field | **Done** — `0d1b9ec` | Parameter fork `1000` bps (TL-7 Path B) |
-| **7** | TL-5/TL-6 VPS evidence | **Done** — Hetzner `5.161.201.73` | TL-7 genesis sign-off |
+| **7** | TL-8 seeds + invite | **Done** — `5.161.201.73` seeds + automatable go/no-go PASS | Share TESTNET_INVITE.md |
 
 ---
 
