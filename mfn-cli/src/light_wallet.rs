@@ -148,12 +148,16 @@ fn sync_wallet_light_from_node(
 
     let tip = client.get_tip()?;
     let chain_tip_height = tip.tip_height.unwrap_or(0);
-    let start_height = if used_utxo_cache {
-        file.scan_height
+    // Keep resume height even when owned_outputs is temporarily empty (e.g. after
+    // submit_tx spends local UTXOs before change is re-scanned). Resetting to 1
+    // while a light checkpoint still points near tip fails bootstrap badly.
+    let start_height = match file.scan_height {
+        Some(h) if h > 0 => h.saturating_add(1),
+        _ if used_utxo_cache => file
+            .scan_height
             .expect("has_owned_cache implies scan_height")
-            .saturating_add(1)
-    } else {
-        1
+            .saturating_add(1),
+        _ => 1,
     };
 
     if params.reset_trusted_summary {
@@ -411,19 +415,17 @@ fn bootstrap_light_chain(
     start_height: u32,
     params: &LightScanParams,
 ) -> Result<LightChain, WalletCmdError> {
-    if let Some(cp_hex) = &file.light_checkpoint_hex {
+    if let Some(cp_hex) = &file.light_checkpoint_hex.clone() {
         let bytes = decode_hex(cp_hex, "light_checkpoint_hex")?;
         let chain = LightChain::decode_checkpoint(&bytes)
             .map_err(|e| WalletCmdError::Usage(format!("decode light checkpoint: {e}")))?;
         let expected_tip = start_height.saturating_sub(1);
-        if chain.tip_height() != expected_tip {
-            return Err(WalletCmdError::Usage(format!(
-                "light checkpoint tip_height {} does not match wallet scan resume at {}",
-                chain.tip_height(),
-                start_height
-            )));
+        if chain.tip_height() == expected_tip {
+            return Ok(chain);
         }
-        return Ok(chain);
+        // Mismatch after full-block send / emptied UTXO cache: drop stale checkpoint
+        // and rebuild from a snapshot at the intended resume tip.
+        file.light_checkpoint_hex = None;
     }
 
     let resume = file.scan_height;

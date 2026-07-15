@@ -271,7 +271,7 @@ pub fn wallet_scan(
 ) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
-    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     persist_wallet(path, &mut file, &wallet)?;
     print_or_json_scan_summary(
         path,
@@ -293,7 +293,7 @@ pub fn wallet_balance(
 ) -> Result<(), WalletCmdError> {
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
-    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     persist_wallet(path, &mut file, &wallet)?;
     print_or_json_scan_summary(
         path,
@@ -464,7 +464,7 @@ pub fn wallet_send(
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
-    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     let chain_state = fetch_chain_state(client)?;
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
@@ -615,7 +615,7 @@ pub fn wallet_upload(
     let mut file = WalletFile::load(path)?;
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
-    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     let chain_state = fetch_chain_state(client)?;
 
     let bucket_len = storage_size_bucket(data.len() as u64);
@@ -836,7 +836,7 @@ pub fn wallet_claim(
     let claiming = ClaimingIdentity::from_seed(&seed);
     let mut wallet = file.to_wallet()?;
     file.apply_pending_spends(&mut wallet)?;
-    let stats = sync_wallet_from_node(&mut wallet, &file, client)?;
+    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
     let chain_state = fetch_chain_state(client)?;
 
     let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
@@ -969,9 +969,14 @@ pub(crate) fn persist_wallet(
     Ok(())
 }
 
+/// Sync wallet from node tip, checkpointing the on-disk UTXO cache every
+/// [`SYNC_CHECKPOINT_BLOCKS`] blocks so long catch-ups survive interruption.
+const SYNC_CHECKPOINT_BLOCKS: u32 = 32;
+
 fn sync_wallet_from_node(
+    path: &Path,
     wallet: &mut Wallet,
-    file: &WalletFile,
+    file: &mut WalletFile,
     client: &mut RpcClient,
 ) -> Result<SyncStats, WalletCmdError> {
     let used_utxo_cache = file.has_owned_cache();
@@ -999,6 +1004,9 @@ fn sync_wallet_from_node(
             })?;
             wallet.ingest_block(&block);
             blocks_fetched = blocks_fetched.saturating_add(1);
+            if blocks_fetched % SYNC_CHECKPOINT_BLOCKS == 0 {
+                persist_wallet(path, file, wallet)?;
+            }
         }
     }
     file.apply_pending_spends(wallet)?;
