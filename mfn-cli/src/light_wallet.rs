@@ -134,7 +134,7 @@ pub fn wallet_light_scan(
     Ok(())
 }
 
-fn sync_wallet_light_from_node(
+pub(crate) fn sync_wallet_light_from_node(
     wallet: &mut Wallet,
     file: &mut WalletFile,
     client: &mut RpcClient,

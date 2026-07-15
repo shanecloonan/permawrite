@@ -22,12 +22,15 @@ Evidence run dir on VPS: `/root/testnet-wallets/exercise-20260715T022938Z/`.
 
 After ~2k tip heights the operator faucet held **~1883 owned outputs**. A full
 `wallet scan`/`wallet send` path walks every missing height via `get_block`
-and only persisted at the end (fixed in this commit with 32-block
-checkpoints). Catch-up from height ~889 → ~1900 took **many minutes** and
-blocked faucet HTTP as well.
+and only persisted at the end (fixed in `a04d486` with 32-block checkpoints).
+Catch-up from height ~889 → ~1900 took **many minutes** and blocked faucet HTTP
+as well.
 
-**Mitigation:** consolidate faucet periodically; prefer light-scan for
-participants; mid-scan persist (shipped).
+**Mitigation (shipped `a04d486`):** 32-block mid-scan persist during
+`sync_wallet_from_node`. Periodic faucet consolidation is an ops follow-up.
+
+**Ops follow-up (this commit):** `faucet-consolidate.sh` helper script and
+documentation for weekly faucet UTXO consolidation to ≤ 3 outputs.
 
 ### E2. New-wallet full scan from genesis is unusable at tip ~2k
 
@@ -35,15 +38,21 @@ participants; mid-scan persist (shipped).
 Fresh wallets start at height 1 — tens of minutes. Exercise switched to
 `wallet light-scan` for receive verification.
 
+**Fix (this commit):** `sync_wallet_from_node` now delegates to light-scan
+when a `light_checkpoint_hex` exists in the wallet file, avoiding the full
+`get_block` scan. Fresh wallets still fall back to full block scan on first
+sync (no checkpoint yet), but subsequent `wallet balance` / `wallet send`
+calls use header-verified light sync.
+
 ### E3. Light-scan hard-fails after spend empties temporary UTXO cache (bug)
 
-After carol’s transfer, wallet file had:
+After carol's transfer, wallet file had:
 
 - `scan_height=1943`
 - `owned_outputs=[]` (inputs spent; change not yet re-scanned)
 - `light_checkpoint_hex` still at tip 1943
 
-`wallet light-scan` treated empty owned as “no cache” → `start_height=1`, then
+`wallet light-scan` treated empty owned as "no cache" → `start_height=1`, then
 rejected checkpoint tip 1943 vs resume 1:
 
 ```text
@@ -52,7 +61,7 @@ light checkpoint tip_height 1943 does not match wallet scan resume at 1
 
 Dave receive verification stalled on a full light sync from genesis.
 
-**Fix (this commit):** resume from `scan_height` even when owned is empty;
+**Fix (shipped `a04d486`):** resume from `scan_height` even when owned is empty;
 on checkpoint mismatch, drop stale checkpoint and re-bootstrap from snapshot.
 
 ### E4. HTTP faucet shares the same slow faucet wallet
@@ -60,16 +69,22 @@ on checkpoint mismatch, drop stale checkpoint and re-bootstrap from snapshot.
 `POST :8788/faucet` runs `wallet scan` on validator0-faucet before send — same
 E1 latency. Cooldown/rate-limit OK; ops need kept-caught-up faucet process.
 
+**Mitigation (this commit):** HTTP faucet now uses light-scan when checkpoint
+exists (same E2 fix). A `faucet-keepalive.sh` background loop keeps the faucet
+wallet caught up between requests.
+
 ## Privacy observations
 
 - Reference transfers enforce ring size 16 (CLI refuse <16).
 - Recipient stealth addresses differ; funding addresses are one-time on chain.
 - Transparent account balance API is not exposed publicly (expected).
 
-## Follow-ups
+## Follow-ups (this commit)
 
-1. Prefer light-follow inside `wallet send` / `wallet balance` when a light
-   checkpoint exists (avoid surprise full `get_block` sync).
-2. Operator job: faucet self-consolidate to ≤ a few UTXOs weekly.
-3. Frontend wallet should document first-sync cost at high tip / prefer
-   light catch-up.
+1. ✅ Prefer light-follow inside `wallet send` / `wallet balance` when a light
+   checkpoint exists — avoids surprise full `get_block` sync.
+2. ✅ `faucet-consolidate.sh` — operator script to consolidate faucet to ≤ 3
+   UTXOs.
+3. ✅ `faucet-keepalive.sh` — background light-scan loop to keep faucet wallet
+   caught up between requests.
+4. Document first-sync cost at high tip in JOIN_TESTNET.md.

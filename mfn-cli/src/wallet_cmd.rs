@@ -971,6 +971,11 @@ pub(crate) fn persist_wallet(
 
 /// Sync wallet from node tip, checkpointing the on-disk UTXO cache every
 /// [`SYNC_CHECKPOINT_BLOCKS`] blocks so long catch-ups survive interruption.
+///
+/// When a light checkpoint exists in the wallet file, delegates to
+/// light-scan instead of fetching full blocks. This avoids the slow
+/// `get_block` scan for wallets that have previously synced via
+/// `wallet light-scan` (E2 fix from live-wallet-exercise).
 const SYNC_CHECKPOINT_BLOCKS: u32 = 32;
 
 fn sync_wallet_from_node(
@@ -979,6 +984,18 @@ fn sync_wallet_from_node(
     file: &mut WalletFile,
     client: &mut RpcClient,
 ) -> Result<SyncStats, WalletCmdError> {
+    // Delegate to light-scan when a checkpoint exists. Fresh wallets (no
+    // checkpoint, no cache) still fall back to get_block.
+    if file.light_checkpoint_hex.is_some() {
+        let params = crate::light_wallet::LightScanParams {
+            update_trusted_summary: true,
+            ..Default::default()
+        };
+        return crate::light_wallet::sync_wallet_light_from_node(
+            wallet, file, client, &params,
+        );
+    }
+
     let used_utxo_cache = file.has_owned_cache();
     if used_utxo_cache {
         file.hydrate_wallet(wallet)?;
