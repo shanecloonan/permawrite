@@ -1,24 +1,27 @@
 #!/usr/bin/env node
 /**
- * Rate-limited public testnet faucet HTTP API.
+ * Rate-limited public testnet faucet HTTP API (async jobs).
  *
- * Holds operator faucet wallet keys server-side only. Frontend calls:
- *   POST /faucet  { "address": "mf…", "amount"?: number }
+ * Holds operator faucet wallet keys server-side only. Frontend:
+ *   POST /faucet  { "address": "mf…" }  → 202 { job_id, status:"pending" }
+ *   GET  /faucet/job?id=<job_id>        → { status, result | error }
+ *   GET  /health
+ *
+ * Why async: Vercel serverless aborts long upstream waits (~60–170s). Claims can
+ * take longer when mfn-cli is slow; the proxy must return immediately and poll.
  *
  * Env:
- *   FAUCET_WALLET   path to wallet.json (default /root/testnet-wallets/validator0-faucet.json)
- *   MFN_CLI         path to mfn-cli binary
- *   MFND_RPC        loopback RPC with submit_tx (default 127.0.0.1:18731)
- *   PROXY_HOST / PROXY_PORT  listen (default 0.0.0.0:8788)
- *   FAUCET_AMOUNT   atomic units per claim half (two sends; default 500000)
- *   FAUCET_FEE      fee per send (default 10000)
- *   FAUCET_COOLDOWN_MS  per-address cooldown (default 6h)
+ *   FAUCET_WALLET, MFN_CLI, MFND_RPC, PROXY_HOST, PROXY_PORT
+ *   FAUCET_AMOUNT, FAUCET_FEE, FAUCET_RING_SIZE, FAUCET_COOLDOWN_MS
+ *   FAUCET_SEND_TIMEOUT_MS (default 90000)
  */
 
 import http from "node:http";
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { URL } from "node:url";
 
 const LISTEN_HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 const LISTEN_PORT = Number(process.env.PROXY_PORT ?? "8788");
@@ -31,19 +34,30 @@ const FAUCET_WALLET =
 const AMOUNT = Number(process.env.FAUCET_AMOUNT ?? "500000");
 const FEE = Number(process.env.FAUCET_FEE ?? "10000");
 const RING = Number(process.env.FAUCET_RING_SIZE ?? "16");
-const COOLDOWN_MS = Number(process.env.FAUCET_COOLDOWN_MS ?? String(6 * 3600_000));
+const COOLDOWN_MS = Number(
+  process.env.FAUCET_COOLDOWN_MS ?? String(6 * 3600_000),
+);
+const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "90000");
 const MAX_BODY = 8192;
+const JOB_TTL_MS = 30 * 60_000;
 
 /** @type {Map<string, number>} */
 const lastClaim = new Map();
 /** @type {Map<string, number>} */
 const lastIpClaim = new Map();
+/** @type {Map<string, object>} */
+const jobs = new Map();
 let busy = false;
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS, GET");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
+function json(res, status, obj) {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(obj));
 }
 
 function readBody(req) {
@@ -64,14 +78,14 @@ function readBody(req) {
   });
 }
 
-function run(bin, args, timeoutMs = 180_000) {
+function run(bin, args, timeoutMs = SEND_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      reject(new Error(`timeout: ${bin} ${args.join(" ")}`));
+      reject(new Error(`timeout after ${timeoutMs}ms: ${bin} ${args.join(" ")}`));
     }, timeoutMs);
     child.stdout.on("data", (d) => {
       stdout += d.toString();
@@ -108,8 +122,15 @@ function validAddress(addr) {
   if (typeof addr !== "string") return false;
   const a = addr.trim();
   if (!a.startsWith("mf")) return false;
-  if (a.length !== 2 + 136) return false; // 68 bytes hex
+  if (a.length !== 2 + 136) return false;
   return /^mf[0-9a-fA-F]+$/.test(a);
+}
+
+function pruneJobs() {
+  const now = Date.now();
+  for (const [id, job] of jobs) {
+    if (now - (job.createdAt || 0) > JOB_TTL_MS) jobs.delete(id);
+  }
 }
 
 async function fundAddress(address, amount) {
@@ -148,7 +169,6 @@ async function fundAddress(address, amount) {
     const parsed = JSON.parse(stdout.slice(start, end + 1));
     txIds.push(parsed.tx_id || parsed.txId || null);
     if (i === 0) {
-      // Short gap so UTXO selection rotates; full rescan between sends is unnecessary.
       await new Promise((r) => setTimeout(r, 400));
     }
   }
@@ -173,54 +193,102 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/health" && req.method === "GET") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+  if (url.pathname === "/health" && req.method === "GET") {
+    pruneJobs();
+    json(res, 200, {
+      ok: true,
+      rpc: MFND_RPC,
+      wallet: path.basename(FAUCET_WALLET),
+      amount_per_send: AMOUNT,
+      sends: 2,
+      cooldown_ms: COOLDOWN_MS,
+      busy,
+      pending_jobs: [...jobs.values()].filter(
+        (j) => j.status === "pending" || j.status === "running",
+      ).length,
+      async: true,
+    });
+    return;
+  }
+
+  if (
+    (url.pathname === "/faucet/job" || url.pathname.startsWith("/faucet/job/")) &&
+    req.method === "GET"
+  ) {
+    pruneJobs();
+    const id =
+      url.searchParams.get("id") ||
+      url.pathname.replace(/^\/faucet\/job\/?/, "") ||
+      "";
+    if (!id) {
+      json(res, 400, { ok: false, error: "missing job id" });
+      return;
+    }
+    const job = jobs.get(id);
+    if (!job) {
+      json(res, 404, { ok: false, error: "unknown job id" });
+      return;
+    }
+    if (job.status === "done") {
+      json(res, 200, {
         ok: true,
-        rpc: MFND_RPC,
-        wallet: path.basename(FAUCET_WALLET),
-        amount_per_send: AMOUNT,
-        sends: 2,
-        cooldown_ms: COOLDOWN_MS,
-      }),
+        status: "done",
+        job_id: id,
+        ...job.result,
+      });
+      return;
+    }
+    if (job.status === "error") {
+      json(res, 200, {
+        ok: false,
+        status: "error",
+        job_id: id,
+        error: job.error || "faucet failed",
+      });
+      return;
+    }
+    json(res, 200, {
+      ok: true,
+      status: job.status,
+      job_id: id,
+      age_ms: Date.now() - job.createdAt,
+    });
+    return;
+  }
+
+  if (url.pathname !== "/faucet" || req.method !== "POST") {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end(
+      "POST /faucet {address} → {job_id}\nGET /faucet/job?id=\nGET /health\n",
     );
     return;
   }
 
-  if (req.url !== "/faucet" || req.method !== "POST") {
-    res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("POST /faucet {address}\nGET /health\n");
-    return;
-  }
-
   try {
+    pruneJobs();
     const raw = await readBody(req);
     let body;
     try {
       body = JSON.parse(raw || "{}");
     } catch {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "invalid json" }));
+      json(res, 400, { ok: false, error: "invalid json" });
       return;
     }
 
     const address = String(body.address || "").trim();
     if (!validAddress(address)) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "invalid mf address" }));
+      json(res, 400, { ok: false, error: "invalid mf address" });
       return;
     }
 
     const amount = Number(body.amount ?? AMOUNT);
     if (!Number.isFinite(amount) || amount < 10_000 || amount > AMOUNT) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: `amount must be between 10000 and ${AMOUNT}`,
-        }),
-      );
+      json(res, 400, {
+        ok: false,
+        error: `amount must be between 10000 and ${AMOUNT}`,
+      });
       return;
     }
 
@@ -229,58 +297,83 @@ const server = http.createServer(async (req, res) => {
     const prevAddr = lastClaim.get(address.toLowerCase()) || 0;
     const prevIp = lastIpClaim.get(ip) || 0;
     if (now - prevAddr < COOLDOWN_MS) {
-      res.writeHead(429, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: "address cooldown — try again later",
-          retry_after_ms: COOLDOWN_MS - (now - prevAddr),
-        }),
-      );
+      json(res, 429, {
+        ok: false,
+        error: "address cooldown — try again later",
+        retry_after_ms: COOLDOWN_MS - (now - prevAddr),
+      });
       return;
     }
     if (now - prevIp < Math.min(COOLDOWN_MS, 30 * 60_000)) {
-      res.writeHead(429, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          ok: false,
-          error: "ip cooldown — try again later",
-        }),
-      );
+      json(res, 429, {
+        ok: false,
+        error: "ip cooldown — try again later",
+      });
       return;
     }
 
     if (busy) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "faucet busy — retry shortly" }));
+      json(res, 503, {
+        ok: false,
+        error: "faucet busy — retry shortly",
+      });
       return;
     }
 
+    // Reserve busy before returning so two concurrent POSTs don't double-start.
     busy = true;
-    try {
-      const result = await fundAddress(address, amount);
-      lastClaim.set(address.toLowerCase(), Date.now());
-      lastIpClaim.set(ip, Date.now());
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(result));
-    } finally {
-      busy = false;
-    }
+    const jobId = crypto.randomBytes(12).toString("hex");
+    const job = {
+      id: jobId,
+      status: "pending",
+      address,
+      amount,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      result: null,
+      error: null,
+    };
+    jobs.set(jobId, job);
+
+    setImmediate(async () => {
+      job.status = "running";
+      job.updatedAt = Date.now();
+      try {
+        const result = await fundAddress(address, amount);
+        lastClaim.set(address.toLowerCase(), Date.now());
+        lastIpClaim.set(ip, Date.now());
+        job.status = "done";
+        job.result = result;
+        job.updatedAt = Date.now();
+      } catch (e) {
+        job.status = "error";
+        job.error = e instanceof Error ? e.message : String(e);
+        job.updatedAt = Date.now();
+        console.error("faucet job error", jobId, e);
+      } finally {
+        busy = false;
+      }
+    });
+
+    json(res, 202, {
+      ok: true,
+      status: "pending",
+      job_id: jobId,
+      poll_path: `/faucet/job?id=${jobId}`,
+      note: "Poll until status is done or error",
+    });
   } catch (e) {
     busy = false;
     console.error("faucet error", e);
-    res.writeHead(500, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        ok: false,
-        error: e instanceof Error ? e.message : String(e),
-      }),
-    );
+    json(res, 500, {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
   }
 });
 
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(
-    `faucet-http http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET}`,
+    `faucet-http (async) http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET}`,
   );
 });
