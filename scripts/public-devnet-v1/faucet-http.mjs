@@ -120,6 +120,7 @@ async function fundAddress(address, amount) {
     throw new Error(`mfn-cli missing: ${MFN_CLI}`);
   }
 
+  const t0 = Date.now();
   const txIds = [];
   // Two sends so recipient meets the F7 two-input floor for later transfers.
   // `wallet send` light-syncs internally (no full get_block catch-up).
@@ -147,7 +148,8 @@ async function fundAddress(address, amount) {
     const parsed = JSON.parse(stdout.slice(start, end + 1));
     txIds.push(parsed.tx_id || parsed.txId || null);
     if (i === 0) {
-      await new Promise((r) => setTimeout(r, 1500));
+      // Short gap so UTXO selection rotates; full rescan between sends is unnecessary.
+      await new Promise((r) => setTimeout(r, 400));
     }
   }
 
@@ -159,6 +161,7 @@ async function fundAddress(address, amount) {
     total_amount: amount * 2,
     fee_per_send: FEE,
     tx_ids: txIds,
+    duration_ms: Date.now() - t0,
   };
 }
 
