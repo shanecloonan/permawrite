@@ -3,9 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use curve25519_dalek::edwards::EdwardsPoint;
-use mfn_consensus::{
-    decode_block, decode_chain_checkpoint, encode_transaction, ChainState, Recipient,
-};
+use mfn_consensus::{decode_chain_checkpoint, encode_transaction, ChainState, Recipient};
 use mfn_crypto::authorship::MAX_CLAIM_MESSAGE_LEN;
 use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 use mfn_crypto::point_from_bytes;
@@ -18,6 +16,7 @@ use mfn_wallet::{ClaimingIdentity, TransferRecipient, Wallet, WalletError};
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha512};
 
+use crate::light_wallet::sync_wallet_light_default;
 use crate::rpc::RpcClient;
 use crate::wallet_store::{
     KeyDerivation, WalletFile, WalletStoreError, DEFAULT_WALLET_PATH, WALLET_FILE_VERSION,
@@ -969,73 +968,14 @@ pub(crate) fn persist_wallet(
     Ok(())
 }
 
-/// Sync wallet from node tip, checkpointing the on-disk UTXO cache every
-/// [`SYNC_CHECKPOINT_BLOCKS`] blocks so long catch-ups survive interruption.
-///
-/// When a light checkpoint exists in the wallet file, delegates to
-/// light-scan instead of fetching full blocks. This avoids the slow
-/// `get_block` scan for wallets that have previously synced via
-/// `wallet light-scan` (E2 fix from live-wallet-exercise).
-const SYNC_CHECKPOINT_BLOCKS: u32 = 32;
-
+/// Sync wallet through chain tip using the light path (`get_block_txs`, batched headers).
 fn sync_wallet_from_node(
-    path: &Path,
+    _path: &Path,
     wallet: &mut Wallet,
     file: &mut WalletFile,
     client: &mut RpcClient,
 ) -> Result<SyncStats, WalletCmdError> {
-    // Delegate to light-scan when a checkpoint exists. Fresh wallets (no
-    // checkpoint, no cache) still fall back to get_block.
-    if file.light_checkpoint_hex.is_some() {
-        let params = crate::light_wallet::LightScanParams {
-            update_trusted_summary: true,
-            ..Default::default()
-        };
-        return crate::light_wallet::sync_wallet_light_from_node(
-            wallet, file, client, &params,
-        );
-    }
-
-    let used_utxo_cache = file.has_owned_cache();
-    if used_utxo_cache {
-        file.hydrate_wallet(wallet)?;
-    }
-    file.apply_pending_spends(wallet)?;
-    let tip = client.get_tip()?;
-    let tip_height = tip.tip_height.unwrap_or(0);
-    let start_height = if used_utxo_cache {
-        file.scan_height
-            .expect("has_owned_cache implies scan_height")
-            .saturating_add(1)
-    } else {
-        1
-    };
-    let mut blocks_fetched = 0u32;
-    if tip_height >= u64::from(start_height) {
-        for h in u64::from(start_height)..=tip_height {
-            let height = u32::try_from(h)
-                .map_err(|_| WalletCmdError::Usage(format!("tip height {h} exceeds u32::MAX")))?;
-            let raw = client.get_block(height)?;
-            let block = decode_block(&raw).map_err(|e| {
-                WalletCmdError::Usage(format!("decode block at height {height}: {e}"))
-            })?;
-            wallet.ingest_block(&block);
-            blocks_fetched = blocks_fetched.saturating_add(1);
-            if blocks_fetched % SYNC_CHECKPOINT_BLOCKS == 0 {
-                persist_wallet(path, file, wallet)?;
-            }
-        }
-    }
-    file.apply_pending_spends(wallet)?;
-    Ok(SyncStats {
-        tip_height,
-        blocks_fetched,
-        used_utxo_cache,
-        quorum_batches: 1,
-        weak_subjectivity_checked: false,
-        weak_subjectivity_pinned: false,
-        checkpoint_log_cross_check: None,
-    })
+    sync_wallet_light_default(wallet, file, client)
 }
 
 fn fetch_chain_state(client: &mut RpcClient) -> Result<ChainState, WalletCmdError> {

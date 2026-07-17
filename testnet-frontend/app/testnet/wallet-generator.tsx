@@ -12,6 +12,7 @@ import {
   loadHistory,
   loadSession,
   loadSync,
+  markFaucetClaimHeight,
   pushHistory,
   saveSession,
   saveSync,
@@ -105,15 +106,13 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         return;
       }
       const state = loadSync(session.seedHex);
-      const from = Math.max(1, state.lastScannedHeight + 1);
-      if (from > tipH) {
+      if (state.lastScannedHeight >= tipH) {
         setSync(state);
         setStatus(`Up to date through tip #${tipH}.`);
         return;
       }
       const result = await syncWalletLite({
         seedHex: session.seedHex,
-        fromHeight: from,
         toHeight: tipH,
         state,
         rpc,
@@ -139,6 +138,10 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
     setError(null);
     setStatus(null);
     try {
+      const tipBefore = await rpc<{ tip_height?: number }>("get_tip", {});
+      const tipAtClaim = Number(tipBefore.tip_height ?? 0);
+      markFaucetClaimHeight(session.seedHex, tipAtClaim);
+
       const res = await fetch("/api/testnet/faucet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,14 +171,43 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
       }
       setHistory(loadHistory(session.seedHex));
       setStatus(
-        `Faucet sent ${total.toLocaleString()} atomic units across ${(data.tx_ids || []).length} tx(s). Wait for a block, then refresh balance.`,
+        `Faucet sent ${total.toLocaleString()} atomic units. Scanning for incoming funds…`,
+      );
+
+      // Poll until tip advances or timeout, then scan only recent blocks.
+      setBusy("scan");
+      const deadline = Date.now() + 90_000;
+      let tipH = tipAtClaim;
+      while (Date.now() < deadline) {
+        const tip = await rpc<{ tip_height?: number }>("get_tip", {});
+        tipH = Number(tip.tip_height ?? tipH);
+        if (tipH > tipAtClaim) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      const state = loadSync(session.seedHex);
+      const result = await syncWalletLite({
+        seedHex: session.seedHex,
+        toHeight: tipH,
+        state,
+        rpc,
+        onProgress: (h, tipHeight) =>
+          setScanProgress(`Scanning block ${h} / ${tipHeight}`),
+      });
+      setSync({ ...state });
+      setHistory(loadHistory(session.seedHex));
+      setStatus(
+        result.balance > 0
+          ? `Funded · balance ${result.balance.toLocaleString()} · +${result.recovered} output(s)`
+          : `Faucet txs submitted — balance not visible yet at #${tipH}. Try refresh again after the next block.`,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
+      setScanProgress(null);
     }
-  }, [session]);
+  }, [session, rpc]);
 
   const onSend = useCallback(async () => {
     if (!session) return;

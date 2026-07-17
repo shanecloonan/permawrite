@@ -66,12 +66,12 @@ on checkpoint mismatch, drop stale checkpoint and re-bootstrap from snapshot.
 
 ### E4. HTTP faucet shares the same slow faucet wallet
 
-`POST :8788/faucet` runs `wallet scan` on validator0-faucet before send — same
+`POST :8788/faucet` ran `wallet scan` on validator0-faucet before each send — same
 E1 latency. Cooldown/rate-limit OK; ops need kept-caught-up faucet process.
 
-**Mitigation (this commit):** HTTP faucet now uses light-scan when checkpoint
-exists (same E2 fix). A `faucet-keepalive.sh` background loop keeps the faucet
-wallet caught up between requests.
+**Fix (shipped):** removed pre-send `wallet scan`; `wallet send` light-syncs
+internally. Use `_faucet-catchup.sh` / `vps-update-faucet.sh` to keep the
+operator faucet near tip.
 
 ## Privacy observations
 
@@ -79,12 +79,11 @@ wallet caught up between requests.
 - Recipient stealth addresses differ; funding addresses are one-time on chain.
 - Transparent account balance API is not exposed publicly (expected).
 
-## Follow-ups (this commit)
+## Follow-ups
 
-1. ✅ Prefer light-follow inside `wallet send` / `wallet balance` when a light
-   checkpoint exists — avoids surprise full `get_block` sync.
-2. ✅ `faucet-consolidate.sh` — operator script to consolidate faucet to ≤ 3
-   UTXOs.
-3. ✅ `faucet-keepalive.sh` — background light-scan loop to keep faucet wallet
-   caught up between requests.
+1. ~~Prefer light-follow inside `wallet send` / `wallet balance`~~ — **Done**
+   (`sync_wallet_from_node` always uses light path; `faucet-http.mjs` no longer full-scan).
+2. Operator job: faucet self-consolidate to ≤ a few UTXOs weekly (still manual).
+3. ~~Frontend wallet first-sync at high tip~~ — **Done** (parallel `get_block_txs`,
+   faucet-claim height hint, auto-scan after faucet).
 4. Document first-sync cost at high tip in JOIN_TESTNET.md.

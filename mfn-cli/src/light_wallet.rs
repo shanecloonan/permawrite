@@ -88,6 +88,16 @@ fn scan_through_height(
     Ok(through)
 }
 
+/// Default light sync used by `wallet scan`, `wallet balance`, `wallet send`, etc.
+/// Uses batched `get_block_headers` + `get_block_txs` instead of full `get_block`.
+pub(crate) fn sync_wallet_light_default(
+    wallet: &mut Wallet,
+    file: &mut WalletFile,
+    client: &mut RpcClient,
+) -> Result<SyncStats, WalletCmdError> {
+    sync_wallet_light_from_node(wallet, file, client, &LightScanParams::default())
+}
+
 /// `wallet light-scan` — header + evolution verified sync through chain tip.
 pub fn wallet_light_scan(
     path: &Path,

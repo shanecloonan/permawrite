@@ -120,17 +120,9 @@ async function fundAddress(address, amount) {
     throw new Error(`mfn-cli missing: ${MFN_CLI}`);
   }
 
-  await run(MFN_CLI, [
-    "--rpc",
-    MFND_RPC,
-    "--wallet",
-    FAUCET_WALLET,
-    "wallet",
-    "scan",
-  ]);
-
   const txIds = [];
   // Two sends so recipient meets the F7 two-input floor for later transfers.
+  // `wallet send` light-syncs internally (no full get_block catch-up).
   for (let i = 0; i < 2; i++) {
     const { stdout } = await run(MFN_CLI, [
       "--rpc",
@@ -154,16 +146,9 @@ async function fundAddress(address, amount) {
     }
     const parsed = JSON.parse(stdout.slice(start, end + 1));
     txIds.push(parsed.tx_id || parsed.txId || null);
-    // brief pause so mempool/UTXO selection can rotate if needed
-    await new Promise((r) => setTimeout(r, 1500));
-    await run(MFN_CLI, [
-      "--rpc",
-      MFND_RPC,
-      "--wallet",
-      FAUCET_WALLET,
-      "wallet",
-      "scan",
-    ]);
+    if (i === 0) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
   }
 
   return {

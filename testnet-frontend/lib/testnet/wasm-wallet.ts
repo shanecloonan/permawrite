@@ -18,6 +18,8 @@ export type WalletSyncState = {
   lastScannedHeight: number;
   ownedKeyImages: string[];
   inputs: OwnedOutput[];
+  /** Tip height when faucet last funded this wallet — enables fast post-faucet scan. */
+  faucetClaimFromHeight?: number;
 };
 
 type WasmApi = {
@@ -72,6 +74,25 @@ export function emptySync(): WalletSyncState {
   return { lastScannedHeight: 0, ownedKeyImages: [], inputs: [] };
 }
 
+/** Parallel `get_block_txs` batch size — keeps RPC latency bounded on high tips. */
+const TX_FETCH_PARALLEL = 24;
+
+function resolveSyncFromHeight(state: WalletSyncState): number {
+  if (state.lastScannedHeight > 0) {
+    return state.lastScannedHeight + 1;
+  }
+  if (state.faucetClaimFromHeight != null && state.faucetClaimFromHeight > 0) {
+    return Math.max(1, state.faucetClaimFromHeight - 5);
+  }
+  return 1;
+}
+
+export function markFaucetClaimHeight(seedHex: string, tipHeight: number) {
+  const state = loadSync(seedHex);
+  state.faucetClaimFromHeight = tipHeight;
+  saveSync(seedHex, state);
+}
+
 export function loadSync(seedHex: string): WalletSyncState {
   try {
     const raw = localStorage.getItem(SYNC_PREFIX + seedHex);
@@ -81,6 +102,10 @@ export function loadSync(seedHex: string): WalletSyncState {
       lastScannedHeight: Number(p.lastScannedHeight) || 0,
       ownedKeyImages: Array.isArray(p.ownedKeyImages) ? p.ownedKeyImages : [],
       inputs: Array.isArray(p.inputs) ? p.inputs : [],
+      faucetClaimFromHeight:
+        typeof p.faucetClaimFromHeight === "number"
+          ? p.faucetClaimFromHeight
+          : undefined,
     };
   } catch {
     return emptySync();
@@ -143,14 +168,14 @@ export function applyBlockScan(
 /** Trust-the-observer scan (no BLS light-client gate) for public testnet UI. */
 export async function syncWalletLite(opts: {
   seedHex: string;
-  fromHeight: number;
+  fromHeight?: number;
   toHeight: number;
   state: WalletSyncState;
   rpc: <T>(method: string, params?: Record<string, unknown>) => Promise<T>;
   onProgress?: (height: number, tip: number) => void;
 }): Promise<{ recovered: number; balance: number }> {
   const { seedHex, toHeight, state, rpc, onProgress } = opts;
-  let fromHeight = opts.fromHeight;
+  let fromHeight = opts.fromHeight ?? resolveSyncFromHeight(state);
   if (fromHeight < 1) fromHeight = 1;
   if (toHeight < fromHeight) {
     return { recovered: 0, balance: totalBalance(state) };
@@ -159,30 +184,47 @@ export async function syncWalletLite(opts: {
   const wasm = await loadMfnWasm();
   let recovered = 0;
 
-  for (let h = fromHeight; h <= toHeight; h++) {
-    onProgress?.(h, toHeight);
-    const body = await rpc<{
-      txs?: Array<{ tx_hex?: string }>;
-    }>("get_block_txs", { height: h });
-    const txHexes = (body.txs || []).map((t) => t.tx_hex).filter(Boolean) as string[];
-    const scan = JSON.parse(
-      wasm.scanBlockTxsHex(seedHex, h, txHexes, state.ownedKeyImages),
-    ) as {
-      height?: number;
-      txs?: Array<{ spent_key_images?: string[]; recovered?: OwnedOutput[] }>;
-    };
-    const neu = applyBlockScan(state, { ...scan, height: h });
-    recovered += neu.length;
-    for (const o of neu) {
-      pushHistory(seedHex, {
-        id: `${o.tx_id_hex}:${o.output_idx}`,
-        kind: "received",
-        amount: o.value,
-        height: o.height,
-        txId: o.tx_id_hex,
-        at: Date.now(),
-      });
+  for (let chunkStart = fromHeight; chunkStart <= toHeight; ) {
+    const chunkEnd = Math.min(toHeight, chunkStart + TX_FETCH_PARALLEL - 1);
+    const heights: number[] = [];
+    for (let h = chunkStart; h <= chunkEnd; h++) heights.push(h);
+
+    const pages = await Promise.all(
+      heights.map((h) =>
+        rpc<{ txs?: Array<{ tx_hex?: string }> }>("get_block_txs", {
+          height: h,
+        }),
+      ),
+    );
+
+    for (let i = 0; i < heights.length; i++) {
+      const h = heights[i];
+      onProgress?.(h, toHeight);
+      const txHexes = (pages[i].txs || [])
+        .map((t) => t.tx_hex)
+        .filter(Boolean) as string[];
+      const scan = JSON.parse(
+        wasm.scanBlockTxsHex(seedHex, h, txHexes, state.ownedKeyImages),
+      ) as {
+        height?: number;
+        txs?: Array<{ spent_key_images?: string[]; recovered?: OwnedOutput[] }>;
+      };
+      const neu = applyBlockScan(state, { ...scan, height: h });
+      recovered += neu.length;
+      for (const o of neu) {
+        pushHistory(seedHex, {
+          id: `${o.tx_id_hex}:${o.output_idx}`,
+          kind: "received",
+          amount: o.value,
+          height: o.height,
+          txId: o.tx_id_hex,
+          at: Date.now(),
+        });
+      }
     }
+
+    chunkStart = chunkEnd + 1;
+    saveSync(seedHex, state);
   }
 
   saveSync(seedHex, state);
