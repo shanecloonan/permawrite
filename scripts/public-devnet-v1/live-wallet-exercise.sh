@@ -128,7 +128,6 @@ log "dave_address=$DAVE_ADDR"
 
 # --- fund carol with 2× (F7 floor) from faucet ---
 log "--- funding carol (2 faucet sends) ---"
-cli --wallet "$FAUCET_WALLET" wallet scan >/dev/null
 FAUCET_BAL_OUT="$(cli --wallet "$FAUCET_WALLET" wallet balance 2>&1)"
 FAUCET_BAL="$(parse_kv balance "$FAUCET_BAL_OUT")"
 log "faucet_balance=$FAUCET_BAL"
@@ -149,7 +148,6 @@ for i in 1 2; do
   [[ -n "$TX" && ${#TX} -eq 64 ]] && ok "fund send #$i has tx_id" || fail "fund send #$i missing tx_id"
   [[ "$OUTCOME" == "Fresh" || "$OUTCOME" == "Duplicate" || "$OUTCOME" == "AlreadyKnown" ]] && ok "fund send #$i admitted ($OUTCOME)" || fail "fund send #$i outcome=$OUTCOME"
   sleep 1
-  cli --wallet "$FAUCET_WALLET" wallet scan >/dev/null || true
 done
 
 log "waiting ${WAIT_SLOT_SEC}s for produce..."

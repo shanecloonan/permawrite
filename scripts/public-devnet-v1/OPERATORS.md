@@ -86,6 +86,10 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
+| Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` — rate-limited `POST /faucet`; `wallet send` light-syncs (no pre-scan) |
+| Faucet catch-up (VPS) | `bash scripts/public-devnet-v1/faucet-catchup.sh` — background `wallet light-scan` for operator faucet |
+| Faucet UTXO consolidate (VPS) | `bash scripts/public-devnet-v1/faucet-consolidate.sh --plan-only` then real run weekly when `owned_count` grows |
+| VPS faucet deploy | `bash scripts/public-devnet-v1/vps-update-faucet.sh` — pull, rebuild `mfn-cli`, restart faucet HTTP |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |

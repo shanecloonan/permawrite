@@ -83,7 +83,7 @@ operator faucet near tip.
 
 1. ~~Prefer light-follow inside `wallet send` / `wallet balance`~~ — **Done**
    (`sync_wallet_from_node` always uses light path; `faucet-http.mjs` no longer full-scan).
-2. Operator job: faucet self-consolidate to ≤ a few UTXOs weekly (still manual).
+2. ~~Operator job: faucet self-consolidate to ≤ a few UTXOs weekly~~ — **Done** (`faucet-consolidate.sh` + `faucet-catchup.sh`).
 3. ~~Frontend wallet first-sync at high tip~~ — **Done** (parallel `get_block_txs`,
    faucet-claim height hint, auto-scan after faucet).
 4. ~~Document first-sync cost at high tip in JOIN_TESTNET.md~~ — **Done** (`c309f6d`).

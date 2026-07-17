@@ -212,16 +212,6 @@ wait_recipient_balance() {
   while (( $(date +%s) <= deadline )); do
     local balance scan_out balance_out tip_height
     tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
-    if ! scan_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet scan 2>&1)"; then
-      last_error="recipient wallet scan failed: $scan_out"
-      if [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* ]]; then
-        echo "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($last_error)" >&2
-        exit 1
-      fi
-      echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
-      sleep 5
-      continue
-    fi
     if ! balance_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"; then
       last_error="recipient wallet balance failed: $balance_out"
       if [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* ]]; then
@@ -246,7 +236,7 @@ wait_recipient_balance() {
     suffix="; last_error=$last_error"
   fi
   tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
-  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s (hub_tip_height=$tip_height); mine or wait for a producer block, then run wallet scan and wallet balance$suffix" >&2
+  echo "fund-wallet: recipient balance did not increase from $starting_balance to at least $target_balance within ${timeout_seconds}s (hub_tip_height=$tip_height); mine or wait for a producer block, then run wallet balance or wallet light-scan$suffix" >&2
   exit 1
 }
 
@@ -294,7 +284,6 @@ if (( TARGET_BALANCE < STARTING_BALANCE )); then
 fi
 echo "fund-wallet: recipient_starting_balance=$STARTING_BALANCE target_balance=$TARGET_BALANCE"
 
-run_checked "faucet wallet scan" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet scan >/dev/null
 FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
 echo "fund-wallet: faucet_balance=$FAUCET_BALANCE"
 if (( FAUCET_BALANCE < AMOUNT + FEE )); then
@@ -309,7 +298,6 @@ SPEND_HEX="$(parse_field "$ADDR_OUT" spend_pub_hex)"
 send_fund_transfer() {
   local balance_before="$1"
   local balance_target="$2"
-  run_checked "faucet wallet scan" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$FAUCET_WALLET" wallet scan >/dev/null
   FAUCET_BALANCE="$(get_wallet_balance "$MFN_CLI" "$RPC_ADDR" "$FAUCET_WALLET" faucet)"
   if (( FAUCET_BALANCE < AMOUNT + FEE )); then
     echo "fund-wallet: faucet balance $FAUCET_BALANCE is below required $(( AMOUNT + FEE )); mine/scan the faucet wallet or choose a funded faucet" >&2
@@ -330,7 +318,6 @@ TX_ID="$(send_fund_transfer "$STARTING_BALANCE" "$TARGET_BALANCE")"
 
 if (( MIN_OWNED_COUNT > 0 )); then
   while true; do
-    run_checked "recipient wallet scan" "$MFN_CLI" --rpc "$RPC_ADDR" --wallet "$RECIPIENT" wallet scan >/dev/null
     OWNED_COUNT="$(get_wallet_owned_count "$MFN_CLI" "$RPC_ADDR" "$RECIPIENT" recipient)"
     echo "fund-wallet: recipient_owned_count=$OWNED_COUNT min_owned_count=$MIN_OWNED_COUNT"
     if (( OWNED_COUNT >= MIN_OWNED_COUNT )); then

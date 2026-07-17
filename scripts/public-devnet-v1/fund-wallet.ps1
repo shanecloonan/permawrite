@@ -103,7 +103,6 @@ function Wait-RecipientBalance {
     do {
         try {
             $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
-            Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "scan") "recipient wallet scan" | Out-Null
             $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath "recipient"
             Write-Host "fund-wallet: recipient_balance_wait hub_tip_height=$tipHeight balance=$balance target=$MinimumBalance"
             if ($balance -ge $MinimumBalance) {
@@ -122,7 +121,7 @@ function Wait-RecipientBalance {
     } while ((Get-Date) -lt $deadline)
     $suffix = if ($lastError) { "; last_error=$lastError" } else { "" }
     $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
-    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s (hub_tip_height=$tipHeight); mine or wait for a producer block, then run wallet scan and wallet balance$suffix"
+    throw "fund-wallet: recipient balance did not increase from $StartingBalance to at least $MinimumBalance within ${TimeoutSeconds}s (hub_tip_height=$tipHeight); mine or wait for a producer block, then run wallet balance or wallet light-scan$suffix"
 }
 
 function Send-FundTransfer {
@@ -140,7 +139,6 @@ function Send-FundTransfer {
         [UInt64]$BalanceTarget,
         [int]$WaitMinedSeconds
     )
-    Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $FaucetWallet, "wallet", "scan") "faucet wallet scan" | Out-Null
     $faucetBalance = Get-WalletBalance $MfnCli $RpcAddr $FaucetWallet "faucet"
     if ($faucetBalance -lt ($Amount + $Fee)) {
         throw "fund-wallet: faucet balance $faucetBalance is below required $($Amount + $Fee); mine/scan the faucet wallet or choose a funded faucet"
@@ -211,7 +209,6 @@ try {
         throw "fund-wallet: recipient balance target overflow"
     }
     Write-Host "fund-wallet: recipient_starting_balance=$startingBalance target_balance=$targetBalance"
-    Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $FaucetWallet, "wallet", "scan") "faucet wallet scan" | Out-Null
     $faucetBalance = Get-WalletBalance $MfnCli $RpcAddr $FaucetWallet "faucet"
     Write-Host "fund-wallet: faucet_balance=$faucetBalance"
     if ($faucetBalance -lt ($Amount + $Fee)) {
@@ -226,7 +223,6 @@ try {
 
     if ($MinOwnedCount -gt 0) {
         while ($true) {
-            Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $Recipient, "wallet", "scan") "recipient wallet scan" | Out-Null
             $ownedCount = Get-WalletOwnedCount $MfnCli $RpcAddr $Recipient "recipient"
             Write-Host "fund-wallet: recipient_owned_count=$ownedCount min_owned_count=$MinOwnedCount"
             if ($ownedCount -ge $MinOwnedCount) { break }
