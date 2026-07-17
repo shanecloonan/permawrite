@@ -139,7 +139,8 @@ You only need a synced RPC (`127.0.0.1:18734` on your own node). You do not need
 | --- | --- |
 | `tip_height` stuck at 0 | Check outbound connectivity to `5.161.201.73:19001–19003`; restart `mfnd`. |
 | Wrong `genesis_id` | Use the exact genesis file from this repo; do not edit it. |
-| Wallet balance 0 after funding | Run `wallet scan`, wait for the next block, check `wallet status --json` for `blocks_behind`. |
+| Wallet balance 0 after funding | Wait for the next block, then `wallet light-scan` (fast) or `wallet scan`. At high tip heights, prefer `light-scan` — a full genesis `get_block` sync can take many minutes. |
+| First sync very slow at high tip | Use `wallet light-scan` instead of `wallet scan`; CLI `balance`/`send` light-sync automatically when possible. |
 | Upload fails | Ensure balance covers fee + endowment; wallet needs at least 2 owned UTXOs under current policy — ask for a second top-up if needed. |
 
 More detail: [`TESTNET.md`](./TESTNET.md), [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md).
