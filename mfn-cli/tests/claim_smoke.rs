@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use mfn_cli::{KeyDerivation, WalletFile};
 use mfn_node::{genesis_config_from_json_path, ChainConfig, NodeStore, StoreBackend};
+use mfn_store::ChainPersistence;
 use mfn_wallet::ClaimingIdentity;
 
 const DEVNET_SOLO_VRF_SEED_HEX: &str =

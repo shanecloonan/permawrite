@@ -18,19 +18,12 @@ if (-not (Select-String -LiteralPath $Ops -Pattern "launch-go-no-go" -Quiet)) {
     throw "launch-go-no-go-rehearsal-smoke: OPERATORS.md missing launch-go-no-go"
 }
 
-$stdoutFile = Join-Path $env:TEMP ("launch-gng-rehearsal-" + [Guid]::NewGuid().ToString("N") + ".out")
-$stderrFile = Join-Path $env:TEMP ("launch-gng-rehearsal-" + [Guid]::NewGuid().ToString("N") + ".err")
-try {
-    $proc = Start-Process -FilePath "powershell" -ArgumentList @(
-        "-NoProfile",
-        "-File",
-        (Join-Path $ScriptDir "launch-go-no-go.ps1"),
-        "-Json"
-    ) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
-    $combined = (Get-Content -Raw -LiteralPath $stdoutFile) + "`n" + (Get-Content -Raw -LiteralPath $stderrFile -ErrorAction SilentlyContinue)
-} finally {
-    Remove-Item -LiteralPath $stdoutFile, $stderrFile -ErrorAction SilentlyContinue
-}
+# Capture output via the call operator (not Start-Process + redirected files): on Windows
+# CI runners, Start-Process -RedirectStandardOutput/-Wait can return before the redirected
+# files are fully flushed to disk, intermittently yielding truncated/empty captures.
+$rawOutput = & powershell -NoProfile -File (Join-Path $ScriptDir "launch-go-no-go.ps1") -Json 2>&1
+$exitCode = $LASTEXITCODE
+$combined = ($rawOutput | Out-String)
 
 if ($combined -notmatch '\{[\s\S]*"schema_version"\s*:\s*"launch-go-no-go\.v1"[\s\S]*\}') {
     throw "launch-go-no-go-rehearsal-smoke: JSON block missing from launch-go-no-go.ps1 -Json output"
@@ -45,7 +38,7 @@ $expectedGenesis = "454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42
 if ($report.genesis_id -ne $expectedGenesis) {
     throw "launch-go-no-go-rehearsal-smoke: unexpected genesis_id $($report.genesis_id)"
 }
-if ($report.seed_nodes_count -ge 3 -and $proc.ExitCode -eq 0) {
+if ($report.seed_nodes_count -ge 3 -and $exitCode -eq 0) {
     if (-not $report.automatable_pass) {
         throw "launch-go-no-go-rehearsal-smoke: post-TL-8 automatable_pass must be true when seed_nodes>=3 and exit 0"
     }
@@ -53,7 +46,7 @@ if ($report.seed_nodes_count -ge 3 -and $proc.ExitCode -eq 0) {
     if ($report.automatable_pass -ne $false) {
         throw "launch-go-no-go-rehearsal-smoke: pre-launch automatable_pass must be false"
     }
-    if ($proc.ExitCode -eq 0) {
+    if ($exitCode -eq 0) {
         throw "launch-go-no-go-rehearsal-smoke: expected non-zero exit before TL-5/TL-6 VPS evidence"
     }
 }
