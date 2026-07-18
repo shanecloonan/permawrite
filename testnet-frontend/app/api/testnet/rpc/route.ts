@@ -13,6 +13,8 @@ const PUBLIC_SAFE = new Set([
   "get_block_evolution",
   "get_block_headers",
   "get_block_txs",
+  "get_block_txs_range",
+  "get_tx_count_totals",
   "get_chain_params",
   "get_claims_by_pubkey",
   "get_claims_for",

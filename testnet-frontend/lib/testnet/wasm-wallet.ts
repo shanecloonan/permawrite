@@ -74,8 +74,10 @@ export function emptySync(): WalletSyncState {
   return { lastScannedHeight: 0, ownedKeyImages: [], inputs: [] };
 }
 
-/** Parallel `get_block_txs` batch size — keeps RPC latency bounded on high tips. */
+/** Parallel `get_block_txs` batch size when range RPC is unavailable. */
 const TX_FETCH_PARALLEL = 24;
+/** Heights per `get_block_txs_range` (observer proxy max is 32). */
+const TX_RANGE_SIZE = 32;
 
 /**
  * Wallets in this app are always freshly generated in-browser (no seed import),
@@ -121,6 +123,24 @@ export function loadSync(seedHex: string): WalletSyncState {
 
 export function saveSync(seedHex: string, state: WalletSyncState) {
   localStorage.setItem(SYNC_PREFIX + seedHex, JSON.stringify(state));
+}
+
+/**
+ * A persisted scan cursor taller than the live chain tip can only happen
+ * after the operator wiped and restarted the devnet (its whole history,
+ * including this wallet's cached UTXOs, no longer exists). Without this,
+ * every later scan sees `lastScannedHeight > tipHeight`, decides there is
+ * nothing new to scan, and reports the stale pre-reset balance forever.
+ */
+export function loadSyncReconciled(
+  seedHex: string,
+  tipHeight: number,
+): WalletSyncState {
+  const state = loadSync(seedHex);
+  if (state.lastScannedHeight <= tipHeight) return state;
+  const fresh = emptySync();
+  saveSync(seedHex, fresh);
+  return fresh;
 }
 
 export function totalBalance(state: WalletSyncState): number {
@@ -190,19 +210,48 @@ export async function syncWalletLite(opts: {
 
   const wasm = await loadMfnWasm();
   let recovered = 0;
+  let useRange = true;
 
   for (let chunkStart = fromHeight; chunkStart <= toHeight; ) {
-    const chunkEnd = Math.min(toHeight, chunkStart + TX_FETCH_PARALLEL - 1);
+    const chunkEnd = Math.min(toHeight, chunkStart + TX_RANGE_SIZE - 1);
     const heights: number[] = [];
     for (let h = chunkStart; h <= chunkEnd; h++) heights.push(h);
 
-    const pages = await Promise.all(
-      heights.map((h) =>
-        rpc<{ txs?: Array<{ tx_hex?: string }> }>("get_block_txs", {
-          height: h,
-        }),
-      ),
-    );
+    let pages: Array<{ txs?: Array<{ tx_hex?: string }> }>;
+    if (useRange) {
+      try {
+        const ranged = await rpc<{
+          blocks?: Array<{
+            height?: number;
+            txs?: Array<{ tx_hex?: string }>;
+          }>;
+        }>("get_block_txs_range", {
+          from_height: chunkStart,
+          to_height: chunkEnd,
+        });
+        const byH = new Map(
+          (ranged.blocks || []).map((b) => [Number(b.height), b] as const),
+        );
+        pages = heights.map((h) => byH.get(h) || { txs: [] });
+      } catch {
+        useRange = false;
+        pages = await Promise.all(
+          heights.map((h) =>
+            rpc<{ txs?: Array<{ tx_hex?: string }> }>("get_block_txs", {
+              height: h,
+            }),
+          ),
+        );
+      }
+    } else {
+      pages = await Promise.all(
+        heights.map((h) =>
+          rpc<{ txs?: Array<{ tx_hex?: string }> }>("get_block_txs", {
+            height: h,
+          }),
+        ),
+      );
+    }
 
     for (let i = 0; i < heights.length; i++) {
       const h = heights[i];

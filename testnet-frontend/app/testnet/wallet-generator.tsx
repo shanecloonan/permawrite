@@ -12,6 +12,7 @@ import {
   loadHistory,
   loadSession,
   loadSync,
+  loadSyncReconciled,
   markFaucetClaimHeight,
   pushHistory,
   saveSession,
@@ -105,7 +106,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         setStatus("Chain has no blocks yet.");
         return;
       }
-      const state = loadSync(session.seedHex);
+      const state = loadSyncReconciled(session.seedHex, tipH);
       if (state.lastScannedHeight >= tipH) {
         setSync(state);
         setStatus(`Up to date through tip #${tipH}.`);
@@ -185,7 +186,7 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         await new Promise((r) => setTimeout(r, 3000));
       }
 
-      const state = loadSync(session.seedHex);
+      const state = loadSyncReconciled(session.seedHex, tipH);
       const result = await syncWalletLite({
         seedHex: session.seedHex,
         toHeight: tipH,
@@ -220,7 +221,9 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         throw new Error("amount must be a positive number");
       }
       const dest = decodeWalletAddress(sendTo.trim());
-      const state = loadSync(session.seedHex);
+      const tip = await rpc<{ tip_height?: number }>("get_tip", {});
+      const tipH = Number(tip.tip_height ?? 0);
+      const state = loadSyncReconciled(session.seedHex, tipH);
       if (state.inputs.length < 2) {
         throw new Error(
           "Need at least 2 UTXOs to send (F7 floor). Claim the faucet (2 sends), wait for blocks, then refresh.",
@@ -245,8 +248,6 @@ export default function WalletGenerator({ rpcProxyUrl }: Props) {
         );
       }
 
-      const tip = await rpc<{ tip_height?: number }>("get_tip", {});
-      const tipH = Number(tip.tip_height ?? 0);
       const utxoPage = await rpc<{
         utxos?: Array<{
           height: number;
