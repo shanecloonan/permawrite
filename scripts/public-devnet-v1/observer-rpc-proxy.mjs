@@ -20,9 +20,9 @@ const LISTEN_HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 const LISTEN_PORT = Number(process.env.PROXY_PORT ?? "8787");
 const MAX_BODY = Number(process.env.PROXY_MAX_BODY_BYTES ?? String(2 * 1024 * 1024));
 const RPC_TIMEOUT_MS = Number(process.env.PROXY_RPC_TIMEOUT_MS ?? "30000");
-const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "2000");
-const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "12");
-const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "64");
+const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
+const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
+const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
 const RANGE_MAX = Number(process.env.PROXY_TXS_RANGE_MAX ?? "32");
 
 const PUBLIC_SAFE = new Set([
