@@ -9,6 +9,8 @@
 [![Status](https://img.shields.io/badge/status-public_testnet-yellow)](#status)
 [![License](https://img.shields.io/badge/license-MIT_%2F_Apache--2.0-blue)](#license)
 
+### 🌐 [**pfpchain.com**](https://pfpchain.com) — make a wallet, transact, explore blocks
+
 [**Join the testnet**](./docs/JOIN_TESTNET.md) &nbsp;·&nbsp; [**Overview**](./docs/OVERVIEW.md) &nbsp;·&nbsp; [**Operator runbook**](./docs/TESTNET.md)
 
 </div>
