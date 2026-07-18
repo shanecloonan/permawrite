@@ -1,6 +1,12 @@
 # Lane 7 / TL-9: automatable launch gate summary (human sign-off still required).
+# NOTE: intentionally "Continue", not "Stop". Every nested native call below is
+# gated on its own $LASTEXITCODE, and PowerShell treats any stderr line from a
+# `2>&1` / `*> $null`-redirected native command as a terminating ErrorRecord
+# under `$ErrorActionPreference = "Stop"` regardless of the redirect target -
+# that silently aborted this script (and the rehearsal smoke wrapping it)
+# whenever an assert helper below emitted anything on stderr.
 param([switch]$Json)
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path

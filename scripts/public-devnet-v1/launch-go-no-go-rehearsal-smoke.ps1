@@ -2,7 +2,11 @@
 param(
     [switch]$PlanOnly
 )
-$ErrorActionPreference = "Stop"
+# NOTE: intentionally "Continue", not "Stop" - see launch-go-no-go.ps1 for why:
+# capturing a native command's stderr via `2>&1` throws under EAP "Stop" even
+# when the destination is discarded. All failure signaling below is explicit
+# (`throw`), which is unaffected by $ErrorActionPreference.
+$ErrorActionPreference = "Continue"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
