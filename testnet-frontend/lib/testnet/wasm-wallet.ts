@@ -77,14 +77,21 @@ export function emptySync(): WalletSyncState {
 /** Parallel `get_block_txs` batch size — keeps RPC latency bounded on high tips. */
 const TX_FETCH_PARALLEL = 24;
 
-function resolveSyncFromHeight(state: WalletSyncState): number {
+/**
+ * Wallets in this app are always freshly generated in-browser (no seed import),
+ * so there is never any history to backfill before a wallet's first sync. Without
+ * a prior checkpoint, start at the current tip (minus a small safety buffer)
+ * instead of block 1 — scanning a multi-thousand-block chain from genesis on
+ * every fresh wallet made "refresh balance" effectively hang.
+ */
+function resolveSyncFromHeight(state: WalletSyncState, toHeight: number): number {
   if (state.lastScannedHeight > 0) {
     return state.lastScannedHeight + 1;
   }
   if (state.faucetClaimFromHeight != null && state.faucetClaimFromHeight > 0) {
     return Math.max(1, state.faucetClaimFromHeight - 5);
   }
-  return 1;
+  return Math.max(1, toHeight - 5);
 }
 
 export function markFaucetClaimHeight(seedHex: string, tipHeight: number) {
@@ -175,7 +182,7 @@ export async function syncWalletLite(opts: {
   onProgress?: (height: number, tip: number) => void;
 }): Promise<{ recovered: number; balance: number }> {
   const { seedHex, toHeight, state, rpc, onProgress } = opts;
-  let fromHeight = opts.fromHeight ?? resolveSyncFromHeight(state);
+  let fromHeight = opts.fromHeight ?? resolveSyncFromHeight(state, toHeight);
   if (fromHeight < 1) fromHeight = 1;
   if (toHeight < fromHeight) {
     return { recovered: 0, balance: totalBalance(state) };
