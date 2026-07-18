@@ -37,8 +37,9 @@ const FAUCET_WALLET =
 const AMOUNT = Number(process.env.FAUCET_AMOUNT ?? "500000");
 const FEE = Number(process.env.FAUCET_FEE ?? "10000");
 const RING = Number(process.env.FAUCET_RING_SIZE ?? "16");
+// Public testnet: short cooldown so F7 (2-UTXO) top-ups stay usable after a send.
 const COOLDOWN_MS = Number(
-  process.env.FAUCET_COOLDOWN_MS ?? String(6 * 3600_000),
+  process.env.FAUCET_COOLDOWN_MS ?? String(15 * 60_000),
 );
 const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "180000");
 const KEEPALIVE_MS = Number(process.env.FAUCET_KEEPALIVE_MS ?? "45000");
