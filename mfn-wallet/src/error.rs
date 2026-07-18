@@ -69,6 +69,18 @@ pub enum WalletError {
     #[error("authorship claim commit_hash does not match storage commitment hash")]
     AuthorshipClaimCommitHashMismatch,
 
+    /// Authorship claims must bind to the upload's `storage_commitment_hash`
+    /// (unbound bulletin-board claims are not indexed on-chain).
+    #[error("authorship claim must bind to this upload's storage_commitment_hash")]
+    AuthorshipClaimMustBeUploadBound,
+
+    /// Standalone claim transactions are disabled; attach discovery metadata
+    /// at upload time with [`crate::Wallet::build_storage_upload_with_authorship`].
+    #[error(
+        "standalone authorship claim transactions are disabled; use upload-time `--message` / build_storage_upload_with_authorship"
+    )]
+    StandaloneAuthorshipClaimDisabled,
+
     /// Caller asked to send `requested` atomic units but the wallet only
     /// holds `available` in unspent owned outputs (plus fee, if any).
     #[error("insufficient funds: requested {requested}, available {available}")]

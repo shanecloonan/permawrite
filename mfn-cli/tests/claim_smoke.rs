@@ -1,4 +1,4 @@
-//! Wallet claim smoke: MFCL authorship claim via `submit_tx`, mined by `mfnd step` (**M3.4**).
+//! Upload-time authorship claim smoke: bound MFCL in upload tx, mined by `mfnd step`.
 
 use std::io::{BufRead, BufReader};
 use std::net::SocketAddr;
@@ -7,19 +7,13 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use mfn_cli::{KeyDerivation, WalletFile};
-use mfn_node::{
-    genesis_config_from_json_path, ChainConfig, Mempool, MempoolConfig, NodeStore, StoreBackend,
-};
-use mfn_store::{load_mempool, ChainPersistence};
+use mfn_node::{genesis_config_from_json_path, ChainConfig, NodeStore, StoreBackend};
 use mfn_wallet::ClaimingIdentity;
 
 const DEVNET_SOLO_VRF_SEED_HEX: &str =
     "0101010101010101010101010101010101010101010101010101010101010101";
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
-const CLAIM_DATA_ROOT_HEX: &str =
-    "7777777777777777777777777777777777777777777777777777777777777777";
-const CLAIM_FEE: u64 = 10_000;
 const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
@@ -92,9 +86,19 @@ fn shutdown_child(child: &mut Child) {
     let _ = child.wait();
 }
 
+fn parse_stdout_field(stdout: &str, key: &str) -> String {
+    let prefix = format!("{key}=");
+    stdout
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .unwrap_or_else(|| panic!("missing {prefix} in stdout:\n{stdout}"))
+        .trim()
+        .to_string()
+}
+
 #[test]
-fn wallet_claim_mined_by_step_indexed_on_chain() {
-    let dir = unique_data_dir("claim_mine");
+fn upload_time_claim_mined_by_step_indexed_on_chain() {
+    let dir = unique_data_dir("upload_claim_mine");
     std::fs::create_dir_all(&dir).expect("tmpdir");
     let spec = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
@@ -106,6 +110,9 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
     WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
         .save(&alice_path)
         .expect("alice wallet");
+
+    let payload_path = dir.join("payload.bin");
+    std::fs::write(&payload_path, b"permawrite upload-time claim smoke").expect("payload");
 
     let step1 = mfnd()
         .args(["--data-dir"])
@@ -144,63 +151,36 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
     let rpc_addr = read_serve_listening(&mut serve);
     let rpc = rpc_addr.to_string();
 
-    let claim_out = mfn_cli()
+    let upload_out = mfn_cli()
         .args(["--rpc", &rpc, "--wallet"])
         .arg(&alice_path)
         .args([
             "wallet",
-            "claim",
-            CLAIM_DATA_ROOT_HEX,
+            "upload",
+            payload_path.to_str().expect("utf8"),
+            "--replication",
+            "3",
             "--message",
             "signed by claiming key",
-            "--fee",
-            &CLAIM_FEE.to_string(),
-            "--ring-size",
-            "16",
         ])
         .output()
-        .expect("claim");
+        .expect("upload");
     assert!(
-        claim_out.status.success(),
-        "wallet claim failed: stdout={} stderr={}",
-        String::from_utf8_lossy(&claim_out.stdout),
-        String::from_utf8_lossy(&claim_out.stderr)
+        upload_out.status.success(),
+        "wallet upload failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&upload_out.stdout),
+        String::from_utf8_lossy(&upload_out.stderr)
     );
-    let claim_stdout = String::from_utf8_lossy(&claim_out.stdout);
+    let upload_stdout = String::from_utf8_lossy(&upload_out.stdout);
     assert!(
-        claim_stdout.contains("outcome=Fresh"),
-        "stdout={claim_stdout}"
+        upload_stdout.contains("authorship_claim=bound"),
+        "stdout={upload_stdout}"
     );
     assert!(
-        claim_stdout.contains("mempool_len=1"),
-        "claim tx should be alone in mempool; stdout={claim_stdout}"
+        upload_stdout.contains("outcome=Fresh"),
+        "stdout={upload_stdout}"
     );
-
-    let mempool_file = dir.join("mempool.bytes");
-    assert!(
-        mempool_file.is_file(),
-        "mempool.bytes missing under {}",
-        dir.display()
-    );
-    let mempool_bytes = std::fs::read(&mempool_file).expect("read mempool.bytes");
-    assert!(
-        mempool_bytes.len() > 32,
-        "mempool snapshot too small ({} bytes)",
-        mempool_bytes.len()
-    );
-
-    let gc = genesis_config_from_json_path(&spec).expect("genesis");
-    let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
-    let chain = store
-        .load_or_genesis(ChainConfig::new(gc.clone()))
-        .expect("chain");
-    let mut pool = Mempool::new(MempoolConfig::default());
-    let preload = load_mempool(&store, &mut pool, chain.state()).expect("preload");
-    assert_eq!(
-        preload.admitted, 1,
-        "preload loaded={} admitted={} skipped={}",
-        preload.loaded, preload.admitted, preload.skipped
-    );
+    let data_root_hex = parse_stdout_field(&upload_stdout, "data_root");
 
     shutdown_child(&mut serve);
 
@@ -223,32 +203,12 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
         "step2 stderr={}",
         String::from_utf8_lossy(&step2.stderr)
     );
-    let step2_out = String::from_utf8_lossy(&step2.stdout);
-    let step2_err = String::from_utf8_lossy(&step2.stderr);
-    assert!(
-        step2_out.contains("new_tip_height=3"),
-        "step2 stdout={step2_out} stderr={step2_err}"
-    );
-    assert!(
-        (step2_out.contains("mfnd_step_mempool_load")
-            || step2_err.contains("mfnd_step_mempool_load"))
-            && (step2_out.contains("admitted=1") || step2_err.contains("admitted=1")),
-        "step2 should mine persisted claim tx; stdout={step2_out} stderr={step2_err}"
-    );
 
-    let store2 = NodeStore::open(StoreBackend::Fs, &dir).expect("store2");
-    let blocks = store2.read_block_log().expect("blocks");
-    assert_eq!(blocks.len(), 3, "expected three blocks in log");
-    assert!(
-        blocks[2].txs.len() >= 2,
-        "block at height 3 should include coinbase + claim, got {} txs",
-        blocks[2].txs.len()
-    );
-
-    let chain = store2.load_or_genesis(ChainConfig::new(gc)).expect("chain");
-    assert_eq!(chain.tip_height(), Some(3));
+    let gc = genesis_config_from_json_path(&spec).expect("genesis");
+    let store = NodeStore::open(StoreBackend::Fs, &dir).expect("store");
+    let chain = store.load_or_genesis(ChainConfig::new(gc)).expect("chain");
     let mut data_root = [0u8; 32];
-    hex::decode_to_slice(CLAIM_DATA_ROOT_HEX, &mut data_root).expect("data_root hex");
+    hex::decode_to_slice(&data_root_hex, &mut data_root).expect("data_root hex");
     let pk_bytes = ClaimingIdentity::from_seed(&bls_seed)
         .claim_pubkey()
         .compress()
@@ -260,6 +220,7 @@ fn wallet_claim_mined_by_step_indexed_on_chain() {
         .expect("claim must be indexed after step");
     assert_eq!(rec.claim.message, b"signed by claiming key".as_slice());
     assert_eq!(rec.claim.data_root, data_root);
+    assert_ne!(rec.claim.commit_hash, [0u8; 32]);
 
     std::fs::remove_dir_all(&dir).ok();
 }

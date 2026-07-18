@@ -11,7 +11,8 @@ use crate::block::StorageEntry;
 use crate::coinbase::is_coinbase_shaped;
 use crate::extra_codec::parse_mfex_authorship_claims;
 use crate::transaction::{tx_id, TransactionWire};
-use std::collections::HashMap;
+use mfn_storage::storage_commitment_hash;
+use std::collections::{HashMap, HashSet};
 
 /// Index key: (`data_root`, compressed claiming pubkey bytes).
 pub type AuthorshipClaimKey = ([u8; 32], [u8; 32]);
@@ -148,6 +149,60 @@ pub enum AuthorshipClaimVerifyError {
         /// Claim index in tx.
         claim_index: u32,
     },
+    /// Unbound (`commit_hash` all-zero) claims are not indexed on-chain.
+    #[error(
+        "unbound authorship claim rejected at tx_index {tx_index} claim_index {claim_index}; use upload-time bound claims"
+    )]
+    UnboundClaimRejected {
+        /// Transaction index in block.
+        tx_index: u32,
+        /// Claim index in tx.
+        claim_index: u32,
+    },
+    /// Bound claim must appear in the same transaction that first anchors
+    /// its `commit_hash` (upload-time discovery only).
+    #[error(
+        "authorship claim must co-anchor with its storage upload at tx_index {tx_index} claim_index {claim_index}"
+    )]
+    ClaimNotCoAnchoredWithUpload {
+        /// Transaction index in block.
+        tx_index: u32,
+        /// Claim index in tx.
+        claim_index: u32,
+    },
+    /// At most one discovery claim per on-chain storage commitment.
+    #[error(
+        "duplicate authorship claim for commit_hash at tx_index {tx_index} claim_index {claim_index}"
+    )]
+    DuplicateCommitHashClaim {
+        /// Transaction index in block.
+        tx_index: u32,
+        /// Claim index in tx.
+        claim_index: u32,
+    },
+}
+
+/// Storage commitment hashes first anchored in `tx` (absent from
+/// `pre_block_storage`). Used to enforce upload-time-only discovery claims.
+pub fn new_storage_commit_hashes_in_tx(
+    tx: &TransactionWire,
+    pre_block_storage: &HashMap<[u8; 32], StorageEntry>,
+) -> HashSet<[u8; 32]> {
+    let mut seen_in_tx = HashSet::new();
+    let mut new_hashes = HashSet::new();
+    for out in &tx.outputs {
+        let Some(sc) = &out.storage else {
+            continue;
+        };
+        let h = storage_commitment_hash(sc);
+        if pre_block_storage.contains_key(&h) {
+            continue;
+        }
+        if seen_in_tx.insert(h) {
+            new_hashes.insert(h);
+        }
+    }
+    new_hashes
 }
 
 /// Returns `Ok(())` when `claim`'s optional storage binding is satisfied by `storage`.
@@ -169,6 +224,19 @@ pub fn check_claim_key_unique(
     claims: &std::collections::BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord>,
 ) -> bool {
     !claims.contains_key(&authorship_claim_key(claim))
+}
+
+/// Returns `true` when no indexed claim already binds this `commit_hash`.
+pub fn check_commit_hash_claim_unique(
+    claim: &AuthorshipClaim,
+    claims: &std::collections::BTreeMap<AuthorshipClaimKey, AuthorshipClaimRecord>,
+) -> bool {
+    if claim.commit_hash == UNBOUND_COMMIT_HASH {
+        return false;
+    }
+    !claims
+        .values()
+        .any(|rec| rec.claim.commit_hash == claim.commit_hash)
 }
 
 impl From<mfn_crypto::CryptoError> for AuthorshipClaimVerifyError {
@@ -263,7 +331,7 @@ pub fn build_mfex_extra_v3(
 #[cfg(test)]
 mod apply_rules_tests {
     use super::*;
-    use mfn_crypto::authorship::{build_signed_claim, UNBOUND_COMMIT_HASH};
+    use mfn_crypto::authorship::build_signed_claim;
     use mfn_crypto::schnorr::schnorr_keygen;
     use mfn_storage::{storage_commitment_hash, StorageCommitment};
 
@@ -303,8 +371,9 @@ mod apply_rules_tests {
     fn claim_key_unique_per_pubkey_and_root() {
         let kp = schnorr_keygen();
         let data_root = [9u8; 32];
-        let c1 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"a", &kp).expect("s");
-        let c2 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"b", &kp).expect("s");
+        let commit_hash = [0xAB; 32];
+        let c1 = build_signed_claim(data_root, commit_hash, b"a", &kp).expect("s");
+        let c2 = build_signed_claim(data_root, commit_hash, b"b", &kp).expect("s");
         let mut map = std::collections::BTreeMap::new();
         map.insert(
             authorship_claim_key(&c1),
@@ -312,7 +381,24 @@ mod apply_rules_tests {
         );
         assert!(!check_claim_key_unique(&c2, &map));
         let other = schnorr_keygen();
-        let c3 = build_signed_claim(data_root, UNBOUND_COMMIT_HASH, b"c", &other).expect("s");
+        let c3 = build_signed_claim(data_root, [0xAC; 32], b"c", &other).expect("s");
         assert!(check_claim_key_unique(&c3, &map));
+    }
+
+    #[test]
+    fn commit_hash_claim_unique_rejects_second_pubkey_on_same_upload() {
+        let kp_a = schnorr_keygen();
+        let kp_b = schnorr_keygen();
+        let data_root = [3u8; 32];
+        let commit_hash = [4u8; 32];
+        let c1 = build_signed_claim(data_root, commit_hash, b"a", &kp_a).expect("s");
+        let c2 = build_signed_claim(data_root, commit_hash, b"b", &kp_b).expect("s");
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            authorship_claim_key(&c1),
+            claim_to_record(&c1, [0u8; 32], 1, 0, 0),
+        );
+        assert!(check_claim_key_unique(&c2, &map));
+        assert!(!check_commit_hash_claim_unique(&c2, &map));
     }
 }

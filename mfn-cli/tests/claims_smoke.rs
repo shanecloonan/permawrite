@@ -13,8 +13,6 @@ const DEVNET_SOLO_VRF_SEED_HEX: &str =
     "0101010101010101010101010101010101010101010101010101010101010101";
 const DEVNET_SOLO_BLS_SEED_HEX: &str =
     "6565656565656565656565656565656565656565656565656565656565656565";
-const CLAIM_DATA_ROOT_HEX: &str =
-    "7777777777777777777777777777777777777777777777777777777777777777";
 const FUND_WALLET_BLOCKS: &str = "2";
 
 fn mfnd_bin() -> PathBuf {
@@ -87,6 +85,16 @@ fn shutdown_child(child: &mut Child) {
     let _ = child.wait();
 }
 
+fn parse_stdout_field(stdout: &str, key: &str) -> String {
+    let prefix = format!("{key}=");
+    stdout
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .unwrap_or_else(|| panic!("missing {prefix} in stdout:\n{stdout}"))
+        .trim()
+        .to_string()
+}
+
 #[test]
 fn claims_for_lists_mined_authorship_claim() {
     let dir = unique_data_dir("claims_for");
@@ -101,6 +109,9 @@ fn claims_for_lists_mined_authorship_claim() {
     WalletFile::new(&bls_seed, KeyDerivation::PayoutStealthV1)
         .save(&alice_path)
         .expect("alice wallet");
+
+    let payload_path = dir.join("payload.bin");
+    std::fs::write(&payload_path, b"permawrite claims smoke payload").expect("payload");
 
     let step1 = mfnd()
         .args(["--data-dir"])
@@ -135,23 +146,27 @@ fn claims_for_lists_mined_authorship_claim() {
     let rpc_addr = read_serve_listening(&mut serve);
     let rpc = rpc_addr.to_string();
 
-    let claim_out = mfn_cli()
+    let upload_out = mfn_cli()
         .args(["--rpc", &rpc, "--wallet"])
         .arg(&alice_path)
         .args([
             "wallet",
-            "claim",
-            CLAIM_DATA_ROOT_HEX,
+            "upload",
+            payload_path.to_str().expect("utf8"),
+            "--replication",
+            "3",
             "--message",
             "claims smoke",
-            "--fee",
-            "10000",
-            "--ring-size",
-            "16",
         ])
         .output()
-        .expect("wallet claim");
-    assert!(claim_out.status.success(), "claim failed");
+        .expect("wallet upload");
+    assert!(
+        upload_out.status.success(),
+        "upload failed: {}",
+        String::from_utf8_lossy(&upload_out.stderr)
+    );
+    let upload_stdout = String::from_utf8_lossy(&upload_out.stdout);
+    let data_root_hex = parse_stdout_field(&upload_stdout, "data_root");
 
     shutdown_child(&mut serve);
 
@@ -195,7 +210,7 @@ fn claims_for_lists_mined_authorship_claim() {
     );
 
     let for_out = mfn_cli()
-        .args(["--rpc", &rpc2, "claims", "for", CLAIM_DATA_ROOT_HEX])
+        .args(["--rpc", &rpc2, "claims", "for", &data_root_hex])
         .output()
         .expect("claims for");
     assert!(
@@ -236,10 +251,7 @@ fn claims_for_lists_mined_authorship_claim() {
         String::from_utf8_lossy(&by_pk.stdout)
     );
     let by_pk_out = String::from_utf8_lossy(&by_pk.stdout);
-    assert!(
-        by_pk_out.contains(CLAIM_DATA_ROOT_HEX),
-        "stdout={by_pk_out}"
-    );
+    assert!(by_pk_out.contains(&data_root_hex), "stdout={by_pk_out}");
 
     let roots = mfn_cli()
         .args(["--rpc", &rpc2, "claims", "roots"])
@@ -247,10 +259,7 @@ fn claims_for_lists_mined_authorship_claim() {
         .expect("claims roots");
     assert!(roots.status.success());
     let roots_out = String::from_utf8_lossy(&roots.stdout);
-    assert!(
-        roots_out.contains(CLAIM_DATA_ROOT_HEX),
-        "stdout={roots_out}"
-    );
+    assert!(roots_out.contains(&data_root_hex), "stdout={roots_out}");
 
     shutdown_child(&mut serve2);
     std::fs::remove_dir_all(&dir).ok();

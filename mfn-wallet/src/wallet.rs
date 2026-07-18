@@ -462,39 +462,27 @@ impl Wallet {
 
     /// Publish an on-chain **authorship claim** binding `message` (≤
     /// [`MAX_CLAIM_MESSAGE_LEN`] bytes) to `data_root` under
-    /// `identity`'s public claiming key. The claim is packed into
-    /// `tx.extra` as MFEX-wrapped MFCL; the spend is a minimal
-    /// self-payment (`1` unit) plus `fee`, with the remainder returned as
-    /// change — the same RingCT path as [`Self::build_transfer`].
+    /// `identity`'s public claiming key.
+    ///
+    /// **Disabled:** consensus indexes discovery claims only when they are
+    /// bound and co-anchored in the same transaction as the storage upload.
+    /// Use [`Self::build_storage_upload_with_authorship`] instead.
     #[allow(clippy::too_many_arguments)]
     pub fn publish_claim_tx<R>(
         &mut self,
-        identity: &ClaimingIdentity,
-        data_root: [u8; 32],
-        commit_hash: [u8; 32],
-        message: &[u8],
-        fee: u64,
-        ring_size: usize,
-        chain_state: &ChainState,
-        rng: &mut R,
+        _identity: &ClaimingIdentity,
+        _data_root: [u8; 32],
+        _commit_hash: [u8; 32],
+        _message: &[u8],
+        _fee: u64,
+        _ring_size: usize,
+        _chain_state: &ChainState,
+        _rng: &mut R,
     ) -> Result<SignedTransaction, WalletError>
     where
         R: FnMut() -> f64,
     {
-        if message.len() > MAX_CLAIM_MESSAGE_LEN {
-            return Err(WalletError::ClaimMessageTooLong {
-                max: MAX_CLAIM_MESSAGE_LEN,
-                got: message.len(),
-            });
-        }
-        self.assert_claim_key_firewall(identity)?;
-        let claim = build_signed_claim(data_root, commit_hash, message, identity.keypair())?;
-        let extra = build_mfex_extra(std::slice::from_ref(&claim))?;
-        let recipients = vec![TransferRecipient {
-            recipient: self.recipient(),
-            value: 1,
-        }];
-        self.build_transfer(&recipients, fee, ring_size, chain_state, &extra, rng)
+        Err(WalletError::StandaloneAuthorshipClaimDisabled)
     }
 
     /// High-level **storage upload**: pick inputs greedily, build the

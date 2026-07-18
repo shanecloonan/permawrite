@@ -647,13 +647,55 @@ pub fn apply_block(state: &ChainState, block: &Block) -> ApplyOutcome {
         }
 
         if !(ti == 0 && is_coinbase_shaped(tx)) {
+            let co_anchored = new_storage_commit_hashes_in_tx(tx, &state.storage);
+            let mut seen_commit_in_tx: HashSet<[u8; 32]> = HashSet::new();
             if let Ok((clist, _leaves)) = &per_tx_claims[ti] {
                 let tid = tx_id(tx);
                 for (ci, c) in clist.iter().enumerate() {
                     let ci_u32 = ci as u32;
+                    if c.commit_hash == UNBOUND_COMMIT_HASH {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::UnboundClaimRejected {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
+                    }
+                    if !co_anchored.contains(&c.commit_hash) {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::ClaimNotCoAnchoredWithUpload {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
+                    }
                     if !check_claim_storage_binding(c, &next.storage) {
                         errors.push(BlockError::AuthorshipClaims(
                             AuthorshipClaimVerifyError::CommitHashNotAnchored {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
+                    }
+                    if !seen_commit_in_tx.insert(c.commit_hash) {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::DuplicateCommitHashClaim {
+                                tx_index: ti as u32,
+                                claim_index: ci_u32,
+                            }
+                            .to_string(),
+                        ));
+                        continue;
+                    }
+                    if !check_commit_hash_claim_unique(c, &next.claims) {
+                        errors.push(BlockError::AuthorshipClaims(
+                            AuthorshipClaimVerifyError::DuplicateCommitHashClaim {
                                 tx_index: ti as u32,
                                 claim_index: ci_u32,
                             }

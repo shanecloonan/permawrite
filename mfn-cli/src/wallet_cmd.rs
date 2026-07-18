@@ -813,75 +813,17 @@ fn upload_outcome_json(outcome: &UploadOutcome<'_>) -> serde_json::Value {
     })
 }
 
-/// `wallet claim` — publish a standalone MFCL authorship claim via `submit_tx`.
+/// `wallet claim` — deprecated; discovery claims must be attached at upload time.
 pub fn wallet_claim(
-    path: &Path,
-    client: &mut RpcClient,
-    params: &ClaimParams,
+    _path: &Path,
+    _client: &mut RpcClient,
+    _params: &ClaimParams,
 ) -> Result<(), WalletCmdError> {
-    if params.ring_size < 16 {
-        return Err(WalletCmdError::Usage(
-            "ring-size must be at least 16 (consensus minimum)".into(),
-        ));
-    }
-    let data_root = parse_hash32(&params.data_root_hex, "data_root")?;
-    let commit_hash = match params.commit_hash_hex.as_deref() {
-        None => UNBOUND_COMMIT_HASH,
-        Some(hex) => parse_hash32(hex, "commit_hash")?,
-    };
-
-    let mut file = WalletFile::load(path)?;
-    let seed = file.seed_bytes()?;
-    let claiming = ClaimingIdentity::from_seed(&seed);
-    let mut wallet = file.to_wallet()?;
-    file.apply_pending_spends(&mut wallet)?;
-    let stats = sync_wallet_from_node(path, &mut wallet, &mut file, client)?;
-    let chain_state = fetch_chain_state(client)?;
-
-    let pre_owned: Vec<[u8; 32]> = wallet.owned().map(|o| o.utxo_key()).collect();
-    let mut rng = production_tx_rng;
-    let signed = wallet.publish_claim_tx(
-        &claiming,
-        data_root,
-        commit_hash,
-        &params.message,
-        params.fee,
-        params.ring_size,
-        &chain_state,
-        &mut rng,
-    )?;
-
-    let consumed: Vec<[u8; 32]> = pre_owned
-        .into_iter()
-        .filter(|k| !wallet.owned().any(|o| o.utxo_key() == *k))
-        .collect();
-    file.record_pending_spends(&consumed);
-    persist_wallet(path, &mut file, &wallet)?;
-
-    let tx_bytes = encode_transaction(&signed.tx);
-    let submit = client.submit_tx(&tx_bytes)?;
-
-    let outcome = ClaimOutcome {
-        stats: &stats,
-        path,
-        params,
-        claim_pubkey: claiming.claim_pubkey().compress().to_bytes(),
-        data_root,
-        commit_hash,
-        tx_id: &submit.tx_id,
-        mempool_len: submit.pool_len,
-        outcome_kind: &submit.outcome_kind,
-        balance_after_claim: wallet.balance(),
-        owned_count_after_claim: wallet.owned_count(),
-    };
-    print_claim_outcome(&outcome)?;
-    if submit.outcome_kind != "Fresh" && submit.outcome_kind != "Duplicate" {
-        eprintln!(
-            "warning: submit_tx outcome is {}; tx may not be in the mempool",
-            submit.outcome_kind
-        );
-    }
-    Ok(())
+    Err(WalletCmdError::Usage(
+        "standalone `wallet claim` is disabled: attach optional discovery metadata at upload \
+         time with `wallet upload FILE --message \"...\"` (bound, upload-co-anchored claims only)"
+            .into(),
+    ))
 }
 
 fn print_claim_outcome(outcome: &ClaimOutcome<'_>) -> Result<(), WalletCmdError> {

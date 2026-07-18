@@ -451,9 +451,10 @@ where
             if c.data_root != built.commit.data_root {
                 return Err(WalletError::AuthorshipClaimDataRootMismatch);
             }
-            if c.commit_hash != mfn_crypto::authorship::UNBOUND_COMMIT_HASH
-                && c.commit_hash != commit_hash
-            {
+            if c.commit_hash == mfn_crypto::authorship::UNBOUND_COMMIT_HASH {
+                return Err(WalletError::AuthorshipClaimMustBeUploadBound);
+            }
+            if c.commit_hash != commit_hash {
                 return Err(WalletError::AuthorshipClaimCommitHashMismatch);
             }
         }

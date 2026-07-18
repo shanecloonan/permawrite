@@ -635,10 +635,10 @@ fn wallet_storage_upload_rejects_fee_too_low_before_signing() {
     }
 }
 
-/// Authorship claim tx: `Mempool::admit` → solo block → `apply_block`
-/// populates `ChainState::claims` for the claimed `data_root`.
+/// Authorship claim bundled at upload: `Mempool::admit` → solo block →
+/// `apply_block` populates `ChainState::claims` for the upload commitment.
 #[test]
-fn publish_claim_tx_round_trip_through_chain() {
+fn upload_authorship_claim_round_trip_through_chain() {
     use mfn_wallet::ClaimingIdentity;
 
     let alice_keys = wallet_from_seed(&[0x31; 32]);
@@ -684,44 +684,55 @@ fn publish_claim_tx_round_trip_through_chain() {
         alice.ingest_block(&block);
     }
 
-    let fee = 10_000u64;
+    let data: Vec<u8> = (0u8..255u8).cycle().take(512).collect();
+    let replication: u8 = 3;
+    let min_fee = alice
+        .upload_min_fee(data.len() as u64, replication, chain.state())
+        .expect("min fee");
+    let fee = min_fee.saturating_add(1_000);
     let treasury_fee_bps = 9000u64;
     let producer_fee = fee - (fee * treasury_fee_bps / 10_000);
-    let data_root = [0x77u8; 32];
     let mut rng = seeded_rng(0xfeed_beef);
 
-    let signed = alice
-        .publish_claim_tx(
-            &claiming,
-            data_root,
-            mfn_crypto::authorship::UNBOUND_COMMIT_HASH,
-            b"signed by claiming key",
+    let art = alice
+        .build_storage_upload_with_authorship(
+            &data,
+            replication,
             fee,
+            alice.recipient(),
+            1_000,
+            None,
             16,
             chain.state(),
+            b"signed by claiming key",
+            &claiming,
             &mut rng,
         )
-        .expect("publish claim");
+        .expect("upload with authorship");
 
     let mut pool = Mempool::new(MempoolConfig::default());
     let admit = pool
-        .admit(signed.tx.clone(), chain.state())
-        .expect("mempool admits claim tx");
+        .admit(art.signed.tx.clone(), chain.state())
+        .expect("mempool admits upload");
     assert!(matches!(admit, AdmitOutcome::Fresh { .. }));
 
     let inputs = BlockInputs {
         height: 4,
         slot: 4,
         timestamp: 400,
-        txs: vec![coinbase_for(&producer, 4, producer_fee), signed.tx.clone()],
+        txs: vec![
+            coinbase_for(&producer, 4, producer_fee),
+            art.signed.tx.clone(),
+        ],
         bond_ops: Vec::new(),
         slashings: Vec::new(),
         storage_proofs: Vec::new(),
         storage_operator_ops: Vec::new(),
     };
     let block4 = produce_solo_block(&chain, &producer, &secrets, params, inputs).expect("block 4");
-    chain.apply(&block4).expect("chain applies claim block");
+    chain.apply(&block4).expect("chain applies upload block");
 
+    let data_root = art.built.commit.data_root;
     let pk_bytes = claiming.claim_pubkey().compress().to_bytes();
     let rec = chain
         .state()
@@ -730,4 +741,8 @@ fn publish_claim_tx_round_trip_through_chain() {
         .expect("claim index must list (data_root, claim_pubkey)");
     assert_eq!(rec.claim.claim_pubkey, claiming.claim_pubkey());
     assert_eq!(rec.claim.message, b"signed by claiming key".as_slice());
+    assert_eq!(
+        rec.claim.commit_hash,
+        storage_commitment_hash(&art.built.commit)
+    );
 }

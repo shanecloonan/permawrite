@@ -6,6 +6,7 @@ pub(crate) use std::collections::{BTreeMap, HashMap, HashSet};
 
 pub(crate) use curve25519_dalek::edwards::EdwardsPoint;
 
+pub(crate) use mfn_crypto::authorship::UNBOUND_COMMIT_HASH;
 pub(crate) use mfn_crypto::codec::{Reader, Writer};
 pub(crate) use mfn_crypto::domain::{BLOCK_HEADER, BLOCK_ID};
 pub(crate) use mfn_crypto::hash::dhash;
@@ -23,8 +24,9 @@ pub(crate) use mfn_storage::{
 pub(crate) use crate::bond_wire::{decode_bond_op, encode_bond_op, BondOp, BondWireError};
 pub(crate) use crate::bonding::{BondingParams, DEFAULT_BONDING_PARAMS};
 pub(crate) use crate::claims::{
-    authorship_claim_key, check_claim_key_unique, check_claim_storage_binding, claim_to_record,
-    claims_merkle_root, collect_claim_merkle_leaves_for_txs, verified_claims_for_tx,
+    authorship_claim_key, check_claim_key_unique, check_claim_storage_binding,
+    check_commit_hash_claim_unique, claim_to_record, claims_merkle_root,
+    collect_claim_merkle_leaves_for_txs, new_storage_commit_hashes_in_tx, verified_claims_for_tx,
     AuthorshipClaimVerifyError, VerifiedClaimsForTxResult,
 };
 pub(crate) use crate::coinbase::{is_coinbase_shaped, verify_coinbase_outputs};

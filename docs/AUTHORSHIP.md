@@ -22,11 +22,11 @@ The authorship layer solves (3) without weakening (1) or bloating (2).
 |-----------|-------------|
 | **Anonymous by default** | Uploads work exactly as today if the user does nothing extra. No author field is added to `StorageCommitment`. |
 | **Separate identity key** | Claims use a **Schnorr** signing keypair that is **not** the stealth view/spend key material. Leaking a “publishing pubkey” must not compromise wallet scanning or spending. |
-| **Optional, explicit** | A claim is opt-in. Unbound v2 claims (or v1) can still attest to any `data_root`; bound v2 claims require an on-chain storage commitment. |
+| **Optional, explicit** | A claim is opt-in at upload time only. Uploads without `--message` carry no discovery metadata. |
 | **Single native asset** | No second coin for “transparent vs private.” Fees and endowments stay in MFN; claims are metadata, not a new token class. |
 | **Header binding** | Each block header carries a `claims_root` (Merkle root over claim leaves in that block) so light clients can verify inclusion the same way as other body roots. The cost is 32 bytes per header forever; the benefit is SPV-style claim inclusion proofs without a separate indexer. |
 | **Domain separation** | Every digest uses an MFBN-1 domain tag; new tags are hard-fork boundaries. |
-| **One claim per pubkey per root** | Consensus rejects a second claim with the same (`data_root`, `claim_pubkey`). Different pubkeys may still claim the same `data_root` (social resolution). |
+| **One discovery claim per upload** | Consensus indexes at most one bound claim per `commit_hash`, and only when it is co-anchored in the same transaction that first anchors that storage commitment. |
 
 ---
 
@@ -112,7 +112,7 @@ signature               // 64 bytes
 
 Length ∈ **[166, 422]** bytes.
 
-**Storage binding.** If `commit_hash == [0u8; 32]`, the claim is an **unbound** attestation (same strength as v1). If `commit_hash != 0`, consensus **must** reject the claim unless `ChainState.storage` already contains that commitment hash and `storage[commit_hash].commit.data_root == claim.data_root`. Claims in the **same transaction** as a new storage output are validated **after** that output is registered, so upload+bundled-claim txs work.
+**Storage binding.** `commit_hash` must be the upload’s `storage_commitment_hash` (non-zero). Consensus rejects unbound (`commit_hash == [0u8; 32]`) claims. The claim must appear in the **same transaction** that first anchors that storage commitment; standalone claim transactions are rejected. Claims in the upload transaction are validated **after** that output is registered, so upload+bundled-claim txs work.
 
 Implementations **must** reject: wrong magic, unknown `version`, `message_len > MAX_CLAIM_MESSAGE_LEN`, malformed point/signature, trailing bytes, or more than `MAX_CLAIMS_PER_TX` frames per tx (after `MFEX` parsing).
 
@@ -152,17 +152,17 @@ Each `ClaimRecord` stores the full signed `MFCL` claim plus `tx_id`, `height`, `
 
 ## Transaction patterns
 
-### A. Upload + bundled claims
+### Upload + optional discovery claim (only pattern indexed on-chain)
 
-Normal storage upload with optional `MFCL` claims in `extra` (via `MFEX`). Wallets should set `commit_hash` to the upload’s `storage_commitment_hash` for a **bound** claim.
+Normal storage upload with optional bound MFCL claim in `extra` (via `MFEX`). Wallets set `commit_hash` to the upload’s `storage_commitment_hash`.
 
-**Privacy — temporal correlation:** Bundling a claim **inside** the upload transaction links the public `claim_pubkey` to that upload event in time (same tx). A **standalone** claim tx (pattern B) breaks that link while still allowing a bound `commit_hash` once the upload is anchored.
+**Privacy — no claim by default:** Uploads without a claim are unchanged — ring-signed, anonymous funding, no discovery metadata.
 
 **Privacy — keys:** Do not reuse stealth spend/view keys as the claiming key.
 
-### B. Standalone claim tx
+**Privacy — temporal correlation:** Bundling a claim in the upload transaction links the public `claim_pubkey` to that upload event in time (same tx). This is the deliberate trade for permaweb discovery; skip `--message` when attribution must stay off-chain.
 
-Ring-signed spend with claims only in `extra`. Use `commit_hash = 0` for bulletin-board claims, or the real commitment hash after the upload is on-chain.
+Standalone `wallet claim` transactions and unbound bulletin-board claims are **not** indexed.
 
 ---
 
@@ -183,10 +183,9 @@ Ring-signed spend with claims only in `extra`. Use `commit_hash = 0` for bulleti
 ## Threat model and limitations
 
 - **Not proof of file possession.** Binding `commit_hash` proves the claim refers to an **on-chain anchored upload**, not that the signer holds the preimage bytes.
-- **Unbound claims remain weak.** `commit_hash = 0` is intentional for pre-upload or third-party curation signals.
+- **Not proof of uploader identity.** The upload spend remains ring-signed; the claim only proves whoever signed the claim chose to attach a publishing key at upload time.
 - **No on-chain handle registry.** Human names stay off-chain.
-- **Spam:** bounded by tx fees and `MAX_CLAIMS_PER_TX`; duplicate (`data_root`, pubkey) pairs are rejected.
-- **Social resolution:** different pubkeys may claim the same `data_root`.
+- **Spam:** bounded by upload fees and `MAX_CLAIMS_PER_TX`; at most one indexed claim per storage commitment.
 
 ---
 
