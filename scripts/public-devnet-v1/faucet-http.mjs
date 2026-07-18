@@ -13,7 +13,10 @@
  * Env:
  *   FAUCET_WALLET, MFN_CLI, MFND_RPC, PROXY_HOST, PROXY_PORT
  *   FAUCET_AMOUNT, FAUCET_FEE, FAUCET_RING_SIZE, FAUCET_COOLDOWN_MS
- *   FAUCET_SEND_TIMEOUT_MS (default 90000)
+ *   FAUCET_SEND_TIMEOUT_MS (default 180000)
+ *   FAUCET_KEEPALIVE_MS (default 45000) — background wallet scan so send
+ *     never has to catch up thousands of producer coinbase blocks at once
+ *   FAUCET_SYNC_BEHIND (default 8) — max blocks_behind before a claim forces sync
  */
 
 import http from "node:http";
@@ -37,7 +40,12 @@ const RING = Number(process.env.FAUCET_RING_SIZE ?? "16");
 const COOLDOWN_MS = Number(
   process.env.FAUCET_COOLDOWN_MS ?? String(6 * 3600_000),
 );
-const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "90000");
+const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "180000");
+const KEEPALIVE_MS = Number(process.env.FAUCET_KEEPALIVE_MS ?? "45000");
+const SYNC_BEHIND = Number(process.env.FAUCET_SYNC_BEHIND ?? "8");
+const SYNC_TIMEOUT_MS = Number(
+  process.env.FAUCET_SYNC_TIMEOUT_MS ?? String(Math.max(SEND_TIMEOUT_MS, 240_000)),
+);
 const MAX_BODY = 8192;
 const JOB_TTL_MS = 30 * 60_000;
 
@@ -48,6 +56,20 @@ const lastIpClaim = new Map();
 /** @type {Map<string, object>} */
 const jobs = new Map();
 let busy = false;
+/** Serialize wallet scan/send so keepalive never races a claim. */
+let walletLock = Promise.resolve();
+
+function withWalletLock(fn) {
+  const prev = walletLock;
+  let release;
+  walletLock = new Promise((r) => {
+    release = r;
+  });
+  return prev
+    .catch(() => {})
+    .then(fn)
+    .finally(() => release());
+}
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -118,6 +140,52 @@ function clientIp(req) {
   return req.socket.remoteAddress || "unknown";
 }
 
+async function walletStatus() {
+  const { stdout } = await run(
+    MFN_CLI,
+    ["--rpc", MFND_RPC, "--wallet", FAUCET_WALLET, "wallet", "status", "--json"],
+    30_000,
+  );
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error(`wallet status returned no JSON: ${stdout.slice(0, 200)}`);
+  }
+  return JSON.parse(stdout.slice(start, end + 1));
+}
+
+async function syncWallet(reason) {
+  const t0 = Date.now();
+  await run(
+    MFN_CLI,
+    ["--rpc", MFND_RPC, "--wallet", FAUCET_WALLET, "wallet", "scan"],
+    SYNC_TIMEOUT_MS,
+  );
+  const st = await walletStatus().catch(() => null);
+  console.log(
+    `faucet wallet sync (${reason}) ${Date.now() - t0}ms` +
+      (st
+        ? ` tip=${st.tip_height} scan=${st.scan_height} behind=${st.blocks_behind}`
+        : ""),
+  );
+  return st;
+}
+
+async function ensureWalletReady(reason) {
+  let st;
+  try {
+    st = await walletStatus();
+  } catch (e) {
+    console.warn("faucet wallet status failed; forcing sync", e);
+    return syncWallet(`${reason}:status-failed`);
+  }
+  const behind = Number(st.blocks_behind ?? 0);
+  if (st.sync_needed || behind > SYNC_BEHIND) {
+    return syncWallet(`${reason}:behind=${behind}`);
+  }
+  return st;
+}
+
 function validAddress(addr) {
   if (typeof addr !== "string") return false;
   const a = addr.trim();
@@ -141,48 +209,54 @@ async function fundAddress(address, amount) {
     throw new Error(`mfn-cli missing: ${MFN_CLI}`);
   }
 
-  const t0 = Date.now();
-  const txIds = [];
-  // Two sends so recipient meets the F7 two-input floor for later transfers.
-  // `wallet send` light-syncs internally (no full get_block catch-up).
-  for (let i = 0; i < 2; i++) {
-    const { stdout } = await run(MFN_CLI, [
-      "--rpc",
-      MFND_RPC,
-      "--wallet",
-      FAUCET_WALLET,
-      "wallet",
-      "send",
-      address,
-      String(amount),
-      "--fee",
-      String(FEE),
-      "--ring-size",
-      String(RING),
-      "--json",
-    ]);
-    const start = stdout.indexOf("{");
-    const end = stdout.lastIndexOf("}");
-    if (start < 0 || end <= start) {
-      throw new Error(`faucet send returned no JSON: ${stdout.slice(0, 200)}`);
-    }
-    const parsed = JSON.parse(stdout.slice(start, end + 1));
-    txIds.push(parsed.tx_id || parsed.txId || null);
-    if (i === 0) {
-      await new Promise((r) => setTimeout(r, 400));
-    }
-  }
+  return withWalletLock(async () => {
+    const t0 = Date.now();
+    // Producer faucet accrues a coinbase every block. If scan_height falls
+    // thousands behind tip, each `wallet send` light-sync times out. Catch up
+    // explicitly first (keepalive usually keeps this near zero).
+    await ensureWalletReady("claim");
 
-  return {
-    ok: true,
-    address,
-    amount_per_send: amount,
-    sends: 2,
-    total_amount: amount * 2,
-    fee_per_send: FEE,
-    tx_ids: txIds,
-    duration_ms: Date.now() - t0,
-  };
+    const txIds = [];
+    // Two sends so recipient meets the F7 two-input floor for later transfers.
+    for (let i = 0; i < 2; i++) {
+      const { stdout } = await run(MFN_CLI, [
+        "--rpc",
+        MFND_RPC,
+        "--wallet",
+        FAUCET_WALLET,
+        "wallet",
+        "send",
+        address,
+        String(amount),
+        "--fee",
+        String(FEE),
+        "--ring-size",
+        String(RING),
+        "--json",
+      ]);
+      const start = stdout.indexOf("{");
+      const end = stdout.lastIndexOf("}");
+      if (start < 0 || end <= start) {
+        throw new Error(`faucet send returned no JSON: ${stdout.slice(0, 200)}`);
+      }
+      const parsed = JSON.parse(stdout.slice(start, end + 1));
+      txIds.push(parsed.tx_id || parsed.txId || null);
+      if (i === 0) {
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+
+    return {
+      ok: true,
+      address,
+      amount_per_send: amount,
+      sends: 2,
+      total_amount: amount * 2,
+      fee_per_send: FEE,
+      tx_ids: txIds,
+      duration_ms: Date.now() - t0,
+    };
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -197,6 +271,12 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/health" && req.method === "GET") {
     pruneJobs();
+    let wallet = null;
+    try {
+      wallet = await walletStatus();
+    } catch {
+      wallet = null;
+    }
     json(res, 200, {
       ok: true,
       rpc: MFND_RPC,
@@ -209,6 +289,12 @@ const server = http.createServer(async (req, res) => {
         (j) => j.status === "pending" || j.status === "running",
       ).length,
       async: true,
+      keepalive_ms: KEEPALIVE_MS,
+      send_timeout_ms: SEND_TIMEOUT_MS,
+      wallet_scan_height: wallet?.scan_height ?? null,
+      wallet_tip_height: wallet?.tip_height ?? null,
+      wallet_blocks_behind: wallet?.blocks_behind ?? null,
+      wallet_sync_needed: wallet?.sync_needed ?? null,
     });
     return;
   }
@@ -374,6 +460,18 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(
-    `faucet-http (async) http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET}`,
+    `faucet-http (async) http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET} keepalive=${KEEPALIVE_MS}ms`,
   );
+  // Catch up immediately, then keep scan_height near tip so claims stay fast.
+  void withWalletLock(() => ensureWalletReady("startup")).catch((e) =>
+    console.error("faucet startup sync failed", e),
+  );
+  if (KEEPALIVE_MS > 0) {
+    setInterval(() => {
+      if (busy) return;
+      void withWalletLock(() => ensureWalletReady("keepalive")).catch((e) =>
+        console.error("faucet keepalive sync failed", e),
+      );
+    }, KEEPALIVE_MS);
+  }
 });
