@@ -14,6 +14,8 @@
 
 import http from "node:http";
 import net from "node:net";
+import fs from "node:fs";
+import path from "node:path";
 
 const MFND_RPC = process.env.MFND_RPC ?? "127.0.0.1:18734";
 const LISTEN_HOST = process.env.PROXY_HOST ?? "0.0.0.0";
@@ -24,6 +26,10 @@ const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
 const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
 const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
 const RANGE_MAX = Number(process.env.PROXY_TXS_RANGE_MAX ?? "32");
+const INDEX_PATH =
+  process.env.PROXY_INDEX_PATH ??
+  "/root/permawrite/.permawrite-devnet-v1/observer-rpc-proxy-index.json";
+const INDEX_SAVE_EVERY_MS = Number(process.env.PROXY_INDEX_SAVE_MS ?? "15000");
 
 const PUBLIC_SAFE = new Set([
   "get_block",
@@ -69,6 +75,86 @@ const txsResultByHeight = new Map();
 let indexedTip = 0;
 let indexBusy = false;
 let indexErrors = 0;
+let indexDirty = false;
+let genesisId = null;
+
+function loadPersistedIndex() {
+  try {
+    if (!fs.existsSync(INDEX_PATH)) return;
+    const raw = JSON.parse(fs.readFileSync(INDEX_PATH, "utf8"));
+    if (!raw || typeof raw !== "object") return;
+    genesisId = typeof raw.genesis_id === "string" ? raw.genesis_id : null;
+    const counts = raw.counts || {};
+    for (const [h, c] of Object.entries(counts)) {
+      const height = Number(h);
+      if (!Number.isFinite(height) || !c) continue;
+      txCountByHeight.set(height, {
+        all: Number(c.all) || 0,
+        user: Number(c.user) || 0,
+      });
+    }
+    const txs = raw.txs || {};
+    for (const [h, result] of Object.entries(txs)) {
+      const height = Number(h);
+      if (!Number.isFinite(height) || !result) continue;
+      txsResultByHeight.set(height, JSON.stringify(result));
+      if (!txCountByHeight.has(height)) {
+        const list = Array.isArray(result.txs) ? result.txs : [];
+        txCountByHeight.set(height, {
+          all: list.length,
+          user: countUserTxs(list),
+        });
+      }
+    }
+    indexedTip = Number(raw.indexed_tip) || 0;
+    console.log(
+      `observer-rpc-proxy: loaded index ${txCountByHeight.size} heights from ${INDEX_PATH}`,
+    );
+  } catch (e) {
+    console.error("observer-rpc-proxy: failed to load index", e);
+  }
+}
+
+function savePersistedIndex() {
+  if (!indexDirty) return;
+  try {
+    const counts = {};
+    for (const [h, c] of txCountByHeight) {
+      counts[h] = c;
+    }
+    // Persist only counts by default (small). Keep recent tip window of full txs
+    // for fast wallet scans without a multi‑MB file.
+    const tip = indexedTip;
+    const keepFrom = Math.max(1, tip - 256);
+    const txs = {};
+    for (const [h, raw] of txsResultByHeight) {
+      if (h >= keepFrom) {
+        try {
+          txs[h] = JSON.parse(raw);
+        } catch {
+          // skip
+        }
+      }
+    }
+    const dir = path.dirname(INDEX_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    const tmp = `${INDEX_PATH}.tmp`;
+    fs.writeFileSync(
+      tmp,
+      JSON.stringify({
+        genesis_id: genesisId,
+        indexed_tip: indexedTip,
+        saved_at: new Date().toISOString(),
+        counts,
+        txs,
+      }),
+    );
+    fs.renameSync(tmp, INDEX_PATH);
+    indexDirty = false;
+  } catch (e) {
+    console.error("observer-rpc-proxy: failed to save index", e);
+  }
+}
 
 function tcpLineRpc(line) {
   return new Promise((resolve, reject) => {
@@ -171,6 +257,7 @@ function rememberBlockTxs(height, result) {
   txCountByHeight.set(height, { all: txs.length, user: countUserTxs(txs) });
   txsResultByHeight.set(height, JSON.stringify(result));
   if (height > indexedTip) indexedTip = height;
+  indexDirty = true;
 }
 
 async function fetchAndCacheHeight(height) {
@@ -201,7 +288,21 @@ async function indexTick() {
   try {
     const tip = await mfndCall("get_tip", {});
     const tipH = Number(tip?.tip_height ?? 0);
+    const tipGenesis =
+      typeof tip?.genesis_id === "string" ? tip.genesis_id : null;
     if (tipH < 1) return;
+
+    // Devnet genesis reset → drop stale index from the previous chain.
+    if (tipGenesis && genesisId && tipGenesis !== genesisId) {
+      console.warn(
+        `observer-rpc-proxy: genesis changed ${genesisId.slice(0, 12)}… → ${tipGenesis.slice(0, 12)}…; clearing index`,
+      );
+      txCountByHeight.clear();
+      txsResultByHeight.clear();
+      indexedTip = 0;
+      indexDirty = true;
+    }
+    if (tipGenesis) genesisId = tipGenesis;
 
     // Prefer filling near tip first (explore + fresh wallets), then older gaps.
     const missing = [];
@@ -457,8 +558,20 @@ server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(
     `observer-rpc-proxy http://${LISTEN_HOST}:${LISTEN_PORT}/rpc -> tcp://${MFND_RPC} (cache+index)`,
   );
+  loadPersistedIndex();
   void indexTick();
   setInterval(() => {
     void indexTick();
   }, INDEX_INTERVAL_MS);
+  setInterval(() => {
+    savePersistedIndex();
+  }, INDEX_SAVE_EVERY_MS);
+  process.on("SIGTERM", () => {
+    savePersistedIndex();
+    process.exit(0);
+  });
+  process.on("SIGINT", () => {
+    savePersistedIndex();
+    process.exit(0);
+  });
 });
