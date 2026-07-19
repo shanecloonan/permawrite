@@ -134,6 +134,10 @@ endowment amount inside the Pedersen commitment is additionally bound to
 `required_endowment` by an `MFER` range proof
 ([`B1_ENDOWMENT_RANGE_PROOF.md`](./B1_ENDOWMENT_RANGE_PROOF.md)).
 
+**MFN per byte:** catalog, minimum-fee, and effective paid rates — how to
+compute them, implementation effort, and privacy —
+[`STORAGE_COST_MODEL.md` § 11](./STORAGE_COST_MODEL.md#11-mfn-per-byte--can-we-measure-it-how-hard-is-it-privacy-impact).
+
 ---
 
 ## 5. Parameter review (2026-07): should fees rise, and should the tail feed the treasury?

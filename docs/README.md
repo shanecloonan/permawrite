@@ -16,7 +16,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 
 - 📖 [**OVERVIEW.md**](./OVERVIEW.md) — the project, the vision, how it works, why it's hard. Intuition first, with links to the technical specs.
 - 🧭 [**PRIVACY_AND_PERMANENCE.md**](./PRIVACY_AND_PERMANENCE.md) — why financial privacy and data permanence belong in **one** network: freedom, incentives, economics, and why no single actor should control money or information.
-- 📊 [**STORAGE_COST_MODEL.md**](./STORAGE_COST_MODEL.md) — per-gigabyte endowment projections, Kryder scenarios, and fiat equivalents at default params.
+- 📊 [**STORAGE_COST_MODEL.md**](./STORAGE_COST_MODEL.md) — per-gigabyte endowment projections, Kryder scenarios, fiat equivalents, and [§ 11 MFN/byte metrics](./STORAGE_COST_MODEL.md#11-mfn-per-byte--can-we-measure-it-how-hard-is-it-privacy-impact) (catalog vs effective rate, privacy).
 - 📚 [**GLOSSARY.md**](./GLOSSARY.md) — every acronym and protocol-specific term, alphabetical. Reach for it whenever you hit unfamiliar jargon.
 
 ### Want the technical design?
