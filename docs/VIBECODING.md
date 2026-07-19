@@ -61,15 +61,16 @@ The most important discipline against context collapse is *scope*. The coordinat
 
 This is what keeps "fix new thing → break old thing" from happening. A unit that only adds a view-tag byte to the output codec cannot accidentally rewrite decoy selection, because decoy selection is not in its context and not in its diff. Small units also mean small diffs, which means CI failures point at a small suspect surface.
 
-### 1.5 Parallel lanes with explicit ownership
+### 1.5 Parallel lanes with explicit ownership, on one board
 
-Permawrite is built by **multiple agents at once**, and the thing that stops them from clobbering each other is the lane registry in [`../AGENTS.md`](../AGENTS.md) and [`AGENTS.md`](./AGENTS.md):
+Permawrite is built by **multiple agents at once**, and the thing that stops them from clobbering each other is the single control board in [`../AGENTS.md`](../AGENTS.md):
 
 - Each **lane** owns an exclusive slice of the system (RC core, RC ops, onboarding, protocol hardening, privacy surface, permanence depth, testnet launch) and is explicitly told what it **does not** own.
-- Every agent must broadcast **Done / Doing / Next** before touching code, and claim a unit on the board before starting it. *"No silent work"* is a written rule.
+- Every unit flows through the same seven-step pipeline — **SYNC → CLAIM → BUILD → PROVE → LAND → VERIFY → CLOSE** — and every agent broadcasts **Done / Doing / Next** before touching code. *"No silent work"* is a written rule, and every check in the pipeline has exactly one named owner (the board's verification matrix).
 - Cross-lane dependencies go through a **Cross-lane requests** table, not through one agent reaching into another's files.
+- There is exactly **one live board**; history rotates into the append-only [`AGENTS_LEDGER.md`](./AGENTS_LEDGER.md) instead of accreting on the board, so the live state stays small enough to re-read every session and can never drift against a mirror.
 
-This is horizontal scaling for a problem too big for one context window: instead of one agent trying to hold the whole chain, seven lanes each hold a *slice*, and the board is the shared, durable memory that keeps the slices coherent. The board itself is guarded — `ci-check` fails closed on UTF-16/mojibake corruption of `AGENTS.md`, `docs/AGENTS.md`, and `3agent.md` — so the coordination substrate can't silently rot.
+This is horizontal scaling for a problem too big for one context window: instead of one agent trying to hold the whole chain, seven lanes each hold a *slice*, and the board is the shared, durable memory that keeps the slices coherent. The board itself is guarded — `ci-check` fails closed on UTF-16/mojibake corruption of `AGENTS.md`, the ledger, and the legacy pointer stubs — so the coordination substrate can't silently rot.
 
 ---
 
@@ -146,6 +147,6 @@ The thesis stands: you can vibecode a Monero-plus-Arweave chain — **not by ask
 - [`README.md`](./README.md) — doc map + the crate-stack diagram + Cross-cuts table
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — every `apply_block` check, in order; MFBN-1 codec; domain tags
 - [`CI.md`](./CI.md) — the local mirror, nightly, soak, and ignored-test policy
-- [`../AGENTS.md`](../AGENTS.md) — the multi-lane coordination board (the shared memory)
+- [`../AGENTS.md`](../AGENTS.md) — the single control board: lanes, pipeline, verification matrix (the shared memory)
 - [`FRAUD_PROOFS.md`](./FRAUD_PROOFS.md) — divergence as a first-class protocol object
 - [`PROBLEMS.md`](./PROBLEMS.md) — the limits that no build process erases

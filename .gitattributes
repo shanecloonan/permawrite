@@ -3,6 +3,7 @@
 scripts/validate-workflow-encoding.ps1 text eol=lf working-tree-encoding=UTF-8
 AGENTS.md -text
 docs/AGENTS.md -text
+docs/AGENTS_LEDGER.md -text
 3agent.md -text
 docs/STORAGE_ACCESSIBILITY.md -text
 scripts/validate-rc-helper-scripts.ps1 text eol=lf

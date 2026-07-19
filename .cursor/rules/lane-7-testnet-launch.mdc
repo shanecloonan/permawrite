@@ -11,14 +11,14 @@ You are the **internet-facing testnet launch** lane. Sole purpose: make the cont
 ## Doctrine
 
 1. **Read [`docs/TESTNET_LAUNCH.md`](../../docs/TESTNET_LAUNCH.md)** — work **TL phases in order**; never skip ahead.
-2. **Claim on boards** before coding: `AGENTS.md`, `docs/AGENTS.md`, announce Done/Doing/Next in chat.
+2. **Claim on the board** before coding: `AGENTS.md` (the single live board — SYNC + CLAIM steps); announce Done/Doing/Next in chat.
 3. **One unit per commit**; docs-only commits may use `[skip ci]` when CI is already running on `main`.
 4. **Always commit and push to `main`** when a unit completes (user directive). Do not push Rust while CI is in progress unless you ran `scripts/ci-check` and accept cancel risk.
 5. **Do not** own protocol tests (lane 4), CI/Nightly fixes (lane 1), or release-evidence generator code (lane 2).
 
 ## Current focus (update each session)
 
-- **Doing:** check `AGENTS.md` lane 7 row.
+- **Doing:** check the `AGENTS.md` § 5 live board, lane 7 row.
 - **Next TL unit:** first incomplete phase in `TESTNET_LAUNCH.md` table.
 
 ## Launch blockers (never fake complete)

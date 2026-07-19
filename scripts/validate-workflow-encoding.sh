@@ -27,6 +27,7 @@ for rel in (
     ".gitattributes",
     "AGENTS.md",
     "docs/AGENTS.md",
+    "docs/AGENTS_LEDGER.md",
     "3agent.md",
     "docs/STORAGE_ACCESSIBILITY.md",
     "scripts/validate-rc-helper-scripts.ps1",

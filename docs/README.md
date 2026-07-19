@@ -46,6 +46,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — the real limitations and open incentive/architectural holes (required reading for anyone evaluating the design seriously).
 - 🧹 [**CODEBASE_IMPROVEMENTS.md**](./CODEBASE_IMPROVEMENTS.md) — prioritized engineering-quality audit: repo hygiene, encoding workflow, unwrap density, god files, CI velocity, script duplication.
 - 🤖 [**VIBECODING.md**](./VIBECODING.md) — how a chain this hard gets built with AI without context-window collapse or undebuggable P2P divergence: crate boundaries as context boundaries, docs-as-durable-memory, canonical bytes, the multi-lane agent board, determinism, structured logs, and fraud proofs.
+- 🎛 [**AGENTS.md**](../AGENTS.md) *(repo root)* — the single live agent control board: lane registry, seven-step unit pipeline, verification matrix, live status, cross-lane requests, backlog. History rotates into the append-only [**AGENTS_LEDGER.md**](./AGENTS_LEDGER.md).
 
 ## Cross-cuts
 

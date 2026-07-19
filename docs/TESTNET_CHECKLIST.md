@@ -4,12 +4,11 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 
 ## Agent coordination (all parallel lanes)
 
-- **Master board:** [`AGENTS.md`](../AGENTS.md) — lane registry, conflict rules, backlog, cross-lane requests.
-- **Per-lane checklists:** [`docs/AGENTS.md`](./AGENTS.md) — lanes 1–3 (RC / former 3agent) and lanes 4–6 (protocol hardening, privacy surface, permanence depth).
-- **Legacy pointer:** [`3agent.md`](../3agent.md) — lanes 1–3 only; do not add new lanes there.
-- **Before starting work:** claim a lane in `AGENTS.md`; do not duplicate in-progress units listed on the current board.
-- **Done / Doing / Next (mandatory):** every agent announces what they finished, what they are doing, and what they will do next — in chat and on the boards. See [`AGENTS.md` § Agent announcement protocol](../AGENTS.md#agent-announcement-protocol-mandatory).
-- **After landing a unit:** update `AGENTS.md`, `docs/AGENTS.md`, and (if RC-related) the sections below.
+- **The one board:** [`AGENTS.md`](../AGENTS.md) — lane registry, unit pipeline, verification matrix, live board, cross-lane requests, backlog, session log. It is the **only** live coordination surface.
+- **History:** [`docs/AGENTS_LEDGER.md`](./AGENTS_LEDGER.md) — append-only archive (rotated session-log entries + snapshots of the retired boards).
+- **Before starting work:** run the SYNC + CLAIM steps of the [`AGENTS.md` pipeline](../AGENTS.md#3-the-unit-pipeline-how-every-piece-of-work-flows); do not duplicate units already claimed on the live board.
+- **Done / Doing / Next (mandatory):** every agent announces what they finished, are doing, and will do next — in chat and on the board. See [`AGENTS.md` § 9](../AGENTS.md#9-protocol-details-rules--announcement-template).
+- **After landing a unit:** update `AGENTS.md` in the same commit, and (if RC-related) tick the sections below.
 - [x] **M5.31** (lane 4) — consensus + `apply_block` reject non-uniform ring sizes across inputs.
 - [x] **M5.32** (lane 4) — mempool `admit` rejects non-uniform ring before accept.
 - [x] **M5.33** (lane 4) — `prop_mixed_clsag_fee_and_storage_upload_treasury` (CLSAG fee + NEW storage upload same block).

@@ -88,7 +88,7 @@ foreach ($name in $requiredScripts) {
     }
 }
 
-foreach ($rel in @("AGENTS.md", "docs\AGENTS.md", "3agent.md", "docs\STORAGE_ACCESSIBILITY.md")) {
+foreach ($rel in @("AGENTS.md", "docs\AGENTS.md", "docs\AGENTS_LEDGER.md", "3agent.md", "docs\STORAGE_ACCESSIBILITY.md")) {
     $path = Join-Path $repoRoot $rel
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         $failed += "missing coordination/doc file $rel"
@@ -130,4 +130,4 @@ if ($failed.Count -gt 0) {
     exit 1
 }
 
-Write-Host "validate-rc-helper-scripts: OK ($psCount devnet ps1, $shCount devnet sh, $($entrypointScripts.Count) ci entrypoints, 4 boards/docs; bash=$([bool]$bash))"
+Write-Host "validate-rc-helper-scripts: OK ($psCount devnet ps1, $shCount devnet sh, $($entrypointScripts.Count) ci entrypoints, 5 boards/docs; bash=$([bool]$bash))"
