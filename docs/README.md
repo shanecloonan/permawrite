@@ -45,6 +45,7 @@ Welcome. These docs cover the full design of Permawrite — a novel blockchain t
 - 🛣 [**ROADMAP.md**](./ROADMAP.md) — tier-by-tier rollout plan. Current state, validator rotation (M1), node daemon (M2), wallet CLI (M3), WASM (M4), Tier 2/3/4 privacy upgrades.
 - ⚠️ [**PROBLEMS.md**](./PROBLEMS.md) — the real limitations and open incentive/architectural holes (required reading for anyone evaluating the design seriously).
 - 🧹 [**CODEBASE_IMPROVEMENTS.md**](./CODEBASE_IMPROVEMENTS.md) — prioritized engineering-quality audit: repo hygiene, encoding workflow, unwrap density, god files, CI velocity, script duplication.
+- 🤖 [**VIBECODING.md**](./VIBECODING.md) — how a chain this hard gets built with AI without context-window collapse or undebuggable P2P divergence: crate boundaries as context boundaries, docs-as-durable-memory, canonical bytes, the multi-lane agent board, determinism, structured logs, and fraud proofs.
 
 ## Cross-cuts
 
