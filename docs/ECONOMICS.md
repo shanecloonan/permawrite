@@ -699,6 +699,98 @@ Ordered by leverage:
 4. **Audit + time** — the implementation-risk gap vs Arweave closes only with
    production evidence, not parameter tuning.
 
+### 12.6 Hardware deflation and zero privacy demand
+
+Two questions that often get conflated: (1) does Permawrite benefit from
+hardware getting cheaper the way Arweave does, and (2) if confidential-cash
+demand were zero, would permanence be **equally** robust?
+
+#### Does Permawrite benefit proportionally from hardware cheapening?
+
+**Yes.** Both chains make the same structural bet: lock a nominal payment at
+today's storage prices and rely on **real storage costs declining over time**
+(Kryder's law) to keep commitments solvent.
+
+With `real_yield_ppb = 0` (default), [`required_endowment`](../mfn-storage/src/endowment.rs)
+sizes uploads as:
+
+```text
+E₀ = ceil( C₀ × (PPB + inflation_ppb) / (PPB × inflation_ppb) )
+   = ceil( 51 × C₀ )          // 2% deflation floor d
+```
+
+where `C₀` is the first-year storage bill at **current** hardware prices. If
+real `$ / byte-year` falls 10% next year, the same locked nominal endowment
+buys proportionally more years of real storage — the same compounding logic
+Arweave's locked AR principal uses. The benefit is **proportional** because:
+
+1. **Sizing tracks today's costs** — `cost_per_byte_year_ppb` calibrates
+   against current storage economics; cheaper hardware lowers `C₀` at the
+   next parameter review and increases headroom for already-uploaded files.
+2. **Fixed nominal principal, falling real liability** — see
+   [§ 1](#1-the-permanence-equation-derived) and
+   [`STORAGE_COST_MODEL.md` § 7](./STORAGE_COST_MODEL.md#7-kryders-law-scenarios).
+3. **Operator cost side** — SPoRA operators also win: marginal cost to store
+   and prove a chunk falls with hardware cheapening, improving margin at fixed
+   treasury payouts ([`STORAGE_ACCESSIBILITY.md`](./STORAGE_ACCESSIBILITY.md)).
+
+**What differs is payout plumbing, not the deflation bet.** Arweave drips
+yield from each upload's locked endowment principal. Permawrite with `r = 0`
+does **not** accrue per-file yield (`payout_per_slot_ppb` is always 0); the
+upload endowment capitalizes a **shared treasury** that pays all operators.
+Hardware cheapening still sizes `E₀` correctly at upload time; it does not
+create a separate per-file drip on Permawrite today.
+
+Arweave additionally relies on hardware cheapening for **mining economics**
+(recall proofs favor cheap dense storage). Permawrite routes that benefit
+through **operator opex** instead of a mining gate — same underlying trend,
+different role split.
+
+#### If privacy demand is zero, is permanence equally robust?
+
+**No — not equally robust on overall permanence economics**, though the
+picture splits by what "robust" means.
+
+Decompose permanence into three layers:
+
+| Layer | Arweave (no unrelated tx volume) | Permawrite (zero privacy-tx volume) |
+|---|---|---|
+| **Upload-time solvency / Kryder bet** | Full strength | **Equal** — same deflation-funded `E₀`, 51× buffer, Arweave-comparable calibration |
+| **Ongoing funding structure** | Per-upload endowment sink (~80–85% locked) drips for that data cohort + mining rewards | Shared treasury: new upload fees + bonds/slashes + emission backstop only — **no privacy-fee cross-subsidy** |
+| **Operator payment floor** | Endowment drip throttles when miners are profitable; no unconditional mint | **Stronger** — backstop mints full operator payouts when treasury is empty |
+
+At zero privacy demand Permawrite becomes a **pure storage chain**
+([`PROBLEMS.md § 2`](./PROBLEMS.md#2-r--0-default-makes-permanence-heavily-dependent-on-continuous-high-privacy-transaction-volume)):
+
+- **Upload fees still work.** Each storage upload must satisfy
+  `fee × fee_to_treasury_bps / 10_000 ≥ required_endowment`, so new data
+  still capitalizes the treasury.
+- **Existing bytes still need continuous payouts.** Unlike Arweave's
+  per-cohort endowment accounting, Permawrite's shared pool must cover *all*
+  live commitments every block without the 90% privacy-fee inflow that was
+  designed as the primary long-term treasury source.
+- **Permanence holds; inflation rises.** The emission backstop pays operators
+  in full when the treasury drains — solvency over currency health
+  ([§ 3 Scenario C](#scenario-c-severe-fee-drought--storage-growth),
+  [`FEES.md § 5`](./FEES.md#5-parameter-review-2026-07-should-fees-rise-and-should-the-tail-feed-the-treasury)).
+- **Gap closers already in flight.** `subsidy_to_treasury_bps` (10% of block
+  subsidy → treasury; F6 phase 2) adds scheduled permanence inflow that does
+  not depend on privacy demand.
+
+**Direct answers:**
+
+| Question | Answer |
+|---|---|
+| Does Permawrite benefit proportionally from hardware cheapening? | **Yes** — same Kryder/deflation perpetuity math at upload sizing; operators also gain on the cost side. |
+| At zero privacy demand, equally robust as Arweave for permanence? | **No** for *economic* robustness (shared treasury vs self-contained per-upload sink; sooner inflation-funded degraded mode). **Comparable or better** for *data retention* (unconditional operator backstop). **Equal** for the upload-time deflation bet itself. |
+
+Arweave at zero privacy demand is still Arweave: a storage network whose
+endowment loop was designed to be **mostly self-funding per upload**. Permawrite
+at zero privacy demand is a storage network that **still honors commitments**
+but funds them increasingly from **minted tail emission** rather than from a
+diversified fee base — acceptable under the project's permanence-first doctrine,
+but not the same economic shape as Arweave.
+
 ---
 
 ## See also

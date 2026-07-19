@@ -112,6 +112,11 @@ Spot conversions only; solvency depends on real storage cost trends and treasury
 
 The 51x buffer is designed for the -2% floor. Faster deflation yields surplus; sustained rising costs require a parameter fork (`real_yield_ppb > 0` or a wider buffer).
 
+Both Permawrite and Arweave inherit this bet at upload time. For how hardware
+deflation interacts with **zero privacy-tx demand** (ongoing treasury funding
+vs Arweave's per-upload endowment sink), see
+[`ECONOMICS.md` § 12.6](./ECONOMICS.md#126-hardware-deflation-and-zero-privacy-demand).
+
 ---
 
 ## 8. Comparison to other systems
