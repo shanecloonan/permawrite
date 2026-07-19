@@ -29,6 +29,8 @@ function Has-Property {
 function Get-JsonType {
     param($Value)
     if ($null -eq $Value) { return "null" }
+    # pwsh 7 ConvertFrom-Json coerces ISO-8601 strings to DateTime; the JSON value is a string.
+    if ($Value -is [datetime] -or $Value -is [System.DateTimeOffset]) { return "string" }
     if ($Value -is [bool]) { return "boolean" }
     if ($Value -is [byte] -or $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64]) { return "integer" }
     if ($Value -is [single] -or $Value -is [double] -or $Value -is [decimal]) { return "number" }
