@@ -88,9 +88,24 @@ Back up `alice.json`. It holds your seed. Never commit it or share it.
 
 Testnet coins have **no real value**. You still need a balance to send transfers or pay upload fees.
 
-**Option A — ask the operator:** open a [GitHub issue](https://github.com/shanecloonan/permawrite/issues) with your `mf...` receive address (from `wallet address`) and ask for a small testnet top-up.
+**Option A — HTTP faucet (recommended on the live testnet):** after your node is synced and you have a wallet address (`wallet address`), request test funds from the operator faucet API:
 
-**Option B — run locally:** start your own three-validator mesh with `bash scripts/public-devnet-v1/start-all.sh` (or the `.ps1` on Windows), fund from the documented validator faucet wallet, then point your wallet at that local RPC. See [`TESTNET.md`](./TESTNET.md) for the full local-devnet runbook.
+```bash
+# Replace mf… with your receive address from `wallet address`
+curl -s -X POST http://5.161.201.73:8788/faucet \
+  -H "Content-Type: application/json" \
+  -d '{"address":"mfYOUR_ADDRESS_HERE"}'
+# Poll until status=done (async job; may take 1–3 minutes at high tip):
+curl -s "http://5.161.201.73:8788/faucet/job?id=JOB_ID_FROM_POST"
+```
+
+The faucet sends **two** transfers (F7 two-UTXO privacy floor). One address/IP is rate-limited (~15 minutes). Then refresh your balance with `wallet light-scan` against your **local** RPC (see Step 6 troubleshooting). The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, not for wallet keys.
+
+Automated outside-in check (operators): on a synced local observer (`127.0.0.1:18734`), run `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` — exercises `fund-wallet-http`, checkpoint-log `light-scan`, observer proxy cross-check, and permanence upload/restore.
+
+**Option B — ask the operator:** open a [GitHub issue](https://github.com/shanecloonan/permawrite/issues) with your `mf...` receive address and ask for a small testnet top-up.
+
+**Option C — run locally:** start your own three-validator mesh with `bash scripts/public-devnet-v1/start-all.sh` (or the `.ps1` on Windows), fund from the documented validator faucet wallet, then point your wallet at that local RPC. See [`TESTNET.md`](./TESTNET.md) for the full local-devnet runbook.
 
 After funding, confirm balance:
 

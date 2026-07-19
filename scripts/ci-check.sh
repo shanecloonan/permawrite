@@ -141,6 +141,12 @@ vps_participant_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-
 vps_participant_evidence_plan="$(bash scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_participant_evidence_plan" == *"vps-participant-rehearsal-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_participant_evidence_plan" >&2; exit 1; }
 [[ "$vps_participant_evidence_plan" == *"vps_rehearsal_evidence=true"* ]] || { printf '%s\n' "$vps_participant_evidence_plan" >&2; exit 1; }
+join_testnet_plan="$(bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --plan-only)"
+[[ "$join_testnet_plan" == *"join-testnet-rehearsal-smoke: plan"* ]] || { printf '%s\n' "$join_testnet_plan" >&2; exit 1; }
+[[ "$join_testnet_plan" == *"fund-wallet-http"* ]] || { printf '%s\n' "$join_testnet_plan" >&2; exit 1; }
+[[ "$join_testnet_plan" == *"assert-join-testnet-rehearsal-evidence.sh"* ]] || { printf '%s\n' "$join_testnet_plan" >&2; exit 1; }
+join_testnet_evidence_plan="$(bash scripts/public-devnet-v1/join-testnet-rehearsal-evidence-rehearsal-smoke.sh --plan-only)"
+[[ "$join_testnet_evidence_plan" == *"join-testnet-rehearsal-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$join_testnet_evidence_plan" >&2; exit 1; }
 vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_preflight_plan" >&2; exit 1; }
 vps_provision_plan="$(bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only)"
@@ -194,6 +200,16 @@ if bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh "$
   exit 1
 fi
 rm -f "$bad_participant_evidence"
+join_testnet_fixture="scripts/public-devnet-v1/fixtures/join-testnet-rehearsal-evidence-v1/join-testnet-rehearsal-linux-20260719T000000Z.txt"
+bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh "$join_testnet_fixture"
+bad_join_testnet_evidence="$(mktemp)"
+printf 'SUMMARY: FAIL\n' >"$bad_join_testnet_evidence"
+if bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh "$bad_join_testnet_evidence" >/dev/null 2>&1; then
+  echo "assert-join-testnet-rehearsal-evidence.sh accepted invalid JOIN_TESTNET evidence" >&2
+  rm -f "$bad_join_testnet_evidence"
+  exit 1
+fi
+rm -f "$bad_join_testnet_evidence"
 bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
 if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then

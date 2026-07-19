@@ -188,6 +188,16 @@ if ($vpsParticipantEvidencePlan -notmatch "vps-participant-rehearsal-evidence-re
     $vpsParticipantEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$joinTestnetPlan = (powershell -NoProfile -File scripts/public-devnet-v1/join-testnet-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($joinTestnetPlan -notmatch "join-testnet-rehearsal-smoke: plan" -or $joinTestnetPlan -notmatch "fund-wallet-http" -or $joinTestnetPlan -notmatch "assert-join-testnet-rehearsal-evidence") {
+    $joinTestnetPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+$joinTestnetEvidencePlan = (bash scripts/public-devnet-v1/join-testnet-rehearsal-evidence-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($joinTestnetEvidencePlan -notmatch "join-testnet-rehearsal-evidence-rehearsal-smoke: PASS plan-only") {
+    $joinTestnetEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
@@ -299,6 +309,25 @@ $badParticipantProcess = Start-Process -FilePath "powershell" -ArgumentList @(
 Remove-Item -Force $badParticipantEvidence, $badParticipantStdout, $badParticipantStderr -ErrorAction SilentlyContinue
 if ($badParticipantProcess.ExitCode -eq 0) {
     [Console]::Error.WriteLine("assert-vps-participant-rehearsal-evidence.ps1 accepted invalid participant evidence")
+    exit 1
+}
+$joinTestnetFixture = "scripts/public-devnet-v1/fixtures/join-testnet-rehearsal-evidence-v1/join-testnet-rehearsal-linux-20260719T000000Z.txt"
+powershell -NoProfile -File scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.ps1 -EvidenceFile $joinTestnetFixture | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badJoinTestnetEvidence = Join-Path $env:TEMP ("permawrite-bad-join-testnet-" + [Guid]::NewGuid().ToString("N") + ".txt")
+Set-Content -LiteralPath $badJoinTestnetEvidence -Value "SUMMARY: FAIL" -Encoding UTF8
+$badJoinStdout = Join-Path $env:TEMP ("permawrite-bad-join-testnet-assert-" + [Guid]::NewGuid().ToString("N") + ".out")
+$badJoinStderr = Join-Path $env:TEMP ("permawrite-bad-join-testnet-assert-" + [Guid]::NewGuid().ToString("N") + ".err")
+$badJoinProcess = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.ps1",
+    "-EvidenceFile",
+    $badJoinTestnetEvidence
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badJoinStdout -RedirectStandardError $badJoinStderr
+Remove-Item -Force $badJoinTestnetEvidence, $badJoinStdout, $badJoinStderr -ErrorAction SilentlyContinue
+if ($badJoinProcess.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("assert-join-testnet-rehearsal-evidence.ps1 accepted invalid JOIN_TESTNET evidence")
     exit 1
 }
 $global:LASTEXITCODE = 0

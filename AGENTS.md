@@ -133,13 +133,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** head = board consolidation (this push). Prior **CI `#29696770326` GREEN** on `c70796d`.
+**CI gate (2026-07-19):** head = B-15 JOIN_TESTNET rehearsal (this push). Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | CI `#29696770326` GREEN on `c70796d` | *Idle* | Nightly dispatch on consolidation head after CI GREEN | CI/Nightly run IDs in §8 |
-| **2** RC ops | Release evidence on F5 4b.1 stack | **Board v2 consolidation — this push** (claim base: `c70796d`) | Release-evidence refresh on new head; human sign-off packet | Next agent SYNC + CI board guards |
-| **3** Onboarding | TL-6 participant evidence `ba2ec08` | *Idle* | Participant rehearsal against the **live** testnet ([`JOIN_TESTNET.md`](docs/JOIN_TESTNET.md) flow) | Evidence transcript assert scripts |
+| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch on B-15 head after CI GREEN | CI/Nightly run IDs in §8 |
+| **2** RC ops | Board v2 consolidation (`533347c`, `b93e216`) | *Idle* | Release-evidence refresh on B-15 head; human sign-off packet | Next agent SYNC + CI board guards |
+| **3** Onboarding | **B-15 JOIN_TESTNET rehearsal** (this push) | *Idle* | B-16 privacy-doc sync (lane 5) | assert-join-testnet-rehearsal-evidence |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | F5 phase 4b.2 recursive aggregation | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | *Idle* | Privacy-doc sync for live-testnet wallet UX (light-scan / faucet flows) | Lane 5 doc-accuracy duty |
 | **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | Parameter fork `1000` bps (TL-7 Path B) | Emission sims (M5 tier) |
@@ -153,7 +153,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 2 | 1 | Green CI + Nightly on the board-consolidation head before next release-evidence refresh | **Open** |
+| 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -167,7 +167,6 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812` |
 | B-13 | Parameter fork: `subsidy_to_treasury_bps = 1000` (TL-7 Path B) | 6 | Approved in [`FEES.md § 5.4`](docs/FEES.md); consensus-versioned |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase |
-| B-15 | Live-testnet participant rehearsal evidence (outside-in via JOIN_TESTNET) | 3 | Exercises faucet + observer proxy + light scan end-to-end |
 | B-16 | Privacy-doc sync for live wallet UX (light-scan checkpoints, faucet flow) | 5 | Docs drifted during lane-7 launch sprint |
 
 ---
@@ -176,9 +175,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lane 2 — Board v2 consolidation** (this push): single live board (`AGENTS.md`), append-only [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) (full snapshots of the retired master board, per-lane checklists, and 3agent session history), legacy boards reduced to pointer stubs, guards extended to the ledger; `release-json-schema-validate.ps1` treats pwsh-7 `ConvertFrom-Json` DateTime coercion as JSON string (Linux/macOS ci-check mirror parity). Local `ci-check --docs-only` green before push.
-2. **2026-07-19 — docs — VIBECODING.md** (`c70796d`): how the chain is vibecoded without context collapse; **CI `#29696770326` GREEN**.
-3. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`, `3ed62e2`, `c0326e5`, `59ea8bd`, `7c78e43`): F7 two-UTXO floor kept after sends + faucet cooldown; observer-proxy tx index persisted + faster catch-up; faucet producer-wallet scan fix. **CI `#29660101057` GREEN** on `23fb359`.
+1. **2026-07-19 — lane 3 — B-15 JOIN_TESTNET live rehearsal** (this push): `fund-wallet-http.*`, `join-testnet-rehearsal*`, assert + ci-check gates; [`JOIN_TESTNET.md`](docs/JOIN_TESTNET.md) HTTP faucet path; Hetzner evidence `join-testnet-rehearsal-linux-*.txt`. Local `ci-check --docs-only` green before push.
+2. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`): single live board (`AGENTS.md`), append-only [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md), legacy boards reduced to pointer stubs, guards extended to the ledger; `release-json-schema-validate.ps1` pwsh-7 DateTime parity (`b93e216`). **CI `#29698203148` GREEN**.
+3. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
+4. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`, `3ed62e2`, `c0326e5`, `59ea8bd`, `7c78e43`): F7 two-UTXO floor kept after sends + faucet cooldown; observer-proxy tx index persisted + faster catch-up; faucet producer-wallet scan fix. **CI `#29660101057` GREEN** on `23fb359`.
 4. **2026-07-17 — lane 7 — public testnet goes live**: observer HTTP RPC proxy (`61a9fe7`), faucet HTTP API + allowlisted `submit_tx` (`ebffaef`), standalone testnet-frontend (`ab6af42`), wallet light-scan send/balance fixes (`48cff48`, `361f2c2`, `a04d486`), faucet async job API (`f15a5b9`), front posture experimental public testnet (`c85d9c4`).
 5. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
 6. **2026-07-14 — lane 4 — F5 phase 4b.1 Winterfell** (`6377812`): batch-binding STARK + witness kind 3 + launch-status v10; follows 4b digest stub (`8f814cf`, CI gate `946341c`) and 4a validity-proof wire (`e385390`, **CI `#29298069061` GREEN**).

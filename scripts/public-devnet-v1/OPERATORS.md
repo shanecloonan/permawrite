@@ -80,6 +80,9 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
 | TL-6 rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt` — before commit |
+| B-15 JOIN_TESTNET rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/join-testnet-rehearsal-*.txt` — before commit |
+| B-15 JOIN_TESTNET rehearsal (live) | `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence` on synced observer RPC (VPS: `127.0.0.1:18734`) |
+| B-15 JOIN_TESTNET rehearsal (CI) | `bash scripts/public-devnet-v1/join-testnet-rehearsal-evidence-rehearsal-smoke.sh --plan-only` |
 | TL-6 rehearsal evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
 | TL-7 Path B header_version (CI) | `bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only` |
