@@ -31,8 +31,9 @@
 | mike | faucet+peer | n/a | yes | **4304** (wave21; proxy verified) |
 | nina | faucet+peer | n/a | yes | **4318** (wave22; proxy verified) |
 | oscar | peer+faucet | n/a | yes | **4337** (wave23; proxy verified) |
+| patricia | faucet | n/a | yes | **4362** (wave24; proxy verified) |
 
-Seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/**oscar**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/**patricia**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -45,12 +46,18 @@ Seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/**oscar**.
 7. **F85** - Local RPC wedges under concurrent snapshot/pin; serialize + restart.
 8. **F86** - claims recent may lag; use claims for DATA_ROOT after settle.
 9. **F87** - Probe tooling can corrupt wallets if dumping path string - assert dict before write.
+10. **F90** - Post-receive/post-upload balance can read zero until tip settles + re-scan.
+11. **F91** - Peer dual-send needs tip-wait between sends (RBF same-fee declined).
+12. **F92** - get_block_headers needs object {from_height,to_height} (confirmed PASS wave24).
+13. **F93** - operator challenge before tip_id match / chain visibility returns unknown commitment; wait for matched.
+14. **F45 update (wave24)** - pin@ckpt_max does not satisfy hard checkpoint-log; still needs exact tip attestation.
+15. **F94** - get_block_headers to_height must not exceed proxy tip; use proxy tip when local is ahead.
 
 ## Still open before formal archive PASS
 
 - [x] Local observer tip_id == proxy tip_id after wave21 wipe/resync
 - [x] Mike new-wallet loop post-B-68 with proxy-visible last_proven=4304
-- [ ] Near-tip checkpoint (reduce F45 lag) - lane 7
+- [~] Near-tip checkpoint max=4323 landed (wave23) but F45 hard still FAIL when tip ahead; pin@max insufficient (wave24) - lane 7
 - [ ] Formal join-testnet-rehearsal SUMMARY transcript + assert script green
 - [ ] Human sign-off per TESTNET_CHECKLIST
 
