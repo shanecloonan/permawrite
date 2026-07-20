@@ -138,7 +138,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29 code** (`5dc3aa8`) | *Idle* | Watch successor CI after B-34 restart; Nightly → close B-29 | CI/Nightly run IDs in §8 |
+| **1** RC core | **B-29 parse fix-forward** (this commit) + code dc3aa8\ | **Watch CI** (claim base: this head) | Nightly re-dispatch when GREEN → close B-29 | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; help **B-31** | Board + encoding guards |
 | **3** Onboarding | B-15 tooling (`774320f`…`02c8df8`) | **B-15 Hetzner evidence** (claim base: `02c8df8`) | Archive + assert; keep §6 faucet lock | L4 checklist |
 | **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** ([work package](docs/ROADMAP.md#b-32-work-package--multi-op-evidence-arm-day-of-l4)) → **B-24** | Lane 1 CI/Nightly |
@@ -208,7 +208,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34 CI restart** (this commit): Concrete verify packs for soak, threat posture, multi-op evidence; B-34 detect at ~8–10m empty-step queues; **no `[skip ci]`** to cancel stalled `#29711375639` and start matrix on B-29 head. Did **not** touch Hetzner (B-15 §6). *Observed local work (not staged):* `fund-wallet.ps1`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
+1. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (this commit): >&1 | Out-Null\ and \>=\ in double-quoted strings broke validate-rc-helper-scripts; restore TESTNET_LAUNCH Release-commit pin. No skip-ci. Did not touch Hetzner (B-15). Observed local work not staged: user-wallet/, ci-docs-*.txt, live-testnet-data/, lane4 f64-lint WIP.
+2. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34 CI restart** (this commit): Concrete verify packs for soak, threat posture, multi-op evidence; B-34 detect at ~8–10m empty-step queues; **no `[skip ci]`** to cancel stalled `#29711375639` and start matrix on B-29 head. Did **not** touch Hetzner (B-15 §6). *Observed local work (not staged):* `fund-wallet.ps1`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
 2. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864` / `41314b0`): B-30 matrix; B-37/B-39 IDs; B-29 close=Nightly. Docs `[skip ci]`.
 3. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height`; fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN.
 4. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
