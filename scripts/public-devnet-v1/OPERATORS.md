@@ -255,7 +255,12 @@ If tip freezes after mfnd remaps/restarts: (1) ensure hub has quoted `Environmen
 
 `bootstrap-path-a-checkpoint-signer.sh --apply` mints `~/.mfn/checkpoint-signer.env` (never commit) and appends a near-tip JSONL entry. Commit `public_devnet_v1.checkpoints.jsonl` only.
 
+### Faucet 429 / donor owned=1 (F95 / F106)
+
+HTTP faucet returns **429** during cooldown_ms after a successful fund (see /health). Do **not** restart aucet-http during B-15 to clear cooldown. Wait for usy=false and cooldown expiry, or peer-fund from a wallet with owned>=2 UTXOs. Burning time on owned=1 donors fails (wave35 F106).
+
 ### B-32 — Second distinct-host operator (arm gate)
+
 
 Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-ready.sh --apply` requires `MFN_B32_OPERATOR_HOSTS` with >=2 public hosts. Checklist: `evidence/b32-second-host-arm-checklist-20260720.md`. Do not fake READY with loopback/docs IPs.
 
