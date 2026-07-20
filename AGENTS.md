@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **B-27** landed 9f5ed4d (scripts jobs GREEN; full matrix cancelled by lane-4 **B-81** #29758805553 in_progress — watch that head). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29758805553` GREEN** on B-81 `f924a63` (includes B-27/B-79/B-80). Landing **B-82** tip-4532 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29** | *Idle* — watch CI #29758805553 (includes B-27) | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
+| **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29**; CI `#29758805553` GREEN | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave34** (wipe+resync; zoe in progress) | **B-15** zoe permanence + formal JOIN assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-81** full-slash deregister (this commit); **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-81** (`f924a63`, CI `#29758805553` GREEN); **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-80** Path A tip-4496 (this commit); **B-79** (`2444a04`); **B-78**/**B-77** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-82** Path A tip-4532 (this commit); **B-80**/**B-79**/**B-78**/**B-77** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 (see second-host checklist) | `launch-go-no-go` |
 
 ---
 
@@ -171,7 +171,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4148** + public seed anchors; seed offline on VPS only) |
-| planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
+| planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Done** (soak tooling+live PASS `9f5ed4d`) |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
 | 3 | 5+7 | **JOIN tall-tip UX:** heidi loop PASS (wave15). F45 soft; F75–F80 (owned≥2, pin hygiene, post-pin tip catch-up). SUMMARY draft next. | **Open** (SUMMARY archive) |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Done** (mfnd roll + B-68) |
@@ -256,14 +256,15 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-77 | B-71 Hetzner mfnd roll + tip-4400 Path A ckpt | 7 | **Landed** (`b1ce264`) |
 | B-78 | Docs-equivalent CI roll gate (ancestor GREEN + non-src diff) | 7 | **Landed** (`faa8683`) — `lib-ci-roll-gate.sh` |
 | B-79 | B-32 arm-ready inventory + Path A tip-4443 + bootstrap RPC fix | 7 | **Landed** (`2444a04`); NOT READY until 2nd host |
-| B-80 | Path A near-tip checkpoint tip-4496 (F45 lag close) | 7 | **Landed** (this commit); entries=16 |
+| B-80 | Path A near-tip checkpoint tip-4496 (F45 lag close) | 7 | **Landed** (`24c60b6`); entries=16 |
+| B-82 | Path A near-tip checkpoint tip-4532 + B-32 second-host checklist | 7 | **Landed** (this commit); entries=18 |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
 | B-67 | Multi-op slash while peer settles + treasury identity (early B-24c) | 4 | **Landed** on `f6273cb` (commit subject mislabeled B-70/B-71); not full B-24 |
 | B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (`62a9c02`); **CI `#29739903305` GREEN** |
 | B-76 | Dual-operator empty-audit slash treasury identity (early B-24d) | 4 | **Landed** (`dc50737`/`5492a07`); covered by **CI `#29753244727` GREEN** |
-| B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landed** (this commit) — 100% slash removes absentee; peer settles; unregistered follow-on reject |
+| B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landed** (`f924a63`); **CI `#29758805553` GREEN** |
 
 ---
 
@@ -271,7 +272,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 1 - B-27 CI watch** (this commit): CI #29758129931 cancelled by B-81; scripts ubuntu/windows were GREEN. Watching #29758805553 on 924a63. Docs [skip ci].
+1. **2026-07-20 — lane 7 — B-82 Path A tip-4532** (this commit): waited for **CI `#29758805553` GREEN** (B-81); exact-tip **4532** (entries=18); B-32 second-host arm checklist; peers-clean OK; arm-ready still NOT READY (1 host). No faucet/mfnd restart. Evidence `b82-path-a-tip4532-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP (`watch-ci-stall` in ci-check/ROADMAP), JOIN temps, `user-wallet/`, `live-testnet-data*`.
+1. **2026-07-20 - lane 1 - B-27 CI watch** (`45e40d6`): CI #29758129931 cancelled by B-81; scripts ubuntu/windows were GREEN. Watching #29758805553 on f924a63. Docs [skip ci].
 1. **2026-07-20 — lane 3 — B-15 wave34 open**: F104 wipe — quarantined divergent `live-testnet-data` → `…-divergent-20260720-113211`; fresh mfnd tip_id match @4525; proxy-prove gate armed; zoe battery running. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave33b**: yara faucet+upload **Fresh** `0d2b070b` but prove stuck **local_only**; proxy has=false; claims stayed 13 (**F104**). F45 hard-scan TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 - lane 1 - B-27 outside-in invite soak** (this commit): successor soak for systemd-live invite head via public proxy; tip 4501->4503; evidence outside-in-invite-soak-20260720T155203Z.txt + 27-outside-in-invite-soak-20260720.md; ci-check plan gate. Pins Nightly #29755942849 + CI #29753244727. B-15-safe. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*.

@@ -255,6 +255,10 @@ If tip freezes after mfnd remaps/restarts: (1) ensure hub has quoted `Environmen
 
 `bootstrap-path-a-checkpoint-signer.sh --apply` mints `~/.mfn/checkpoint-signer.env` (never commit) and appends a near-tip JSONL entry. Commit `public_devnet_v1.checkpoints.jsonl` only.
 
+### B-32 — Second distinct-host operator (arm gate)
+
+Single Hetzner IP (hub+v1+v2) is **not** multi-op diversity. `assert-b32-arm-ready.sh --apply` requires `MFN_B32_OPERATOR_HOSTS` with >=2 public hosts. Checklist: `evidence/b32-second-host-arm-checklist-20260720.md`. Do not fake READY with loopback/docs IPs.
+
 ### Residual-risk owners and halt authority (**B-30**)
 
 Fill every blank before circulating outside invites (TL-9). Standing lane owners are defined in [`AGENTS.md`](../../AGENTS.md); humans below are the named people who can act without waiting for an agent session.
