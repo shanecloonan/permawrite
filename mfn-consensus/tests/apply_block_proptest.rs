@@ -4173,6 +4173,196 @@ fn b63_b5_partial_operator_prove_settlement_and_miss_identity() {
     }
 }
 
+/// Build salted proofs for selected B5 operators (bit0=op0, bit1=op1).
+fn b5_two_op_proofs_for_mask(
+    built: &BuiltCommitment,
+    payload: &[u8],
+    prev: &[u8; 32],
+    slot: u32,
+    mask: u8,
+) -> Vec<mfn_storage::StorageProof> {
+    let mut proofs = Vec::new();
+    if mask & 1 != 0 {
+        proofs.push(build_test_storage_proof_operator_salted(
+            &built.commit,
+            prev,
+            slot,
+            payload,
+            &built.tree,
+        ));
+    }
+    if mask & 2 != 0 {
+        let (v1, s1) = test_operator_payout_keys_alt();
+        proofs.push(
+            build_storage_proof_operator_salted(
+                &built.commit,
+                prev,
+                slot,
+                payload,
+                &built.tree,
+                v1,
+                s1,
+            )
+            .expect("op1 proof"),
+        );
+    }
+    proofs
+}
+
+/// B-66: op1-only prove is the symmetric twin of B-63 (op0-only).
+#[test]
+fn b66_b5_op1_only_prove_settlement_and_miss_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let st = &gen.state;
+    let slot = 10_000u32;
+    let scratch = build_unsealed_header(st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b10);
+    assert_eq!(proofs.len(), 1);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1);
+    assert_eq!(
+        operator_identity_from_payout(
+            &settlements[0].0.operator_view_pub,
+            &settlements[0].0.operator_spend_pub
+        ),
+        gen.id1
+    );
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let (pv, ps) = test_operator_payout_keys();
+    let specs = block_coinbase_specs(
+        u64::from(slot),
+        emission,
+        0,
+        PayoutAddress {
+            view_pub: pv,
+            spend_pub: ps,
+        },
+        &settlements,
+    );
+    assert_eq!(specs.len(), 2);
+
+    let bonus = settlements[0].1;
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+            assert_eq!(
+                state.treasury,
+                st.treasury.saturating_sub(storage_drain.min(st.treasury))
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+                1
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+                0
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+/// B-66: alternating which-op masks; slots spaced beyond proof_reward_window
+/// so B5 audit challenge stays active after each prove.
+#[test]
+fn b66_which_operator_proves_miss_and_settle_chain() {
+    let masks: &[u8] = &[0b01, 0b10, 0b11, 0b01, 0b10, 0b11];
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    let window = st.endowment_params.proof_reward_window_slots;
+    let mut slot = 10_000u32;
+    let mut miss0 = 0u8;
+    let mut miss1 = 0u8;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let ch = storage_commitment_hash(&gen.built.commit);
+
+    for &mask in masks {
+        let last = st.storage.get(&ch).map(|e| e.last_proven_slot).unwrap_or(0);
+        let min_slot =
+            u32::try_from(last.saturating_add(window).saturating_add(1)).unwrap_or(u32::MAX);
+        slot = slot.max(min_slot);
+        let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+        let proofs =
+            b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, mask);
+        let expected_n = proofs.len();
+        let settlements =
+            storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+        assert_eq!(settlements.len(), expected_n);
+        let (pv, ps) = test_operator_payout_keys();
+        let specs = block_coinbase_specs(
+            u64::from(slot),
+            emission,
+            0,
+            PayoutAddress {
+                view_pub: pv,
+                spend_pub: ps,
+            },
+            &settlements,
+        );
+        assert_eq!(specs.len(), 1 + expected_n);
+
+        let bonus_total: u128 = settlements.iter().map(|(_, b)| *b).sum();
+        let storage_drain = u128::from(emission.storage_proof_reward)
+            .saturating_mul(expected_n as u128)
+            .saturating_add(bonus_total);
+        let expected_treasury = st.treasury.saturating_sub(storage_drain.min(st.treasury));
+
+        if mask & 1 != 0 {
+            miss0 = 0;
+        } else {
+            miss0 = miss0.saturating_add(1);
+        }
+        if mask & 2 != 0 {
+            miss1 = 0;
+        } else {
+            miss1 = miss1.saturating_add(1);
+        }
+
+        let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+        let blk = seal_block(
+            unsealed,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            proofs,
+        );
+        match apply_block(&st, &blk) {
+            ApplyOutcome::Ok { state, .. } => {
+                assert_eq!(state.treasury, expected_treasury, "mask={mask:#b}");
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id0].consecutive_missed_audits, miss0,
+                    "mask={mask:#b} op0 miss"
+                );
+                assert_eq!(
+                    state.storage_operator_stats[&gen.id1].consecutive_missed_audits, miss1,
+                    "mask={mask:#b} op1 miss"
+                );
+                assert_eq!(
+                    state.storage.get(&ch).expect("entry").last_proven_slot,
+                    u64::from(slot)
+                );
+                st = state;
+            }
+            ApplyOutcome::Err { errors, .. } => {
+                panic!("mask={mask:#b} slot={slot}: {errors:?}")
+            }
+        }
+        slot = slot.saturating_add(1);
+    }
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
