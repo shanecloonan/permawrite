@@ -208,6 +208,12 @@ if ($b3MultiOpPlan -notmatch "b3-multi-op-evidence-rehearsal-smoke: PASS plan-on
     $b3MultiOpPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-79: B-32 arm-ready inventory plan gate (lane 7).
+$b32ArmReadyPlan = (powershell -NoProfile -File scripts/public-devnet-v1/b32-arm-ready-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($b32ArmReadyPlan -notmatch "b32-arm-ready-rehearsal-smoke: PASS plan-only") {
+    $b32ArmReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($repairVpsP2pPlan -notmatch "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only") {
     $repairVpsP2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

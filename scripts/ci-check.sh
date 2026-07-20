@@ -153,6 +153,9 @@ join_testnet_evidence_plan="$(bash scripts/public-devnet-v1/join-testnet-rehears
 b3_multi_op_plan="$(bash scripts/public-devnet-v1/b3-multi-op-evidence-rehearsal-smoke.sh --plan-only)"
 [[ "$b3_multi_op_plan" == *"b3-multi-op-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$b3_multi_op_plan" >&2; exit 1; }
 [[ "$b3_multi_op_plan" == *"assert-b3-multi-op-evidence"* ]] || { printf '%s\n' "$b3_multi_op_plan" >&2; exit 1; }
+# B-79: B-32 arm-ready inventory plan gate (lane 7; no live second host required for plan-only).
+b32_arm_ready_plan="$(bash scripts/public-devnet-v1/b32-arm-ready-rehearsal-smoke.sh --plan-only)"
+[[ "$b32_arm_ready_plan" == *"b32-arm-ready-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$b32_arm_ready_plan" >&2; exit 1; }
 repair_vps_p2p_plan="$(bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only)"
 [[ "$repair_vps_p2p_plan" == *"repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$repair_vps_p2p_plan" >&2; exit 1; }
 bootstrap_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint-signer.sh --plan-only)"

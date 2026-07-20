@@ -8,7 +8,8 @@ REPO_ROOT="${MFN_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 SEED_ENV="${MFN_CHECKPOINT_SIGNER_ENV:-$HOME/.mfn/checkpoint-signer.env}"
 LOG_PATH="${MFN_CHECKPOINT_LOG:-$REPO_ROOT/mfn-node/testdata/public_devnet_v1.checkpoints.jsonl}"
 SIGNER_ID="${MFN_CHECKPOINT_LOG_SIGNER_ID:-permawrite-maintainer-path-a-2}"
-RPC="${1:-}"
+# Do not seed RPC from $1 before getopt — bare `--apply` would become the RPC addr.
+RPC=""
 APPLY=0
 PLAN_ONLY=0
 
