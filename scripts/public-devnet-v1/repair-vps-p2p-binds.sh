@@ -126,6 +126,12 @@ systemctl disable --now \
   mfn-p2p-forward@19003.service \
   mfn-p2p-forward@19004.service 2>/dev/null || true
 
+# B-46: keep quoted MFN_P2P_DIAL_EXTRA on hub (avoids 300s voter quarantine after remap).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -x "$SCRIPT_DIR/vps-soften-mfnd-requires.sh" ]]; then
+  bash "$SCRIPT_DIR/vps-soften-mfnd-requires.sh" || true
+fi
+
 systemctl restart mfnd-hub.service
 echo "repair-vps-p2p-binds: waiting for hub RPC (chain replay can take ~2m)..."
 mcli=""
@@ -162,5 +168,20 @@ if [[ -n "$PUBLIC_IP" ]]; then
   done
   (( fail == 0 )) || exit 1
 fi
+
+
+# Persist loopback committee dials for hub (B-46) — peers file for ops/debug.
+write_local_peers() {
+  local out="${1:-/root/.mfn/local-committee-peers.txt}"
+  mkdir -p "$(dirname "$out")"
+  cat >"$out" <<'PEERS'
+127.0.0.1:19101
+127.0.0.1:19102
+127.0.0.1:19103
+127.0.0.1:19104
+PEERS
+  echo "repair-vps-p2p-binds: write_local_peers -> $out"
+}
+write_local_peers
 
 echo "repair-vps-p2p-binds: OK"

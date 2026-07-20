@@ -57,7 +57,9 @@ const lastIpClaim = new Map();
 /** @type {Map<string, object>} */
 const jobs = new Map();
 let busy = false;
-/** Serialize wallet scan/send so keepalive never races a claim. */
+/** Last successful wallet status — served by /health while a claim holds the lock. */
+let lastWalletStatus = null;
+/** Serialize wallet scan/send so keepalive/health never races a claim. */
 let walletLock = Promise.resolve();
 
 function withWalletLock(fn) {
@@ -70,6 +72,13 @@ function withWalletLock(fn) {
     .catch(() => {})
     .then(fn)
     .finally(() => release());
+}
+
+function isTransientCliError(err) {
+  const m = String(err?.message || err);
+  return /os error 11|Resource temporarily unavailable|EAGAIN|Connection refused|os error 111|ECONNREFUSED/i.test(
+    m,
+  );
 }
 
 function cors(res) {
@@ -135,6 +144,26 @@ function run(bin, args, timeoutMs = SEND_TIMEOUT_MS) {
   });
 }
 
+/** Retry hub RPC blips (EAGAIN / refused) — common under concurrent mfn-cli. */
+async function runRetry(bin, args, timeoutMs = SEND_TIMEOUT_MS, attempts = 4) {
+  let last;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await run(bin, args, timeoutMs);
+    } catch (e) {
+      last = e;
+      if (!isTransientCliError(e) || i === attempts - 1) throw e;
+      const delay = 400 * (i + 1);
+      console.warn(
+        `faucet cli retry ${i + 1}/${attempts} in ${delay}ms:`,
+        String(e.message || e).slice(0, 160),
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw last;
+}
+
 /** TCP peer only — never trust X-Forwarded-For for rate-limit bypass decisions. */
 function peerIp(req) {
   return req.socket.remoteAddress || "unknown";
@@ -152,7 +181,7 @@ function isLoopbackIp(ip) {
 }
 
 async function walletStatus() {
-  const { stdout } = await run(
+  const { stdout } = await runRetry(
     MFN_CLI,
     ["--rpc", MFND_RPC, "--wallet", FAUCET_WALLET, "wallet", "status", "--json"],
     30_000,
@@ -162,12 +191,14 @@ async function walletStatus() {
   if (start < 0 || end <= start) {
     throw new Error(`wallet status returned no JSON: ${stdout.slice(0, 200)}`);
   }
-  return JSON.parse(stdout.slice(start, end + 1));
+  const parsed = JSON.parse(stdout.slice(start, end + 1));
+  lastWalletStatus = parsed;
+  return parsed;
 }
 
 async function syncWallet(reason) {
   const t0 = Date.now();
-  await run(
+  await runRetry(
     MFN_CLI,
     ["--rpc", MFND_RPC, "--wallet", FAUCET_WALLET, "wallet", "scan"],
     SYNC_TIMEOUT_MS,
@@ -198,7 +229,11 @@ async function ensureWalletReady(reason) {
 }
 
 async function getTipHeight() {
-  const { stdout } = await run(MFN_CLI, ["--rpc", MFND_RPC, "tip"], 15_000);
+  const { stdout } = await runRetry(
+    MFN_CLI,
+    ["--rpc", MFND_RPC, "tip"],
+    15_000,
+  );
   const m = stdout.match(/tip_height=(\d+)/);
   return m ? Number(m[1]) : 0;
 }
@@ -262,7 +297,7 @@ async function fundAddress(address, amount) {
         }
         await syncWallet("between-fund-sends");
       }
-      const { stdout } = await run(MFN_CLI, [
+      const { stdout } = await runRetry(MFN_CLI, [
         "--rpc",
         MFND_RPC,
         "--wallet",
@@ -312,11 +347,16 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/health" && req.method === "GET") {
     pruneJobs();
-    let wallet = null;
-    try {
-      wallet = await walletStatus();
-    } catch {
-      wallet = null;
+    // Never spawn mfn-cli while a claim holds the wallet lock — concurrent CLI
+    // against hub RPC was the B-15 wave4/5 EAGAIN (os error 11) failure mode.
+    let wallet = lastWalletStatus;
+    const statusCached = busy;
+    if (!busy) {
+      try {
+        wallet = await withWalletLock(() => walletStatus());
+      } catch {
+        wallet = lastWalletStatus;
+      }
     }
     json(res, 200, {
       ok: true,
@@ -336,6 +376,7 @@ const server = http.createServer(async (req, res) => {
       wallet_tip_height: wallet?.tip_height ?? null,
       wallet_blocks_behind: wallet?.blocks_behind ?? null,
       wallet_sync_needed: wallet?.sync_needed ?? null,
+      wallet_status_cached: statusCached,
     });
     return;
   }
