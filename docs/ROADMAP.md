@@ -219,7 +219,11 @@ Public genesis has `operator_salted_challenges = 1`, but challenge/prove/pool pr
 
 #### B-59 — deterministic B3 legacy-challenge reject test (lane 4)
 
-`b3_legacy_challenge_rejected_when_enabled` flaked when the unsalted challenge index matched an operator-salted index (~1/num_chunks). **B-59** searches for a slot where legacy ≠ salted before building the reject proof.
+`b3_legacy_challenge_rejected_when_enabled` flaked when the unsalted challenge index matched an operator-salted index (~1/num_chunks). **B-59** searches for a slot where legacy ≠ salted before building the reject proof. Landed with lane-1 **B-60** CI harden (`7ab86ad`).
+
+#### B-63 — multi-op partial-set settlement + coinbase compose (lane 4; early B-24a)
+
+Pre-B-32 consensus slice: two salted proofs → producer + 2 operator coinbase legs; 1-of-2 prove → one settlement, prover miss reset, absentee miss++. Tests in `apply_block_proptest.rs`. Does **not** close full **B-24** (needs live **B-32**).
 
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 

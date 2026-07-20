@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = `7ab86ad` (**B-60**). **CI `#29718880625` in_progress** (runners active; rustfmt/clippy green). Live tip ~4190. **B-59** (lane 4 claim) superseded by B-60 for b3 collision harden — release or retarget. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = `7ab86ad` (**B-60**). **CI `#29718880625` in_progress**. Live tip ~4192 (wave15 soak). Lane 4 **B-63** (early B-24a) tests ready; land after matrix (do not cancel). **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-60** (`7ab86ad`) | **Watch CI `#29718880625`** (claim base: `7ab86ad`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave14** (`6ead0f0` + addendum: F75–F79, grace upload) | **B-15** JOIN SUMMARY soft path (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | *Idle* (B-59 b3 flake covered by **B-60** `7ab86ad`) | After CI GREEN: live **B-32**; then **B-44** -> **B-24** | Lane 1 CI |
+| **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | **B-63** partial-set settle + coinbase compose (claim base: `7ab86ad`; local PASS) | Land after `#29718880625`; then lane 7 roll → live **B-32** → **B-44**/**B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-62** prebuild+roll-ready; **B-43** freeze draft; B-61 | *Idle* | On CI GREEN: `assert-vps-roll-ready` then `vps-roll-mfnd --apply` (skip-build if prebuild OK); **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -174,7 +174,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 5+7 | **JOIN tall-tip UX:** F68b PASS; F45 soft; F71/F78 pending clear; F74 tip-diff; **F75** need ≥2 UTXOs; **F76** wait owned≥2; **F79** pin≤oldest fund. | **Open** (SUMMARY archive) |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Open** (F65→roll) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
-| 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-59** (1/num_chunks collision) | **Ack** (B-51); **Open** (B-59) |
+| 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-60** (`7ab86ad`) | **Done** |
 | 7 | 3 | **B-22 tip-4173 + B-61:** re-pin / soft light-scan at new log max for SUMMARY | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
@@ -243,6 +243,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-60 | mfnd roll CI+faucet preflight + JOIN F45 wire | 7 | **Done** — B-60.1 closes gh fail-open hole |
 | B-61 | Roll CI via public API + hub RPC listen wait + tip-4173 | 7 | **Done** |
 | B-62 | VPS mfnd prebuild + assert-vps-roll-ready | 7 | **Done** — no service restart |
+| B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Doing** — local PASS; land after CI `#29718880625` |
 
 ---
 
@@ -250,7 +251,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave14 addendum** (this commit): grace upload `3e728a8e…` after F78; F79 pin-too-high (dave 90k@4148 vs 1.09M@4050). Board sync to wave14. Evidence wave14.md addendum. `[skip ci]`. *Observed:* probe temps, `user-wallet/`, `live-testnet-data*`, other-lane WIP.
+1. **2026-07-20 — lane 4 — B-63 claim** (this commit): early B-24a — two-op coinbase N+1 compose + 1-of-2 prove miss/treasury identity in `apply_block_proptest`. Local PASS. Docs-only `[skip ci]` while `#29718880625` runs. B-59 flake covered by lane-1 B-60. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+2. **2026-07-20 — lane 3 — B-15 wave14 addendum** (this commit): grace upload `3e728a8e…` after F78; F79 pin-too-high (dave 90k@4148 vs 1.09M@4050). Board sync to wave14. Evidence wave14.md addendum. `[skip ci]`. *Observed:* probe temps, `user-wallet/`, `live-testnet-data*`, other-lane WIP.
 2. **2026-07-20 — lane 3 — B-15 wave14** (`6ead0f0`): frank faucet+upload `90aae951…` last_proven=**4183**; F75–F78. Evidence `live-testnet-probe-20260720-wave14.md`. `[skip ci]`.
 3. **2026-07-20 — lane 1 — watch CI `#29718880625`**: B-60 on `7ab86ad` in matrix; tip~4190 outside-in. B-59 claim released (superseded by B-60). Docs-only `[skip ci]`. *Observed local work (not staged):* lane-3 wave14 temps, `user-wallet/`, `live-testnet-data*`.
 4. **2026-07-20 — lane 1 — B-60 B3 collision + smoke CI harden** (this commit): `b3_legacy_challenge_rejected_when_enabled` + `b3_rejects_unsalted_proof_when_salted_required` pick non-colliding slots; smoke accepts sealed/proposal log lines under GHA drain races. Targets `#29717107514` RED.
