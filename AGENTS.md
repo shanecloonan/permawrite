@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave7 (21ab99c) | **B-15** wave8 battery + B-50 bootstrap (claim base: 21ab99c) | JOIN archive when SUMMARY ready | L4 checklist |
+| **3** Onboarding | B-15 wave8 transfer+carol PASS (this commit) | **B-15** JOIN archive when bash/WSL or ps1 + near-tip ckpt (claim base: this head) | SUMMARY PASS + assert | L4 checklist |
 | **4** Protocol | **B-48** soft EAGAIN quarantine; **B-45** (`f1459bf`); **B-46**/`711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd (B-45+B-48); live **B-32**; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -170,7 +170,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A tip **4050** + public seed anchors; seed offline on VPS only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
-| 3 | 5+7 | **JOIN tall-tip UX:** --checkpoint-log is post-sync cross-check only (F44); fails unless attestation at exact tip (F45). Need JOIN_TESTNET snapshot-bootstrap docs + near-tip publish cadence. Evidence wave7 | **Open** |
+| 3 | 5+7 | **JOIN tall-tip UX:** F44/F45 confirmed wave8 (carol B-50 pin OK; light-scan --checkpoint-log fail tip 4089 vs log 4057). Proxy snapshot TIMEOUT (F54). Need near-tip ckpt + JOIN docs / ps1 bootstrap. Evidence wave8 | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
