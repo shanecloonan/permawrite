@@ -232,10 +232,22 @@ if ($pathANearTipOpsPlan -notmatch "path-a-near-tip-ops-rehearsal-smoke: PASS pl
     $pathANearTipOpsPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-90: observer proxy tip-align before list_recent_uploads (lane 7; F105).
+$proxyTipAlignPlan = (powershell -NoProfile -File scripts/public-devnet-v1/observer-rpc-proxy-tip-align-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($proxyTipAlignPlan -notmatch "observer-rpc-proxy-tip-align-rehearsal-smoke: PASS plan-only") {
+    $proxyTipAlignPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 $outsideInInviteSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: PASS plan-only") {
     $outsideInInviteSoakPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
+# B-34: CI queue/stall watch plan gate (lane 1; never cancel healthy in_progress).
+$watchCiStallPlan = (powershell -NoProfile -File scripts/watch-ci-stall-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($watchCiStallPlan -notmatch "watch-ci-stall-rehearsal-smoke: PASS plan-only") {
+    $watchCiStallPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
 $repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"

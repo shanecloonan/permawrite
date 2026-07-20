@@ -272,9 +272,11 @@ Default threshold: 16 blocks (`MFN_CKPT_LAG_THRESHOLD`). Never touches faucet/mf
 
 **B-89 ops helpers:** on VPS, `bash scripts/public-devnet-v1/assert-path-a-near-tip-timer.sh --apply` (timer active + last oneshot not failed). From an agent host, `bash scripts/public-devnet-v1/land-path-a-checkpoint-from-vps.sh --apply` scps the remote jsonl when VPS tip is ahead (does not commit).
 
-### Proxy upload index lag (F105)
+### Proxy upload index lag (F105 / B-90)
 
 JOIN permanence gates must wait for **proxy** `list_recent_uploads` (observer `:8787`), not only local `uploads status` matched. Local matched can precede public visibility by 1-2 minutes after prove.
+
+**B-90 tip-align:** `observer-rpc-proxy` waits (up to `PROXY_TIP_ALIGN_MS`, default 45s) for observer tip to catch hub tip (`PROXY_HUB_TIP_RPC=127.0.0.1:18731`) before forwarding `list_recent_uploads`. Deploy: `bash scripts/public-devnet-v1/vps-update-observer-rpc-proxy.sh --apply` (restarts proxy only; never faucet/mfnd). `/health` exposes `hub_tip_rpc`, `tip_align_waits`, `tip_align_timeouts`.
 
 ### Sticky local mempool (F107 / F108)
 

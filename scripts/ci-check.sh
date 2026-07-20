@@ -165,9 +165,15 @@ near_tip_ckpt_timer_plan="$(bash scripts/public-devnet-v1/vps-install-near-tip-c
 # B-89: Path A timer health assert + VPS land helper (lane 7; B-15-safe).
 path_a_near_tip_ops_plan="$(bash scripts/public-devnet-v1/path-a-near-tip-ops-rehearsal-smoke.sh --plan-only)"
 [[ "$path_a_near_tip_ops_plan" == *"path-a-near-tip-ops-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$path_a_near_tip_ops_plan" >&2; exit 1; }
+# B-90: observer proxy tip-align before list_recent_uploads (lane 7; F105).
+proxy_tip_align_plan="$(bash scripts/public-devnet-v1/observer-rpc-proxy-tip-align-rehearsal-smoke.sh --plan-only)"
+[[ "$proxy_tip_align_plan" == *"observer-rpc-proxy-tip-align-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$proxy_tip_align_plan" >&2; exit 1; }
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 outside_in_invite_soak_plan="$(bash scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$outside_in_invite_soak_plan" == *"outside-in-invite-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$outside_in_invite_soak_plan" >&2; exit 1; }
+# B-34: CI queue/stall watch plan gate (lane 1; never cancel healthy in_progress).
+watch_ci_stall_plan="$(bash scripts/watch-ci-stall-rehearsal-smoke.sh --plan-only)"
+[[ "$watch_ci_stall_plan" == *"watch-ci-stall-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$watch_ci_stall_plan" >&2; exit 1; }
 repair_vps_p2p_plan="$(bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only)"
 [[ "$repair_vps_p2p_plan" == *"repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$repair_vps_p2p_plan" >&2; exit 1; }
 bootstrap_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint-signer.sh --plan-only)"

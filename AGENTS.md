@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29771537059` GREEN** on B-88 `3a0efff`. Landing **B-89** timer assert + land helper + tip-4624 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29773999207` GREEN** on B-89 `a0458bf`. Landing **B-90** proxy tip-align (F105) + tip-4641 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-89** timer assert + tip-4624 (this commit); **B-88** (`3a0efff`, CI `#29771537059` GREEN); **B-87** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-90** proxy tip-align + tip-4641 (this commit); **B-89** (`a0458bf`, CI `#29773999207` GREEN); **B-88** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -262,7 +262,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-85 | Auto Path A republish when tip lag >= threshold + tip-4567 | 7 | **Landed** (`a1ac45c`); **CI `#29766146798` GREEN**; entries=20 |
 | B-87 | Path A tip-4584 (B-85 live fire on Hetzner lag=17) | 7 | **Landed** (`ed3c51e`); **CI `#29769164562` GREEN**; entries=21 |
 | B-88 | VPS B-85 lag timer (30m) + tip-4606 + F107/F108 OPERATORS | 7 | **Landed** (`3a0efff`); **CI `#29771537059` GREEN**; entries=22 |
-| B-89 | Path A timer health assert + VPS land helper + tip-4624 | 7 | **Landed** (this commit); entries=23 |
+| B-89 | Path A timer health assert + VPS land helper + tip-4624 | 7 | **Landed** (`a0458bf`); **CI `#29773999207` GREEN**; entries=23 |
+| B-90 | Observer proxy tip-align before list_recent_uploads (F105) + tip-4641 | 7 | **Landed** (this commit); entries=24 |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -278,9 +279,10 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave43**: **iris** faucet permanence **last_proven=4636** (commit `39bffdd5`); Path A ckpt_max=4624 (F45 lag=5); claims 20→21; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
-2. **2026-07-20 — lane 3 — B-15 wave42**: **hank** peer-dual-donor permanence **last_proven=4628** (commit `69b678f3`); faucet 429→gina+frank; F45 lag grew to 15 as tip > ckpt 4606; claims 19→20. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
-2. **2026-07-20 — lane 7 — B-89 timer assert + tip-4624** (this commit): `assert-path-a-near-tip-timer` + `land-path-a-checkpoint-from-vps` + ci-check gate; tip-**4624** (lag=18 fire, entries=23). Prior **CI `#29771537059` GREEN** on B-88. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`, ROADMAP/`apply_block` dirty.
+1. **2026-07-20 — lane 7 — B-90 proxy tip-align + tip-4641** (this commit): `tipAlignBeforeUploads` before `list_recent_uploads` (F105); `vps-update-observer-rpc-proxy`; tip-**4641** (lag=17, entries=24). Prior **CI `#29773999207` GREEN** on B-89. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`, ROADMAP/`apply_block` dirty.
+2. **2026-07-20 — lane 3 — B-15 wave43**: **iris** faucet permanence **last_proven=4636** (commit `39bffdd5`); Path A ckpt_max=4624 (F45 lag=5); claims 20→21; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+3. **2026-07-20 — lane 3 — B-15 wave42**: **hank** peer-dual-donor permanence **last_proven=4628** (commit `69b678f3`); faucet 429→gina+frank; F45 lag grew to 15 as tip > ckpt 4606; claims 19→20. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+4. **2026-07-20 — lane 7 — B-89 timer assert + tip-4624** (`a0458bf`): tip-**4624**; **CI `#29773999207` GREEN**. Full CI (no skip).
 2. **2026-07-20 — lane 3 — B-15 wave41**: **gina** faucet permanence **last_proven=4620** (commit `8aeb43ec`); Path A ckpt_max=4606 (F45 lag=7); F100/F105 recur; claims 18→19; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave40**: **frank** peer-dual-donor permanence **last_proven=4611** (commit `8f866ea2`); faucet 429→erin+dana; F100/F105 lag during prove; claims 17→18; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 4. **2026-07-20 — lane 7 — B-88 lag timer + tip-4606** (`3a0efff`): timer install + tip-**4606**; **CI `#29771537059` GREEN**. Full CI (no skip).

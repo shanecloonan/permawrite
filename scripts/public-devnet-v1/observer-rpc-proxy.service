@@ -11,6 +11,10 @@ Environment=PROXY_HOST=0.0.0.0
 Environment=PROXY_PORT=8787
 # B-52/F54: tall-tip get_light_snapshot / get_block_headers can exceed the 30s default.
 Environment=PROXY_HEAVY_RPC_TIMEOUT_MS=180000
+# B-90 / F105: wait for observer tip to catch hub before list_recent_uploads.
+Environment=PROXY_HUB_TIP_RPC=127.0.0.1:18731
+Environment=PROXY_TIP_ALIGN_MS=45000
+Environment=PROXY_TIP_ALIGN_MAX_LAG=1
 ExecStart=/usr/bin/node /root/permawrite/scripts/public-devnet-v1/observer-rpc-proxy.mjs
 Restart=always
 RestartSec=3

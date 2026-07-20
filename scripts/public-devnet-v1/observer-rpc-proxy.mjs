@@ -40,6 +40,13 @@ const INDEX_PATH =
   process.env.PROXY_INDEX_PATH ??
   "/root/permawrite/.permawrite-devnet-v1/observer-rpc-proxy-index.json";
 const INDEX_SAVE_EVERY_MS = Number(process.env.PROXY_INDEX_SAVE_MS ?? "15000");
+/** B-90 / F105: optional hub tip RPC to wait until observer tip catches hub before list_recent_uploads. */
+const HUB_TIP_RPC = (process.env.PROXY_HUB_TIP_RPC ?? "").trim();
+const TIP_ALIGN_MS = Number(process.env.PROXY_TIP_ALIGN_MS ?? "45000");
+const TIP_ALIGN_POLL_MS = Number(process.env.PROXY_TIP_ALIGN_POLL_MS ?? "500");
+const TIP_ALIGN_MAX_LAG = Number(process.env.PROXY_TIP_ALIGN_MAX_LAG ?? "1");
+let tipAlignWaits = 0;
+let tipAlignTimeouts = 0;
 
 const PUBLIC_SAFE = new Set([
   "get_block",
@@ -77,6 +84,9 @@ const PROXY_LOCAL = new Set(["get_tx_count_totals", "get_block_txs_range"]);
 
 const [mfndHost, mfndPortStr] = MFND_RPC.split(":");
 const mfndPort = Number(mfndPortStr ?? "18734");
+const hubTipParts = HUB_TIP_RPC ? HUB_TIP_RPC.split(":") : null;
+const hubTipHost = hubTipParts ? hubTipParts[0] : null;
+const hubTipPort = hubTipParts ? Number(hubTipParts[1] ?? "18731") : null;
 
 /** @type {Map<number, { all: number, user: number }>} */
 const txCountByHeight = new Map();
@@ -210,6 +220,89 @@ async function mfndCall(method, params, id = 1) {
     throw new Error(obj.error.message || `RPC error ${obj.error.code}`);
   }
   return obj.result;
+}
+
+function tcpLineRpcTo(host, port, line, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const socket = net.connect({ host, port }, () => {
+      socket.write(line.endsWith("\n") ? line : `${line}\n`);
+    });
+    let buf = "";
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error(`RPC timeout after ${timeoutMs}ms (${host}:${port})`));
+    }, timeoutMs);
+    socket.setEncoding("utf8");
+    socket.on("data", (chunk) => {
+      buf += chunk;
+      if (buf.includes("\n")) {
+        clearTimeout(timer);
+        socket.end();
+        resolve(buf.trim());
+      }
+    });
+    socket.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+    socket.on("end", () => {
+      clearTimeout(timer);
+      if (buf) resolve(buf.trim());
+    });
+  });
+}
+
+async function rpcTipHeight(host, port) {
+  const line = await tcpLineRpcTo(
+    host,
+    port,
+    JSON.stringify({ jsonrpc: "2.0", id: 1, method: "get_tip", params: {} }),
+    Math.min(RPC_TIMEOUT_MS, 12000),
+  );
+  const obj = JSON.parse(line);
+  if (obj.error) {
+    throw new Error(obj.error.message || `get_tip error ${obj.error.code}`);
+  }
+  return Number(obj.result?.tip_height ?? 0);
+}
+
+/**
+ * B-90 / F105: when PROXY_HUB_TIP_RPC is set, wait until observer tip is within
+ * TIP_ALIGN_MAX_LAG of hub tip (or TIP_ALIGN_MS elapses). Never fails the request.
+ */
+async function tipAlignBeforeUploads() {
+  if (!hubTipHost || !hubTipPort || TIP_ALIGN_MS <= 0) return;
+  const started = Date.now();
+  tipAlignWaits += 1;
+  try {
+    let hubTip = await rpcTipHeight(hubTipHost, hubTipPort);
+    let obsTip = await rpcTipHeight(mfndHost, mfndPort);
+    while (hubTip - obsTip > TIP_ALIGN_MAX_LAG && Date.now() - started < TIP_ALIGN_MS) {
+      await new Promise((r) => setTimeout(r, TIP_ALIGN_POLL_MS));
+      try {
+        hubTip = await rpcTipHeight(hubTipHost, hubTipPort);
+        obsTip = await rpcTipHeight(mfndHost, mfndPort);
+      } catch {
+        break;
+      }
+    }
+    const lag = hubTip - obsTip;
+    if (lag > TIP_ALIGN_MAX_LAG) {
+      tipAlignTimeouts += 1;
+      if (tipAlignTimeouts <= 5 || tipAlignTimeouts % 25 === 0) {
+        console.warn(
+          `observer-rpc-proxy: tip-align timeout hub=${hubTip} obs=${obsTip} lag=${lag} (B-90/F105)`,
+        );
+      }
+    }
+  } catch (e) {
+    if (tipAlignWaits <= 5 || tipAlignWaits % 25 === 0) {
+      console.warn(
+        "observer-rpc-proxy: tip-align skipped",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
 }
 
 function readLeb128(bytes, off) {
@@ -478,6 +571,11 @@ const server = http.createServer(async (req, res) => {
         index_errors: indexErrors,
         rpc_timeout_ms: RPC_TIMEOUT_MS,
         heavy_rpc_timeout_ms: HEAVY_RPC_TIMEOUT_MS,
+        // B-90 / F105 tip-align telemetry
+        hub_tip_rpc: HUB_TIP_RPC || null,
+        tip_align_ms: TIP_ALIGN_MS,
+        tip_align_waits: tipAlignWaits,
+        tip_align_timeouts: tipAlignTimeouts,
       }),
     );
     return;
@@ -560,6 +658,11 @@ const server = http.createServer(async (req, res) => {
         line = upstream;
       }
     } else {
+      // B-90 / F105: wait for observer tip to catch hub before upload-list reads.
+      if (method === "list_recent_uploads") {
+        await tipAlignBeforeUploads();
+        void indexTick();
+      }
       line = await tcpLineRpc(JSON.stringify(msg), timeoutForMethod(method));
     }
 
