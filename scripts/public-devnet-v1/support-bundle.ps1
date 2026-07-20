@@ -69,7 +69,10 @@ function Get-PlannedCommands {
         Add-PlannedCommand $commands "operator-artifacts" @("--wallet", $Wallet, "operator", "artifacts", "--json")
     }
     if ($CommitHash) {
-        Add-PlannedCommand $commands "operator-challenge" ($rpcArgs + @("operator", "challenge", $CommitHash, "--json"))
+        # B-45+: challenge needs payout pubs via --wallet (defaults to wallet.json otherwise).
+        if ($Wallet) {
+            Add-PlannedCommand $commands "operator-challenge" ($rpcArgs + @("--wallet", $Wallet, "operator", "challenge", $CommitHash, "--json"))
+        }
         if ($Peer) {
             $fetchArgs = $rpcArgs
             if ($Wallet) { $fetchArgs += @("--wallet", $Wallet) }

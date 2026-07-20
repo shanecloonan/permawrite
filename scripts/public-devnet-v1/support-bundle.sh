@@ -160,7 +160,10 @@ build_plan() {
     add_command "operator-artifacts"
   fi
   if [[ -n "$COMMIT_HASH" ]]; then
-    add_command "operator-challenge"
+    # B-45+ salted challenges require payout wallet pubs; skip if no --wallet.
+    if [[ -n "$WALLET" ]]; then
+      add_command "operator-challenge"
+    fi
     if [[ -n "$PEER" ]]; then
       add_command "operator-fetch-chunk"
     fi
@@ -195,7 +198,8 @@ print_plan_command() {
     uploads-local) echo "mfn-cli --wallet $WALLET uploads local --json" ;;
     uploads-status) echo "mfn-cli --rpc $RPC_ADDR$auth --wallet $WALLET uploads status --json" ;;
     operator-artifacts) echo "mfn-cli --wallet $WALLET operator artifacts --json" ;;
-    operator-challenge) echo "mfn-cli --rpc $RPC_ADDR$auth operator challenge $COMMIT_HASH --json" ;;
+    # B-45+: challenge needs payout pubs via --wallet (defaults to wallet.json otherwise).
+    operator-challenge) echo "mfn-cli --rpc $RPC_ADDR$auth --wallet $WALLET operator challenge $COMMIT_HASH --json" ;;
     operator-fetch-chunk) echo "mfn-cli --rpc $RPC_ADDR$auth$wallet_arg operator fetch-chunk $COMMIT_HASH $CHUNK_INDEX $PEER --json" ;;
     operator-inbox-status) echo "mfn-cli --rpc $RPC_ADDR$auth operator inbox-status $COMMIT_HASH $DATA_DIR --json" ;;
     claims-for) echo "mfn-cli --rpc $RPC_ADDR$auth claims for $DATA_ROOT --json" ;;
@@ -223,7 +227,7 @@ run_bundle_command() {
     uploads-local) "$MFN_CLI" --wallet "$WALLET" uploads local --json ;;
     uploads-status) "$MFN_CLI" "${rpc_prefix[@]}" --wallet "$WALLET" uploads status --json ;;
     operator-artifacts) "$MFN_CLI" --wallet "$WALLET" operator artifacts --json ;;
-    operator-challenge) "$MFN_CLI" "${rpc_prefix[@]}" operator challenge "$COMMIT_HASH" --json ;;
+    operator-challenge) "$MFN_CLI" "${rpc_prefix[@]}" --wallet "$WALLET" operator challenge "$COMMIT_HASH" --json ;;
     operator-fetch-chunk) "$MFN_CLI" "${rpc_prefix[@]}" "${wallet_prefix[@]}" operator fetch-chunk "$COMMIT_HASH" "$CHUNK_INDEX" "$PEER" --json ;;
     operator-inbox-status) "$MFN_CLI" "${rpc_prefix[@]}" operator inbox-status "$COMMIT_HASH" "$DATA_DIR" --json ;;
     claims-for) "$MFN_CLI" "${rpc_prefix[@]}" claims for "$DATA_ROOT" --json ;;
