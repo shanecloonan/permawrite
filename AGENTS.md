@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-27** outside-in invite soak tooling + live evidence (this commit). **B-29 CLOSED** Nightly #29755942849; **CI #29753244727 GREEN** on B-75. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-81** code (full CI) — board claimed B-81 ahead of the proptest in B-27 docs carry. **B-27** on `9f5ed4d`; **CI `#29753244727` GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-27** outside-in invite soak (this commit); **B-75**/**B-29** | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
+| **1** RC core | **B-27** outside-in invite soak (`9f5ed4d`); **B-75**/**B-29** | *Idle* — watch CI `#29758129931` | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave33** (yara fund FAIL; F45 lag=1; F103) | **B-15 wave33b** yara faucet recovery (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-81** full-slash deregister while peer settles (early B-24e; claim base: tip) | Live **B-32** after 2nd host (**B-79**) → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-81** full-slash deregister (this commit); **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-80** Path A tip-4496 (this commit); **B-79** (`2444a04`); **B-78**/**B-77** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
@@ -263,7 +263,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-67 | Multi-op slash while peer settles + treasury identity (early B-24c) | 4 | **Landed** on `f6273cb` (commit subject mislabeled B-70/B-71); not full B-24 |
 | B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (`62a9c02`); **CI `#29739903305` GREEN** |
 | B-76 | Dual-operator empty-audit slash treasury identity (early B-24d) | 4 | **Landed** (`dc50737`/`5492a07`); covered by **CI `#29753244727` GREEN** |
-| B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landing** — 100% slash removes absentee; peer settles; unregistered follow-on reject |
+| B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landed** (this commit) — 100% slash removes absentee; peer settles; unregistered follow-on reject |
 
 ---
 
@@ -272,7 +272,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
 1. **2026-07-20 - lane 1 - B-27 outside-in invite soak** (this commit): successor soak for systemd-live invite head via public proxy; tip 4501->4503; evidence outside-in-invite-soak-20260720T155203Z.txt + 27-outside-in-invite-soak-20260720.md; ci-check plan gate. Pins Nightly #29755942849 + CI #29753244727. B-15-safe. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*.
-1. **2026-07-20 — lane 4 — B-81 full-slash deregister while peer settles** (this commit): early B-24e `b81_b5_full_slash_deregister_*`; local debug test PASS. Full CI. *Observed (not staged):* lane-1 B-27 soak WIP, JOIN/`user-wallet`/`live-testnet-data*`.
+1. **2026-07-20 — lane 4 — B-81 full-slash deregister while peer settles** (this commit): early B-24e `b81_b5_full_slash_deregister_*` (code was missing from B-27 board claim — landed here). Local debug test PASS. Full CI. *Observed (not staged):* JOIN/`user-wallet`/`live-testnet-data*`/lane-3 temps.
 2. **2026-07-20 — lane 3 — B-15 wave33**: yara permanence **FAIL** — F45 lag=1 after B-80 tip-4496; faucet 429; peer xena/uma **available 0** after pin_clean (**F103**); F97 timeouts. Recovery = wave33b. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 - lane 1 - B-29 CLOSED** (this commit): Nightly #29755942849 GREEN — participant + observer + ignored P2P/produce all success on d248ba2 (ancestor **B-75** 9d8bd30; **CI #29753244727 GREEN**). Docs board close [skip ci] while B-80 CI in progress.
 1. **2026-07-20 — lane 3 — B-15 wave32**: New wallet **xena** faucet permanence **last_proven=4496** (commit `fe091b02`); pin@4400 owned=3 after pin@4443 owned=1 (F101); F45 lag=46; F102 concurrent-runner RPC 10060; claims 12→13. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.

@@ -4520,6 +4520,116 @@ fn b76_b5_dual_operator_slash_on_empty_audit_treasury_identity() {
     );
 }
 
+/// B-81 (early B-24e): 100% slash deregisters the absentee while the peer
+/// settles in the same `apply_block` — complements B-67's partial keep-registered path.
+#[test]
+fn b81_b5_full_slash_deregister_while_peer_settles_treasury_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let mut st = gen.state;
+    st.endowment_params.operator_slash_bps = 10_000;
+    let cap = st.endowment_params.operator_audit_missed_cap;
+    let slash_bps = st.endowment_params.operator_slash_bps;
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let mut slot = 10_000u32;
+    let bond0 = PROP_B5_OPERATOR_BOND;
+    let bond1 = PROP_B5_OPERATOR_BOND.saturating_mul(2);
+
+    for i in 0..(cap - 1) {
+        st = apply_empty_at_audit_slot(&st, slot);
+        assert_eq!(st.treasury, 0, "pre-slash empty {i}");
+        assert_eq!(
+            st.storage_operator_stats[&gen.id0].consecutive_missed_audits,
+            i + 1
+        );
+        assert_eq!(
+            st.storage_operator_stats[&gen.id1].consecutive_missed_audits,
+            i + 1
+        );
+        slot = slot.saturating_add(1);
+    }
+
+    let scratch = build_unsealed_header(&st, &[], &[], &[], &[], slot, 1_000);
+    let proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch.prev_hash, slot, 0b01);
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1, "only prover settles");
+
+    let bonus = settlements[0].1;
+    let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+    let mut model = st.treasury;
+    let (after_slash, bond1_after) = treasury_after_b5_slash(model, bond1, slash_bps);
+    assert_eq!(bond1_after, 0, "100% slash zeros absentee bond");
+    model = after_slash;
+    let expected_treasury = model.saturating_sub(storage_drain.min(model));
+
+    let unsealed = build_unsealed_header(&st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    let state = match apply_block(&st, &blk) {
+        ApplyOutcome::Ok { state, .. } => state,
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    };
+    assert_eq!(
+        state.treasury, expected_treasury,
+        "full slash credit then storage drain"
+    );
+    assert_eq!(
+        state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+        "prover miss resets"
+    );
+    assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
+    assert!(
+        state.storage_operators.contains_key(&gen.id0),
+        "prover must stay registered"
+    );
+    assert!(
+        !state.storage_operators.contains_key(&gen.id1),
+        "full slash must deregister absentee"
+    );
+    assert!(
+        !state.storage_operator_stats.contains_key(&gen.id1),
+        "full slash must drop absentee stats"
+    );
+    let ch = storage_commitment_hash(&gen.built.commit);
+    assert_eq!(
+        state.storage.get(&ch).expect("entry").last_proven_slot,
+        u64::from(slot)
+    );
+
+    // Follow-on: deregistered op1 cannot settle a salted proof.
+    let next = slot.saturating_add(1);
+    let scratch2 = build_unsealed_header(&state, &[], &[], &[], &[], next, 1_000);
+    let bad_proofs =
+        b5_two_op_proofs_for_mask(&gen.built, &gen.payload, &scratch2.prev_hash, next, 0b10);
+    let unsealed2 = build_unsealed_header(&state, &[], &[], &[], &bad_proofs, next, 1_000);
+    let blk2 = seal_block(
+        unsealed2,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        bad_proofs,
+    );
+    match apply_block(&state, &blk2) {
+        ApplyOutcome::Err { errors, .. } => {
+            assert!(
+                errors
+                    .iter()
+                    .any(|e| matches!(e, BlockError::StorageProofUnregisteredOperator { .. })),
+                "expected StorageProofUnregisteredOperator, got {errors:?}"
+            );
+        }
+        ApplyOutcome::Ok { .. } => panic!("deregistered operator proof must reject"),
+    }
+}
+
 /// B-64: settlements soft-skip unknown commit; apply hard-rejects.
 #[test]
 fn b64_unknown_commit_settlements_skip_apply_rejects() {
