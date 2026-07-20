@@ -19,7 +19,7 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
 | **L3 status** | **Experimental public testnet live** — [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`pfpchain.com`](https://pfpchain.com) |
-| **Open TL** | **TL-9**; **B-15** JOIN; **B-29** Nightly close; **B-26/27/31** invite gates (**B-16** ✓; **B-30** docs ✓ — fill human cells at sign-off) |
+| **Open TL** | **TL-9**; **B-15** JOIN; **B-29** Nightly; **B-40** P2P bind repair; **B-22** checkpoint; **B-26/27**; **B-31** close after B-40 (**B-16**/B-30 docs ✓) |
 | Strategic ordering | [`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) → [Phase 1 permanence playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria) |
 
 ---
