@@ -46,7 +46,7 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "vps-roll-mfnd: plan"
-  echo "  unit=B-49/B-60/B-61"
+  echo "  unit=B-49/B-60/B-61/B-65"
   echo "  flow=preflight(CI+faucet) -> git pull -> cargo build mfnd/mfn-cli -> vps-soften-mfnd-requires -> restart voters -> restart hub -> wait tip advance"
   echo "  never=faucet-http observer-rpc-proxy"
   echo "  gate=CI GREEN via gh or public API; faucet idle; RPC listen wait after restart"
@@ -148,6 +148,8 @@ echo "vps-roll-mfnd: HEAD=$(git rev-parse --short HEAD)"
 
 if (( SKIP_BUILD == 0 )); then
   echo "vps-roll-mfnd: building mfnd + mfn-cli (release)..."
+  # shellcheck source=/dev/null
+  source "$SCRIPT_DIR/lib-cargo-env.sh"
   cargo build -p mfn-node --release --bin mfnd
   cargo build -p mfn-cli --release --bin mfn-cli
 fi

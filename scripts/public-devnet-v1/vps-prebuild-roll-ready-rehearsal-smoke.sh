@@ -8,9 +8,11 @@ while [[ $# -gt 0 ]]; do
     *) echo "vps-prebuild-roll-ready-rehearsal-smoke: unknown $1" >&2; exit 1 ;;
   esac
 done
-for f in vps-prebuild-mfnd.sh assert-vps-roll-ready.sh; do
+for f in vps-prebuild-mfnd.sh assert-vps-roll-ready.sh lib-cargo-env.sh; do
   [[ -f "$SCRIPT_DIR/$f" ]] || { echo "missing $f" >&2; exit 1; }
 done
+grep -q 'lib-cargo-env' "$SCRIPT_DIR/vps-prebuild-mfnd.sh" || { echo "prebuild missing cargo env source" >&2; exit 1; }
+grep -q 'lib-cargo-env' "$SCRIPT_DIR/vps-roll-mfnd.sh" || { echo "roll missing cargo env source" >&2; exit 1; }
 grep -q 'never=systemctl' "$SCRIPT_DIR/vps-prebuild-mfnd.sh"
 grep -q 'B-62' "$SCRIPT_DIR/assert-vps-roll-ready.sh"
 plan="$(bash "$SCRIPT_DIR/vps-prebuild-mfnd.sh" --plan-only)"
