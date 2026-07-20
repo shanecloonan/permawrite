@@ -10,6 +10,7 @@ source "$SCRIPT_DIR/ports-env-lib.sh"
 RPC=""
 FAUCET_URL="http://127.0.0.1:8788"
 RECIPIENT_WALLET=""
+CHECKPOINT_LOG=""
 WAIT_MINED_SECONDS=300
 MIN_OWNED_COUNT=2
 NO_BUILD=0
@@ -23,6 +24,7 @@ Options:
   --rpc HOST:PORT             mfnd JSON-RPC for recipient balance polling (required outside --plan-only)
   --faucet-url URL            HTTP faucet base URL (default: http://127.0.0.1:8788)
   --recipient-wallet FILE     participant wallet with address to fund (required outside --plan-only)
+  --checkpoint-log FILE       signed checkpoint log for wallet light-scan (recommended on tall tips)
   --wait-mined-seconds N      wait for balance + owned_count floor (default: 300; 0 checks once)
   --min-owned-count N         F7 privacy floor (default: 2; 0 disables)
   --no-build                  use existing target/release/mfn-cli
@@ -35,6 +37,7 @@ while [[ $# -gt 0 ]]; do
     --rpc) RPC="${2:-}"; shift 2 ;;
     --faucet-url) FAUCET_URL="${2:-}"; shift 2 ;;
     --recipient-wallet) RECIPIENT_WALLET="${2:-}"; shift 2 ;;
+    --checkpoint-log) CHECKPOINT_LOG="${2:-}"; shift 2 ;;
     --wait-mined-seconds) WAIT_MINED_SECONDS="${2:-}"; shift 2 ;;
     --min-owned-count) MIN_OWNED_COUNT="${2:-}"; shift 2 ;;
     --no-build) NO_BUILD=1; shift ;;
@@ -55,6 +58,7 @@ if (( PLAN_ONLY )); then
   echo "  rpc=$plan_rpc"
   echo "  faucet_url=$FAUCET_URL"
   echo "  recipient_wallet=$plan_wallet"
+  echo "  checkpoint_log=${CHECKPOINT_LOG:-<none>}"
   echo "  wait_mined_seconds=$WAIT_MINED_SECONDS"
   echo "  min_owned_count=$MIN_OWNED_COUNT"
   echo "  flow=wallet address -> POST /faucet -> poll GET /faucet/job -> wallet light-scan -> wait balance + owned_count"
@@ -91,6 +95,15 @@ fi
 parse_kv() {
   local key="$1" text="$2"
   printf '%s\n' "$text" | tr -d '\r' | sed -n "s/^${key}=//p" | head -1
+}
+
+wallet_light_scan() {
+  if [[ -n "$CHECKPOINT_LOG" && -f "$CHECKPOINT_LOG" ]]; then
+    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan \
+      --checkpoint-log "$CHECKPOINT_LOG" >/dev/null 2>&1 || true
+  else
+    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
+  fi
 }
 
 health="$(curl -fsS "${FAUCET_URL%/}/health" 2>&1)" || {
@@ -211,7 +224,7 @@ last_scan=0
 while :; do
   now=$(date +%s)
   if (( now - last_scan >= 45 )); then
-    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
+    wallet_light_scan
     last_scan=$now
   fi
   st_out="$("$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet status 2>&1 || true)"

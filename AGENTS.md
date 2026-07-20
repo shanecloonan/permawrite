@@ -139,7 +139,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch after B-15 head CI GREEN | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence refresh after CI GREEN; **Hetzner:** `bash scripts/public-devnet-v1/vps-update-faucet.sh` | Board + encoding guards |
-| **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) + faucet F7 fix (`f2087ad`) | **B-15 Hetzner evidence run** (claim base: `f2087ad`) | B-16 privacy-doc sync → lane 5 | assert-join-testnet-rehearsal-evidence |
+| **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) + faucet F7 fix (`f2087ad`) | **B-15 Hetzner evidence run** (claim base: `f2087ad`; checkpoint-log + job re-claim fixes landing) | Archive `join-testnet-rehearsal-linux-*.txt` | assert-join-testnet-rehearsal-evidence |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | F5 phase 4b.2 recursive aggregation | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | *Idle* | Privacy-doc sync for live-testnet wallet UX (light-scan / faucet flows) | Lane 5 doc-accuracy duty |
 | **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | Parameter fork `1000` bps (TL-7 Path B) | Emission sims (M5 tier) |
@@ -153,6 +153,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
+| 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 evidence (in-memory jobs + faucet lock) | **Open** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 

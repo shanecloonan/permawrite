@@ -145,6 +145,7 @@ fund_args=(
   --rpc "$RPC"
   --faucet-url "$FAUCET_URL"
   --recipient-wallet "$UPLOADER_WALLET"
+  --checkpoint-log "$CHECKPOINT_LOG"
   --wait-mined-seconds "$WAIT_MINED_SECONDS"
   --min-owned-count 2
 )
