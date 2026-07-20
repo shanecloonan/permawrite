@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-72** support-bundle `--wallet` for B-45 challenge (Nightly `#29727713979` got fund-wallet PASS then support-bundle FAIL). Prior seed-isolation `23204cb` + CI `#29725270815` GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **B-73** fix-forward — B-71 persistable-peer filter broke `mfnd_p2p_reconnects_saved_peers_on_restart` (ubuntu `#29734331038` RED). Smoke test binds persistable ports; export `MIN_EPHEMERAL_PEER_PORT`. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-72** support-bundle challenge `--wallet` (this commit); B-29 seed-isolation `23204cb` | *Idle* — watch CI on this head | Re-dispatch **one** Nightly → close **B-29** on GREEN | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave22** (nina last_proven=4318; F90; claims recent=2) | **B-15** formal JOIN archive assert (claim base: `0233836`) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave23** (oscar last_proven=4337; ckpt max=4323; F91/F92) | **B-15** formal JOIN archive assert (claim base: e3cb07c) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | *Idle* | Live **B-32** multi-op evidence; then **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-70** tip-4323 ckpt; **B-71** persistable peers (`09ca8c4`) | *Idle* | **B-42** after B-15 PASS; mfnd re-roll after CI GREEN | `launch-go-no-go` |
+| **7** Testnet launch | **B-73** reconnect smoke + B-71 port band (this commit); **B-70/B-71** | *Idle* | **mfnd re-roll** after CI GREEN on this head; then **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -249,6 +249,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-69 | Produce-smoke `MFN_SKIP_MANIFEST_SEEDS` (B-29 CI complete) | 7+1 | **Done** — windows `#29728151679` red was public tip sync |
 | B-70 | Near-tip Path A checkpoint + peers-clean assert | 7 | **Landed** (`09ca8c4`) — tip **4307** + `assert-vps-peers-clean` |
 | B-71 | Persistable peer addr filter (load/save/register) | 4+7 | **Landed** (`09ca8c4`) — closes B-68 follow-up |
+| B-73 | B-71 CI fix: persistable listen ports in reconnect smoke | 7 | **Landed** (this commit) — ubuntu `#29734331038` RED |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -260,6 +261,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave23** (`e3cb07c`): ckpt max **4323** (entries=12); F45 hard FAIL lag~2; nina retrieve OK; nina->oscar peer#1 PASS / peer#2 **F91** RBF; oscar faucet+upload **last_proven=4337**; claims recent=4; **F92** get_block_headers {from_height,to_height}. Evidence wave23.md. *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
+1. **2026-07-20 — lane 7 — B-73 B-71 reconnect smoke fix** (this commit): `mfnd_p2p_reconnects_saved_peers_on_restart` used OS ephemeral `:0` ports (>=32768) which B-71 correctly refuses to persist -> missing `peers.json` on ubuntu CI `#29734331038`. `reserve_loopback_addr` now picks 19000..32767; export `MIN_EPHEMERAL_PEER_PORT`. Local release smoke PASS. Next: mfnd roll after CI GREEN (prebuild already has B-71 binary). *Observed (not staged):* lane-3 wave23 evidence temps, `user-wallet/`, `live-testnet-data*`, `_ci-ubuntu-fail.log`.
 1. **2026-07-20 — lane 1 — B-72 support-bundle B-45 wallet** (this commit): Nightly `#29727713979` fund-wallet+permanence PASS; failed `operator challenge` without `--wallet` (`payout wallet: os error 2`). Pass `--wallet` in support-bundle.sh/.ps1. Then re-dispatch Nightly for B-29. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
 2. **2026-07-20 - lane 7 - rustfmt + tip-4323** (`3073177`): fmt-fix B-67; Path A tip-**4323**. *Observed:* left support-bundle WIP unstaged.
 1. **2026-07-20 — lane 4 — board SYNC** (this commit): **B-67** on `f6273cb` (subject mislabeled); **B-71/B-70** on `09ca8c4` (lane-3 wave22 commit carried the peers filter + tip-4307). Watching **CI `#29733127733`**. Docs-only `[skip ci]`.
