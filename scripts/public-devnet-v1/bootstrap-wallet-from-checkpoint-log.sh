@@ -43,10 +43,11 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "bootstrap-wallet-from-checkpoint-log: plan"
-  echo "  unit=B-50/B-54"
+  echo "  unit=B-50/B-54/B-59"
   echo "  flow=log max tip -> get_light_snapshot(height) -> patch wallet -> light-scan --checkpoint-log"
   echo "  honesty=checkpoint-log alone does not bootstrap; see JOIN_TESTNET.md"
-  echo "  f67=pin BEFORE faucet fund — pin skips heights <= scan_height"
+  echo "  f45=soft-pass via light-scan-checkpoint-soft.sh when tip races past log max
+  f67=pin BEFORE faucet fund — pin skips heights <= scan_height"
   echo "  conflict=heavy snapshot may EAGAIN under faucet keepalive — retry"
   echo "bootstrap-wallet-from-checkpoint-log: PASS plan-only"
   exit 0
@@ -122,6 +123,6 @@ wallet_path.write_text(json.dumps(w, indent=2) + "\n", encoding="utf-8")
 print(f"bootstrap-wallet-from-checkpoint-log: pinned scan_height={tip}")
 PY
 
-"$MCLI" --rpc "$RPC" --wallet "$WALLET" wallet light-scan --checkpoint-log "$LOG"
+bash "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" --rpc "$RPC" --wallet "$WALLET" --log "$LOG"
 "$MCLI" --rpc "$RPC" --wallet "$WALLET" wallet status --json
 echo "bootstrap-wallet-from-checkpoint-log: OK"

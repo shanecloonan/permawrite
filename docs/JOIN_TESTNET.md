@@ -134,6 +134,8 @@ After an **upload**, if `wallet send` reports a weak-subjectivity tip mismatch (
 
 Operator shortcut (same F67 order baked in): `bash scripts/public-devnet-v1/fund-wallet-http.sh --rpc … --recipient-wallet … --checkpoint-log …`.
 
+**F45 tip race:** wallet light-scan --checkpoint-log requires a Schnorr attestation **at the current tip**. If the tip moved past the log max, use ash scripts/public-devnet-v1/light-scan-checkpoint-soft.sh (B-59) or re-pin after a fresh B-22 publish. Soft-pass does **not** skip Schnorr verify of the log.
+
 **Important (B-50):** `--checkpoint-log` only **cross-checks** the post-sync summary against the Schnorr log (**F12**). It does **not** skip genesis→tip by itself — use the pin helper above first.
 
 The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys. Tall-tip `get_light_snapshot` / `get_block_headers` use a longer proxy timeout (**B-52** / F54; default 180s via `PROXY_HEAVY_RPC_TIMEOUT_MS`). Prefer a local observer RPC for wallet bootstrap when possible.

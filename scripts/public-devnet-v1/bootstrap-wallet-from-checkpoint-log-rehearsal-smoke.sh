@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-needles=(bootstrap-wallet-from-checkpoint-log B-50 get_light_snapshot checkpoint-log honesty f67)
+needles=(bootstrap-wallet-from-checkpoint-log B-50 get_light_snapshot checkpoint-log honesty f67 f45)
+[[ -f "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" ]] || { echo "missing light-scan-checkpoint-soft.sh (B-59/F45)" >&2; exit 1; }
+grep -q f45-soft "$SCRIPT_DIR/light-scan-checkpoint-soft.sh" || { echo "missing f45-soft needle" >&2; exit 1; }
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" || { echo "missing needle $n" >&2; exit 1; }
 done
