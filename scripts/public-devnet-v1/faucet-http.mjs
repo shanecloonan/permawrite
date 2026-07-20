@@ -59,6 +59,8 @@ const jobs = new Map();
 let busy = false;
 /** Last successful wallet status — served by /health while a claim holds the lock. */
 let lastWalletStatus = null;
+/** True while keepalive/claim/status holds the wallet CLI lock (B-53). */
+let walletLockHeld = false;
 /** Serialize wallet scan/send so keepalive/health never races a claim. */
 let walletLock = Promise.resolve();
 
@@ -70,8 +72,15 @@ function withWalletLock(fn) {
   });
   return prev
     .catch(() => {})
-    .then(fn)
-    .finally(() => release());
+    .then(async () => {
+      walletLockHeld = true;
+      try {
+        return await fn();
+      } finally {
+        walletLockHeld = false;
+        release();
+      }
+    });
 }
 
 function isTransientCliError(err) {
@@ -347,16 +356,14 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/health" && req.method === "GET") {
     pruneJobs();
-    // Never spawn mfn-cli while a claim holds the wallet lock — concurrent CLI
-    // against hub RPC was the B-15 wave4/5 EAGAIN (os error 11) failure mode.
-    let wallet = lastWalletStatus;
-    const statusCached = busy;
-    if (!busy) {
-      try {
-        wallet = await withWalletLock(() => walletStatus());
-      } catch {
-        wallet = lastWalletStatus;
-      }
+    // B-53: never await the wallet lock on /health. Keepalive sync holds the
+    // lock for several seconds; awaiting made curl --max-time 5 time out and
+    // also serialized another mfn-cli onto hub (EAGAIN for light-snapshot).
+    // Serve lastWalletStatus immediately; refresh in background when free.
+    const wallet = lastWalletStatus;
+    const statusCached = busy || walletLockHeld || wallet == null;
+    if (!busy && !walletLockHeld) {
+      void withWalletLock(() => walletStatus()).catch(() => {});
     }
     json(res, 200, {
       ok: true,
@@ -377,6 +384,7 @@ const server = http.createServer(async (req, res) => {
       wallet_blocks_behind: wallet?.blocks_behind ?? null,
       wallet_sync_needed: wallet?.sync_needed ?? null,
       wallet_status_cached: statusCached,
+      wallet_lock_held: walletLockHeld,
     });
     return;
   }

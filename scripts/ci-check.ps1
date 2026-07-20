@@ -227,6 +227,11 @@ if ($bootCkptPlan -notmatch "bootstrap-wallet-from-checkpoint-log-rehearsal-smok
     $bootCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$blockLogHealthPlan = (bash scripts/public-devnet-v1/assert-vps-block-log-health-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($blockLogHealthPlan -notmatch "assert-vps-block-log-health-rehearsal-smoke: PASS plan-only") {
+    $blockLogHealthPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
