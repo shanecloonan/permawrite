@@ -165,6 +165,7 @@ bash "$SCRIPT_DIR/vps-soften-mfnd-requires.sh" || true
 
 # B-68: drop ephemeral source ports that B-51 still treats as durable once persisted.
 bash "$SCRIPT_DIR/scrub-vps-peers-json.sh" --apply
+bash "$SCRIPT_DIR/assert-vps-peers-clean.sh"
 
 echo "vps-roll-mfnd: restart voters first (avoid hub early-dial quarantine)"
 systemctl restart mfnd-v1.service mfnd-v2.service

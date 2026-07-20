@@ -17,7 +17,9 @@ use mfn_net::{
     OutboundP2pDial, P2pSessionHooks, ProductionHook, TipSnapshot,
 };
 use mfn_runtime::Chain;
-use mfn_store::{load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS};
+use mfn_store::{
+    is_persistable_peer_addr, load_peers_with_report, save_peers, DEFAULT_MAX_OUTBOUND_PEERS,
+};
 
 use crate::dandelion::{DandelionConfig, DandelionRelay, RelayAction};
 use crate::p2p_peer_quarantine::{
@@ -330,6 +332,12 @@ impl P2pPeerSet {
     /// Remember a peer after a successful handshake (inbound accept or outbound dial).
     pub fn register(&self, peer_addr: impl Into<String>) {
         let addr = peer_addr.into();
+        // B-71: advertise-on-0 / dynamic source ports must not become durable dial targets.
+        if !is_persistable_peer_addr(&addr) {
+            eprintln!("mfnd_p2p_peer_register_ephemeral_fallback peer={addr}");
+            self.register_ephemeral(addr);
+            return;
+        }
         self.note_peer_success(&addr);
         let changed = match (self.peers.lock(), self.durable_peers.lock()) {
             (Ok(mut peers), Ok(mut durable)) => {

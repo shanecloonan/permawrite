@@ -19,6 +19,9 @@ const PEERS_TEMP_FILE: &str = "peers.json.tmp";
 pub const DEFAULT_MAX_OUTBOUND_PEERS: u32 = 8;
 /// Hard cap for `peers.json`-controlled reconnect fan-out.
 pub const MAX_OUTBOUND_PEERS_LIMIT: u32 = 64;
+/// Ports at or above this are treated as non-durable (IANA dynamic / typical
+/// Linux `ip_local_port_range` floor). Listen addrs for committee/socat must stay below.
+pub const MIN_EPHEMERAL_PEER_PORT: u16 = 32768;
 
 const PEERS_FILE_VERSION: u8 = 1;
 
@@ -136,7 +139,11 @@ pub fn save_peers(
     let temp_path = peers_temp_path(root);
     remove_if_exists(&temp_path, "remove_stale_peers_temp")?;
 
-    let mut sorted: Vec<String> = peers.iter().cloned().collect();
+    let mut sorted: Vec<String> = peers
+        .iter()
+        .filter(|p| is_persistable_peer_addr(p))
+        .cloned()
+        .collect();
     sorted.sort();
     let file = PeersFileV1 {
         version: PEERS_FILE_VERSION,
@@ -166,12 +173,29 @@ pub fn remove_peers_file(root: &Path) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Whether `HOST:PORT` is safe to persist as a durable dial target (**B-71**).
+///
+/// Rejects unspecified (`0.0.0.0` / `::`), multicast, port 0, and dynamic ports
+/// (>= [`MIN_EPHEMERAL_PEER_PORT`]) so inbound NAT / advertise-on-0 pollution
+/// cannot re-enter `peers.json` after ops scrub.
+#[must_use]
+pub fn is_persistable_peer_addr(raw: &str) -> bool {
+    normalize_peer_addr(raw).is_some()
+}
+
 fn normalize_peer_addr(raw: &str) -> Option<String> {
     let s = raw.trim();
     if s.is_empty() {
         return None;
     }
-    s.parse::<SocketAddr>().ok().map(|a| a.to_string())
+    let addr: SocketAddr = s.parse().ok()?;
+    if addr.port() == 0 || addr.port() >= MIN_EPHEMERAL_PEER_PORT {
+        return None;
+    }
+    if addr.ip().is_unspecified() || addr.ip().is_multicast() {
+        return None;
+    }
+    Some(addr.to_string())
 }
 
 #[cfg(test)]
@@ -279,6 +303,25 @@ mod tests {
         let file: PeersFileV1 = serde_json::from_str(&raw).expect("parse peers");
 
         assert_eq!(file.max_outbound_peers, MAX_OUTBOUND_PEERS_LIMIT);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn b71_filters_unspecified_and_dynamic_ports_on_load() {
+        let dir = dir_for("b71_filter");
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        std::fs::write(
+            peers_path(&dir),
+            r#"{"version":1,"max_outbound_peers":8,"peers":["127.0.0.1:19101","0.0.0.0:55124","127.0.0.1:49614","5.161.201.73:19001"]}"#,
+        )
+        .expect("write peers");
+        let report = load_peers_with_report(&dir).expect("load");
+        assert_eq!(report.peers.len(), 2);
+        assert!(report.peers.contains("127.0.0.1:19101"));
+        assert!(report.peers.contains("5.161.201.73:19001"));
+        assert!(!is_persistable_peer_addr("0.0.0.0:19001"));
+        assert!(!is_persistable_peer_addr("127.0.0.1:49614"));
+        assert!(is_persistable_peer_addr("127.0.0.1:19101"));
         std::fs::remove_dir_all(&dir).ok();
     }
 }
