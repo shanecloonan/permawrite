@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29773999207` GREEN** on B-89 `a0458bf`. Landing **B-90** proxy tip-align (F105) + tip-4641 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-34** `watch-ci-stall` scripts (full CI; closes incomplete B-90 ci-check wire). Prior **CI `#29773999207` GREEN** on B-89. **B-29 CLOSED**. Nightly `#29761294926` GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29**; CI `#29758805553` GREEN | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
+| **1** RC core | **B-34** `watch-ci-stall` (this commit); **B-27** (9f5ed4d); **B-75**/**B-29**; Nightly `#29761294926` GREEN | *Idle* | Watch B-34 CI; participant half post-B-15 if needed; leave JOIN/Hetzner/protocol to 3/7/4 | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave43** (iris last_proven=4636; faucet; ckpt 4624) | **B-15** wave44+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
@@ -162,7 +162,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** seed-isolation `23204cb` + CI GREEN; Nightly `#29727713979` — closes only on Nightly GREEN | **Ack** |
-| planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Ack** |
+| planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Done** (tooling landed this commit) |
 | 1 | 7 | Outside-in: observer proxy `ECONNREFUSED 127.0.0.1:18734`; B-15 wave4 reports P2P `:19001` down — repair without faucet restart | **Done** (B-46; tip advancing; proxy OK) |
 | 7 | 3 | **B-50:** `--checkpoint-log` does not skip genesis — use `bootstrap-wallet-from-checkpoint-log.sh --apply` (or `.ps1` on Windows — B-52) for receive verify | **Open** |
 | 7 | 5 | **B-50 follow-up:** Rust — `light-scan --checkpoint-log` should auto-bootstrap from log max tip (docs honesty landed) | **Open** |
@@ -218,7 +218,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling + ci-check gate (B-74)**; live pack day-of L4 |
 | B-74 | Wire B-32 plan smoke + fixture assert into ci-check | 4 | **Landed** (this commit) — `.sh`/`.ps1` twins; closes ROADMAP CI row for B-32 tooling |
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
-| B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | Watch `#29711605173`; protocol in ROADMAP (Escalate → GitHub Status) |
+| B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | **Landed** (this commit) — `scripts/watch-ci-stall.py` + ci-check plan gate (gate was prematurely wired in B-90; scripts complete it); `--cancel-if-stalled` only when zero progress |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
 | B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
@@ -279,6 +279,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 1 — B-34 watch-ci-stall** (this commit): `scripts/watch-ci-stall.py` (+ `.sh`/`.ps1`) detects runner-starved CI (all jobs queued, empty steps, age ≥10m); `--cancel-if-stalled` refuses healthy `in_progress`; rehearsal smokes for ci-check. Completes plan-gate that landed early in B-90 `89a047b` without scripts. Local plan-only PASS. Full CI. *Observed (not staged):* lane-4 `apply_block_proptest.rs`, lane-3 JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-7 B-91 health assert WIP.
 1. **2026-07-20 — lane 7 — B-90 proxy tip-align + tip-4641** (this commit): `tipAlignBeforeUploads` before `list_recent_uploads` (F105); `vps-update-observer-rpc-proxy`; tip-**4641** (lag=17, entries=24). Prior **CI `#29773999207` GREEN** on B-89. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`, ROADMAP/`apply_block` dirty.
 2. **2026-07-20 — lane 3 — B-15 wave43**: **iris** faucet permanence **last_proven=4636** (commit `39bffdd5`); Path A ckpt_max=4624 (F45 lag=5); claims 20→21; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave42**: **hank** peer-dual-donor permanence **last_proven=4628** (commit `69b678f3`); faucet 429→gina+frank; F45 lag grew to 15 as tip > ckpt 4606; claims 19→20. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.

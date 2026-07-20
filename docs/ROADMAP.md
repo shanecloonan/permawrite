@@ -99,7 +99,7 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | **B-16** | Privacy-doc sync: light-scan checkpoints, faucet flow, live wallet UX | 5 | ✓ **Shipped** — JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match F7 dual-send + light-scan + checkpoint-log |
 | **R-1–R-4** | Faucet/observer ops fix-forward (F7 dual-send, rate limits, UTF-8, job reclaim) | 2 | Landed on `main`; **VPS deploy** via `vps-update-faucet.sh` still ops |
 | **L1 refresh** | Green CI + Nightly + `release-evidence` on B-15 / B-29 head | 1+2 | B-34: `#29711500087` on `76d4f04` → current **`#29711605173` queued** on `e10a8b3` (B-29 inclusive) |
-| **B-34** | CI queue/stall watch — cancel/re-dispatch if `queued` with no jobs ~15m+ | 1 | Prevents silent L4 blockers; see protocol below |
+| **B-34** | CI queue/stall watch — cancel/re-dispatch if `queued` with no jobs ~15m+ | 1 | Tooling: scripts/watch-ci-stall.py (+ ci-check plan gate); see protocol below |
 | **B-41** | Repair public P2P binds (`0.0.0.0:1900x`) on Hetzner | 7+2 | Unblocks outside-in JOIN; B-31 P2P FAIL; renumbered from provisional B-40 |
 | **Ops** | Role-separated VPS templates exercised on internet ([`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)) | 7 | PM23 hard-fail templates shipped; multi-host rehearsal human |
 | **B-22** | Verify TL-8 checkpoint log publish (`publish-checkpoint-log.sh --apply` on VPS) matches repo + JOIN cross-check | 7 | Repo log exists; [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) lists VPS publish as remaining TL-8 ops |
@@ -181,6 +181,7 @@ GitHub Actions can leave a `main` CI run `queued` with jobs that never get runne
 | **Do not** | Cancel a healthy `in_progress` matrix that has running steps |
 | **Rust rule** | Still: do not push Rust while a healthy matrix is running |
 | **Record** | Cancelled + successor run IDs in §8 |
+| **Tooling** | scripts/watch-ci-stall.py (+ .sh/.ps1 wrappers) + watch-ci-stall-rehearsal-smoke.* in ci-check; --cancel-if-stalled only when zero progress |
 | **Escalate** | If two successive restarts stay runner-starved (all jobs queued, empty steps), check [GitHub Status](https://www.githubstatus.com/) before a third cancel/re-dispatch |
 
 #### B-27 work package — fresh soak/participant on invite head
