@@ -21,6 +21,7 @@ mfn-net = { path = "../mfn-net" }
 mfn-crypto = { path = "../mfn-crypto" }
 mfn-storage = { path = "../mfn-storage" }
 
+curve25519-dalek = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 

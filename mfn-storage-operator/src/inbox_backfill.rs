@@ -141,6 +141,9 @@ mod tests {
             next_slot: 2,
             prev_block_id: "00".repeat(32),
             chunk_index: 0,
+            operator_salted: false,
+            operator_keys_required: false,
+            operator_identity: None,
         }
     }
 

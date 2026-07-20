@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-41** voter remap + **B-42** plan script) on 384cd76/B-32/B-36. **CI #29712149048** still lane-1 owned (Actions outage) — this land [skip ci]. Lane 3 wave2 evidence on board. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = this commit (**B-45** B3 salted multi-op operator path). Prior tip `0efb23f` (B-41/B-42). Actions still **partial_outage**; stalled `#29712149048` may cancel on this Rust push — lane 1 re-dispatch on recovery. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | B-34 escalate + dispatch `#29712149048` (`27be00d`) | **Watch Actions outage** + `#29712149048` (claim base: `7420aa6`) | On recovery: `gh workflow run CI` on tip; Nightly -> close B-29 | githubstatus + CI/Nightly |
+| **1** RC core | B-34 escalate + dispatch `#29712149048` (`27be00d`) | **Watch Actions outage** (claim base: `7420aa6`) | On recovery: `gh workflow run CI` on tip; Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
-| **4** Protocol | **B-32** multi-op evidence assert tooling (this commit); **B-36** `7420aa6` | *Idle* | Live B-32 capture day-of L4 with lane 7; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
+| **4** Protocol | **B-45** B3 salted challenge/prove/pool multi-op (this commit); **B-32** tooling `711d98b`; **B-36** | *Idle* | After CI GREEN: lane 7 rolls mfnd; live **B-32** day-of L4; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-41** fix-forward (all seeds :1910x+socat) + B-22/B-30/B-31 (this commit) | *Idle* | **B-42** live invite-load after B-15 PASS (plan script landed); TL-9; later **B-43** | launch-go-no-go |
+| **7** Testnet launch | **B-41** + **B-42** plan (`0efb23f`) | *Idle* | Roll mfnd for **B-45** (no faucet restart); **B-42** live after B-15; TL-9 | `launch-go-no-go` |
 
 ---
 
@@ -154,7 +154,8 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
-| 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **B-41 mfnd P2P bind repair is explicitly allowed** — wave1 outside-in HTTP evidence is landed; full JOIN cannot proceed until seeds accept dials. | **Open** |
+| 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **B-41 mfnd P2P bind repair is explicitly allowed**; **B-45 mfnd binary roll** (voters/hub only, no faucet) after CI GREEN is allowed. | **Open** |
+| 4 | 7 | **B-45:** after CI GREEN, roll `mfnd` on Hetzner voters/hub so salted SPoRA admit works; do **not** touch `faucet-http` | **Open** |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
@@ -210,6 +211,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | Phase 4 / before L5; [work package](docs/ROADMAP.md#b-43--path-b-genesis-freeze-inventory-lane-7--before-l5) |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
+| B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
 
 ---
 
@@ -217,10 +219,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-41 voter remap + B-42 plan script** (this commit): Socat same-port conflict broke :19002–19003; remap mfnd to :1910x + dedicated forwards. Live tip~4031; EXT 19001–19003 OPEN; voters RPC UP. Lands invite-load-smoke-rehearsal.sh (ci-check wires already on 711d98b). Faucet not restarted. [skip ci] (lane 1 owns #29712149048). Evidence 41-p2p-forward-20260720-voters.md. *Observed local work (not staged):* user-wallet/, ci-docs-*.txt, live-testnet-data/.
-2. **2026-07-20 - lane 4 - B-32 multi-op evidence assert tooling** (this commit): `assert-b3-multi-op-evidence.{sh,ps1}`, `b3-multi-op-evidence-rehearsal-smoke.sh --plan-only`, fixture + ci-check gates; ROADMAP work package names scripts. Live evidence still day-of L4 (lane 7 ops). `[skip ci]` (Actions partial_outage). Did **not** touch Hetzner/B-15 faucet lock. *Observed local work (not staged):* `OPERATORS.md`, `repair-vps-p2p-binds*`, `invite-load-*`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
-2. **2026-07-20 - lane 4 - B-36 F10 consensus f64 CI lint** (this commit): Add `validate-consensus-f64-lint.{py,sh,ps1}` referenced by `54d22d7` ci-check but previously missing; fail-closed on f64 multiply/round/`as f64` outside cfg(test). Restores AGENTS section-0 contract (session-log lines had overwritten the five hard rules). `[skip ci]` per B-34 Actions partial_outage. Did **not** touch Hetzner. *Observed local work (not staged):* wave2 evidence, repair scripts, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
-4. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
+1. **2026-07-20 — lane 4 — B-45 B3 salted multi-op operator path** (this commit): ProofPool keys `(commit, operator_id)` + salted verify when genesis flag set; `get_storage_challenge` accepts payout pubs; CLI/daemon build salted proofs; producer settlements via `storage_proof_operator_settlements`. Unblocks live **B-32**. Local: `cargo test -p mfn-runtime proof_pool` + `cargo check` green. Did **not** restart faucet. §6 asks lane 7 for mfnd roll after CI. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
+2. **2026-07-20 — lane 7 — B-41 voter remap + B-42 plan script** (`0efb23f`): Socat same-port conflict broke :19002–19003; remap mfnd to :1910x + dedicated forwards. Live tip~4031; EXT 19001–19003 OPEN. [skip ci].
+3. **2026-07-20 - lane 4 - B-32 multi-op evidence assert tooling** (`711d98b`): assert scripts + ci-check plan gate. Live evidence still day-of L4.
+4. **2026-07-20 - lane 4 - B-36 F10 consensus f64 CI lint** (`7420aa6`): f64 lint scripts + AGENTS §0 restore. `[skip ci]`.
+5. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
 5. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
 6. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.
 7. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.

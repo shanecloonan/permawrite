@@ -453,6 +453,9 @@ fn storage_challenge_for_operator(
         next_slot: ch.next_slot,
         prev_block_id: ch.prev_block_id.clone(),
         chunk_index: ch.chunk_index,
+        operator_salted: ch.operator_salted,
+        operator_keys_required: ch.operator_keys_required,
+        operator_identity: ch.operator_identity.clone(),
     }
 }
 

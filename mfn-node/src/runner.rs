@@ -185,28 +185,12 @@ impl ProductionEngine {
             .unwrap_or_else(|| *chain.genesis_id());
         let storage_proofs = proof_pool.drain_verified(chain.state(), &prev, height);
         let st = chain.state();
-        let storage_bonus_pairs: Vec<(mfn_storage::StorageProof, u128)> = storage_proofs
-            .iter()
-            .map(|proof| {
-                let bonus = st
-                    .storage
-                    .get(&proof.commit_hash)
-                    .map(|entry| {
-                        mfn_storage::accrue_proof_reward(mfn_storage::AccrueArgs {
-                            size_bytes: entry.commit.size_bytes,
-                            replication: entry.commit.replication,
-                            pending_ppb: entry.pending_yield_ppb,
-                            last_proven_slot: entry.last_proven_slot,
-                            current_slot: u64::from(height),
-                            params: &st.endowment_params,
-                        })
-                        .map(|a| a.payout)
-                        .unwrap_or(0)
-                    })
-                    .unwrap_or(0);
-                (proof.clone(), bonus)
-            })
-            .collect();
+        let storage_bonus_pairs = mfn_consensus::storage_proof_operator_settlements(
+            &storage_proofs,
+            &st.storage,
+            height,
+            &st.endowment_params,
+        );
         let payout = self
             .local
             .validator
@@ -357,8 +341,7 @@ impl ProductionEngine {
             let _ = pool.remove_mined(&block);
         }
         if let Ok(mut proof_pool) = self.proof_pool.lock() {
-            let mined: Vec<[u8; 32]> = block.storage_proofs.iter().map(|p| p.commit_hash).collect();
-            let _ = proof_pool.remove_mined(mined);
+            let _ = proof_pool.remove_mined(&block.storage_proofs);
             if let Err(e) = save_proof_pool(self.store.as_ref(), &proof_pool) {
                 eprintln!("mfnd_proof_pool_save_abort {e}");
             }

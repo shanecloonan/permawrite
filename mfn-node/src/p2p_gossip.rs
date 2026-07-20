@@ -243,9 +243,7 @@ impl GossipHandler for P2pGossipHandler {
                     let _ = pool.remove_mined(&block);
                 }
                 if let Ok(mut proof_pool) = self.proof_pool.lock() {
-                    let mined: Vec<[u8; 32]> =
-                        block.storage_proofs.iter().map(|p| p.commit_hash).collect();
-                    let _ = proof_pool.remove_mined(mined);
+                    let _ = proof_pool.remove_mined(&block.storage_proofs);
                 }
                 self.refresh_tip_cell(&chain);
                 if let Some(ps) = &self.peers {

@@ -20,7 +20,10 @@ use mfn_net::LightFollowV1;
 use serde_json::{json, Map, Value};
 
 use mfn_runtime::{mempool_root, AdmitOutcome, Chain, Mempool, ProofAdmitOutcome, ProofPool};
-use mfn_storage::{chunk_index_for_challenge, decode_storage_proof, encode_storage_commitment};
+use mfn_storage::{
+    chunk_index_for_challenge, chunk_index_for_operator_challenge, decode_storage_proof,
+    encode_storage_commitment, operator_identity_from_payout, operator_payout_is_valid,
+};
 use mfn_store::ChainPersistence;
 
 const JSONRPC_VERSION: &str = "2.0";
@@ -972,11 +975,22 @@ fn dispatch_serve_methods(
                 .into_iter()
                 .map(|id| hex32(&id))
                 .collect();
+            let entries: Vec<Value> = proof_pool
+                .entry_keys()
+                .into_iter()
+                .map(|(commit, op)| {
+                    json!({
+                        "commit_hash": hex32(&commit),
+                        "operator_id": hex32(&op),
+                    })
+                })
+                .collect();
             rpc_success(
                 id,
                 json!({
                     "pool_len": proof_pool.len(),
                     "commit_hashes": ids,
+                    "entries": entries,
                 }),
             )
         }
@@ -1002,10 +1016,11 @@ fn dispatch_serve_methods(
             )
         }
         "get_storage_challenge" => {
-            let commit_hash = match extract_commitment_hash_param(req.get("params")) {
-                Ok(h) => h,
+            let ch_params = match extract_storage_challenge_params(req.get("params")) {
+                Ok(p) => p,
                 Err(msg) => return rpc_error(id, rpc_codes::INVALID_PARAMS, msg),
             };
+            let commit_hash = ch_params.commit_hash;
             let entry = match chain.state().storage.get(&commit_hash) {
                 Some(e) => e,
                 None => {
@@ -1017,24 +1032,73 @@ fn dispatch_serve_methods(
                 }
             };
             let (prev, next_h) = next_block_context(chain);
-            let idx =
-                chunk_index_for_challenge(&prev, next_h, &commit_hash, entry.commit.num_chunks);
-            rpc_success(
-                id,
-                json!({
-                    "commitment_hash": hex32(&commit_hash),
-                    "commitment_wire_hex": hex::encode(encode_storage_commitment(&entry.commit)),
-                    "data_root": hex32(&entry.commit.data_root),
-                    "size_bytes": entry.commit.size_bytes,
-                    "replication": entry.commit.replication,
-                    "num_chunks": entry.commit.num_chunks,
-                    "chunk_size": entry.commit.chunk_size,
-                    "next_height": next_h,
-                    "next_slot": next_h,
-                    "prev_block_id": hex32(&prev),
-                    "chunk_index": idx,
-                }),
-            )
+            let salted = chain.state().endowment_params.operator_salted_challenges != 0;
+            // B-45: with payout pubs → operator-salted index (required for prove).
+            // Without pubs on a salted chain → return commitment metadata + unsalted
+            // index and `operator_keys_required=true` so backfill/inbox keep working.
+            let (idx, operator_identity, operator_keys_required) = if salted {
+                match (ch_params.operator_view_pub, ch_params.operator_spend_pub) {
+                    (Some(view), Some(spend)) => {
+                        if !operator_payout_is_valid(&view, &spend) {
+                            return rpc_error(
+                                id,
+                                rpc_codes::INVALID_PARAMS,
+                                "invalid operator payout keys",
+                            );
+                        }
+                        let op_id = operator_identity_from_payout(&view, &spend);
+                        let idx = chunk_index_for_operator_challenge(
+                            &prev,
+                            next_h,
+                            &commit_hash,
+                            &op_id,
+                            entry.commit.num_chunks,
+                        );
+                        (idx, Some(op_id), false)
+                    }
+                    (None, None) => {
+                        let idx = chunk_index_for_challenge(
+                            &prev,
+                            next_h,
+                            &commit_hash,
+                            entry.commit.num_chunks,
+                        );
+                        (idx, None, true)
+                    }
+                    _ => {
+                        return rpc_error(
+                            id,
+                            rpc_codes::INVALID_PARAMS,
+                            "params.view_pub_hex and params.spend_pub_hex must both be set or both omitted",
+                        );
+                    }
+                }
+            } else {
+                let idx =
+                    chunk_index_for_challenge(&prev, next_h, &commit_hash, entry.commit.num_chunks);
+                (idx, None, false)
+            };
+            let mut body = json!({
+                "commitment_hash": hex32(&commit_hash),
+                "commitment_wire_hex": hex::encode(encode_storage_commitment(&entry.commit)),
+                "data_root": hex32(&entry.commit.data_root),
+                "size_bytes": entry.commit.size_bytes,
+                "replication": entry.commit.replication,
+                "num_chunks": entry.commit.num_chunks,
+                "chunk_size": entry.commit.chunk_size,
+                "next_height": next_h,
+                "next_slot": next_h,
+                "prev_block_id": hex32(&prev),
+                "chunk_index": idx,
+                "operator_salted": salted,
+                "operator_keys_required": operator_keys_required,
+            });
+            if let Some(op_id) = operator_identity {
+                if let Some(obj) = body.as_object_mut() {
+                    obj.insert("operator_identity".into(), json!(hex32(&op_id)));
+                }
+            }
+            rpc_success(id, body)
         }
         "get_block" => {
             let height = match extract_height_param(req.get("params")) {

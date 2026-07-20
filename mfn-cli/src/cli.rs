@@ -179,7 +179,15 @@ pub fn run_cli(args: impl IntoIterator<Item = String>) -> Result<(), CliError> {
             OperatorSub::Challenge {
                 commitment_hash_hex,
                 params,
-            } => operator_challenge(&mut client, &commitment_hash_hex, params)?,
+            } => {
+                let payout = resolve_wallet_path(global_wallet_path.as_deref());
+                operator_challenge(
+                    &mut client,
+                    &commitment_hash_hex,
+                    Some(payout.as_path()),
+                    params,
+                )?
+            }
             OperatorSub::Prove {
                 commitment_hash_hex,
                 data_path,

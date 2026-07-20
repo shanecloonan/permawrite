@@ -204,9 +204,22 @@ Security ops before invites (Phase 0). Does **not** block **B-13a**. Concrete ch
 | **DoS residual** | Named owner + halt path (B-30) covers faucet/RPC abuse; note residual in OPERATORS |
 | **Evidence** | Short verify note in evidence/ or OPERATORS checkbox dated + SHA |
 
+#### B-45 — B3 operator-salted end-to-end path (lane 4)
+
+Public genesis has `operator_salted_challenges = 1`, but challenge/prove/pool previously used unsalted indices and one-proof-per-commit pooling — so multi-op SPoRA could not honestly land. **B-45** closes that gap:
+
+| Surface | Change |
+|---|---|
+| `ProofPool` | Key `(commit_hash, operator_id)`; admit/drain use salted verify when flag set |
+| `get_storage_challenge` | Optional `view_pub_hex` / `spend_pub_hex` → operator-salted `chunk_index` |
+| CLI / `mfn-storage-operator` | Build `build_storage_proof_operator_salted` when challenge reports salted |
+| Producer | `storage_proof_operator_settlements` for B3 coinbase bonuses |
+
+**Ops:** roll `mfnd` on Hetzner (lane 7) after CI GREEN; do not restart faucet during B-15. Unblocks honest **B-32** live capture.
+
 #### B-32 work package — multi-op evidence (arm day-of L4)
 
-Permanence-critical. Do not claim **B-24** without this.
+Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for salted genesis.
 
 | Step | Detail |
 |---|---|

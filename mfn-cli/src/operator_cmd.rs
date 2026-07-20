@@ -4,8 +4,8 @@ use std::path::Path;
 
 use mfn_net::ChainTipV1;
 use mfn_storage::{
-    build_storage_proof, chunk_data, decode_storage_commitment, merkle_tree_from_chunks,
-    storage_commitment_hash,
+    build_storage_proof, build_storage_proof_operator_salted, chunk_data,
+    decode_storage_commitment, merkle_tree_from_chunks, storage_commitment_hash,
 };
 use mfn_storage_operator::{
     backfill_upload_artifact_from_challenge, backfill_upload_artifact_from_inbox, fetch_chunk_http,
@@ -60,12 +60,16 @@ pub enum OperatorCmdError {
 }
 
 /// Preview the next-block SPoRA challenge for a commitment.
+///
+/// On B3 (`operator_salted_challenges`) chains, pass `payout_wallet_path` so the
+/// challenge index is salted to the operator's payout keys (**B-45**).
 pub fn operator_challenge(
     client: &mut RpcClient,
     commitment_hash_hex: &str,
+    payout_wallet_path: Option<&Path>,
     params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
-    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let ch = fetch_challenge(client, commitment_hash_hex, payout_wallet_path)?;
     if params.json {
         print_pretty_json(&storage_challenge_json(&ch))?;
         return Ok(());
@@ -80,6 +84,10 @@ pub fn operator_challenge(
     println!("next_slot={}", ch.next_slot);
     println!("prev_block_id={}", ch.prev_block_id);
     println!("chunk_index={}", ch.chunk_index);
+    println!("operator_salted={}", ch.operator_salted);
+    if let Some(id) = &ch.operator_identity {
+        println!("operator_identity={id}");
+    }
     Ok(())
 }
 
@@ -93,8 +101,6 @@ pub fn operator_prove(
     payout_wallet_path: &Path,
     params: OperatorJsonParams,
 ) -> Result<(), OperatorCmdError> {
-    let ch = client.get_storage_challenge(commitment_hash_hex)?;
-    let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
     let payout_wallet = WalletFile::load(payout_wallet_path)
         .map_err(|e| OperatorCmdError::Usage(format!("payout wallet: {e}")))?;
     let payout_keys = payout_wallet
@@ -102,6 +108,8 @@ pub fn operator_prove(
         .map_err(|e| OperatorCmdError::Usage(format!("payout wallet keys: {e}")))?;
     let operator_view_pub = payout_keys.keys().view_pub();
     let operator_spend_pub = payout_keys.keys().spend_pub();
+    let ch = fetch_challenge(client, commitment_hash_hex, Some(payout_wallet_path))?;
+    let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
 
     let (data, tree, payload_source, artifact_source) = match (data_path, wallet_path) {
         (Some(path), _) => {
@@ -172,16 +180,35 @@ pub fn operator_prove(
     )
     .map_err(|e| OperatorCmdError::Usage(format!("decode_storage_commitment: {e}")))?;
     let prev = parse_hex32(&ch.prev_block_id)?;
-    let proof = build_storage_proof(
-        &commit,
-        &prev,
-        ch.next_slot,
-        &data,
-        &tree,
-        operator_view_pub,
-        operator_spend_pub,
-    )
-    .map_err(|e| OperatorCmdError::Usage(format!("build_storage_proof: {e}")))?;
+    if ch.operator_salted && ch.operator_keys_required {
+        return Err(OperatorCmdError::Usage(
+            "operator_salted_challenges requires payout wallet pubs on get_storage_challenge (B-45)"
+                .into(),
+        ));
+    }
+    let proof = if ch.operator_salted {
+        build_storage_proof_operator_salted(
+            &commit,
+            &prev,
+            ch.next_slot,
+            &data,
+            &tree,
+            operator_view_pub,
+            operator_spend_pub,
+        )
+        .map_err(|e| OperatorCmdError::Usage(format!("build_storage_proof_operator_salted: {e}")))?
+    } else {
+        build_storage_proof(
+            &commit,
+            &prev,
+            ch.next_slot,
+            &data,
+            &tree,
+            operator_view_pub,
+            operator_spend_pub,
+        )
+        .map_err(|e| OperatorCmdError::Usage(format!("build_storage_proof: {e}")))?
+    };
     if proof.proof.index as u32 != ch.chunk_index {
         return Err(OperatorCmdError::Usage(format!(
             "built proof chunk index {} != challenge {}",
@@ -207,6 +234,32 @@ pub fn operator_prove(
         println!("artifact_source_path={src}");
     }
     Ok(())
+}
+
+fn fetch_challenge(
+    client: &mut RpcClient,
+    commitment_hash_hex: &str,
+    payout_wallet_path: Option<&Path>,
+) -> Result<crate::rpc::StorageChallenge, OperatorCmdError> {
+    let (view_hex, spend_hex) = if let Some(path) = payout_wallet_path {
+        let payout_wallet = WalletFile::load(path)
+            .map_err(|e| OperatorCmdError::Usage(format!("payout wallet: {e}")))?;
+        let payout_keys = payout_wallet
+            .to_wallet()
+            .map_err(|e| OperatorCmdError::Usage(format!("payout wallet keys: {e}")))?;
+        let view = hex::encode(payout_keys.keys().view_pub().compress().to_bytes());
+        let spend = hex::encode(payout_keys.keys().spend_pub().compress().to_bytes());
+        (Some(view), Some(spend))
+    } else {
+        (None, None)
+    };
+    client
+        .get_storage_challenge_for_operator(
+            commitment_hash_hex,
+            view_hex.as_deref(),
+            spend_hex.as_deref(),
+        )
+        .map_err(OperatorCmdError::from)
 }
 
 fn commit_data_root_from_challenge(
@@ -573,6 +626,9 @@ fn storage_challenge_json(ch: &crate::rpc::StorageChallenge) -> serde_json::Valu
         "next_slot": ch.next_slot,
         "prev_block_id": &ch.prev_block_id,
         "chunk_index": ch.chunk_index,
+        "operator_salted": ch.operator_salted,
+        "operator_keys_required": ch.operator_keys_required,
+        "operator_identity": &ch.operator_identity,
     })
 }
 
@@ -646,6 +702,9 @@ fn storage_challenge_for_operator(
         next_slot: ch.next_slot,
         prev_block_id: ch.prev_block_id.clone(),
         chunk_index: ch.chunk_index,
+        operator_salted: ch.operator_salted,
+        operator_keys_required: ch.operator_keys_required,
+        operator_identity: ch.operator_identity.clone(),
     }
 }
 
@@ -687,6 +746,9 @@ mod tests {
             next_slot: 2,
             prev_block_id: "33".repeat(32),
             chunk_index: 1,
+            operator_salted: true,
+            operator_keys_required: false,
+            operator_identity: Some("44".repeat(32)),
         };
 
         let value = storage_challenge_json(&challenge);
@@ -726,6 +788,9 @@ mod tests {
             next_slot: 2,
             prev_block_id: "33".repeat(32),
             chunk_index: 1,
+            operator_salted: false,
+            operator_keys_required: false,
+            operator_identity: None,
         };
         let submit = crate::rpc::SubmitStorageProofResult {
             commit_hash: "11".repeat(32),

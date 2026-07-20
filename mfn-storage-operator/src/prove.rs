@@ -5,8 +5,8 @@ use std::path::Path;
 use curve25519_dalek::edwards::EdwardsPoint;
 use mfn_crypto::merkle::MerkleTree;
 use mfn_storage::{
-    build_storage_proof, chunk_data, decode_storage_commitment, merkle_tree_from_chunks,
-    storage_commitment_hash,
+    build_storage_proof, build_storage_proof_operator_salted, chunk_data,
+    decode_storage_commitment, merkle_tree_from_chunks, storage_commitment_hash,
 };
 use mfn_wallet::wallet_from_seed;
 use serde::Deserialize;
@@ -41,7 +41,7 @@ pub fn prove_from_file(
     data_path: &Path,
     payout_wallet_path: &Path,
 ) -> Result<ProveSuccess, ProveError> {
-    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let ch = fetch_challenge_for_payout(client, commitment_hash_hex, payout_wallet_path)?;
     let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
     let commit = decode_storage_commitment(
         &hex::decode(&ch.commitment_wire_hex)
@@ -78,7 +78,7 @@ pub fn prove_from_wallet_artifact(
     wallet_path: &Path,
     commitment_hash_hex: &str,
 ) -> Result<ProveSuccess, ProveError> {
-    let ch = client.get_storage_challenge(commitment_hash_hex)?;
+    let ch = fetch_challenge_for_payout(client, commitment_hash_hex, wallet_path)?;
     let on_chain_hash = parse_hex32(&ch.commitment_hash)?;
     let loaded = load_upload_artifact(wallet_path, commitment_hash_hex)
         .map_err(|e| ProveError::Usage(format!("upload artifact: {e}")))?;
@@ -118,6 +118,19 @@ fn validate_loaded_artifact(
     Ok(())
 }
 
+fn fetch_challenge_for_payout(
+    client: &mut RpcClient,
+    commitment_hash_hex: &str,
+    payout_wallet_path: &Path,
+) -> Result<StorageChallenge, ProveError> {
+    let (view, spend) = operator_payout_keys_from_wallet(payout_wallet_path)?;
+    let view_hex = hex::encode(view.compress().to_bytes());
+    let spend_hex = hex::encode(spend.compress().to_bytes());
+    client
+        .get_storage_challenge_for_operator(commitment_hash_hex, Some(&view_hex), Some(&spend_hex))
+        .map_err(ProveError::from)
+}
+
 fn prove_with_parts(
     client: &mut RpcClient,
     ch: &StorageChallenge,
@@ -130,16 +143,35 @@ fn prove_with_parts(
     let (operator_view_pub, operator_spend_pub) =
         operator_payout_keys_from_wallet(payout_wallet_path)?;
     let prev = parse_hex32(&ch.prev_block_id)?;
-    let proof = build_storage_proof(
-        commit,
-        &prev,
-        ch.next_slot,
-        data,
-        tree,
-        operator_view_pub,
-        operator_spend_pub,
-    )
-    .map_err(|e| ProveError::Usage(format!("build_storage_proof: {e}")))?;
+    if ch.operator_salted && ch.operator_keys_required {
+        return Err(ProveError::Usage(
+            "operator_salted_challenges requires payout pubs on get_storage_challenge (B-45)"
+                .into(),
+        ));
+    }
+    let proof = if ch.operator_salted {
+        build_storage_proof_operator_salted(
+            commit,
+            &prev,
+            ch.next_slot,
+            data,
+            tree,
+            operator_view_pub,
+            operator_spend_pub,
+        )
+        .map_err(|e| ProveError::Usage(format!("build_storage_proof_operator_salted: {e}")))?
+    } else {
+        build_storage_proof(
+            commit,
+            &prev,
+            ch.next_slot,
+            data,
+            tree,
+            operator_view_pub,
+            operator_spend_pub,
+        )
+        .map_err(|e| ProveError::Usage(format!("build_storage_proof: {e}")))?
+    };
     if proof.proof.index as u32 != ch.chunk_index {
         return Err(ProveError::Usage(format!(
             "built proof chunk index {} != challenge {}",

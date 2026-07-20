@@ -32,26 +32,75 @@ pub(super) fn extract_submit_proof_hex(params: Option<&Value>) -> Result<&str, S
     }
 }
 
-pub(super) fn extract_commitment_hash_param(params: Option<&Value>) -> Result<[u8; 32], String> {
+/// Parsed `get_storage_challenge` params (**B-45**: optional operator payout pubs).
+pub(super) struct StorageChallengeParams {
+    pub commit_hash: [u8; 32],
+    pub operator_view_pub: Option<curve25519_dalek::edwards::EdwardsPoint>,
+    pub operator_spend_pub: Option<curve25519_dalek::edwards::EdwardsPoint>,
+}
+
+/// `get_storage_challenge` accepts commitment hash plus optional compressed
+/// operator payout points (`view_pub_hex` / `spend_pub_hex`) for B3 salted challenges.
+pub(super) fn extract_storage_challenge_params(
+    params: Option<&Value>,
+) -> Result<StorageChallengeParams, String> {
     let p = match params {
         None | Some(Value::Null) => return Err("missing `params`".to_string()),
         Some(v) => v,
     };
-    let hex_s: &str = match p {
-        Value::Object(obj) => obj
-            .get("commitment_hash")
-            .or_else(|| obj.get("commit_hash"))
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                "missing params.commitment_hash (64-char hex storage commitment hash)".to_string()
-            })?,
-        Value::Array(arr) => arr
-            .first()
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| "params array is empty (expected commitment_hash hex)".to_string())?,
+    let (hex_s, view_hex, spend_hex) = match p {
+        Value::Object(obj) => {
+            let hex_s = obj
+                .get("commitment_hash")
+                .or_else(|| obj.get("commit_hash"))
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    "missing params.commitment_hash (64-char hex storage commitment hash)"
+                        .to_string()
+                })?;
+            let view_hex = obj.get("view_pub_hex").and_then(|v| v.as_str());
+            let spend_hex = obj.get("spend_pub_hex").and_then(|v| v.as_str());
+            (hex_s, view_hex, spend_hex)
+        }
+        Value::Array(arr) => {
+            let hex_s = arr.first().and_then(|v| v.as_str()).ok_or_else(|| {
+                "params array is empty (expected commitment_hash hex)".to_string()
+            })?;
+            (hex_s, None, None)
+        }
         _ => return Err("params must be a JSON object or a JSON array".to_string()),
     };
-    parse_tx_id_hex32(hex_s)
+    let commit_hash = parse_tx_id_hex32(hex_s)?;
+    let (operator_view_pub, operator_spend_pub) = match (view_hex, spend_hex) {
+        (None, None) => (None, None),
+        (Some(vh), Some(sh)) => (
+            Some(parse_compressed_edwards_hex(vh, "view_pub_hex")?),
+            Some(parse_compressed_edwards_hex(sh, "spend_pub_hex")?),
+        ),
+        _ => {
+            return Err(
+                "params.view_pub_hex and params.spend_pub_hex must both be set or both omitted"
+                    .to_string(),
+            );
+        }
+    };
+    Ok(StorageChallengeParams {
+        commit_hash,
+        operator_view_pub,
+        operator_spend_pub,
+    })
+}
+
+fn parse_compressed_edwards_hex(
+    hex_s: &str,
+    field: &str,
+) -> Result<curve25519_dalek::edwards::EdwardsPoint, String> {
+    let hex_s = hex_s
+        .strip_prefix("0x")
+        .or_else(|| hex_s.strip_prefix("0X"))
+        .unwrap_or(hex_s);
+    let bytes = hex::decode(hex_s).map_err(|e| format!("{field}: hex decode: {e}"))?;
+    mfn_crypto::point::point_from_bytes(&bytes).map_err(|e| format!("{field}: {e}"))
 }
 
 /// `submit_tx` accepts `params` as `{"tx_hex": "…"}` or `["…"]` (hex only).

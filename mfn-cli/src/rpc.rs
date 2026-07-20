@@ -49,7 +49,7 @@ pub struct BlockHeaderInfo {
     pub header_hex: String,
 }
 
-/// `get_storage_challenge` response (**M3.22**).
+/// `get_storage_challenge` response (**M3.22**, **B-45** salted flag).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct StorageChallenge {
     /// Storage commitment hash (64-char hex).
@@ -74,6 +74,15 @@ pub struct StorageChallenge {
     pub prev_block_id: String,
     /// Challenged chunk index.
     pub chunk_index: u32,
+    /// When true, chain genesis uses operator-salted challenges (**B3** / **B-45**).
+    #[serde(default)]
+    pub operator_salted: bool,
+    /// True when salted chain challenge was requested without payout pubs.
+    #[serde(default)]
+    pub operator_keys_required: bool,
+    /// Operator identity hex when salted challenge was completed with payout pubs.
+    #[serde(default)]
+    pub operator_identity: Option<String>,
 }
 
 /// `submit_storage_proof` admission summary.
@@ -549,15 +558,32 @@ impl RpcClient {
             .map_err(|e| RpcError::Protocol(format!("get_block_txs decode: {e}")))
     }
 
-    /// `get_storage_challenge` for the next block (**M3.22**).
+    /// `get_storage_challenge` for the next block (**M3.22** / **B-45**).
+    ///
+    /// When the chain has `operator_salted_challenges`, pass compressed payout
+    /// point hex so the node returns the operator-salted chunk index.
     pub fn get_storage_challenge(
         &mut self,
         commitment_hash_hex: &str,
     ) -> Result<StorageChallenge, RpcError> {
-        let v = self.call(
-            "get_storage_challenge",
-            json!({ "commitment_hash": commitment_hash_hex }),
-        )?;
+        self.get_storage_challenge_for_operator(commitment_hash_hex, None, None)
+    }
+
+    /// Like [`Self::get_storage_challenge`] with optional operator payout pubs.
+    pub fn get_storage_challenge_for_operator(
+        &mut self,
+        commitment_hash_hex: &str,
+        view_pub_hex: Option<&str>,
+        spend_pub_hex: Option<&str>,
+    ) -> Result<StorageChallenge, RpcError> {
+        let mut params = json!({ "commitment_hash": commitment_hash_hex });
+        if let (Some(vh), Some(sh)) = (view_pub_hex, spend_pub_hex) {
+            if let Some(obj) = params.as_object_mut() {
+                obj.insert("view_pub_hex".into(), json!(vh));
+                obj.insert("spend_pub_hex".into(), json!(sh));
+            }
+        }
+        let v = self.call("get_storage_challenge", params)?;
         serde_json::from_value(v)
             .map_err(|e| RpcError::Protocol(format!("get_storage_challenge decode: {e}")))
     }
