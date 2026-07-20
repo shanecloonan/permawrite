@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–48; nora@4677 last PASS; wave48 owen FUND FAIL (F106 recur); twenty-six proxy-proven wallets.
+**Status:** DRAFT — waves 6–49; paula@**4694** proxy-prove PASS; claims=24; twenty-seven proxy-proven wallets. Donor pool often all owned=1 → wait faucet on 429.
+| paula | faucet | n/a | yes | **4694** (wave49; proxy-prove PASS) |
 | owen | faucet 429 + peer incomplete | n/a | **no** | FAIL wave48 fund (F106 kate owned=1; owen owned=1) |
 | nora | faucet | n/a | yes | **4677** (wave47; proxy-prove PASS) |
 | liam | faucet 429 + peer incomplete | n/a | **no** | FAIL wave46 fund (F106 iris owned=1; liam owned=1) |
@@ -54,7 +55,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Twenty-six wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Twenty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -96,6 +97,9 @@ Twenty-six wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar
 
 
 30. **F106 solidifies (wave48)** — last two permanence wallets often cannot dual-fund under faucet 429: prove burns leave owned=1 (or owned=2 that a single 150k send exhausts). Prefer faucet cooldown wait over peer dual-fund from fresh permanence wallets.
+
+
+31. **Donor pool exhaustion (wave49 census)** — after many permanence loops, local wallets commonly sit at owned=1 and cannot peer-fund (F75). On faucet 429, wait cooldown rather than peer dual-fund from recent permanence wallets.
 
 ## Still open before formal archive PASS
 
