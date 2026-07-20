@@ -79,3 +79,11 @@ SUMMARY spine is solid: three new wallets (heidi/ivan/judy) pin->fund->upload->l
 
 - `user-wallet/judy.json` + upload-artifacts
 - `_wave18-results.json`, `_wave18-judy-*.json`, `_wave18-grace-upload.json`, `_wave18-*-to-*.json`
+
+## Finding F85 - local observer RPC wedge under concurrent wallet load
+
+During wave18 settle + wave19 start, concurrent `get_light_snapshot` / `wallet balance` calls left local `mfnd` unable to answer even `tip` (timeouts / refused). VPS proxy tip continued advancing.
+
+**Recovery:** stop local `mfnd`, restart same data dir + seed dials. After ~2 min RPC listen delay (store replay), tip matched proxy (~4262) without wipe.
+
+**JOIN implication:** do not parallelize many tall-tip light-snapshot pins against one laptop observer; serialize wallet ops; if RPC wedges, restart observer (not faucet).
