@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **CI `#29720670813` GREEN** (B-63); Nightly seed-isolation diagnosed | **B-29 seed-isolation** — `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` (claim base: `e4369a9`) | Land when CI idle after B-64; re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave18** (tip 4219) / wave17 | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave18** (judy JOIN last_proven=4229; F84) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-64** settle/apply seal filter (this commit); **B-63**/**B-51**/**B-48**/**B-45** | *Idle* | After mfnd roll: live **B-32**; then **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -252,6 +252,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave18** (42528d9): judy upload last_proven=4229; F84 claim disabled; grace upload 12a11d7d; Evidence wave18.md. [skip ci].
 1. **2026-07-20 — lane 4 — B-64 settle/apply seal filter** (this commit): producers seal only settlement-accepted proofs (`runner`/`mfnd_cli`); `b64_*` parity tests (unknown/dup/over-replication). Local PASS. Prior **CI `#29720670813` GREEN** on B-63. *Observed:* leave lane-1 `p2p_boot`/`start-all` + JOIN/`user-wallet`/`live-testnet-data*` unstaged.
 2. **2026-07-20 — lane 3 — B-15 wave18/17**: tip 4219; ivan JOIN. `[skip ci]`.
 3. **2026-07-20 — lane 4 — B-64 claim** (`d3f47bf`): docs-only while `#29720670813` ran. `[skip ci]`.
