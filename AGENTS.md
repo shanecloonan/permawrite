@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Rust head = this commit (**B-48** soft EAGAIN quarantine). Prior CI `#29713542820` had **windows-latest failure** (mac/ubuntu still running when this pushed). Lane 1: inspect windows + re-dispatch on this head. Tip live **4074+**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Rust head pending **B-51** atop `69df8fa` (**B-48**). CI `#29715111633` in progress — hold other Rust pushes. Tip live **4096+** (wave9 SPoRA prove). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 wave9 SPoRA prove PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY PASS when ckpt near tip + bash/ps1 | L4 checklist |
-| **4** Protocol | **B-48** soft EAGAIN quarantine; **B-45** (`f1459bf`); **B-46**/`711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd (B-45+B-48); live **B-32**; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
+| **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** ephemeral fanout quarantine (claim base: `69df8fa`) | Land B-51 after CI settles → lane 7 `vps-roll-mfnd` (B-45+B-48+B-51); live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-50** checkpoint bootstrap honesty + tip-4057 log + **B-49**/B-22 | *Idle* | After CI GREEN + **B-48 on main**: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -155,7 +155,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
-| 4 | 7 | **B-45+B-48:** **URGENT B-48** — live hub quarantined voter again on EAGAIN (~tip 4063). Commit `p2p_*.rs` ASAP. Then CI GREEN → `vps-roll-mfnd.sh --apply`. Never touch `faucet-http` | **Open** (critical) |
+| 4 | 7 | **B-45+B-48+B-51:** B-48 on main (`69df8fa`); B-51 ephemeral dial fix in flight. After CI GREEN → `vps-roll-mfnd.sh --apply`. Never touch `faucet-http` | **Open** (VPS roll) |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -222,6 +222,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Landed** — soft-fail EAGAIN/WouldBlock in peer quarantine (not os error 111) |
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script); Rust auto-bootstrap still follow-up for lane 5 |
+| B-51 | No dial/quarantine of ephemeral inbound P2P ports | 4 | **Doing** — live hub quarantining `127.0.0.1:3xxxx` on fanout redial |
 
 ---
 
@@ -229,6 +230,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 4 — B-51 claim** (this commit): Live tip **4096** sealing; hub still quarantines ephemeral inbound ports on block fan-out redial (`os error 111`). B-48 on main (`69df8fa`); VPS binary still pre-B-48. Docs-only `[skip ci]` while CI `#29715111633` runs. *Observed:* `faucet-http` inactive; leave lane-3 wave evidence unstaged.
 1. **2026-07-20 — lane 4 — B-48 soft EAGAIN peer quarantine** (this commit): `note_peer_failure` ignores transient `os error 11` / WouldBlock (not `os error 111`); unit tests. Complements B-46 tip recovery; distinct from **B-47** faucet retries. *Observed local work (not staged):* lane-3 wave evidence temps, `ci-docs-*.txt`, `user-wallet/`. Local: `cargo test -p mfn-node --lib transient_eagain`. Pushed after windows RED on `#29713542820` (run could not go green).
 1. **2026-07-20 — lane 7 — B-50 checkpoint-log bootstrap honesty** (this commit): `--checkpoint-log` is cross-check only (does not skip tip); helper `bootstrap-wallet-from-checkpoint-log.sh`; JOIN docs fixed; tip-4057 Path A entry; live EAGAIN quarantine recurred → **urgent B-48**. Evidence `b50-checkpoint-log-bootstrap-honesty-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice scan logs, `ci-docs-*.txt`.
 2. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd tooling** (`284e803`).

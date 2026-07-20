@@ -217,6 +217,10 @@ Public genesis has `operator_salted_challenges = 1`, but challenge/prove/pool pr
 
 **Ops:** roll `mfnd` on Hetzner (lane 7) after CI GREEN; do not restart faucet during B-15. Unblocks honest **B-32** live capture.
 
+#### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
+
+Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).
+
 #### B-48 — soft-ignore EAGAIN for P2P peer quarantine (lane 4)
 
 Post-restart bind storms emit `mfnd_p2p_gossip_abort … os error 11`. Counting those toward peer quarantine (3 failures → 300s) removed voters from proposal vote fan-out and froze the tip (paired with B-46 `Requires→Wants`). **B-48** treats EAGAIN/WouldBlock as soft failures (`mfnd_p2p_peer_failure_soft`) without quarantine; still scores hard failures (`connection refused`, etc.). Distinct from **B-47** (faucet HTTP retries).
