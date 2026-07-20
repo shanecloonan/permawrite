@@ -412,9 +412,10 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 - [ ] **B-22** — TL-8 checkpoint log VPS publish verified (`publish-checkpoint-log.sh --apply` if drifted).
 - [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
-- [ ] **B-29** — Nightly GREEN on head: fix `fund-wallet.sh` (Nightly `participant-rehearsal` path — **not** JOIN/`fund-wallet-http`). `#29701967243` RED: WS `trusted 4 vs checkpoint 0`.
+- [ ] **B-29** — Nightly GREEN on `5dc3aa8` (code landed; close ≠ code land). Path = Nightly `fund-wallet.sh` — **not** JOIN. Last RED `#29701967243`.
 - [x] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS + threat-model matrix (docs landed; fill human name cells at TL-9 sign-off).
-- [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
+- [ ] **B-31** — Live RPC/faucet threat posture verify (Phase 0; parallel TL-9 prep).
+- [ ] **L1 refresh** — Green CI + `release-evidence` **go** on `5dc3aa8` (B-29) stack.
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
 ## L5 / Phase 1 permanence depth (after L4 — do not start early)

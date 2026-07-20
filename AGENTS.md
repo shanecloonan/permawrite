@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `5dc3aa8` (B-29); B-16 `49d28f9`. **CI `#29711375639` queued** on `5dc3aa8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN** (last RED `#29701967243`). Strategic path: L4 → **B-13a** → **B-25**.
+**CI gate (2026-07-19):** code head = `5dc3aa8` (B-29); B-16 `49d28f9`; planning+B-30 this commit. **CI `#29711375639` queued** on `5dc3aa8` — docs push uses `[skip ci]` (not yet a B-34 15m stall). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN** (last RED `#29701967243`). Strategic path: L4 → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29 code** (`5dc3aa8`) | *Idle* | Watch CI `#29711375639`; **B-34** if queued stalls ~15m+; Nightly → close B-29 | CI/Nightly run IDs in §8 |
+| **1** RC core | **B-29 code** (`5dc3aa8`) | *Idle* | Watch CI `#29711375639`; **B-34** if still queued ~15m+ with no jobs; Nightly → close B-29 | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 tooling (`774320f`…`02c8df8`) | **B-15 Hetzner evidence** (claim base: `02c8df8`) | Archive + assert; keep §6 faucet lock | L4 checklist |
-| **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-24**; **B-36** F10 parallel | Lane 1 CI/Nightly |
-| **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-19** | Doc-accuracy duty |
+| **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-24**; **B-36** parallel | Lane 1 CI/Nightly |
+| **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-30** residual-risk owners + halt authority | *Idle* | TL-9 after B-15+B-29 Nightly+B-26/27; human fills name cells; then **B-32**/**B-33** | `launch-go-no-go` |
+| **7** Testnet launch | **B-30** residual-risk matrix + halt (this commit) | *Idle* | TL-9 after B-15+B-29 Nightly+B-26/27; fill human cells; **B-31** verify; then **B-32**/**B-33** | `launch-go-no-go` |
 
 ---
 
@@ -157,6 +157,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 evidence (in-memory jobs + faucet lock) | **Open** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
+| planning | 1 | **B-34:** if CI `#29711375639` still `queued` ~15m+ with no jobs, cancel/re-dispatch | **Open** |
 | planning | 6 | **Arm B-13a** the day TL-9/L4 closes — work package in ROADMAP; do not stay idle | **Open** (fires on L4) |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
@@ -187,15 +188,17 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-34 | CI queue/stall watch — cancel/re-dispatch if `queued` ~15m+ with no jobs | 1 | See ROADMAP B-34 protocol; do not cancel healthy matrices |
 | B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | **Code** `5dc3aa8`; **close** = Nightly GREEN (≠ JOIN) |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
-| B-31 | Live RPC/faucet threat posture verify | 2+7 | Phase 0 security ops; not permanence-blocking |
+| B-31 | Live RPC/faucet threat posture verify | 2+7 | Phase 0 security; parallel TL-9 (not after B-25) |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | Phase 1; unblocks honest B-24 |
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
+| B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | Protocol in ROADMAP; watch `#29711375639` |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
-| B-36 | F10 `f64` purge / CI lint on consensus path | 4 | Phase 1–2; parallel after L4 OK |
-| B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence; was unnamed table row |
+| B-36 | F10 `f64` purge / CI lint on consensus path | 4 | Phase 1–2; §14 resolved — lint prevents regression |
+| B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
+| B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
+| B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 
 ---
 
@@ -203,7 +206,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lane 7 — B-30 residual-risk owners + halt authority** (this commit): Threat-model owner matrix + OPERATORS halt/rollback roles + incident path; checklist B-30 ticked (human name cells remain TL-9). Includes B-29 `participant-rehearsal.sh` plan note + ROADMAP B-29/B-34 sync. Docs-only `[skip ci]` (CI `#29711375639` still queued on Rust head — not a B-34 stall yet). Did **not** touch Hetzner (lane 3 B-15 §6). *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`.
+1. **2026-07-19 — planning + lane 7 — B-30 + trajectory sync** (this commit): B-30 threat-model/OPERATORS matrix; B-29 close≠code; **B-34** protocol; **B-37** hidden fees; **B-39** Phase 2 light-client gate; critical path fix (B-23/B-31 parallel). Checklist/LAUNCH/ROADMAP mirrors. Docs-only `[skip ci]` (CI `#29711375639` not yet 15m stall). Did **not** touch Hetzner (B-15 §6). *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`.
 2. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height` → tip-0 vs trusted N; hydrate + fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN (not code land alone).
 3. **2026-07-19 — planning — Phase 1 handoffs B-32/33/35/36/38 + B-13a** (`9150353`): lane 6 armed day-of L4. Docs-only `[skip ci]`.
 4. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
