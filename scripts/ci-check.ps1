@@ -238,6 +238,12 @@ if ($proxyTipAlignPlan -notmatch "observer-rpc-proxy-tip-align-rehearsal-smoke: 
     $proxyTipAlignPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-91: composite public-testnet health assert (lane 7; B-15-safe).
+$publicTestnetHealthPlan = (powershell -NoProfile -File scripts/public-devnet-v1/assert-public-testnet-health-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($publicTestnetHealthPlan -notmatch "assert-public-testnet-health-rehearsal-smoke: PASS plan-only") {
+    $publicTestnetHealthPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 $outsideInInviteSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: PASS plan-only") {

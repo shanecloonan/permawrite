@@ -278,6 +278,8 @@ JOIN permanence gates must wait for **proxy** `list_recent_uploads` (observer `:
 
 **B-90 tip-align:** `observer-rpc-proxy` waits (up to `PROXY_TIP_ALIGN_MS`, default 45s) for observer tip to catch hub tip (`PROXY_HUB_TIP_RPC=127.0.0.1:18731`) before forwarding `list_recent_uploads`. Deploy: `bash scripts/public-devnet-v1/vps-update-observer-rpc-proxy.sh --apply` (restarts proxy only; never faucet/mfnd). `/health` exposes `hub_tip_rpc`, `tip_align_waits`, `tip_align_timeouts`.
 
+**B-91 health assert (VPS):** `bash scripts/public-devnet-v1/assert-public-testnet-health.sh --apply` checks timer + proxy tip-align + faucet ok + tip/ckpt lag below threshold. Never restarts units. Safe during B-15 (faucet `busy` allowed).
+
 ### Sticky local mempool (F107 / F108)
 
 Outside-in JOIN: CLI `Fresh` + tip_id match can still leave a TX stuck in the **local** observer mempool (`mempool_len=1`) while the public proxy shows `mempool_len=0` and never indexes the upload (**F107**). Restarting mfnd on the same data dir does **not** clear sticky mempool entries (**F108**).

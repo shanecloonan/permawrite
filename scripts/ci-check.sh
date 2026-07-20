@@ -168,6 +168,9 @@ path_a_near_tip_ops_plan="$(bash scripts/public-devnet-v1/path-a-near-tip-ops-re
 # B-90: observer proxy tip-align before list_recent_uploads (lane 7; F105).
 proxy_tip_align_plan="$(bash scripts/public-devnet-v1/observer-rpc-proxy-tip-align-rehearsal-smoke.sh --plan-only)"
 [[ "$proxy_tip_align_plan" == *"observer-rpc-proxy-tip-align-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$proxy_tip_align_plan" >&2; exit 1; }
+# B-91: composite public-testnet health assert (lane 7; B-15-safe).
+public_testnet_health_plan="$(bash scripts/public-devnet-v1/assert-public-testnet-health-rehearsal-smoke.sh --plan-only)"
+[[ "$public_testnet_health_plan" == *"assert-public-testnet-health-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$public_testnet_health_plan" >&2; exit 1; }
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 outside_in_invite_soak_plan="$(bash scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$outside_in_invite_soak_plan" == *"outside-in-invite-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$outside_in_invite_soak_plan" >&2; exit 1; }
