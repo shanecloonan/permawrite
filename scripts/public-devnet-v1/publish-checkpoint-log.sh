@@ -113,6 +113,42 @@ cd "$REPO_ROOT"
 "$MCLI" --rpc "$RPC" --wallet "$WALLET" wallet new >/dev/null
 "$MCLI" --rpc "$RPC" --wallet "$WALLET" wallet export-trusted-summary --out "$SUMMARY"
 
+# Hub fanout often only sees loopback committee dials. Merge published seed_nodes so
+# checkpoint anchors remain useful for outside-in light clients (B-22 / F12).
+MANIFEST="${MFN_CHECKPOINT_MANIFEST:-$REPO_ROOT/mfn-node/testdata/public_devnet_v1.manifest.json}"
+if [[ -f "$MANIFEST" ]] && command -v python3 >/dev/null 2>&1; then
+  python3 - "$SUMMARY" "$MANIFEST" <<'PY'
+import json, sys
+summary_path, manifest_path = sys.argv[1], sys.argv[2]
+with open(summary_path, encoding="utf-8") as f:
+    summary = json.load(f)
+with open(manifest_path, encoding="utf-8") as f:
+    manifest = json.load(f)
+seeds = [s for s in manifest.get("seed_nodes") or [] if isinstance(s, str) and s.strip()]
+existing = summary.get("anchor_peers") or []
+if not isinstance(existing, list):
+    existing = []
+merged = []
+seen = set()
+for peer in list(existing) + seeds:
+    if not isinstance(peer, str):
+        continue
+    p = peer.strip()
+    if not p or p in seen:
+        continue
+    # Drop pure loopback-only noise when we have public seeds (keep if no seeds).
+    if seeds and (p.startswith("127.") or p.startswith("0.0.0.0:")):
+        continue
+    seen.add(p)
+    merged.append(p)
+if merged:
+    summary["anchor_peers"] = merged
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, separators=(",", ":"), sort_keys=False)
+    print(f"publish-checkpoint-log: merged_anchor_peers={merged}", flush=True)
+PY
+fi
+
 SIGN_ARGS=(
   checkpoint-log sign
   --summary "$SUMMARY"

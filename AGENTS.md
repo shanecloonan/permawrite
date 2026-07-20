@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-47** faucet EAGAIN harden) on `fe56ca8` stack. Tip live **4040+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`.
+**CI gate (2026-07-20):** code head = this commit (**B-22** tip-4050 checkpoint) on `b744189` stack. Tip live **4050+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-48** soft EAGAIN quarantine; **B-45** (`f1459bf`); **B-46**/`711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd (B-45+B-48); live **B-32**; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-47** faucet EAGAIN harden + **B-46**/B-41/B-22/B-31 | *Idle* | **B-42** after B-15 PASS; **B-26** with lane 2; TL-9 | `launch-go-no-go` |
+| **7** Testnet launch | **B-22** tip-4050 checkpoint + **B-47**/B-46/B-41/B-31 | *Idle* | **B-42** after B-15 PASS; **B-45+B-48** mfnd roll after CI GREEN; **B-26** with lane 2 | `launch-go-no-go` |
 
 ---
 
@@ -190,7 +190,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
-| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip 4028 Path A signer-2; seed offline on VPS only |
+| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip **4050** Path A signer-2 + public seed anchors; seed offline on VPS only |
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
@@ -224,25 +224,25 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-47 faucet EAGAIN harden** (this commit): `/health` never races claim `mfn-cli`; `runRetry` on EAGAIN/refused; repair script applies `MFN_P2P_DIAL_EXTRA` via soften. Evidence `b47-faucet-eagain-harden-20260720.md`. VPS pull+faucet restart at idle (`wallet_status_cached` live); tip **4047+**. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, `_wave6_probe.py`.
-2. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`): tip 4040; alice faucet SUCCESS. Evidence wave6.
-3. **2026-07-20 — lane 1 — B-34 CI `#29713542820`** (`9ac5ea7`): watch after Actions recovery.
-4. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`): hub redial + Wants=.
-5. **2026-07-20 — lane 3 — B-15 wave5** (`d18fe7b`): tip stall + faucet EAGAIN.
-6. **2026-07-20 — lane 3 — B-15 wave4 addendum** (`ed296d4`).
-7. **2026-07-20 — lane 1 — B-34 escalate** (`842cbf2`).
-8. **2026-07-20 — lane 3 — B-15 wave4 partial** (`e01645a`).
-9. **2026-07-20 — lane 1 — OPERATORS mojibake** (`f8cb53b`).
-10. **2026-07-20 — lane 4 — B-45 salted multi-op** (`f1459bf`).
-11. **2026-07-20 — lane 7 — B-41 voter remap** (`0efb23f`).
-12. **2026-07-20 — lane 4 — B-32 assert tooling** (`711d98b`).
-13. **2026-07-20 — lane 4 — B-36 f64 lint** (`7420aa6`).
-14. **2026-07-20 — lane 7 — B-41 hub socat + B-22** (`54d22d7`/`65bb922`).
-15. **2026-07-20 — lane 3 — B-15 wave1** (`afca106`).
-16. **2026-07-19 — planning — B-40/B-42/B-43/B-44**.
-17. **2026-07-19 — lane 1 — B-29 parse + CI watch**.
-18. **2026-07-19 — lane 7 — B-31 threat posture**.
-19. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse** (`e10a8b3`).
+1. **2026-07-20 — lane 7 — B-22 tip-4050 checkpoint** (this commit): Path A signer appended tip **4049/4050**; publish script merges manifest `seed_nodes` into `anchor_peers`. Verify max_tip=4050. Unblocks B-15 light-scan jump. Faucet untouched. Evidence `b22-checkpoint-tip4049-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice light-scan logs, `ci-docs-*.txt`.
+2. **2026-07-20 — lane 7 — B-47 faucet EAGAIN harden** (`fe56ca8`/`b744189`): health lock + runRetry; VPS faucet deploy.
+3. **2026-07-20 — lane 3 — B-15 wave7** (`2abbf5e`): alice checkpoint light-scan in flight.
+4. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`): tip 4040; alice faucet SUCCESS.
+5. **2026-07-20 — lane 1 — B-34 CI `#29713542820`** (`9ac5ea7`).
+6. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`).
+7. **2026-07-20 — lane 3 — B-15 wave5** (`d18fe7b`).
+8. **2026-07-20 — lane 4 — B-48 soft EAGAIN quarantine** (board; code may still be WIP — do not steal `p2p_*.rs`).
+9. **2026-07-20 — lane 4 — B-45 salted multi-op** (`f1459bf`).
+10. **2026-07-20 — lane 7 — B-41 voter remap** (`0efb23f`).
+11. **2026-07-20 — lane 4 — B-32 assert tooling** (`711d98b`).
+12. **2026-07-20 — lane 4 — B-36 f64 lint** (`7420aa6`).
+13. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`).
+14. **2026-07-20 — lane 3 — B-15 wave1** (`afca106`).
+15. **2026-07-19 — planning — B-40/B-42/B-43/B-44**.
+16. **2026-07-19 — lane 1 — B-29 parse + CI watch**.
+17. **2026-07-19 — lane 7 — B-31 threat posture**.
+18. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse** (`e10a8b3`).
+19. **2026-07-19 — planning — B-27/B-31/B-32 + B-34**.
 20. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 

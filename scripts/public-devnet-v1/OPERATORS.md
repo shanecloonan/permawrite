@@ -96,7 +96,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | B-15 outside-in JOIN | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` — archive `join-testnet-rehearsal-linux-*.txt`; **no parallel** `join-testnet-rehearsal*` while evidence is in flight |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
-| TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
+| TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl`; **B-22:** merges manifest `seed_nodes` into `anchor_peers` (drops loopback when public seeds exist) |
 | TL-8 publish checkpoint log rehearsal (CI) | `bash scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) — share after `publish-seed-nodes --apply` + checkpoint log |
 | Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (`launch-status.v7`) |
