@@ -32,8 +32,9 @@
 | nina | faucet+peer | n/a | yes | **4318** (wave22; proxy verified) |
 | oscar | peer+faucet | n/a | yes | **4337** (wave23; proxy verified) |
 | patricia | faucet | n/a | yes | **4362** (wave24; proxy verified) |
+| quinn | peer (after faucet 429) | n/a | yes | **4390** (wave25; proxy verified) |
 
-Eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/**patricia**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Nine wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/**quinn**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -52,6 +53,7 @@ Eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/**pa
 13. **F93** - operator challenge before tip_id match / chain visibility returns unknown commitment; wait for matched.
 14. **F45 update (wave24)** - pin@ckpt_max does not satisfy hard checkpoint-log; still needs exact tip attestation.
 15. **F94** - get_block_headers to_height must not exceed proxy tip; use proxy tip when local is ahead.
+16. **F95** - faucet may return HTTP 429 during cooldown; backoff `cooldown_ms` or peer-fund fallback.
 
 ## Still open before formal archive PASS
 
