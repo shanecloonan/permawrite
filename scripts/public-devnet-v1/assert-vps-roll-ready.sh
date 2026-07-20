@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# B-62: fail-closed readiness check before vps-roll-mfnd --apply.
+# B-62 / B-78: fail-closed readiness check before vps-roll-mfnd --apply.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,8 +12,8 @@ usage() {
   cat <<'EOF'
 usage: assert-vps-roll-ready.sh [--plan-only]
 
-Checks: tip readable, faucet idle, CI GREEN (gh or public API), B-51 marker in tree,
-release mfnd binary present. Does not restart anything.
+Checks: tip readable, faucet idle, CI GREEN or docs-equivalent ancestor GREEN
+(B-78), B-51 marker in tree, release mfnd binary present. Does not restart anything.
 EOF
 }
 
@@ -27,8 +27,8 @@ done
 
 if (( PLAN_ONLY )); then
   echo "assert-vps-roll-ready: plan"
-  echo "  unit=B-62"
-  echo "  checks=tip faucet CI B-51-binary-presence"
+  echo "  unit=B-62/B-78"
+  echo "  checks=tip faucet CI(docs-equivalent) B-51-binary-presence"
   echo "assert-vps-roll-ready: PASS plan-only"
   exit 0
 fi
@@ -64,31 +64,15 @@ if command -v curl >/dev/null 2>&1; then
   fi
 fi
 
-# CI via public API (same as B-61)
-api_url="${MFN_ROLL_CI_API:-https://api.github.com/repos/shanecloonan/permawrite/actions/workflows/ci.yml/runs?branch=main&per_page=1}"
-api_body="$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' -H 'User-Agent: permawrite-roll-ready' "$api_url" || true)"
-eval "$(printf '%s' "$api_body" | python3 -c 'import sys,json
-try:
-  d=json.load(sys.stdin); r=(d.get("workflow_runs") or [None])[0]
-  if not r:
-    print("status="); print("conclusion="); print("run_id=")
-  else:
-    print("status="+str(r.get("status") or ""))
-    print("conclusion="+str(r.get("conclusion") or ""))
-    print("run_id="+str(r.get("id") or ""))
-except Exception:
-  print("status="); print("conclusion="); print("run_id=")' 2>/dev/null || true)"
-if [[ -z "${run_id:-}" ]]; then
-  echo "assert-vps-roll-ready: FAIL cannot read CI" >&2
-  fail=1
-elif [[ "${status:-}" == "in_progress" || "${status:-}" == "queued" ]]; then
-  echo "assert-vps-roll-ready: FAIL CI #$run_id still $status" >&2
-  fail=1
-elif [[ "${conclusion:-}" != "success" ]]; then
-  echo "assert-vps-roll-ready: FAIL CI #$run_id conclusion=$conclusion" >&2
+# B-78: CI GREEN on HEAD, or docs-equivalent ancestor GREEN
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/lib-ci-roll-gate.sh"
+export MFN_REPO_ROOT="$REPO_ROOT"
+if ! gate_line="$(mfn_ci_roll_gate_check)"; then
+  echo "assert-vps-roll-ready: FAIL CI gate" >&2
   fail=1
 else
-  echo "assert-vps-roll-ready: CI #$run_id GREEN OK"
+  echo "assert-vps-roll-ready: $gate_line"
 fi
 
 # B-51 marker

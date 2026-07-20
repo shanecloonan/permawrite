@@ -19,8 +19,8 @@ Rebuild target/release/mfnd (+ mfn-cli for tip wait), apply B-46 soften, B-68
 peers.json scrub, restart voters then hub only. Does NOT restart faucet-http
 or observer-rpc-proxy.
 
-Gates (B-60 --apply preflight; override with env only in emergencies):
-  - CI GREEN on origin/main (gh or public Actions API) unless MFN_ROLL_ALLOW_RED_CI=1
+Gates (B-60/B-78 --apply preflight; override with env only in emergencies):
+  - CI GREEN on HEAD, or docs-equivalent ancestor GREEN (B-78) unless MFN_ROLL_ALLOW_RED_CI=1
   - Wait for hub RPC listen after restart (cold chain load)
   - faucet-http idle (busy=false, pending_jobs=0) unless MFN_ROLL_ALLOW_FAUCET_BUSY=1
   - Do not thrash while tip is mid-seal; wait for tip advance after hub restart
@@ -48,10 +48,10 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "vps-roll-mfnd: plan"
-  echo "  unit=B-49/B-60/B-61/B-65/B-68"
+  echo "  unit=B-49/B-60/B-61/B-65/B-68/B-78"
   echo "  flow=preflight(CI+faucet) -> git pull -> cargo build mfnd/mfn-cli -> vps-soften-mfnd-requires -> scrub-vps-peers-json -> restart voters -> restart hub -> wait tip advance"
   echo "  never=faucet-http observer-rpc-proxy"
-  echo "  gate=CI GREEN via gh or public API; faucet idle; RPC listen wait after restart"
+  echo "  gate=CI GREEN or docs-equivalent ancestor GREEN (B-78); faucet idle; RPC listen wait after restart"
   echo "  override=MFN_ROLL_ALLOW_RED_CI=1 MFN_ROLL_ALLOW_FAUCET_BUSY=1"
   echo "  docs=scripts/public-devnet-v1/OPERATORS.md"
   echo "vps-roll-mfnd: PASS plan-only"
@@ -85,40 +85,15 @@ else
 fi
 
 if [[ "${MFN_ROLL_ALLOW_RED_CI:-0}" != "1" ]]; then
-  # B-61: gh if present, else public Actions API (no VPS token required for public repo)
-  ci_json=""
-  if command -v gh >/dev/null 2>&1; then
-    ci_json="$(gh run list --workflow CI --branch main --limit 1 --json databaseId,conclusion,status,headSha 2>/dev/null || true)"
-  fi
-  if [[ -z "$ci_json" || "$ci_json" == "[]" ]]; then
-    api_url="${MFN_ROLL_CI_API:-https://api.github.com/repos/shanecloonan/permawrite/actions/workflows/ci.yml/runs?branch=main&per_page=1}"
-    api_body="$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' -H 'User-Agent: permawrite-vps-roll' "$api_url" || true)"
-    ci_json="$(printf '%s' "$api_body" | python3 -c 'import sys,json
-try:
-  d=json.load(sys.stdin); r=d.get("workflow_runs") or []
-  if not r: print("[]");
-  else:
-    w=r[0]; print(json.dumps([{"databaseId": w.get("id"), "conclusion": w.get("conclusion") or "", "status": w.get("status") or "", "headSha": w.get("head_sha") or ""}]))
-except Exception:
-  print("[]")' 2>/dev/null || echo '[]')"
-    echo "vps-roll-mfnd: CI status via public API (gh missing or empty)"
-  fi
-  conclusion="$(printf '%s' "$ci_json" | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r[0].get("conclusion") or "") if r else print("")' 2>/dev/null || echo "")"
-  status="$(printf '%s' "$ci_json" | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r[0].get("status") or "") if r else print("")' 2>/dev/null || echo "")"
-  run_id="$(printf '%s' "$ci_json" | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r[0].get("databaseId") or "") if r else print("")' 2>/dev/null || echo "")"
-  if [[ -z "$run_id" ]]; then
-    echo "vps-roll-mfnd: cannot read CI status (gh/API empty) — refuse roll. Set MFN_ROLL_ALLOW_RED_CI=1 only after manual GREEN verify" >&2
+  # B-61/B-78: public API + docs-equivalent ancestor GREEN (JOIN docs thrash)
+  # shellcheck source=/dev/null
+  source "$SCRIPT_DIR/lib-ci-roll-gate.sh"
+  export MFN_REPO_ROOT="$REPO_ROOT"
+  if ! gate_line="$(mfn_ci_roll_gate_check)"; then
+    echo "vps-roll-mfnd: CI gate failed — wait for GREEN, or MFN_ROLL_ALLOW_RED_CI=1 after manual verify" >&2
     exit 4
   fi
-  if [[ "$status" == "in_progress" || "$status" == "queued" ]]; then
-    echo "vps-roll-mfnd: CI #$run_id still $status — refuse roll (cancel-in-progress / unproven head). Wait or MFN_ROLL_ALLOW_RED_CI=1" >&2
-    exit 4
-  fi
-  if [[ "$conclusion" != "success" ]]; then
-    echo "vps-roll-mfnd: latest CI conclusion='$conclusion' (run #$run_id) — refuse roll until GREEN or MFN_ROLL_ALLOW_RED_CI=1" >&2
-    exit 4
-  fi
-  echo "vps-roll-mfnd: CI #$run_id GREEN OK"
+  echo "vps-roll-mfnd: $gate_line"
 else
   echo "vps-roll-mfnd: WARN MFN_ROLL_ALLOW_RED_CI=1 — skipping CI gate"
 fi
