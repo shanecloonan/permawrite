@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch full CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave26** (rose last_proven=4412; tip-4400 ckpt; F96) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave27** (sam last_proven=4430; F97/F98) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-74** (`62a9c02`, CI `#29739903305` GREEN); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-76** dual-op empty-audit slash (early B-24d; this commit) | Live **B-32** (B-77 mfnd rolled) after B-15 → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -268,6 +268,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave27** (this commit): faucet done then balance timeout **F97**; rose->sam #1 PASS / #2 **F98** input-count floor; sam fund_mode=peer; upload bound **last_proven=4430** proxy+claims=8. Evidence wave27.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
 1. **2026-07-20 — lane 4 — B-76 dual-op empty-audit slash** (this commit): early B-24d `b76_b5_dual_operator_slash_*`; local release test PASS. Full CI. *Observed (not staged):* lane-1 dirty `p2p_fanout`/produce-smokes if present, JOIN/`user-wallet`/`live-testnet-data*`.
 2. **2026-07-20 - lane 3 - B-15 wave26** (this commit): tip-4400 ckpt verify PASS (entries=13); F45 hard FAIL tip 4404 (pin@4400 insufficient); quinn retrieve OK; rose faucet ~114s; **F96** pin@4173 zero then @4262 funded; upload bound **last_proven=4412** proxy+claims; claims recent=7; F92 headers PASS. Evidence wave26.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
 1. **2026-07-20 — lane 1 — B-75 production_dial + persistable local P2P** (this commit): B-71 refused GHA `:0` advertise (≥32768) so sealed-block fanout missed voters (observer tip@1; all-produce diverge). Fix: in-memory `production_dial_peers` for seal/proposal dials; `persistable-listen-lib.sh` + `start-all.sh`/`.ps1` + produce-smoke persistable binds; unit test PASS. Full CI (no skip). After GREEN: sole Nightly → close **B-29**. *Observed (not staged):* lane-3/4 temps, `user-wallet/`, `live-testnet-data*`, `_nightly-*`.
