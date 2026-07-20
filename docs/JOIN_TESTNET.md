@@ -106,7 +106,7 @@ powershell -File scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.p
   -Log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 ```
 
-Requires Python on PATH. The `.ps1` fetches `get_light_snapshot` over TCP JSON-RPC itself — do **not** pass JSON `--params` through Windows PowerShell 5.1 to `mfn-cli` (quotes are stripped; B-57/F68).
+Requires Python on PATH. The `.ps1` fetches `get_light_snapshot` over TCP JSON-RPC itself — do **not** pass JSON `--params` through Windows PowerShell 5.1 to `mfn-cli` (quotes are stripped; B-58/F68b).
 
 **2 — Fund** (after pin):
 
@@ -128,6 +128,9 @@ mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
   --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
 ```
+
+After an **upload**, if `wallet send` reports a weak-subjectivity tip mismatch (F71), re-pin with the bootstrap helper (or `get_light_snapshot` + balance) before spending again.
+
 
 Operator shortcut (same F67 order baked in): `bash scripts/public-devnet-v1/fund-wallet-http.sh --rpc … --recipient-wallet … --checkpoint-log …`.
 
