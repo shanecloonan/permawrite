@@ -1,4 +1,4 @@
-# Public devnet v1 â€” operator invite list (M2.4.3 / M2.4.4)
+# Public devnet v1 — operator invite list (M2.4.3 / M2.4.4)
 
 Join the **public-devnet-v1** network only if your node's `genesis_id` matches the manifest:
 
@@ -10,9 +10,9 @@ Use genesis file: [`mfn-node/testdata/public_devnet_v1.json`](../../mfn-node/tes
 
 Add your node's **public P2P listen address** (`host:port`, reachable from the internet or your LAN) to [`public_devnet_v1.manifest.json`](../../mfn-node/testdata/public_devnet_v1.manifest.json) under `seed_nodes`, then open a PR or post in the operator channel.
 
-The manifest includes `seed_nodes_examples` (documentation only â€” `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
+The manifest includes `seed_nodes_examples` (documentation only — `mfnd` ignores unknown JSON fields and reads only `seed_nodes`). Replace those placeholders with live addresses before publishing.
 
-### Local mesh â†’ published seeds
+### Local mesh → published seeds
 
 After `start-all.sh` / `start-all.ps1`:
 
@@ -34,9 +34,9 @@ New peers should:
 
 1. Build `mfnd` from this repository (or a release artifact with matching consensus).
 2. Start with `--genesis` pointing at the canonical JSON (byte-identical file).
-3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file â€” **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable). `mfnd` trims, dedupes, and validates every boot peer as `HOST:PORT` before dialing; use `[IPv6]:PORT` for IPv6 literals. If your own resolved P2P listen address appears in CLI dials, manifest seeds, or `peers.json`, `mfnd` logs `mfnd_p2p_self_dial_skip peer=...` and skips that outbound dial. The merged CLI/manifest boot list is capped at 64 peers with explicit `--p2p-dial` entries kept first; if the cap drops extras, stdout logs `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`. Stale or firewalled public seeds are bounded per resolved TCP address by a 5s connect timeout before the dial logs `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort` and peer scoring decides whether to quarantine later retries.
+3. Boot peers: either rely on manifest `seed_nodes` (auto-merged from `public_devnet_v1.manifest.json` beside the genesis file — **M2.4.4**), and/or pass one or more `--p2p-dial host:port` flags (repeatable). `mfnd` trims, dedupes, and validates every boot peer as `HOST:PORT` before dialing; use `[IPv6]:PORT` for IPv6 literals. If your own resolved P2P listen address appears in CLI dials, manifest seeds, or `peers.json`, `mfnd` logs `mfnd_p2p_self_dial_skip peer=...` and skips that outbound dial. The merged CLI/manifest boot list is capped at 64 peers with explicit `--p2p-dial` entries kept first; if the cap drops extras, stdout logs `mfnd_p2p_boot_dials_capped configured=... retained=... dropped=... cap=64`. Stale or firewalled public seeds are bounded per resolved TCP address by a 5s connect timeout before the dial logs `mfnd_p2p_dial_abort` / `mfnd_p2p_catchup_dial_abort` and peer scoring decides whether to quarantine later retries.
 4. Verify `mfnd_chain_genesis_id=` on stdout matches the manifest; when boot peers are configured, `mfnd_p2p_boot_dials=` lists the merged dial set.
-5. Run `health-check.sh` / `health-check.ps1` â€” hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**), all expected role RPC endpoints must be discoverable, and each checked node must have at least `MFN_HEALTH_MIN_P2P_SESSIONS` live P2P sessions (default `1`). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks. Set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
+5. Run `health-check.sh` / `health-check.ps1` — hub, voters, and the bundled observer must share the same `tip_height` and `tip_id` (**M2.4.6** / **M2.4.9**), all expected role RPC endpoints must be discoverable, and each checked node must have at least `MFN_HEALTH_MIN_P2P_SESSIONS` live P2P sessions (default `1`). For a liveness window, set `MFN_HEALTH_STALL_SAMPLES=2` and `MFN_HEALTH_STALL_INTERVAL_SECONDS` longer than the slot duration; the check fails if the shared tip does not advance by `MFN_HEALTH_MIN_HEIGHT_DELTA` blocks. Set `MFN_HEALTH_REQUIRE_ALL_ROLES=0` only for intentional partial-mesh diagnostics.
 
 ## Roles
 
@@ -59,7 +59,7 @@ For **production-style** separation (validators, observer, operator, wallet on d
 | [`vps-role-operator.env.example`](vps-role-operator.env.example) | Storage operator; RPC-only path to observer |
 | [`vps-role-wallet.env.example`](vps-role-wallet.env.example) | Wallet client; never dial your own validator RPC |
 
-See [`docs/REFERENCE_TOPOLOGY.md`](../../docs/REFERENCE_TOPOLOGY.md) for layout diagrams and anti-patterns. Single-box internet launch (all roles on one VPS) uses [`vps-bind.env.example`](vps-bind.env.example) instead â€” loopback RPC + public P2P per process.
+See [`docs/REFERENCE_TOPOLOGY.md`](../../docs/REFERENCE_TOPOLOGY.md) for layout diagrams and anti-patterns. Single-box internet launch (all roles on one VPS) uses [`vps-bind.env.example`](vps-bind.env.example) instead — loopback RPC + public P2P per process.
 
 ### Local mesh scripts
 
@@ -68,43 +68,43 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Platform | Command |
 |----------|---------|
 | Linux/macOS (local loopback) | `bash scripts/public-devnet-v1/start-all.sh` |
-| Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` â€” see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
-| VPS provision (zero â†’ soak) | [`docs/VPS_PROVISION.md`](../../docs/VPS_PROVISION.md) â€” provider-agnostic TL-5 prerequisite |
+| Linux VPS (internet P2P) | `bash scripts/public-devnet-v1/vps-start-all.sh` — see [`docs/VPS_SINGLE_BOX_LAUNCH.md`](../../docs/VPS_SINGLE_BOX_LAUNCH.md) |
+| VPS provision (zero → soak) | [`docs/VPS_PROVISION.md`](../../docs/VPS_PROVISION.md) — provider-agnostic TL-5 prerequisite |
 | TL-5 provision rehearsal (CI) | `bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only` |
 | P32 role templates rehearsal (CI) | `bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only` |
 | TL-5 preflight rehearsal (CI) | `bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only` |
-| Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` â€” after `vps-preflight.sh` |
+| Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
 | TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
-| TL-5 soak evidence assert | `bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt` â€” before commit |
+| TL-5 soak evidence assert | `bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt` — before commit |
 | TL-5 soak evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-evidence-rehearsal-smoke.sh --plan-only` |
-| Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` â€” after TL-5 soak PASS |
+| Linux VPS TL-6 rehearsal | `bash scripts/public-devnet-v1/vps-participant-rehearsal.sh` — after TL-5 soak PASS |
 | TL-6 rehearsal gate (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-rehearsal-smoke.sh --plan-only` |
-| TL-6 rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt` â€” before commit |
-| B-15 JOIN_TESTNET rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/join-testnet-rehearsal-*.txt` â€” before commit |
+| TL-6 rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-vps-participant-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/vps-participant-rehearsal-*.txt` — before commit |
+| B-15 JOIN_TESTNET rehearsal evidence assert | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh scripts/public-devnet-v1/evidence/join-testnet-rehearsal-*.txt` — before commit |
 | B-15 JOIN_TESTNET rehearsal (live) | `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence` on synced observer RPC (VPS: `127.0.0.1:18734`) |
 | B-15 JOIN_TESTNET rehearsal (CI) | `bash scripts/public-devnet-v1/join-testnet-rehearsal-evidence-rehearsal-smoke.sh --plan-only` |
 | TL-6 rehearsal evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-participant-rehearsal-evidence-rehearsal-smoke.sh --plan-only` |
 | TL-7 ceremony rehearsal (CI) | `bash scripts/public-devnet-v1/vps-launch-ceremony-rehearsal-smoke.sh --plan-only` |
 | TL-7 Path B header_version (CI) | `bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only` |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
-| TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` â€” after TL-7 sign-off |
-| Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` â€” systemd `observer-rpc-proxy.service` â†’ observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
-| Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` â€” async `POST /faucet` + `/faucet/job`; **F7 dual-send** (two transfers + tip-wait/rescan between sends); IP cooldown uses **TCP peer IP only** (R-4 â€” ignore spoofed `X-Forwarded-For`); loopback peer skips cooldown (R-3); clients retry on `503 busy` |
-| Faucet catch-up (VPS) | `bash scripts/public-devnet-v1/faucet-catchup.sh` â€” background `wallet light-scan` for operator faucet |
+| TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
+| Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
+| Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` — async `POST /faucet` + `/faucet/job`; **F7 dual-send** (two transfers + tip-wait/rescan between sends); IP cooldown uses **TCP peer IP only** (R-4 — ignore spoofed `X-Forwarded-For`); loopback peer skips cooldown (R-3); clients retry on `503 busy` |
+| Faucet catch-up (VPS) | `bash scripts/public-devnet-v1/faucet-catchup.sh` — background `wallet light-scan` for operator faucet |
 | Faucet UTXO consolidate (VPS) | `bash scripts/public-devnet-v1/faucet-consolidate.sh --plan-only` then real run weekly when `owned_count` grows |
-| VPS faucet deploy | `bash scripts/public-devnet-v1/vps-update-faucet.sh` â€” pull, rebuild `mfn-cli`, restart faucet HTTP (**do not** run during B-15 JOIN evidence capture â€” restarts drop in-memory jobs; see AGENTS Â§6) |
-| B-15 outside-in JOIN | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` â€” archive `join-testnet-rehearsal-linux-*.txt`; **no parallel** `join-testnet-rehearsal*` while evidence is in flight |
+| VPS faucet deploy | `bash scripts/public-devnet-v1/vps-update-faucet.sh` — pull, rebuild `mfn-cli`, restart faucet HTTP (**do not** run during B-15 JOIN evidence capture — restarts drop in-memory jobs; see AGENTS §6) |
+| B-15 outside-in JOIN | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` — archive `join-testnet-rehearsal-linux-*.txt`; **no parallel** `join-testnet-rehearsal*` while evidence is in flight |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
-| TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` â€” validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
-| TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` â€” after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
+| TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
+| TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
 | TL-8 publish checkpoint log rehearsal (CI) | `bash scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.sh --plan-only` |
-| TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) â€” share after `publish-seed-nodes --apply` + checkpoint log |
-| Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` â€” TL phase + checkpoint log tracking (`launch-status.v7`) |
-| VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` â€” before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
-| VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` â€” ci-check gate |
-| Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` â€” FEES.md Â§5 revisit triggers |
-| P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` â€” role env separation gate |
-| TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` â€” before outside invites |
+| TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) — share after `publish-seed-nodes --apply` + checkpoint log |
+| Launch posture | `bash scripts/public-devnet-v1/launch-status.sh` / `launch-status.ps1 -Json` — TL phase + checkpoint log tracking (`launch-status.v7`) |
+| VPS preflight checklist | `bash scripts/public-devnet-v1/vps-execution-checklist.sh` — before TL-5/TL-6 (`v2` schema; use `--strict` when CI must be green) |
+| VPS checklist rehearsal | `bash scripts/public-devnet-v1/vps-execution-checklist-rehearsal-smoke.sh --plan-only` — ci-check gate |
+| Treasury telemetry (F6) | `bash scripts/public-devnet-v1/treasury-telemetry-watch.sh --rpc HOST:PORT` — FEES.md §5 revisit triggers |
+| P32 / PM23 rehearsal | `bash scripts/public-devnet-v1/pm23-operator-manifest-rehearsal-smoke.sh --plan-only` — role env separation gate |
+| TL-9 go/no-go | `bash scripts/public-devnet-v1/launch-go-no-go.sh` — before outside invites |
 | Windows | `powershell -File scripts/public-devnet-v1/start-all.ps1` |
 
 Stop a local mesh before rebuilding release binaries or running CI:
@@ -208,7 +208,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Ignored/nightly smoke coverage passed for public-devnet release candidates: `scripts/ci-ignored.ps1` or `scripts/ci-ignored.sh`.
 - [ ] GitHub CI is green for the exact commit that will be published, verified with `release-ci-watch.ps1` or `release-ci-watch.sh`.
 - [ ] `SECURITY.md` still states the software is pre-audit and does not imply production-grade security.
-- [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner (complete [Â§ Residual-risk owners and halt authority](#residual-risk-owners-and-halt-authority-b-30) before TL-9).
+- [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner (complete [§ Residual-risk owners and halt authority](#residual-risk-owners-and-halt-authority-b-30) before TL-9).
 - [ ] The published genesis JSON and manifest are byte-identical across operators, and every node prints the expected `mfnd_chain_genesis_id=`.
 - [ ] Public deterministic test seeds were replaced for any shared, production-like, incentivized, or non-toy deployment.
 - [ ] RPC is loopback-only, VPN/SSH-only, or behind the documented firewall/TLS pattern; `mfn-cli --rpc <RPC> status` reports `rpc.public_bind=false` unless an explicit firewall/API-key/TLS review approved the exposure.
@@ -249,7 +249,7 @@ Fill every blank before circulating outside invites (TL-9). Standing lane owners
 | Role | Name / handle | Contact path | Authority |
 | --- | --- | --- | --- |
 | **Halt authority** (may publish pause / stop invites) | ________________ | ________________ | Unilateral halt on any critical no-go condition |
-| **Rollback authority** (may direct binary/data-dir rollback) | ________________ | ________________ | Coordinated rollback per Â§ Backups below; not solo if consensus/schema changed |
+| **Rollback authority** (may direct binary/data-dir rollback) | ________________ | ________________ | Coordinated rollback per § Backups below; not solo if consensus/schema changed |
 | **Genesis rotation publisher** (may announce new `genesis_id`) | ________________ | ________________ | Only after halt; Path A toy-key rotation or Path B ceremony |
 | **Launch-day log watcher** | ________________ | ________________ | Watches `mfnd` + faucet + observer proxy on VPS |
 | **Launch-day CI watcher** | ________________ | ________________ | Watches GitHub CI/Nightly on invite head |
@@ -268,7 +268,7 @@ Fill every blank before circulating outside invites (TL-9). Standing lane owners
 
 **Sign-off flags** (for `release-signoff-manifest`): `--threat-model-reviewed` + `--residual-risks-have-owners` + `--halt-rollback-authority-agreed` only after this section is filled.
 
-Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** â€” exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` â‰  public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
+Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` ≠ public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
 
 Release-candidate evidence:
 
@@ -680,9 +680,9 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 
 **GitHub Actions Linux soak audit** (workflow_dispatch, uploads evidence artifact):
 
-1. Open **Actions â†’ Linux Soak Audit â†’ Run workflow** on `main`.
+1. Open **Actions → Linux Soak Audit → Run workflow** on `main`.
 2. Defaults: `SLOT_MS=30000`, 35 minutes, `--min-final-height 10`, observer restart once.
-3. The workflow pre-builds **`mfnd` + `mfn-cli`** before `soak.sh` â†’ `start-all.sh --no-build` (`hub_tip_wait` tip polls require `mfn-cli` when `nc` JSON-RPC is empty on GHA).
+3. The workflow pre-builds **`mfnd` + `mfn-cli`** before `soak.sh` → `start-all.sh --no-build` (`hub_tip_wait` tip polls require `mfn-cli` when `nc` JSON-RPC is empty on GHA).
 4. Download artifact `linux-soak-evidence-slot-30000` and archive the transcript under `scripts/public-devnet-v1/evidence/`.
 
 **Auto-dispatch (B-05):** After green **CI** on `main`, when no `soak-restart-linux-30s-slot-*.txt` exists on `main`, CI job `dispatch-linux-soak-rc` triggers **Linux Soak Audit** automatically. On PASS with `max_height >= 10`, the workflow commits the transcript to `main` with `[skip ci]` (does not re-dispatch Nightly/soak).
@@ -691,10 +691,10 @@ SLOT_MS=30000 bash scripts/public-devnet-v1/soak.sh --duration-minutes 35 --rest
 
 **Nightly Linux rehearsal smokes** (06:00 UTC + workflow_dispatch):
 
-- `participant-rehearsal-smoke` â€” 10s slots, no observer (`MFN_DEVNET_NO_OBSERVER=1`).
-- `participant-rehearsal-smoke-observer` â€” full mesh, `--min-hub-height 5`.
+- `participant-rehearsal-smoke` — 10s slots, no observer (`MFN_DEVNET_NO_OBSERVER=1`).
+- `participant-rehearsal-smoke-observer` — full mesh, `--min-hub-height 5`.
 
-Trigger manually: **Actions â†’ Nightly â†’ Run workflow** on `main` to confirm both jobs green before RC sign-off.
+Trigger manually: **Actions → Nightly → Run workflow** on `main` to confirm both jobs green before RC sign-off.
 
 After every green **CI** push to `main`, **RC Validation After CI** automatically dispatches **Nightly** on the exact passing commit (no local `gh` required).
 
@@ -705,11 +705,11 @@ $env:SLOT_MS = "10000"
 powershell -File scripts/public-devnet-v1/soak.ps1 -DurationMinutes 12 -RestartObserverOnce -ArchiveEvidence
 ```
 
-Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` when the soak finishes (PASS or FAIL). Use `-MinFinalHeight 10` on 30s-slot audits so a graceful deadline exit still PASSes when hub height â‰¥ 10 and at least three health samples succeeded.
+Add `-ArchiveEvidence` to write `scripts/public-devnet-v1/evidence/soak-restart-windows-<slot>-<timestamp>.txt` when the soak finishes (PASS or FAIL). Use `-MinFinalHeight 10` on 30s-slot audits so a graceful deadline exit still PASSes when hub height ≥ 10 and at least three health samples succeeded.
 
 While a soak runs it holds `scripts/public-devnet-v1/.soak-active.lock`; `start-all.{ps1,sh}` and `stop-all.{ps1,sh}` refuse to tear down the mesh unless soak bootstrap (`MFN_SOAK_BOOTSTRAP=1`) or `stop-all --force` / `stop-all -Force`.
 
-Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up. On GHA, warmup uses `MFN_HEALTH_MIN_P2P_SESSIONS=0` (because `get_status` may report `p2p.session_count=null`) and may soft-continue when hub tipâ‰¥1 and all roles have `mfnd_p2p_dial_ok=` in logs.
+Before the first health sample, the soak waits for a converged `health-check` pass at `tip_height >= 1` and logs `soak: WARMUP` so `F=1.5` sortition meshes do not fail stall checks while validators are still catching up. On GHA, warmup uses `MFN_HEALTH_MIN_P2P_SESSIONS=0` (because `get_status` may report `p2p.session_count=null`) and may soft-continue when hub tip≥1 and all roles have `mfnd_p2p_dial_ok=` in logs.
 
 The soak starts the local hub + two voters + observer unless `--no-start` / `-NoStart` is supplied, checks recorded PIDs, verifies follower/observer P2P dial logs, and repeatedly runs the multi-sample health check. For release-candidate evidence, archive the final `soak: SUMMARY` line, each `soak: SAMPLE` line, and any `soak: RESTART` line; together they record pass/fail status, elapsed duration, sampled height/tip, genesis id, per-role P2P peer/session counts, and delayed catch-up after observer kill/restart.
 
@@ -738,8 +738,8 @@ New participants should start with [`JOIN_TESTNET.md`](../../docs/JOIN_TESTNET.m
 
 `mfnd serve` exposes an **unauthenticated** JSON-RPC 2.0 line protocol on `--rpc-listen`. Any client that can open a TCP connection may:
 
-- Read chain state (`get_tip`, `get_block`, `list_methods`, â€¦)
-- Submit transactions and storage proofs (`submit_tx`, `submit_storage_proof`, â€¦)
+- Read chain state (`get_tip`, `get_block`, `list_methods`, …)
+- Submit transactions and storage proofs (`submit_tx`, `submit_storage_proof`, …)
 - Inspect the mempool and proof pool
 
 There is **no TLS** in v0.1 testnet builds. Optional API-key auth can gate `wallet-write` and `operator-admin` RPC methods, but public read methods remain open by design.
@@ -952,18 +952,18 @@ After any key or API-key rotation, rerun health checks and update only the priva
 
 ---
 
-## Permanence operators (storage + SPoRA) â€” M6 / M7
+## Permanence operators (storage + SPoRA) — M6 / M7
 
 Hardware roles and decentralization context: [docs/DECENTRALIZATION.md](../../docs/DECENTRALIZATION.md). One-command RPC-only prove loop: [start-storage-operator.sh](./start-storage-operator.sh) / [start-storage-operator.ps1](./start-storage-operator.ps1).
 
 Permawrite separates **on-chain anchors** (private `StorageCommitment` in a block) from **off-chain bytes** (chunk payloads). Validators only mine SPoRA proofs when they can read the challenged chunk. Operators run replication and proving on devnet today via `mfn-cli` and `mfn-storage-operator`.
 
-**Public devnet B3 registry (genesis).** `public_devnet_v1.json` enables `operator_salted_challenges`, `require_registered_operators`, and seeds two genesis storage operators (deterministic payout seeds â€” **testnet funds only**):
+**Public devnet B3 registry (genesis).** `public_devnet_v1.json` enables `operator_salted_challenges`, `require_registered_operators`, and seeds two genesis storage operators (deterministic payout seeds — **testnet funds only**):
 
 | Index | `payout_seed_hex` (64 hex chars) | Role |
 |-------|----------------------------------|------|
-| 0 | `c3c3c3â€¦c3` (32 bytes) | Rehearsal replica wallet (`permanence-demo` restores operator-0) |
-| 1 | `d4d4d4â€¦d4` (32 bytes) | Second registered operator for multi-replica B3 proofs |
+| 0 | `c3c3c3…c3` (32 bytes) | Rehearsal replica wallet (`permanence-demo` restores operator-0) |
+| 1 | `d4d4d4…d4` (32 bytes) | Second registered operator for multi-replica B3 proofs |
 
 Bond at genesis is `0` (`min_storage_operator_bond: 0`); post-genesis registration uses `StorageOperatorOp::Register` + bond escrow. `genesis_id` is unchanged from pre-B3 public devnet.
 
@@ -976,16 +976,16 @@ Bond at genesis is `0` (`min_storage_operator_bond: 0`); post-genesis registrati
 
 Operators should run `mfn-storage-operator prove` on a schedule; a valid operator-salted proof in a block resets the miss counter. Rehearsal operators with `bond_amount: 0` at genesis are not slashable until they register with bond post-genesis.
 
-**Chunk-inbox disk quota (B7).** Gossip chunk writes honor `MFND_CHUNK_INBOX_MAX_BYTES` (default **64 GiB**; `0` disables). When over budget, `mfnd` evicts **incomplete** inbox commit dirs (oldest first) and logs `mfnd_chunk_inbox_evict commit=â€¦ bytes=â€¦`. Complete Merkle-verified sets are never evicted â€” they may be pending repair fan-out.
+**Chunk-inbox disk quota (B7).** Gossip chunk writes honor `MFND_CHUNK_INBOX_MAX_BYTES` (default **64 GiB**; `0` disables). When over budget, `mfnd` evicts **incomplete** inbox commit dirs (oldest first) and logs `mfnd_chunk_inbox_evict commit=… bytes=…`. Complete Merkle-verified sets are never evicted — they may be pending repair fan-out.
 
-**Proactive repair (B4).** Every `mfnd serve` node with P2P runs a background repair sweep when `MFND_REPAIR_THRESHOLD_SLOTS` is non-zero (default `14400` â‰ˆ 2Ã— anti-hoarding window). Stale on-chain storage (`current_slot âˆ’ last_proven_slot` above threshold) with a **complete Merkle-verified** local `chunk-inbox/` is re-fan-out to peers. Tune with:
+**Proactive repair (B4).** Every `mfnd serve` node with P2P runs a background repair sweep when `MFND_REPAIR_THRESHOLD_SLOTS` is non-zero (default `14400` ≈ 2× anti-hoarding window). Stale on-chain storage (`current_slot − last_proven_slot` above threshold) with a **complete Merkle-verified** local `chunk-inbox/` is re-fan-out to peers. Tune with:
 
 | Env | Default | Meaning |
 |-----|---------|---------|
 | `MFND_REPAIR_THRESHOLD_SLOTS` | `14400` | Staleness before repair (`0` disables) |
 | `MFND_REPAIR_INTERVAL_MS` | `300000` | Sweep interval (ms) |
 
-Boot log: `mfnd_repair_sweep_start threshold_slots=â€¦ interval_ms=â€¦`. Repair action log: `mfnd_p2p_repair_fanout commit=<hex> stale_slots=<n>`.
+Boot log: `mfnd_repair_sweep_start threshold_slots=… interval_ms=…`. Repair action log: `mfnd_p2p_repair_fanout commit=<hex> stale_slots=<n>`.
 
 Build both CLIs after `mfnd`:
 
@@ -1000,17 +1000,17 @@ Point `--rpc` at any synced node's `mfnd_serve_listening=` address. Use the same
 ### End-to-end flow
 
 ```text
-wallet upload  â†’  tx mined (storage on-chain)
-       â†“
+wallet upload  →  tx mined (storage on-chain)
+       ↓
 replicate bytes to peers (HTTP and/or P2P ChunkV1)
-       â†“
-assemble local artifact  â†’  operator prove  â†’  SPoRA proof mined
+       ↓
+assemble local artifact  →  operator prove  →  SPoRA proof mined
 ```
 
 | Stage | On-chain | Off-chain |
 |-------|----------|-----------|
 | Upload | Commitment + endowment in a block | `wallet.upload-artifacts/<hash>/` (payload + metadata) |
-| Replicate | â€” | Peers hold matching chunk bytes |
+| Replicate | — | Peers hold matching chunk bytes |
 | Prove | `StorageProof` in a later block | Operator uses artifact or inbox bytes |
 
 ### 1. Anchor data (any synced node)
@@ -1034,7 +1034,7 @@ mfn-cli --rpc 127.0.0.1:<RPC> operator challenge <COMMIT_HASH_HEX> --json
 
 Pick **at least `replication` peers** (from the commitment) that store byte-identical chunks.
 
-#### HTTP (M6) â€” good for observers and static fetch
+#### HTTP (M6) — good for observers and static fetch
 
 On a machine that has the wallet artifact:
 
@@ -1052,13 +1052,13 @@ mfn-storage-operator run --once --chunk-listen 127.0.0.1:18780 \
 
 #### Home chunk serve behind NAT
 
-Home operators without a static public IP can still replicate bytes by exposing `serve-chunks` or `run --chunk-listen` through a **TLS-terminated reverse tunnel** (Cloudflare Tunnel, ngrok, or similar). This is packaging only â€” no protocol relay:
+Home operators without a static public IP can still replicate bytes by exposing `serve-chunks` or `run --chunk-listen` through a **TLS-terminated reverse tunnel** (Cloudflare Tunnel, ngrok, or similar). This is packaging only — no protocol relay:
 
 1. Run `mfn-storage-operator serve-chunks --listen 127.0.0.1:18780` locally.
 2. Point the tunnel at `127.0.0.1:18780`; publish the tunnel hostname to peers (or add it to manifest `replication_peers` when operating a public devnet).
 3. Peers fetch with `operator fetch-chunk` / `uploads fetch-http` using the tunnel URL host:port.
 
-Keep chunk HTTP behind auth at the tunnel edge if the endpoint is public. Proofs still submit via any synced observer RPC â€” operators do **not** need inbound P2P for the prove loop ([`DECENTRALIZATION.md`](../../docs/DECENTRALIZATION.md) Â§4.2).
+Keep chunk HTTP behind auth at the tunnel edge if the endpoint is public. Proofs still submit via any synced observer RPC — operators do **not** need inbound P2P for the prove loop ([`DECENTRALIZATION.md`](../../docs/DECENTRALIZATION.md) §4.2).
 
 Pull from a peer into the local artifact tree:
 
@@ -1081,7 +1081,7 @@ mfn-cli --rpc 127.0.0.1:<RPC> --wallet ./bob.json \
 
 `uploads fetch-http` first rebuilds the wallet artifact from peer chunks using the on-chain challenge, then exports the restored payload bytes. Add `--json` to record the restored `output_path`, `artifact_dir`, `payload_bytes`, peer list, and quorum size. Use `replace` only when both the local artifact and output file may be overwritten.
 
-#### P2P ChunkV1 (M7) â€” good for `mfnd` mesh
+#### P2P ChunkV1 (M7) — good for `mfnd` mesh
 
 Each `mfnd --data-dir` may contain:
 
@@ -1155,12 +1155,12 @@ After the proof is mined, `uploads list` should show a higher `last_proven_heigh
 1. Start hub + voters ([bootstrap scripts](#bootstrap-scripts)); note each `mfnd_p2p_listening=`.
 2. Upload on a wallet connected to the hub RPC; mine the tx.
 3. `push-chunks` to two voter P2P ports (or HTTP `serve-chunks` on the uploader).
-4. On each voter: `inbox-status` â†’ `assemble-inbox` â†’ `operator prove` when challenged.
+4. On each voter: `inbox-status` → `assemble-inbox` → `operator prove` when challenged.
 5. For HTTP replicas, run `uploads fetch-http <COMMIT_HASH_HEX> ./restored.bin <PEER_HTTP>`; for assembled P2P artifacts, run `uploads retrieve <COMMIT_HASH_HEX> ./restored.bin`. Confirm identical payload hashes across peers before proving.
 
 ### Funding test wallets
 
-Participants need devnet MFN before they can send, claim, or upload. On the **live public testnet**, outsiders use the HTTP faucet (`:8788`) documented in [`JOIN_TESTNET.md`](../../docs/JOIN_TESTNET.md) â€” two F7 transfers, job poll, ~15 min peer-IP cooldown. Operators can also fund a participant wallet from an already-funded faucet wallet:
+Participants need devnet MFN before they can send, claim, or upload. On the **live public testnet**, outsiders use the HTTP faucet (`:8788`) documented in [`JOIN_TESTNET.md`](../../docs/JOIN_TESTNET.md) — two F7 transfers, job poll, ~15 min peer-IP cooldown. Operators can also fund a participant wallet from an already-funded faucet wallet:
 
 ```powershell
 # Optional local-devnet faucet: restore validator 0's public test payout wallet.
@@ -1315,7 +1315,7 @@ bash scripts/public-devnet-v1/recovery-plan.sh --rpc 127.0.0.1:<RPC> --wallet ./
   --data-dir /path/to/replica-data
 ```
 
-The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` â†’ `operator assemble-inbox` â†’ `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
+The plan helper is non-mutating. It prints the support-bundle command to run first, then the explicit HTTP `uploads fetch-http` path and P2P `operator inbox-status` → `operator assemble-inbox` → `uploads retrieve` path. Add `-Replace` / `--replace` only when the existing artifact or restored output file may be overwritten.
 
 For a guided recovery run that captures a support bundle first, prints the plan, restores the payload, verifies an expected SHA-256 when supplied, and optionally submits a proof:
 
@@ -1356,9 +1356,9 @@ The walkthrough only submits `operator prove` when `-Prove` / `--prove` is set. 
 
 | Test | What it proves |
 |------|----------------|
-| `mfn-cli` `chunk_p2p_smoke` | push â†’ inbox â†’ assemble â†’ prove (single node) |
+| `mfn-cli` `chunk_p2p_smoke` | push → inbox → assemble → prove (single node) |
 | `mfn-cli` `chunk_p2p_two_node_smoke` | hub mines, replica sync + push, matching payload |
-| `mfn-cli` `chunk_p2p_three_node_smoke` | hub â†’ two replicas via multi-peer `push-chunks` |
+| `mfn-cli` `chunk_p2p_three_node_smoke` | hub → two replicas via multi-peer `push-chunks` |
 | `mfn-cli` `chunk_p2p_auto_fanout_smoke` | hub mines, replica dials, M7.5 session fan-out fills the replica inbox without `push-chunks` (runs on Windows) |
 | `mfn-storage-operator` `chunk_http_smoke` | HTTP chunk serve matches artifact |
 | `.github/workflows/ci.yml` `public-devnet scripts` | Bash/PowerShell helper syntax plus recovery walkthrough HTTP/P2P plan mode and proof-safety text |

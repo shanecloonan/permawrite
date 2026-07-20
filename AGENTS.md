@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-45** B3 salted multi-op operator path). Prior tip `0efb23f` (B-41/B-42). Actions still **partial_outage**; stalled `#29712149048` may cancel on this Rust push — lane 1 re-dispatch on recovery. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = `f1459bf` (**B-45**). **CI `#29712566709` queued** on tip (workflow_dispatch). Prior `#29712149048` cancelled empty (~12m) during Actions **partial_outage** — do not cancel-thrash while Status stays degraded; re-dispatch only after recovery or B-34 empty-step protocol. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | B-34 escalate + dispatch `#29712149048` (`27be00d`) | **Watch Actions outage** (claim base: `7420aa6`) | On recovery: `gh workflow run CI` on tip; Nightly -> close B-29 | githubstatus + CI/Nightly |
+| **1** RC core | B-34 cancel empty `#29712149048` + dispatch `#29712566709` | **Watch `#29712566709`** + Actions (claim base: `f1459bf`) | On GREEN: Nightly -> close B-29; if empty >10m after Actions healthy: B-34 re-dispatch | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
 | **4** Protocol | **B-45** B3 salted challenge/prove/pool multi-op (this commit); **B-32** tooling `711d98b`; **B-36** | *Idle* | After CI GREEN: lane 7 rolls mfnd; live **B-32** day-of L4; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
@@ -159,7 +159,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
-| planning | 1 | **B-34:** cancelled empty-step `#29711867196` (~8m); this land restarts matrix (no skip-ci) | **Done** (this land) |
+| planning | 1 | **B-34:** empty `#29712149048` cancelled (~12m); tip dispatch `#29712566709` — hold cancel-thrash while Actions partial_outage | **Ack** |
 | planning | 3+7 | **B-42:** invite-load plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) | **Ack** (plan) |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
@@ -219,25 +219,26 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 4 — B-45 B3 salted multi-op operator path** (this commit): ProofPool keys `(commit, operator_id)` + salted verify when genesis flag set; `get_storage_challenge` accepts payout pubs; CLI/daemon build salted proofs; producer settlements via `storage_proof_operator_settlements`. Unblocks live **B-32**. Local: `cargo test -p mfn-runtime proof_pool` + `cargo check` green. Did **not** restart faucet. §6 asks lane 7 for mfnd roll after CI. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
-2. **2026-07-20 — lane 7 — B-41 voter remap + B-42 plan script** (`0efb23f`): Socat same-port conflict broke :19002–19003; remap mfnd to :1910x + dedicated forwards. Live tip~4031; EXT 19001–19003 OPEN. [skip ci].
-3. **2026-07-20 - lane 4 - B-32 multi-op evidence assert tooling** (`711d98b`): assert scripts + ci-check plan gate. Live evidence still day-of L4.
-4. **2026-07-20 - lane 4 - B-36 F10 consensus f64 CI lint** (`7420aa6`): f64 lint scripts + AGENTS §0 restore. `[skip ci]`.
-5. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
-5. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
-6. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.
-7. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.
-8. **2026-07-19 — lane 7 — B-31 threat posture probe**: Evidence `b31-threat-posture-20260720.md` — RPC **PASS**; public P2P **FAIL**. **B-41** + human **B-22**. Docs-only `[skip ci]`.
-9. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (`00c5d33` / `e10a8b3`): PowerShell parse broke validate-rc-helper-scripts.
-10. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34** (`76d4f04` / `2fd23f1`): CI stall restart `#29711500087`; work packages.
-11. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864`): B-30 matrix; B-29 close=Nightly.
-12. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height`; fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN.
-13. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
-14. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29. Docs-only `[skip ci]`.
-15. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM. Docs-only `[skip ci]`.
-16. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
-17. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
-14. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
+1. **2026-07-20 — lane 1 — B-34 tip CI `#29712566709` + OPERATORS mojibake**: Empty `#29712149048` cancelled (~12m) during Actions partial_outage; tip dispatch `#29712566709` on `f1459bf`. Fixed `OPERATORS.md` CP1252/UTF-8 mojibake that broke `validate-workflow-encoding` on main. Hold cancel-thrash until Actions healthy. Docs-only local ci-check green; `[skip ci]`. *Observed local work (not staged):* `ci-docs-*.txt`, `user-wallet/`, `live-testnet-data/`.
+2. **2026-07-20 — lane 4 — B-45 B3 salted multi-op operator path** (`f1459bf`): ProofPool keys `(commit, operator_id)` + salted verify; unblocks live **B-32**. §6 asks lane 7 for mfnd roll after CI. Did **not** restart faucet.
+3. **2026-07-20 — lane 7 — B-41 voter remap + B-42 plan script** (`0efb23f`): Socat same-port conflict; remap mfnd to :1910x. Live tip~4031; EXT 19001–19003 OPEN. [skip ci].
+4. **2026-07-20 — lane 4 — B-32 multi-op evidence assert tooling** (`711d98b`): assert scripts + ci-check plan gate. Live evidence still day-of L4.
+5. **2026-07-20 — lane 4 — B-36 F10 consensus f64 CI lint** (`7420aa6`): f64 lint scripts + AGENTS §0 restore. `[skip ci]`.
+6. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
+7. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
+8. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages; **B-40** = first permanence week. Docs-only `[skip ci]`.
+9. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.
+10. **2026-07-19 — lane 7 — B-31 threat posture probe**: Evidence `b31-threat-posture-20260720.md` — RPC **PASS**; public P2P **FAIL**. **B-41** + human **B-22**. Docs-only `[skip ci]`.
+11. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (`00c5d33` / `e10a8b3`): PowerShell parse broke validate-rc-helper-scripts.
+12. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34** (`76d4f04` / `2fd23f1`): CI stall restart `#29711500087`; work packages.
+13. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864`): B-30 matrix; B-29 close=Nightly.
+14. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height`; fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN.
+15. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
+16. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29. Docs-only `[skip ci]`.
+17. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM. Docs-only `[skip ci]`.
+18. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
+19. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
+20. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 ---
 
