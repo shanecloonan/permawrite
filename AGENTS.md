@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29**; CI `#29758805553` GREEN | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave40** (frank last_proven=4611; peer after 429) | **B-15** wave41+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave41** (gina last_proven=4620; faucet; ckpt 4606) | **B-15** wave42+ + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -277,7 +277,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave40**: **frank** peer-dual-donor permanence **last_proven=4611** (commit `8f866ea2`); faucet 429→erin+dana; F100/F105 lag during prove; claims 17→18; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+1. **2026-07-20 — lane 3 — B-15 wave41**: **gina** faucet permanence **last_proven=4620** (commit `8aeb43ec`); Path A ckpt_max=4606 (F45 lag=7); F100/F105 recur; claims 18→19; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+2. **2026-07-20 — lane 3 — B-15 wave40**: **frank** peer-dual-donor permanence **last_proven=4611** (commit `8f866ea2`); faucet 429→erin+dana; F100/F105 lag during prove; claims 17→18; no wipe. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 7 — B-88 lag timer + tip-4606** (this commit): `path-a-near-tip-ckpt.timer` install tooling + ci-check gate; tip-**4606** (lag=22 fire, entries=22); OPERATORS F107/F108. Prior **CI `#29769164562` GREEN** on B-87. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP, JOIN temps, `user-wallet/`, `live-testnet-data*`, ROADMAP/`apply_block` dirty.
 2. **2026-07-20 — lane 3 — B-15 wave39**: **erin** faucet permanence **last_proven=4602** (commit `8af641cd`); no wipe (mempool clean); claims 16→17. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave38**: **dana** peer-dual permanence **last_proven=4594** (commit `8d15b8e5`); faucet 429; mempool gate; claims 15→16; F45 lag=2. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
