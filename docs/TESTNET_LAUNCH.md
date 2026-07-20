@@ -10,9 +10,9 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 
 | Field | Value |
 | --- | --- |
-| Release commit | `dc05c40` (R-4 faucet peer-IP rate limit); live stack through `23fb359` (observer/faucet/wallet hardening) |
-| CI | `#29700946945` GREEN on `b4a3fa7`; `#29710779068` queued on `dc05c40` |
-| RC audit | `release-evidence-b4a3fa7` **go** (refresh after R-4 CI GREEN) |
+| Release commit | `73abf77` (B-15 tall-tip checkpoint log); ops stack through `dc05c40` (R-4 faucet rate limit) |
+| CI | `#29700946945` GREEN on `b4a3fa7`; `#29710893096` queued on `73abf77` |
+| RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4 head CI GREEN) |
 | VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
 | `seed_nodes` | `5.161.201.73:19001`, `:19002`, `:19003` |
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |

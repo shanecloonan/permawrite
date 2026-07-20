@@ -4,6 +4,8 @@ This document is an honest inventory of real limitations, incentive misalignment
 
 The focus is on **economics/incentives** (the harder and more fundamental category), **architectural viability**, and — as of the 2026-07 source audit — **protocol/security-model gaps** (items 11–16 in [SECURITY_CONSIDERATIONS.md](./SECURITY_CONSIDERATIONS.md)). Items 17–18 recorded two vision-critical gaps (**operator-direct SPoRA payout**, **consensus ring-16**); both are **closed** in the current tree. Open operator-pay pressure is now mostly **treasury inflow** (§§ 2, 4, 19) and **proof inclusion fairness** (§ 6), not mis-routed coinbase.
 
+**Scheduling:** each open item below maps to a strategic phase in [`ROADMAP.md` § Open problems index](./ROADMAP.md#open-problems-index-problemsmd--phases).
+
 ## Economic and Incentive Problems
 
 ### 1. Storage operators have limited skin in the game (bonding is opt-in)
