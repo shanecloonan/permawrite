@@ -155,6 +155,8 @@ bootstrap_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint
 [[ "$bootstrap_ckpt_plan" == *"bootstrap-path-a-checkpoint-signer: PASS plan-only"* ]] || { printf '%s\n' "$bootstrap_ckpt_plan" >&2; exit 1; }
 invite_load_plan="$(bash scripts/public-devnet-v1/invite-load-smoke-rehearsal.sh --plan-only)"
 [[ "$invite_load_plan" == *"invite-load-smoke-rehearsal: PASS plan-only"* ]] || { printf '%s\n' "$invite_load_plan" >&2; exit 1; }
+vps_roll_mfnd_plan="$(bash scripts/public-devnet-v1/vps-roll-mfnd-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_roll_mfnd_plan" == *"vps-roll-mfnd-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_roll_mfnd_plan" >&2; exit 1; }
 vps_preflight_plan="$(bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_preflight_plan" == *"vps-preflight-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_preflight_plan" >&2; exit 1; }
 vps_provision_plan="$(bash scripts/public-devnet-v1/vps-provision-rehearsal-smoke.sh --plan-only)"

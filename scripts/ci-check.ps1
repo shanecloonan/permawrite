@@ -217,6 +217,11 @@ if ($inviteLoadPlan -notmatch "invite-load-smoke-rehearsal: PASS plan-only") {
     $inviteLoadPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsRollMfndPlan = (bash scripts/public-devnet-v1/vps-roll-mfnd-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($vpsRollMfndPlan -notmatch "vps-roll-mfnd-rehearsal-smoke: PASS plan-only") {
+    $vpsRollMfndPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
