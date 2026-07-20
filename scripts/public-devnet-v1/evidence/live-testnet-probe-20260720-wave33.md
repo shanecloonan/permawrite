@@ -55,3 +55,7 @@ Still **sixteen** public permanence wallets (wave33 did not add). Failure docume
 
 - `_wave33-results.json`, `_wave33-*-to-yara-150000.json` (insufficient funds)
 - `user-wallet/yara.json` (unfunded)
+
+## Follow-up wave33b
+
+Faucet recovery funded+uploaded yara, but prove stuck **local_only** — see `live-testnet-probe-20260720-wave33b.md` (**F104**).
