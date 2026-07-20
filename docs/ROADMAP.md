@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `79d0433`; code head `02c8df8` B-15 checkpoint light-scan hardening; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head `55c4abc`; code head `02c8df8` B-15 checkpoint light-scan hardening; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 

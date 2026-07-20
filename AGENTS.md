@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (B-15 join-rehearsal checkpoint path); planning docs through `79d0433`+. **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist → Phase 1 permanence playbook (**B-25**).
+**CI gate (2026-07-19):** code head = `02c8df8` (B-15 join-rehearsal checkpoint path); planning docs through `55c4abc`. **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist → Phase 1 permanence playbook (**B-25**).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
