@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Prior `#29713542820` cancelled | **Watch CI `#29715111633`** (B-48 push; claim base: `69df8fa`) | On GREEN: Nightly -> close B-29; then lane 7 roll after B-51 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave10 F62 resync (this commit) | **B-15** dave receive after local sync (claim base: this head) | JOIN archive when observer healthy + ckpt 4133 | L4 checklist |
+| **3** Onboarding | B-15 wave10 dave receive + F62 fix (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when light-scan --checkpoint-log exits 0 | L4 checklist |
 | **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** ephemeral fanout quarantine (claim base: `69df8fa`) | Land B-51 after CI settles → lane 7 `vps-roll-mfnd` (B-45+B-48+B-51); live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |

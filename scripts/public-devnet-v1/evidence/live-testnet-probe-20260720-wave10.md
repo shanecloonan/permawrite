@@ -77,3 +77,45 @@ Public chain + faucet remain green. JOIN archive blocked this wave by **local ob
 
 **Ask lane 7:** confirm VPS observer block-log health (same -32002 class); keep checkpoint within ~10 of tip.
 **Ask lane 4/7:** why `last_proven_height` stuck at 4071 with pool_len=1.
+
+## Addendum A — observer resync + dave receive (04:12Z)
+
+### F62 resolution (laptop)
+
+Fresh `live-testnet-data` + dial 19001-19003: local tip caught public tip (**4139**), `get_block` OK. Corrupt dir preserved as `live-testnet-data-corrupt-*` (not committed).
+
+### Dave receive verify
+
+| Step | Result |
+| --- | --- |
+| get_light_snapshot(4133) | OK |
+| light-scan --checkpoint-log | exit **1** — `mfn-node\testdata\public_devnet_v1.checkpoints.jsonl has no attestation at tip_height 4139` |
+| wallet balance | see below |
+
+```
+tip_height=4139
+blocks_scanned=6
+utxo_cache=false
+scan_height=4139
+balance=500000
+owned_count=1
+wallet_path=scripts\public-devnet-v1\user-wallet\dave.json
+```
+
+```json
+{
+  "balance_cached": 500000,
+  "blocks_behind": 1,
+  "light_checkpoint_present": true,
+  "owned_count_cached": 1,
+  "pending_spent_count": 0,
+  "scan_height": 4139,
+  "sync_needed": true,
+  "tip_height": 4140,
+  "trusted_light_summary_present": true,
+  "utxo_cache": true,
+  "wallet_path": "scripts\\public-devnet-v1\\user-wallet\\dave.json",
+  "wallet_version": 2
+}
+```
+
