@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–43; iris@**4636** proxy-prove PASS; claims=21; twenty-four proxy-proven wallets. Path A ckpt_max=4624 (F45 lag=5).
+**Status:** DRAFT — waves 6–44; iris@4636 last PASS; **wave44 jade FAIL** (F104/F107); claims=21; twenty-four proxy-proven wallets. Wipe required before wave45.
+| jade | peer (after faucet 429) | n/a | **no** | FAIL wave44 F104/F107 local_only mem=1 |
 | iris | faucet | n/a | yes | **4636** (wave43; proxy-prove PASS) |
 | hank | peer (after faucet 429) | n/a | yes | **4628** (wave42; proxy-prove PASS) |
 | gina | faucet | n/a | yes | **4620** (wave41; proxy-prove PASS) |
@@ -81,6 +82,9 @@ Twenty-four wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/osca
 
 25. **F105** — proxy `list_recent_uploads` can lag local matched prove by ~1–2 min (wave40: ~100s after last_proven).
 26. **F100** — local `matched`/`last_proven` can precede tip_id match; wait for tip_id equality before treating public settle as final (wave40 poll 10 vs 20).
+
+
+27. **F104/F107 recur (wave44)** — after seven PASSes on one observer, Fresh+tip_id match again stuck `local_only` with sticky mempool=1 and no proxy_has. Wipe (full data-dir quarantine) before next wave; restart-without-wipe insufficient (F108).
 
 ## Still open before formal archive PASS
 
