@@ -221,6 +221,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave5**: tip still 4031 (20+ min stall); carol faucet EAGAIN (3/3 fails); proxy 502; local RPC reads OK; light-scan abandoned. Evidence live-testnet-probe-20260720-wave5.md. Docs-only [skip ci].
 1. **2026-07-20 - lane 3 - B-15 wave4 addendum** (ed296d4): tip STALL 4031; faucet jobs ERROR os error 11 (EAGAIN); checkpoint log tip 4028; light-scan ~0.55s/block no mid-persist; P2P 19001 flapped. Docs-only [skip ci].
 1. **2026-07-20 — lane 1 — B-34 escalate: no active CI**: `#29712566709` cancelled empty (~11m) while Actions still partial_outage; hold re-dispatch until Status operational. Outside-in: observer proxy `ECONNREFUSED :18734`; §6 → lane 7. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 3 — B-15 wave4 partial** (`e01645a`): tip~4031; re-fund; P2P `:19001` down / light-scan slow. Evidence `live-testnet-probe-20260720-wave4.md`. Faucet lock remains.

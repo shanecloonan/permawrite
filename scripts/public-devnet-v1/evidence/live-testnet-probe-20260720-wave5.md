@@ -47,3 +47,42 @@ All via TCP JSON-RPC to `127.0.0.1:18734` (local mfnd):
 ## B-15 status
 
 Full JOIN still blocked on: tip production, faucet job completion without EAGAIN, and practical light-scan/receive verify.
+
+## Addendum A (~02:45-02:50Z)
+
+### Tip soak (4 x 40s)
+
+| Sample UTC | tip | tip_id prefix | peers | sess |
+| --- | --- | --- | --- | --- |
+| 02:45:13 | 4031 | cdb54fa85473 | 1 | 0 |
+| 02:45:55 | 4031 | cdb54fa85473 | 1 | 0 |
+| 02:46:38 | 4031 | cdb54fa85473 | 1 | 0 |
+| 02:47:19 | 4031 | cdb54fa85473 | 1 | 0 |
+
+**F27 extended:** tip_id unchanged for full ~160s soak. Combined with wave4, stall duration ~20+ minutes.
+
+### F30. Faucet EAGAIN reproduced (third wallet)
+
+Carol fund job ac60d66a58742ad74015d0d5: POST 202 then error after ~160s with mfn-cli exited 1: io: Resource temporarily unavailable (os error 11). Now 3/3 post-wave1 fund attempts fail with EAGAIN (alice re-fund, bob, carol).
+
+### F31. Faucet HTTP validation (SUCCESS)
+
+| Request | HTTP | Body |
+| --- | --- | --- |
+| empty / mf | 400 | invalid mf address |
+| non-JSON | 400 | invalid json |
+| job no id | 400 | missing job id |
+| unknown job | 404 | unknown job id |
+
+### F32. Storage challenge points at next unproduced height
+
+get_storage_challenge returns next_height=4032 while tip stuck at 4031. Challenge path alive; proves cannot advance without new blocks.
+
+### F33. UTXO set size
+
+list_utxos total=4174 at tip 4031.
+
+### F34. Long light-scan abandoned
+
+Genesis light-scan still scan_height=null after 20+ minutes; killed. Not a viable JOIN path at tip 4k without mid-persist / checkpoint bootstrap.
+
