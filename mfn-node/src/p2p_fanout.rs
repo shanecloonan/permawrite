@@ -43,6 +43,9 @@ pub struct P2pPeerSet {
     max_outbound_peers: u32,
     peers: Arc<Mutex<BTreeSet<String>>>,
     durable_peers: Arc<Mutex<BTreeSet<String>>>,
+    /// Advertised listen addrs used for proposal/block dials when B-71 rejects
+    /// persistence (OS `:0` ports ≥32768 on GHA). Not written to `peers.json`.
+    production_dial_peers: Arc<Mutex<BTreeSet<String>>>,
     sessions: Arc<Mutex<BTreeMap<String, Arc<Mutex<TcpStream>>>>>,
     quarantine: Arc<Mutex<PeerQuarantine>>,
     production: Arc<Mutex<Option<ProductionHook>>>,
@@ -94,6 +97,7 @@ impl P2pPeerSet {
             max_outbound_peers,
             peers: Arc::new(Mutex::new(initial.clone())),
             durable_peers: Arc::new(Mutex::new(initial)),
+            production_dial_peers: Arc::new(Mutex::new(BTreeSet::new())),
             sessions: Arc::new(Mutex::new(BTreeMap::new())),
             quarantine: Arc::new(Mutex::new(PeerQuarantine::new(
                 PEER_FAILURES_BEFORE_QUARANTINE,
@@ -335,10 +339,15 @@ impl P2pPeerSet {
         // B-71: advertise-on-0 / dynamic source ports must not become durable dial targets.
         if !is_persistable_peer_addr(&addr) {
             eprintln!("mfnd_p2p_peer_register_ephemeral_fallback peer={addr}");
-            self.register_ephemeral(addr);
+            self.register_ephemeral(addr.clone());
+            // B-75: Nightly/GHA `:0` listen ports are non-persistable but are still the
+            // committee advertise addr — keep them for sealed-block / proposal dials so
+            // voters are not left on tip-0 after voting (observer tip-stall).
+            self.remember_production_dial(&addr);
             return;
         }
         self.note_peer_success(&addr);
+        self.remember_production_dial(&addr);
         let changed = match (self.peers.lock(), self.durable_peers.lock()) {
             (Ok(mut peers), Ok(mut durable)) => {
                 durable.insert(addr.clone());
@@ -348,6 +357,12 @@ impl P2pPeerSet {
         };
         if changed {
             self.persist();
+        }
+    }
+
+    fn remember_production_dial(&self, peer_addr: &str) {
+        if let Ok(mut g) = self.production_dial_peers.lock() {
+            g.insert(peer_addr.to_string());
         }
     }
 
@@ -471,17 +486,31 @@ impl P2pPeerSet {
         self.snapshot_tx_fanout_peers_except(except_peer)
     }
 
-    /// Durable committee/boot peers for proposal and vote fan-out.
+    /// Committee/boot peers for proposal and sealed-block fan-out.
+    ///
+    /// Prefers persistable durable peers; always unions in-memory production dial
+    /// targets (B-75) so non-persistable advertise addrs still get sealed blocks.
     fn snapshot_production_fanout_peers_except(&self, except_peer: Option<&str>) -> Vec<String> {
-        let durable = self.snapshot_durable_available_peers();
-        let peers = if durable.is_empty() {
-            // Before P2P advertise registers committee listen addrs, fan out on live sessions.
-            self.snapshot_session_peers()
-        } else {
-            durable
+        let mut peers: BTreeSet<String> = self
+            .snapshot_durable_available_peers()
+            .into_iter()
+            .collect();
+        if let Ok(prod) = self.production_dial_peers.lock() {
+            peers.extend(prod.iter().cloned());
+        }
+        if peers.is_empty() {
+            // Before any advertise registration, fan out on live sessions.
+            peers.extend(self.snapshot_session_peers());
+        }
+        let Ok(mut quarantine) = self.quarantine.lock() else {
+            return peers
+                .into_iter()
+                .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
+                .collect();
         };
         peers
             .into_iter()
+            .filter(|p| !quarantine.is_quarantined(p))
             .filter(|p| except_peer.map(|ex| ex != *p).unwrap_or(true))
             .collect()
     }
@@ -1675,6 +1704,34 @@ mod tests {
     }
 
     #[test]
+    fn advertised_non_persistable_listen_stays_in_production_dial() {
+        let dir = temp_dir("b75_production_dial_non_persistable");
+        let chain =
+            Chain::from_genesis(ChainConfig::new(empty_genesis_cfg())).expect("genesis chain");
+        let genesis_id = *chain.genesis_id();
+        let peer_set = P2pPeerSet::new(
+            genesis_id,
+            Arc::new(Mutex::new((0, genesis_id))),
+            dir.clone(),
+            Arc::new(Mutex::new(chain)),
+            DandelionConfig::default(),
+        );
+        // GHA `:0` listen advertise (port ≥32768) — must still be dialable for seals.
+        let gha_listen = "127.0.0.1:49614".to_string();
+        peer_set.register(&gha_listen);
+        assert!(
+            peer_set
+                .snapshot_production_fanout_peers_except(None)
+                .contains(&gha_listen),
+            "B-75: non-persistable advertise must remain a production dial target"
+        );
+        assert!(!peer_set
+            .snapshot_durable_available_peers()
+            .contains(&gha_listen));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn ephemeral_peers_are_excluded_from_committee_catch_up() {
         let dir = temp_dir("committee_catchup_ephemeral_exclude");
         let durable = "203.0.113.20:19001".to_string();
@@ -1696,6 +1753,7 @@ mod tests {
 
         peer_set.register_ephemeral(&ephemeral);
         assert!(!peer_set.snapshot_available_peers().contains(&ephemeral));
+        // Raw inbound source ports (register_ephemeral) stay out of production dials.
         assert!(!peer_set
             .snapshot_production_fanout_peers_except(None)
             .contains(&ephemeral));

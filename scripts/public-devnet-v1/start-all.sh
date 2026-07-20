@@ -16,6 +16,9 @@ mkdir -p "$LOG_DIR"
 # shellcheck source=vps-bind-lib.sh
 source "$SCRIPT_DIR/vps-bind-lib.sh"
 
+# shellcheck source=persistable-listen-lib.sh
+source "$SCRIPT_DIR/persistable-listen-lib.sh"
+
 if [[ "${MFN_VPS_MODE:-}" == "1" ]]; then
   load_vps_bind_file "$SCRIPT_DIR" || exit 1
   echo "start-all: VPS mode — public P2P binds from ${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
@@ -24,6 +27,15 @@ else
   # public_devnet_v1.manifest.json (same genesis_id as live Hetzner → tip poison).
   export MFN_SKIP_MANIFEST_SEEDS="${MFN_SKIP_MANIFEST_SEEDS:-1}"
   echo "start-all: local mesh — MFN_SKIP_MANIFEST_SEEDS=$MFN_SKIP_MANIFEST_SEEDS (isolated from public seeds)"
+  # B-75 / B-71: bind P2P in persistable band (<32768). OS `:0` yields ≥32768 and
+  # registers as ephemeral_fallback — sealed blocks then miss committee voters.
+  if [[ -z "${MFN_LOCAL_PERSISTABLE_P2P:-}" || "${MFN_LOCAL_PERSISTABLE_P2P}" == "1" ]]; then
+    HUB_P2P_BIND="$(pick_persistable_p2p_listen)"
+    V1_P2P_BIND="$(pick_persistable_p2p_listen)"
+    V2_P2P_BIND="$(pick_persistable_p2p_listen)"
+    OBS_P2P_BIND="$(pick_persistable_p2p_listen)"
+    echo "start-all: local persistable P2P hub=$HUB_P2P_BIND v1=$V1_P2P_BIND v2=$V2_P2P_BIND observer=$OBS_P2P_BIND"
+  fi
 fi
 
 NO_BUILD=0
@@ -80,7 +92,11 @@ echo "Cleared local devnet data root: $REPO_ROOT/$DATA_ROOT"
 echo "Starting hub (v0)..."
 vps_export_binds hub
 export MFN_RPC_LISTEN="${MFN_RPC_LISTEN:-127.0.0.1:0}"
-export MFN_P2P_LISTEN="${MFN_P2P_LISTEN:-127.0.0.1:0}"
+if [[ -n "${HUB_P2P_BIND:-}" ]]; then
+  export MFN_P2P_LISTEN="$HUB_P2P_BIND"
+else
+  export MFN_P2P_LISTEN="${MFN_P2P_LISTEN:-127.0.0.1:0}"
+fi
 : >"$LOG_DIR/v0.log"
 bash "$SCRIPT_DIR/start-hub.sh" >>"$LOG_DIR/v0.log" 2>&1 &
 HUB_PID=$!
@@ -123,11 +139,21 @@ echo "Hub P2P=$HUB_P2P RPC=$HUB_RPC"
 sleep 2
 echo "Starting voter 1..."
 vps_export_binds v1
+if [[ -n "${V1_P2P_BIND:-}" ]]; then
+  export MFN_P2P_LISTEN="$V1_P2P_BIND"
+else
+  export MFN_P2P_LISTEN="127.0.0.1:0"
+fi
 bash "$SCRIPT_DIR/start-voter.sh" 1 >"$LOG_DIR/v1.log" 2>&1 &
 echo "V1_PID=$!" >>"$PORTS_FILE"
 sleep 2
 echo "Starting voter 2..."
 vps_export_binds v2
+if [[ -n "${V2_P2P_BIND:-}" ]]; then
+  export MFN_P2P_LISTEN="$V2_P2P_BIND"
+else
+  export MFN_P2P_LISTEN="127.0.0.1:0"
+fi
 bash "$SCRIPT_DIR/start-voter.sh" 2 >"$LOG_DIR/v2.log" 2>&1 &
 echo "V2_PID=$!" >>"$PORTS_FILE"
 sleep 2
@@ -280,6 +306,11 @@ if [[ -n "$EXTRA_P2P_DIALS" ]]; then
 fi
 echo "Starting observer..."
 vps_export_binds observer
+if [[ -n "${OBS_P2P_BIND:-}" ]]; then
+  export MFN_P2P_LISTEN="$OBS_P2P_BIND"
+else
+  export MFN_P2P_LISTEN="127.0.0.1:0"
+fi
 bash "$SCRIPT_DIR/start-observer.sh" >"$LOG_DIR/observer.log" 2>&1 &
 echo "OBSERVER_PID=$!" >>"$PORTS_FILE"
 OBSERVER_RPC=""

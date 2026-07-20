@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-79** (full CI; no skip). Prior **CI `#29739903305` GREEN** on B-74 (`62a9c02`). Wave28 docs thrash cancelled prior matrices. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **B-75** code land (this commit). Full CI after docs-thrash. After GREEN: sole Nightly -> close **B-29**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -212,7 +212,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
 | B-29 | Nightly participant+observer GREEN | 1+3 | Participant GREEN on `#29738744950`; observer RED (tip@1); **B-75** landed — close only on next Nightly GREEN |
-| B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) — `production_dial_peers` + persistable `start-all` / produce-smoke ports |
+| B-75 | Nightly observer mesh tip-stall after h1 (EAGAIN) | 1 | **Landed** (this commit) - production_dial_peers + persistable start-all / produce-smoke ports |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling + ci-check gate (B-74)**; live pack day-of L4 |
@@ -269,6 +269,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 1 - B-75 production_dial + persistable local P2P** (this commit): sealed-block fanout now includes non-persistable advertise via production_dial_peers; persistable local P2P binds in start-all + produce smokes. Full CI. After GREEN: sole Nightly -> close **B-29**.
 1. **2026-07-20 - lane 3 - B-15 wave29** (this commit): faucet done; bal timeout @4173/@4262 (**F97**); pin@4400 funded (**F99**); upload bound **last_proven=4466** proxy+claims=10. Evidence wave29.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
 1. **2026-07-20 — lane 7 — B-79 B-32 arm-ready + tip-4443** (this commit): `assert-b32-arm-ready.sh` + ci-check plan gate; VPS apply NOT READY (1 host) / synthetic 2-host READY; fixed `${2:-{}}` params bug + Path A bootstrap `RPC="${1:-}"` treating `--apply` as RPC; Path A tip-**4443** (entries=15). Evidence `b79-b32-arm-ready-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-75 WIP (`p2p_fanout`/produce-smokes/`start-all`/`persistable-listen-lib`), JOIN `user-wallet/`, `live-testnet-data*`, wave temps.
 1. **2026-07-20 - lane 3 - B-15 wave28** (`d93ab7b`/`3c1f24d`): **F45 HARD PASS** at tip 4443 (exact-tip Path A attestation; now committed in B-79); sam retrieve OK; tina faucet ~139s; F96 pin-retry; upload bound **last_proven=4452** proxy+claims=9. Evidence wave28.md.

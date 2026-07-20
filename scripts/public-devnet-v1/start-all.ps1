@@ -23,6 +23,39 @@ if (-not $env:MFN_SKIP_MANIFEST_SEEDS) {
 }
 Write-Host "start-all: local mesh - MFN_SKIP_MANIFEST_SEEDS=$($env:MFN_SKIP_MANIFEST_SEEDS) (isolated from public seeds)"
 
+# B-75 / B-71: bind P2P in persistable band (<32768). OS `:0` yields ephemeral ports that
+# register as ephemeral_fallback — sealed blocks then miss committee voters.
+function Pick-PersistableP2pListen {
+    param([string]$HostAddr = "127.0.0.1")
+    $lo = if ($env:MFN_PERSISTABLE_P2P_PORT_LO) { [int]$env:MFN_PERSISTABLE_P2P_PORT_LO } else { 19000 }
+    $hi = if ($env:MFN_PERSISTABLE_P2P_PORT_HI) { [int]$env:MFN_PERSISTABLE_P2P_PORT_HI } else { 32767 }
+    $span = $hi - $lo + 1
+    $start = $lo + (Get-Random -Maximum $span)
+    for ($i = 0; $i -lt $span; $i++) {
+        $port = $lo + (($start - $lo + $i) % $span)
+        try {
+            $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse($HostAddr), $port)
+            $listener.Start()
+            $listener.Stop()
+            return "${HostAddr}:${port}"
+        } catch {
+            continue
+        }
+    }
+    throw "Pick-PersistableP2pListen: no free port in ${lo}..${hi}"
+}
+$HubP2pBind = $null
+$V1P2pBind = $null
+$V2P2pBind = $null
+$ObsP2pBind = $null
+if (-not $env:MFN_LOCAL_PERSISTABLE_P2P -or $env:MFN_LOCAL_PERSISTABLE_P2P -eq "1") {
+    $HubP2pBind = Pick-PersistableP2pListen
+    $V1P2pBind = Pick-PersistableP2pListen
+    $V2P2pBind = Pick-PersistableP2pListen
+    $ObsP2pBind = Pick-PersistableP2pListen
+    Write-Host "start-all: local persistable P2P hub=$HubP2pBind v1=$V1P2pBind v2=$V2P2pBind observer=$ObsP2pBind"
+}
+
 if ($env:MFN_DEVNET_SKIP_BUILD -eq "1") { $NoBuild = $true }
 $Mfnd = Join-Path $RepoRoot "target\release\mfnd.exe"
 if (-not $NoBuild) {
@@ -91,10 +124,11 @@ $hubLog = Join-Path $LogDir "v0.log"
 $hubErr = Join-Path $LogDir "v0.err.log"
 $hubDataDir = Join-Path $DataRoot "v0"
 New-Item -ItemType Directory -Force -Path $hubDataDir | Out-Null
+$hubP2pListen = if ($HubP2pBind) { $HubP2pBind } else { "127.0.0.1:0" }
 $hubProc = Start-MfndRole `
     -CliArgs @(
         "--data-dir", $hubDataDir, "--genesis", $Genesis, "--store", "fs",
-        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", $hubP2pListen,
         "--slot-duration-ms", "$SlotMs", "serve", "--produce"
     ) `
     -StdoutLog $hubLog `
@@ -138,10 +172,11 @@ $v1Log = Join-Path $LogDir "v1.log"
 $v1Err = Join-Path $LogDir "v1.err.log"
 $v1DataDir = Join-Path $DataRoot "v1"
 New-Item -ItemType Directory -Force -Path $v1DataDir | Out-Null
+$v1P2pListen = if ($V1P2pBind) { $V1P2pBind } else { "127.0.0.1:0" }
 $v1Proc = Start-MfndRole `
     -CliArgs @(
         "--data-dir", $v1DataDir, "--genesis", $Genesis, "--store", "fs",
-        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", $v1P2pListen,
         "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--committee-vote"
     ) `
     -StdoutLog $v1Log `
@@ -155,10 +190,11 @@ $v2Log = Join-Path $LogDir "v2.log"
 $v2Err = Join-Path $LogDir "v2.err.log"
 $v2DataDir = Join-Path $DataRoot "v2"
 New-Item -ItemType Directory -Force -Path $v2DataDir | Out-Null
+$v2P2pListen = if ($V2P2pBind) { $V2P2pBind } else { "127.0.0.1:0" }
 $v2Proc = Start-MfndRole `
     -CliArgs @(
         "--data-dir", $v2DataDir, "--genesis", $Genesis, "--store", "fs",
-        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+        "--rpc-listen", "127.0.0.1:0", "--p2p-listen", $v2P2pListen,
         "--p2p-dial", $HubP2p, "--slot-duration-ms", "$SlotMs", "serve", "--committee-vote"
     ) `
     -StdoutLog $v2Log `
@@ -262,9 +298,10 @@ $obsLog = Join-Path $LogDir "observer.log"
 $obsErr = Join-Path $LogDir "observer.err.log"
 $obsDataDir = Join-Path $DataRoot "observer"
 New-Item -ItemType Directory -Force -Path $obsDataDir | Out-Null
+$obsP2pListen = if ($ObsP2pBind) { $ObsP2pBind } else { "127.0.0.1:0" }
 $obsCliArgs = @(
     "--data-dir", $obsDataDir, "--genesis", $Genesis, "--store", "fs",
-    "--rpc-listen", "127.0.0.1:0", "--p2p-listen", "127.0.0.1:0",
+    "--rpc-listen", "127.0.0.1:0", "--p2p-listen", $obsP2pListen,
     "--slot-duration-ms", "$SlotMs"
 )
 foreach ($d in $obsDials) { $obsCliArgs += @("--p2p-dial", $d) }

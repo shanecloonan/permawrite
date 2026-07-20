@@ -3,7 +3,7 @@
 
 use std::io::ErrorKind;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -107,6 +107,23 @@ struct ValidatorNode {
     p2p: SocketAddr,
 }
 
+/// B-75 / B-71: free loopback port in persistable band (`< MIN_EPHEMERAL_PEER_PORT`).
+fn reserve_persistable_p2p() -> SocketAddr {
+    const LO: u16 = 19_000;
+    let hi = mfn_store::MIN_EPHEMERAL_PEER_PORT;
+    let span = hi - LO;
+    let start = LO + (std::process::id() as u16 % span);
+    for i in 0..span {
+        let port = LO + ((start - LO + i) % span);
+        if let Ok(listener) = TcpListener::bind(("127.0.0.1", port)) {
+            let addr = listener.local_addr().expect("local addr");
+            drop(listener);
+            return addr;
+        }
+    }
+    panic!("no free persistable loopback port in {LO}..{hi}");
+}
+
 #[allow(clippy::too_many_arguments)]
 fn spawn_produce_validator(
     data_dir: &Path,
@@ -118,6 +135,7 @@ fn spawn_produce_validator(
     slot_duration_ms: u64,
     slot_producer: bool,
 ) -> (ValidatorNode, BufReader<impl Read + Send + 'static>) {
+    let p2p_listen = reserve_persistable_p2p();
     let mut cmd = mfnd();
     cmd.args(["--data-dir"])
         .arg(data_dir)
@@ -128,7 +146,7 @@ fn spawn_produce_validator(
         .arg("--rpc-listen")
         .arg("127.0.0.1:0")
         .arg("--p2p-listen")
-        .arg("127.0.0.1:0")
+        .arg(p2p_listen.to_string())
         .arg("--slot-duration-ms")
         .arg(slot_duration_ms.to_string())
         .env("MFND_VALIDATOR_INDEX", index.to_string())
