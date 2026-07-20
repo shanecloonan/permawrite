@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `8254c51`; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head `a773bd6`; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -103,7 +103,7 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | **B-22** | Verify TL-8 checkpoint log publish (`publish-checkpoint-log.sh --apply` on VPS) matches repo + JOIN cross-check | 7 | Repo log exists; [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) lists VPS publish as remaining TL-8 ops |
 | **B-26** | Deploy R-4 faucet to Hetzner (`vps-update-faucet.sh`) — checklist invite gate | 2+7 | After B-15 evidence window closes (no faucet restart during capture) |
 | **B-27** | Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archive) | 1+7 | Re-run / assert on CI-green head before TL-9 |
-| **B-29** | Nightly participant rehearsal GREEN — fix `fund-wallet` weak-subjectivity tip mismatch | 1+3 | **Nightly `#29701967243` RED**: `trusted 4 vs checkpoint 0` during fund; same class as B-15 tall-tip light-scan |
+| **B-29** | Nightly participant rehearsal GREEN — fix GHA **`fund-wallet.sh`** WS tip mismatch | 1+3 | **Nightly `#29701967243` RED**. **≠ B-15** JOIN/`fund-wallet-http` — see [work package](#b-29-work-package-nightly-red--do-not-confuse-with-b-15) |
 | **B-30** | Residual-risk owner matrix + halt/rollback authority before invites | 7 | [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) + OPERATORS checkbox |
 | **B-31** | Live RPC/faucet threat posture verify (DoS, TLS, faucet-HTTP in threat table) | 2+7 | Security ops; does not block permanence units |
 
@@ -116,7 +116,7 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | Step | Command / artifact | Owner | Pass when |
 |---|---|---|---|
 | **L1 CI** | GitHub CI on `02c8df8` stack (`#29711044516` or successor) | 1 | Matrix **GREEN** |
-| **B-29 Nightly** | Fix GHA participant `fund-wallet` WS tip mismatch + re-dispatch | 1+3 | All Nightly jobs **GREEN** (currently `#29701967243` RED) |
+| **B-29 Nightly** | Fix `fund-wallet.sh` (+ wire from `participant-rehearsal.sh`) + re-dispatch | 1+3 | Nightly participant + observer jobs **GREEN**; see work package |
 | **L1 evidence** | `release-evidence-refresh-for-head` + RC audit dry-run | 2 | `decision=go` on exact head |
 | **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | `join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
 | **B-15 assert** | `assert-join-testnet-rehearsal-evidence.sh <file>` | 3 | Smoke lines: `faucet_http=true light_scan_checkpoint=true observer_proxy=true` |
@@ -141,6 +141,25 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | Wallet README / WASM demo copy | ✓ | Ring-16, F7, view tags, light-scan + checkpoint-log |
 
 **Outside-in rehearsal (local mirror before VPS):** `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` against a synced local observer on `127.0.0.1:18734`.
+
+#### B-29 work package (Nightly RED — do not confuse with B-15)
+
+Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs:
+
+`participant-rehearsal-smoke.sh` → `participant-rehearsal.sh` → **`fund-wallet.sh`** (local RPC faucet wallet).
+
+| Path | Script | Checkpoint / light-scan today |
+|---|---|---|
+| **Nightly / B-29** | `fund-wallet.sh` (+ `.ps1`) | **No** `--checkpoint-log`; uses `wallet balance` / `wallet scan` → hits WS `trusted N vs checkpoint 0` |
+| **B-15 JOIN / VPS** | `fund-wallet-http.sh` + `join-testnet-rehearsal.sh` | **Yes** (`73abf77` / `02c8df8`) — does **not** fix Nightly |
+
+**Implement (lanes 1+3):**
+
+1. Teach `fund-wallet.sh` (and `.ps1` if Windows Nightly/parity needs it) to reset stale trusted summary and/or `wallet light-scan` with a local-mesh-safe checkpoint / `--reset-trusted-summary` so balance waits never fail on WS tip mismatch.
+2. Wire from `participant-rehearsal.sh` (pass flags or default-on for clean smoke dirs).
+3. Do **not** close B-29 by only landing JOIN/`fund-wallet-http` changes.
+
+**Pass:** Nightly `#…` GREEN on both participant + observer jobs; `assert-participant-smoke-evidence.*` PASS; transcript shows `fund-wallet: PASS` without WS tip mismatch; run ID in `AGENTS.md` §5/§8.
 
 ### Phase 1 — Permanence depth on the live chain (permanence first)
 
@@ -197,7 +216,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 |---|---|---|---|
 | **Now** | **B-15** Hetzner evidence + assert (no faucet restart) | 3 | §6 lock |
 | **Now → CI GREEN** | Watch `#29711044516`; fix-forward if RED | 1+3 | — |
-| **After CI GREEN** | **B-29** Nightly fix (WS tip / checkpoint in GHA participant fund path) + re-dispatch | 1+3 | CI GREEN; related to B-15 light-scan path |
+| **After CI GREEN** | **B-29** fix `fund-wallet.sh` WS tip (Nightly path ≠ B-15 JOIN) + re-dispatch | 1+3 | CI GREEN; see B-29 work package |
 | **After B-15 window** | **B-26** R-4 VPS faucet deploy | 2+7 | B-15 capture done |
 | **Before TL-9** | **B-27** fresh soak/participant; **B-22** checkpoint log; **B-30** risk owners; L1 evidence **go** | 1+2+7 | CI + Nightly GREEN |
 | **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
@@ -304,7 +323,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-26** R-4 VPS faucet deploy | Phase 0 | 2+7 |
 | **B-27** Fresh soak/participant on invite head | Phase 0 | 1+7 |
 | **B-28** Treasury watch + numeric alert thresholds | Phase 1 | 2+7 |
-| **B-29** Nightly fund-wallet WS tip fix | Phase 0 | 1+3 |
+| **B-29** Nightly `fund-wallet.sh` WS tip fix (≠ JOIN) | Phase 0 | 1+3 |
 | **B-30** Residual-risk owner matrix before invites | Phase 0 | 7 |
 | **B-31** RPC/faucet threat posture verify | Phase 0 | 2+7 |
 

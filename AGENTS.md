@@ -134,13 +134,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 docs `49d28f9`); planning `8254c51`. **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** (participant fund-wallet WS tip mismatch — **B-29**). Strategic path: L4 → Phase 1 permanence (**B-25**).
+**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 docs `49d28f9`); planning `a773bd6`+. **CI `#29711044516` queued** (~8m+) on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29** (`fund-wallet.sh` path, not JOIN). Strategic path: L4 → Phase 1 (**B-25**).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | After CI GREEN: **B-29** Nightly fix-forward (WS tip / checkpoint in GHA fund-wallet) | CI/Nightly run IDs in §8 |
+| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | After CI GREEN: **B-29** — fix `fund-wallet.sh` WS tip for Nightly (`participant-rehearsal` → `fund-wallet`, not `fund-wallet-http`) | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** `vps-update-faucet.sh` after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 tooling + tall-tip fixes (`774320f`…`02c8df8`) | **B-15 Hetzner evidence run** (claim base: `02c8df8`) | Archive + assert; help lane 1 on **B-29** if GHA fund path needs same light-scan fix | L4 checklist in ROADMAP |
+| **3** Onboarding | B-15 tooling + tall-tip fixes (`774320f`…`02c8df8`) | **B-15 Hetzner evidence run** (claim base: `02c8df8`) | Archive + assert; **B-29** is separate (`fund-wallet.sh`) — may pair with lane 1 after evidence | L4 checklist in ROADMAP |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | After L4: **B-24** multi-op settlement (then B-12 / F5 4b.2) | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | **B-16** privacy-doc sync (`49d28f9`) | *Idle* | **B-19** after L4 + B-25 unless waived | Lane 5 doc-accuracy duty |
 | **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | **B-13a** after L4 (fee-drought@1000; B-13b same-chain lean) | Emission sims (M5 tier) |
@@ -156,7 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 evidence (in-memory jobs + faucet lock) | **Open** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
-| planning | 1+3 | **B-29:** Nightly `#29701967243` RED — `fund-wallet` weak-subjectivity `trusted 4 vs checkpoint 0`; fix before TL-9 | **Open** |
+| planning | 1+3 | **B-29:** Nightly `#29701967243` RED — `fund-wallet.sh` WS tip mismatch (`trusted 4 vs checkpoint 0`). JOIN/`fund-wallet-http` (B-15) does **not** fix this. See [`ROADMAP.md` B-29 work package](docs/ROADMAP.md#b-29-work-package-nightly-red--do-not-confuse-with-b-15) | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -186,7 +186,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly participant fund-wallet WS tip mismatch fix | 1+3 | `#29701967243` RED; related to B-15 light-scan path |
+| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | `#29701967243` RED; **≠ B-15 JOIN path** — wire light-scan/reset into `fund-wallet.sh` + `participant-rehearsal.sh` |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | Phase 0 invite gate |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | Phase 0 security ops; not permanence-blocking |
 
@@ -196,22 +196,17 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — L4 invite gates B-26…B-31 + Nightly RED** (this commit): Nightly `#29701967243` RED → **B-29** (WS tip mismatch in GHA fund-wallet); **B-26** R-4 VPS; **B-27** fresh evidence; **B-28** treasury thresholds; **B-30** risk owners; **B-31** threat posture; 14-day calendar; critical path updated. Docs-only `[skip ci]`.
-2. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match F7 + light-scan + checkpoint-log. Docs-only `[skip ci]`.
-3. **2026-07-19 — planning — Phase 1 permanence playbook + B-24/B-25** (`55c4abc`): B-13b lean same-chain; **B-25** Phase 1 go/no-go. Docs-only `[skip ci]`.
-3. **2026-07-19 — planning — board sync to `02c8df8`** (`79d0433`): L4 pins + B-16 WIP note.
-4. **2026-07-19 — planning — ROADMAP genesis baseline + B3 correction** (`2c2305b`): B3 genesis flags ✓; split **B3 multi-op**; backlog **B-17…B-23**. Docs-only `[skip ci]`.
-5. **2026-07-19 — lane 3 — B-15 checkpoint light-scan hardening** (`02c8df8`): `join-testnet-rehearsal.sh` passes checkpoint log through fund path; **CI `#29711044516` queued** on `02c8df8`.
-6. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, L4 exit checklist + B-16 inventory. Docs-only `[skip ci]`.
-7. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; CI `#29710893096` cancelled (superseded by `02c8df8`).
-8. **2026-07-19 — lane 2 — R-4 faucet peer-IP rate limit** (`dc05c40`): IP cooldown uses TCP `peerIp` only (no `X-Forwarded-For` spoof bypass).
-9. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`…`a3bdeb1`): JOIN_TESTNET rehearsal tooling; R-1–R-3 faucet fixes; `release-evidence-b4a3fa7` + RC audit **go**.
-10. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
-11. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
-12. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`…`7c78e43`): F7 two-UTXO floor + observer-proxy catch-up. **CI `#29660101057` GREEN**.
-13. **2026-07-17 — lane 7 — public testnet goes live**: observer proxy (`61a9fe7`), faucet API (`ebffaef`), testnet-frontend (`ab6af42`), light-scan fixes.
-14. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
-15. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) — full pre-consolidation boards preserved verbatim)*
+1. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (this commit): Nightly uses `fund-wallet.sh` via `participant-rehearsal`; JOIN/`fund-wallet-http` does not close B-29; concrete file list + acceptance in ROADMAP. Docs-only `[skip ci]`.
+2. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29; R-4 VPS B-26; fresh evidence B-27; B-28/30/31; 14-day calendar. Docs-only `[skip ci]`.
+3. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs. Docs-only `[skip ci]`.
+4. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): B-13b same-chain lean; **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
+5. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http` tall-tip path; **CI `#29711044516` queued**.
+6. **2026-07-19 — lane 2 — R-1–R-4 faucet fix-forward** (`2b655d2`…`dc05c40`): dual-send tip wait, loopback cooldown, peer-IP rate limit.
+7. **2026-07-19 — lanes 2+3 — B-15 tooling + Board v2** (`774320f`…`b93e216`): JOIN rehearsal; single live board; **CI `#29698203148` GREEN**.
+8. **2026-07-19 — docs — VIBECODING + economics** (`b4a3fa7`): **CI `#29700946945` GREEN**.
+9. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`): F7 floor + observer catch-up. **CI `#29660101057` GREEN**.
+10. **2026-07-17 — lane 7 — public testnet live**: observer proxy, faucet API, front-end, light-scan.
+11. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 ---
 
