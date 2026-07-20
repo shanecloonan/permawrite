@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 docs `49d28f9`); planning `a773bd6`+. **CI `#29711044516` queued** (~8m+) on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29** (`fund-wallet.sh` path, not JOIN). Strategic path: L4 → Phase 1 (**B-25**).
+**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 docs `49d28f9`); planning `583bf11`. **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29** (`fund-wallet.sh` path, not JOIN). Strategic path: L4 → Phase 1 (**B-25**).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
