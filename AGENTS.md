@@ -133,13 +133,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** head = B-15 JOIN_TESTNET + faucet F7 fund fix (this push). Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
+**CI gate (2026-07-19):** head = `f2087ad` (B-15 + faucet F7 fix). Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch on this push after CI GREEN | CI/Nightly run IDs in §8 |
-| **2** RC ops | Release evidence `b4a3fa7` + RC audit **go** (this push) | *Idle* | Human sign-off packet | Next agent SYNC |
-| **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) | **Landing faucet F7 fund fix + release evidence** (claim base: `774320f`) | Archive live Hetzner `join-testnet-rehearsal-linux-*.txt` | assert-join-testnet-rehearsal-evidence |
+| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch after `f2087ad` CI GREEN | CI/Nightly run IDs in §8 |
+| **2** RC ops | Release evidence `b4a3fa7` + RC audit **go** (`f2087ad`) | *Idle* | Human sign-off packet | Next agent SYNC |
+| **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) + faucet F7 fix (`f2087ad`) | **B-15 Hetzner evidence run** (claim base: `f2087ad`) | B-16 privacy-doc sync → lane 5 | assert-join-testnet-rehearsal-evidence |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | F5 phase 4b.2 recursive aggregation | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | *Idle* | Privacy-doc sync for live-testnet wallet UX (light-scan / faucet flows) | Lane 5 doc-accuracy duty |
 | **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | Parameter fork `1000` bps (TL-7 Path B) | Emission sims (M5 tier) |
@@ -175,7 +175,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lanes 2+3+7 — B-15 JOIN_TESTNET + faucet F7 fund fix** (this push): `join-testnet-rehearsal*`, `fund-wallet-http.*`, assert + ci-check gates; `live-wallet-exercise.sh` uses `fund-wallet.sh`; HTTP faucet waits tip advance + rescan between dual sends; `release-evidence-b4a3fa7` + RC audit **go**; VPS updated to `b4a3fa7` + faucet restart. Local assert fixture UTF-8 fix; `ci-check --docs-only` green before push.
+1. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`, `f2087ad`): JOIN_TESTNET rehearsal tooling; `fund-wallet.sh` path in `live-wallet-exercise.sh`; HTTP faucet tip-wait + rescan between dual sends; `release-evidence-b4a3fa7` + RC audit **go**; `run-join-testnet-vps-once.sh`.
 2. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
 3. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
 4. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`, `3ed62e2`, `c0326e5`, `59ea8bd`, `7c78e43`): F7 two-UTXO floor kept after sends + faucet cooldown; observer-proxy tx index persisted + faster catch-up; faucet producer-wallet scan fix. **CI `#29660101057` GREEN** on `23fb359`.
