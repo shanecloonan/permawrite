@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `c56ea79`; code head `73abf77` B-15 checkpoint-log fix; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head `1e060f5`; code head `73abf77` B-15 checkpoint-log fix; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -87,6 +87,36 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | **Ops** | Role-separated VPS templates exercised on internet ([`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)) | 7 | PM23 hard-fail templates shipped; multi-host rehearsal human |
 
 **Gate:** `launch-go-no-go` **go** with Schnorr checkpoint log verified, participant + soak evidence fresh on head, **B-15 JOIN evidence archived and asserted**, invite packet shared with named watchers, B-16 privacy docs match shipped faucet/light-scan behavior.
+
+#### L4 exit checklist (concrete verification)
+
+Run in order; parallel work is allowed only where noted. **Do not restart `faucet-http` or run parallel JOIN rehearsals on Hetzner during B-15 capture** ([`AGENTS.md`](../AGENTS.md) §6).
+
+| Step | Command / artifact | Owner | Pass when |
+|---|---|---|---|
+| **L1 CI** | GitHub CI on `73abf77` stack (`#29710893096` or successor) | 1 | Matrix **GREEN** (fmt, clippy, release tests, wasm, audit, script guards) |
+| **L1 Nightly** | Dispatch after CI GREEN on protocol-affecting head | 1 | All three Nightly jobs **GREEN** |
+| **L1 evidence** | `release-evidence-refresh-for-head` + RC audit dry-run | 2 | `decision=go` on exact head |
+| **R-4 VPS** | `bash scripts/public-devnet-v1/vps-update-faucet.sh` on Hetzner | 2+7 | Faucet R-4 peer-IP rate limit live; health `busy:false` between runs |
+| **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | Produces `scripts/public-devnet-v1/evidence/join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
+| **B-15 assert** | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh <file>` | 3 | Assert script exits 0; smoke lines include `faucet_http=true light_scan_checkpoint=true observer_proxy=true` |
+| **B-16 docs** | Inventory below — each file matches shipped UX | 5 | No stale “full `wallet scan` only” guidance at high tip; F7 dual-send faucet documented |
+| **TL-9** | `launch-go-no-go.sh` + named human sign-offs + circulate [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | 7 + human | Go/no-go JSON **go**; watcher list recorded in launch packet |
+
+**B-16 documentation inventory** (privacy accuracy — lane 5 owns edits):
+
+| File | Gap (2026-07-19) | Must document |
+|---|---|---|
+| [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) | Partially updated | HTTP faucet dual-send + job poll; `light-scan` at high tip; observer proxy read-only use |
+| [`TESTNET.md`](./TESTNET.md) | Missing live-wallet path | Same as JOIN for local mesh + link to public devnet URLs |
+| [`PRIVACY.md`](./PRIVACY.md) | F7 only | F7 two-in/two-out + **why** light-scan is default at high tip; checkpoint-log cross-check pointer |
+| [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) | B-16 called out | Mark B-16 rows **done** when sibling docs land |
+| [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md) | ✓ current | Keep as canonical F12 reference |
+| [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | Pre-L4 invite | Align URLs, faucet cooldown, privacy disclaimer with JOIN |
+| [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) | Faucet ops | R-1–R-4 behavior, no parallel rehearsals during evidence |
+| Wallet README / WASM demo copy | Unverified | `light-scan --checkpoint-log`, view tags, F7 send floors |
+
+**Outside-in rehearsal (local mirror before VPS):** `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` against a synced local observer on `127.0.0.1:18734`.
 
 ### Phase 1 — Permanence depth on the live chain (permanence first)
 

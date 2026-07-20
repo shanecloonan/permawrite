@@ -403,7 +403,17 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 - [x] RC audit dry-run with M2.4.70 soak evidence archived (`release-rc-audit-dry-run.ps1`, decision=go) (**M2.4.73**).
 - [x] Capture Linux 30s-slot soak evidence with hub lifetime past height 10 (**M2.4.74 / B-05** — PASS `#29040052424`, max_height=48, `cf99ae5`).
 
+## L4 hardened public testnet (Phase 0 — in progress)
+
+Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification). Tick when evidence exists on `main` head.
+
+- [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
+- [ ] **B-16** — Privacy-doc sync: [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`TESTNET.md`](./TESTNET.md), [`PRIVACY.md`](./PRIVACY.md), [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) match shipped light-scan / checkpoint-log / F7 faucet UX.
+- [ ] **L1 refresh** — Green CI + Nightly + `release-evidence` **go** on B-15/R-4 head (`73abf77` stack).
+- [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
+
 ## Cross-Agent Notes
 
+- Do not claim **L4** (hardened public testnet) readiness until the four items above are ticked. L3 (experimental public testnet) is already live.
 - Do not claim public-testnet readiness until CI is green across rustfmt, clippy `-D warnings`, release tests, and cargo-audit.
 - Any operator-facing behavior change must update `docs/TESTNET.md` or `scripts/public-devnet-v1/OPERATORS.md`.
