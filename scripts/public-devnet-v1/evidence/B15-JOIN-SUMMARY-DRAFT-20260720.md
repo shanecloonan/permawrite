@@ -29,8 +29,9 @@
 | karl | faucet | yes | yes | 4270 |
 | lisa | peer | n/a | CLI Fresh only | not public (F88 local fork) |
 | mike | faucet+peer | n/a | yes | **4304** (wave21; proxy verified) |
+| nina | faucet+peer | n/a | yes | **4318** (wave22; proxy verified) |
 
-Five wallets with public last_proven: heidi/ivan/judy/karl/**mike**. Lisa excluded (F88). Add F88b tip_id wait + F89 /faucet path to runbook.
+Six wallets with public last_proven: heidi/ivan/judy/karl/mike/**nina**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
