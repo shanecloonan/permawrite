@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head stack = **B-67** (`f6273cb` body) + **B-71/B-70** (`09ca8c4`) + wave22 docs (`0233836`). **CI `#29733127733` queued**. Prior **CI `#29731088305` GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** rustfmt fix-forward for B-67 (`f6273cb`) + tip-**4323** ckpt. B-70/B-71 code on main via `09ca8c4`. Watching CI on this head. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | *Idle* | Live **B-32** multi-op evidence; then **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-70** tip-4307 + peers-clean (`09ca8c4`); **B-68**/**B-69** | *Idle* | mfnd re-roll after CI GREEN to load B-71 binary; **B-42** after B-15 PASS | `launch-go-no-go` |
+| **7** Testnet launch | **B-70** tip-4323 ckpt; **B-71** persistable peers (`09ca8c4`) | *Idle* | **B-42** after B-15 PASS; mfnd re-roll after CI GREEN | `launch-go-no-go` |
 
 ---
 
@@ -176,7 +176,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Done** (mfnd roll + B-68) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
 | 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-60** (`7ab86ad`) | **Done** |
-| 7 | 3 | **B-22 tip-4262:** re-pin / soft light-scan at new log max for SUMMARY | **Open** |
+| 7 | 3 | **B-22 tip-4323:** re-pin / soft light-scan at new log max for SUMMARY | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
 | 3 | 7 | **F68/F68b:** Windows bootstrap ps1 - temp `.py` TCP snapshot (B-58). Evidence wave12 + `b58-…` | **Done** (B-58) |
@@ -260,6 +260,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 7 - rustfmt + tip-4323**: fmt-fix B-67 proptest from mislabeled `f6273cb`; Path A ckpt tip-**4323**. B-70/B-71 already on main in `09ca8c4` (lane3 tree). *Observed:* leave JOIN temps / `user-wallet/` / `live-testnet-data*` / support-bundle WIP unstaged.
 1. **2026-07-20 — lane 4 — board SYNC** (this commit): **B-67** on `f6273cb` (subject mislabeled); **B-71/B-70** on `09ca8c4` (lane-3 wave22 commit carried the peers filter + tip-4307). Watching **CI `#29733127733`**. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 4 — B-67** (`f6273cb` body): multi-op slash while peer settles. Prior CI cancelled by docs concurrency.
 3. **2026-07-20 - lane 7 - B-68 + B-69**: Hetzner mfnd roll after CI `#29725270815` GREEN; tip stall from ephemeral `peers.json` → scrub + restart (tip 4295+); `scrub-vps-peers-json.sh` wired into `vps-roll-mfnd`. CI `#29728151679` RED (windows produce-smoke synced public tip) → `MFN_SKIP_MANIFEST_SEEDS=1` in produce smokes. Evidence `b68-peers-scrub-mfnd-roll-20260720.md`. *Observed:* leave `apply_block_proptest.rs`, `support-bundle.*`, JOIN temps, `user-wallet/`, `live-testnet-data*` unstaged.

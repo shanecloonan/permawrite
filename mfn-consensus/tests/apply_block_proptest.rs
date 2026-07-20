@@ -4438,15 +4438,16 @@ fn b67_b5_multi_op_slash_while_peer_settles_treasury_identity() {
     );
     match apply_block(&st, &blk) {
         ApplyOutcome::Ok { state, .. } => {
-            assert_eq!(state.treasury, expected_treasury, "slash then storage drain");
             assert_eq!(
-                state.storage_operator_stats[&gen.id0].consecutive_missed_audits,
-                0,
+                state.treasury, expected_treasury,
+                "slash then storage drain"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
                 "prover miss resets"
             );
             assert_eq!(
-                state.storage_operator_stats[&gen.id1].consecutive_missed_audits,
-                0,
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits, 0,
                 "slash resets absentee miss streak"
             );
             assert_eq!(state.storage_operators[&gen.id0].bond_amount, bond0);
