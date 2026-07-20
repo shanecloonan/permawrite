@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `73abf77` (B-15 tall-tip checkpoint log); planning docs through `de5f91e`. **CI `#29710893096` queued** on `73abf77`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist.
+**CI gate (2026-07-19):** code head = `73abf77` (B-15 tall-tip checkpoint log); planning docs through `ad31f0a`. **CI `#29710893096` queued** on `73abf77`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist + genesis baseline table.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -174,6 +174,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Tooling on `main` (`73abf77`); live transcript — often §5 Doing |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 assert + B-16 |
 | B-16 | Privacy-doc sync for live wallet UX (light-scan checkpoints, faucet flow) | 5 | [`ROADMAP.md` B-16 inventory](docs/ROADMAP.md#l4-exit-checklist-concrete-verification) |
+| B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
+| B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
+| B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy |
+| B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
+| B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
+| B-22 | TL-8 checkpoint log VPS publish verify | 7 | Phase 0 ops; parallel TL-9 prep |
+| B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 
 ---
 
@@ -181,8 +188,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, critical path, B-13a–c decomposition, M7.10 shipped correction, L4 exit checklist + B-16 doc inventory; [`TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) L4 section; AGENTS §5 SYNC. Docs-only `[skip ci]`.
-2. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; **CI `#29710893096` queued** on `73abf77`.
+1. **2026-07-19 — planning — ROADMAP genesis baseline + B3 correction** (pending): B3 genesis flags ✓ in `mfn-node/testdata/public_devnet_v1.json`; split **B3 multi-op**; mark F5 4b.1/B-11/B4/B5/F6 shipped; critical path fix (B-13 ⊥ B3); backlog **B-17…B-23**; PROBLEMS §10/§13/§15 index. Docs-only `[skip ci]`.
+2. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, critical path, B-13a–c decomposition, M7.10 shipped correction, L4 exit checklist + B-16 doc inventory; [`TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) L4 section; AGENTS §5 SYNC. Docs-only `[skip ci]`.
+3. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; **CI `#29710893096` queued** on `73abf77`.
 3. **2026-07-19 — lane 2 — R-4 faucet peer-IP rate limit** (`dc05c40`): IP cooldown + loopback bypass use TCP `peerIp` only; R-3 had allowed `X-Forwarded-For: 127.0.0.1` spoof to skip cooldown on `:8788`.
 4. **2026-07-19 — lane 2 — R-3 faucet localhost + busy retry** (`a3bdeb1`): skip IP cooldown for loopback peer in `faucet-http.mjs`; `fund-wallet-http.sh` retry on 503 busy; VPS runner restarts `faucet-http` after `git pull`.
 5. **2026-07-19 — lane 2 — R-2 fund-wallet F7 between-send fix** (`a211821`): `fund-wallet.sh` tip-wait + faucet rescan between F7 top-up sends (mirrors R-1 faucet-http fix); local ci-check `-DocsOnly` green.
