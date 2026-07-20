@@ -33,8 +33,9 @@
 | oscar | peer+faucet | n/a | yes | **4337** (wave23; proxy verified) |
 | patricia | faucet | n/a | yes | **4362** (wave24; proxy verified) |
 | quinn | peer (after faucet 429) | n/a | yes | **4390** (wave25; proxy verified) |
+| rose | faucet | n/a | yes | **4412** (wave26; proxy verified) |
 
-Nine wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/**quinn**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Ten wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/**rose**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -54,12 +55,14 @@ Nine wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patri
 14. **F45 update (wave24)** - pin@ckpt_max does not satisfy hard checkpoint-log; still needs exact tip attestation.
 15. **F94** - get_block_headers to_height must not exceed proxy tip; use proxy tip when local is ahead.
 16. **F95** - faucet may return HTTP 429 during cooldown; backoff `cooldown_ms` or peer-fund fallback.
+17. **F96** - after faucet done, first pin may still show owned=0; retry multiple pin heights (wave26: 4173->0, 4262->1M).
+18. **F45** - tip-4400 ckpt landed but hard scan still FAIL at tip 4404 (lag~4); pin@max insufficient.
 
 ## Still open before formal archive PASS
 
 - [x] Local observer tip_id == proxy tip_id after wave21 wipe/resync
 - [x] Mike new-wallet loop post-B-68 with proxy-visible last_proven=4304
-- [~] Near-tip checkpoint max=4323 landed (wave23) but F45 hard still FAIL when tip ahead; pin@max insufficient (wave24) - lane 7
+- [~] Near-tip checkpoint max=**4400** landed (B-77) but F45 hard still FAIL at tip 4404 (wave26); pin@max insufficient - lane 7
 - [ ] Formal join-testnet-rehearsal SUMMARY transcript + assert script green
 - [ ] Human sign-off per TESTNET_CHECKLIST
 
