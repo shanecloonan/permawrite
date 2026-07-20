@@ -222,6 +222,11 @@ if ($vpsRollMfndPlan -notmatch "vps-roll-mfnd-rehearsal-smoke: PASS plan-only") 
     $vpsRollMfndPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$vpsPrebuildReadyPlan = (bash scripts/public-devnet-v1/vps-prebuild-roll-ready-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($vpsPrebuildReadyPlan -notmatch "vps-prebuild-roll-ready-rehearsal-smoke: PASS plan-only") {
+    $vpsPrebuildReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $bootCkptPlan = (bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($bootCkptPlan -notmatch "bootstrap-wallet-from-checkpoint-log-rehearsal-smoke: PASS plan-only") {
     $bootCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

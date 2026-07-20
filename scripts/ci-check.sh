@@ -157,6 +157,8 @@ invite_load_plan="$(bash scripts/public-devnet-v1/invite-load-smoke-rehearsal.sh
 [[ "$invite_load_plan" == *"invite-load-smoke-rehearsal: PASS plan-only"* ]] || { printf '%s\n' "$invite_load_plan" >&2; exit 1; }
 vps_roll_mfnd_plan="$(bash scripts/public-devnet-v1/vps-roll-mfnd-rehearsal-smoke.sh --plan-only)"
 [[ "$vps_roll_mfnd_plan" == *"vps-roll-mfnd-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_roll_mfnd_plan" >&2; exit 1; }
+vps_prebuild_ready_plan="$(bash scripts/public-devnet-v1/vps-prebuild-roll-ready-rehearsal-smoke.sh --plan-only)"
+[[ "$vps_prebuild_ready_plan" == *"vps-prebuild-roll-ready-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$vps_prebuild_ready_plan" >&2; exit 1; }
 boot_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log-rehearsal-smoke.sh --plan-only)"
 [[ "$boot_ckpt_plan" == *"bootstrap-wallet-from-checkpoint-log-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$boot_ckpt_plan" >&2; exit 1; }
 block_log_health_plan="$(bash scripts/public-devnet-v1/assert-vps-block-log-health-rehearsal-smoke.sh --plan-only)"

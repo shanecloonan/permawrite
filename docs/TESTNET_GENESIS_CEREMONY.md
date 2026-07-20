@@ -39,6 +39,8 @@ Date (UTC): ____________________
 
 ## Path B — Fresh genesis ceremony (new chain)
 
+**Freeze inventory (B-43):** see [`PATH_B_GENESIS_FREEZE.md`](./PATH_B_GENESIS_FREEZE.md) before any ceremony.
+
 **Use when:** shared/incentivized posture, non-toy deployment, or policy requires non-public validator material.
 
 **Effect:** New `genesis_id` → **new chain**. All prior blocks, wallets, and uploads on the toy chain are irrelevant.
