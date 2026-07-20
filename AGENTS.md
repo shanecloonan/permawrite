@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `e10a8b3` (B-29 ps1 parse on `5dc3aa8`); B-16 `49d28f9`; B-30 `2f1b4e2`; B-31 probe `6f637a4`; planning this commit. **CI `#29711605173` queued** on `e10a8b3` (B-34; lineage includes `#29711500087` on `76d4f04`). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
+**CI gate (2026-07-19):** code head = `e10a8b3` (B-29 ps1 parse on `5dc3aa8`); B-16 `49d28f9`; B-30 `2f1b4e2`; B-31 probe `6f637a4`; planning `ede9507`. **CI `#29711605173` queued** on `e10a8b3` (B-34; lineage includes `#29711500087` on `76d4f04`). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
