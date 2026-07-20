@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–42; hank@**4628** proxy-prove PASS; claims=20; twenty-three proxy-proven wallets.
+**Status:** DRAFT — waves 6–43; iris@**4636** proxy-prove PASS; claims=21; twenty-four proxy-proven wallets. Path A ckpt_max=4624 (F45 lag=5).
+| iris | faucet | n/a | yes | **4636** (wave43; proxy-prove PASS) |
 | hank | peer (after faucet 429) | n/a | yes | **4628** (wave42; proxy-prove PASS) |
 | gina | faucet | n/a | yes | **4620** (wave41; proxy-prove PASS) |
 | frank | peer (after faucet 429) | n/a | yes | **4611** (wave40; proxy-prove PASS) |
@@ -48,7 +49,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Twenty-three wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/**hank**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Twenty-four wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
