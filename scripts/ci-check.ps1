@@ -232,6 +232,11 @@ if ($blockLogHealthPlan -notmatch "assert-vps-block-log-health-rehearsal-smoke: 
     $blockLogHealthPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+$frontendPlan = (bash scripts/public-devnet-v1/vps-start-testnet-frontend-rehearsal-smoke.sh --plan-only) -join "`n"
+if ($frontendPlan -notmatch "vps-start-testnet-frontend-rehearsal-smoke: PASS plan-only") {
+    $frontendPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $vpsPreflightPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($vpsPreflightPlan -notmatch "vps-preflight-rehearsal-smoke: PASS plan-only" -or $vpsPreflightPlan -notmatch "vps-internet-soak.sh") {
     $vpsPreflightPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

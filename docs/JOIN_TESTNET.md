@@ -133,6 +133,8 @@ Operator shortcut (same F67 order baked in): `bash scripts/public-devnet-v1/fund
 
 The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys. Tall-tip `get_light_snapshot` / `get_block_headers` use a longer proxy timeout (**B-52** / F54; default 180s via `PROXY_HEAVY_RPC_TIMEOUT_MS`). Prefer a local observer RPC for wallet bootstrap when possible.
 
+Optional browser UI (**B-55**): status + light wallet at `http://5.161.201.73:3000/testnet` (HTTP; experimental). Keep spending keys in the browser only; prefer a local `mfnd` observer for serious JOIN evidence.
+
 Automated outside-in check (operators): on a synced local observer (`127.0.0.1:18734`), run `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` — exercises `fund-wallet-http`, checkpoint-log `light-scan`, observer proxy cross-check, and permanence upload/restore. Do not run parallel JOIN rehearsals or restart `faucet-http` while a B-15 evidence capture is in flight (see [`AGENTS.md`](../AGENTS.md) §6).
 
 **Option B — ask the operator:** open a [GitHub issue](https://github.com/shanecloonan/permawrite/issues) with your `mf...` receive address and ask for a small testnet top-up.
