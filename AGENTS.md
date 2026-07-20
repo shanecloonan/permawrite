@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave9 SPoRA prove PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY PASS when ckpt near tip + bash/ps1 | L4 checklist |
+| **3** Onboarding | B-15 wave9 (`d3213a5`) | **B-15** wave10 battery tip 4131 (claim base: `d3213a5`) | dave fund+receive; JOIN when ckpt near tip | L4 checklist |
 | **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** ephemeral fanout quarantine (claim base: `69df8fa`) | Land B-51 after CI settles → lane 7 `vps-roll-mfnd` (B-45+B-48+B-51); live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -230,6 +230,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave10 open**: tip **4131**; ckpt still max **4057** (delta~74). Evidence `live-testnet-probe-20260720-wave10.md`. Docs-only `[skip ci]`.
 1. **2026-07-20 — lane 4 — B-51 claim** (this commit): Live tip **4096** sealing; hub still quarantines ephemeral inbound ports on block fan-out redial (`os error 111`). B-48 on main (`69df8fa`); VPS binary still pre-B-48. Docs-only `[skip ci]` while CI `#29715111633` runs. *Observed:* `faucet-http` inactive; leave lane-3 wave evidence unstaged.
 1. **2026-07-20 — lane 4 — B-48 soft EAGAIN peer quarantine** (this commit): `note_peer_failure` ignores transient `os error 11` / WouldBlock (not `os error 111`); unit tests. Complements B-46 tip recovery; distinct from **B-47** faucet retries. *Observed local work (not staged):* lane-3 wave evidence temps, `ci-docs-*.txt`, `user-wallet/`. Local: `cargo test -p mfn-node --lib transient_eagain`. Pushed after windows RED on `#29713542820` (run could not go green).
 1. **2026-07-20 — lane 7 — B-50 checkpoint-log bootstrap honesty** (this commit): `--checkpoint-log` is cross-check only (does not skip tip); helper `bootstrap-wallet-from-checkpoint-log.sh`; JOIN docs fixed; tip-4057 Path A entry; live EAGAIN quarantine recurred → **urgent B-48**. Evidence `b50-checkpoint-log-bootstrap-honesty-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice scan logs, `ci-docs-*.txt`.
