@@ -15,7 +15,10 @@ These snapshots are frozen verbatim. Status words like "Doing" or "this push" in
 
 ## Rotated session-log entries
 
-*(none yet — the live board's Session log has not overflowed since consolidation)*
+### Rotation 2026-07-20 (from live `AGENTS.md` §8)
+
+- **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
+- **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
 
 ---
 
