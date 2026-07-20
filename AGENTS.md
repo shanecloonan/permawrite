@@ -12,10 +12,7 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 
 ## 0. The contract (read before anything else)
 
-1. **2026-07-20 — lane 1 — CI workflow_dispatch `#29712149048`** (this commit): Actions still partial_outage; push lineage cancelled. Dispatched CI via `gh workflow run CI` on `main` (includes B-29 parse `e10a8b3`). No Hetzner (B-15 JOIN in flight; faucet lock). Docs `[skip ci]`.
-2. **2026-07-19 — lane 1 — B-34 escalate: Actions partial_outage** (this commit): Successor CI `#29711867196` still empty-step queued; githubstatus reports Actions **partial_outage**. Per ROADMAP B-34: stop cancel/re-dispatch thrash; wait for runners. Did **not** touch Hetzner (B-15). Docs-only `[skip ci]`.
-2. **2026-07-19 — lane 1 — B-34 restart empty-step CI `#29711605173`** (this commit): All jobs queued ~9.5m with no runner pickup on `e10a8b3`; docs push **without** `[skip ci]` to cancel-in-progress and start a healthy matrix (B-29 parse already on head). Did **not** touch Hetzner (B-15). *Observed local work (not staged):* ROADMAP planning, user-wallet/, ci-docs-*.txt, live-testnet-data/.
-2. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
+1. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
 2. **No silent work.** If you are coding without a **Doing** row in §5, stop and claim first.
 3. **Read before write.** Scan the whole §5 board + §6 requests before claiming anything.
 4. **History is append-only.** Completed work rotates from §8 into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md); nothing is ever silently deleted.
@@ -144,7 +141,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **1** RC core | **B-34** escalate + dispatch `#29712149048` (this commit) | **Watch CI `#29712149048`** (claim base: `dfbaa50`) | Nightly when GREEN -> close B-29 | CI/Nightly + githubstatus |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
-| **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-44** → **B-24** | Lane 1 CI/Nightly |
+| **4** Protocol | **B-36** F10 f64 CI lint (this commit) | *Idle* | After L4: **B-32** -> **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-41** + **B-22** + B-31/B-30 | *Idle* | **B-42** invite-load after B-15 PASS; TL-9; later **B-43** | `launch-go-no-go` |
@@ -161,7 +158,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
-| planning | 1 | **B-34:** watch CI `#29711605173` on `e10a8b3` (lineage `#29711500087` on `76d4f04`; escalate via GitHub Status if two restarts stay runner-starved) | **Ack** |
+| planning | 1 | **B-34:** cancelled empty-step `#29711867196` (~8m); this land restarts matrix (no skip-ci) | **Done** (this land) |
 | planning | 3+7 | **B-42:** invite-load smoke before TL-9 — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9); after B-15/B-41 | **Open** |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
@@ -183,7 +180,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13a | Emission/treasury sims at `1000` bps in default CI | 6 | After L4 gate; promote existing unit test to 256–512 block sim |
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
-| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Wave1 HTTP probe landed; **PASS archive blocked on B-41** P2P; tooling `02c8df8` |
+| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Wave1 landed; B-41 seeds OPEN — full JOIN archive next |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 Nightly + B-26/27 (B-30 docs ✓) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
@@ -204,13 +201,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | Watch `#29711605173`; protocol in ROADMAP (Escalate → GitHub Status) |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
-| B-36 | F10 `f64` purge / CI lint on consensus path | 4 | Phase 1–2; §14 resolved — lint prevents regression |
+| B-36 | F10 `f64` purge / CI lint on consensus path | 4 | **Landed** - scripts fill `54d22d7` hook gap |
 | B-37 | B6/P6 hidden fees inside balance equation | 4 | Phase 3 privacy; after B-25 |
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | Phase 1; [work package](docs/ROADMAP.md#b-40--first-permanence-week-lane-6--arm-day-of-l4); with **B-13a** |
-| B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — evidence `b41-p2p-forward-20260720.md`; hub `:19101` + socat `:19001` |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Phase 0; [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9); after B-15/B-41 |
+| B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd `:1910x` + socat `:1900x`; EXT 19001–19003 OPEN |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Plan gate landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | Phase 4 / before L5; [work package](docs/ROADMAP.md#b-43--path-b-genesis-freeze-inventory-lane-7--before-l5) |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 
@@ -220,20 +217,22 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-41 socat P2P + B-22 tip-4028 checkpoint** (this commit): Direct `mfnd` `0.0.0.0` hung; restored loopback + `socat` public forwards (hub `:19101`←`:19001`). Outside `:19001` OPEN; RPC private. Path A checkpoint signer-2 → `max_tip_height=4028`. Faucet not restarted. Evidence `b41-p2p-forward-20260720.md`. Unblocks lane-3 B-15 JOIN. Docs `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, lane4 f64-lint WIP.
-2. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
-2. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.
-3. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.
-4. **2026-07-19 — lane 7 — B-31 threat posture probe**: Evidence `b31-threat-posture-20260720.md` — RPC **PASS**; public P2P **FAIL**. **B-41** + human **B-22**. Docs-only `[skip ci]`.
-5. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (`00c5d33` / `e10a8b3`): PowerShell parse broke validate-rc-helper-scripts.
-6. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34** (`76d4f04` / `2fd23f1`): CI stall restart `#29711500087`; work packages.
-7. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864`): B-30 matrix; B-29 close=Nightly.
-8. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height`; fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN.
-9. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
-10. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29. Docs-only `[skip ci]`.
-11. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM. Docs-only `[skip ci]`.
-12. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
-13. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
+1. **2026-07-20 - lane 4 - B-36 F10 consensus f64 CI lint** (this commit): Add `validate-consensus-f64-lint.{py,sh,ps1}` referenced by `54d22d7` ci-check but previously missing; fail-closed on f64 multiply/round/`as f64` outside cfg(test). Restores AGENTS section-0 contract (session-log lines had overwritten the five hard rules). `[skip ci]` per B-34 Actions partial_outage. Did **not** touch Hetzner. *Observed local work (not staged):* wave2 evidence, repair scripts, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
+2. **2026-07-20 — lane 7 — B-41 voter remap + B-34 CI restart + B-42 plan gate** (this commit): Socat same-port conflict broke `:19002–19003`; remap all mfnd P2P to `:1910x` + dedicated forwards. EXT 19001–19003 OPEN. Cancelled empty-step CI `#29711867196`; **no `[skip ci]`** so matrix runs on this head. B-42 `invite-load-smoke-rehearsal.sh` plan-only in ci-check (live load after B-15). Faucet not restarted. *Observed local work (not staged):* lane3 `wave2` evidence WIP, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, lane4 f64-lint WIP.
+3. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
+4. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
+5. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.
+6. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.
+7. **2026-07-19 — lane 7 — B-31 threat posture probe**: Evidence `b31-threat-posture-20260720.md` — RPC **PASS**; public P2P **FAIL**. **B-41** + human **B-22**. Docs-only `[skip ci]`.
+8. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (`00c5d33` / `e10a8b3`): PowerShell parse broke validate-rc-helper-scripts.
+9. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34** (`76d4f04` / `2fd23f1`): CI stall restart `#29711500087`; work packages.
+10. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864`): B-30 matrix; B-29 close=Nightly.
+11. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix** (`5dc3aa8`): empty-UTXO light-sync wiped `scan_height`; fund-wallet `--reset-trusted-summary`. Close = Nightly GREEN.
+12. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): JOIN does not close B-29. Docs-only `[skip ci]`.
+13. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29. Docs-only `[skip ci]`.
+14. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM. Docs-only `[skip ci]`.
+15. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.
+16. **2026-07-19 — lane 3 — B-15 checkpoint light-scan** (`02c8df8` / `73abf77`): JOIN/`fund-wallet-http`.
 14. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 ---

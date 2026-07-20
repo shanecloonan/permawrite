@@ -103,6 +103,9 @@ $entrypointScripts = @(
     (Join-Path $repoRoot "scripts\validate-rc-helper-scripts.sh"),
     (Join-Path $repoRoot "scripts\validate-workflow-encoding.ps1"),
     (Join-Path $repoRoot "scripts\validate-workflow-encoding.sh"),
+    (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.ps1"),
+    (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.sh"),
+    (Join-Path $repoRoot "scripts\validate-consensus-f64-lint.py"),
     (Join-Path $repoRoot "scripts\ci-check.ps1"),
     (Join-Path $repoRoot "scripts\ci-check.sh")
 )
