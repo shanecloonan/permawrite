@@ -177,6 +177,9 @@ outside_in_invite_soak_plan="$(bash scripts/public-devnet-v1/outside-in-invite-s
 # B-34: CI queue/stall watch plan gate (lane 1; never cancel healthy in_progress).
 watch_ci_stall_plan="$(bash scripts/watch-ci-stall-rehearsal-smoke.sh --plan-only)"
 [[ "$watch_ci_stall_plan" == *"watch-ci-stall-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$watch_ci_stall_plan" >&2; exit 1; }
+# B-93: post-push CI stall watch plan gate (lane 1; wraps B-34).
+post_push_ci_watch_plan="$(bash scripts/post-push-ci-watch-rehearsal-smoke.sh --plan-only)"
+[[ "$post_push_ci_watch_plan" == *"post-push-ci-watch-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$post_push_ci_watch_plan" >&2; exit 1; }
 repair_vps_p2p_plan="$(bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only)"
 [[ "$repair_vps_p2p_plan" == *"repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$repair_vps_p2p_plan" >&2; exit 1; }
 bootstrap_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint-signer.sh --plan-only)"

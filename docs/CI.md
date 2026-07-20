@@ -42,6 +42,16 @@ Participant rehearsal automation policy: `release-participant-smoke-policy-check
 
 Requires [GitHub CLI](https://cli.github.com/) and `gh auth login` for direct `gh run` inspection. Exact-commit release polling can also use `GH_TOKEN` / `GITHUB_TOKEN` through `release-ci-watch.ps1` or `release-ci-watch.sh`.
 
+**After every push (B-93):** run the post-push watch so runner-starved queues are detected (B-34) before waiting on a dead matrix:
+
+```bash
+bash scripts/post-push-ci-watch.sh
+```
+
+```powershell
+powershell -File scripts/post-push-ci-watch.ps1
+```
+
 ```bash
 gh run list --workflow CI --limit 5
 gh run view <run-id> --log-failed

@@ -256,6 +256,12 @@ if ($watchCiStallPlan -notmatch "watch-ci-stall-rehearsal-smoke: PASS plan-only"
     $watchCiStallPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-93: post-push CI stall watch plan gate (lane 1; wraps B-34).
+$postPushCiWatchPlan = (powershell -NoProfile -File scripts/post-push-ci-watch-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($postPushCiWatchPlan -notmatch "post-push-ci-watch-rehearsal-smoke: PASS plan-only") {
+    $postPushCiWatchPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($repairVpsP2pPlan -notmatch "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only") {
     $repairVpsP2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }

@@ -18,10 +18,13 @@ GitHub CI (`.github/workflows/ci.yml`) runs: **rustfmt**, **clippy** (`-D warnin
 
 ## After pushing (agent must do this — user should not paste logs)
 
-1. `gh run list --workflow CI --limit 3`
-2. If the latest run failed: `gh run view <run-id> --log-failed`  
+1. `powershell -File scripts/post-push-ci-watch.ps1` (or `bash scripts/post-push-ci-watch.sh`)
+   — lists latest CI, runs B-34 `watch-ci-stall` (never cancels healthy `in_progress`), hints `gh-ci-failed` on failure.
+2. Optional: `gh run list --workflow CI --limit 3`
+3. If the latest run failed: `gh run view <run-id> --log-failed`  
    Or: `powershell -File scripts/gh-ci-failed.ps1`
-3. Fix failures on `main` in a follow-up commit; do not leave red CI.
+4. Fix failures on `main` in a follow-up commit; do not leave red CI.
+5. Only use `--cancel-if-stalled` / `-CancelIfStalled` when all jobs are queued with empty steps (runner-starved).
 
 ## Common failures
 
