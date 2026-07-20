@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave25** (`03ec40c`; quinn last_proven=4390) | **B-15** formal JOIN archive assert (claim base: tip) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave25** (quinn last_proven=4390; F95 429+peer-fund) | **B-15** formal JOIN archive assert (claim base: 03ec40c) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-74** (`62a9c02`); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — wait B-15 + lane-7 mfnd re-roll | Live multi-op pack → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -267,6 +267,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave25** (`03ec40c`): faucet **F95** HTTP 429; patricia->quinn 2x150k tip-wait PASS; upload bound **last_proven=4390** proxy+claims; claims recent=6; F45 still FAIL; F92 PASS. Evidence wave25.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane p2p/smoke dirty files.
 1. **2026-07-20 — lane 7 — B-77 B-71 mfnd roll + tip-4400 ckpt** (this commit): Roll after manual verify of **CI `#29739903305` GREEN** on `62a9c02` (HEAD docs-only via `03ec40c`); `MFN_ROLL_ALLOW_RED_CI=1`; tip 4398->4401+; peers-clean OK; Path A tip-**4400** (entries=13). Evidence `b77-b71-roll-tip4400-20260720.md`. Next **B-78** docs-equivalent CI gate. *Observed (not staged):* lane-3 JOIN temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 — lane 1 — B-75 production_dial + persistable local P2P** (this commit): B-71 refused GHA `:0` advertise (≥32768) so sealed-block fanout missed voters (observer tip@1; all-produce diverge). Fix: in-memory `production_dial_peers` union for seal/proposal dials; persistable bind in `start-all.sh`/`.ps1` + produce smokes; unit test `advertised_non_persistable_listen_stays_in_production_dial`. Full CI (no skip). After GREEN: sole Nightly → close **B-29**. *Observed (not staged):* lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`, `_nightly-*`.
 2. **2026-07-20 — lane 3 — B-15 wave25** (`03ec40c`): quinn last_proven=4390; F95 faucet 429. Evidence wave25.md (board SYNC note — AGENTS not in that commit).
