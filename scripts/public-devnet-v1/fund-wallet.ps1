@@ -86,7 +86,7 @@ function Reset-WalletTrustedSummary {
     $oldErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet light-scan --reset-trusted-summary 2>&1 | Out-Null
+        $null = & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet light-scan --reset-trusted-summary 2>&1
     } finally {
         $ErrorActionPreference = $oldErrorActionPreference
     }
@@ -106,7 +106,7 @@ function Get-WalletBalanceOut {
     $text = ($out | Out-String).Trim()
     if ($code -eq 0) { return $text }
     if ($text -match "tip_height mismatch|weak-subjectivity") {
-        Write-Host "fund-wallet: ${Label}_ws_tip_mismatch — light-scan --reset-trusted-summary then retry"
+        Write-Host "fund-wallet: ${Label}_ws_tip_mismatch - light-scan --reset-trusted-summary then retry"
         Reset-WalletTrustedSummary $MfnCli $RpcAddr $WalletPath $Label
         return (Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "balance") "$Label wallet balance (after reset)")
     }
@@ -207,8 +207,8 @@ function Get-TipHeightText {
 }
 
 if ($Amount -eq 0) { throw "Amount must be greater than 0" }
-if ($RingSize -lt 16) { throw "RingSize must be >= 16 (consensus minimum)" }
-if ($WaitMinedSeconds -lt 0) { throw "WaitMinedSeconds must be >= 0" }
+if ($RingSize -lt 16) { throw 'RingSize must be >= 16 (consensus minimum)' }
+if ($WaitMinedSeconds -lt 0) { throw 'WaitMinedSeconds must be >= 0' }
 
 $Recipient = if ($RecipientWallet) { $RecipientWallet } else { $DefaultRecipientWallet }
 
@@ -224,7 +224,7 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  recipient_wallet=$Recipient"
     Write-Host "  amount=$Amount fee=$Fee ring_size=$RingSize wait_mined_seconds=$WaitMinedSeconds min_owned_count=$MinOwnedCount"
-    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta (B-29: light-scan --reset-trusted-summary on WS tip mismatch) -> optional F7 top-up sends until owned_count >= min_owned_count"
+    Write-Host '  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta (B-29: light-scan --reset-trusted-summary on WS tip mismatch) -> optional F7 top-up sends until owned_count >= min_owned_count'
     Write-Host "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
     exit 0
 }
