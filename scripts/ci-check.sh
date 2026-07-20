@@ -159,6 +159,9 @@ b32_arm_ready_plan="$(bash scripts/public-devnet-v1/b32-arm-ready-rehearsal-smok
 # B-85: near-tip Path A checkpoint when tip lags log (lane 7; B-15-safe).
 near_tip_ckpt_plan="$(bash scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag-rehearsal-smoke.sh --plan-only)"
 [[ "$near_tip_ckpt_plan" == *"publish-near-tip-checkpoint-if-lag-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$near_tip_ckpt_plan" >&2; exit 1; }
+# B-88: VPS systemd timer install for B-85 lag republish (lane 7; B-15-safe).
+near_tip_ckpt_timer_plan="$(bash scripts/public-devnet-v1/vps-install-near-tip-ckpt-timer-rehearsal-smoke.sh --plan-only)"
+[[ "$near_tip_ckpt_timer_plan" == *"vps-install-near-tip-ckpt-timer-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$near_tip_ckpt_timer_plan" >&2; exit 1; }
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 outside_in_invite_soak_plan="$(bash scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.sh --plan-only)"
 [[ "$outside_in_invite_soak_plan" == *"outside-in-invite-soak-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$outside_in_invite_soak_plan" >&2; exit 1; }

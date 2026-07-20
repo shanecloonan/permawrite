@@ -260,17 +260,25 @@ If tip freezes after mfnd remaps/restarts: (1) ensure hub has quoted `Environmen
 HTTP faucet returns **429** during cooldown_ms after a successful fund (see /health). Do **not** restart `faucet-http` during B-15 to clear cooldown. Wait for `busy=false` and cooldown expiry, or peer-fund from a wallet with owned>=2 UTXOs. Burning time on owned=1 donors fails (wave35 F106).
 
 
-### Path A near-tip lag republish (B-85)
+### Path A near-tip lag republish (B-85 / B-88)
 
 When live tip drifts ahead of `public_devnet_v1.checkpoints.jsonl` max tip (JOIN F45 lag), run:
 
 `bash scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag.sh --apply`
 
-Default threshold: 16 blocks (`MFN_CKPT_LAG_THRESHOLD`). Never touches faucet/mfnd. Commit the updated jsonl afterward. Optional VPS cron every 30m while B-15 is active.
+Default threshold: 16 blocks (`MFN_CKPT_LAG_THRESHOLD`). Never touches faucet/mfnd. Commit the updated jsonl afterward.
+
+**B-88 VPS timer:** `bash scripts/public-devnet-v1/vps-install-near-tip-ckpt-timer.sh --apply` installs `path-a-near-tip-ckpt.timer` (every 30m). After a timer publish dirties the VPS working tree, agents must land the jsonl on `main` (scp + commit); before `git pull` on the VPS, `git checkout -- mfn-node/testdata/public_devnet_v1.checkpoints.jsonl` if needed.
 
 ### Proxy upload index lag (F105)
 
 JOIN permanence gates must wait for **proxy** `list_recent_uploads` (observer `:8787`), not only local `uploads status` matched. Local matched can precede public visibility by 1-2 minutes after prove.
+
+### Sticky local mempool (F107 / F108)
+
+Outside-in JOIN: CLI `Fresh` + tip_id match can still leave a TX stuck in the **local** observer mempool (`mempool_len=1`) while the public proxy shows `mempool_len=0` and never indexes the upload (**F107**). Restarting mfnd on the same data dir does **not** clear sticky mempool entries (**F108**).
+
+Mitigation validated in wave37: require `tip_id` match **and** `mempool_len=0` immediately before upload; after prove, confirm mempool returns to 0. If stuck `local_only` with mempool residue, quarantine/wipe the local data dir — do not expect restart alone. Never restart VPS `faucet-http` / hub to “fix” a local JOIN observer.
 
 ### B-32 — Second distinct-host operator (arm gate)
 

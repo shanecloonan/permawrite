@@ -220,6 +220,12 @@ if ($nearTipCkptPlan -notmatch "publish-near-tip-checkpoint-if-lag-rehearsal-smo
     $nearTipCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-88: VPS systemd timer install for B-85 lag republish (lane 7).
+$nearTipCkptTimerPlan = (powershell -NoProfile -File scripts/public-devnet-v1/vps-install-near-tip-ckpt-timer-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($nearTipCkptTimerPlan -notmatch "vps-install-near-tip-ckpt-timer-rehearsal-smoke: PASS plan-only") {
+    $nearTipCkptTimerPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 $outsideInInviteSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: PASS plan-only") {

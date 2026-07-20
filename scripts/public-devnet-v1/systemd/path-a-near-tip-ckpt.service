@@ -1,0 +1,18 @@
+[Unit]
+Description=Permawrite Path A near-tip checkpoint if lag (B-85/B-88)
+After=network.target
+# B-15-safe: never DependsOn faucet/mfnd
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/permawrite
+EnvironmentFile=-/root/.mfn/checkpoint-signer.env
+Environment=MFN_REPO_ROOT=/root/permawrite
+Environment=MFN_ROLL_RPC=127.0.0.1:18731
+Environment=MFN_CKPT_LAG_THRESHOLD=16
+ExecStart=/bin/bash /root/permawrite/scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag.sh --apply
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

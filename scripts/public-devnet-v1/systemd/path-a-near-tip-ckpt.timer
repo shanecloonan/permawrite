@@ -1,0 +1,13 @@
+[Unit]
+Description=Permawrite Path A near-tip checkpoint lag timer (B-88)
+# B-15-safe: never touches faucet/mfnd
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+AccuracySec=2min
+Persistent=true
+Unit=path-a-near-tip-ckpt.service
+
+[Install]
+WantedBy=timers.target
