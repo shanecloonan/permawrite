@@ -132,22 +132,54 @@ if [[ -z "$job_id" ]]; then
 fi
 echo "fund-wallet-http: job_id=$job_id"
 
-deadline=$(( $(date +%s) + 600 ))
+deadline=$(( $(date +%s) + 900 ))
 job_status="pending"
+reclaim_attempts=0
 while :; do
-  job_resp="$(curl -fsS "${FAUCET_URL%/}/faucet/job?id=${job_id}" 2>&1)" || {
+  job_resp="$(curl -sS -w $'\n%{http_code}' "${FAUCET_URL%/}/faucet/job?id=${job_id}" 2>&1)" || {
     echo "fund-wallet-http: GET /faucet/job failed" >&2
     echo "$job_resp" >&2
     exit 1
   }
-  job_status="$(printf '%s' "$job_resp" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  http_code="$(printf '%s' "$job_resp" | tail -1)"
+  job_body="$(printf '%s' "$job_resp" | sed '$d')"
+  if [[ "$http_code" == "404" ]]; then
+    if (( reclaim_attempts >= 1 )); then
+      echo "fund-wallet-http: job $job_id lost after re-claim; faucet may still be funding — check balance manually" >&2
+      exit 1
+    fi
+    reclaim_attempts=$((reclaim_attempts + 1))
+    echo "fund-wallet-http: job $job_id unknown (faucet restart?); re-claiming (attempt $reclaim_attempts)"
+    claim_resp="$(curl -fsS -X POST "${FAUCET_URL%/}/faucet" \
+      -H "Content-Type: application/json" \
+      --data-binary "$claim_body" 2>&1)" || {
+      echo "fund-wallet-http: POST /faucet re-claim failed" >&2
+      echo "$claim_resp" >&2
+      exit 1
+    }
+    echo "fund-wallet-http: reclaim_response=$claim_resp"
+    job_id="$(printf '%s' "$claim_resp" | sed -n 's/.*"job_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    if [[ -z "$job_id" ]]; then
+      echo "fund-wallet-http: re-claim returned no job_id" >&2
+      exit 1
+    fi
+    echo "fund-wallet-http: job_id=$job_id"
+    sleep 3
+    continue
+  fi
+  if [[ "$http_code" != "200" ]]; then
+    echo "fund-wallet-http: GET /faucet/job HTTP $http_code" >&2
+    echo "$job_body" >&2
+    exit 1
+  fi
+  job_status="$(printf '%s' "$job_body" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   echo "fund-wallet-http: job_poll status=$job_status"
   if [[ "$job_status" == "done" ]]; then
-    echo "fund-wallet-http: job_result=$job_resp"
+    echo "fund-wallet-http: job_result=$job_body"
     break
   fi
   if [[ "$job_status" == "error" ]]; then
-    echo "fund-wallet-http: faucet job failed: $job_resp" >&2
+    echo "fund-wallet-http: faucet job failed: $job_body" >&2
     exit 1
   fi
   if (( $(date +%s) >= deadline )); then
@@ -163,8 +195,13 @@ if (( WAIT_MINED_SECONDS <= 0 )); then
 fi
 
 wait_deadline=$(( $(date +%s) + WAIT_MINED_SECONDS ))
+last_scan=0
 while :; do
-  "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
+  now=$(date +%s)
+  if (( now - last_scan >= 45 )); then
+    "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
+    last_scan=$now
+  fi
   st_out="$("$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet status 2>&1 || true)"
   bal="$(parse_kv balance_cached "$st_out")"
   [[ -z "$bal" ]] && bal="$(parse_kv balance "$st_out")"
@@ -185,5 +222,5 @@ while :; do
     echo "fund-wallet-http: timed out balance=$bal owned_count=$owned" >&2
     exit 1
   fi
-  sleep 5
+  sleep 10
 done

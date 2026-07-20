@@ -13,7 +13,7 @@
  * Env:
  *   FAUCET_WALLET, MFN_CLI, MFND_RPC, PROXY_HOST, PROXY_PORT
  *   FAUCET_AMOUNT, FAUCET_FEE, FAUCET_RING_SIZE, FAUCET_COOLDOWN_MS
- *   FAUCET_SEND_TIMEOUT_MS (default 180000)
+ *   FAUCET_SEND_TIMEOUT_MS (default 300000)
  *   FAUCET_KEEPALIVE_MS (default 45000) — background wallet scan so send
  *     never has to catch up thousands of producer coinbase blocks at once
  *   FAUCET_SYNC_BEHIND (default 8) — max blocks_behind before a claim forces sync
@@ -41,7 +41,7 @@ const RING = Number(process.env.FAUCET_RING_SIZE ?? "16");
 const COOLDOWN_MS = Number(
   process.env.FAUCET_COOLDOWN_MS ?? String(15 * 60_000),
 );
-const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "180000");
+const SEND_TIMEOUT_MS = Number(process.env.FAUCET_SEND_TIMEOUT_MS ?? "300000");
 const KEEPALIVE_MS = Number(process.env.FAUCET_KEEPALIVE_MS ?? "45000");
 const SYNC_BEHIND = Number(process.env.FAUCET_SYNC_BEHIND ?? "8");
 const SYNC_TIMEOUT_MS = Number(
@@ -239,7 +239,7 @@ async function fundAddress(address, amount) {
     await ensureWalletReady("claim");
 
     const txIds = [];
-    const tipBefore = await getTipHeight();
+    let tipBefore = await getTipHeight();
     // Two sends so recipient meets the F7 two-input floor for later transfers.
     // Rescan + wait for a block between sends — back-to-back spends reuse stale
     // UTXOs and mempool rejects with "key image already spent on chain".
@@ -274,6 +274,7 @@ async function fundAddress(address, amount) {
       }
       const parsed = JSON.parse(stdout.slice(start, end + 1));
       txIds.push(parsed.tx_id || parsed.txId || null);
+      tipBefore = await getTipHeight();
     }
 
     return {
