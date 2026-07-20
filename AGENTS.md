@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI #29777008854 GREEN** on B-34 c752992. B-91 CI in flight on 13cdb01. **B-29 CLOSED**. Nightly #29761294926 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29779275119` GREEN** on B-91 `13cdb01` (re-proves B-90). Landing **B-92** tip-4679. Prior **CI `#29777008854` GREEN** on B-34. **B-29 CLOSED**. Nightly #29761294926 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -144,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-91** health assert + tip-4662 (this commit); **B-90** (`89a047b`); **B-89** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-92** tip-4679 (this commit); **B-91** (`13cdb01`, CI `#29779275119` GREEN); **B-90** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -264,7 +264,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-88 | VPS B-85 lag timer (30m) + tip-4606 + F107/F108 OPERATORS | 7 | **Landed** (`3a0efff`); **CI `#29771537059` GREEN**; entries=22 |
 | B-89 | Path A timer health assert + VPS land helper + tip-4624 | 7 | **Landed** (`a0458bf`); **CI `#29773999207` GREEN**; entries=23 |
 | B-90 | Observer proxy tip-align before list_recent_uploads (F105) + tip-4641 | 7 | **Landed** (`89a047b`); CI `#29776397760` cancelled by B-34; re-proved via B-91; entries=24 |
-| B-91 | Public-testnet health assert (timer+proxy tip-align+faucet+ckpt lag) + tip-4662 | 7 | **Landed** (this commit); entries=25 |
+| B-91 | Public-testnet health assert (timer+proxy tip-align+faucet+ckpt lag) + tip-4662 | 7 | **Landed** (`13cdb01`); **CI `#29779275119` GREEN**; entries=25 |
+| B-92 | Path A tip-4679 (lag=17 after waves 46-47) + B-91 CI note | 7 | **Landed** (this commit); entries=26 |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -280,10 +281,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 7 — B-92 Path A tip-4679** (this commit): lag=17 fire → tip-**4679** (entries=26); **CI `#29779275119` GREEN** on B-91. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-1 soak WIP.
 1. **2026-07-20 — lane 3 — B-15 wave47**: **nora** faucet permanence **last_proven=4677** (commit `53bab1a0`); cooldown wait after wave46 fund fail; claims 22→23. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave46 FUND FAIL**: **liam** unfunded for upload (faucet 429; kate single-send→owned=1; iris F106 owned=1). Path A ckpt_max=4662 **lag=0** but hard scan still TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 1 — B-34 CI GREEN** (c752992): CI #29777008854 GREEN (closes incomplete B-90 wire). Docs board sync [skip ci] while B-91 CI runs. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*, lane-4 proptest WIP.
-1. **2026-07-20 — lane 7 — B-91 health assert + tip-4662** (this commit): `assert-public-testnet-health` + ci-check gate; tip-**4662** (lag=21, entries=25); re-proves B-90 after CI `#29776397760` cancelled by B-34. Prior **CI `#29777008854` GREEN** on B-34. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proptest.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`.
+1. **2026-07-20 — lane 7 — B-91 health assert + tip-4662** (`13cdb01`): `assert-public-testnet-health` + ci-check gate; tip-**4662** (lag=21, entries=25); re-proves B-90 after CI `#29776397760` cancelled by B-34. Prior **CI `#29777008854` GREEN** on B-34. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proptest.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`.
 2. **2026-07-20 — lane 3 — B-15 wave45**: **kate** faucet permanence **last_proven=4661** (commit `8b491ece`) on fresh observer after wave44 wipe; claims 21→22. Wipe restores permanence (again). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 3. **2026-07-20 — lane 3 — B-15 wave44 FAIL**: **jade** Fresh stayed `local_only` (commit `985a944f`); sticky mempool=1; no proxy_has; claims stayed 21. Breaking 7-PASS streak. Quarantine wipe before wave45 (F108). Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 4. **2026-07-20 — lane 1 — B-34 watch-ci-stall** (`c752992`): CI `#29777008854` GREEN; cancelled B-90 matrix `#29776397760`.
