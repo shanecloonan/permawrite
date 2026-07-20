@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–45; kate@**4661** post-wipe PASS after wave44 FAIL; claims=22; twenty-five proxy-proven wallets.
+**Status:** DRAFT — waves 6–46; kate@4661 last PASS; wave46 liam FUND FAIL (F106); Path A ckpt_max=4662 lag=0; twenty-five proxy-proven wallets.
+| liam | faucet 429 + peer incomplete | n/a | **no** | FAIL wave46 fund (F106 iris owned=1; liam owned=1) |
 | kate | faucet (post-wipe) | n/a | yes | **4661** (wave45; proxy-prove PASS) |
 | jade | peer (after faucet 429) | n/a | **no** | FAIL wave44 F104/F107 local_only mem=1 |
 | iris | faucet | n/a | yes | **4636** (wave43; proxy-prove PASS) |
@@ -86,6 +87,10 @@ Twenty-five wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/osca
 
 
 27. **F104/F107 recur (wave44)** — after seven PASSes on one observer, Fresh+tip_id match again stuck `local_only` with sticky mempool=1 and no proxy_has. Wipe (full data-dir quarantine) before next wave; restart-without-wipe insufficient (F108).
+
+
+28. **F45 lag=0 (wave46)** — Path A attestation reached live tip height, but hard `--checkpoint-log` still TIMED OUT at 60s. Soft JOIN remains mandatory until hard path is budgeted.
+29. **F106 recur (wave46)** — high-balance donor with owned=1 cannot dual-fund; peer fallback needs two owned≥2 donors or faucet cooldown.
 
 ## Still open before formal archive PASS
 
