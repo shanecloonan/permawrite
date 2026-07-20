@@ -103,7 +103,7 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | **B-22** | Verify TL-8 checkpoint log publish (`publish-checkpoint-log.sh --apply` on VPS) matches repo + JOIN cross-check | 7 | Repo log exists; [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) lists VPS publish as remaining TL-8 ops |
 | **B-26** | Deploy R-4 faucet to Hetzner (`vps-update-faucet.sh`) — checklist invite gate | 2+7 | After B-15 evidence window closes (no faucet restart during capture) |
 | **B-27** | Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archive) | 1+7 | Re-run / assert on CI-green head before TL-9 |
-| **B-29** | Nightly participant rehearsal GREEN — fix GHA **`fund-wallet.sh`** WS tip mismatch | 1+3 | **Nightly `#29701967243` RED**. **≠ B-15** JOIN/`fund-wallet-http` — see [work package](#b-29-work-package-nightly-red--do-not-confuse-with-b-15) |
+| **B-29** | Nightly participant rehearsal GREEN — fix GHA **`fund-wallet.sh`** WS tip mismatch | 1+3 | **Fix landed** (`mfn-cli` hydrate/capture + fund-wallet WS reset); await CI + Nightly re-dispatch. **≠ B-15** JOIN — see [work package](#b-29-work-package-nightly-red--do-not-confuse-with-b-15) |
 | **B-30** | Residual-risk owner matrix + halt/rollback authority before invites | 7 | [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) + OPERATORS checkbox |
 | **B-31** | Live RPC/faucet threat posture verify (DoS, TLS, faucet-HTTP in threat table) | 2+7 | Security ops; does not block permanence units |
 

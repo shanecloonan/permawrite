@@ -177,17 +177,64 @@ json_field() {
   exit 1
 }
 
+# B-29: Nightly participant-rehearsal hits WS `trusted N vs checkpoint 0` when a
+# pinned trusted summary outlives a rebuilt light checkpoint. Clear the pin and
+# light-scan before balance waits so recovery does not depend on JOIN/HTTP paths.
+refresh_wallet_light() {
+  local mfn_cli="$1" rpc_addr="$2" wallet_path="$3" label="${4:-wallet}"
+  if "$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet light-scan \
+    --reset-trusted-summary >/dev/null 2>&1; then
+    echo "fund-wallet: ${label}_light_scan reset_trusted_summary=ok"
+    return 0
+  fi
+  echo "fund-wallet: ${label}_light_scan reset_trusted_summary=retry_soft_fail"
+  return 0
+}
+
+is_ws_tip_mismatch() {
+  local text="$1"
+  [[ "$text" == *"weak-subjectivity"* || "$text" == *"tip_height mismatch"* ]]
+}
+
 get_wallet_balance() {
   local mfn_cli="$1" rpc_addr="$2" wallet_path="$3" label="$4"
-  local out
-  out="$(run_checked "$label wallet balance" "$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance)"
+  local out code
+  set +e
+  out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"
+  code=$?
+  set -e
+  if (( code != 0 )); then
+    if is_ws_tip_mismatch "$out"; then
+      echo "fund-wallet: $label wallet balance hit WS tip mismatch; resetting trusted summary"
+      refresh_wallet_light "$mfn_cli" "$rpc_addr" "$wallet_path" "$label"
+      out="$(run_checked "$label wallet balance (after WS reset)" "$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance)"
+    else
+      echo "fund-wallet: $label wallet balance failed with exit=$code" >&2
+      echo "$out" >&2
+      exit "$code"
+    fi
+  fi
   parse_field "$out" balance
 }
 
 get_wallet_owned_count() {
   local mfn_cli="$1" rpc_addr="$2" wallet_path="$3" label="$4"
-  local out
-  out="$(run_checked "$label wallet balance" "$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance)"
+  local out code
+  set +e
+  out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"
+  code=$?
+  set -e
+  if (( code != 0 )); then
+    if is_ws_tip_mismatch "$out"; then
+      echo "fund-wallet: $label wallet balance hit WS tip mismatch; resetting trusted summary"
+      refresh_wallet_light "$mfn_cli" "$rpc_addr" "$wallet_path" "$label"
+      out="$(run_checked "$label wallet balance (after WS reset)" "$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance)"
+    else
+      echo "fund-wallet: $label wallet balance failed with exit=$code" >&2
+      echo "$out" >&2
+      exit "$code"
+    fi
+  fi
   parse_field "$out" owned_count
 }
 
@@ -209,14 +256,27 @@ wait_recipient_balance() {
   fi
   local deadline=$(( $(date +%s) + timeout_seconds ))
   local last_error=""
+  local last_scan=0
+  refresh_wallet_light "$mfn_cli" "$rpc_addr" "$wallet_path" recipient
   while (( $(date +%s) <= deadline )); do
-    local balance scan_out balance_out tip_height
+    local balance balance_out tip_height now
+    now=$(date +%s)
+    # Periodic light-scan keeps resume height / trusted pin coherent while tip advances.
+    if (( now - last_scan >= 30 )); then
+      refresh_wallet_light "$mfn_cli" "$rpc_addr" "$wallet_path" recipient
+      last_scan=$now
+    fi
     tip_height="$(tip_height_text "$mfn_cli" "$rpc_addr")"
     if ! balance_out="$("$mfn_cli" --rpc "$rpc_addr" --wallet "$wallet_path" wallet balance 2>&1)"; then
       last_error="recipient wallet balance failed: $balance_out"
       if [[ "$last_error" == *"Connection refused"* || "$last_error" == *"actively refused"* ]]; then
         echo "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($last_error)" >&2
         exit 1
+      fi
+      if is_ws_tip_mismatch "$last_error"; then
+        echo "fund-wallet: recipient_balance_wait WS tip mismatch; light-scan --reset-trusted-summary"
+        refresh_wallet_light "$mfn_cli" "$rpc_addr" "$wallet_path" recipient
+        last_scan=$(date +%s)
       fi
       echo "fund-wallet: recipient_balance_wait retry_after_error=${last_error//$'\n'/ }"
       sleep 5
@@ -267,6 +327,7 @@ wait_tip_advance() {
 
 refresh_faucet_wallet() {
   local mfn_cli="$1" rpc_addr="$2"
+  refresh_wallet_light "$mfn_cli" "$rpc_addr" "$FAUCET_WALLET" faucet
   run_checked "faucet wallet scan" "$mfn_cli" --rpc "$rpc_addr" --wallet "$FAUCET_WALLET" wallet scan >/dev/null
 }
 
@@ -291,7 +352,8 @@ if (( PLAN_ONLY )); then
   echo "  faucet_wallet=$PLAN_FAUCET"
   echo "  recipient_wallet=$RECIPIENT"
   echo "  amount=$AMOUNT fee=$FEE ring_size=$RING_SIZE wait_mined_seconds=$WAIT_MINED_SECONDS min_owned_count=$MIN_OWNED_COUNT"
-  echo "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta -> optional F7 top-up sends until owned_count >= min_owned_count"
+  echo "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet light-scan/scan/balance -> wallet address -> faucet wallet send --json -> recipient light-scan --reset-trusted-summary -> wait for balance delta -> optional F7 top-up sends until owned_count >= min_owned_count"
+  echo "  note=B-29: balance waits recover from WS trusted-vs-checkpoint tip mismatch via light-scan --reset-trusted-summary (Nightly path; not JOIN/fund-wallet-http)"
   echo "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
   exit 0
 fi

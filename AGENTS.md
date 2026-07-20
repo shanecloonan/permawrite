@@ -134,13 +134,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 `49d28f9`); planning `9150353`. **CI `#29711044516` queued** (~12m+, stall risk — lane 1 watch). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** — **B-29**. Strategic path: L4 → **B-13a** (armed day-of) → **B-25**.
+**CI gate (2026-07-19):** code head = B-29 WS tip fix (this commit); prior `02c8df8` / B-16 `49d28f9`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** until re-dispatch after this land. Strategic path: L4 → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | **B-29** `fund-wallet.sh` WS tip (Nightly); *Observed local WIP:* `mfn-cli` light_wallet/wallet_store — do not clobber | CI/Nightly run IDs in §8 |
+| **1** RC core | **B-29** Nightly WS tip fix (`mfn-cli` hydrate empty-UTXO scan_height + fund-wallet WS reset) | *Idle* | Watch CI on this head; re-dispatch Nightly when GREEN | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 tooling (`774320f`…`02c8df8`) | **B-15 Hetzner evidence** (claim base: `02c8df8`) | Archive + assert; then help **B-29** if needed | L4 checklist |
+| **3** Onboarding | B-15 tooling (`774320f`…`02c8df8`) | **B-15 Hetzner evidence** (claim base: `02c8df8`) | Archive + assert (B-29 CLI fix landing separately) | L4 checklist |
 | **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** multi-op evidence tooling → **B-24**; **B-36** F10 parallel | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** F7 pad / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** claim **B-13a** day-of L4 close ([work package](docs/ROADMAP.md#b-13a-work-package-lane-6--arm-on-l4-close)); then **B-33** | Emission sims |
@@ -156,7 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 evidence (in-memory jobs + faucet lock) | **Open** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
-| planning | 1+3 | **B-29:** Nightly `#29701967243` RED — `fund-wallet.sh` WS tip. JOIN path does **not** fix. See ROADMAP B-29 work package. *Observed local WIP in `mfn-cli` (not staged by planning).* | **Open** |
+| planning | 1+3 | **B-29:** Nightly `#29701967243` RED — `fund-wallet.sh` WS tip. JOIN path does **not** fix. See ROADMAP B-29 work package. | **Done** (root-cause landed; re-dispatch Nightly after CI GREEN) |
 | planning | 6 | **Arm B-13a** the day TL-9/L4 closes — work package in ROADMAP; do not stay idle | **Open** (fires on L4) |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
@@ -187,7 +187,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9 |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | `#29701967243` RED; **≠ B-15 JOIN** — see ROADMAP work package |
+| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | Landed root-cause in `mfn-cli` + script recovery; await CI + Nightly GREEN |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | Phase 0 invite gate |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | Phase 0 security ops; not permanence-blocking |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | Phase 1; unblocks honest B-24 |
@@ -202,8 +202,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — Phase 1 handoffs B-32/33/35/36/38 + B-13a package** (`9150353`): B3 multi-op assert rigor; B-13b sign-off checklist; lane 6 armed day-of L4; F7 pad + F10 lint + Repair/soak IDs. Docs-only `[skip ci]`. *Observed local work (not staged):* `mfn-cli` light_wallet/wallet_store (likely B-29); `user-wallet/`, `ci-docs-*.txt`.
-2. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): Nightly = `fund-wallet.sh`; JOIN does not close B-29. Docs-only `[skip ci]`.
+1. **2026-07-19 — lane 1 — B-29 Nightly WS tip fix**: Root cause — no-op light-sync wiped `scan_height` when UTXO cache empty, then bootstrap rebuilt tip-0 checkpoint against pinned trusted tip N (`trusted 4 vs checkpoint 0`). Fix: always hydrate scan_height; `capture_wallet_state` preserves resume height; clear trusted when discarding mismatched light checkpoint; `fund-wallet.sh` WS-reset recovery. Unit tests green. Did **not** touch Hetzner (lane 3 B-15 §6). *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`.
+2. **2026-07-19 — planning — Phase 1 handoffs B-32/33/35/36/38 + B-13a package** (`9150353`): B3 multi-op assert; B-13b checklist; lane 6 armed. Docs-only `[skip ci]`.
+3. **2026-07-19 — planning — B-29 work package (Nightly ≠ B-15)** (`583bf11`): Nightly = `fund-wallet.sh`; JOIN does not close B-29. Docs-only `[skip ci]`.
 3. **2026-07-19 — planning — L4 invite gates B-26…B-31** (`8254c51`): Nightly RED → B-29; R-4/B-27/B-30. Docs-only `[skip ci]`.
 4. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs. Docs-only `[skip ci]`.
 5. **2026-07-19 — planning — Phase 1 permanence playbook** (`55c4abc`): B-13b same-chain lean; **B-25** before Tier 2/Path B. Docs-only `[skip ci]`.

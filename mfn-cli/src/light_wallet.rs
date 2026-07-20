@@ -150,10 +150,11 @@ pub(crate) fn sync_wallet_light_from_node(
     client: &mut RpcClient,
     params: &LightScanParams,
 ) -> Result<SyncStats, WalletCmdError> {
+    // Hydrate scan_height even when the UTXO cache is empty (funded wallets mid-wait,
+    // or freshly scanned recipients with no owned outputs yet). Skipping hydrate let
+    // no-op tip-caught-up syncs persist `scan_height=None` and brick WS on the next call.
     let used_utxo_cache = file.has_owned_cache();
-    if used_utxo_cache {
-        file.hydrate_wallet(wallet)?;
-    }
+    file.hydrate_wallet(wallet)?;
     file.apply_pending_spends(wallet)?;
 
     let tip = client.get_tip()?;
@@ -434,8 +435,11 @@ fn bootstrap_light_chain(
             return Ok(chain);
         }
         // Mismatch after full-block send / emptied UTXO cache: drop stale checkpoint
-        // and rebuild from a snapshot at the intended resume tip.
+        // and rebuild from a snapshot at the intended resume tip. Also clear the pinned
+        // trusted summary so gate_weak_subjectivity cannot compare an old tip against
+        // the rebuilt genesis/resume snapshot (Nightly B-29: trusted N vs checkpoint 0).
         file.light_checkpoint_hex = None;
+        file.trusted_light_summary = None;
     }
 
     let resume = file.scan_height;

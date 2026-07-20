@@ -81,16 +81,48 @@ function Ensure-Wallet {
     Write-Host "fund-wallet: created $Label wallet at $Path"
 }
 
+function Reset-WalletTrustedSummary {
+    param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [string]$Label)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet light-scan --reset-trusted-summary 2>&1 | Out-Null
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    Write-Host "fund-wallet: ${Label}_reset_trusted_summary=1"
+}
+
+function Get-WalletBalanceOut {
+    param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [string]$Label)
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = & $MfnCli --rpc $RpcAddr --wallet $WalletPath wallet balance 2>&1
+    } finally {
+        $ErrorActionPreference = $oldErrorActionPreference
+    }
+    $code = $LASTEXITCODE
+    $text = ($out | Out-String).Trim()
+    if ($code -eq 0) { return $text }
+    if ($text -match "tip_height mismatch|weak-subjectivity") {
+        Write-Host "fund-wallet: ${Label}_ws_tip_mismatch — light-scan --reset-trusted-summary then retry"
+        Reset-WalletTrustedSummary $MfnCli $RpcAddr $WalletPath $Label
+        return (Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "balance") "$Label wallet balance (after reset)")
+    }
+    throw "fund-wallet: $Label wallet balance failed with exit=$code`n$text"
+}
+
 function Get-WalletBalance {
     param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [string]$Label)
-    $balanceOut = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "balance") "$Label wallet balance"
+    $balanceOut = Get-WalletBalanceOut $MfnCli $RpcAddr $WalletPath $Label
     $balanceText = Parse-Field $balanceOut "balance"
     return [UInt64]$balanceText
 }
 
 function Get-WalletOwnedCount {
     param([string]$MfnCli, [string]$RpcAddr, [string]$WalletPath, [string]$Label)
-    $balanceOut = Invoke-Checked $MfnCli @("--rpc", $RpcAddr, "--wallet", $WalletPath, "wallet", "balance") "$Label wallet balance"
+    $balanceOut = Get-WalletBalanceOut $MfnCli $RpcAddr $WalletPath $Label
     $ownedText = Parse-Field $balanceOut "owned_count"
     return [int]$ownedText
 }
@@ -100,8 +132,14 @@ function Wait-RecipientBalance {
     if ($TimeoutSeconds -le 0) { return }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $lastError = ""
+    $lastScan = [DateTime]::MinValue
+    Reset-WalletTrustedSummary $MfnCli $RpcAddr $WalletPath "recipient"
     do {
         try {
+            if (((Get-Date) - $lastScan).TotalSeconds -ge 30) {
+                Reset-WalletTrustedSummary $MfnCli $RpcAddr $WalletPath "recipient"
+                $lastScan = Get-Date
+            }
             $tipHeight = Get-TipHeightText $MfnCli $RpcAddr
             $balance = Get-WalletBalance $MfnCli $RpcAddr $WalletPath "recipient"
             Write-Host "fund-wallet: recipient_balance_wait hub_tip_height=$tipHeight balance=$balance target=$MinimumBalance"
@@ -114,6 +152,10 @@ function Wait-RecipientBalance {
             $lastError = $_.Exception.Message
             if ($lastError -match "actively refused|Connection refused|error 10061") {
                 throw "fund-wallet: hub RPC unreachable during mining wait; mesh may have stopped ($lastError)"
+            }
+            if ($lastError -match "tip_height mismatch|weak-subjectivity") {
+                Reset-WalletTrustedSummary $MfnCli $RpcAddr $WalletPath "recipient"
+                $lastScan = Get-Date
             }
             Write-Host "fund-wallet: recipient_balance_wait retry_after_error=$($lastError -replace "`r?`n", " ")"
         }
@@ -182,7 +224,7 @@ if ($PlanOnly) {
     Write-Host "  faucet_wallet=$planFaucet"
     Write-Host "  recipient_wallet=$Recipient"
     Write-Host "  amount=$Amount fee=$Fee ring_size=$RingSize wait_mined_seconds=$WaitMinedSeconds min_owned_count=$MinOwnedCount"
-    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta -> optional F7 top-up sends until owned_count >= min_owned_count"
+    Write-Host "  flow=create/reuse recipient wallet -> record starting balance -> refresh faucet scan/balance -> wallet address -> faucet wallet send --json -> wait for balance delta (B-29: light-scan --reset-trusted-summary on WS tip mismatch) -> optional F7 top-up sends until owned_count >= min_owned_count"
     Write-Host "  warning=use only public-devnet/test funds; never store real faucet seeds in this repo"
     exit 0
 }

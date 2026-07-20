@@ -86,21 +86,35 @@ impl WalletFile {
         self.scan_height.is_some() && !self.owned_outputs.is_empty()
     }
 
-    /// Restore cached owned outputs into `wallet` (no-op if cache empty).
+    /// Restore scan height + cached owned outputs into `wallet`.
+    ///
+    /// Always restores `scan_height` when present — even with an empty UTXO set —
+    /// so a no-op light-sync (already at tip) cannot wipe resume height via
+    /// [`Self::capture_wallet_state`]. Wiping `scan_height` while keeping a pinned
+    /// `trusted_light_summary` caused Nightly **B-29** (`trusted N vs checkpoint 0`).
     pub fn hydrate_wallet(&self, wallet: &mut Wallet) -> Result<(), WalletStoreError> {
-        if !self.has_owned_cache() {
+        let Some(height) = self.scan_height else {
             return Ok(());
-        }
-        let height = self.scan_height.expect("checked in has_owned_cache");
+        };
         wallet
             .load_owned_snapshot(&self.owned_outputs, height)
             .map_err(|e| WalletStoreError::Invalid(e.to_string()))
     }
 
     /// Persist current wallet UTXO set and scan height into this file descriptor.
+    ///
+    /// If the in-memory wallet was never hydrated/scanned (`scan_height` is `None`),
+    /// keep the on-disk resume height and UTXO cache instead of clearing them.
     pub fn capture_wallet_state(&mut self, wallet: &Wallet) {
-        self.scan_height = wallet.scan_height();
-        self.owned_outputs = wallet.export_owned_snapshot();
+        match wallet.scan_height() {
+            Some(h) => {
+                self.scan_height = Some(h);
+                self.owned_outputs = wallet.export_owned_snapshot();
+            }
+            None => {
+                // No-op sync path: do not clobber file.scan_height / owned_outputs.
+            }
+        }
     }
 
     /// Apply [`Wallet::mark_spent_by_utxo_key`] for every pending entry.
@@ -256,6 +270,36 @@ mod tests {
         file.hydrate_wallet(&mut wallet).expect("hydrate");
         assert_eq!(wallet.balance(), 1000);
         assert!(file.has_owned_cache());
+    }
+
+    #[test]
+    fn hydrate_restores_scan_height_with_empty_owned_cache() {
+        let mut file = WalletFile::new(&[4u8; 32], KeyDerivation::MfnWalletV1);
+        file.scan_height = Some(4);
+        file.owned_outputs.clear();
+        assert!(!file.has_owned_cache());
+
+        let mut wallet = file.to_wallet().expect("wallet");
+        assert_eq!(wallet.scan_height(), None);
+        file.hydrate_wallet(&mut wallet).expect("hydrate");
+        assert_eq!(wallet.scan_height(), Some(4));
+        assert_eq!(wallet.balance(), 0);
+    }
+
+    #[test]
+    fn capture_wallet_state_preserves_scan_height_when_wallet_unscanned() {
+        let mut file = WalletFile::new(&[5u8; 32], KeyDerivation::MfnWalletV1);
+        file.scan_height = Some(4);
+        file.owned_outputs.clear();
+
+        let wallet = file.to_wallet().expect("wallet");
+        assert_eq!(wallet.scan_height(), None);
+        file.capture_wallet_state(&wallet);
+        assert_eq!(
+            file.scan_height,
+            Some(4),
+            "no-op persist must not wipe resume height (B-29)"
+        );
     }
 
     #[test]
