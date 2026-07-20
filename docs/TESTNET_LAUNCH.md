@@ -14,7 +14,7 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | CI | B-34 lineage `#29711500087` on `76d4f04`; current watch `#29711605173` on `e10a8b3`; prior `#29700946945` GREEN on `b4a3fa7` |
 | Nightly | `#29701967243` **RED** — re-dispatch after B-29 CI GREEN |
 | RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4/B-29 head CI + Nightly GREEN) |
-| VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
+| VPS | Hetzner `5.161.201.73` — mesh + faucet `:8788` + observer proxy `:8787` + testnet front-end `:3000/testnet` (B-55) |
 | `seed_nodes` | `5.161.201.73:19001`, `:19002`, `:19003` |
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |

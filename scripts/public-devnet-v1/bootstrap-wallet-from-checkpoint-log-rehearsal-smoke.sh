@@ -17,6 +17,10 @@ grep -q "F67 pin-then-fund" "$SCRIPT_DIR/fund-wallet-http.sh" || {
   echo "missing F67 pin-then-fund in fund-wallet-http.sh (B-54)" >&2
   exit 1
 }
+grep -q "keepaliveTick" "$SCRIPT_DIR/faucet-http.mjs" || {
+  echo "missing keepaliveTick tip-first keepalive in faucet-http.mjs (B-56)" >&2
+  exit 1
+}
 plan="$(bash "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" --plan-only)"
 [[ "$plan" == *"bootstrap-wallet-from-checkpoint-log: PASS plan-only"* ]] || { printf '%s\n' "$plan" >&2; exit 1; }
 echo "bootstrap-wallet-from-checkpoint-log-rehearsal-smoke: PASS plan-only"

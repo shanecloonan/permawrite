@@ -101,6 +101,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | Tall-tip wallet bootstrap (B-50) | `bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply --wallet PATH` — pin via `get_light_snapshot` then light-scan; `--checkpoint-log` alone does **not** skip genesis |
 | Block-log health (B-53 / F62) | `bash scripts/public-devnet-v1/assert-vps-block-log-health.sh --rpc 127.0.0.1:18734 --data-dir .permawrite-devnet-v1/observer` — tip + `get_block(tip)` (+ optional `chain.blocks` size) |
 | Faucet `/health` (B-53) | Non-blocking: never waits on wallet lock; may set `wallet_status_cached` / `wallet_lock_held` during keepalive |
+| Faucet keepalive (B-56) | Tip-first: poll tip without wallet lock when near tip; full sync only when behind > `SYNC_BEHIND` |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl`; **B-22:** merges manifest `seed_nodes` into `anchor_peers` (drops loopback when public seeds exist) |
 | TL-8 publish checkpoint log rehearsal (CI) | `bash scripts/public-devnet-v1/publish-checkpoint-log-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet | [`docs/TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) — share after `publish-seed-nodes --apply` + checkpoint log |

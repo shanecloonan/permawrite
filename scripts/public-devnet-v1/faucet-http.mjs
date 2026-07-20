@@ -551,9 +551,44 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+/**
+ * B-56: tip-first keepalive. When the faucet wallet is near tip, only poll
+ * chain tip (no wallet lock / no wallet scan). Full ensureWalletReady under
+ * the lock only when behind > SYNC_BEHIND. Cuts hub EAGAIN storms that broke
+ * concurrent get_light_snapshot during B-15.
+ */
+async function keepaliveTick() {
+  if (busy || walletLockHeld) return;
+  let tip = 0;
+  try {
+    tip = await getTipHeight();
+  } catch (e) {
+    console.warn("faucet keepalive tip failed", e);
+    return;
+  }
+  const scan = Number(lastWalletStatus?.scan_height ?? 0);
+  const behind = Math.max(0, tip - scan);
+  if (
+    lastWalletStatus &&
+    !lastWalletStatus.sync_needed &&
+    behind <= SYNC_BEHIND
+  ) {
+    lastWalletStatus = {
+      ...lastWalletStatus,
+      tip_height: tip,
+      blocks_behind: behind,
+      sync_needed: behind > 0,
+    };
+    return;
+  }
+  await withWalletLock(() =>
+    ensureWalletReady(`keepalive:behind=${behind}`),
+  );
+}
+
 server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   console.log(
-    `faucet-http (async) http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET} keepalive=${KEEPALIVE_MS}ms`,
+    `faucet-http (async) http://${LISTEN_HOST}:${LISTEN_PORT}/faucet -> ${MFND_RPC} wallet=${FAUCET_WALLET} keepalive=${KEEPALIVE_MS}ms tip-first`,
   );
   // Catch up immediately, then keep scan_height near tip so claims stay fast.
   void withWalletLock(() => ensureWalletReady("startup")).catch((e) =>
@@ -561,8 +596,7 @@ server.listen(LISTEN_PORT, LISTEN_HOST, () => {
   );
   if (KEEPALIVE_MS > 0) {
     setInterval(() => {
-      if (busy) return;
-      void withWalletLock(() => ensureWalletReady("keepalive")).catch((e) =>
+      void keepaliveTick().catch((e) =>
         console.error("faucet keepalive sync failed", e),
       );
     }, KEEPALIVE_MS);
