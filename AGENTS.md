@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **B-51** on main (`e69e603`); prior CI `#29715111633` RED on B-48. Watch new CI on B-51/B-59 stack. This land = board SYNC correction after B-59 (`973912d`) `[skip ci]`. Tip ckpt **4166**. Hold `vps-roll-mfnd` until CI GREEN on B-51 head.
+**CI gate (2026-07-20):** **CI `#29717107514` in_progress** on B-51 (`e69e603`). Prior `#29715111633` RED (hub tip diverge / smoke). Lane 1 watches; B3 legacy-challenge slot harden ready to land after this matrix. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | `#29715111633` RED (B-48) | **Watch CI on B-51** (`e69e603`) | On GREEN: Nightly -> B-29 | githubstatus + CI/Nightly |
+| **1** RC core | Diagnosed `#29715111633` RED | **Watch CI `#29717107514`** (B-51) (claim base: `e69e603`) | On GREEN: Nightly -> B-29; land B3 slot harden if still needed | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 wave12 eve upload+prove+send PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68b cleared | L4 checklist |
 | **4** Protocol | **B-51** (`e69e603`); **B-48**; **B-45** | *Idle* | After CI GREEN: lane 7 `vps-roll-mfnd`; live **B-32** | Lane 1 CI |
@@ -246,6 +246,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 ## 8. Session log (who did what — newest first, max 20 entries)
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
+
+1. **2026-07-20 — lane 1 — watch CI `#29717107514` (B-51)**: Prior `#29715111633` RED was `public_devnet_hub_reaches_height_one…` tip diverge (not B3 flake on that head). B-51 landed by lane 4 (`e69e603`). Local B3 non-colliding-slot harden staged for after matrix. Docs-only `[skip ci]`.
 
 1. **2026-07-20 — lane 1 — B-51 + B3 CI fix-forward** (this commit): Recovered ephemeral-peer quarantine harden (`note_peer_failure` skips non-durable; block/fraud fanout dials durable only). Hardened `b3_legacy_challenge_rejected_when_enabled` to pick non-colliding slot. Targets CI `#29715111633` RED (`public_devnet_hub_reaches_height_one…` tip diverge). Local focused tests green.
 
