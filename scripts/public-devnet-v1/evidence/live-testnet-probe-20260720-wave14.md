@@ -88,6 +88,7 @@ With owned_count=2 / balance=940000, grace upload Fresh:
 | commitment | 3e728a8e91d97916efd18c5fa6cac9fdf6a56d8fec1823a5964f5ad3e60cd40c |
 | tip | 4188 |
 | fee | 1003 |
+| last_proven (poll) | **4190** matched |
 
 Confirms F75 root cause was single-input floor, not permanence path.
 
