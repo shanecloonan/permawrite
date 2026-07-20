@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-60** (`7ab86ad`) | **Watch CI `#29718880625`** (claim base: `7ab86ad`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave15** (heidi JOIN loop last_proven=4200) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave16** (F81/F82; eve last_proven=4206) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | **B-63** partial-set settle + coinbase compose (claim base: `7ab86ad`; local PASS) | Land after `#29718880625`; then lane 7 roll → live **B-32** → **B-44**/**B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -251,6 +251,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 3 — B-15 wave16** (this commit): F81 list_recent_uploads object params; F75 cascade dave; heidi→frank unlock; eve upload adfaba2… last_proven=**4206** (slow F82). Evidence wave16.md. [skip ci].
 1. **2026-07-20 — lane 3 — B-15 wave15** (this commit): tip soak PASS; F45 hard FAIL lag22 / soft PASS; retrieve frank/grace/eve; **heidi** pin→faucet→upload last_proven=**4200**; frank→heidi 25k @4201; F80 post-pin balance lag. Evidence `live-testnet-probe-20260720-wave15.md`. `[skip ci]`. *Observed:* probe temps, `user-wallet/`, `live-testnet-data*`.
 2. **2026-07-20 — lane 4 — B-63 claim** (this commit): early B-24a — two-op coinbase N+1 compose + 1-of-2 prove miss/treasury identity in `apply_block_proptest`. Local PASS. Docs-only `[skip ci]` while `#29718880625` runs. B-59 flake covered by lane-1 B-60. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
 3. **2026-07-20 — lane 3 — B-15 wave14 addendum** (`e9aad18`): grace upload `3e728a8e…` after F78; F79 pin-too-high. Evidence wave14.md addendum. `[skip ci]`.
