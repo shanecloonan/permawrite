@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29736528564` GREEN** on B-73 (`5df7cbc`; includes B-72). **Nightly `#29738744950` in_progress** — do **not** re-dispatch (cancel-in-progress). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-74** (full CI, no skip). Prior **CI `#29736528564` GREEN** on B-73 (`5df7cbc`). Wave24 `#29738467198` was still on ancestor tests. **Nightly `#29738744950` in_progress** — do **not** re-dispatch. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |

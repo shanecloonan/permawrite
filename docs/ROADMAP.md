@@ -1,4 +1,4 @@
-﻿# Roadmap
+# Roadmap
 
 The tier system maps the conceptual roadmap onto concrete code milestones.
 
@@ -256,10 +256,10 @@ Permanence-critical. Do not claim **B-24** without this. **Depends on B-45** for
 | **Operators** | ≥2 registered storage operators on distinct hosts/IPs |
 | **Upload** | ≥1 live upload with SPoRA proofs from both operators (distinct payouts) |
 | **Pack** | `b3-multi-op-<date>.txt` + `assert-b3-multi-op-evidence.sh` (or `.ps1`) PASS |
-| **CI** | `b3-multi-op-evidence-rehearsal-smoke.sh --plan-only` + fixture assert in ci-check (mirror B-15) |
+| **CI** | **B-74 landed:** `b3-multi-op-evidence-rehearsal-smoke.{sh,ps1} --plan-only` + fixture assert + negative reject in `ci-check` (mirror B-15) |
 | **Unblocks** | **B-24** settlement audit + PM2/PM3 sequencing |
 
-**Tooling (lane 4):** `scripts/public-devnet-v1/assert-b3-multi-op-evidence.{sh,ps1}`, plan smoke `b3-multi-op-evidence-rehearsal-smoke.sh`, fixture under `fixtures/b3-multi-op-evidence-v1/`. Live capture arms day-of L4 with lane 7 ops.
+**Tooling (lane 4):** `scripts/public-devnet-v1/assert-b3-multi-op-evidence.{sh,ps1}`, plan smoke `b3-multi-op-evidence-rehearsal-smoke.{sh,ps1}`, fixture under `fixtures/b3-multi-op-evidence-v1/`, wired into `ci-check` (**B-74**). Live capture arms day-of L4 with lane 7 ops.
 
 
 ### Phase 1 — Permanence depth on the live chain (permanence first)

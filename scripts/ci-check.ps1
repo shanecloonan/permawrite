@@ -202,6 +202,12 @@ if ($joinTestnetEvidencePlan -notmatch "join-testnet-rehearsal-evidence-rehearsa
     $joinTestnetEvidencePlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-74: B-32 multi-op evidence plan gate (fixture + ROADMAP wiring; no live operators).
+$b3MultiOpPlan = (powershell -NoProfile -File scripts/public-devnet-v1/b3-multi-op-evidence-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($b3MultiOpPlan -notmatch "b3-multi-op-evidence-rehearsal-smoke: PASS plan-only" -or $b3MultiOpPlan -notmatch "assert-b3-multi-op-evidence") {
+    $b3MultiOpPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($repairVpsP2pPlan -notmatch "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only") {
     $repairVpsP2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
@@ -372,6 +378,25 @@ $badJoinProcess = Start-Process -FilePath "powershell" -ArgumentList @(
 Remove-Item -Force $badJoinTestnetEvidence, $badJoinStdout, $badJoinStderr -ErrorAction SilentlyContinue
 if ($badJoinProcess.ExitCode -eq 0) {
     [Console]::Error.WriteLine("assert-join-testnet-rehearsal-evidence.ps1 accepted invalid JOIN_TESTNET evidence")
+    exit 1
+}
+$b3MultiOpFixture = "scripts/public-devnet-v1/fixtures/b3-multi-op-evidence-v1/b3-multi-op-linux-20260720T000000Z.txt"
+powershell -NoProfile -File scripts/public-devnet-v1/assert-b3-multi-op-evidence.ps1 -EvidenceFile $b3MultiOpFixture | Out-Null
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$badB3MultiOpEvidence = Join-Path $env:TEMP ("permawrite-bad-b3-multi-op-" + [Guid]::NewGuid().ToString("N") + ".txt")
+Set-Content -LiteralPath $badB3MultiOpEvidence -Value "SUMMARY: FAIL" -Encoding UTF8
+$badB3Stdout = Join-Path $env:TEMP ("permawrite-bad-b3-multi-op-assert-" + [Guid]::NewGuid().ToString("N") + ".out")
+$badB3Stderr = Join-Path $env:TEMP ("permawrite-bad-b3-multi-op-assert-" + [Guid]::NewGuid().ToString("N") + ".err")
+$badB3Process = Start-Process -FilePath "powershell" -ArgumentList @(
+    "-NoProfile",
+    "-File",
+    "scripts/public-devnet-v1/assert-b3-multi-op-evidence.ps1",
+    "-EvidenceFile",
+    $badB3MultiOpEvidence
+) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $badB3Stdout -RedirectStandardError $badB3Stderr
+Remove-Item -Force $badB3MultiOpEvidence, $badB3Stdout, $badB3Stderr -ErrorAction SilentlyContinue
+if ($badB3Process.ExitCode -eq 0) {
+    [Console]::Error.WriteLine("assert-b3-multi-op-evidence.ps1 accepted invalid B-32 multi-op evidence")
     exit 1
 }
 $global:LASTEXITCODE = 0

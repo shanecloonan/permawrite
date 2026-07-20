@@ -149,6 +149,10 @@ join_testnet_plan="$(bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.
 [[ "$join_testnet_plan" == *"assert-join-testnet-rehearsal-evidence.sh"* ]] || { printf '%s\n' "$join_testnet_plan" >&2; exit 1; }
 join_testnet_evidence_plan="$(bash scripts/public-devnet-v1/join-testnet-rehearsal-evidence-rehearsal-smoke.sh --plan-only)"
 [[ "$join_testnet_evidence_plan" == *"join-testnet-rehearsal-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$join_testnet_evidence_plan" >&2; exit 1; }
+# B-74: B-32 multi-op evidence plan gate (fixture + ROADMAP wiring; no live operators).
+b3_multi_op_plan="$(bash scripts/public-devnet-v1/b3-multi-op-evidence-rehearsal-smoke.sh --plan-only)"
+[[ "$b3_multi_op_plan" == *"b3-multi-op-evidence-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$b3_multi_op_plan" >&2; exit 1; }
+[[ "$b3_multi_op_plan" == *"assert-b3-multi-op-evidence"* ]] || { printf '%s\n' "$b3_multi_op_plan" >&2; exit 1; }
 repair_vps_p2p_plan="$(bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only)"
 [[ "$repair_vps_p2p_plan" == *"repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"* ]] || { printf '%s\n' "$repair_vps_p2p_plan" >&2; exit 1; }
 bootstrap_ckpt_plan="$(bash scripts/public-devnet-v1/bootstrap-path-a-checkpoint-signer.sh --plan-only)"
@@ -228,6 +232,16 @@ if bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh "$bad
   exit 1
 fi
 rm -f "$bad_join_testnet_evidence"
+b3_multi_op_fixture="scripts/public-devnet-v1/fixtures/b3-multi-op-evidence-v1/b3-multi-op-linux-20260720T000000Z.txt"
+bash scripts/public-devnet-v1/assert-b3-multi-op-evidence.sh "$b3_multi_op_fixture"
+bad_b3_multi_op_evidence="$(mktemp)"
+printf 'SUMMARY: FAIL\n' >"$bad_b3_multi_op_evidence"
+if bash scripts/public-devnet-v1/assert-b3-multi-op-evidence.sh "$bad_b3_multi_op_evidence" >/dev/null 2>&1; then
+  echo "assert-b3-multi-op-evidence.sh accepted invalid B-32 multi-op evidence" >&2
+  rm -f "$bad_b3_multi_op_evidence"
+  exit 1
+fi
+rm -f "$bad_b3_multi_op_evidence"
 bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh >/dev/null
 if bash scripts/public-devnet-v1/release-participant-smoke-policy-check.sh \
   --path scripts/public-devnet-v1/fixtures/policy-negative-participant-smoke-ci-snippet.yml >/dev/null 2>&1; then
