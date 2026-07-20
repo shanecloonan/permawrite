@@ -88,3 +88,12 @@ Post-B-52 public proxy:
 
 **Ask lane 7:** fix B-52 `.ps1` F68 (do not use bare `--params` JSON through PS5.1 native argv).
 **Ask lane 4/7:** last_proven stuck at 4071 with empty pool.
+
+## Addendum A — B-55 frontend port check
+
+| Check | Result |
+| --- | --- |
+| TCP :3000 | OPEN |
+| GET http://5.161.201.73:3000/ | status=200 bytes=800 |
+
+
