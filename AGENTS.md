@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29717107514` in_progress** on B-51 (`e69e603`). Prior `#29715111633` RED (hub tip diverge / smoke). Lane 1 watches; B3 legacy-challenge slot harden ready to land after this matrix. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Rust head = `e69e603` (**B-51**). CI `#29717107514` in progress. **B-59** (b3_legacy deterministic reject) ready to land after this run settles. Tip live **4167+**. Lane 7 hold `vps-roll-mfnd` until CI GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | Diagnosed `#29715111633` RED | **Watch CI `#29717107514`** (B-51) (claim base: `e69e603`) | On GREEN: Nightly -> B-29; land B3 slot harden if still needed | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 wave12 eve upload+prove+send PASS (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68b cleared | L4 checklist |
-| **4** Protocol | **B-51** (`e69e603`); **B-48**; **B-45** | *Idle* | After CI GREEN: lane 7 `vps-roll-mfnd`; live **B-32** | Lane 1 CI |
+| **4** Protocol | **B-51** (`e69e603`); **B-48**/`B-45` | **B-59** b3_legacy CI flake (claim base: `e69e603`) | Land B-59 after `#29717107514`; then lane 7 roll → live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-59/F45 soft** + tip-4166 (`973912d`) | *Idle* | After CI GREEN on B-51: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -174,7 +174,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | 5+7 | **JOIN tall-tip UX:** F68 Done. **F45 soft helper** (B-59) for bootstrap; wire into `join-testnet-rehearsal` (lane 3). F71 JOIN note. | **Open** (rehearsal wire) |
 | 3 | 7+4 | **Wave10 F62/F65:** VPS not F62 (chain.blocks 6.3MiB, get_block PASS). F65 last_proven=4071 needs B-45 mfnd roll after CI+B-51. Evidence `b53-…` + wave10 | **Done** (F62 VPS); **Open** (F65→roll) |
 | 7 | 3 | **B-53:** faucet `/health` no longer blocks on keepalive lock; use `assert-vps-block-log-health.sh` for F62 checks | **Open** |
-| 7 | 1+4 | **CI `#29715111633` ubuntu FAILED:** `b3_legacy_challenge_rejected_when_enabled` (attempt1) then `public_devnet_hub_reaches_height_one_within_one_slot_duration` timeout on retry. Hold mfnd roll. | **Open** |
+| 7 | 1+4 | **CI `#29715111633`:** produce-smoke timeout fixed in B-51 (60s); **b3_legacy** flake = **B-59** (1/num_chunks collision) | **Ack** (B-51); **Open** (B-59) |
 | 7 | 3 | **B-22 tip-4166 + B-59:** use soft light-scan or re-pin at new log max for SUMMARY | **Open** |
 | 7 | 3 | **B-55:** browser UI at `http://5.161.201.73:3000/testnet` (optional; local observer still preferred for JOIN evidence) | **Open** |
 | 7 | 3 | **B-56:** faucet keepalive tip-first — fewer hub EAGAIN during B-50 snapshot pin | **Open** |
@@ -247,6 +247,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 4 — B-59 claim** (this commit): CI `#29715111633` ubuntu flake was `b3_legacy_challenge_rejected_when_enabled` accepting when legacy chunk index collides with operator-salted (p≈1/num_chunks). Fix picks a diverging slot; local PASS. Docs-only `[skip ci]` while `#29717107514` runs — do not cancel. *Observed:* leave bootstrap/JOIN/checkpoint WIP unstaged; VPS still pre-B-48 (ephemeral quarantine until roll).
 1. **2026-07-20 — lane 1 — watch CI `#29717107514` (B-51)**: Prior `#29715111633` RED was `public_devnet_hub_reaches_height_one…` tip diverge (not B3 flake on that head). B-51 landed by lane 4 (`e69e603`). Local B3 non-colliding-slot harden staged for after matrix. Docs-only `[skip ci]`.
 
 1. **2026-07-20 — lane 1 — B-51 + B3 CI fix-forward** (this commit): Recovered ephemeral-peer quarantine harden (`note_peer_failure` skips non-durable; block/fraud fanout dials durable only). Hardened `b3_legacy_challenge_rejected_when_enabled` to pick non-colliding slot. Targets CI `#29715111633` RED (`public_devnet_hub_reaches_height_one…` tip diverge). Local focused tests green.
