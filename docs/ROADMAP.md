@@ -126,6 +126,7 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | **B-27** | Fresh soak + participant evidence on invite head | 1+7 | Archived under `scripts/public-devnet-v1/evidence/` |
 | **B-22** | `publish-checkpoint-log.sh --apply` if log drifted | 7 | `checkpoint-log verify` PASS |
 | **B-30** | Residual-risk owners + halt authority in OPERATORS | 7 | ✓ **Done** (docs); human cells at TL-9 |
+| **B-31** | Live threat-posture verify (see work package) | 2+7 | Checklist PASS archived; parallel with B-27/B-22 |
 | **TL-9** | `launch-go-no-go.sh` + named sign-offs + circulate invite | 7 + human | Go/no-go JSON **go** |
 
 **B-16 documentation inventory** (privacy accuracy — lane 5; **closed 2026-07-19**):
@@ -166,14 +167,50 @@ Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs
 
 #### B-34 — CI queue/stall protocol (lane 1)
 
-GitHub Actions can leave a `main` CI run in `queued` with no jobs for 10–15+ minutes (seen: `#29711044516` on `02c8df8`). That blocks honest L4 progress and tempts Rust pushes that cancel in-progress matrices.
+GitHub Actions can leave a `main` CI run `queued` with jobs that never get runners (empty `steps`, `updatedAt` frozen). Seen: `#29711044516` (~13m) on `02c8df8`; `#29711375639` on `5dc3aa8` (all jobs queued, no pickup). That blocks L4 and Nightly re-dispatch for **B-29**.
 
 | Step | Action |
 |---|---|
-| **Detect** | `gh run list --workflow CI --limit 3` — `queued` / `in_progress` with no job progress ~15m |
-| **Act** | Cancel the stalled run (`gh run cancel <id>`) **or** wait if jobs have started; then re-push docs-only `[skip ci]` is fine anytime |
-| **Rust rule** | Still: do not push Rust while a healthy matrix is running (`cancel-in-progress`) |
-| **Record** | Note cancel + successor run ID in §8 |
+| **Detect** | `gh run view <id> --json jobs` — all jobs `queued`, empty `steps`, no progress for **~8–10m** (do not wait 30m+) |
+| **Act** | Prefer: docs push **without** `[skip ci]` to cancel-in-progress and start a fresh matrix on the same code head; or `gh run cancel <id>` then empty docs push / `gh workflow run` |
+| **Do not** | Cancel a healthy `in_progress` matrix that has running steps |
+| **Rust rule** | Still: do not push Rust while a healthy matrix is running |
+| **Record** | Cancelled + successor run IDs in §8 |
+
+#### B-27 work package — fresh soak/participant on invite head
+
+TL-5/TL-6 archives are **not** enough for TL-9. Re-run on the invite/CI-green head (`5dc3aa8` or newer once GREEN).
+
+| Step | Pass when |
+|---|---|
+| **Soak** | `vps-internet-soak.sh` (or successor) multi-sample health; height advancing; transcript under `scripts/public-devnet-v1/evidence/` |
+| **Participant** | Fund → upload → restore → prove → support-bundle on that head; assert script PASS |
+| **Pin** | Evidence filenames / §8 cite exact commit SHA + CI run that was GREEN |
+| **Conflict** | Do **not** run parallel JOIN/`faucet-http` restarts during **B-15** capture (§6) — sequence after B-15 window or on a non-conflicting host |
+
+#### B-31 work package — live RPC/faucet threat posture verify
+
+Security ops before invites (Phase 0). Does **not** block **B-13a**. Concrete checks against [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) + live Hetzner:
+
+| Check | Pass when |
+|---|---|
+| **RPC exposure** | Public posture matches threat model (private RPC vs public P2P); no accidental `0.0.0.0` RPC with auth off |
+| **Faucet-HTTP** | R-4 peer-IP rate limit live (**B-26**); cooldown cannot be spoofed via `X-Forwarded-For` |
+| **TLS / front** | Invite URLs (faucet, observer proxy, front) use documented transport; proxy stays read-only |
+| **DoS residual** | Named owner + halt path (B-30) covers faucet/RPC abuse; note residual in OPERATORS |
+| **Evidence** | Short verify note in evidence/ or OPERATORS checkbox dated + SHA |
+
+#### B-32 work package — multi-op evidence (arm day-of L4)
+
+Permanence-critical. Do not claim **B-24** without this.
+
+| Step | Detail |
+|---|---|
+| **Operators** | ≥2 registered storage operators on distinct hosts/IPs |
+| **Upload** | ≥1 live upload with SPoRA proofs from both operators (distinct payouts) |
+| **Pack** | `b3-multi-op-<date>.txt` (or agreed pattern) + `assert-*-multi-op-evidence.*` PASS |
+| **CI** | Filename/assert plan gate in ci-check (mirror B-15 assert style) |
+| **Unblocks** | **B-24** settlement audit + PM2/PM3 sequencing |
 
 ### Phase 1 — Permanence depth on the live chain (permanence first)
 
@@ -227,7 +264,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **B-23** | 2 | `ci-check` fails closed on ring/endowment/SPoRA invariant regressions |
 | **B-25** | 7+human | 30d soak PASS + treasury within bounds + B-24 green + no permanence doc/code drift |
 
-**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4), **B-31** threat posture (lane 2+7), **B-36** F10 lint (lane 4).
+**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4), **B-36** F10 lint (lane 4), **B-23** F18 gate (lane 2). (**B-31** is Phase 0 — finish before TL-9, not here.)
 
 #### B-13a work package (lane 6 — arm on L4 close)
 
@@ -259,13 +296,14 @@ Before **B-13c** enable on Path A:
 | Window | Must finish | Owner | Blocked by |
 |---|---|---|---|
 | **Now** | **B-15** Hetzner evidence + assert (no faucet restart) | 3 | §6 lock |
-| **Now** | Watch CI `#29711375639` on `5dc3aa8` (**B-34** if stalls) | 1 | — |
-| **After CI GREEN** | Re-dispatch Nightly → **close B-29** | 1 | CI GREEN on `5dc3aa8` |
+| **Now** | **B-34** restart CI `#29711375639` (all jobs queued, no runners) | 1 / planning | — |
+| **After CI GREEN** | Re-dispatch Nightly → **close B-29** | 1 | CI GREEN on `5dc3aa8`+ |
 | **After B-15 window** | **B-26** R-4 VPS faucet deploy | 2+7 | B-15 capture done |
-| **Before TL-9** | **B-27** soak/participant; **B-22** checkpoint; **B-30** risk; **B-31** threat; L1 evidence **go** | 1+2+7 | CI + Nightly GREEN |
+| **Before TL-9** | **B-27** (work package); **B-22**; **B-31** (work package); L1 evidence **go** | 1+2+7 | CI + Nightly GREEN; B-30 docs ✓ |
 | **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
-| **Day of L4 close** | Lane 6 claims **B-13a**; lane 4+7 start **B-32** | 6 / 4+7 | TL-9 **go** |
-| **Week after L4** | **B-13a** ∥ **B-32** ∥ **B-36** ∥ **B-23** F18 (parallel; do not block B-13a) | 6 / 4+7 / 4 / 2 | L4 gate |
+| **Day of L4 close** | Lane 6 **B-13a**; lane 4+7 **B-32** (work package) | 6 / 4+7 | TL-9 **go** |
+| **Week after L4** | **B-13a** ∥ **B-32** ∥ **B-36** ∥ **B-23** (never block B-13a) | 6 / 4+7 / 4 / 2 | L4 gate |
+| **~30d after L4** | **B-38** repair soak + treasury watch prep → **B-25** go/no-go | 1+7+human | B-13c + B-24 path advancing |
 
 ### Phase 2 — Validity and fraud proofs (security in service of light clients)
 

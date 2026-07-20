@@ -431,6 +431,16 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 - [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c).
 - [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
 - [ ] **B-23** — F18 privacy/permanence regression gate in `ci-check` (parallel after L4; does not block B-13a).
+- [ ] **B-36** — F10 `f64` CI lint on consensus path (parallel after L4).
+
+## L6 / Phase 3 privacy tier 2 (after B-25 — do not start early)
+
+Strategic ordering: [`ROADMAP.md` Phase 3](./ROADMAP.md#phase-3--privacy-tier-2-and-metadata-closure-privacy-second). **Hard rule:** no Tier 2 / hidden fees until **B-25** or human waiver.
+
+- [ ] **B-35** — F7 consensus input-count padding.
+- [ ] **B-37** — B6/P6 hidden fees inside balance equation.
+- [ ] **B-19** — F9 decoy-RNG entropy contract + tests.
+- [ ] **Tier 2** — Ring 32–64 + Bulletproof+ transcripts + wallet/WASM defaults + doc parity.
 
 ## Cross-Agent Notes
 

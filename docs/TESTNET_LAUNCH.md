@@ -11,7 +11,7 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | Field | Value |
 | --- | --- |
 | Release commit | B-29 WS tip `5dc3aa8`; B-15 tooling `02c8df8`; B-16 docs `49d28f9`; ops through `dc05c40` (R-4) |
-| CI | `#29711375639` queued on `5dc3aa8` (B-29); prior `#29700946945` GREEN on `b4a3fa7` |
+| CI | B-34 restarting stalled `#29711375639` on `5dc3aa8`; prior `#29700946945` GREEN on `b4a3fa7` |
 | Nightly | `#29701967243` **RED** — re-dispatch after B-29 CI GREEN |
 | RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4/B-29 head CI + Nightly GREEN) |
 | VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
