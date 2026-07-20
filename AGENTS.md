@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `02c8df8` (B-15 join-rehearsal checkpoint path); planning docs through `55c4abc`. **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. Strategic path: [`docs/ROADMAP.md`](docs/ROADMAP.md) L4 checklist → Phase 1 permanence playbook (**B-25**).
+**CI gate (2026-07-19):** code head = `02c8df8` (+ B-16 docs `49d28f9`); **CI `#29711044516` queued** on `02c8df8`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **Nightly `#29701967243` RED** (participant fund-wallet WS tip mismatch — **B-29**). Strategic path: L4 → Phase 1 permanence (**B-25**).
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch after `02c8df8` CI GREEN | CI/Nightly run IDs in §8 |
-| **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence refresh after CI GREEN; **Hetzner:** `vps-update-faucet.sh` (after B-15 evidence) | Board + encoding guards |
-| **3** Onboarding | B-15 tooling + tall-tip fixes (`774320f`…`02c8df8`) | **B-15 Hetzner evidence run** (claim base: `02c8df8`) | Archive + `assert-join-testnet-rehearsal-evidence` | L4 checklist in ROADMAP |
+| **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | After CI GREEN: **B-29** Nightly fix-forward (WS tip / checkpoint in GHA fund-wallet) | CI/Nightly run IDs in §8 |
+| **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** `vps-update-faucet.sh` after B-15 | Board + encoding guards |
+| **3** Onboarding | B-15 tooling + tall-tip fixes (`774320f`…`02c8df8`) | **B-15 Hetzner evidence run** (claim base: `02c8df8`) | Archive + assert; help lane 1 on **B-29** if GHA fund path needs same light-scan fix | L4 checklist in ROADMAP |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | After L4: **B-24** multi-op settlement (then B-12 / F5 4b.2) | Lane 1 CI/Nightly on the stack |
-| **5** Privacy | **B-16** privacy-doc sync (JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs) | *Idle* | **B-19** decoy-RNG entropy (after L4 + B-25 unless waived) — stay clear of Hetzner during B-15 | Lane 5 doc-accuracy duty |
-| **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | **B-13a** emission sims at `1000` bps (after L4; fee-drought@1000 + same-chain lean for B-13b) | Emission sims (M5 tier) |
-| **7** Testnet launch | **Public testnet live** (`61a9fe7`…`23fb359`) | *Idle* | TL-9 + L4 gate; blocked on B-15 assert (B-16 landed) | `launch-go-no-go` + B-15 assert |
+| **5** Privacy | **B-16** privacy-doc sync (`49d28f9`) | *Idle* | **B-19** after L4 + B-25 unless waived | Lane 5 doc-accuracy duty |
+| **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | **B-13a** after L4 (fee-drought@1000; B-13b same-chain lean) | Emission sims (M5 tier) |
+| **7** Testnet launch | **Public testnet live** (`61a9fe7`…`23fb359`) | *Idle* | TL-9; blocked on B-15 + B-29 + B-26/27/30 | `launch-go-no-go` + B-15 assert |
 
 ---
 
@@ -156,6 +156,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 evidence (in-memory jobs + faucet lock) | **Open** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
+| planning | 1+3 | **B-29:** Nightly `#29701967243` RED — `fund-wallet` weak-subjectivity `trusted 4 vs checkpoint 0`; fix before TL-9 | **Open** |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
 
 ---
@@ -172,7 +173,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Tooling on `main` (`02c8df8`); live transcript — often §5 Doing |
-| B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 assert (B-16 landed) |
+| B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 + B-29 + B-26/27/30 |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
@@ -182,6 +183,12 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
+| B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
+| B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9 |
+| B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
+| B-29 | Nightly participant fund-wallet WS tip mismatch fix | 1+3 | `#29701967243` RED; related to B-15 light-scan path |
+| B-30 | Residual-risk owner matrix + halt authority before invites | 7 | Phase 0 invite gate |
+| B-31 | Live RPC/faucet threat posture verify | 2+7 | Phase 0 security ops; not permanence-blocking |
 
 ---
 
@@ -189,8 +196,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lane 5 — B-16 privacy-doc sync**: JOIN/TESTNET/PRIVACY/PRIVACY_HARDENING/TESTNET_INVITE + OPERATORS + `mfn-wallet`/`mfn-wasm` READMEs match shipped light-scan + checkpoint-log + F7 dual-send faucet UX; L4 checklist B-16 ticked. Docs-only `[skip ci]` (local ci-check `-DocsOnly` green). *Observed local work (not staged):* `scripts/public-devnet-v1/user-wallet/`, `ci-docs-*.txt`. Did **not** touch Hetzner (lane 3 B-15 §6 lock).
-2. **2026-07-19 — planning — Phase 1 permanence playbook + B-24/B-25** (`55c4abc`): B-16 honesty (ready locally until this land); B-13b lean same-chain; **B-25** Phase 1 go/no-go; critical path updated. Docs-only `[skip ci]`.
+1. **2026-07-19 — planning — L4 invite gates B-26…B-31 + Nightly RED** (this commit): Nightly `#29701967243` RED → **B-29** (WS tip mismatch in GHA fund-wallet); **B-26** R-4 VPS; **B-27** fresh evidence; **B-28** treasury thresholds; **B-30** risk owners; **B-31** threat posture; 14-day calendar; critical path updated. Docs-only `[skip ci]`.
+2. **2026-07-19 — lane 5 — B-16 privacy-doc sync** (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match F7 + light-scan + checkpoint-log. Docs-only `[skip ci]`.
+3. **2026-07-19 — planning — Phase 1 permanence playbook + B-24/B-25** (`55c4abc`): B-13b lean same-chain; **B-25** Phase 1 go/no-go. Docs-only `[skip ci]`.
 3. **2026-07-19 — planning — board sync to `02c8df8`** (`79d0433`): L4 pins + B-16 WIP note.
 4. **2026-07-19 — planning — ROADMAP genesis baseline + B3 correction** (`2c2305b`): B3 genesis flags ✓; split **B3 multi-op**; backlog **B-17…B-23**. Docs-only `[skip ci]`.
 5. **2026-07-19 — lane 3 — B-15 checkpoint light-scan hardening** (`02c8df8`): `join-testnet-rehearsal.sh` passes checkpoint log through fund path; **CI `#29711044516` queued** on `02c8df8`.

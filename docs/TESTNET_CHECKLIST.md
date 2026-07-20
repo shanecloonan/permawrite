@@ -408,13 +408,17 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification). Tick when evidence exists on `main` head.
 
 - [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
-- [x] **B-16** — Privacy-doc sync: [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`TESTNET.md`](./TESTNET.md), [`PRIVACY.md`](./PRIVACY.md), [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) (+ OPERATORS + wallet/WASM READMEs) match shipped light-scan / checkpoint-log / F7 faucet UX.
+- [x] **B-16** — Privacy-doc sync landed (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match light-scan / checkpoint-log / F7 faucet UX.
 - [ ] **B-22** — TL-8 checkpoint log VPS publish verified (`publish-checkpoint-log.sh --apply` if drifted).
-- [ ] **L1 refresh** — Green CI + Nightly + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
+- [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
+- [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
+- [ ] **B-29** — Nightly GREEN on head (fix participant `fund-wallet` WS tip mismatch — `#29701967243` RED).
+- [ ] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS before invites.
+- [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
 ## Cross-Agent Notes
 
-- Do not claim **L4** (hardened public testnet) readiness until the four items above are ticked. L3 (experimental public testnet) is already live.
+- Do not claim **L4** (hardened public testnet) readiness until **all** open items above are ticked. L3 (experimental public testnet) is already live.
 - Do not claim public-testnet readiness until CI is green across rustfmt, clippy `-D warnings`, release tests, and cargo-audit.
 - Any operator-facing behavior change must update `docs/TESTNET.md` or `scripts/public-devnet-v1/OPERATORS.md`.

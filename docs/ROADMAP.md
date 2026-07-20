@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `6a2061a`; code head `02c8df8` B-15 checkpoint light-scan hardening; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head this commit; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -46,7 +46,7 @@ Ordered levels — do not skip gates when inviting outside users or moving value
 | **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); CI `#29711044516` queued on `02c8df8`; **Nightly RED** `#29701967243` (participant fund-wallet WS tip mismatch — **B-29**) |
 | **L2** | Internet network exists | VPS soak + participant rehearsal archived | ✓ TL-5/TL-6 on `5.161.201.73` |
 | **L3** | Experimental public testnet | Non-empty `seed_nodes`, faucet/observer/front-end, JOIN guide | ✓ **live** (TL-7 Path A toy keys, TL-8 seeds published) |
-| **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (TL-9 open; B-15 evidence; **B-16 docs ✓**) |
+| **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (B-16 ✓; B-15 evidence; **Nightly RED** B-29; TL-9 open) |
 | **L5** | Incentivized / adversarial testnet | Path B genesis, role-separated VPS topology live, F5 validity path mature, sustained multi-operator permanence | Not ready |
 | **L6** | Audited mainnet candidate | Independent crypto audit, second client or formal spec sign-off, PM13 constitution frozen | Not ready |
 | **L7** | Production mainnet | Named human genesis ceremony, non-toy keys, economic value with stated risk | Not ready |
@@ -115,15 +115,17 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 
 | Step | Command / artifact | Owner | Pass when |
 |---|---|---|---|
-| **L1 CI** | GitHub CI on `02c8df8` stack (`#29711044516` or successor) | 1 | Matrix **GREEN** (fmt, clippy, release tests, wasm, audit, script guards) |
-| **L1 Nightly** | Dispatch after CI GREEN on protocol-affecting head | 1 | All three Nightly jobs **GREEN** |
+| **L1 CI** | GitHub CI on `02c8df8` stack (`#29711044516` or successor) | 1 | Matrix **GREEN** |
+| **B-29 Nightly** | Fix GHA participant `fund-wallet` WS tip mismatch + re-dispatch | 1+3 | All Nightly jobs **GREEN** (currently `#29701967243` RED) |
 | **L1 evidence** | `release-evidence-refresh-for-head` + RC audit dry-run | 2 | `decision=go` on exact head |
-| **R-4 VPS** | `bash scripts/public-devnet-v1/vps-update-faucet.sh` on Hetzner | 2+7 | Faucet R-4 peer-IP rate limit live; health `busy:false` between runs |
-| **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | Produces `scripts/public-devnet-v1/evidence/join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
-| **B-15 assert** | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh <file>` | 3 | Assert script exits 0; smoke lines include `faucet_http=true light_scan_checkpoint=true observer_proxy=true` |
-| **B-16 docs** | Inventory below — each file matches shipped UX | 5 | ✓ **Done** on `main` |
-| **B-22** | `publish-checkpoint-log.sh --apply` on VPS if log drifted from repo | 7 | `mfn-cli checkpoint-log verify` PASS on internet-facing copy |
-| **TL-9** | `launch-go-no-go.sh` + named human sign-offs + circulate [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | 7 + human | Go/no-go JSON **go**; watcher list recorded in launch packet |
+| **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | `join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
+| **B-15 assert** | `assert-join-testnet-rehearsal-evidence.sh <file>` | 3 | Smoke lines: `faucet_http=true light_scan_checkpoint=true observer_proxy=true` |
+| **B-16 docs** | Inventory below | 5 | ✓ **Done** on `main` (`49d28f9`) |
+| **B-26 R-4 VPS** | `vps-update-faucet.sh` on Hetzner | 2+7 | **After** B-15 capture; R-4 peer-IP rate limit live |
+| **B-27** | Fresh soak + participant evidence on invite head | 1+7 | Archived under `scripts/public-devnet-v1/evidence/` |
+| **B-22** | `publish-checkpoint-log.sh --apply` if log drifted | 7 | `checkpoint-log verify` PASS |
+| **B-30** | Residual-risk owners + halt authority in OPERATORS | 7 | Threat-model residuals owned before invites |
+| **TL-9** | `launch-go-no-go.sh` + named sign-offs + circulate invite | 7 + human | Go/no-go JSON **go** |
 
 **B-16 documentation inventory** (privacy accuracy — lane 5; **closed 2026-07-19**):
 
@@ -157,7 +159,7 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | **PM2** | Enforce protocol-min replication at anchor + pay per distinct operator | 4+6 | B3 registry live (genesis ✓); multi-op evidence |
 | **PM19** | Persistent proof obligation for cold data + repair bounty escalation | 6 | After PM3; couples to B4 repair sweep (shipped) |
 | **Header v2** | Path B `header_version: 2` (`utxo_root` in BLS signing bytes) on **new** chain only | 4+7 | [`PROBLEMS.md` §12](./PROBLEMS.md#12-utxo_root-is-not-covered-by-the-finality-signature-partially-resolved); sequenced with TL Path B (Phase 4) |
-| **Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped |
+| **B-28 / Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + **numeric** alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped; thresholds after B-13c modeled bounds |
 | **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | After B-13a sims; economics review |
 | **B-23** | F18: privacy/permanence regression gate in `ci-check` (ring/endowment/SPoRA invariants) | 2 | After L4; supports permanence-first CI |
 | **Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence | 1+7 | B4 repair sweep shipped |
@@ -183,11 +185,23 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **B-24** | 4 | M5 proptest / settlement audit: multi-op treasury+emission compose under salted challenges; note in PERMANENCE_HARDENING |
 | **PM3** | 6 | Windowed lottery replaces first-to-publish; ≥2 operators can win in-window under equal latency; deterministic reject of out-of-window proofs |
 | **PM2** | 4+6 | Anchor rejects under-replicated uploads; payout only for distinct registered operators |
-| **Treasury watch** | 2+7 | Sustained `treasury-telemetry-watch` on VPS; alert thresholds in OPERATORS; post-B-13c telemetry within B-13a modeled bounds |
+| **B-28** | 2+7 | Sustained `treasury-telemetry-watch` on VPS; **numeric** alert thresholds in OPERATORS; post-B-13c telemetry within B-13a modeled bounds |
 | **B-23** | 2 | `ci-check` fails closed on ring/endowment/SPoRA invariant regressions |
 | **B-25** | 7+human | 30d soak PASS + treasury within bounds + B-24 green + no permanence doc/code drift |
 
-**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-22** checkpoint log verify (lane 7), **B-18** VRF docs (lane 4, Phase 2 prep).
+**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4, Phase 2 prep), **B-31** threat posture (lane 2+7).
+
+#### Near-term execution calendar (next ~14 days)
+
+| Window | Must finish | Owner | Blocked by |
+|---|---|---|---|
+| **Now** | **B-15** Hetzner evidence + assert (no faucet restart) | 3 | §6 lock |
+| **Now → CI GREEN** | Watch `#29711044516`; fix-forward if RED | 1+3 | — |
+| **After CI GREEN** | **B-29** Nightly fix (WS tip / checkpoint in GHA participant fund path) + re-dispatch | 1+3 | CI GREEN; related to B-15 light-scan path |
+| **After B-15 window** | **B-26** R-4 VPS faucet deploy | 2+7 | B-15 capture done |
+| **Before TL-9** | **B-27** fresh soak/participant; **B-22** checkpoint log; **B-30** risk owners; L1 evidence **go** | 1+2+7 | CI + Nightly GREEN |
+| **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
+| **Week after L4** | Start **B-13a** (permanence first) ∥ **B3 multi-op** planning | 6 / 4+7 | L4 gate |
 
 ### Phase 2 — Validity and fraud proofs (security in service of light clients)
 
@@ -276,7 +290,7 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-13** `subsidy_to_treasury_bps = 1000` | Phase 1 | 6 |
 | **B-14** TL-9 named watchers + invites | Phase 0 | 7 |
 | **B-15** JOIN evidence + assert | Phase 0 | 3 |
-| **B-16** Privacy-doc sync for live wallet UX | Phase 0 / 3 | 5 |
+| **B-16** Privacy-doc sync for live wallet UX | Phase 0 / 3 | 5 — ✓ `49d28f9` |
 | **B-13a–c** Subsidy fork sims + policy + enable | Phase 1 | 6 |
 | **B-17** P31 ASN diversity buckets | Phase 4 | 4 |
 | **B-18** MFBN-1 VRF variant docs/tests | Phase 2 | 4 |
@@ -287,6 +301,12 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-23** F18 privacy/permanence CI regression gate | Phase 1 | 2 |
 | **B-24** Multi-op consensus settlement + M5 proptests | Phase 1 | 4 |
 | **B-25** Phase 1 permanence go/no-go (30d soak) | Phase 1 | 7+human |
+| **B-26** R-4 VPS faucet deploy | Phase 0 | 2+7 |
+| **B-27** Fresh soak/participant on invite head | Phase 0 | 1+7 |
+| **B-28** Treasury watch + numeric alert thresholds | Phase 1 | 2+7 |
+| **B-29** Nightly fund-wallet WS tip fix | Phase 0 | 1+3 |
+| **B-30** Residual-risk owner matrix before invites | Phase 0 | 7 |
+| **B-31** RPC/faucet threat posture verify | Phase 0 | 2+7 |
 
 Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 gate clears, then shift toward phase 1–2 unless a fix-forward (R-*) is blocking ops.
 
@@ -295,7 +315,7 @@ Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 
 | In-flight (board §5, not §7 backlog) | Roadmap phase | Primary lane |
 |---|---|---|
 | **B-15** JOIN evidence run | Phase 0 | 3 |
-| **R-1–R-4** faucet fix-forward | Phase 0 | 2 |
+| **B-29** Nightly RED fix-forward | Phase 0 | 1+3 |
 
 ---
 
@@ -304,30 +324,28 @@ Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 
 Use this when sequencing cross-lane work. Arrows are hard gates; items on the same row may run in parallel.
 
 ```text
-[L1 CI + Nightly GREEN on head]
+[L1 CI GREEN] ──→ [B-29 Nightly GREEN] ──→ [L1 release-evidence go]
         ↓
-[B-15 VPS evidence + assert] ──┐
-        ↓ parallel             ├──→ [TL-9 go/no-go + invites]  (= L4)
-[B-16 land on main] ───────────┘
+[B-15 VPS evidence + assert] ──→ [B-26 R-4 faucet deploy]
+        ↓ (B-16 ✓ shipped)
+[B-27 fresh soak/participant] [B-22 checkpoint log] [B-30 risk owners]
+        ↓
+[TL-9 go/no-go + invites]  (= L4)
+        ↓
+[B-13a → B-13b (same-chain lean) → B-13c] ──→ [B-28 Treasury watch + 30d soak]
         ↓ parallel
-[R-4 VPS faucet deploy]     [B-22 checkpoint log VPS verify]
+[B3 multi-op] → [B-24 settlement] → [PM3 + PM2] → [B-25 permanence go/no-go]
         ↓
-[B-13a → B-13b (same-chain lean) → B-13c] ──→ [Treasury watch + 30d soak]
-        ↓ parallel                                      ↓
-[B3 multi-op internet] → [B-24 settlement audit] → [PM3 + PM2] → [B-25 permanence go/no-go]
-        ↓ (B3 genesis flags already on)
-[F5 4b.1 ✓ → 4b.2] ──→ [slash hooks + 4c + B-18 VRF]     [B-20 F6 coupling after B-13a]
+[F5 4b.1 ✓ → 4b.2] ──→ [slash + 4c + B-18]     [B-20 after B-13a]
         ↓ parallel (only after B-25 or human waiver)
-[Tier 2 + B-19]    [B-21 Dandelion soak → P16]    [B-23 F18 gate]
+[Tier 2 + B-19]    [B-21 Dandelion → P16]    [B-23 F18]    [B-31 threat posture]
         ↓
-[TL Path B genesis + Header v2 + multi-VPS] ──→ [B-17 + adversarial soak]  (= L5)
+[TL Path B + Header v2 + multi-VPS] ──→ [B-17 + adversarial]  (= L5)
         ↓
-[external audit] ──→ [RFC + PM14]  (= L6)
-        ↓
-[mainnet ceremony + PM13 constitution]  (= L7)
+[external audit] ──→ [RFC + PM14]  (= L6) ──→ [mainnet + PM13]  (= L7)
 ```
 
-**Parallel lanes during Phase 0:** lane 3 (B-15 evidence), lane 5 (**B-16 ✓** — idle until L4/B-19), lane 2 (release evidence + VPS deploy after B-15), lane 7 (TL-9 prep) — but **no faucet restarts** during B-15 capture.
+**Parallel lanes during Phase 0:** lane 3 (B-15), lane 1+3 (**B-29** Nightly), lane 2 (evidence + B-26 after B-15), lane 5 idle (B-16 ✓), lane 7 (TL-9 / B-30) — **no faucet restarts** during B-15 capture.
 
 **Hard rule after L4:** Phase 1 permanence (**B-13** / **B3 multi-op** / **B-25**) before Tier 2 privacy upgrades or Path B economic value.
 
