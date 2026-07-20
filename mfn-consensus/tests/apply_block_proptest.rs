@@ -10,14 +10,15 @@ use mfn_consensus::{
     apply_block, apply_genesis, block_coinbase_specs, build_coinbase, build_coinbase_outputs,
     build_genesis, build_mfex_extra_v2, build_mfex_extra_v3, build_unsealed_header, cast_vote,
     emission_at_height, encode_chain_checkpoint, encode_finality_proof,
-    extra_codec::EndowmentOpening, finalize, header_signing_hash, pick_winner, seal_block,
-    sign_register, sign_transaction, storage_proof_coinbase_bonus,
-    storage_proof_operator_settlements, try_produce_slot, ApplyOutcome, Block, BlockError, BondOp,
-    ChainCheckpoint, ChainState, ConsensusParams, EmissionParams, EquivocationEvidence,
-    FinalityProof, GenesisConfig, GenesisOutput, GenesisStorageOperator, InputSpec, OutputSpec,
-    PayoutAddress, ProducerProof, SlashEvidence, SlotContext, TransactionWire, Validator,
-    ValidatorPayout, ValidatorSecrets, DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS,
-    DEFAULT_EMISSION_PARAMS, TEST_CONSENSUS_PARAMS,
+    extra_codec::EndowmentOpening, finalize, header_signing_hash, pick_winner,
+    producer_portion_amount, seal_block, sign_register, sign_transaction, storage_payout_amount,
+    storage_proof_coinbase_bonus, storage_proof_operator_settlements, try_produce_slot,
+    ApplyOutcome, Block, BlockError, BondOp, ChainCheckpoint, ChainState, ConsensusParams,
+    EmissionParams, EquivocationEvidence, FinalityProof, GenesisConfig, GenesisOutput,
+    GenesisStorageOperator, InputSpec, OutputSpec, PayoutAddress, ProducerProof, SlashEvidence,
+    SlotContext, TransactionWire, Validator, ValidatorPayout, ValidatorSecrets,
+    DEFAULT_BONDING_PARAMS, DEFAULT_CONSENSUS_PARAMS, DEFAULT_EMISSION_PARAMS,
+    TEST_CONSENSUS_PARAMS,
 };
 use mfn_crypto::bulletproofs::bp_prove;
 use mfn_crypto::clsag::ClsagRing;
@@ -307,6 +308,60 @@ fn genesis_with_b5_slash_storage() -> B5SlashGenesis {
         built,
         payload,
         operator_id,
+    }
+}
+
+struct B5TwoOpGenesis {
+    state: ChainState,
+    built: BuiltCommitment,
+    payload: Vec<u8>,
+    id0: [u8; 32],
+    id1: [u8; 32],
+}
+
+/// B5 audit genesis with two bonded operators (B-63 partial-set settle).
+fn genesis_with_b5_two_operators() -> B5TwoOpGenesis {
+    let payload: Vec<u8> = (0u32..4096).map(|i| (i % 251) as u8).collect();
+    let built = build_storage_commitment(&payload, 1_000, Some(256), 3, None).expect("commitment");
+    let (v0, s0) = test_operator_payout_keys();
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let id0 = operator_identity_from_payout(&v0, &s0);
+    let id1 = operator_identity_from_payout(&v1, &s1);
+    let cfg = GenesisConfig {
+        timestamp: 0,
+        initial_outputs: Vec::new(),
+        initial_storage: vec![built.commit.clone()],
+        initial_storage_operators: vec![
+            GenesisStorageOperator {
+                operator_view_pub: v0,
+                operator_spend_pub: s0,
+                bond_amount: PROP_B5_OPERATOR_BOND,
+            },
+            GenesisStorageOperator {
+                operator_view_pub: v1,
+                operator_spend_pub: s1,
+                bond_amount: PROP_B5_OPERATOR_BOND.saturating_mul(2),
+            },
+        ],
+        validators: Vec::new(),
+        params: DEFAULT_CONSENSUS_PARAMS,
+        emission_params: DEFAULT_EMISSION_PARAMS,
+        endowment_params: EndowmentParams {
+            operator_audit_missed_cap: 5,
+            operator_slash_bps: 250,
+            ..PROP_ENDOWMENT_B5
+        },
+        bonding_params: None,
+        header_version: 1,
+    };
+    let g = build_genesis(&cfg);
+    let state = apply_genesis(&g, &cfg).expect("genesis");
+    B5TwoOpGenesis {
+        state,
+        built,
+        payload,
+        id0,
+        id1,
     }
 }
 
@@ -3960,6 +4015,159 @@ fn b3_two_operator_proof_treasury_and_settlements_match_apply_block() {
             let ch = storage_commitment_hash(&gen.built.commit);
             let entry = state.storage.get(&ch).expect("entry");
             assert_eq!(entry.last_proven_slot, u64::from(h));
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+/// B-63: two salted proofs compose producer + 2 operator coinbase legs.
+#[test]
+fn b63_b3_two_operator_coinbase_compose_matches_settlements() {
+    let gen = genesis_with_b3_storage();
+    let st = &gen.state;
+    let h = 8_000u32;
+    let prev = *st.tip_id().expect("tip");
+    let p0 = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    let (v1, s1) = test_operator_payout_keys_alt();
+    let p1 = build_storage_proof_operator_salted(
+        &gen.built.commit,
+        &prev,
+        h,
+        &gen.payload,
+        &gen.built.tree,
+        v1,
+        s1,
+    )
+    .expect("proof");
+    let proofs = vec![p0, p1];
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, h, &PROP_ENDOWMENT_B3);
+    assert_eq!(settlements.len(), 2);
+
+    let (pv, ps) = test_operator_payout_keys();
+    let producer = PayoutAddress {
+        view_pub: pv,
+        spend_pub: ps,
+    };
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let specs = block_coinbase_specs(u64::from(h), emission, 0, producer, &settlements);
+    assert_eq!(specs.len(), 3, "producer + two operator coinbase outputs");
+    assert_eq!(
+        specs[0].amount,
+        producer_portion_amount(u64::from(h), emission, 0)
+    );
+    assert_eq!(
+        specs[1].amount,
+        storage_payout_amount(emission.storage_proof_reward, settlements[0].1)
+    );
+    assert_eq!(
+        specs[2].amount,
+        storage_payout_amount(emission.storage_proof_reward, settlements[1].1)
+    );
+    assert_eq!(
+        specs[1].payout.spend_pub,
+        settlements[0].0.operator_spend_pub
+    );
+    assert_eq!(
+        specs[2].payout.spend_pub,
+        settlements[1].0.operator_spend_pub
+    );
+
+    let bonus_total: u128 = settlements
+        .iter()
+        .map(|(_, b)| *b)
+        .fold(0, u128::saturating_add);
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, h, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            let storage_drain = u128::from(emission.storage_proof_reward)
+                .saturating_mul(2)
+                .saturating_add(bonus_total);
+            assert_eq!(
+                state.treasury,
+                st.treasury.saturating_sub(storage_drain.min(st.treasury))
+            );
+        }
+        ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
+    }
+}
+
+/// B-63: 1-of-2 operators proves → one settlement/coinbase leg; absentee miss++.
+#[test]
+fn b63_b5_partial_operator_prove_settlement_and_miss_identity() {
+    let gen = genesis_with_b5_two_operators();
+    let st = &gen.state;
+    let slot = 10_000u32;
+    let scratch = build_unsealed_header(st, &[], &[], &[], &[], slot, 1_000);
+    let p0 = build_test_storage_proof_operator_salted(
+        &gen.built.commit,
+        &scratch.prev_hash,
+        slot,
+        &gen.payload,
+        &gen.built.tree,
+    );
+    let proofs = vec![p0];
+    let settlements =
+        storage_proof_operator_settlements(&proofs, &st.storage, slot, &st.endowment_params);
+    assert_eq!(settlements.len(), 1, "only the proving operator settles");
+
+    let (pv, ps) = test_operator_payout_keys();
+    let producer = PayoutAddress {
+        view_pub: pv,
+        spend_pub: ps,
+    };
+    let emission = &DEFAULT_EMISSION_PARAMS;
+    let specs = block_coinbase_specs(u64::from(slot), emission, 0, producer, &settlements);
+    assert_eq!(specs.len(), 2, "producer + one operator coinbase");
+    assert_eq!(
+        specs[1].amount,
+        storage_payout_amount(emission.storage_proof_reward, settlements[0].1)
+    );
+
+    let bonus = settlements[0].1;
+    let unsealed = build_unsealed_header(st, &[], &[], &[], &proofs, slot, 1_000);
+    let blk = seal_block(
+        unsealed,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        proofs,
+    );
+    match apply_block(st, &blk) {
+        ApplyOutcome::Ok { state, .. } => {
+            let storage_drain = u128::from(emission.storage_proof_reward).saturating_add(bonus);
+            assert_eq!(
+                state.treasury,
+                st.treasury.saturating_sub(storage_drain.min(st.treasury))
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id0].consecutive_missed_audits, 0,
+                "prover miss streak resets"
+            );
+            assert_eq!(
+                state.storage_operator_stats[&gen.id1].consecutive_missed_audits, 1,
+                "absentee accrues audit miss"
+            );
+            let ch = storage_commitment_hash(&gen.built.commit);
+            assert_eq!(
+                state.storage.get(&ch).expect("entry").last_proven_slot,
+                u64::from(slot)
+            );
         }
         ApplyOutcome::Err { errors, .. } => panic!("expected accept, got {errors:?}"),
     }
