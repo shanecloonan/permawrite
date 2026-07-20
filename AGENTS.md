@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** Landing **B-71** persistable-peers (+ **B-70** tip-4307 ckpt/assert). **B-67** already on main as `f6273cb` (mislabeled commit message; body is B-67 proptest) — CI `#29732989845` in_progress. Prior **CI `#29731088305` GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head stack = **B-67** (`f6273cb` body) + **B-71/B-70** (`09ca8c4`) + wave22 docs (`0233836`). **CI `#29733127733` queued**. Prior **CI `#29731088305` GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **CI `#29725270815` GREEN** (B-29 `23204cb`) | **Watch Nightly `#29727713979`** (claim base: `c36561d`) | Close **B-29** on Nightly GREEN; else fix-forward | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave22** (nina last_proven=4318; F90; claims recent=2) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-67** (`f6273cb` body); **B-71** persistable peers (this commit); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | *Idle* | Live **B-32**; then **B-44** → full **B-24** | Lane 1 CI |
+| **3** Onboarding | **B-15 wave22** (nina last_proven=4318; F90; claims recent=2) | **B-15** formal JOIN archive assert (claim base: `0233836`) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | *Idle* | Live **B-32** multi-op evidence; then **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-70** tip-4307 ckpt + peers-clean assert (this commit); **B-68**/**B-69** | *Idle* | mfnd re-roll after this CI GREEN to load B-71; **B-42** after B-15 PASS | `launch-go-no-go` |
+| **7** Testnet launch | **B-70** tip-4307 + peers-clean (`09ca8c4`); **B-68**/**B-69** | *Idle* | mfnd re-roll after CI GREEN to load B-71 binary; **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -247,8 +247,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-65 | VPS lib-cargo-env for non-interactive cargo | 7 | **Done** — prebuild/roll source `~/.cargo/env` |
 | B-68 | Scrub ephemeral `peers.json` + wire into `vps-roll-mfnd` | 7 | **Done** — tip stall fix post-roll; load-filter = **B-71** |
 | B-69 | Produce-smoke `MFN_SKIP_MANIFEST_SEEDS` (B-29 CI complete) | 7+1 | **Done** — windows `#29728151679` red was public tip sync |
-| B-70 | Near-tip Path A checkpoint + peers-clean assert | 7 | **Landed** (this commit) — tip **4307** + `assert-vps-peers-clean` |
-| B-71 | Persistable peer addr filter (load/save/register) | 4+7 | **Landed** (this commit) — closes B-68 follow-up |
+| B-70 | Near-tip Path A checkpoint + peers-clean assert | 7 | **Landed** (`09ca8c4`) — tip **4307** + `assert-vps-peers-clean` |
+| B-71 | Persistable peer addr filter (load/save/register) | 4+7 | **Landed** (`09ca8c4`) — closes B-68 follow-up |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -260,8 +260,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lanes 4+7 — B-71 + B-70 land** (this commit): real `is_persistable_peer_addr` + register fallback + tip-4307 ckpt + `assert-vps-peers-clean`. Closes §6 B-68 follow-up. Board correction: `f6273cb` subject said B-70/B-71 but body was **B-67** only. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
-2. **2026-07-20 — lane 4 — B-67** (`f6273cb` body): multi-op slash while peer settles. CI `#29732989845` in_progress.
+1. **2026-07-20 — lane 4 — board SYNC** (this commit): **B-67** on `f6273cb` (subject mislabeled); **B-71/B-70** on `09ca8c4` (lane-3 wave22 commit carried the peers filter + tip-4307). Watching **CI `#29733127733`**. Docs-only `[skip ci]`.
+2. **2026-07-20 — lane 4 — B-67** (`f6273cb` body): multi-op slash while peer settles. Prior CI cancelled by docs concurrency.
 3. **2026-07-20 - lane 7 - B-68 + B-69**: Hetzner mfnd roll after CI `#29725270815` GREEN; tip stall from ephemeral `peers.json` → scrub + restart (tip 4295+); `scrub-vps-peers-json.sh` wired into `vps-roll-mfnd`. CI `#29728151679` RED (windows produce-smoke synced public tip) → `MFN_SKIP_MANIFEST_SEEDS=1` in produce smokes. Evidence `b68-peers-scrub-mfnd-roll-20260720.md`. *Observed:* leave `apply_block_proptest.rs`, `support-bundle.*`, JOIN temps, `user-wallet/`, `live-testnet-data*` unstaged.
 1. **2026-07-20 — lane 3 — B-15 wave20+21** (this commit): wave20 F87/F88/F79/F85; wave21 wipe+resync tip_id match; mike faucet /faucet + upload bound; **last_proven=4304**; proxy listed; claims for PASS. Findings F88b tip_id lag, F89 faucet path. JOIN SUMMARY draft. Evidence wave20.md + wave21.md + B15-JOIN-SUMMARY-DRAFT-20260720.md. *Observed (not staged):* pply_block_proptest.rs, probe temps, user-wallet/, live-testnet-data*.
 
