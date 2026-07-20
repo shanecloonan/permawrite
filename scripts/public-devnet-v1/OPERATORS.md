@@ -89,10 +89,11 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
 | Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
-| Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` — rate-limited `POST /faucet`; `wallet send` light-syncs (no pre-scan) |
+| Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` — async `POST /faucet` + `/faucet/job`; **F7 dual-send** (two transfers + tip-wait/rescan between sends); IP cooldown uses **TCP peer IP only** (R-4 — ignore spoofed `X-Forwarded-For`); loopback peer skips cooldown (R-3); clients retry on `503 busy` |
 | Faucet catch-up (VPS) | `bash scripts/public-devnet-v1/faucet-catchup.sh` — background `wallet light-scan` for operator faucet |
 | Faucet UTXO consolidate (VPS) | `bash scripts/public-devnet-v1/faucet-consolidate.sh --plan-only` then real run weekly when `owned_count` grows |
-| VPS faucet deploy | `bash scripts/public-devnet-v1/vps-update-faucet.sh` — pull, rebuild `mfn-cli`, restart faucet HTTP |
+| VPS faucet deploy | `bash scripts/public-devnet-v1/vps-update-faucet.sh` — pull, rebuild `mfn-cli`, restart faucet HTTP (**do not** run during B-15 JOIN evidence capture — restarts drop in-memory jobs; see AGENTS §6) |
+| B-15 outside-in JOIN | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` — archive `join-testnet-rehearsal-linux-*.txt`; **no parallel** `join-testnet-rehearsal*` while evidence is in flight |
 | TL-8 publish seeds rehearsal (CI) | `bash scripts/public-devnet-v1/publish-seed-nodes-rehearsal-smoke.sh --plan-only` |
 | TL-8 invite packet rehearsal (CI) | `bash scripts/public-devnet-v1/testnet-invite-rehearsal-smoke.sh --plan-only` — validates [`TESTNET_INVITE.md`](../../docs/TESTNET_INVITE.md) |
 | TL-8 publish checkpoint log | `bash scripts/public-devnet-v1/publish-checkpoint-log.sh` — after TL-7; commits `public_devnet_v1.checkpoints.jsonl` |
@@ -1123,7 +1124,7 @@ After the proof is mined, `uploads list` should show a higher `last_proven_heigh
 
 ### Funding test wallets
 
-Participants need devnet MFN before they can send, claim, or upload. Operators can fund a participant wallet from an already-funded faucet wallet:
+Participants need devnet MFN before they can send, claim, or upload. On the **live public testnet**, outsiders use the HTTP faucet (`:8788`) documented in [`JOIN_TESTNET.md`](../../docs/JOIN_TESTNET.md) — two F7 transfers, job poll, ~15 min peer-IP cooldown. Operators can also fund a participant wallet from an already-funded faucet wallet:
 
 ```powershell
 # Optional local-devnet faucet: restore validator 0's public test payout wallet.
@@ -1163,7 +1164,7 @@ bash scripts/public-devnet-v1/fund-wallet.sh \
   --amount 1000000
 ```
 
-`fund-wallet.ps1` and `fund-wallet.sh` never embed faucet seeds; they require an operator-supplied wallet file that already has spendable devnet outputs. They submit with `wallet send --json`, record the `tx_id`, mempool length, and submission outcome, then wait for `starting_balance + Amount`, so an already-funded wallet does not mask an unmined transfer. For the checked-in `public_devnet_v1.json`, validator payout wallets are derived from each public validator `bls_seed_hex` with `payout_stealth_v1`, so the examples above are only appropriate for local/public test funds earned by validator 0. Keep faucet wallets out of the repo, never reuse public genesis seeds on a network with real value, and wait for the transfer to mine before asking the participant to run `wallet upload` or the permanence demo.
+`fund-wallet.ps1` and `fund-wallet.sh` never embed faucet seeds; they require an operator-supplied wallet file that already has spendable devnet outputs. They submit with `wallet send --json`, record the `tx_id`, mempool length, and submission outcome, then wait for `starting_balance + Amount`, so an already-funded wallet does not mask an unmined transfer. **F7 / R-2:** the helpers send **two** transfers and wait for tip advance + faucet rescan between sends so the second UTXO is spendable. HTTP path (`fund-wallet-http.sh` / faucet-http) mirrors that tip-wait + job reclaim (R-1) and uses checkpoint-log `light-scan` on tall tips (B-15). For the checked-in `public_devnet_v1.json`, validator payout wallets are derived from each public validator `bls_seed_hex` with `payout_stealth_v1`, so the examples above are only appropriate for local/public test funds earned by validator 0. Keep faucet wallets out of the repo, never reuse public genesis seeds on a network with real value, and wait for the transfer to mine before asking the participant to run `wallet upload` or the permanence demo.
 
 ### Permanence demo scripts
 

@@ -6,9 +6,11 @@ Use this document for operator launch evidence and network identity details. Sha
 
 **Posture:** pre-audit experimental testnet; test-only value; no production safety claims.
 
-**Live (2026-07-14):** boot peers `5.161.201.73:19001`, `:19002`, `:19003` — see manifest `seed_nodes`. Mesh operator: restart with `vps-start-all.sh` on the VPS if dials fail.
+**Live (2026-07-19):** boot peers `5.161.201.73:19001`, `:19002`, `:19003` — see manifest `seed_nodes`. Mesh operator: restart with `vps-start-all.sh` on the VPS if dials fail.
 
-**Public read-RPC proxy (observer, public-safe methods only):** `http://5.161.201.73:8787/rpc` — HTTP→TCP bridge for status pages / lite explorers. Not a wallet-write endpoint. Validators still keep RPC on loopback.
+**Public read-RPC proxy (observer, public-safe methods only):** `http://5.161.201.73:8787/rpc` — HTTP→TCP bridge for status pages / lite explorers. Not a wallet-write endpoint. Never point wallet keys or `submit_tx` at it. Validators still keep RPC on loopback.
+
+**HTTP faucet (test-only):** `http://5.161.201.73:8788/faucet` — `POST` `{"address":"mf…"}`, then poll `/faucet/job?id=…` until `status=done`. Sends **two** transfers (F7 two-UTXO floor). ~15 min cooldown per TCP peer IP / address; `503 busy` means retry later. Full join steps: [`JOIN_TESTNET.md`](./JOIN_TESTNET.md).
 
 ---
 
@@ -75,9 +77,15 @@ Expect `genesis_id` = `454fa5d4…` and advancing `tip_height`.
 
 ```bash
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet new
-# Fund from operator faucet (test-only); see OPERATORS.md fund-wallet
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet address
+# Fund via HTTP faucet (test-only) — see JOIN_TESTNET.md Step 5; then:
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
+  --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet upload ./sample.txt --json
 ```
+
+**Privacy defaults you inherit:** uniform ring-16, F7 two-in/two-out floors, view tags on the scan path, light-scan + checkpoint-log at high tip ([`PRIVACY.md`](./PRIVACY.md)). Do not weaken ring size or skip the second faucet UTXO to “make send work faster.”
 
 Read [`TESTNET.md`](./TESTNET.md) § Join The Testnet and [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) for permanence flows.
 
@@ -124,7 +132,7 @@ Before trusting the network, ask the launch operator for:
 
 ## Threat model
 
-Read [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) before joining. Residual risks include undiscovered bugs, public test keys on Path A deployments, and RPC abuse if operators expose JSON-RPC.
+Read [`PUBLIC_DEVNET_THREAT_MODEL.md`](./PUBLIC_DEVNET_THREAT_MODEL.md) before joining. Residual risks include undiscovered bugs, public test keys on Path A deployments, and RPC abuse if operators expose JSON-RPC. Coins are test-only; faucet rate limits and the observer proxy do **not** make this network safe for real value.
 
 ---
 

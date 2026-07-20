@@ -63,6 +63,23 @@ Operational recovery: before joining a shared network, read the [backup, upgrade
 
 **Short path for outsiders:** [`JOIN_TESTNET.md`](./JOIN_TESTNET.md).
 
+### Live public wallet path (experimental testnet)
+
+When your local observer is synced to the internet mesh (`seed_nodes` in the manifest), prefer this path over a full genesis `wallet scan`:
+
+1. Confirm tip: `mfn-cli --rpc 127.0.0.1:18734 tip` (advancing `tip_height`, matching `genesis_id`).
+2. Create wallet: `mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet new`.
+3. Fund via HTTP faucet (two F7 transfers; poll the async job):  
+   `POST http://5.161.201.73:8788/faucet` with `{"address":"mf…"}` then `GET …/faucet/job?id=…` until `status=done`.  
+   ~15 min cooldown per TCP peer IP / address; `503 busy` → retry. Details in [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) Step 5.
+4. Balance / sync at high tip:  
+   `wallet light-scan --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl`  
+   then `wallet balance`. CLI `send` / `balance` light-sync automatically when possible.
+5. Optional tip cross-check (read-only, no keys): `http://5.161.201.73:8787/rpc` observer proxy.
+6. Permanence: `wallet upload --json` as usual once you hold ≥2 owned UTXOs (F7).
+
+Local developer mesh (loopback `start-all`) still uses `fund-wallet.sh` / `fund-wallet.ps1` against an operator faucet wallet — same F7 dual-send semantics. See [`PRIVACY.md`](./PRIVACY.md) for why light-scan + F7 matter.
+
 Pick the lightest role that matches what you want to test:
 
 | Role | Start here | You should be able to |
@@ -78,9 +95,9 @@ Minimal participant path:
 2. Build release binaries: `cargo build -p mfn-node --release --bin mfnd`, `cargo build -p mfn-cli --release --bin mfn-cli`, and for storage operators `cargo build -p mfn-storage-operator --release --bin mfn-storage-operator`.
 3. Start or connect to a node whose stdout `mfnd_chain_genesis_id=` equals `454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005`.
 4. Keep RPC on loopback or behind a tunnel. If the node uses `--rpc-api-key`, pass `mfn-cli --rpc-api-key <KEY>` or set `MFN_RPC_API_KEY=<KEY>`.
-5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning; use `wallet scan --json` or `wallet balance --json` when you need a seed-free support record of the rescan result.
+5. Run `mfn-cli --rpc <RPC> status` for a machine-readable node snapshot, then `mfn-cli --rpc <RPC> tip` and confirm `tip_height` advances or matches the mesh health check. If a wallet looks stale, run `mfn-cli --rpc <RPC> --wallet ./alice.json wallet status --json` and compare `scan_height`, `tip_height`, `blocks_behind`, and `sync_needed` before rescanning. **At a tall tip, prefer `wallet light-scan --checkpoint-log …` over a full genesis `wallet scan`.** Use `wallet scan --json` or `wallet balance --json` when you need a seed-free support record of a full rescan.
 6. Create a test wallet with `mfn-cli --wallet ./alice.json wallet new`, or restore a known test-only seed with `mfn-cli --wallet ./alice.json wallet restore <SEED_HEX>`. Back up the wallet file and never reuse devnet keys for real funds.
-7. Fund the wallet from an operator-controlled devnet faucet wallet, for example `powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/fund-wallet.sh --plan-only`, then rerun with a faucet wallet and `./alice.json` as the recipient.
+7. Fund the wallet: on the **live public testnet**, use the HTTP faucet in [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) Step 5 (F7 dual-send + job poll). On a **local mesh**, use an operator-controlled faucet wallet via `powershell -File scripts/public-devnet-v1/fund-wallet.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/fund-wallet.sh --plan-only`, then rerun with a faucet wallet and `./alice.json` as the recipient (same F7 two-transfer floor).
 8. For permanence testing, upload with `wallet upload --json`, capture `storage_commitment_hash` and `upload_artifact_dir`, replicate with `operator push-chunks` or `operator backfill`, verify with `uploads retrieve`, and prove with `operator prove`.
 9. Before inviting outside users, run a local real-run rehearsal smoke with `powershell -File scripts/public-devnet-v1/participant-rehearsal-smoke.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/participant-rehearsal-smoke.sh --plan-only`, then rerun without plan mode. The smoke starts the local producer mesh, restores/checks the validator-0 test-only faucet wallet by default, refuses to overwrite a custom faucet wallet, waits for the faucet to scan a spendable reward, runs the participant rehearsal, stages the audit-ready evidence log and support bundle under `participant-rehearsal-smoke/evidence/`, and stops the mesh. If local helper daemons exit while the permanence wait loops are polling, `permanence-demo.ps1` / `permanence-demo.sh` fail fast with recorded PID status and the log directory instead of waiting for the full upload/proof timeout. For an already-running public devnet with an operator-controlled faucet, run `participant-rehearsal.ps1` / `participant-rehearsal.sh` directly with `-EvidenceDir` / `--evidence-dir` to co-locate the audit-ready evidence log and support bundle; it funds the uploader wallet, uploads, restores over HTTP, verifies SHA-256, proves, and captures a support bundle. If the wallet is already funded and you only need the permanence loop, use `permanence-demo.ps1` / `permanence-demo.sh`.
 10. If anything stalls, use the [Permanence troubleshooting](../scripts/public-devnet-v1/OPERATORS.md#permanence-troubleshooting) matrix before deleting data dirs or regenerating wallets. For support tickets, collect a read-only bundle with `powershell -File scripts/public-devnet-v1/support-bundle.ps1 -PlanOnly` or `bash scripts/public-devnet-v1/support-bundle.sh --plan-only`, then rerun with `--rpc`/`-Rpc`, wallet, commitment, optional peer, optional data-dir identifiers, and `--release-evidence` / `-ReleaseEvidence` for launch sign-off bundles. Before mutating artifacts, print a recovery plan with `powershell -File scripts/public-devnet-v1/recovery-plan.ps1` or `bash scripts/public-devnet-v1/recovery-plan.sh`; for a guided support-bundle -> plan -> restore -> hash-check flow, use `recovery-walkthrough.ps1` or `recovery-walkthrough.sh`.

@@ -99,20 +99,23 @@ curl -s -X POST http://5.161.201.73:8788/faucet \
 curl -s "http://5.161.201.73:8788/faucet/job?id=JOB_ID_FROM_POST"
 ```
 
-The faucet sends **two** transfers (F7 two-UTXO privacy floor). One address/IP is rate-limited (~15 minutes). Then refresh your balance with `wallet light-scan` against your **local** RPC (see Step 6 troubleshooting). The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, not for wallet keys.
+The faucet sends **two** transfers (F7 two-UTXO privacy floor so you can spend without a one-input fingerprint). Rate limits use the TCP peer IP (~15 minutes per address/IP); `503` with `busy` means another fund job is in flight — retry after a short wait. Poll `/faucet/job?id=…` until `status=done` (async; often 1–3 minutes at high tip).
 
-Automated outside-in check (operators): on a synced local observer (`127.0.0.1:18734`), run `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` — exercises `fund-wallet-http`, checkpoint-log `light-scan`, observer proxy cross-check, and permanence upload/restore.
+Then refresh your balance with **`wallet light-scan`** against your **local** RPC — not a full genesis `wallet scan` (that can take many minutes at a tall tip). Cross-check the post-sync summary against the published Schnorr checkpoint log (**F12**):
+
+```bash
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
+  --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
+```
+
+The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys or `submit_tx`.
+
+Automated outside-in check (operators): on a synced local observer (`127.0.0.1:18734`), run `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` — exercises `fund-wallet-http`, checkpoint-log `light-scan`, observer proxy cross-check, and permanence upload/restore. Do not run parallel JOIN rehearsals or restart `faucet-http` while a B-15 evidence capture is in flight (see [`AGENTS.md`](../AGENTS.md) §6).
 
 **Option B — ask the operator:** open a [GitHub issue](https://github.com/shanecloonan/permawrite/issues) with your `mf...` receive address and ask for a small testnet top-up.
 
 **Option C — run locally:** start your own three-validator mesh with `bash scripts/public-devnet-v1/start-all.sh` (or the `.ps1` on Windows), fund from the documented validator faucet wallet, then point your wallet at that local RPC. See [`TESTNET.md`](./TESTNET.md) for the full local-devnet runbook.
-
-After funding, confirm balance:
-
-```bash
-mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet scan
-mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
-```
 
 ---
 

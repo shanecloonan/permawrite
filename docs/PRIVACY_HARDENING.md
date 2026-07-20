@@ -651,12 +651,12 @@ verify + cross-check, and exercises the `mfn-wasm` checkpoint_log unit. TL-9
 
 | Impact / effort | Items |
 |---|---|
-| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–4e), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–5b) + TL-9 Schnorr gate |
-| High impact, moderate effort | **B-16** privacy-doc sync; **B-13** tail subsidy fork |
+| Shipped | **A1** two-output floor (wallet), **B1** consensus min-output floor, **B2** age-band coin selection, **B4** decoy pool quality (a+c), **B5** LSAG/OoM feature-gated, **B10** authorship-key firewall, **B3** conformance + production RNG, **B13** upload size buckets (wallet + consensus), **B7** Dandelion++ (relay + soak + `TxStemV1` wire), **B8** Tor transport (B8.0–B8.3), **B9** view tags (v2 wire + scanner), **B15** two-input floor (wallet + consensus **F7**), **B-16** privacy-doc sync (JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match light-scan + F7 faucet UX), **P31** peer diversity (phase 0–1), **P32** role topology (phase 0–4e), **F12** checkpoint anchor peers (phase 0) + signed log (phase 1–5b) + TL-9 Schnorr gate |
+| High impact, moderate effort | **B-13** tail subsidy fork |
 | High impact, high effort | B6 (hidden fees), B11 (membership proofs / Tier 3), B12 (PQ stealth) |
 | Network add-ons | B8 Tor — **shipped**; widen live VPS rehearsal |
 
-Natural next step: **B-16** privacy-doc sync (lane 5) in parallel with **TL-9** / **B-15** (lanes 7/3) until L4 gate clears — then **B-13** tail subsidy (lane 6, Phase 1 permanence).
+Natural next step: finish **L4** with **B-15** JOIN evidence + **TL-9** (lanes 3/7) — then **B-13** tail subsidy (lane 6, Phase 1 permanence).
 
 ---
 

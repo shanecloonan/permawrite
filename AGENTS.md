@@ -142,9 +142,9 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence refresh after CI GREEN; **Hetzner:** `vps-update-faucet.sh` (after B-15 evidence) | Board + encoding guards |
 | **3** Onboarding | B-15 tooling + tall-tip fixes (`774320f`…`02c8df8`) | **B-15 Hetzner evidence run** (claim base: `02c8df8`) | Archive + `assert-join-testnet-rehearsal-evidence` | L4 checklist in ROADMAP |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | After L4: **B-24** multi-op settlement (then B-12 / F5 4b.2) | Lane 1 CI/Nightly on the stack |
-| **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | **B-16** land inventory on `main` (claim base: `02c8df8`; docs ready locally) | After land: idle until L4; then **B-19** | Lane 5 doc-accuracy duty |
+| **5** Privacy | **B-16** privacy-doc sync (JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs) | *Idle* | **B-19** decoy-RNG entropy (after L4 + B-25 unless waived) — stay clear of Hetzner during B-15 | Lane 5 doc-accuracy duty |
 | **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | **B-13a** emission sims at `1000` bps (after L4; fee-drought@1000 + same-chain lean for B-13b) | Emission sims (M5 tier) |
-| **7** Testnet launch | **Public testnet live** (`61a9fe7`…`23fb359`) | *Idle* | TL-9 + L4 gate; blocked on B-15 assert + B-16 on `main` | `launch-go-no-go` + B-15 assert |
+| **7** Testnet launch | **Public testnet live** (`61a9fe7`…`23fb359`) | *Idle* | TL-9 + L4 gate; blocked on B-15 assert (B-16 landed) | `launch-go-no-go` + B-15 assert |
 
 ---
 
@@ -172,8 +172,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-13b | Fork policy: same-chain enable vs new `genesis_id` | 6+7+human | After B-13a green |
 | B-13c | Genesis/manifest update + operator announcement | 7 | After B-13b sign-off |
 | B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Tooling on `main` (`02c8df8`); live transcript — often §5 Doing |
-| B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 assert + B-16 on `main` |
-| B-16 | Privacy-doc sync for live wallet UX | 5 | Content ready locally; **land on `main`** — often §5 Doing |
+| B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase; blocked on B-15 assert (B-16 landed) |
 | B-17 | P31 phase 2: ASN-aware peer diversity buckets | 4 | Phase 4 adversarial; after L5 planning |
 | B-18 | F15: MFBN-1 VRF variant docs + conformance tests | 4 | Phase 2; [`PROBLEMS.md` §15](docs/PROBLEMS.md) |
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
@@ -190,20 +189,20 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — planning — Phase 1 permanence playbook + B-24/B-25** (this commit): B-16 honesty fix (ready locally, not on `main`); B-13b lean same-chain; acceptance criteria for B-13a/B3 multi-op/PM2/PM3/Treasury watch; **B-25** Phase 1 go/no-go before Tier 2/Path B; critical path updated. Docs-only `[skip ci]`. *Observed local work (not staged):* B-16 inventory in `JOIN_TESTNET.md`, `PRIVACY.md`, `TESTNET.md`, `TESTNET_INVITE.md`, `PRIVACY_HARDENING.md`, wallet/WASM READMEs, `OPERATORS.md`.
-2. **2026-07-19 — planning — board sync to `02c8df8`** (`79d0433`): L4 pins + B-16 WIP note.
-3. **2026-07-19 — planning — ROADMAP genesis baseline + B3 correction** (`2c2305b`): B3 genesis flags ✓; split **B3 multi-op**; backlog **B-17…B-23**. Docs-only `[skip ci]`.
-4. **2026-07-19 — lane 3 — B-15 checkpoint light-scan hardening** (`02c8df8`): `join-testnet-rehearsal.sh` passes checkpoint log through fund path; **CI `#29711044516` queued** on `02c8df8`.
-5. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, L4 exit checklist + B-16 inventory. Docs-only `[skip ci]`.
-6. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; CI `#29710893096` cancelled (superseded by `02c8df8`).
-7. **2026-07-19 — lane 2 — R-4 faucet peer-IP rate limit** (`dc05c40`): IP cooldown uses TCP `peerIp` only (no `X-Forwarded-For` spoof bypass).
-8. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`…`a3bdeb1`): JOIN_TESTNET rehearsal tooling; R-1–R-3 faucet fixes; `release-evidence-b4a3fa7` + RC audit **go**.
-9. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
-10. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
-11. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`…`7c78e43`): F7 two-UTXO floor + observer-proxy catch-up. **CI `#29660101057` GREEN**.
-12. **2026-07-17 — lane 7 — public testnet goes live**: observer proxy (`61a9fe7`), faucet API (`ebffaef`), testnet-frontend (`ab6af42`), light-scan fixes.
-13. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
-14. **2026-07-14 — lane 4 — F5 phase 4b.1 Winterfell** (`6377812`): batch-binding STARK + witness kind 3. **CI `#29298069061` GREEN**.
+1. **2026-07-19 — lane 5 — B-16 privacy-doc sync**: JOIN/TESTNET/PRIVACY/PRIVACY_HARDENING/TESTNET_INVITE + OPERATORS + `mfn-wallet`/`mfn-wasm` READMEs match shipped light-scan + checkpoint-log + F7 dual-send faucet UX; L4 checklist B-16 ticked. Docs-only `[skip ci]` (local ci-check `-DocsOnly` green). *Observed local work (not staged):* `scripts/public-devnet-v1/user-wallet/`, `ci-docs-*.txt`. Did **not** touch Hetzner (lane 3 B-15 §6 lock).
+2. **2026-07-19 — planning — Phase 1 permanence playbook + B-24/B-25** (`55c4abc`): B-16 honesty (ready locally until this land); B-13b lean same-chain; **B-25** Phase 1 go/no-go; critical path updated. Docs-only `[skip ci]`.
+3. **2026-07-19 — planning — board sync to `02c8df8`** (`79d0433`): L4 pins + B-16 WIP note.
+4. **2026-07-19 — planning — ROADMAP genesis baseline + B3 correction** (`2c2305b`): B3 genesis flags ✓; split **B3 multi-op**; backlog **B-17…B-23**. Docs-only `[skip ci]`.
+5. **2026-07-19 — lane 3 — B-15 checkpoint light-scan hardening** (`02c8df8`): `join-testnet-rehearsal.sh` passes checkpoint log through fund path; **CI `#29711044516` queued** on `02c8df8`.
+6. **2026-07-19 — planning — ROADMAP L4 checklist + board sync** (`7239d98`…`de5f91e`): strategic phases L0–L7, L4 exit checklist + B-16 inventory. Docs-only `[skip ci]`.
+7. **2026-07-19 — lane 3 — B-15 tall-tip checkpoint log** (`73abf77`): `fund-wallet-http` uses checkpoint log on tall tips; CI `#29710893096` cancelled (superseded by `02c8df8`).
+8. **2026-07-19 — lane 2 — R-4 faucet peer-IP rate limit** (`dc05c40`): IP cooldown uses TCP `peerIp` only (no `X-Forwarded-For` spoof bypass).
+9. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`…`a3bdeb1`): JOIN_TESTNET rehearsal tooling; R-1–R-3 faucet fixes; `release-evidence-b4a3fa7` + RC audit **go**.
+10. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
+11. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
+12. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`…`7c78e43`): F7 two-UTXO floor + observer-proxy catch-up. **CI `#29660101057` GREEN**.
+13. **2026-07-17 — lane 7 — public testnet goes live**: observer proxy (`61a9fe7`), faucet API (`ebffaef`), testnet-frontend (`ab6af42`), light-scan fixes.
+14. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
 15. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) — full pre-consolidation boards preserved verbatim)*
 
 ---

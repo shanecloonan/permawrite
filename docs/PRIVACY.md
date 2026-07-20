@@ -57,6 +57,22 @@ Reference wallets enforce a **two-input floor** (`WALLET_MIN_TX_INPUTS = 2`, Mon
 - Unlike the output floor, extra inputs are genuine CLSAG spends (not zero-value padding); wallets holding only one UTXO cannot reach the floor until they receive a second spendable output.
 - On networks running the uniform-ring tier, **consensus** also enforces `RingPolicy.min_input_count = 2` (**F7**): single-input regular txs are rejected at mempool ingress and `apply_block`, matching the two-output floor.
 - Low-level [`build_transfer`](../mfn-wallet/src/spend.rs) / [`build_storage_upload`](../mfn-wallet/src/upload.rs) callers that assemble `TransferPlan` manually must supply at least two inputs when broadcasting on production policy; CLI and WASM route through `Wallet` and inherit the floor when possible.
+- Operator faucets and the public HTTP faucet therefore send **two** transfers so a fresh wallet can meet the floor without a second payment from elsewhere.
+
+### Light-scan at high tip (default wallet sync)
+
+A full `wallet scan` walks every block from genesis via `get_block`. On a live public tip that is already tall, that path is slow and often unnecessary for day-to-day balance/send.
+
+Reference CLI defaults favor **`wallet light-scan`**: follow the light-client header/summary path, then scan only the recent window needed for owned outputs. That is why JOIN / testnet docs tell newcomers to light-scan after the faucet — not because full scan is unsafe, but because it is the wrong tool once the chain is long.
+
+**Why this is a privacy surface, not just UX:** syncing from an untrusted RPC without a weak-subjectivity check lets a malicious node feed a fork that omits or rewrites recent history. Cross-check the post-sync trusted summary against the published Schnorr-signed checkpoint log (**F12**):
+
+```bash
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
+  --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
+See [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md). Browser wallets use the same rules via `mfn-wasm` `checkpointLogVerify` / `checkpointLogCrossCheck`. Keep wallet keys on loopback RPC; the public observer proxy is read-only tip/header surface only.
 
 ### Authorship claims (optional) — key separation
 

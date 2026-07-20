@@ -11,6 +11,17 @@
 
 Everything here is **pure, deterministic, and IO-free**. The wallet does not own a `Chain`, a `LightChain`, or any database — callers feed it `Block`s and ask for `TransactionWire`s. This keeps the crate WASM-friendly and lets the same primitives back a desktop wallet, a mobile wallet, a backend signer, and the future `mfn-cli wallet` binary.
 
+## Privacy defaults (do not silently downgrade)
+
+| Guarantee | Surface |
+| --- | --- |
+| Uniform **ring-16** | `WALLET_MIN_RING_SIZE`; consensus `RingPolicy::PRODUCTION` rejects smaller/non-uniform rings |
+| **F7** two-input / two-output floors | `WALLET_MIN_TX_INPUTS` / `WALLET_MIN_TX_OUTPUTS`; consensus `min_input_count` on the uniform-ring tier |
+| **View tags** (B9) | Scan path uses v2 view tags when present — faster owned-output detection without weakening stealth |
+| High-tip sync | CLI `wallet light-scan --checkpoint-log FILE` (F12) — preferred over full genesis `wallet scan` on the live testnet; see [`docs/PRIVACY.md`](../docs/PRIVACY.md) and [`docs/CHECKPOINT_LOG.md`](../docs/CHECKPOINT_LOG.md) |
+
+Faucets that fund fresh wallets must deliver **two** UTXOs so the F7 input floor is reachable without a second payment.
+
 ## Quick start
 
 ```rust
