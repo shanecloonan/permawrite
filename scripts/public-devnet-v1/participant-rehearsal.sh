@@ -163,6 +163,7 @@ if (( PLAN_ONLY )); then
   echo "  chunk_listen=$CHUNK_LISTEN"
   echo "  flow=fund-wallet -> permanence-demo upload/discover/fetch-http/prove/hash-check -> support-bundle"
   echo "  note=real mode requires a funded faucet wallet with public-devnet/test funds only"
+  echo "  note=B-29: fund-wallet.sh recovers Nightly WS tip mismatch via light-scan --reset-trusted-summary (not JOIN/fund-wallet-http)"
   echo "  next=rerun without --plan-only after choosing a funded operator faucet wallet; outputs end with support_bundle=<dir> and evidence_log=<file>"
   exit 0
 fi

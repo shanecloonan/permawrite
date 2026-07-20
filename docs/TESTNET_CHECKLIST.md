@@ -413,7 +413,7 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 - [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
 - [ ] **B-29** — Nightly GREEN on head: fix `fund-wallet.sh` (Nightly `participant-rehearsal` path — **not** JOIN/`fund-wallet-http`). `#29701967243` RED: WS `trusted 4 vs checkpoint 0`.
-- [ ] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS before invites.
+- [x] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS + threat-model matrix (docs landed; fill human name cells at TL-9 sign-off).
 - [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
@@ -429,6 +429,7 @@ Strategic ordering: [`ROADMAP.md` Phase 1 playbook](./ROADMAP.md#phase-1-permane
 - [ ] **B-38** — Repair/soak evidence + assert.
 - [ ] **B-28** — Treasury watch + numeric OPERATORS alert thresholds (after B-13c).
 - [ ] **B-25** — Phase 1 permanence go/no-go (30d soak + treasury bounds) — gate before Tier 2 / Path B.
+- [ ] **B-23** — F18 privacy/permanence regression gate in `ci-check` (parallel after L4; does not block B-13a).
 
 ## Cross-Agent Notes
 

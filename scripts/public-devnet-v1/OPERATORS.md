@@ -208,7 +208,7 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] Ignored/nightly smoke coverage passed for public-devnet release candidates: `scripts/ci-ignored.ps1` or `scripts/ci-ignored.sh`.
 - [ ] GitHub CI is green for the exact commit that will be published, verified with `release-ci-watch.ps1` or `release-ci-watch.sh`.
 - [ ] `SECURITY.md` still states the software is pre-audit and does not imply production-grade security.
-- [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner.
+- [ ] The public-devnet threat model was reviewed, and every accepted residual risk has a named operator owner (complete [§ Residual-risk owners and halt authority](#residual-risk-owners-and-halt-authority-b-30) before TL-9).
 - [ ] The published genesis JSON and manifest are byte-identical across operators, and every node prints the expected `mfnd_chain_genesis_id=`.
 - [ ] Public deterministic test seeds were replaced for any shared, production-like, incentivized, or non-toy deployment.
 - [ ] RPC is loopback-only, VPN/SSH-only, or behind the documented firewall/TLS pattern; `mfn-cli --rpc <RPC> status` reports `rpc.public_bind=false` unless an explicit firewall/API-key/TLS review approved the exposure.
@@ -231,6 +231,33 @@ Use this checklist before advertising a public testnet endpoint, publishing seed
 - [ ] A named operator watches GitHub Actions after the launch commit reaches `main`.
 - [ ] Operators agree on halt conditions: divergent tips, repeated invalid block/gossip errors, leaked validator seeds, unexpected public RPC exposure, or reproducible storage data-root mismatches.
 - [ ] Operators agree where incident notes live and who can publish "pause, rollback, or rotate genesis" instructions.
+- [ ] **B-30:** Residual-risk owner matrix in [`PUBLIC_DEVNET_THREAT_MODEL.md`](../../docs/PUBLIC_DEVNET_THREAT_MODEL.md) reviewed; human owner cells filled below; halt authority named.
+
+### Residual-risk owners and halt authority (**B-30**)
+
+Fill every blank before circulating outside invites (TL-9). Standing lane owners are defined in [`AGENTS.md`](../../AGENTS.md); humans below are the named people who can act without waiting for an agent session.
+
+| Role | Name / handle | Contact path | Authority |
+| --- | --- | --- | --- |
+| **Halt authority** (may publish pause / stop invites) | ________________ | ________________ | Unilateral halt on any critical no-go condition |
+| **Rollback authority** (may direct binary/data-dir rollback) | ________________ | ________________ | Coordinated rollback per § Backups below; not solo if consensus/schema changed |
+| **Genesis rotation publisher** (may announce new `genesis_id`) | ________________ | ________________ | Only after halt; Path A toy-key rotation or Path B ceremony |
+| **Launch-day log watcher** | ________________ | ________________ | Watches `mfnd` + faucet + observer proxy on VPS |
+| **Launch-day CI watcher** | ________________ | ________________ | Watches GitHub CI/Nightly on invite head |
+| **Privacy / permanence veto** | ________________ | ________________ | May block invites that would weaken ring, endowment, or SPoRA guarantees |
+
+**Halt conditions (must stop invites / public advertising immediately):**
+
+1. Divergent tips across hub/voters/observer that health-check cannot clear within one soak window.
+2. Repeated invalid block or gossip errors on the public mesh.
+3. Leaked validator VRF/BLS seeds, faucet wallet seeds, or RPC API keys.
+4. Unexpected `rpc.public_bind=true` or unauthenticated wallet-write exposure on the VPS.
+5. Reproducible storage data-root mismatch or failed retrieve/prove after a passing soak.
+6. Nightly participant/observer RED on the exact invite commit without a landed fix-forward.
+
+**Incident notes location:** `scripts/public-devnet-v1/evidence/incidents/` (create dated `YYYYMMDD-<slug>.md`; never paste seeds or API keys).
+
+**Sign-off flags** (for `release-signoff-manifest`): `--threat-model-reviewed` + `--residual-risks-have-owners` + `--halt-rollback-authority-agreed` only after this section is filled.
 
 Health check: `health-check.sh` or `health-check.ps1` in the same directory (**M2.4.6** / **M2.4.9** — exits non-zero if hub, voters, or observer diverge, any expected role RPC endpoint is missing while `MFN_HEALTH_REQUIRE_ALL_ROLES` is enabled (default `1`), `genesis_id` ≠ public devnet manifest, live P2P sessions are below `MFN_HEALTH_MIN_P2P_SESSIONS` (default `1`), or an opt-in multi-sample liveness window stalls).
 

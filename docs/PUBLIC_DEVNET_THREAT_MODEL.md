@@ -56,3 +56,22 @@ Do not advertise a public endpoint or invite outside operators until evidence ex
 ## Residual Risk
 
 Even with all controls above, the public devnet remains experimental. Known residual risks include undiscovered consensus bugs, cryptographic implementation flaws, dependency vulnerabilities, economic design mistakes, operational mistakes, and DoS that exceeds the devnet guardrails. Treat any value, payload, or identity used on the public devnet as test-only unless and until independent review and stronger release gates say otherwise.
+
+### Residual-risk owner matrix (**B-30** — required before TL-9 invites)
+
+Every accepted residual below has a **standing owner** (lane role from [`AGENTS.md`](../AGENTS.md)) and a **human authority** slot filled at TL-9 sign-off. Empty human cells are a go/no-go no-go. Operational checkboxes live in [`OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) § Residual-risk owners and halt authority.
+
+| Residual (accepted for experimental public testnet) | Standing owner (lane) | Human owner (TL-9) | Halt / escalate when |
+| --- | --- | --- | --- |
+| Undiscovered consensus / `apply_block` bugs | **4** Protocol | ________________ | Divergent tips; repeated invalid block/gossip; tip stall with healthy peers |
+| Cryptographic implementation flaws (ring, BLS, VRF, SPoRA) | **4** + **5** Privacy surface | ________________ | Proof/verify mismatches; replayable signatures; endowment/range-proof bypass |
+| Dependency / supply-chain advisories | **2** RC ops (`cargo-audit`) | ________________ | Critical advisory in release tree without waiver |
+| Economic design mistakes (fees, subsidy, treasury) | **6** Permanence | ________________ | Treasury identity break; silent permanence regression; fee-drought runaway |
+| Operator / VPS mistakes (RPC exposure, wrong genesis, bad upgrade) | **7** Testnet launch | ________________ | `rpc.public_bind=true` unexpected; genesis_id drift; failed restore rehearsal |
+| Faucet / onboarding abuse or lock contention | **3** Onboarding (+ **2** faucet code) | ________________ | Sustained faucet 5xx; dual-send fund loss; rate-limit bypass |
+| Nightly / CI false confidence (green board ≠ security proof) | **1** RC core | ________________ | Nightly RED on invite head; cancelled matrix treated as unknown |
+| P2P / RPC DoS beyond guardrails | **7** + **2** | ________________ | Quarantine storms; RPC in-flight saturation; observer proxy outage |
+| Storage permanence gaps (missing chunks, unrepaired cold data) | **6** + **3** (M7.10 UX) | ________________ | Reproducible data-root mismatch; retrieve/proof failure after soak |
+| Incident ambiguity (who can pause / rollback / rotate genesis) | **7** + human maintainer | ________________ | Any halt condition with no named publisher within 30 minutes |
+
+**Doctrine:** privacy and permanence owners (**4/5/6**) may veto an invite that would weaken ring policy, endowment enforcement, or SPoRA verification. UX/ops never override those vetoes.

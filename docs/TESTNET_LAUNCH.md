@@ -10,16 +10,16 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 
 | Field | Value |
 | --- | --- |
-| Release commit | `02c8df8` (B-15 checkpoint light-scan); B-16 docs `49d28f9`; ops through `dc05c40` (R-4) |
-| CI | `#29700946945` GREEN on `b4a3fa7`; `#29711044516` queued on `02c8df8` |
-| Nightly | `#29701967243` **RED** — `fund-wallet.sh` WS tip mismatch (**B-29**; ≠ B-15 JOIN path) |
-| RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4 head CI + Nightly GREEN) |
+| Release commit | B-29 WS tip `5dc3aa8`; B-15 tooling `02c8df8`; B-16 docs `49d28f9`; ops through `dc05c40` (R-4) |
+| CI | `#29711375639` queued on `5dc3aa8` (B-29); prior `#29700946945` GREEN on `b4a3fa7` |
+| Nightly | `#29701967243` **RED** — re-dispatch after B-29 CI GREEN |
+| RC audit | `release-evidence-b4a3fa7` **go** (refresh after B-15/R-4/B-29 head CI + Nightly GREEN) |
 | VPS | Hetzner `5.161.201.73` — mesh + faucet + observer proxy + testnet front-end |
 | `seed_nodes` | `5.161.201.73:19001`, `:19002`, `:19003` |
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
 | **L3 status** | **Experimental public testnet live** — [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`pfpchain.com`](https://pfpchain.com) |
-| **Open TL** | **TL-9**; **B-15** JOIN evidence; **B-29** Nightly; **B-26/27/30** invite gates (B-16 ✓) |
+| **Open TL** | **TL-9**; **B-15** JOIN evidence; **B-29** Nightly verify; **B-26/27** invite gates (**B-16** ✓; **B-30** matrix landed — fill human cells at sign-off) |
 | Strategic ordering | [`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) → [Phase 1 permanence playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria) |
 
 ---
