@@ -214,6 +214,12 @@ if ($b32ArmReadyPlan -notmatch "b32-arm-ready-rehearsal-smoke: PASS plan-only") 
     $b32ArmReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-85: near-tip Path A checkpoint when tip lags log (lane 7).
+$nearTipCkptPlan = (powershell -NoProfile -File scripts/public-devnet-v1/publish-near-tip-checkpoint-if-lag-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($nearTipCkptPlan -notmatch "publish-near-tip-checkpoint-if-lag-rehearsal-smoke: PASS plan-only") {
+    $nearTipCkptPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 # B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
 $outsideInInviteSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
 if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: PASS plan-only") {
