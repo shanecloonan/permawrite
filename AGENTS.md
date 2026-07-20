@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **B-73** fix-forward — B-71 persistable-peer filter broke `mfnd_p2p_reconnects_saved_peers_on_restart` (ubuntu `#29734331038` RED). Smoke test binds persistable ports; export `MIN_EPHEMERAL_PEER_PORT`. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29736528564` GREEN** on B-73 (`5df7cbc`) — covers B-67/B-71/B-73 stack. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-72** support-bundle challenge `--wallet` (this commit); B-29 seed-isolation `23204cb` | *Idle* — watch CI on this head | Re-dispatch **one** Nightly → close **B-29** on GREEN | CI/Nightly run IDs |
+| **1** RC core | **B-72** support-bundle challenge `--wallet`; B-29 seed-isolation `23204cb` | *Idle* | Re-dispatch **one** Nightly → close **B-29** on GREEN | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave24** (patricia last_proven=4362; F92 PASS; F45/F93) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | *Idle* | Live **B-32** multi-op evidence; then **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | **B-32** arm (claim base: `5df7cbc`) — wait B-15 + lane-7 mfnd re-roll with B-71/B-73 | Live multi-op pack → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-73** reconnect smoke + B-71 port band (this commit); **B-70/B-71** | *Idle* | **mfnd re-roll** after CI GREEN on this head; then **B-42** after B-15 PASS | `launch-go-no-go` |
+| **7** Testnet launch | **B-73** reconnect smoke (`5df7cbc`); **B-70/B-71** | *Idle* | **mfnd re-roll** now (CI GREEN); then **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -156,7 +156,8 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47/B-53/B-56 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
 | 4 | 7 | **B-45+B-48+B-51+B-64:** rolled on Hetzner after **CI `#29725270815` GREEN**; **B-68** peers scrub restored tip | **Done** (VPS roll) |
-| 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71) |
+| 7 | 4 | **B-68 follow-up:** filter ephemeral/0.0.0.0 on `peers.json` load so polluted durable sets cannot recur (ops scrub is not enough) | **Done** (B-71 + B-73 smoke) |
+| 4 | 7 | **B-32:** mfnd re-roll with B-71/B-73 binary; then help arm ≥2 distinct-host operators for live multi-op pack (after B-15 JOIN window) | **Open** |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
@@ -261,7 +262,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 3 - B-15 wave24** (this commit): soak tip **4364** match; F45 hard FAIL (pin@4323 still needs tip attestation); **F92** headers {from_height,to_height} PASS; oscar retrieve OK; patricia faucet ~99s; pin-retry 4323/4262/4173 -> funded; upload bound **last_proven=4362** proxy+claims; claims recent=5; **F93** early challenge unknown commitment; oscar->patricia 50k Fresh; F90 post-upload change. Evidence wave24.md + wave25-open (F94 headers/tip-ahead). *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
+1. **2026-07-20 — lane 4 — CI `#29736528564` GREEN + B-32 claim** (this commit): stack B-67/B-71/B-73 green; arm **B-32** after B-15 + lane-7 mfnd re-roll. §6 request to lane 7. Docs-only `[skip ci]`.
+2. **2026-07-20 - lane 3 - B-15 wave24** (this commit): soak tip **4364** match; F45 hard FAIL (pin@4323 still needs tip attestation); **F92** headers {from_height,to_height} PASS; oscar retrieve OK; patricia faucet ~99s; pin-retry 4323/4262/4173 -> funded; upload bound **last_proven=4362** proxy+claims; claims recent=5; **F93** early challenge unknown commitment; oscar->patricia 50k Fresh; F90 post-upload change. Evidence wave24.md + wave25-open (F94 headers/tip-ahead). *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
 1. **2026-07-20 - lane 3 - B-15 wave23** (`e3cb07c`): ckpt max **4323** (entries=12); F45 hard FAIL lag~2; nina retrieve OK; nina->oscar peer#1 PASS / peer#2 **F91** RBF; oscar faucet+upload **last_proven=4337**; claims recent=4; **F92** get_block_headers {from_height,to_height}. Evidence wave23.md. *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
 1. **2026-07-20 — lane 7 — B-73 B-71 reconnect smoke fix** (this commit): `mfnd_p2p_reconnects_saved_peers_on_restart` used OS ephemeral `:0` ports (>=32768) which B-71 correctly refuses to persist -> missing `peers.json` on ubuntu CI `#29734331038`. `reserve_loopback_addr` now picks 19000..32767; export `MIN_EPHEMERAL_PEER_PORT`. Local release smoke PASS. Next: mfnd roll after CI GREEN (prebuild already has B-71 binary). *Observed (not staged):* lane-3 wave23 evidence temps, `user-wallet/`, `live-testnet-data*`, `_ci-ubuntu-fail.log`.
 1. **2026-07-20 — lane 1 — B-72 support-bundle B-45 wallet** (this commit): Nightly `#29727713979` fund-wallet+permanence PASS; failed `operator challenge` without `--wallet` (`payout wallet: os error 2`). Pass `--wallet` in support-bundle.sh/.ps1. Then re-dispatch Nightly for B-29. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
