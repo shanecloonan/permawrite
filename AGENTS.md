@@ -12,7 +12,8 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 
 ## 0. The contract (read before anything else)
 
-1. **2026-07-19 — lane 1 — B-34 restart empty-step CI `#29711605173`** (this commit): All jobs queued ~9.5m with no runner pickup on `e10a8b3`; docs push **without** `[skip ci]` to cancel-in-progress and start a healthy matrix (B-29 parse already on head). Did **not** touch Hetzner (B-15). *Observed local work (not staged):* ROADMAP planning, user-wallet/, ci-docs-*.txt, live-testnet-data/.
+1. **2026-07-19 — lane 1 — B-34 escalate: Actions partial_outage** (this commit): Successor CI `#29711867196` still empty-step queued; githubstatus reports Actions **partial_outage**. Per ROADMAP B-34: stop cancel/re-dispatch thrash; wait for runners. Did **not** touch Hetzner (B-15). Docs-only `[skip ci]`.
+2. **2026-07-19 — lane 1 — B-34 restart empty-step CI `#29711605173`** (this commit): All jobs queued ~9.5m with no runner pickup on `e10a8b3`; docs push **without** `[skip ci]` to cancel-in-progress and start a healthy matrix (B-29 parse already on head). Did **not** touch Hetzner (B-15). *Observed local work (not staged):* ROADMAP planning, user-wallet/, ci-docs-*.txt, live-testnet-data/.
 2. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
 2. **No silent work.** If you are coding without a **Doing** row in §5, stop and claim first.
 3. **Read before write.** Scan the whole §5 board + §6 requests before claiming anything.
@@ -139,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29** `5dc3aa8`+`e10a8b3` | *Idle* | Watch CI `#29711867196`; Nightly → close B-29 | CI/Nightly run IDs in §8 |
+| **1** RC core | **B-34** restarted stall `#29711605173` (`93c70f3`) | **Watch CI `#29711867196`** — Actions outage; no further cancel (claim base: `93c70f3`) | Nightly when CI GREEN -> close B-29 | CI/Nightly + githubstatus |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
 | **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-44** → **B-24** | Lane 1 CI/Nightly |
