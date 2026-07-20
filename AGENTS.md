@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-29** (`23204cb`) seed-isolation | **Watch CI `#29725270815`** (claim base: `23204cb`) | On GREEN: re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave18** (judy JOIN last_proven=4229; F84) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave19** (karl JOIN last_proven=4270; F85/F86) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-64** (`13a4880`); **B-63**/**B-51**/**B-48**/**B-45** | **B-66** which-op prove miss/settle chain (claim base: `938661a`; local PASS) | Land after `#29725270815`; then lane 7 roll → live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -254,6 +254,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave19** (this commit): F85 restart; grace proven 4234; karl F71+upload --message bound last_proven=4270; F86 claims list empty. Evidence wave19.md. [skip ci].
 1. **2026-07-20 — lane 4 — B-66 claim** (this commit): which-op prove miss/settle chain (op1-only twin + window-spaced mask chain). Local PASS. Docs-only `[skip ci]` while `#29725270815` runs. (Lane 7 already owns B-65 cargo-env.) *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
 2. **2026-07-20 - lane 7 - B-65 cargo env for VPS non-interactive builds** (`938661a`): `lib-cargo-env.sh` for prebuild/roll. `[skip ci]`.
 2. **2026-07-20 - lane 7 - B-22 tip-4262 Path A checkpoint** (this commit): closed 89-block ckpt lag (4173→4262); entries=11; faucet/mfnd untouched. Hold rebuild-roll for CI `#29725270815`. `[skip ci]`. *Observed:* `apply_block_proptest.rs` WIP, lane-3 evidence temps, `user-wallet/`, `live-testnet-data*`.
