@@ -134,13 +134,13 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29720670813` in_progress** on B-63 (`e4369a9`). Prior `#29718880625` GREEN. **Nightly `#29720083660` in_progress** (B-29). Lane 4 **B-64** ready locally — land after B-63 matrix (do not cancel). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29720670813` in_progress** on B-63 (`e4369a9`). Prior `#29718880625` GREEN. **Nightly `#29720083660` RED** — local mesh dialed public `seed_nodes` (not fund-wallet tip mismatch). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **CI `#29718880625` GREEN** (`7ab86ad`) | **Watch Nightly `#29720083660`** (claim base: `7ab86ad`) | Close **B-29** on GREEN; else fix-forward fund-wallet | githubstatus + CI/Nightly |
+| **1** RC core | **CI `#29718880625` GREEN** (`7ab86ad`); Nightly `#29720083660` RED diagnosed | **B-29 seed-isolation** — `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` (claim base: `e4369a9`; wait `#29720670813`) | Land after B-63 CI; re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave16** (F81/F82; eve last_proven=4206) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave17** (ivan JOIN + F71-after-faucet; uploads 4217/4218) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-63** (`e4369a9`); **B-51**/**B-48**/**B-45** | **B-64** settle soft-skip vs apply hard-reject + producer seal filter (claim base: `e4369a9`; local PASS) | Land after `#29720670813`; then lane 7 roll → live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly `fund-wallet.sh` WS tip mismatch fix | 1+3 | **Code** `5dc3aa8`+B-60 CI GREEN; **close** = Nightly `#29720083660` GREEN |
+| B-29 | Nightly participant rehearsal GREEN | 1+3 | Tip-mismatch code `5dc3aa8`; **#29720083660 RED** = public seed dial into local mesh — seed-isolation in flight; **close** = Nightly GREEN only |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
@@ -252,6 +252,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 3 — B-15 wave17** (this commit): tip lag OK; eve fadfaba2 on proxy list; F45 hard FAIL / soft PASS; **ivan** faucet+F71+re-pin+upload last_proven=**4217**; frank upload **4218**; grace→ivan 30k. Evidence wave17.md. [skip ci]. *Observed:* pply_block_proptest.rs, probe temps, user-wallet/, live-testnet-data*.
 1. **2026-07-20 — lane 4 — B-64 claim** (this commit): producer seal-only settlement-accepted proofs (`runner`/`mfnd_cli`); parity tests for unknown/dup/over-replication soft-skip vs apply hard-reject. Local PASS. Docs-only `[skip ci]` while `#29720670813` runs. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
 2. **2026-07-20 — lane 4 — B-63 early B-24a** (`e4369a9`): coinbase N+1 + 1-of-2 miss identity. Prior **CI `#29718880625` GREEN**.
 2. **2026-07-20 — lane 1 — CI `#29718880625` GREEN + Nightly `#29720083660`**: B-60 matrix green on `7ab86ad`; dispatched Nightly for **B-29** close. Docs-only `[skip ci]`.
