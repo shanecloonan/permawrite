@@ -945,19 +945,39 @@ fn b3_replication_cap_exceeded_rejected() {
 
 #[test]
 fn b3_legacy_challenge_rejected_when_enabled() {
+    // Legacy (unsalted) chunk indices collide with operator-salted ones with
+    // probability 1/num_chunks. Pick a slot where they diverge so this pins the
+    // B3 reject path instead of accidentally accepting a valid salted proof.
     let payload: Vec<u8> = (0..4096u32).map(|i| (i % 251) as u8).collect();
     let built = mfn_storage::build_storage_commitment(&payload, 1_000, Some(256), 3, None).unwrap();
     let state0 = genesis_with_b3_storage(&built);
-    let scratch = build_unsealed_header(&state0, &[], &[], &[], &[], 5_000, 1_000);
-    let p = mfn_storage::build_test_storage_proof(
-        &built.commit,
-        &scratch.prev_hash,
-        5_000,
-        &payload,
-        &built.tree,
-    );
+    let c_hash = storage_commitment_hash(&built.commit);
+    let (view, spend) = mfn_storage::test_operator_payout_keys();
+    let op_id = mfn_storage::operator_identity_from_payout(&view, &spend);
+    let scratch0 = build_unsealed_header(&state0, &[], &[], &[], &[], 1, 1_000);
+    let prev = scratch0.prev_hash;
+    let slot = (1u32..10_000)
+        .find(|&slot| {
+            let legacy = mfn_storage::chunk_index_for_challenge(
+                &prev,
+                slot,
+                &c_hash,
+                built.commit.num_chunks,
+            );
+            let salted = mfn_storage::chunk_index_for_operator_challenge(
+                &prev,
+                slot,
+                &c_hash,
+                &op_id,
+                built.commit.num_chunks,
+            );
+            legacy != salted
+        })
+        .expect("legacy and salted challenges must diverge for some slot");
+    let p =
+        mfn_storage::build_test_storage_proof(&built.commit, &prev, slot, &payload, &built.tree);
     let proofs = vec![p];
-    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, 5_000, 1_000);
+    let unsealed = build_unsealed_header(&state0, &[], &[], &[], &proofs, slot, 1_000);
     let block = seal_block(
         unsealed,
         Vec::new(),

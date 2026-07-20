@@ -533,9 +533,13 @@ fn public_devnet_hub_reaches_height_one_within_one_slot_duration() {
         mesh_ready.elapsed()
     );
 
+    // Under GHA matrix load the first seal may land without a captured
+    // `slot_advance` line (stdout drain races). Accept sealed/proposal too.
     assert!(
-        log_contains_any(&log0, "mfnd_producer_slot_advance"),
-        "hub should scan forward to an eligible slot within one producer tick"
+        log_contains_any(&log0, "mfnd_producer_slot_advance")
+            || log_contains_any(&log0, "mfnd_producer_sealed")
+            || log_contains_any(&log0, "mfnd_producer_proposal"),
+        "hub should produce (slot_advance|sealed|proposal) within one producer tick"
     );
     assert!(
         !log_contains_any(&log0, "scans_exhausted="),

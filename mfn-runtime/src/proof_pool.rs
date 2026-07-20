@@ -285,7 +285,8 @@ mod tests {
     };
     use mfn_storage::{
         build_storage_commitment, build_storage_proof_operator_salted, build_test_storage_proof,
-        encode_storage_proof, operator_identity_from_payout, test_operator_payout_keys,
+        chunk_index_for_challenge, chunk_index_for_operator_challenge, encode_storage_proof,
+        operator_identity_from_payout, storage_commitment_hash, test_operator_payout_keys,
         test_operator_payout_keys_alt, DEFAULT_ENDOWMENT_PARAMS,
     };
 
@@ -457,11 +458,30 @@ mod tests {
 
     #[test]
     fn b3_rejects_unsalted_proof_when_salted_required() {
+        // Unsalted vs salted chunk indices collide with probability 1/num_chunks.
+        // Pick a next-height where they diverge so admit must reject WrongChunkIndex.
         let (st, fix) = genesis_with_storage(true);
         let prev = *st.tip_id().expect("tip");
+        let c_hash = storage_commitment_hash(&fix.built.commit);
+        let (view, spend) = test_operator_payout_keys();
+        let op_id = operator_identity_from_payout(&view, &spend);
+        let next = (1u32..10_000)
+            .find(|&h| {
+                let legacy =
+                    chunk_index_for_challenge(&prev, h, &c_hash, fix.built.commit.num_chunks);
+                let salted = chunk_index_for_operator_challenge(
+                    &prev,
+                    h,
+                    &c_hash,
+                    &op_id,
+                    fix.built.commit.num_chunks,
+                );
+                legacy != salted
+            })
+            .expect("legacy and salted challenges must diverge for some height");
         let mut pool = ProofPool::new(ProofPoolConfig::default());
-        let unsalted = good_proof(&st, &fix, 1);
-        let err = pool.admit(unsalted, &st, &prev, 1).unwrap_err();
+        let unsalted = good_proof(&st, &fix, next);
+        let err = pool.admit(unsalted, &st, &prev, next).unwrap_err();
         assert!(matches!(
             err,
             ProofAdmitError::InvalidForNextBlock {
