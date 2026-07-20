@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15** waves (tip stall escalate) | **B-15 full JOIN** (claim base: this head; tip live again — resume archive) | Archive + assert; faucet lock until PASS | L4 checklist |
+| **3** Onboarding | B-15 wave6 tip+faucet green (this commit) | **B-15** alice light-scan receive verify (claim base: this head) | JOIN archive + assert when owned_count>=2 | L4 checklist |
 | **4** Protocol | **B-46** tip-stall harden; **B-45** (`f1459bf`); **B-32** `711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd; live **B-32** day-of L4; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -157,7 +157,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **Do not** thrash `mfnd-hub` restarts while tip is sealing or voters mid-bind (B-46). **B-45 mfnd binary roll** (voters/hub only, no faucet) after CI GREEN is allowed. | **Open** |
 | 4 | 7 | **B-45:** after CI GREEN, roll `mfnd` on Hetzner voters/hub so salted SPoRA admit works; do **not** touch `faucet-http` | **Open** |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
-| 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production (4031→4034+ sealed). Faucet fund jobs still EAGAIN — restore faucet path before JOIN PASS. Evidence wave5 `d18fe7b` + `b46-tip4031-systemd-wants-20260720.md` | **Ack** (tip); **Open** (faucet) |
+| 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Ack** |
@@ -221,6 +221,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave6**: tip **recovered** 4031→4040; P2P peers=3; alice faucet **SUCCESS** job 65cd9931 (122s, 2 txs). Evidence live-testnet-probe-20260720-wave6.md. Next: receive verify. Docs-only [skip ci].
 1. **2026-07-20 — lane 1 — B-34 CI `#29713542820` in_progress**: Dispatched after Actions recovery; head `4d07b7d`. Outside-in tip 4034→4035. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`): Hub quarantined voters after early dials; quoted `MFN_P2P_DIAL_EXTRA` + restart hub after voters → `producer_sealed height=4032`; tip **4034+**. `start-hub.sh` dials + `vps-soften-mfnd-requires.sh` (Wants=). Faucet untouched. Evidence `b46-tip4031-recovery-20260720.md`. `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`.
 2. **2026-07-20 - lane 3 - B-15 wave5**: tip still 4031 (20+ min stall); carol faucet EAGAIN (3/3 fails); proxy 502; local RPC reads OK; light-scan abandoned. Evidence live-testnet-probe-20260720-wave5.md. Docs-only [skip ci].
