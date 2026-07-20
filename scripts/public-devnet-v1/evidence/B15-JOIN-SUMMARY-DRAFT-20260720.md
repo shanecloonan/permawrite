@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — live evidence waves 6–32 under `scripts/public-devnet-v1/evidence/live-testnet-probe-*.md`.
+**Status:** DRAFT — live evidence waves 6–33 under `scripts/public-devnet-v1/evidence/live-testnet-probe-*.md` (wave33 permanence FAIL; recovery wave33b).
 **Lane:** 3
 **Network:** public-devnet-v1 / genesis 454fa5d4...a005
 **Public endpoints:** seeds 5.161.201.73:19001-19003; RPC proxy http://5.161.201.73:8787/rpc; faucet http://5.161.201.73:8788; FE http://5.161.201.73:3000 (+ /testnet)
