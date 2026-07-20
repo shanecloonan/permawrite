@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `583bf11`; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head `7a642af`; code head `02c8df8`; **B-16** docs `49d28f9`; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -43,7 +43,7 @@ Ordered levels — do not skip gates when inviting outside users or moving value
 | Level | Name | When true | Current (2026-07-19) |
 |---|---|---|---|
 | **L0** | Local developer mesh | `start-all.*` + health-check PASS on loopback | ✓ live |
-| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); CI `#29711044516` queued on `02c8df8`; **Nightly RED** `#29701967243` (participant fund-wallet WS tip mismatch — **B-29**) |
+| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); CI `#29711044516` **queued ~10m+** on `02c8df8` (watch stall); **Nightly RED** `#29701967243` (**B-29**) |
 | **L2** | Internet network exists | VPS soak + participant rehearsal archived | ✓ TL-5/TL-6 on `5.161.201.73` |
 | **L3** | Experimental public testnet | Non-empty `seed_nodes`, faucet/observer/front-end, JOIN guide | ✓ **live** (TL-7 Path A toy keys, TL-8 seeds published) |
 | **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (B-16 ✓; B-15 evidence; **Nightly RED** B-29; TL-9 open) |
@@ -169,7 +169,8 @@ Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs
 |---|---|---|---|
 | **B-13** | Parameter fork: `subsidy_to_treasury_bps = 1000` (10% tail → treasury, [`FEES.md` §5.4](./FEES.md), [`PROBLEMS.md` §19](./PROBLEMS.md#19-subsidy-tail-split--consensus-shipped-parameter-fork-pending)) | 6 | Consensus field shipped (`bb94c5c`); **genesis fork pending** — not the same as TL Path B genesis ceremony |
 | **B3 genesis** | `operator_salted_challenges` + `require_registered_operators` on devnet | 4+6 | ✓ **Shipped** in [`public_devnet_v1.json`](../mfn-node/testdata/public_devnet_v1.json) — bonds still `0` |
-| **B3 multi-op** | Sustained internet evidence: 2+ registered operators with distinct payouts proving SPoRA on live uploads | 4+7 | L4 gate; [`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md) multi-host rehearsal |
+| **B3 multi-op** | Sustained internet evidence: 2+ registered operators with distinct payouts proving SPoRA on live uploads | 4+7 | L4 gate; evidence rigor = **B-32** |
+| **B-32** | B3 multi-op evidence pack + `assert-*-multi-op-evidence.*` (B-15-style) | 4+7 | Filename pattern + ci-check plan gate; unblocks honest **B-24** |
 | **B-11** | Endowment range proofs at `apply_block` | 4 | ✓ **Shipped** (`require_endowment_range_proof: 1` on devnet) |
 | **B4 repair** | Repair sweep + staleness fan-out | 4 | ✓ **Shipped** — long-horizon internet soak evidence still open (**Repair/soak** row) |
 | **B5 slashing** | Operator audit miss → slash-to-treasury | 4+6 | ✓ **Shipped** phases 5a–5d on devnet; **PM1** scales bonds in Phase 4 |
@@ -181,11 +182,13 @@ Nightly job `participant-rehearsal-smoke` (`.github/workflows/nightly.yml`) runs
 | **B-28 / Treasury watch** | Sustained `treasury-telemetry-watch` on VPS + **numeric** alert thresholds in OPERATORS | 2+7 | F6 telemetry shipped; thresholds after B-13c modeled bounds |
 | **B-20** | F6 coupling: producer revenue ↔ treasury runway fee-shift policy ([`F5.md`](./F5.md) F6 — distinct from F6 telemetry field) | 6 | After B-13a sims; economics review |
 | **B-23** | F18: privacy/permanence regression gate in `ci-check` (ring/endowment/SPoRA invariants) | 2 | After L4; supports permanence-first CI |
-| **Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence | 1+7 | B4 repair sweep shipped |
+| **B-38 / Repair/soak** | Long-horizon internet soak with staleness → repair fan-out evidence + assert | 1+7 | B4 repair sweep shipped; give this a B-ID so it cannot drop vs B-13 |
 | **M7.10** | One-command `push-all-chunks` replication to manifest peers | 3 | ✓ **Shipped** (`c1e0373`) — document in JOIN/OPERATORS onboarding |
-| **B-13a** | Emission/treasury sims at `subsidy_to_treasury_bps = 1000` in default CI | 6 | Unit test exists (`producer_treasury_settlement`); promote to 256–512 block sim + fee-drought@1000 |
-| **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain** on Path A toy-key testnet (continuity of seeds/faucet); reserve new `genesis_id` for Path B / header v2 |
-| **B-13c** | If same-chain: update `public_devnet_v1.json` + operator announcement | 7 | After B-13a sims green + human sign-off |
+| **B-13a** | Emission/treasury sims at `subsidy_to_treasury_bps = 1000` in default CI | 6 | See **B-13a work package** below — claim on L4 close |
+| **B-13b** | Fork policy: enable `1000` on live devnet vs new `genesis_id` chain | 6+7+human | **Lean same-chain**; human gate = **B-33** checklist (not sims alone) |
+| **B-13c** | If same-chain: update `public_devnet_v1.json` + operator announcement | 7 | After B-13a green + **B-33** sign-off |
+| **B-33** | B-13b human sign-off checklist (one-lever + producer budget + telemetry baseline) | 6+7+human | [`FEES.md`](./FEES.md) §5.4 / [`ECONOMICS.md`](./ECONOMICS.md) — see checklist below |
+| **B-36** | F10: purge/`f64` CI lint on consensus verification path | 4 | Cheap permanence/determinism win; after L4 or parallel with B-13a if no conflict |
 | **B-24** | Multi-op **consensus** settlement audit + M5 proptests (ledger compose, not only ops evidence) | 4 | After B3 multi-op internet evidence; [`PERMANENCE_HARDENING.md`](./PERMANENCE_HARDENING.md) Part B |
 | **B-25** | Phase 1 permanence go/no-go (30d soak + treasury bounds + no silent regressions) | 7 + human | Closes Phase 1 gate before Tier 2 / Path B value |
 
@@ -200,15 +203,42 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **B-13a** | 6 | Default-CI 256–512 block sim at `subsidy_to_treasury_bps=1000`: treasury identity `Δtreasury = fee_share + Σ subsidy_treasury_credit − SPoRA drain`; producer coinbase = 90% subsidy + fee share; **fee-drought@1000** case ([`ECONOMICS.md`](./ECONOMICS.md) §5) shows smoother backstop vs `bps=0`; do not change `fee_to_treasury_bps` in the same scenario set |
 | **B-13b** | 6+7+human | Written decision: **same-chain enable** (recommended for Path A) vs new `genesis_id`; sign-off recorded |
 | **B-13c** | 7 | `public_devnet_v1.json` carries `subsidy_to_treasury_bps: 1000` (or documented fork height); OPERATORS + TESTNET announce |
-| **B3 multi-op** | 4+7 | ≥2 registered operators on hosts distinct from validators ([`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)); distinct payout keys; ≥1 live upload with SPoRA proofs from both; archived transcript |
-| **B-24** | 4 | M5 proptest / settlement audit: multi-op treasury+emission compose under salted challenges; note in PERMANENCE_HARDENING |
+| **B3 multi-op + B-32** | 4+7 | ≥2 operators on distinct hosts; distinct payouts; ≥1 live upload with SPoRA from both; **`b3-multi-op-*.txt` + assert script PASS** |
+| **B-24** | 4 | M5 proptest / settlement audit after **B-32** green |
+| **B-33** | 6+7+human | Sign-off checklist complete before B-13c |
+| **B-38** | 1+7 | Repair fan-out evidence archived + assert on invite/soak head |
 | **PM3** | 6 | Windowed lottery replaces first-to-publish; ≥2 operators can win in-window under equal latency; deterministic reject of out-of-window proofs |
 | **PM2** | 4+6 | Anchor rejects under-replicated uploads; payout only for distinct registered operators |
 | **B-28** | 2+7 | Sustained `treasury-telemetry-watch` on VPS; **numeric** alert thresholds in OPERATORS; post-B-13c telemetry within B-13a modeled bounds |
 | **B-23** | 2 | `ci-check` fails closed on ring/endowment/SPoRA invariant regressions |
 | **B-25** | 7+human | 30d soak PASS + treasury within bounds + B-24 green + no permanence doc/code drift |
 
-**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4, Phase 2 prep), **B-31** threat posture (lane 2+7).
+**Parallel after L4 (do not block B-13a):** **B-21** Dandelion soak (lane 1), **B-18** VRF docs (lane 4), **B-31** threat posture (lane 2+7), **B-36** F10 lint (lane 4).
+
+#### B-13a work package (lane 6 — arm on L4 close)
+
+Do not leave lane 6 idle after TL-9. Claim **B-13a** the same day L4 gates.
+
+| Step | Detail |
+|---|---|
+| **Target** | Default-CI 256–512 block sim at `subsidy_to_treasury_bps = 1000` in `mfn-consensus` (extend `producer_treasury_settlement` / `emission_simulation`) |
+| **Identity** | `Δtreasury = fee_share + Σ subsidy_treasury_credit − SPoRA drain` |
+| **Producer** | Coinbase = 90% subsidy + fee share (document ~10% producer-tail cut vs `bps=0`) |
+| **Fee-drought** | Near-zero fees + non-zero storage drain ([`ECONOMICS.md`](./ECONOMICS.md) §5) — smoother backstop vs `bps=0` |
+| **Constraint** | Do **not** change `fee_to_treasury_bps` in the same PR/scenario set |
+| **Pass** | Tests in default CI; note in §8; unblocks **B-33** |
+
+#### B-33 — B-13b human sign-off checklist
+
+Before **B-13c** enable on Path A:
+
+- [ ] **B-13a** GREEN (sims above)
+- [ ] **One-lever rule:** only `subsidy_to_treasury_bps` changes; `fee_to_treasury_bps` untouched
+- [ ] **Producer security budget:** written note that ~10% of tail moves to treasury (acceptable on Path A toy keys)
+- [ ] **Telemetry baseline:** live `treasury_base_units` + backstop-rate snapshot archived pre-enable
+- [ ] **Bond residual named:** `min_storage_operator_bond = 0` remains; PM1 deferred to Path B — not a fork blocker but recorded
+- [ ] **Same-chain lean affirmed** (new `genesis_id` reserved for Path B / header v2)
+- [ ] Named human sign-off in OPERATORS / launch packet
 
 #### Near-term execution calendar (next ~14 days)
 
@@ -220,7 +250,8 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | **After B-15 window** | **B-26** R-4 VPS faucet deploy | 2+7 | B-15 capture done |
 | **Before TL-9** | **B-27** fresh soak/participant; **B-22** checkpoint log; **B-30** risk owners; L1 evidence **go** | 1+2+7 | CI + Nightly GREEN |
 | **TL-9** | Named watchers + `launch-go-no-go` (= **L4**) | 7+human | Above rows |
-| **Week after L4** | Start **B-13a** (permanence first) ∥ **B3 multi-op** planning | 6 / 4+7 | L4 gate |
+| **Day of L4 close** | Lane 6 claims **B-13a** (work package); lane 4+7 start **B-32** multi-op evidence tooling | 6 / 4+7 | TL-9 **go** |
+| **Week after L4** | **B-13a** sims ∥ **B3 multi-op** ops + **B-32** assert ∥ **B-36** F10 lint | 6 / 4+7 / 4 | L4 gate |
 
 ### Phase 2 — Validity and fraud proofs (security in service of light clients)
 
@@ -244,6 +275,7 @@ Ordered after L4. Permanence first — do not start Tier 2 (Phase 3) or Path B v
 | Id | Deliverable | Lane | Notes |
 |---|---|---|---|
 | **Tier 2** | Ring 32–64 + Bulletproof+ transcripts | 4+5 | Consensus version gate; wallet/CLI/WASM defaults |
+| **B-35** | F7: consensus input-count padding (wallet floor shipped; finish `verify_transaction` pad) | 4+5 | Privacy shape closure before or with Tier 2 |
 | **B6 / P6** | Hidden fees inside balance equation | 4 | Last plaintext amount; touches coinbase settlement |
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | Privacy before Tier 2 fork |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
@@ -326,6 +358,11 @@ Rows in [`AGENTS.md`](../AGENTS.md) §7 map here:
 | **B-29** Nightly `fund-wallet.sh` WS tip fix (≠ JOIN) | Phase 0 | 1+3 |
 | **B-30** Residual-risk owner matrix before invites | Phase 0 | 7 |
 | **B-31** RPC/faucet threat posture verify | Phase 0 | 2+7 |
+| **B-32** B3 multi-op evidence pack + assert | Phase 1 | 4+7 |
+| **B-33** B-13b human sign-off checklist | Phase 1 | 6+7+human |
+| **B-35** F7 consensus input-count padding | Phase 3 | 4+5 |
+| **B-36** F10 `f64` purge / CI lint | Phase 1–2 | 4 |
+| **B-38** Repair/soak evidence + assert | Phase 1 | 1+7 |
 
 Lane **Next** cells on the board should name a phase-0 or phase-1 unit until L4 gate clears, then shift toward phase 1–2 unless a fix-forward (R-*) is blocking ops.
 
@@ -351,13 +388,15 @@ Use this when sequencing cross-lane work. Arrows are hard gates; items on the sa
         ↓
 [TL-9 go/no-go + invites]  (= L4)
         ↓
-[B-13a → B-13b (same-chain lean) → B-13c] ──→ [B-28 Treasury watch + 30d soak]
+[B-13a work package] ──→ [B-33 sign-off] ──→ [B-13c enable] ──→ [B-28 Treasury watch]
+        ↓ parallel (day-of L4)
+[B3 multi-op + B-32 assert] → [B-24] → [PM3 + PM2] → [B-38 repair soak] → [B-25 permanence go/no-go]
         ↓ parallel
-[B3 multi-op] → [B-24 settlement] → [PM3 + PM2] → [B-25 permanence go/no-go]
+[B-36 F10 lint]
         ↓
 [F5 4b.1 ✓ → 4b.2] ──→ [slash + 4c + B-18]     [B-20 after B-13a]
         ↓ parallel (only after B-25 or human waiver)
-[Tier 2 + B-19]    [B-21 Dandelion → P16]    [B-23 F18]    [B-31 threat posture]
+[Tier 2 + B-35 F7 pad + B-19]    [B-21 Dandelion → P16]    [B-23 F18]    [B-31]
         ↓
 [TL Path B + Header v2 + multi-VPS] ──→ [B-17 + adversarial]  (= L5)
         ↓
