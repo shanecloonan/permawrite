@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **B-75** code land (this commit). Full CI after docs-thrash. After GREEN: sole Nightly -> close **B-29**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29753244727` GREEN** on B-75 `9d8bd30` (includes B-79). Lane 1: sole Nightly -> close **B-29**. Landing **B-80** tip-4496 (full CI). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch full CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
+| **1** RC core | **B-75** (`9d8bd30`, CI `#29753244727` GREEN) | *Idle* — sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave31** (wendy last_proven=4487; F95+F101 peer-dual) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-74** (`62a9c02`, CI `#29739903305` GREEN); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-76** dual-op empty-audit slash (early B-24d; this commit) | Live **B-32** (B-77 mfnd rolled) after B-15 → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-79** B-32 arm-ready + tip-4443 Path A ckpt + bootstrap `--apply` RPC fix (this commit); **B-78** (`faa8683`); **B-77** tip-4400 | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
+| **7** Testnet launch | **B-80** Path A tip-4496 (this commit); **B-79** (`2444a04`); **B-78**/**B-77** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 | `launch-go-no-go` |
 
 ---
 
@@ -255,7 +255,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-73 | B-71 CI fix: persistable listen ports in reconnect smoke | 7 | **Landed** (`5df7cbc`) — CI `#29736528564` GREEN |
 | B-77 | B-71 Hetzner mfnd roll + tip-4400 Path A ckpt | 7 | **Landed** (`b1ce264`) |
 | B-78 | Docs-equivalent CI roll gate (ancestor GREEN + non-src diff) | 7 | **Landed** (`faa8683`) — `lib-ci-roll-gate.sh` |
-| B-79 | B-32 arm-ready inventory + Path A tip-4443 + bootstrap RPC fix | 7 | **Landed** (this commit) — NOT READY until 2nd host |
+| B-79 | B-32 arm-ready inventory + Path A tip-4443 + bootstrap RPC fix | 7 | **Landed** (`2444a04`); NOT READY until 2nd host |
+| B-80 | Path A near-tip checkpoint tip-4496 (F45 lag close) | 7 | **Landed** (this commit); entries=16 |
 | B-63 | Multi-op partial-set settlement + coinbase compose (early B-24a) | 4 | **Landed** — coinbase N+1 + 1-of-2 miss identity; not full B-24 |
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
@@ -269,6 +270,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 7 — B-80 Path A tip-4496** (this commit): closed F45 lag after waves 30-31 (4443→**4496** exact tip; entries=16); VPS pulled to `d248ba2`; no faucet/mfnd restart. Evidence `b80-path-a-tip4496-20260720.md`. Prior **CI `#29753244727` GREEN** on B-75. Full CI (no skip). *Observed (not staged):* JOIN temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 — lane 3 — B-15 wave31**: New wallet **wendy** peer-dual permanence **last_proven=4487** (commit `a0d915d2`); faucet 429 (F95); pin@4443 owned=1 then pin@4400 owned=2 (F101); F45 lag=37; claims 11→12. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave30**: New wallet **vera** faucet permanence **last_proven=4479** (commit `b90c135c`); pin@4443; F45 FAIL lag=29 post B-79 tip-4443; claims 10→11; F100 last_proven before tip_id match. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 - lane 1 - B-75 production_dial + persistable local P2P** (this commit): sealed-block fanout now includes non-persistable advertise via production_dial_peers; persistable local P2P binds in start-all + produce smokes. Full CI. After GREEN: sole Nightly -> close **B-29**.
