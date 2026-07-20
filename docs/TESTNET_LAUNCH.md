@@ -18,8 +18,8 @@ Ordered path from a **local developer mesh** to the **experimental public testne
 | Checkpoint log | `public_devnet_v1.checkpoints.jsonl` |
 | TL-7 | Path A toy keys — [`tl7-genesis-signoff-path-a-20260714.txt`](../scripts/public-devnet-v1/evidence/tl7-genesis-signoff-path-a-20260714.txt) |
 | **L3 status** | **Experimental public testnet live** — [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`pfpchain.com`](https://pfpchain.com) |
-| **Open TL** | **TL-9** named watchers + invite circulation; **B-15** outside-in JOIN evidence |
-| Strategic ordering | [`ROADMAP.md` § Strategic phases](./ROADMAP.md#strategic-phases--what-comes-next-202607) |
+| **Open TL** | **TL-9** named watchers + invite circulation; **B-15** outside-in JOIN evidence; **B-16** land on `main` |
+| Strategic ordering | [`ROADMAP.md` L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification) → [Phase 1 permanence playbook](./ROADMAP.md#phase-1-permanence-playbook-acceptance-criteria) |
 
 ---
 
