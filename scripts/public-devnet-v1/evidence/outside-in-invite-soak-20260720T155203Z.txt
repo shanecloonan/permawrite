@@ -1,0 +1,13 @@
+﻿# B-27 outside-in invite-head soak (public observer proxy)
+# head_sha=a84614d501b8fb60cef62b992108bb65206602d4
+# proxy=http://5.161.201.73:8787/rpc
+# samples=5 interval_s=40 min_delta=1
+# never=faucet-http mfnd restart join-testnet-rehearsal
+# nightly_run=29755942849
+# ci_run=29753244727
+soak: SAMPLE i=1 tip_height=4501 tip_id=3a2b9e8a27b177a8c571da7307fdb0bceea343e8589917a52096f37518f27302 genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 validator_count=3
+soak: SAMPLE i=2 tip_height=4502 tip_id=fa1a17bad967ffffaa4485806e47a61549272ff08f0f290daaa5ce3107f933ec genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 validator_count=3
+soak: SAMPLE i=3 tip_height=4502 tip_id=fa1a17bad967ffffaa4485806e47a61549272ff08f0f290daaa5ce3107f933ec genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 validator_count=3
+soak: SAMPLE i=4 tip_height=4502 tip_id=fa1a17bad967ffffaa4485806e47a61549272ff08f0f290daaa5ce3107f933ec genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 validator_count=3
+soak: SAMPLE i=5 tip_height=4503 tip_id=63f171684258ee41946d657e52022d910358eac010945dd5b9a3b0c14bf4a5a2 genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 validator_count=3
+soak: SUMMARY status=PASS first_tip_height=4501 last_tip_height=4503 delta=2 samples=5 genesis_id=454fa5d4a9bd6f59e35cf9ea7e68c096c9a271a92b2ec5931184e7f34a42a005 head_sha=a84614d501b8fb60cef62b992108bb65206602d4 reason=ok

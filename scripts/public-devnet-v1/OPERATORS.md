@@ -74,6 +74,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | P32 role templates rehearsal (CI) | `bash scripts/public-devnet-v1/vps-role-templates-rehearsal-smoke.sh --plan-only` |
 | TL-5 preflight rehearsal (CI) | `bash scripts/public-devnet-v1/vps-preflight-rehearsal-smoke.sh --plan-only` |
 | Linux VPS TL-5 soak | `bash scripts/public-devnet-v1/vps-internet-soak.sh` — after `vps-preflight.sh` |
+| **B-27 outside-in invite soak** (lane 1) | `powershell -File scripts/public-devnet-v1/outside-in-invite-soak.ps1` or `bash …/outside-in-invite-soak.sh` — public proxy tip samples; **B-15-safe** (never faucet/mfnd/JOIN). Assert: `assert-outside-in-invite-soak-evidence.*` |
 | TL-5 soak rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-rehearsal-smoke.sh --plan-only` |
 | TL-5 soak evidence assert | `bash scripts/public-devnet-v1/assert-vps-internet-soak-evidence.sh scripts/public-devnet-v1/evidence/vps-internet-soak-linux-*.txt` — before commit |
 | TL-5 soak evidence rehearsal (CI) | `bash scripts/public-devnet-v1/vps-internet-soak-evidence-rehearsal-smoke.sh --plan-only` |

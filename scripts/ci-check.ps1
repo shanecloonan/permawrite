@@ -214,6 +214,12 @@ if ($b32ArmReadyPlan -notmatch "b32-arm-ready-rehearsal-smoke: PASS plan-only") 
     $b32ArmReadyPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
     exit 1
 }
+# B-27: outside-in invite-head soak plan gate (lane 1; public proxy; B-15-safe).
+$outsideInInviteSoakPlan = (powershell -NoProfile -File scripts/public-devnet-v1/outside-in-invite-soak-rehearsal-smoke.ps1 -PlanOnly) -join "`n"
+if ($outsideInInviteSoakPlan -notmatch "outside-in-invite-soak-rehearsal-smoke: PASS plan-only") {
+    $outsideInInviteSoakPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
+    exit 1
+}
 $repairVpsP2pPlan = (bash scripts/public-devnet-v1/repair-vps-p2p-binds-rehearsal-smoke.sh --plan-only) -join "`n"
 if ($repairVpsP2pPlan -notmatch "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only") {
     $repairVpsP2pPlan | ForEach-Object { [Console]::Error.WriteLine($_) }
