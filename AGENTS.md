@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-34** (c752992, CI #29777008854 GREEN); **B-27** (9f5ed4d); **B-75**/**B-29**; Nightly #29761294926 GREEN | *Idle* | Participant half post-B-15 if needed; leave JOIN/Hetzner/protocol to 3/7/4 | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave47** (nora last_proven=4677; faucet) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave48 FUND FAIL** (owen F106; nora@4677 last PASS) | **B-15** wave49 faucet-wait + formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-83** (`8cfe137`, CI `#29761692348` GREEN); **B-81**/**B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -281,7 +281,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-92 Path A tip-4679** (this commit): lag=17 fire → tip-**4679** (entries=26); **CI `#29779275119` GREEN** on B-91. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-1 soak WIP.
+1. **2026-07-20 — lane 3 — B-15 wave48 FUND FAIL**: **owen** unfunded (faucet 429; nora single-send→owen owned=1; kate F106 owned=1). Reinforces wait-for-faucet over peer dual-fund from fresh permanence wallets. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+2. **2026-07-20 — lane 7 — B-92 Path A tip-4679** (this commit): lag=17 fire → tip-**4679** (entries=26); **CI `#29779275119` GREEN** on B-91. Full CI (no skip). *Observed (not staged):* lane-4 `apply_block_proposals.rs`, JOIN temps, `user-wallet/`, `live-testnet-data*`, lane-1 soak WIP.
 1. **2026-07-20 — lane 3 — B-15 wave47**: **nora** faucet permanence **last_proven=4677** (commit `53bab1a0`); cooldown wait after wave46 fund fail; claims 22→23. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave46 FUND FAIL**: **liam** unfunded for upload (faucet 429; kate single-send→owned=1; iris F106 owned=1). Path A ckpt_max=4662 **lag=0** but hard scan still TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 1 — B-34 CI GREEN** (c752992): CI #29777008854 GREEN (closes incomplete B-90 wire). Docs board sync [skip ci] while B-91 CI runs. *Observed (not staged):* JOIN temps, user-wallet/, live-testnet-data*, lane-4 proptest WIP.

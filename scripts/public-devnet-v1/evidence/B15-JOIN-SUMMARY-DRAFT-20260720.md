@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–47; nora@**4677** proxy-prove PASS; claims=23; twenty-six proxy-proven wallets.
+**Status:** DRAFT — waves 6–48; nora@4677 last PASS; wave48 owen FUND FAIL (F106 recur); twenty-six proxy-proven wallets.
+| owen | faucet 429 + peer incomplete | n/a | **no** | FAIL wave48 fund (F106 kate owned=1; owen owned=1) |
 | nora | faucet | n/a | yes | **4677** (wave47; proxy-prove PASS) |
 | liam | faucet 429 + peer incomplete | n/a | **no** | FAIL wave46 fund (F106 iris owned=1; liam owned=1) |
 | kate | faucet (post-wipe) | n/a | yes | **4661** (wave45; proxy-prove PASS) |
@@ -92,6 +93,9 @@ Twenty-six wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar
 
 28. **F45 lag=0 (wave46)** — Path A attestation reached live tip height, but hard `--checkpoint-log` still TIMED OUT at 60s. Soft JOIN remains mandatory until hard path is budgeted.
 29. **F106 recur (wave46)** — high-balance donor with owned=1 cannot dual-fund; peer fallback needs two owned≥2 donors or faucet cooldown.
+
+
+30. **F106 solidifies (wave48)** — last two permanence wallets often cannot dual-fund under faucet 429: prove burns leave owned=1 (or owned=2 that a single 150k send exhausts). Prefer faucet cooldown wait over peer dual-fund from fresh permanence wallets.
 
 ## Still open before formal archive PASS
 
