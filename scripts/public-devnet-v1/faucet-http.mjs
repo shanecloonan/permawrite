@@ -141,6 +141,17 @@ function clientIp(req) {
   return req.socket.remoteAddress || "unknown";
 }
 
+function isLoopbackIp(ip) {
+  if (!ip) return false;
+  const n = ip.toLowerCase();
+  return (
+    n === "127.0.0.1" ||
+    n === "::1" ||
+    n === "localhost" ||
+    n.startsWith("::ffff:127.0.0.1")
+  );
+}
+
 async function walletStatus() {
   const { stdout } = await run(
     MFN_CLI,
@@ -421,7 +432,10 @@ const server = http.createServer(async (req, res) => {
       });
       return;
     }
-    if (now - prevIp < Math.min(COOLDOWN_MS, 30 * 60_000)) {
+    if (
+      !isLoopbackIp(ip) &&
+      now - prevIp < Math.min(COOLDOWN_MS, 30 * 60_000)
+    ) {
       json(res, 429, {
         ok: false,
         error: "ip cooldown — try again later",

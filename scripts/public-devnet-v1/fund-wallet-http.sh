@@ -119,9 +119,21 @@ claim_body="$(printf '{"address":"%s"}' "$address")"
 claim_resp="$(curl -fsS -X POST "${FAUCET_URL%/}/faucet" \
   -H "Content-Type: application/json" \
   --data-binary "$claim_body" 2>&1)" || {
-  echo "fund-wallet-http: POST /faucet failed" >&2
-  echo "$claim_resp" >&2
-  exit 1
+  if printf '%s' "$claim_resp" | grep -qE '503|faucet busy'; then
+    echo "fund-wallet-http: POST /faucet busy — retry in 15s" >&2
+    sleep 15
+    claim_resp="$(curl -fsS -X POST "${FAUCET_URL%/}/faucet" \
+      -H "Content-Type: application/json" \
+      --data-binary "$claim_body" 2>&1)" || {
+      echo "fund-wallet-http: POST /faucet failed after retry" >&2
+      echo "$claim_resp" >&2
+      exit 1
+    }
+  else
+    echo "fund-wallet-http: POST /faucet failed" >&2
+    echo "$claim_resp" >&2
+    exit 1
+  fi
 }
 echo "fund-wallet-http: claim_response=$claim_resp"
 

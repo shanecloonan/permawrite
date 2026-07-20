@@ -133,12 +133,12 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** head = `9d5e9bf` (board sync); R-2 at `a211821`, R-1 at `2b655d2`. **CI `#29710576999` pending** on `2b655d2` at SYNC. Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
+**CI gate (2026-07-19):** head = `5f01191` (R-3 faucet localhost + busy retry). R-2 at `a211821`, R-1 at `2b655d2`. Prior **CI `#29700946945` GREEN** on `b4a3fa7`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | CI `#29700946945` GREEN on `b4a3fa7` | *Idle* | Nightly dispatch after B-15 head CI GREEN | CI/Nightly run IDs in §8 |
-| **2** RC ops | R-1 (`2b655d2`) + R-2 fund-wallet F7 between-send fix (`a211821`) | *Idle* | Release evidence refresh after CI GREEN | Board + encoding guards |
+| **2** RC ops | R-1 (`2b655d2`) + R-2 (`a211821`) + R-3 (`5f01191`) | *Idle* | Release evidence refresh after CI GREEN | Board + encoding guards |
 | **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) + faucet F7 fix (`f2087ad`) | **B-15 Hetzner evidence run** (claim base: `f2087ad`) | B-16 privacy-doc sync → lane 5 | assert-join-testnet-rehearsal-evidence |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | F5 phase 4b.2 recursive aggregation | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | *Idle* | Privacy-doc sync for live-testnet wallet UX (light-scan / faucet flows) | Lane 5 doc-accuracy duty |
@@ -175,17 +175,18 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lane 2 — R-2 fund-wallet F7 between-send fix** (`a211821`): `fund-wallet.sh` tip-wait + faucet rescan between F7 top-up sends (mirrors R-1 faucet-http fix); local ci-check `-DocsOnly` green.
-2. **2026-07-19 — lane 2 — R-1 post-B-15 review fix-forward** (`2b655d2`): UTF-16 → UTF-8 `run-join-testnet-vps-once.sh`; faucet dual-send tip tracking + 300s timeout; `fund-wallet-http` job reclaim on 404 + throttled light-scan; local ci-check `-DocsOnly` green. *Observed local work (not staged):* `scripts/public-devnet-v1/user-wallet/`, `ci-docs-*.txt`.
-2. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`, `f2087ad`): JOIN_TESTNET rehearsal tooling; `fund-wallet.sh` path in `live-wallet-exercise.sh`; HTTP faucet tip-wait + rescan between dual sends; `release-evidence-b4a3fa7` + RC audit **go**; `run-join-testnet-vps-once.sh`.
-3. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
-4. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
-5. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`, `3ed62e2`, `c0326e5`, `59ea8bd`, `7c78e43`): F7 two-UTXO floor kept after sends + faucet cooldown; observer-proxy tx index persisted + faster catch-up; faucet producer-wallet scan fix. **CI `#29660101057` GREEN** on `23fb359`.
-6. **2026-07-17 — lane 7 — public testnet goes live**: observer HTTP RPC proxy (`61a9fe7`), faucet HTTP API + allowlisted `submit_tx` (`ebffaef`), standalone testnet-frontend (`ab6af42`), wallet light-scan send/balance fixes (`48cff48`, `361f2c2`, `a04d486`), faucet async job API (`f15a5b9`), front posture experimental public testnet (`c85d9c4`).
-7. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
-8. **2026-07-14 — lane 4 — F5 phase 4b.1 Winterfell** (`6377812`): batch-binding STARK + witness kind 3 + launch-status v10; follows 4b digest stub (`8f814cf`, CI gate `946341c`) and 4a validity-proof wire (`e385390`, **CI `#29298069061` GREEN**).
-9. **2026-07-14 — lanes 3+7 — TL-5/TL-6 Hetzner evidence** (`ba2ec08`): internet soak PASS `max_height=59` + participant rehearsal PASS on `5.161.201.73`.
-10. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) — full pre-consolidation boards preserved verbatim)*
+1. **2026-07-19 — lane 2 — R-3 faucet localhost + busy retry** (`5f01191`): skip IP cooldown for loopback in `faucet-http.mjs`; `fund-wallet-http.sh` retry on 503 busy; VPS runner restarts `faucet-http` after `git pull`.
+2. **2026-07-19 — lane 2 — R-2 fund-wallet F7 between-send fix** (`a211821`): `fund-wallet.sh` tip-wait + faucet rescan between F7 top-up sends (mirrors R-1 faucet-http fix); local ci-check `-DocsOnly` green.
+3. **2026-07-19 — lane 2 — R-1 post-B-15 review fix-forward** (`2b655d2`): UTF-16 → UTF-8 `run-join-testnet-vps-once.sh`; faucet dual-send tip tracking + 300s timeout; `fund-wallet-http` job reclaim on 404 + throttled light-scan; local ci-check `-DocsOnly` green. *Observed local work (not staged):* `scripts/public-devnet-v1/user-wallet/`, `ci-docs-*.txt`.
+4. **2026-07-19 — lanes 2+3 — B-15 + faucet F7 fund fix** (`774320f`, `f2087ad`): JOIN_TESTNET rehearsal tooling; `fund-wallet.sh` path in `live-wallet-exercise.sh`; HTTP faucet tip-wait + rescan between dual sends; `release-evidence-b4a3fa7` + RC audit **go**; `run-join-testnet-vps-once.sh`.
+5. **2026-07-19 — lane 2 — Board v2 consolidation** (`533347c`, `b93e216`): single live board + ledger; **CI `#29698203148` GREEN**.
+6. **2026-07-19 — docs — VIBECODING.md + storage/economics** (`c70796d`, `f9ea40a`, `b4a3fa7`): **CI `#29700946945` GREEN** on `b4a3fa7`.
+7. **2026-07-18 — lane 7 — live-testnet hardening** (`23fb359`, `3ed62e2`, `c0326e5`, `59ea8bd`, `7c78e43`): F7 two-UTXO floor kept after sends + faucet cooldown; observer-proxy tx index persisted + faster catch-up; faucet producer-wallet scan fix. **CI `#29660101057` GREEN** on `23fb359`.
+8. **2026-07-17 — lane 7 — public testnet goes live**: observer HTTP RPC proxy (`61a9fe7`), faucet HTTP API + allowlisted `submit_tx` (`ebffaef`), standalone testnet-frontend (`ab6af42`), wallet light-scan send/balance fixes (`48cff48`, `361f2c2`, `a04d486`), faucet async job API (`f15a5b9`), front posture experimental public testnet (`c85d9c4`).
+9. **2026-07-15 — lane 7 — TL-7/TL-8 published** (`11eabbd`): testnet seeds + checkpoint log; JOIN_TESTNET guide (`4b137bc`).
+10. **2026-07-14 — lane 4 — F5 phase 4b.1 Winterfell** (`6377812`): batch-binding STARK + witness kind 3 + launch-status v10; follows 4b digest stub (`8f814cf`, CI gate `946341c`) and 4a validity-proof wire (`e385390`, **CI `#29298069061` GREEN**).
+11. **2026-07-14 — lanes 3+7 — TL-5/TL-6 Hetzner evidence** (`ba2ec08`): internet soak PASS `max_height=59` + participant rehearsal PASS on `5.161.201.73`.
+12. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) — full pre-consolidation boards preserved verbatim)*
 
 ---
 

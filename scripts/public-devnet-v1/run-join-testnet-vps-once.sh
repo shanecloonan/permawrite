@@ -3,6 +3,10 @@
 set -euo pipefail
 cd /root/permawrite
 git pull --ff-only origin main
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl restart faucet-http 2>/dev/null || true
+  sleep 3
+fi
 for i in $(seq 1 24); do
   h="$(curl -fsS http://127.0.0.1:8788/health)"
   echo "$h"
