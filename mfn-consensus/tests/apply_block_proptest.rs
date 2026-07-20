@@ -4500,7 +4500,10 @@ fn b76_b5_dual_operator_slash_on_empty_audit_treasury_identity() {
     (model, bond1) = treasury_after_b5_slash(model, bond1, slash_bps);
 
     st = apply_empty_at_audit_slot(&st, slot);
-    assert_eq!(st.treasury, model, "dual slash must credit both forfeitures");
+    assert_eq!(
+        st.treasury, model,
+        "dual slash must credit both forfeitures"
+    );
     assert_eq!(st.storage_operators[&gen.id0].bond_amount, bond0);
     assert_eq!(st.storage_operators[&gen.id1].bond_amount, bond1);
     assert_eq!(
