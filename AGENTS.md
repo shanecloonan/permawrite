@@ -134,17 +134,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-49** vps-roll-mfnd tooling) on `0def2c1` stack. Tip live **4051+**. **CI `#29713542820`** in_progress (lane 1). This land `[skip ci]`. Live mfnd roll waits for CI GREEN + B-48 on main.
+**CI gate (2026-07-20):** code head = this commit (**B-50** checkpoint-log bootstrap honesty) on `284e803` stack. Tip live **4057+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`. **B-48 still not on main** — live EAGAIN quarantine recurred.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | Dispatched `#29713542820` after Actions recovery | **Watch CI `#29713542820`** (claim base: `4d07b7d`) | On GREEN: Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave6 (e5d57de) | **B-15** alice checkpoint light-scan in flight (claim base: e5d57de) | owned_count>=2 then JOIN archive | L4 checklist |
+| **3** Onboarding | B-15 wave6/7 | **B-15** alice receive verify — use `bootstrap-wallet-from-checkpoint-log.sh` (claim base: this head) | JOIN archive + assert | L4 checklist |
 | **4** Protocol | **B-48** soft EAGAIN quarantine; **B-45** (`f1459bf`); **B-46**/`711d98b` | *Idle* | After CI GREEN: lane 7 rolls mfnd (B-45+B-48); live **B-32**; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-49** vps-roll-mfnd tooling + **B-22**/B-47/B-46 | *Idle* | **Apply** `vps-roll-mfnd.sh` after CI GREEN + B-48 on main; **B-42** after B-15 PASS; **B-26** with lane 2 | `launch-go-no-go` |
+| **7** Testnet launch | **B-50** checkpoint bootstrap honesty + tip-4057 log + **B-49**/B-22 | *Idle* | After CI GREEN + **B-48 on main**: `vps-roll-mfnd.sh --apply`; **B-42** after B-15 PASS | `launch-go-no-go` |
 
 ---
 
@@ -155,13 +155,15 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** run parallel `join-testnet-rehearsal*` on Hetzner during B-15. Prefer not to restart `faucet-http` while `busy`/`pending_jobs` (B-47 deploy OK when idle). **Do not** thrash `mfnd-hub` while tip sealing (B-46). **B-45 mfnd roll** after CI GREEN allowed. | **Open** |
-| 4 | 7 | **B-45+B-48:** after CI GREEN, roll `mfnd` via `vps-roll-mfnd.sh --apply` (B-49 tooling landed). **B-48 code not on main yet** (lane-4 local WIP — do not steal `p2p_*.rs`); roll B-45 alone only if B-48 still pending after CI GREEN. Never touch `faucet-http` | **Ack** (tooling); **Open** (live apply) |
+| 4 | 7 | **B-45+B-48:** **URGENT B-48** — live hub quarantined voter again on EAGAIN (~tip 4063). Commit `p2p_*.rs` ASAP. Then CI GREEN → `vps-roll-mfnd.sh --apply`. Never touch `faucet-http` | **Open** (critical) |
 | 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 3 | 7 | **Tip stall + faucet EAGAIN:** tip was stuck **4031**; **B-46** restored production. Wave6: tip **4040+**, alice faucet job **done** 122s (2 txs) — EAGAIN streak broken. Evidence live-testnet-probe-20260720-wave6.md | **Done** |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** `#29713542820` in_progress on `4d07b7d` (post-outage dispatch) | **Ack** |
 | 1 | 7 | Outside-in: observer proxy `ECONNREFUSED 127.0.0.1:18734`; B-15 wave4 reports P2P `:19001` down — repair without faucet restart | **Done** (B-46; tip advancing; proxy OK) |
+| 7 | 3 | **B-50:** `--checkpoint-log` does not skip genesis — use `bootstrap-wallet-from-checkpoint-log.sh --apply` for alice receive verify | **Open** |
+| 7 | 5 | **B-50 follow-up:** Rust — `light-scan --checkpoint-log` should auto-bootstrap from log max tip (docs honesty landed) | **Open** |
 | planning | 3+7 | **B-42:** invite-load plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) | **Ack** (plan) |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
@@ -190,7 +192,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
-| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip **4050** Path A signer-2 + public seed anchors; seed offline on VPS only |
+| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip **4057** Path A + public seed anchors; seed offline on VPS only |
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
@@ -217,7 +219,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-46 | Tip-stall ops harden: `Wants=` + hub dial extras | 4+7 | **Landed** `4d07b7d` — tip 4031→4034+ |
 | B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
 | B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Claimed landed; code still local WIP** — commit `p2p_*.rs` before lane 7 rolls for tip-stall immunity |
-| B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (this commit) — live apply after CI GREEN |
+| B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
+| B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script); Rust auto-bootstrap still follow-up for lane 5 |
 
 ---
 
@@ -225,25 +228,25 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd tooling** (this commit): `vps-roll-mfnd.sh` + rehearsal smoke in ci-check; never touches faucet. Live apply deferred until CI `#29713542820` GREEN; **B-48 not on main** (lane-4 WIP left unstaged). Evidence `b49-vps-roll-mfnd-tooling-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice light-scan logs, `ci-docs-*.txt`.
-2. **2026-07-20 — lane 7 — B-22 tip-4050 checkpoint** (`0def2c1`): Path A tip 4050 + public seed anchors.
-3. **2026-07-20 — lane 7 — B-47 faucet EAGAIN harden** (`fe56ca8`/`b744189`).
-4. **2026-07-20 — lane 3 — B-15 wave7** (`2abbf5e`): alice light-scan in flight.
-5. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`).
-6. **2026-07-20 — lane 1 — B-34 CI `#29713542820`** (`9ac5ea7`).
-7. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`).
-8. **2026-07-20 — lane 4 — B-45 salted multi-op** (`f1459bf`); B-48 WIP local.
-9. **2026-07-20 — lane 7 — B-41 voter remap** (`0efb23f`).
-10. **2026-07-20 — lane 4 — B-32 assert tooling** (`711d98b`).
-11. **2026-07-20 — lane 4 — B-36 f64 lint** (`7420aa6`).
-12. **2026-07-20 — lane 7 — B-41 hub socat** (`54d22d7`/`65bb922`).
-13. **2026-07-20 — lane 3 — B-15 wave1** (`afca106`).
-14. **2026-07-19 — planning — B-40/B-42/B-43/B-44**.
-15. **2026-07-19 — lane 1 — B-29 parse + CI watch**.
-16. **2026-07-19 — lane 7 — B-31 threat posture**.
-17. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse** (`e10a8b3`).
-18. **2026-07-19 — planning — B-27/B-31/B-32 + B-34**.
-19. **2026-07-19 — planning + lane 7 — B-30**.
+1. **2026-07-20 — lane 7 — B-50 checkpoint-log bootstrap honesty** (this commit): `--checkpoint-log` is cross-check only (does not skip tip); helper `bootstrap-wallet-from-checkpoint-log.sh`; JOIN docs fixed; tip-4057 Path A entry; live EAGAIN quarantine recurred → **urgent B-48**. Evidence `b50-checkpoint-log-bootstrap-honesty-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice scan logs, `ci-docs-*.txt`.
+2. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd tooling** (`284e803`).
+3. **2026-07-20 — lane 7 — B-22 tip-4050 checkpoint** (`0def2c1`); refreshed to tip **4057** in this land.
+4. **2026-07-20 — lane 7 — B-47 faucet EAGAIN** (`fe56ca8`).
+5. **2026-07-20 — lane 3 — B-15 wave7** (`2abbf5e`): light-scan in flight (blocked by B-50 finding).
+6. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`).
+7. **2026-07-20 — lane 1 — B-34 CI `#29713542820`**.
+8. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`).
+9. **2026-07-20 — lane 4 — B-45** (`f1459bf`); B-48 WIP local.
+10. **2026-07-20 — lane 7 — B-41 voter remap** (`0efb23f`).
+11. **2026-07-20 — lane 4 — B-32 assert tooling** (`711d98b`).
+12. **2026-07-20 — lane 4 — B-36 f64 lint** (`7420aa6`).
+13. **2026-07-20 — lane 7 — B-41 hub socat** (`54d22d7`).
+14. **2026-07-20 — lane 3 — B-15 wave1** (`afca106`).
+15. **2026-07-19 — planning — B-40/B-42/B-43/B-44**.
+16. **2026-07-19 — lane 1 — B-29 parse**.
+17. **2026-07-19 — lane 7 — B-31 threat posture**.
+18. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1** (`e10a8b3`).
+19. **2026-07-19 — planning — B-27/B-31/B-32**.
 20. *(older history: see [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md))*
 
 

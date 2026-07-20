@@ -409,7 +409,7 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 
 - [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
 - [x] **B-16** — Privacy-doc sync landed (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match light-scan / checkpoint-log / F7 faucet UX.
-- [x] **B-22** — TL-8 checkpoint log republished (Path A signer-2; `max_tip_height=4050` + public seed `anchor_peers`; seed offline on VPS only).
+- [x] **B-22** — TL-8 checkpoint log republished (Path A signer-2; `max_tip_height=4057` + public seed `anchor_peers`; seed offline on VPS only).
 - [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
 - [ ] **B-29** — Nightly GREEN on `5dc3aa8` (code landed; close ≠ code land). Path = Nightly `fund-wallet.sh` — **not** JOIN. Last RED `#29701967243`.

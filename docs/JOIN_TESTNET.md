@@ -101,12 +101,23 @@ curl -s "http://5.161.201.73:8788/faucet/job?id=JOB_ID_FROM_POST"
 
 The faucet sends **two** transfers (F7 two-UTXO privacy floor so you can spend without a one-input fingerprint). Rate limits use the TCP peer IP (~15 minutes per address/IP); `503` with `busy` means another fund job is in flight — retry after a short wait. Poll `/faucet/job?id=…` until `status=done` (async; often 1–3 minutes at high tip).
 
-Then refresh your balance with **`wallet light-scan`** against your **local** RPC — not a full genesis `wallet scan` (that can take many minutes at a tall tip). Cross-check the post-sync summary against the published Schnorr checkpoint log (**F12**):
+Then refresh your balance with **`wallet light-scan`** against your **local** RPC — not a full genesis `wallet scan`.
+
+**Important (B-50):** `--checkpoint-log` only **cross-checks** the post-sync summary against the Schnorr log (**F12**). It does **not** skip genesis→tip. On a fresh wallet at tip ~4k that walk can take tens of minutes. Pin first with the operator helper (fetches `get_light_snapshot` at the log tip, writes `light_checkpoint_hex` + `scan_height`, then light-scans the delta):
+
+```bash
+bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply \
+  --wallet ./alice.json --rpc 127.0.0.1:18734 \
+  --log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet status --json
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
+```
+
+If you already have a near-tip `light_checkpoint_hex` in the wallet file, a plain light-scan plus cross-check is enough:
 
 ```bash
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
   --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
-mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
 ```
 
 The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys or `submit_tx`.
