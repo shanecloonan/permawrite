@@ -30,8 +30,9 @@
 | lisa | peer | n/a | CLI Fresh only | not public (F88 local fork) |
 | mike | faucet+peer | n/a | yes | **4304** (wave21; proxy verified) |
 | nina | faucet+peer | n/a | yes | **4318** (wave22; proxy verified) |
+| oscar | peer+faucet | n/a | yes | **4337** (wave23; proxy verified) |
 
-Six wallets with public last_proven: heidi/ivan/judy/karl/mike/**nina**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/**oscar**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
