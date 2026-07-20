@@ -1,6 +1,6 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — live evidence waves 6–31 under `scripts/public-devnet-v1/evidence/live-testnet-probe-*.md`.
+**Status:** DRAFT — live evidence waves 6–32 under `scripts/public-devnet-v1/evidence/live-testnet-probe-*.md`.
 **Lane:** 3
 **Network:** public-devnet-v1 / genesis 454fa5d4...a005
 **Public endpoints:** seeds 5.161.201.73:19001-19003; RPC proxy http://5.161.201.73:8787/rpc; faucet http://5.161.201.73:8788; FE http://5.161.201.73:3000 (+ /testnet)
@@ -39,8 +39,9 @@
 | uma | faucet | n/a | yes | **4466** (wave29; proxy verified) |
 | vera | faucet | n/a | yes | **4479** (wave30; proxy verified) |
 | wendy | peer (after faucet 429) | n/a | yes | **4487** (wave31; proxy verified) |
+| xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 
-Fifteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/**wendy**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Sixteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/**xena**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 

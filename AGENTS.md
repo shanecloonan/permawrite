@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-75** (`9d8bd30`, CI `#29753244727` GREEN) | *Idle* — sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave31** (wendy last_proven=4487; F95+F101 peer-dual) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave32** (xena last_proven=4496; F101+F102) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-74** (`62a9c02`, CI `#29739903305` GREEN); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-76** dual-op empty-audit slash (early B-24d; this commit) | Live **B-32** (B-77 mfnd rolled) after B-15 → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -270,7 +270,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-80 Path A tip-4496** (this commit): closed F45 lag after waves 30-31 (4443→**4496** exact tip; entries=16); VPS pulled to `d248ba2`; no faucet/mfnd restart. Evidence `b80-path-a-tip4496-20260720.md`. Prior **CI `#29753244727` GREEN** on B-75. Full CI (no skip). *Observed (not staged):* JOIN temps, `user-wallet/`, `live-testnet-data*`.
+1. **2026-07-20 — lane 3 — B-15 wave32**: New wallet **xena** faucet permanence **last_proven=4496** (commit `fe091b02`); pin@4400 owned=3 after pin@4443 owned=1 (F101); F45 lag=46; F102 concurrent-runner RPC 10060; claims 12→13. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
+2. **2026-07-20 — lane 7 — B-80 Path A tip-4496** (this commit): closed F45 lag after waves 30-31 (4443→**4496** exact tip; entries=16); VPS pulled to `d248ba2`; no faucet/mfnd restart. Evidence `b80-path-a-tip4496-20260720.md`. Prior **CI `#29753244727` GREEN** on B-75. Full CI (no skip). *Observed (not staged):* JOIN temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 — lane 3 — B-15 wave31**: New wallet **wendy** peer-dual permanence **last_proven=4487** (commit `a0d915d2`); faucet 429 (F95); pin@4443 owned=1 then pin@4400 owned=2 (F101); F45 lag=37; claims 11→12. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 — lane 3 — B-15 wave30**: New wallet **vera** faucet permanence **last_proven=4479** (commit `b90c135c`); pin@4443; F45 FAIL lag=29 post B-79 tip-4443; claims 10→11; F100 last_proven before tip_id match. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data, other-lane dirty files.
 2. **2026-07-20 - lane 1 - B-75 production_dial + persistable local P2P** (this commit): sealed-block fanout now includes non-persistable advertise via production_dial_peers; persistable local P2P binds in start-all + produce smokes. Full CI. After GREEN: sole Nightly -> close **B-29**.
