@@ -113,6 +113,14 @@ mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet status --json
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
 ```
 
+Windows (no bash on PATH — F56): same helper as a PowerShell twin:
+
+```powershell
+powershell -File scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.ps1 -Apply `
+  -Wallet .\alice.json -Rpc 127.0.0.1:18734 `
+  -Log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
 If you already have a near-tip `light_checkpoint_hex` in the wallet file, a plain light-scan plus cross-check is enough:
 
 ```bash
@@ -120,7 +128,7 @@ mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
   --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
 ```
 
-The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys or `submit_tx`.
+The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys. Tall-tip `get_light_snapshot` / `get_block_headers` use a longer proxy timeout (**B-52** / F54; default 180s via `PROXY_HEAVY_RPC_TIMEOUT_MS`). Prefer a local observer RPC for wallet bootstrap when possible.
 
 Automated outside-in check (operators): on a synced local observer (`127.0.0.1:18734`), run `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` — exercises `fund-wallet-http`, checkpoint-log `light-scan`, observer proxy cross-check, and permanence upload/restore. Do not run parallel JOIN rehearsals or restart `faucet-http` while a B-15 evidence capture is in flight (see [`AGENTS.md`](../AGENTS.md) §6).
 

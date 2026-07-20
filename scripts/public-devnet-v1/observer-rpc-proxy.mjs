@@ -22,6 +22,16 @@ const LISTEN_HOST = process.env.PROXY_HOST ?? "0.0.0.0";
 const LISTEN_PORT = Number(process.env.PROXY_PORT ?? "8787");
 const MAX_BODY = Number(process.env.PROXY_MAX_BODY_BYTES ?? String(2 * 1024 * 1024));
 const RPC_TIMEOUT_MS = Number(process.env.PROXY_RPC_TIMEOUT_MS ?? "30000");
+/** Tall-tip light-client methods (B-52 / F54): first get_light_snapshot can take 50–120s. */
+const HEAVY_RPC_TIMEOUT_MS = Number(
+  process.env.PROXY_HEAVY_RPC_TIMEOUT_MS ?? "180000",
+);
+const HEAVY_METHODS = new Set([
+  "get_light_snapshot",
+  "get_block_headers",
+  "get_light_follow",
+  "get_block",
+]);
 const INDEX_INTERVAL_MS = Number(process.env.PROXY_INDEX_INTERVAL_MS ?? "500");
 const INDEX_CONCURRENCY = Number(process.env.PROXY_INDEX_CONCURRENCY ?? "32");
 const INDEX_BURST = Number(process.env.PROXY_INDEX_BURST ?? "128");
@@ -156,7 +166,7 @@ function savePersistedIndex() {
   }
 }
 
-function tcpLineRpc(line) {
+function tcpLineRpc(line, timeoutMs = RPC_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host: mfndHost, port: mfndPort }, () => {
       socket.write(line.endsWith("\n") ? line : `${line}\n`);
@@ -164,8 +174,8 @@ function tcpLineRpc(line) {
     let buf = "";
     const timer = setTimeout(() => {
       socket.destroy();
-      reject(new Error("mfnd RPC timeout"));
-    }, RPC_TIMEOUT_MS);
+      reject(new Error(`mfnd RPC timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
     socket.setEncoding("utf8");
     socket.on("data", (chunk) => {
       buf += chunk;
@@ -186,9 +196,14 @@ function tcpLineRpc(line) {
   });
 }
 
+function timeoutForMethod(method) {
+  return HEAVY_METHODS.has(method) ? HEAVY_RPC_TIMEOUT_MS : RPC_TIMEOUT_MS;
+}
+
 async function mfndCall(method, params, id = 1) {
   const line = await tcpLineRpc(
     JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+    timeoutForMethod(method),
   );
   const obj = JSON.parse(line);
   if (obj.error) {
@@ -461,6 +476,8 @@ const server = http.createServer(async (req, res) => {
         backend: MFND_RPC,
         index: totals,
         index_errors: indexErrors,
+        rpc_timeout_ms: RPC_TIMEOUT_MS,
+        heavy_rpc_timeout_ms: HEAVY_RPC_TIMEOUT_MS,
       }),
     );
     return;
@@ -528,7 +545,7 @@ const server = http.createServer(async (req, res) => {
     } else if (method === "get_block_txs") {
       line = await handleGetBlockTxs(msg.params || {}, id);
     } else if (method === "list_methods") {
-      const upstream = await tcpLineRpc(JSON.stringify(msg));
+      const upstream = await tcpLineRpc(JSON.stringify(msg), timeoutForMethod(method));
       try {
         const obj = JSON.parse(upstream);
         if (Array.isArray(obj.result)) {
@@ -543,7 +560,7 @@ const server = http.createServer(async (req, res) => {
         line = upstream;
       }
     } else {
-      line = await tcpLineRpc(JSON.stringify(msg));
+      line = await tcpLineRpc(JSON.stringify(msg), timeoutForMethod(method));
     }
 
     res.writeHead(200, { "Content-Type": "application/json" });

@@ -88,7 +88,7 @@ From repo root (after `cargo build -p mfn-node --release --bin mfnd`):
 | TL-7 Path B header_version (CI) | `bash scripts/public-devnet-v1/genesis-header-version-rehearsal-smoke.sh --plan-only` |
 | VPS ceremony (status/plan) | `bash scripts/public-devnet-v1/vps-launch-ceremony.sh` |
 | TL-8 publish seeds | `bash scripts/public-devnet-v1/publish-seed-nodes.sh` — after TL-7 sign-off |
-| Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers) |
+| Public observer read-RPC proxy | `http://5.161.201.73:8787/rpc` — systemd `observer-rpc-proxy.service` → observer `127.0.0.1:18734` (public-safe methods only; status pages / lite explorers). Tall-tip `get_light_snapshot` / `get_block_headers` use `PROXY_HEAVY_RPC_TIMEOUT_MS` (default 180s; B-52/F54) |
 | Public testnet faucet HTTP | `node scripts/public-devnet-v1/faucet-http.mjs` on `:8788` — async `POST /faucet` + `/faucet/job`; **F7 dual-send** (two transfers + tip-wait/rescan between sends); IP cooldown uses **TCP peer IP only** (R-4 — ignore spoofed `X-Forwarded-For`); loopback peer skips cooldown (R-3); clients retry on `503 busy`; **B-47:** `/health` never races claim `mfn-cli` (cached status while busy + wallet lock when idle); CLI retries on EAGAIN/refused |
 | Faucet catch-up (VPS) | `bash scripts/public-devnet-v1/faucet-catchup.sh` — background `wallet light-scan` for operator faucet |
 | Faucet UTXO consolidate (VPS) | `bash scripts/public-devnet-v1/faucet-consolidate.sh --plan-only` then real run weekly when `owned_count` grows |

@@ -9,6 +9,8 @@ WorkingDirectory=/root/permawrite
 Environment=MFND_RPC=127.0.0.1:18734
 Environment=PROXY_HOST=0.0.0.0
 Environment=PROXY_PORT=8787
+# B-52/F54: tall-tip get_light_snapshot / get_block_headers can exceed the 30s default.
+Environment=PROXY_HEAVY_RPC_TIMEOUT_MS=180000
 ExecStart=/usr/bin/node /root/permawrite/scripts/public-devnet-v1/observer-rpc-proxy.mjs
 Restart=always
 RestartSec=3
