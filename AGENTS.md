@@ -28,6 +28,7 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 | [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) | Append-only history (rotated sessions + retired-board snapshots) | Append only; never edit or delete |
 | [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Release gates (RC hardening checklist) | Check off gates when units land; do not track live work here |
 | [`docs/TESTNET_LAUNCH.md`](docs/TESTNET_LAUNCH.md) | Lane 7 TL phase tracker | Lane 7 mirrors TL unit status here |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Strategic phase map L0–L7, critical path, research backlog | External planning + all lanes at SYNC |
 | [`3agent.md`](3agent.md), [`docs/3agent.md`](docs/3agent.md), [`docs/AGENTS.md`](docs/AGENTS.md) | Legacy pointer stubs | Redirect here; never add content |
 | [`docs/VIBECODING.md`](docs/VIBECODING.md) | Rationale: how AI builds this chain | Context, not state |
 | `scripts/validate-workflow-encoding.*`, `scripts/validate-rc-helper-scripts.*` | Board integrity guards | Fail closed on UTF-16/mojibake corruption of this file, the stubs, and the ledger |
@@ -142,7 +143,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **3** Onboarding | B-15 JOIN_TESTNET tooling (`774320f`) + faucet F7 fix (`f2087ad`) | **B-15 Hetzner evidence run** (claim base: `f2087ad`; checkpoint-log + job re-claim fixes landing) | Archive `join-testnet-rehearsal-linux-*.txt` | assert-join-testnet-rehearsal-evidence |
 | **4** Protocol | F5 phase 4b.1 Winterfell (`6377812`) | *Idle* | F5 phase 4b.2 recursive aggregation | Lane 1 CI/Nightly on the stack |
 | **5** Privacy | P32 4e + F12 live (`b4cab93`, `8b4f0ee`) | *Idle* | Privacy-doc sync for live-testnet wallet UX (light-scan / faucet flows) | Lane 5 doc-accuracy duty |
-| **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | Parameter fork `1000` bps (TL-7 Path B) | Emission sims (M5 tier) |
+| **6** Permanence | F6 telemetry subsidy field (`0d1b9ec`) | *Idle* | **B-13** parameter fork `subsidy_to_treasury_bps = 1000` (emission sims → genesis/fork enable) | Emission sims (M5 tier) |
 | **7** Testnet launch | **Public testnet live:** observer proxy (`61a9fe7`), faucet API (`ebffaef`), testnet-frontend (`ab6af42`), wallet light-scan fixes (`48cff48`…`23fb359`) | *Idle* | TL-9 named watchers; share [`TESTNET_INVITE.md`](docs/TESTNET_INVITE.md) / [`JOIN_TESTNET.md`](docs/JOIN_TESTNET.md) | `launch-go-no-go` + soak/participant asserts |
 
 ---
@@ -166,7 +167,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | ID | Item | Suggested lane | Notes |
 | --- | --- | --- | --- |
 | B-12 | F5 phase 4b.2 — recursive STARK aggregation over batch-binding circuits | 4 | Follows `6377812` |
-| B-13 | Parameter fork: `subsidy_to_treasury_bps = 1000` (TL-7 Path B) | 6 | Approved in [`FEES.md § 5.4`](docs/FEES.md); consensus-versioned |
+| B-13 | Parameter fork: `subsidy_to_treasury_bps = 1000` | 6 | Approved [`FEES.md` §5.4](docs/FEES.md); consensus field shipped — **genesis/fork enable pending** ([`ROADMAP.md` Phase 1](docs/ROADMAP.md#phase-1--permanence-depth-on-the-live-chain-permanence-first) B-13a–c). **Not** TL Path B genesis. |
+| B-15 | JOIN_TESTNET outside-in VPS evidence + assert | 3 | Tooling on `main`; live transcript + assert — often §5 Doing |
 | B-14 | TL-9 named watchers + invite circulation | 7 | Last open TL phase |
 | B-16 | Privacy-doc sync for live wallet UX (light-scan checkpoints, faucet flow) | 5 | Docs drifted during lane-7 launch sprint |
 
