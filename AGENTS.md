@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-47** faucet EAGAIN harden) on `e5d57de` stack. Tip live **4040+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`.
+**CI gate (2026-07-20):** code head = this commit (**B-47** faucet EAGAIN harden) on `fe56ca8` stack. Tip live **4040+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -215,7 +215,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
 | B-46 | Tip-stall ops harden: `Wants=` + hub dial extras | 4+7 | **Landed** `4d07b7d` — tip 4031→4034+ |
-| B-47 | Faucet HTTP retry on transient mfn-cli EAGAIN | 7+3 | **In flight** (lane 7 `faucet-http.mjs` WIP — do not steal) |
+| B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
 | B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Landed** — prevents 300s committee quarantine after bind storms |
 
 ---
@@ -224,7 +224,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 7 — B-47 faucet EAGAIN harden** (this commit): `/health` never races claim `mfn-cli`; `runRetry` on EAGAIN/refused; repair script applies `MFN_P2P_DIAL_EXTRA` via soften. Evidence `b47-faucet-eagain-harden-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, `_wave6_probe.py`.
+1. **2026-07-20 — lane 7 — B-47 faucet EAGAIN harden** (this commit): `/health` never races claim `mfn-cli`; `runRetry` on EAGAIN/refused; repair script applies `MFN_P2P_DIAL_EXTRA` via soften. Evidence `b47-faucet-eagain-harden-20260720.md`. VPS pull+faucet restart at idle (`wallet_status_cached` live); tip **4047+**. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, `_wave6_probe.py`.
 2. **2026-07-20 — lane 3 — B-15 wave6** (`e5d57de`): tip 4040; alice faucet SUCCESS. Evidence wave6.
 3. **2026-07-20 — lane 1 — B-34 CI `#29713542820`** (`9ac5ea7`): watch after Actions recovery.
 4. **2026-07-20 — lane 7 — B-46 tip-4031 recovery** (`4d07b7d`): hub redial + Wants=.
