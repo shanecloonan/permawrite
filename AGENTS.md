@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `00c5d33` (B-29 ps1 parse) / `5dc3aa8` (WS tip). B-16 `49d28f9`; B-30 `2f1b4e2`. **CI `#29711584157` queued** on `00c5d33` (prior B-34 successors cancelled). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-13a** → **B-25**.
+**CI gate (2026-07-19):** code head = `e10a8b3` (B-29 ps1 parse on `5dc3aa8`); B-16 `49d28f9`; B-30 `2f1b4e2`; B-31 probe `6f637a4`. **CI `#29711605173` queued** on `e10a8b3` (B-34 watch: empty-step queues). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29** code `5dc3aa8` + ps1 parse `00c5d33` | *Idle* | Watch CI `#29711584157`; Nightly → close B-29 | CI/Nightly run IDs in §8 |
+| **1** RC core | **B-29** code `5dc3aa8` + parse `e10a8b3` | **Watch CI `#29711605173`** (claim base: `e10a8b3`; B-34 if empty-step ~8-10m) | Nightly re-dispatch when GREEN -> close B-29 | CI/Nightly run IDs in §8 |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | B-15 tooling (`774320f`…`02c8df8`) | **B-15 Hetzner evidence** (claim base: `02c8df8`) | Archive + assert; keep §6 faucet lock | L4 checklist |
 | **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-24** | Lane 1 CI/Nightly |
@@ -211,7 +211,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-19 — lane 7 — B-31 threat posture probe** (this commit): Evidence `b31-threat-posture-20260720.md` — RPC loopback **PASS**; public P2P seeds **FAIL** (`vps-bind` 127.0.0.1); checkpoint tip=3 vs live ~4022; faucet R-4 code on disk. Did **not** restart mfnd/faucet (B-15 in flight). **B-40** + human **B-22** seed filed in §6. Docs-only `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
+1. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim** (this commit): Confirm `e10a8b3` has fund-wallet.ps1 parse + launch pin; board tracks **CI `#29711605173`**. Did **not** touch Hetzner (B-15 / B-40 blocked). Docs-only `[skip ci]`. *Observed local work (not staged):* ROADMAP (planning), user-wallet/, ci-docs-*.txt, live-testnet-data/.
+2. **2026-07-19 — lane 7 — B-31 threat posture probe** (this commit): Evidence `b31-threat-posture-20260720.md` — RPC loopback **PASS**; public P2P seeds **FAIL** (`vps-bind` 127.0.0.1); checkpoint tip=3 vs live ~4022; faucet R-4 code on disk. Did **not** restart mfnd/faucet (B-15 in flight). **B-40** + human **B-22** seed filed in §6. Docs-only `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
 2. **2026-07-19 — lane 1 — B-29 fund-wallet.ps1 parse fix-forward** (`00c5d33`): PowerShell parse broke validate-rc-helper-scripts; **CI `#29711584157` queued**.
 3. **2026-07-19 — planning — B-27/B-31/B-32 work packages + B-34** (`76d4f04` / `2fd23f1`): CI stall restart; work packages.
 4. **2026-07-19 — planning + lane 7 — B-30 + trajectory** (`2f1b4e2` / `9890864`): B-30 matrix; B-29 close=Nightly.
