@@ -119,3 +119,14 @@ wallet_path=scripts\public-devnet-v1\user-wallet\dave.json
 }
 ```
 
+## Finding F67 (B-50 pin can miss pre-checkpoint faucet UTXOs)
+
+Dave funded while tip ~4131-4134; checkpoint max was **4133**. After pin+scan from 4134:
+
+- balance=**500000**, owned_count=**1** (expected 1_000_000 / 2 for F7 dual-send)
+- Job claimed sends=2 / total_amount=1000000
+
+**Interpretation:** bootstrap to log tip skips scanning txs at heights <= pin. Any faucet output included in block <= 4133 is invisible until a lower pin or genesis scan. JOIN runbooks must fund **after** pin, or pin to a tip **below** expected fund heights, or rescan from an earlier snapshot.
+
+Partial receive: **PASS** for 1/2 UTXOs; **FAIL** strict F7 owned_count>=2.
+
