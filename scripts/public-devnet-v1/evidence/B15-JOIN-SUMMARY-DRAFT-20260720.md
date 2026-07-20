@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–39; erin@**4602** proxy-prove PASS; claims=17; twenty proxy-proven wallets.
+**Status:** DRAFT — waves 6–40; frank@**4611** proxy-prove PASS; claims=18; twenty-one proxy-proven wallets.
+| frank | peer (after faucet 429) | n/a | yes | **4611** (wave40; proxy-prove PASS) |
 | erin | faucet | n/a | yes | **4602** (wave39; proxy-prove PASS) |
 | dana | peer (after faucet 429) | n/a | yes | **4594** (wave38; proxy-prove PASS) |
 | cora | faucet (3rd wipe + mempool gate) | n/a | yes | **4585** (wave37; proxy-prove PASS) |
@@ -45,7 +46,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Twenty wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/**erin**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Twenty-one wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/**frank**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -74,6 +75,9 @@ Twenty wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/pat
 24. **F101** — after peer dual-donor, first pin may show owned=1; continue ladder until owned≥2 before upload (wave31: pin@4443→1, pin@4400→2).
 
 18. **F45** - tip-4400 ckpt landed but hard scan still FAIL at tip 4404 (lag~4); pin@max insufficient.
+
+25. **F105** — proxy `list_recent_uploads` can lag local matched prove by ~1–2 min (wave40: ~100s after last_proven).
+26. **F100** — local `matched`/`last_proven` can precede tip_id match; wait for tip_id equality before treating public settle as final (wave40 poll 10 vs 20).
 
 ## Still open before formal archive PASS
 
