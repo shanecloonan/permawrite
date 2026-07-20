@@ -247,6 +247,10 @@ Same miss-cap drive as B-67, but the cap-crossing block has **no** proofs. Both 
 
 Same miss-cap drive as B-67, but `operator_slash_bps = 10_000`. Peer settles; absentee is fully forfeited (`bond→0`) and **deregistered** in the same `apply_block`. Pins treasury = full bond credit then storage drain; peer stays registered; follow-on salted proof from the absentee → `StorageProofUnregisteredOperator`. Complements B-67’s partial keep-registered path. Does **not** close full **B-24**.
 
+#### B-83 — dual settle at miss=cap−1 with no slash (lane 4; early B-24f)
+
+Same miss-cap drive as B-67, but **both** operators prove (`mask=0b11`) on the cap-crossing slot. Prove resets prevent slash; treasury drains for two settlements (+bonuses); both miss streaks clear; bonds unchanged. Honest multi-op recovery path complementary to B-67 (1-of-2 slash+settle) and B-81 (full deregister). Does **not** close full **B-24**.
+
 #### B-51 — no dial/quarantine of ephemeral inbound ports (lane 4)
 
 Live hub logs show `mfnd_p2p_block_fanout_abort` / `peer_quarantine` against `127.0.0.1:<ephemeral>` after inbound sessions drop. Block fan-out was redialing session keys (source ports), not durable listen addrs. **B-51:** dial only durable peers for block/fraud fan-out; `note_peer_failure` ignores non-durable addresses. Complements **B-48** (EAGAIN soft-fail).

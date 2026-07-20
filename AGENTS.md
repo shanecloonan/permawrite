@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29758805553` GREEN** on B-81 `f924a63` (includes B-27/B-79/B-80). Landing **B-82** tip-4532 (full CI). **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-83** (full CI). Prior **CI `#29758805553` GREEN** on B-81. Watching B-82 `#29761396117`. **B-29 CLOSED**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-27** (9f5ed4d); **B-75**/**B-29**; CI `#29758805553` GREEN | *Idle* | Participant half post-B-15 if needed; **B-34** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave34** (zoe last_proven=4533; F105 proxy lag) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-81** (`f924a63`, CI `#29758805553` GREEN); **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-83** dual-settle at cap−1 (this commit); **B-81** (`f924a63`); **B-76**/**B-74**/**B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack — blocked on 2nd host (**B-79**/**B-82** NOT READY) | After 2 hosts + B-15: `b3-multi-op-*.txt` → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-82** Path A tip-4532 (this commit); **B-80**/**B-79**/**B-78**/**B-77** | *Idle* | **B-42** after B-15 PASS; real 2nd host for B-32 (see second-host checklist) | `launch-go-no-go` |
@@ -265,6 +265,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (`62a9c02`); **CI `#29739903305` GREEN** |
 | B-76 | Dual-operator empty-audit slash treasury identity (early B-24d) | 4 | **Landed** (`dc50737`/`5492a07`); covered by **CI `#29753244727` GREEN** |
 | B-81 | Full-slash deregister while peer settles (early B-24e) | 4 | **Landed** (`f924a63`); **CI `#29758805553` GREEN** |
+| B-83 | Dual settle at miss=cap−1 with no slash (early B-24f) | 4 | **Landed** (this commit) — both prove → dual drain, bonds intact |
 
 ---
 
@@ -272,7 +273,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave34**: wipe+resync; **zoe** faucet permanence **last_proven=4533** (commit `4ded4c6d`); proxy-prove gate PASS; F105 proxy index lag; claims 13→14; F45 TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
+1. **2026-07-20 — lane 4 — B-83 dual-settle at cap−1 no slash** (this commit): early B-24f `b83_b5_dual_settle_at_cap_minus_one_*`; local debug test PASS. Full CI. *Observed (not staged):* lane-1 B-34 WIP, JOIN/`user-wallet`/`live-testnet-data*`.
+2. **2026-07-20 — lane 3 — B-15 wave34**: wipe+resync; **zoe** faucet permanence **last_proven=4533** (commit `4ded4c6d`); proxy-prove gate PASS; F105 proxy index lag; claims 13→14; F45 TIMEOUT. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
 2. **2026-07-20 — lane 7 — B-82 Path A tip-4532** (this commit): waited for **CI `#29758805553` GREEN** (B-81); exact-tip **4532** (entries=18); B-32 second-host arm checklist; peers-clean OK; arm-ready still NOT READY (1 host). No faucet/mfnd restart. Evidence `b82-path-a-tip4532-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-34 WIP (`watch-ci-stall` in ci-check/ROADMAP), JOIN temps, `user-wallet/`, `live-testnet-data*`.
 1. **2026-07-20 - lane 1 - B-27 CI watch** (`45e40d6`): CI #29758129931 cancelled by B-81; scripts ubuntu/windows were GREEN. Watching #29758805553 on f924a63. Docs [skip ci].
 1. **2026-07-20 — lane 3 — B-15 wave34 open**: F104 wipe — quarantined divergent `live-testnet-data` → `…-divergent-20260720-113211`; fresh mfnd tip_id match @4525; proxy-prove gate armed; zoe battery running. Honor §6. *Observed local work (not staged):* wallets, live-testnet-data*, other-lane dirty files.
