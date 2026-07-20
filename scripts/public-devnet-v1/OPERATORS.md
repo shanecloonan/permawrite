@@ -270,6 +270,8 @@ Default threshold: 16 blocks (`MFN_CKPT_LAG_THRESHOLD`). Never touches faucet/mf
 
 **B-88 VPS timer:** `bash scripts/public-devnet-v1/vps-install-near-tip-ckpt-timer.sh --apply` installs `path-a-near-tip-ckpt.timer` (every 30m). After a timer publish dirties the VPS working tree, agents must land the jsonl on `main` (scp + commit); before `git pull` on the VPS, `git checkout -- mfn-node/testdata/public_devnet_v1.checkpoints.jsonl` if needed.
 
+**B-89 ops helpers:** on VPS, `bash scripts/public-devnet-v1/assert-path-a-near-tip-timer.sh --apply` (timer active + last oneshot not failed). From an agent host, `bash scripts/public-devnet-v1/land-path-a-checkpoint-from-vps.sh --apply` scps the remote jsonl when VPS tip is ahead (does not commit).
+
 ### Proxy upload index lag (F105)
 
 JOIN permanence gates must wait for **proxy** `list_recent_uploads` (observer `:8787`), not only local `uploads status` matched. Local matched can precede public visibility by 1-2 minutes after prove.
