@@ -17,6 +17,12 @@ if ($Dandelion -or $env:MFN_DEVNET_DANDELION -eq "1") {
     Write-Host "start-all: dandelion relay enabled (MFND_DANDELION=1)"
 }
 
+# Local Windows mesh must not dial published public seed_nodes (same genesis as live testnet).
+if (-not $env:MFN_SKIP_MANIFEST_SEEDS) {
+    $env:MFN_SKIP_MANIFEST_SEEDS = "1"
+}
+Write-Host "start-all: local mesh - MFN_SKIP_MANIFEST_SEEDS=$($env:MFN_SKIP_MANIFEST_SEEDS) (isolated from public seeds)"
+
 if ($env:MFN_DEVNET_SKIP_BUILD -eq "1") { $NoBuild = $true }
 $Mfnd = Join-Path $RepoRoot "target\release\mfnd.exe"
 if (-not $NoBuild) {

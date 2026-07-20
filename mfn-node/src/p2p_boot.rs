@@ -113,15 +113,41 @@ pub fn seed_nodes_from_genesis_manifest(genesis_spec: &Path) -> Result<Vec<Strin
     seed_nodes_from_manifest_path(&manifest)
 }
 
+/// When true, [`merge_boot_peer_dials`] ignores sibling-manifest `seed_nodes`.
+///
+/// Set `MFN_SKIP_MANIFEST_SEEDS=1` for isolated local meshes (Nightly / `start-all`
+/// loopback rehearsal). Public VPS boot must leave this unset so published
+/// `seed_nodes` still dial. Explicit `--p2p-dial` addresses are never skipped.
+pub fn env_skip_manifest_seeds() -> bool {
+    matches!(
+        std::env::var("MFN_SKIP_MANIFEST_SEEDS")
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 /// Merge manifest seeds (when present) into explicit `--p2p-dial` addresses.
 pub fn merge_boot_peer_dials(
     explicit: &mut Vec<String>,
     genesis_spec: Option<&Path>,
 ) -> Result<BootPeerDialMergeReport, String> {
+    merge_boot_peer_dials_inner(explicit, genesis_spec, env_skip_manifest_seeds())
+}
+
+fn merge_boot_peer_dials_inner(
+    explicit: &mut Vec<String>,
+    genesis_spec: Option<&Path>,
+    skip_manifest_seeds: bool,
+) -> Result<BootPeerDialMergeReport, String> {
     *explicit = normalize_peer_addrs(std::mem::take(explicit), "explicit --p2p-dial")?;
     if let Some(g) = genesis_spec {
-        for addr in seed_nodes_from_genesis_manifest(g)? {
-            push_unique_peer_addr(explicit, addr);
+        if !skip_manifest_seeds {
+            for addr in seed_nodes_from_genesis_manifest(g)? {
+                push_unique_peer_addr(explicit, addr);
+            }
         }
     }
     let configured = explicit.len();
@@ -227,8 +253,33 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec!["203.0.113.10:4001".into()];
-        merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
         assert_eq!(explicit, vec!["203.0.113.10:4001", "203.0.113.11:4001",]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn merge_boot_peer_dials_skips_manifest_seeds_when_requested() {
+        let dir = std::env::temp_dir().join(format!(
+            "permawrite-p2p-boot-skip-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("tmpdir");
+        let genesis = dir.join("net_skip.json");
+        std::fs::write(&genesis, b"{}").expect("genesis stub");
+        let manifest = dir.join("net_skip.manifest.json");
+        std::fs::write(
+            &manifest,
+            r#"{"seed_nodes":["5.161.201.73:19001","5.161.201.73:19002"]}"#,
+        )
+        .expect("write manifest");
+        let mut explicit = vec!["127.0.0.1:19001".into()];
+        merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), true).expect("merge");
+        assert_eq!(explicit, vec!["127.0.0.1:19001"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -253,7 +304,8 @@ mod tests {
         )
         .expect("write manifest");
         let mut explicit = vec![" 203.0.113.10:4001 ".into()];
-        let err = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect_err("bad seed");
+        let err = merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false)
+            .expect_err("bad seed");
         assert!(err.contains("bad host"), "err={err}");
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -280,7 +332,8 @@ mod tests {
             .expect("write manifest");
 
         let mut explicit = Vec::new();
-        let report = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
+        let report =
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 10);
         assert_eq!(report.retained, MAX_BOOT_PEER_DIALS);
@@ -316,7 +369,8 @@ mod tests {
             .expect("write manifest");
 
         let mut explicit = vec!["198.51.100.10:4001".into(), "198.51.100.11:4001".into()];
-        let report = merge_boot_peer_dials(&mut explicit, Some(&genesis)).expect("merge");
+        let report =
+            merge_boot_peer_dials_inner(&mut explicit, Some(&genesis), false).expect("merge");
         assert_eq!(explicit.len(), MAX_BOOT_PEER_DIALS);
         assert_eq!(report.configured, MAX_BOOT_PEER_DIALS + 2);
         assert_eq!(report.dropped, 2);

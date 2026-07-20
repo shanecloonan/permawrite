@@ -19,6 +19,11 @@ source "$SCRIPT_DIR/vps-bind-lib.sh"
 if [[ "${MFN_VPS_MODE:-}" == "1" ]]; then
   load_vps_bind_file "$SCRIPT_DIR" || exit 1
   echo "start-all: VPS mode — public P2P binds from ${MFN_VPS_BIND_FILE:-$SCRIPT_DIR/vps-bind.env}"
+else
+  # Local Nightly/rehearsal mesh must not dial published public seed_nodes from
+  # public_devnet_v1.manifest.json (same genesis_id as live Hetzner → tip poison).
+  export MFN_SKIP_MANIFEST_SEEDS="${MFN_SKIP_MANIFEST_SEEDS:-1}"
+  echo "start-all: local mesh — MFN_SKIP_MANIFEST_SEEDS=$MFN_SKIP_MANIFEST_SEEDS (isolated from public seeds)"
 fi
 
 NO_BUILD=0

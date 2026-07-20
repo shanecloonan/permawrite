@@ -134,11 +134,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29720670813` GREEN** on B-63 (`e4369a9`). Landing **B-64** (producer seal filter) — new CI follows. **Nightly RED** (seed isolation) = lane 1 **B-29**. Lane 7: roll mfnd after B-64 CI GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** Landing **B-29 seed-isolation** (completes `env_skip_manifest_seeds` left dangling by B-64 `mfnd_cli` call). Prior **CI `#29720670813` GREEN** (B-63). **Nightly RED** until re-dispatch GREEN. Lane 7: roll mfnd after this CI + B-64 GREEN. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **CI `#29720670813` GREEN** (B-63); Nightly seed-isolation diagnosed | **B-29 seed-isolation** — `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` (claim base: `e4369a9`) | Land when CI idle after B-64; re-dispatch Nightly → close **B-29** | CI/Nightly run IDs |
+| **1** RC core | **B-29 seed-isolation** (this commit): `MFN_SKIP_MANIFEST_SEEDS` + local `start-all` | *Idle* — watch CI on this head | Re-dispatch Nightly → close **B-29** on GREEN | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave18** (judy JOIN last_proven=4229; F84) | **B-15** JOIN SUMMARY draft (claim base: this head) | Archive SUMMARY; avoid Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-64** settle/apply seal filter (this commit); **B-63**/**B-51**/**B-48**/**B-45** | *Idle* | After mfnd roll: live **B-32**; then **B-44** → full **B-24** | Lane 1 CI |
@@ -209,7 +209,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly participant rehearsal GREEN | 1+3 | Tip-mismatch code `5dc3aa8`; **#29720083660 RED** = public seed dial into local mesh — seed-isolation in flight; **close** = Nightly GREEN only |
+| B-29 | Nightly participant rehearsal GREEN | 1+3 | Tip-mismatch `5dc3aa8` + seed-isolation (this commit); **close** = Nightly GREEN only (not code land) |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
 | B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
@@ -253,7 +253,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
 1. **2026-07-20 - lane 3 - B-15 wave18** (42528d9): judy upload last_proven=4229; F84 claim disabled; grace upload 12a11d7d; Evidence wave18.md. [skip ci].
-1. **2026-07-20 — lane 4 — B-64 settle/apply seal filter** (this commit): producers seal only settlement-accepted proofs (`runner`/`mfnd_cli`); `b64_*` parity tests (unknown/dup/over-replication). Local PASS. Prior **CI `#29720670813` GREEN** on B-63. *Observed:* leave lane-1 `p2p_boot`/`start-all` + JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+1. **2026-07-20 — lane 1 — B-29 seed-isolation** (this commit): `MFN_SKIP_MANIFEST_SEEDS` in `p2p_boot` + default on local `start-all` (not VPS). Completes dangling `mfnd_cli` call from B-64. Nightly `#29720083660`/`#29722360568`/`#29724006937` RED was public seed dial into GHA mesh. Local p2p_boot tests PASS. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+2. **2026-07-20 — lane 4 — B-64 settle/apply seal filter** (`13a4880`): producers seal only settlement-accepted proofs; `b64_*` parity tests. Prior **CI `#29720670813` GREEN** on B-63. *Observed:* left lane-1 `p2p_boot`/`start-all` unstaged (partial `mfnd_cli` skip log landed).
 2. **2026-07-20 — lane 3 — B-15 wave18/17**: tip 4219; ivan JOIN. `[skip ci]`.
 3. **2026-07-20 — lane 4 — B-64 claim** (`d3f47bf`): docs-only while `#29720670813` ran. `[skip ci]`.
 4. **2026-07-20 — lane 4 — B-63 early B-24a** (`e4369a9`): coinbase N+1 + 1-of-2 miss. **CI `#29720670813` GREEN**.
