@@ -12,7 +12,8 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 
 ## 0. The contract (read before anything else)
 
-1. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
+1. **2026-07-20 — lane 1 — CI watch amid Actions outage** (this commit): Local-verified B-36 lint PASS on `7420aa6`. Dispatch `#29712149048` still empty-step on `dfbaa50`. Plan: when Actions leaves partial_outage, dispatch CI on tip (B-36+B-29), then Nightly. Did **not** stage other lanes' WIP (repair scripts, invite-load, wave2, user-wallet). Docs `[skip ci]`.
+2. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
 2. **No silent work.** If you are coding without a **Doing** row in §5, stop and claim first.
 3. **Read before write.** Scan the whole §5 board + §6 requests before claiming anything.
 4. **History is append-only.** Completed work rotates from §8 into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md); nothing is ever silently deleted.
@@ -134,11 +135,11 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = `dfbaa50` / B-29 parse `e10a8b3` / B-41 `54d22d7`. **CI `#29712149048` dispatched** (`workflow_dispatch` on `main`) after Actions partial_outage cancelled lineage. Do not B-34-cancel while githubstatus Actions=partial_outage. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = `7420aa6` (B-36) / B-29 parse `e10a8b3` / B-41 `54d22d7`. **CI `#29712149048` still queued** on older `dfbaa50` (empty-step; Actions partial_outage). When Actions recovers: dispatch CI on `7420aa6` (includes B-36); then Nightly -> close B-29. Do not B-34-cancel thrash during outage. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-34** escalate + dispatch `#29712149048` (this commit) | **Watch CI `#29712149048`** (claim base: `dfbaa50`) | Nightly when GREEN -> close B-29 | CI/Nightly + githubstatus |
+| **1** RC core | B-34 escalate + dispatch `#29712149048` (`27be00d`) | **Watch Actions outage** + `#29712149048` (claim base: `7420aa6`) | On recovery: `gh workflow run CI` on tip; Nightly -> close B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
 | **4** Protocol | **B-36** F10 f64 CI lint (this commit) | *Idle* | After L4: **B-32** -> **B-44** -> **B-24** | Lane 1 CI/Nightly |
