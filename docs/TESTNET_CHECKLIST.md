@@ -408,9 +408,9 @@ Permawrite is pre-audit experimental software. This checklist tracks the minimum
 Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exit-checklist-concrete-verification). Tick when evidence exists on `main` head.
 
 - [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
-- [ ] **B-16** — Privacy-doc sync: [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`TESTNET.md`](./TESTNET.md), [`PRIVACY.md`](./PRIVACY.md), [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) match shipped light-scan / checkpoint-log / F7 faucet UX.
+- [x] **B-16** — Privacy-doc sync: [`JOIN_TESTNET.md`](./JOIN_TESTNET.md), [`TESTNET.md`](./TESTNET.md), [`PRIVACY.md`](./PRIVACY.md), [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) (+ OPERATORS + wallet/WASM READMEs) match shipped light-scan / checkpoint-log / F7 faucet UX.
 - [ ] **B-22** — TL-8 checkpoint log VPS publish verified (`publish-checkpoint-log.sh --apply` if drifted).
-- [ ] **L1 refresh** — Green CI + Nightly + `release-evidence` **go** on B-15/R-4 head (`73abf77` stack).
+- [ ] **L1 refresh** — Green CI + Nightly + `release-evidence` **go** on B-15/R-4 head (`02c8df8` stack).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).
 
 ## Cross-Agent Notes

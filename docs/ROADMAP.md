@@ -6,7 +6,7 @@ The tier system maps the conceptual roadmap onto concrete code milestones.
 
 ## Where we are right now
 
-**As of 2026-07-19** (planning head `ad31f0a`; code head `73abf77` B-15 checkpoint-log fix; experimental public testnet live on Hetzner `5.161.201.73`).
+**As of 2026-07-19** (planning head `2c2305b`; code head `02c8df8` B-15 checkpoint light-scan hardening; experimental public testnet live on Hetzner `5.161.201.73`).
 
 The workspace is **15 crates** on the same green CI gate (fmt + clippy `-D warnings` + release tests on Linux/macOS/Windows + wasm + cargo-audit + script/board guards).
 
@@ -43,7 +43,7 @@ Ordered levels — do not skip gates when inviting outside users or moving value
 | Level | Name | When true | Current (2026-07-19) |
 |---|---|---|---|
 | **L0** | Local developer mesh | `start-all.*` + health-check PASS on loopback | ✓ live |
-| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); **refresh pending** on `73abf77` stack (CI `#29710893096` queued) |
+| **L1** | Software-ready RC | Green CI + Nightly + `release-evidence` **go** on exact head | ✓ baseline (`b4a3fa7`); **refresh pending** on `02c8df8` stack (CI `#29711044516` queued) |
 | **L2** | Internet network exists | VPS soak + participant rehearsal archived | ✓ TL-5/TL-6 on `5.161.201.73` |
 | **L3** | Experimental public testnet | Non-empty `seed_nodes`, faucet/observer/front-end, JOIN guide | ✓ **live** (TL-7 Path A toy keys, TL-8 seeds published) |
 | **L4** | Hardened public testnet | TL-9 go/no-go + named watchers + B-15 outside-in evidence + privacy docs match shipped UX | **In progress** (TL-9 open; B-15 evidence run; B-16 doc sync) |
@@ -94,11 +94,11 @@ Each phase has a **gate** (evidence or checklist) before the next phase starts i
 | Id | Deliverable | Lane | Status / notes |
 |---|---|---|---|
 | **TL-9** | Named watchers + `launch-go-no-go` human sign-offs + circulate [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | 7 | Open — last TL phase (backlog **B-14**) |
-| **B-15** | Outside-in JOIN_TESTNET rehearsal on VPS + archived evidence | 3 | **Tooling shipped** (`774320f`, R-1–R-4, `73abf77` tall-tip checkpoint log); **live VPS transcript pending** — do not restart `faucet-http` or run parallel rehearsals during evidence capture (AGENTS §6) |
+| **B-15** | Outside-in JOIN_TESTNET rehearsal on VPS + archived evidence | 3 | **Tooling shipped** (`774320f`, R-1–R-4, `73abf77`/`02c8df8` tall-tip checkpoint log); **live VPS transcript pending** — do not restart `faucet-http` or run parallel rehearsals during evidence capture (AGENTS §6) |
 | **B-15 assert** | `assert-join-testnet-rehearsal-evidence.*` PASS on `join-testnet-rehearsal-linux-*.txt` | 3 | Fixture + plan gate in ci-check; live assert after VPS run |
-| **B-16** | Privacy-doc sync: light-scan checkpoints, faucet flow, live wallet UX | 5 | Backlog — docs drifted during launch sprint |
+| **B-16** | Privacy-doc sync: light-scan checkpoints, faucet flow, live wallet UX | 5 | ✓ **Shipped** — JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match F7 dual-send + light-scan + checkpoint-log |
 | **R-1–R-4** | Faucet/observer ops fix-forward (F7 dual-send, rate limits, UTF-8, job reclaim) | 2 | Landed on `main`; **VPS deploy** via `vps-update-faucet.sh` still ops |
-| **L1 refresh** | Green CI + Nightly + `release-evidence` on B-15/R-4 head | 1+2 | CI on `73abf77` queued; lane 2 request open |
+| **L1 refresh** | Green CI + Nightly + `release-evidence` on B-15/R-4 head | 1+2 | CI on `02c8df8` queued (`#29711044516`); lane 2 request open |
 | **Ops** | Role-separated VPS templates exercised on internet ([`REFERENCE_TOPOLOGY.md`](./REFERENCE_TOPOLOGY.md)) | 7 | PM23 hard-fail templates shipped; multi-host rehearsal human |
 | **B-22** | Verify TL-8 checkpoint log publish (`publish-checkpoint-log.sh --apply` on VPS) matches repo + JOIN cross-check | 7 | Repo log exists; [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) lists VPS publish as remaining TL-8 ops |
 
@@ -110,28 +110,28 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 
 | Step | Command / artifact | Owner | Pass when |
 |---|---|---|---|
-| **L1 CI** | GitHub CI on `73abf77` stack (`#29710893096` or successor) | 1 | Matrix **GREEN** (fmt, clippy, release tests, wasm, audit, script guards) |
+| **L1 CI** | GitHub CI on `02c8df8` stack (`#29711044516` or successor) | 1 | Matrix **GREEN** (fmt, clippy, release tests, wasm, audit, script guards) |
 | **L1 Nightly** | Dispatch after CI GREEN on protocol-affecting head | 1 | All three Nightly jobs **GREEN** |
 | **L1 evidence** | `release-evidence-refresh-for-head` + RC audit dry-run | 2 | `decision=go` on exact head |
 | **R-4 VPS** | `bash scripts/public-devnet-v1/vps-update-faucet.sh` on Hetzner | 2+7 | Faucet R-4 peer-IP rate limit live; health `busy:false` between runs |
 | **B-15 capture** | `bash scripts/public-devnet-v1/run-join-testnet-vps-once.sh` (operator VPS) | 3 | Produces `scripts/public-devnet-v1/evidence/join-testnet-rehearsal-linux-*.txt` with `SUMMARY: PASS` |
 | **B-15 assert** | `bash scripts/public-devnet-v1/assert-join-testnet-rehearsal-evidence.sh <file>` | 3 | Assert script exits 0; smoke lines include `faucet_http=true light_scan_checkpoint=true observer_proxy=true` |
-| **B-16 docs** | Inventory below — each file matches shipped UX | 5 | No stale “full `wallet scan` only” guidance at high tip; F7 dual-send faucet documented |
+| **B-16 docs** | Inventory below — each file matches shipped UX | 5 | ✓ **Done** — no stale “full `wallet scan` only” at high tip; F7 dual-send faucet documented |
 | **B-22** | `publish-checkpoint-log.sh --apply` on VPS if log drifted from repo | 7 | `mfn-cli checkpoint-log verify` PASS on internet-facing copy |
 | **TL-9** | `launch-go-no-go.sh` + named human sign-offs + circulate [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | 7 + human | Go/no-go JSON **go**; watcher list recorded in launch packet |
 
-**B-16 documentation inventory** (privacy accuracy — lane 5 owns edits):
+**B-16 documentation inventory** (privacy accuracy — lane 5; **closed 2026-07-19**):
 
-| File | Gap (2026-07-19) | Must document |
+| File | Status | Documented |
 |---|---|---|
-| [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) | Partially updated | HTTP faucet dual-send + job poll; `light-scan` at high tip; observer proxy read-only use |
-| [`TESTNET.md`](./TESTNET.md) | Missing live-wallet path | Same as JOIN for local mesh + link to public devnet URLs |
-| [`PRIVACY.md`](./PRIVACY.md) | F7 only | F7 two-in/two-out + **why** light-scan is default at high tip; checkpoint-log cross-check pointer |
-| [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) | B-16 called out | Mark B-16 rows **done** when sibling docs land |
-| [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md) | ✓ current | Keep as canonical F12 reference |
-| [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | Pre-L4 invite | Align URLs, faucet cooldown, privacy disclaimer with JOIN |
-| [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) | Faucet ops | R-1–R-4 behavior, no parallel rehearsals during evidence |
-| Wallet README / WASM demo copy | Unverified | `light-scan --checkpoint-log`, view tags, F7 send floors |
+| [`JOIN_TESTNET.md`](./JOIN_TESTNET.md) | ✓ | HTTP faucet dual-send + job poll; `light-scan --checkpoint-log` at high tip; observer proxy read-only |
+| [`TESTNET.md`](./TESTNET.md) | ✓ | Live public wallet path + local-mesh fund-wallet F7 |
+| [`PRIVACY.md`](./PRIVACY.md) | ✓ | F7 floors + why light-scan is default at high tip; F12 checkpoint pointer |
+| [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md) | ✓ | B-16 marked shipped in prioritization table |
+| [`CHECKPOINT_LOG.md`](./CHECKPOINT_LOG.md) | ✓ | Canonical F12 reference (unchanged) |
+| [`TESTNET_INVITE.md`](./TESTNET_INVITE.md) | ✓ | Faucet URL/cooldown + privacy defaults + proxy disclaimer |
+| [`scripts/public-devnet-v1/OPERATORS.md`](../scripts/public-devnet-v1/OPERATORS.md) | ✓ | R-1–R-4 faucet behavior; no parallel rehearsals during B-15 |
+| Wallet README / WASM demo copy | ✓ | Ring-16, F7, view tags, light-scan + checkpoint-log |
 
 **Outside-in rehearsal (local mirror before VPS):** `bash scripts/public-devnet-v1/join-testnet-rehearsal-smoke.sh --no-build --archive-evidence --use-live-urls` against a synced local observer on `127.0.0.1:18734`.
 
@@ -189,7 +189,7 @@ Run in order; parallel work is allowed only where noted. **Do not restart `fauce
 | **B-19** | F9: decoy-RNG entropy contract + conformance tests | 5 | Privacy before Tier 2 fork |
 | **B4 decoy** | Gamma calibration / age-band refinements if ring stays at 16 longer | 5 | Partially shipped; re-evaluate after Tier 2 |
 | **B-21** | B7 Dandelion++ internet soak evidence (stem/fluff timing) | 1 | Unblocks Phase 7+ **P16** cover traffic |
-| **Doc parity** | B-16 + wallet README ring/shape examples | 5 | Required before wider invites |
+| **Doc parity** | B-16 + wallet README ring/shape examples | 5 | ✓ **B-16 shipped**; keep docs in sync on Tier 2 fork |
 
 **Gate:** Tier-2 fork on devnet or staged test flag; conformance suite + M5 proptests; privacy docs match [`PRIVACY_HARDENING.md`](./PRIVACY_HARDENING.md).
 
