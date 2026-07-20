@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-50** checkpoint-log bootstrap honesty) on `284e803` stack. Tip live **4057+**. **CI `#29713542820`** (lane 1). This land `[skip ci]`. **B-48 still not on main** — live EAGAIN quarantine recurred.
+**CI gate (2026-07-20):** Rust head = this commit (**B-48** soft EAGAIN quarantine). Prior CI `#29713542820` had **windows-latest failure** (mac/ubuntu still running when this pushed). Lane 1: inspect windows + re-dispatch on this head. Tip live **4074+**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -219,7 +219,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-45 | B3 operator-salted challenge/prove/pool path | 4 | **Landed** — unblocks honest multi-op SPoRA on salted genesis; Hetzner mfnd roll = lane 7 |
 | B-46 | Tip-stall ops harden: `Wants=` + hub dial extras | 4+7 | **Landed** `4d07b7d` — tip 4031→4034+ |
 | B-47 | Faucet EAGAIN harden (health/CLI race) | 7+2 | **Done** (`fe56ca8`) — health lock + runRetry; VPS faucet restarted idle; tip 4047+ |
-| B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Claimed landed; code still local WIP** — commit `p2p_*.rs` before lane 7 rolls for tip-stall immunity |
+| B-48 | Soft-ignore EAGAIN for P2P peer quarantine | 4 | **Landed** — soft-fail EAGAIN/WouldBlock in peer quarantine (not os error 111) |
 | B-49 | VPS `vps-roll-mfnd.sh` tooling (hub+voters, no faucet) | 7 | **Done** (`284e803`) — live apply after CI GREEN |
 | B-50 | Checkpoint-log bootstrap honesty + helper | 7+5 | **Done** (docs+script); Rust auto-bootstrap still follow-up for lane 5 |
 
@@ -229,6 +229,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 — lane 4 — B-48 soft EAGAIN peer quarantine** (this commit): `note_peer_failure` ignores transient `os error 11` / WouldBlock (not `os error 111`); unit tests. Complements B-46 tip recovery; distinct from **B-47** faucet retries. *Observed local work (not staged):* lane-3 wave evidence temps, `ci-docs-*.txt`, `user-wallet/`. Local: `cargo test -p mfn-node --lib transient_eagain`. Pushed after windows RED on `#29713542820` (run could not go green).
 1. **2026-07-20 — lane 7 — B-50 checkpoint-log bootstrap honesty** (this commit): `--checkpoint-log` is cross-check only (does not skip tip); helper `bootstrap-wallet-from-checkpoint-log.sh`; JOIN docs fixed; tip-4057 Path A entry; live EAGAIN quarantine recurred → **urgent B-48**. Evidence `b50-checkpoint-log-bootstrap-honesty-20260720.md`. `[skip ci]`. *Observed local work (not staged):* lane-4 `p2p_*.rs`, `docs/ROADMAP.md`, `user-wallet/`, alice scan logs, `ci-docs-*.txt`.
 2. **2026-07-20 — lane 7 — B-49 vps-roll-mfnd tooling** (`284e803`).
 3. **2026-07-20 — lane 7 — B-22 tip-4050 checkpoint** (`0def2c1`); refreshed to tip **4057** in this land.
