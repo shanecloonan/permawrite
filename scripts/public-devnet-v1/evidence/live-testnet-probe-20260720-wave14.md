@@ -75,3 +75,27 @@ Outside-in loop reinforced: bootstrap -Apply → faucet → wait owned≥2 → u
 - Eve 129a34ce… still last_proven **4156** (visible as chain_only from frank wallet index)
 - Alice 20fcb43… still **4071** (F70)
 - Do not commit wallets / live-testnet-data*
+
+## Addendum (same session, post-6ead0f0)
+
+### Grace upload after F78 recovery — PASS
+
+With owned_count=2 / balance=940000, grace upload Fresh:
+
+| Field | Value |
+| --- | --- |
+| tx_id | 376d00bb7f2cc13f701e02ef6200c6c000bc6542479799cca4936d412eac0346 |
+| commitment | 3e728a8e91d97916efd18c5fa6cac9fdf6a56d8fec1823a5964f5ad3e60cd40c |
+| tip | 4188 |
+| fee | 1003 |
+
+Confirms F75 root cause was single-input floor, not permanence path.
+
+### Finding F79 — pin-too-high hides pre-pin UTXOs (F67 inverse)
+
+Dave balance after tip-near pins (4173/4148/4159/4170): **90000**/owned=1. Pin at **4050** + clear pending/owned: **1090000**/owned=3.
+
+Light-scan starts at pin height; UTXOs created **at or before** the pin are invisible. Near-tip re-pins after F71 recovery can strand older outputs and look like lost funds.
+
+**JOIN rule:** recovery pin must be ≤ oldest expected receive height (checkpoint log max used for bootstrap is fine for new wallets; for aged wallets prefer earliest known fund tip or genesis-adjacent trusted checkpoint).
+
