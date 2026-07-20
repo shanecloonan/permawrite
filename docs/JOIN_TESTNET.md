@@ -88,7 +88,25 @@ Back up `alice.json`. It holds your seed. Never commit it or share it.
 
 Testnet coins have **no real value**. You still need a balance to send transfers or pay upload fees.
 
-**Option A — HTTP faucet (recommended on the live testnet):** after your node is synced and you have a wallet address (`wallet address`), request test funds from the operator faucet API:
+**Option A — HTTP faucet (recommended on the live testnet):** after your local observer is synced, use **pin → fund → light-scan** (F67 / B-54). Pinning *after* the faucet skips any UTXO at height ≤ the pin tip (you may see `owned_count=1` instead of the F7 floor of 2).
+
+**1 — Pin** (B-50 helper; skips genesis→checkpoint tip):
+
+```bash
+bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply \
+  --wallet ./alice.json --rpc 127.0.0.1:18734 \
+  --log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
+Windows (no bash on PATH — F56):
+
+```powershell
+powershell -File scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.ps1 -Apply `
+  -Wallet .\alice.json -Rpc 127.0.0.1:18734 `
+  -Log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+```
+
+**2 — Fund** (after pin):
 
 ```bash
 # Replace mf… with your receive address from `wallet address`
@@ -99,34 +117,19 @@ curl -s -X POST http://5.161.201.73:8788/faucet \
 curl -s "http://5.161.201.73:8788/faucet/job?id=JOB_ID_FROM_POST"
 ```
 
-The faucet sends **two** transfers (F7 two-UTXO privacy floor so you can spend without a one-input fingerprint). Rate limits use the TCP peer IP (~15 minutes per address/IP); `503` with `busy` means another fund job is in flight — retry after a short wait. Poll `/faucet/job?id=…` until `status=done` (async; often 1–3 minutes at high tip).
+The faucet sends **two** transfers (F7 two-UTXO privacy floor). Rate limits use the TCP peer IP (~15 minutes per address/IP); `503` with `busy` means another fund job is in flight — retry after a short wait.
 
-Then refresh your balance with **`wallet light-scan`** against your **local** RPC — not a full genesis `wallet scan`.
-
-**Important (B-50):** `--checkpoint-log` only **cross-checks** the post-sync summary against the Schnorr log (**F12**). It does **not** skip genesis→tip. On a fresh wallet at tip ~4k that walk can take tens of minutes. Pin first with the operator helper (fetches `get_light_snapshot` at the log tip, writes `light_checkpoint_hex` + `scan_height`, then light-scans the delta):
-
-```bash
-bash scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.sh --apply \
-  --wallet ./alice.json --rpc 127.0.0.1:18734 \
-  --log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
-mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet status --json
-mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
-```
-
-Windows (no bash on PATH — F56): same helper as a PowerShell twin:
-
-```powershell
-powershell -File scripts/public-devnet-v1/bootstrap-wallet-from-checkpoint-log.ps1 -Apply `
-  -Wallet .\alice.json -Rpc 127.0.0.1:18734 `
-  -Log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
-```
-
-If you already have a near-tip `light_checkpoint_hex` in the wallet file, a plain light-scan plus cross-check is enough:
+**3 — Light-scan** the post-pin delta (not a full genesis `wallet scan`):
 
 ```bash
 mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet light-scan \
   --checkpoint-log mfn-node/testdata/public_devnet_v1.checkpoints.jsonl
+mfn-cli --rpc 127.0.0.1:18734 --wallet ./alice.json wallet balance
 ```
+
+Operator shortcut (same F67 order baked in): `bash scripts/public-devnet-v1/fund-wallet-http.sh --rpc … --recipient-wallet … --checkpoint-log …`.
+
+**Important (B-50):** `--checkpoint-log` only **cross-checks** the post-sync summary against the Schnorr log (**F12**). It does **not** skip genesis→tip by itself — use the pin helper above first.
 
 The read-only observer proxy at `http://5.161.201.73:8787/rpc` exposes public-safe methods only — use it for tip/header checks in a browser, never for wallet keys. Tall-tip `get_light_snapshot` / `get_block_headers` use a longer proxy timeout (**B-52** / F54; default 180s via `PROXY_HEAVY_RPC_TIMEOUT_MS`). Prefer a local observer RPC for wallet bootstrap when possible.
 

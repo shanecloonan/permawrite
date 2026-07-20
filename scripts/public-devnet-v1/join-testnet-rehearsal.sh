@@ -88,7 +88,7 @@ if (( PLAN_ONLY )); then
   echo "  rehearsal_dir=$REHEARSAL_DIR"
   echo "  uploader_wallet=$UPLOADER_WALLET"
   echo "  evidence_log=$EVIDENCE_LOG"
-  echo "  flow=verify genesis -> checkpoint-log verify -> wallet new -> fund-wallet-http -> wallet light-scan --checkpoint-log -> observer proxy cross-check -> permanence-demo -> support-bundle"
+  echo "  flow=verify genesis -> checkpoint-log verify -> wallet new -> fund-wallet-http (F67 pin-then-fund) -> wallet light-scan --checkpoint-log -> observer proxy cross-check -> permanence-demo -> support-bundle"
   echo "  note=matches docs/JOIN_TESTNET.md outside-user path after local sync"
   exit 0
 fi

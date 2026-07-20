@@ -27,7 +27,8 @@ if (-not $PlanOnly -and -not $Apply) {
 }
 if ($PlanOnly) {
   Write-Output "bootstrap-wallet-from-checkpoint-log: plan"
-  Write-Output "  unit=B-50/B-52"
+  Write-Output "  unit=B-50/B-52/B-54"
+  Write-Output "  f67=pin BEFORE faucet fund"
   Write-Output "  flow=log max tip -> get_light_snapshot(height) -> patch wallet -> light-scan --checkpoint-log"
   Write-Output "  honesty=checkpoint-log alone does not bootstrap; see JOIN_TESTNET.md"
   Write-Output "  twin=Windows PowerShell (F56)"

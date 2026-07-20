@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-needles=(bootstrap-wallet-from-checkpoint-log B-50 get_light_snapshot checkpoint-log honesty)
+needles=(bootstrap-wallet-from-checkpoint-log B-50 get_light_snapshot checkpoint-log honesty f67)
 for n in "${needles[@]}"; do
   grep -q "$n" "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" || { echo "missing needle $n" >&2; exit 1; }
 done
@@ -11,6 +11,10 @@ done
 }
 grep -q "HEAVY_RPC_TIMEOUT_MS" "$SCRIPT_DIR/observer-rpc-proxy.mjs" || {
   echo "missing HEAVY_RPC_TIMEOUT_MS in observer-rpc-proxy.mjs (B-52/F54)" >&2
+  exit 1
+}
+grep -q "F67 pin-then-fund" "$SCRIPT_DIR/fund-wallet-http.sh" || {
+  echo "missing F67 pin-then-fund in fund-wallet-http.sh (B-54)" >&2
   exit 1
 }
 plan="$(bash "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" --plan-only)"

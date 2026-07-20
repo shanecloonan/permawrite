@@ -61,7 +61,8 @@ if (( PLAN_ONLY )); then
   echo "  checkpoint_log=${CHECKPOINT_LOG:-<none>}"
   echo "  wait_mined_seconds=$WAIT_MINED_SECONDS"
   echo "  min_owned_count=$MIN_OWNED_COUNT"
-  echo "  flow=wallet address -> POST /faucet -> poll GET /faucet/job -> wallet light-scan -> wait balance + owned_count"
+  echo "  flow=F67 pin-then-fund: bootstrap-wallet-from-checkpoint-log (if --checkpoint-log) -> wallet address -> POST /faucet -> poll GET /faucet/job -> wallet light-scan -> wait balance + owned_count"
+  echo "  f67=pin BEFORE fund so faucet UTXOs are not skipped by scan_height"
   echo "  warning=test-only HTTP faucet; never commit wallet seeds"
   exit 0
 fi
@@ -105,6 +106,19 @@ wallet_light_scan() {
     "$MFN_CLI" --rpc "$RPC" --wallet "$RECIPIENT_WALLET" wallet light-scan >/dev/null 2>&1 || true
   fi
 }
+
+# F67 / B-54: pin scan_height to the signed checkpoint *before* faucet sends.
+# Pinning after fund skips any UTXO at height <= pin tip (partial owned_count).
+if [[ -n "$CHECKPOINT_LOG" && -f "$CHECKPOINT_LOG" ]]; then
+  echo "fund-wallet-http: F67 pin-then-fund via bootstrap-wallet-from-checkpoint-log"
+  bash "$SCRIPT_DIR/bootstrap-wallet-from-checkpoint-log.sh" --apply \
+    --wallet "$RECIPIENT_WALLET" \
+    --rpc "$RPC" \
+    --log "$CHECKPOINT_LOG" || {
+    echo "fund-wallet-http: checkpoint pin failed (snapshot EAGAIN?). Retry when tip is quiet." >&2
+    exit 2
+  }
+fi
 
 health="$(curl -fsS "${FAUCET_URL%/}/health" 2>&1)" || {
   echo "fund-wallet-http: faucet health failed at $FAUCET_URL" >&2

@@ -43,9 +43,10 @@ fi
 
 if (( PLAN_ONLY )); then
   echo "bootstrap-wallet-from-checkpoint-log: plan"
-  echo "  unit=B-50"
+  echo "  unit=B-50/B-54"
   echo "  flow=log max tip -> get_light_snapshot(height) -> patch wallet -> light-scan --checkpoint-log"
   echo "  honesty=checkpoint-log alone does not bootstrap; see JOIN_TESTNET.md"
+  echo "  f67=pin BEFORE faucet fund — pin skips heights <= scan_height"
   echo "  conflict=heavy snapshot may EAGAIN under faucet keepalive — retry"
   echo "bootstrap-wallet-from-checkpoint-log: PASS plan-only"
   exit 0
