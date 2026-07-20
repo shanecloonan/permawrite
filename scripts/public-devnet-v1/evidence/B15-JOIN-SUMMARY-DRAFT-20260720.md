@@ -34,8 +34,9 @@
 | patricia | faucet | n/a | yes | **4362** (wave24; proxy verified) |
 | quinn | peer (after faucet 429) | n/a | yes | **4390** (wave25; proxy verified) |
 | rose | faucet | n/a | yes | **4412** (wave26; proxy verified) |
+| sam | peer (+faucet done) | n/a | yes | **4430** (wave27; proxy verified) |
 
-Ten wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/**rose**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Eleven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/**sam**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -56,6 +57,8 @@ Ten wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patric
 15. **F94** - get_block_headers to_height must not exceed proxy tip; use proxy tip when local is ahead.
 16. **F95** - faucet may return HTTP 429 during cooldown; backoff `cooldown_ms` or peer-fund fallback.
 17. **F96** - after faucet done, first pin may still show owned=0; retry multiple pin heights (wave26: 4173->0, 4262->1M).
+19. **F97** - wallet balance can timeout (180s) after faucet/pin; retry or peer-fund.
+20. **F98** - peer dual-send #2 may fail input-count floor even when owned=2 after change settles.
 18. **F45** - tip-4400 ckpt landed but hard scan still FAIL at tip 4404 (lag~4); pin@max insufficient.
 
 ## Still open before formal archive PASS
