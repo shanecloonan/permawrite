@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–49; paula@**4694** proxy-prove PASS; claims=24; twenty-seven proxy-proven wallets. Donor pool often all owned=1 → wait faucet on 429.
+**Status:** DRAFT — waves 6–50; quinn@**4709** faucet-retry PASS; claims=25; twenty-eight proxy-proven wallets.
+| quinn | faucet-retry (after 429+600s) | n/a | yes | **4709** (wave50; proxy-prove PASS) |
 | paula | faucet | n/a | yes | **4694** (wave49; proxy-prove PASS) |
 | owen | faucet 429 + peer incomplete | n/a | **no** | FAIL wave48 fund (F106 kate owned=1; owen owned=1) |
 | nora | faucet | n/a | yes | **4677** (wave47; proxy-prove PASS) |
@@ -55,7 +56,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Twenty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Twenty-eight wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/cora/dana/erin/frank/gina/hank/**iris**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -100,6 +101,9 @@ Twenty-seven wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/osc
 
 
 31. **Donor pool exhaustion (wave49 census)** — after many permanence loops, local wallets commonly sit at owned=1 and cannot peer-fund (F75). On faucet 429, wait cooldown rather than peer dual-fund from recent permanence wallets.
+
+
+32. **Faucet-retry JOIN path (wave50)** — when donor pool is all owned=1, `429 → wait ~15m → faucet retry` is the proven fund path (fund_mode=faucet-retry).
 
 ## Still open before formal archive PASS
 
