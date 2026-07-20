@@ -135,9 +135,8 @@ function run(bin, args, timeoutMs = SEND_TIMEOUT_MS) {
   });
 }
 
-function clientIp(req) {
-  const xff = req.headers["x-forwarded-for"];
-  if (typeof xff === "string" && xff.length) return xff.split(",")[0].trim();
+/** TCP peer only — never trust X-Forwarded-For for rate-limit bypass decisions. */
+function peerIp(req) {
   return req.socket.remoteAddress || "unknown";
 }
 
@@ -421,9 +420,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     const now = Date.now();
-    const ip = clientIp(req);
+    const peer = peerIp(req);
     const prevAddr = lastClaim.get(address.toLowerCase()) || 0;
-    const prevIp = lastIpClaim.get(ip) || 0;
+    const prevIp = lastIpClaim.get(peer) || 0;
     if (now - prevAddr < COOLDOWN_MS) {
       json(res, 429, {
         ok: false,
@@ -433,7 +432,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (
-      !isLoopbackIp(ip) &&
+      !isLoopbackIp(peer) &&
       now - prevIp < Math.min(COOLDOWN_MS, 30 * 60_000)
     ) {
       json(res, 429, {
@@ -472,7 +471,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const result = await fundAddress(address, amount);
         lastClaim.set(address.toLowerCase(), Date.now());
-        lastIpClaim.set(ip, Date.now());
+        lastIpClaim.set(peer, Date.now());
         job.status = "done";
         job.result = result;
         job.updatedAt = Date.now();
