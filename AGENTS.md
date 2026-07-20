@@ -134,14 +134,14 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** **CI `#29736528564` GREEN** on B-73 (`5df7cbc`) — covers B-67/B-71/B-73 stack. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** **CI `#29736528564` GREEN** on B-73 (`5df7cbc`; includes B-72). **Nightly `#29738744950` in_progress** — do **not** re-dispatch (cancel-in-progress). Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-72** support-bundle challenge `--wallet`; B-29 seed-isolation `23204cb` | *Idle* | Re-dispatch **one** Nightly → close **B-29** on GREEN | CI/Nightly run IDs |
+| **1** RC core | **B-72** (`f81d654`) + CI `#29736528564` GREEN | **Watch Nightly `#29738744950`** (claim base: tip) | Close **B-29** on Nightly GREEN only | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
 | **3** Onboarding | **B-15 wave24** (patricia last_proven=4362; F92 PASS; F45/F93) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
-| **4** Protocol | **B-67** (`f6273cb`); **B-71** (`09ca8c4`); **B-66**/**B-64**/**B-63**/**B-51**/**B-48**/**B-45** | **B-32** arm (claim base: `5df7cbc`) — wait B-15 + lane-7 mfnd re-roll with B-71/B-73 | Live multi-op pack → **B-44** → full **B-24** | Lane 1 CI |
+| **4** Protocol | **B-74** B-32 ci-check plan gate (this commit); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-32** live pack (claim base: this head) — wait B-15 + lane-7 mfnd re-roll | Live multi-op pack → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
 | **7** Testnet launch | **B-73** reconnect smoke (`5df7cbc`); **B-70/B-71** | *Idle* | **mfnd re-roll** now (CI GREEN); then **B-42** after B-15 PASS | `launch-go-no-go` |
@@ -211,10 +211,11 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-26 | R-4 VPS faucet deploy (`vps-update-faucet.sh`) | 2+7 | After B-15 evidence window |
 | B-27 | Fresh soak + participant evidence on invite head | 1+7 | Before TL-9; [work package](docs/ROADMAP.md#b-27-work-package--fresh-soakparticipant-on-invite-head) |
 | B-28 | Treasury watch + numeric OPERATORS alert thresholds | 2+7 | Phase 1; after B-13c |
-| B-29 | Nightly participant rehearsal GREEN | 1+3 | Seed-isolation `23204cb` ✓; support-bundle B-72 (this commit); **close** = Nightly GREEN only |
+| B-29 | Nightly participant rehearsal GREEN | 1+3 | Seed-isolation + B-72 on tip; watching `#29738744950`; **close** = Nightly GREEN only |
 | B-30 | Residual-risk owner matrix + halt authority before invites | 7 | **Docs landed** — human name cells at TL-9 sign-off |
 | B-31 | Live RPC/faucet threat posture verify | 2+7 | **P2P+RPC PASS** after B-41/B-46; close after **B-26** R-4 deploy confirm |
-| B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling landed**; live pack day-of L4 |
+| B-32 | B3 multi-op evidence pack + assert (B-15-style) | 4+7 | **Tooling + ci-check gate (B-74)**; live pack day-of L4 |
+| B-74 | Wire B-32 plan smoke + fixture assert into ci-check | 4 | **Landed** (this commit) — `.sh`/`.ps1` twins; closes ROADMAP CI row for B-32 tooling |
 | B-33 | B-13b human sign-off checklist | 6+7+human | One-lever + producer budget + telemetry baseline before B-13c |
 | B-34 | CI queue/stall watch + cancel/re-dispatch | 1 | Watch `#29711605173`; protocol in ROADMAP (Escalate → GitHub Status) |
 | B-35 | F7 consensus input-count padding | 4+5 | Phase 3 privacy; wallet floor shipped |
@@ -255,6 +256,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-64 | Settlements soft-skip vs apply hard-reject + producer seal filter | 4 | **Landed** — seal settlement-accepted proofs only; parity tests |
 | B-66 | Which-operator prove miss/settle chain (early B-24b) | 4 | **Landed** — op1-only + window-spaced mask chain; not full B-24 |
 | B-67 | Multi-op slash while peer settles + treasury identity (early B-24c) | 4 | **Landed** on `f6273cb` (commit subject mislabeled B-70/B-71); not full B-24 |
+| B-74 | B-32 multi-op evidence plan gate in ci-check | 4 | **Landed** (this commit) — plan smoke + fixture + negative reject |
 
 ---
 
@@ -262,11 +264,13 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 4 — CI `#29736528564` GREEN + B-32 claim** (this commit): stack B-67/B-71/B-73 green; arm **B-32** after B-15 + lane-7 mfnd re-roll. §6 request to lane 7. Docs-only `[skip ci]`.
+1. **2026-07-20 — lane 4 — B-74 B-32 ci-check plan gate** (this commit): wire `b3-multi-op-evidence-rehearsal-smoke.{sh,ps1}` + fixture assert + negative reject into `ci-check`; Windows `.ps1` twin (UTF-8). Local plan/assert PASS. Full CI (no skip). Next: live **B-32** after B-15 + lane-7 mfnd re-roll. *Observed (not staged):* JOIN/`user-wallet`/`live-testnet-data*`/lane-3 temps.
+2. **2026-07-20 — lane 4 — CI `#29736528564` GREEN + B-32 claim** (`7beb4d4`): stack B-67/B-71/B-73 green; arm **B-32** after B-15 + lane-7 mfnd re-roll. §6 request to lane 7. Docs-only `[skip ci]`.
 2. **2026-07-20 - lane 3 - B-15 wave24** (this commit): soak tip **4364** match; F45 hard FAIL (pin@4323 still needs tip attestation); **F92** headers {from_height,to_height} PASS; oscar retrieve OK; patricia faucet ~99s; pin-retry 4323/4262/4173 -> funded; upload bound **last_proven=4362** proxy+claims; claims recent=5; **F93** early challenge unknown commitment; oscar->patricia 50k Fresh; F90 post-upload change. Evidence wave24.md + wave25-open (F94 headers/tip-ahead). *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
 1. **2026-07-20 - lane 3 - B-15 wave23** (`e3cb07c`): ckpt max **4323** (entries=12); F45 hard FAIL lag~2; nina retrieve OK; nina->oscar peer#1 PASS / peer#2 **F91** RBF; oscar faucet+upload **last_proven=4337**; claims recent=4; **F92** get_block_headers {from_height,to_height}. Evidence wave23.md. *Observed (not staged):* user-wallet/, live-testnet-data*, probe temps.
 1. **2026-07-20 — lane 7 — B-73 B-71 reconnect smoke fix** (this commit): `mfnd_p2p_reconnects_saved_peers_on_restart` used OS ephemeral `:0` ports (>=32768) which B-71 correctly refuses to persist -> missing `peers.json` on ubuntu CI `#29734331038`. `reserve_loopback_addr` now picks 19000..32767; export `MIN_EPHEMERAL_PEER_PORT`. Local release smoke PASS. Next: mfnd roll after CI GREEN (prebuild already has B-71 binary). *Observed (not staged):* lane-3 wave23 evidence temps, `user-wallet/`, `live-testnet-data*`, `_ci-ubuntu-fail.log`.
-1. **2026-07-20 — lane 1 — B-72 support-bundle B-45 wallet** (this commit): Nightly `#29727713979` fund-wallet+permanence PASS; failed `operator challenge` without `--wallet` (`payout wallet: os error 2`). Pass `--wallet` in support-bundle.sh/.ps1. Then re-dispatch Nightly for B-29. *Observed:* leave JOIN/`user-wallet`/`live-testnet-data*` unstaged.
+1. **2026-07-20 — lane 1 — Nightly `#29738744950` for B-29** (this commit): B-72 on tip; CI `#29736528564` GREEN. Sole Nightly — do not re-dispatch. Docs-only `[skip ci]`.
+2. **2026-07-20 — lane 1 — B-72 support-bundle B-45 wallet** (`f81d654`): Nightly `#29727713979` fund-wallet+permanence PASS; failed challenge without `--wallet`.
 2. **2026-07-20 - lane 7 - rustfmt + tip-4323** (`3073177`): fmt-fix B-67; Path A tip-**4323**. *Observed:* left support-bundle WIP unstaged.
 1. **2026-07-20 — lane 4 — board SYNC** (this commit): **B-67** on `f6273cb` (subject mislabeled); **B-71/B-70** on `09ca8c4` (lane-3 wave22 commit carried the peers filter + tip-4307). Watching **CI `#29733127733`**. Docs-only `[skip ci]`.
 2. **2026-07-20 — lane 4 — B-67** (`f6273cb` body): multi-op slash while peer settles. Prior CI cancelled by docs concurrency.
