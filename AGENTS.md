@@ -12,12 +12,11 @@ Why this system exists (and why it is this strict): [`docs/VIBECODING.md`](docs/
 
 ## 0. The contract (read before anything else)
 
-1. **2026-07-20 — lane 1 — CI watch amid Actions outage** (this commit): Local-verified B-36 lint PASS on `7420aa6`. Dispatch `#29712149048` still empty-step on `dfbaa50`. Plan: when Actions leaves partial_outage, dispatch CI on tip (B-36+B-29), then Nightly. Did **not** stage other lanes' WIP (repair scripts, invite-load, wave2, user-wallet). Docs `[skip ci]`.
-2. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
+1. **One live board.** All claims, status, handoffs, requests, and backlog live in this file only. You never have to update two surfaces, so the board can never drift against itself.
 2. **No silent work.** If you are coding without a **Doing** row in §5, stop and claim first.
 3. **Read before write.** Scan the whole §5 board + §6 requests before claiming anything.
-4. **History is append-only.** Completed work rotates from §8 into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md); nothing is ever silently deleted.
-5. **Everything lands on `main`.** Commit and push every completed unit to `main` (standing user directive). Feature branches are for cloud-agent PR workflows only when the platform requires them.
+4. **History is append-only.** Completed work rotates from §8 into [docs/AGENTS_LEDGER.md](docs/AGENTS_LEDGER.md); nothing is ever silently deleted.
+5. **Everything lands on main.** Commit and push every completed unit to main (standing user directive). Feature branches are for cloud-agent PR workflows only when the platform requires them.
 
 ---
 
@@ -135,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-20):** code head = this commit (**B-32** multi-op assert tooling) on `7420aa6`/B-36; B-29 parse `e10a8b3`; B-41 `54d22d7`. Actions still **partial_outage** — `[skip ci]`; lane 1 owns `#29712149048`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = this commit (**B-41** voter remap + **B-42** plan script) on 384cd76/B-32/B-36. **CI #29712149048** still lane-1 owned (Actions outage) — this land [skip ci]. Lane 3 wave2 evidence on board. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-40** -> **B-13a** -> **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
@@ -145,7 +144,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | **4** Protocol | **B-32** multi-op evidence assert tooling (this commit); **B-36** `7420aa6` | *Idle* | Live B-32 capture day-of L4 with lane 7; then **B-44** -> **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-41** + **B-22** + B-31/B-30 | *Idle* | **B-42** invite-load after B-15 PASS; TL-9; later **B-43** | `launch-go-no-go` |
+| **7** Testnet launch | **B-41** fix-forward (all seeds :1910x+socat) + B-22/B-30/B-31 (this commit) | *Idle* | **B-42** live invite-load after B-15 PASS (plan script landed); TL-9; later **B-43** | launch-go-no-go |
 
 ---
 
@@ -160,7 +159,7 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** cancelled empty-step `#29711867196` (~8m); this land restarts matrix (no skip-ci) | **Done** (this land) |
-| planning | 3+7 | **B-42:** invite-load smoke before TL-9 — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9); after B-15/B-41 | **Open** |
+| planning | 3+7 | **B-42:** invite-load plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) | **Ack** (plan) |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
 | 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
 | 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A `permawrite-maintainer-path-a-2`; tip 4028; seed in `/root/.mfn/checkpoint-signer.env` only) |
@@ -207,8 +206,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | Phase 1; [work package](docs/ROADMAP.md#b-40--first-permanence-week-lane-6--arm-day-of-l4); with **B-13a** |
-| B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd `:1910x` + socat `:1900x`; EXT 19001–19003 OPEN |
-| B-42 | Invite-load smoke before TL-9 | 3+7 | Plan gate landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
+| B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — mfnd :1910x + socat :1900x; EXT 19001–19003 OPEN; tip~4031 |
+| B-42 | Invite-load smoke before TL-9 | 3+7 | Plan script landed; **live** after B-15 PASS — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9) |
 | B-43 | Path B genesis freeze inventory | 7+human | Phase 4 / before L5; [work package](docs/ROADMAP.md#b-43--path-b-genesis-freeze-inventory-lane-7--before-l5) |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
 
@@ -218,9 +217,9 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 - lane 4 - B-32 multi-op evidence assert tooling** (this commit): `assert-b3-multi-op-evidence.{sh,ps1}`, `b3-multi-op-evidence-rehearsal-smoke.sh --plan-only`, fixture + ci-check gates; ROADMAP work package names scripts. Live evidence still day-of L4 (lane 7 ops). `[skip ci]` (Actions partial_outage). Did **not** touch Hetzner/B-15 faucet lock. *Observed local work (not staged):* `OPERATORS.md`, `repair-vps-p2p-binds*`, `invite-load-*`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
+1. **2026-07-20 — lane 7 — B-41 voter remap + B-42 plan script** (this commit): Socat same-port conflict broke :19002–19003; remap mfnd to :1910x + dedicated forwards. Live tip~4031; EXT 19001–19003 OPEN; voters RPC UP. Lands invite-load-smoke-rehearsal.sh (ci-check wires already on 711d98b). Faucet not restarted. [skip ci] (lane 1 owns #29712149048). Evidence 41-p2p-forward-20260720-voters.md. *Observed local work (not staged):* user-wallet/, ci-docs-*.txt, live-testnet-data/.
+2. **2026-07-20 - lane 4 - B-32 multi-op evidence assert tooling** (this commit): `assert-b3-multi-op-evidence.{sh,ps1}`, `b3-multi-op-evidence-rehearsal-smoke.sh --plan-only`, fixture + ci-check gates; ROADMAP work package names scripts. Live evidence still day-of L4 (lane 7 ops). `[skip ci]` (Actions partial_outage). Did **not** touch Hetzner/B-15 faucet lock. *Observed local work (not staged):* `OPERATORS.md`, `repair-vps-p2p-binds*`, `invite-load-*`, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
 2. **2026-07-20 - lane 4 - B-36 F10 consensus f64 CI lint** (this commit): Add `validate-consensus-f64-lint.{py,sh,ps1}` referenced by `54d22d7` ci-check but previously missing; fail-closed on f64 multiply/round/`as f64` outside cfg(test). Restores AGENTS section-0 contract (session-log lines had overwritten the five hard rules). `[skip ci]` per B-34 Actions partial_outage. Did **not** touch Hetzner. *Observed local work (not staged):* wave2 evidence, repair scripts, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`.
-3. **2026-07-20 — lane 7 — B-41 voter remap + B-34 CI restart + B-42 plan gate** (this commit): Socat same-port conflict broke `:19002–19003`; remap all mfnd P2P to `:1910x` + dedicated forwards. EXT 19001–19003 OPEN. Cancelled empty-step CI `#29711867196`; **no `[skip ci]`** so matrix runs on this head. B-42 `invite-load-smoke-rehearsal.sh` plan-only in ci-check (live load after B-15). Faucet not restarted. *Observed local work (not staged):* lane3 `wave2` evidence WIP, `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, lane4 f64-lint WIP.
 4. **2026-07-20 — lane 7 — B-41 hub socat + B-22 tip-4028** (`54d22d7`/`65bb922`): hub `:19101`←`:19001`; Path A checkpoint tip 4028.
 5. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
 6. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.

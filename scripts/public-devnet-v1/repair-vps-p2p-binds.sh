@@ -2,11 +2,10 @@
 # B-41: expose published seed_nodes while keeping mfnd P2P on loopback (lane 7).
 #
 # Direct mfnd --p2p-listen 0.0.0.0 hangs on this VPS before RPC bind (observed
-# 2026-07-20). Working posture: mfnd listens on 127.0.0.1; socat forwards
-# 0.0.0.0:1900x -> loopback. Hub uses internal :19101 so public :19001 can bind.
+# 2026-07-20). Linux also cannot bind socat 0.0.0.0:PORT while mfnd holds
+# 127.0.0.1:PORT — remap mfnd to 1910x and forward public 1900x -> 1910x.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPLY=0
 PLAN_ONLY=0
 PUBLIC_IP="${MFN_VPS_PUBLIC_IP:-}"
@@ -18,8 +17,8 @@ usage: repair-vps-p2p-binds.sh [--plan-only|--apply] [--public-ip IP]
 B-41 — public seed reachability without binding mfnd on 0.0.0.0.
 
   --plan-only     CI-safe preview
-  --apply         install/enable socat forwards + hub :19101 remap (systemd)
-  --public-ip IP  probe TCP IP:19001 after apply
+  --apply         remap mfnd to 1910x + enable socat 1900x->1910x (systemd)
+  --public-ip IP  probe TCP IP:19001-19003 after apply
 EOF
 }
 
@@ -49,10 +48,10 @@ fi
 echo "repair-vps-p2p-binds: B-41"
 
 if (( PLAN_ONLY )); then
-  echo "  flow=hub P2P 127.0.0.1:19101 + socat 0.0.0.0:19001->19101; voters/observer 127.0.0.1:1900x + socat 0.0.0.0:1900x"
+  echo "  flow=mfnd P2P 127.0.0.1:19101-19104 + socat 0.0.0.0:19001-19004 -> 19101-19104"
   echo "  rpc_unchanged=127.0.0.1"
   echo "  faucet=not restarted"
-  echo "  note=do not bind mfnd directly on 0.0.0.0 (startup hang observed)"
+  echo "  note=do not bind mfnd on 0.0.0.0 (startup hang); do not socat same port as mfnd loopback"
   echo "  docs=scripts/public-devnet-v1/vps-bind.env.example"
   echo "repair-vps-p2p-binds: PASS plan-only"
   exit 0
@@ -68,59 +67,72 @@ if ! command -v socat >/dev/null 2>&1; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq socat
 fi
 
-if [[ -f /etc/systemd/system/mfnd-hub.service ]]; then
-  cp -a /etc/systemd/system/mfnd-hub.service "/etc/systemd/system/mfnd-hub.service.bak.b41-$(date -u +%Y%m%d%H%M%S)"
-  sed -i 's|Environment=MFN_P2P_LISTEN=127.0.0.1:19001|Environment=MFN_P2P_LISTEN=127.0.0.1:19101|' /etc/systemd/system/mfnd-hub.service
-  sed -i 's|Environment=MFN_P2P_LISTEN=0.0.0.0:19001|Environment=MFN_P2P_LISTEN=127.0.0.1:19101|' /etc/systemd/system/mfnd-hub.service
-  for u in mfnd-v1 mfnd-v2 mfnd-observer; do
-    f=/etc/systemd/system/${u}.service
-    [[ -f "$f" ]] || continue
-    sed -i 's|Environment=HUB_P2P=127.0.0.1:19001|Environment=HUB_P2P=127.0.0.1:19101|' "$f"
-  done
-fi
+patch_unit() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  cp -a "$f" "${f}.bak.b41-$(date -u +%Y%m%d%H%M%S)"
+}
 
-cat >/etc/systemd/system/mfn-p2p-forward@.service <<'UNIT'
+patch_unit /etc/systemd/system/mfnd-hub.service
+patch_unit /etc/systemd/system/mfnd-v1.service
+patch_unit /etc/systemd/system/mfnd-v2.service
+patch_unit /etc/systemd/system/mfnd-observer.service
+
+[[ -f /etc/systemd/system/mfnd-hub.service ]] && sed -i \
+  -e 's|Environment=MFN_P2P_LISTEN=127.0.0.1:19001|Environment=MFN_P2P_LISTEN=127.0.0.1:19101|' \
+  -e 's|Environment=MFN_P2P_LISTEN=0.0.0.0:19001|Environment=MFN_P2P_LISTEN=127.0.0.1:19101|' \
+  /etc/systemd/system/mfnd-hub.service
+[[ -f /etc/systemd/system/mfnd-v1.service ]] && sed -i \
+  -e 's|Environment=MFN_P2P_LISTEN=127.0.0.1:19002|Environment=MFN_P2P_LISTEN=127.0.0.1:19102|' \
+  -e 's|Environment=HUB_P2P=127.0.0.1:19001|Environment=HUB_P2P=127.0.0.1:19101|' \
+  /etc/systemd/system/mfnd-v1.service
+[[ -f /etc/systemd/system/mfnd-v2.service ]] && sed -i \
+  -e 's|Environment=MFN_P2P_LISTEN=127.0.0.1:19003|Environment=MFN_P2P_LISTEN=127.0.0.1:19103|' \
+  -e 's|Environment=HUB_P2P=127.0.0.1:19001|Environment=HUB_P2P=127.0.0.1:19101|' \
+  /etc/systemd/system/mfnd-v2.service
+[[ -f /etc/systemd/system/mfnd-observer.service ]] && sed -i \
+  -e 's|Environment=MFN_P2P_LISTEN=127.0.0.1:19004|Environment=MFN_P2P_LISTEN=127.0.0.1:19104|' \
+  -e 's|Environment=HUB_P2P=127.0.0.1:19001|Environment=HUB_P2P=127.0.0.1:19101|' \
+  /etc/systemd/system/mfnd-observer.service
+
+write_forward() {
+  local pub="$1" int="$2" name="$3"
+  cat >"/etc/systemd/system/${name}.service" <<UNIT
 [Unit]
-Description=Permawrite public P2P forward %i -> 127.0.0.1:%i
+Description=Permawrite public P2P forward ${pub} -> 127.0.0.1:${int}
 After=network.target mfnd-hub.service
+Wants=mfnd-hub.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/socat TCP-LISTEN:%i,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:%i
+ExecStart=/usr/bin/socat TCP-LISTEN:${pub},fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:${int}
 Restart=always
 RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+}
 
-cat >/etc/systemd/system/mfn-p2p-forward-hub.service <<'UNIT'
-[Unit]
-Description=Permawrite public P2P forward 19001 -> 127.0.0.1:19101 (hub)
-After=network.target mfnd-hub.service
-Requires=mfnd-hub.service
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/socat TCP-LISTEN:19001,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:19101
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=multi-user.target
-UNIT
+write_forward 19001 19101 mfn-p2p-forward-hub
+write_forward 19002 19102 mfn-p2p-forward-19002
+write_forward 19003 19103 mfn-p2p-forward-19003
+write_forward 19004 19104 mfn-p2p-forward-19004
 
 systemctl daemon-reload
+systemctl disable --now \
+  mfn-p2p-forward@19001.service \
+  mfn-p2p-forward@19002.service \
+  mfn-p2p-forward@19003.service \
+  mfn-p2p-forward@19004.service 2>/dev/null || true
+
 systemctl restart mfnd-hub.service
 echo "repair-vps-p2p-binds: waiting for hub RPC (chain replay can take ~2m)..."
+mcli=""
+if command -v mfn-cli >/dev/null 2>&1; then mcli=mfn-cli
+elif [[ -x /root/permawrite/target/release/mfn-cli ]]; then mcli=/root/permawrite/target/release/mfn-cli
+fi
 for i in $(seq 1 90); do
-  if command -v mfn-cli >/dev/null 2>&1; then
-    mcli=mfn-cli
-  elif [[ -x /root/permawrite/target/release/mfn-cli ]]; then
-    mcli=/root/permawrite/target/release/mfn-cli
-  else
-    mcli=""
-  fi
   if [[ -n "$mcli" ]] && "$mcli" --rpc 127.0.0.1:18731 tip >/dev/null 2>&1; then
     echo "repair-vps-p2p-binds: hub_ready attempt=$i"
     break
@@ -128,23 +140,27 @@ for i in $(seq 1 90); do
   sleep 2
 done
 systemctl restart mfnd-v1.service mfnd-v2.service 2>/dev/null || true
-sleep 3
+sleep 4
 systemctl restart mfnd-observer.service 2>/dev/null || true
-systemctl disable --now mfn-p2p-forward@19001.service 2>/dev/null || true
-systemctl enable --now mfn-p2p-forward-hub.service
-for p in 19002 19003 19004; do
-  systemctl enable --now "mfn-p2p-forward@${p}.service"
-done
+systemctl enable --now \
+  mfn-p2p-forward-hub.service \
+  mfn-p2p-forward-19002.service \
+  mfn-p2p-forward-19003.service \
+  mfn-p2p-forward-19004.service
 
 ss -lntp | grep -E ':1900|:1910|:1873' || true
 
 if [[ -n "$PUBLIC_IP" ]]; then
-  if timeout 3 bash -c "echo >/dev/tcp/${PUBLIC_IP}/19001" 2>/dev/null; then
-    echo "repair-vps-p2p-binds: probe ${PUBLIC_IP}:19001 OPEN"
-  else
-    echo "repair-vps-p2p-binds: probe ${PUBLIC_IP}:19001 FAILED" >&2
-    exit 1
-  fi
+  fail=0
+  for p in 19001 19002 19003; do
+    if timeout 3 bash -c "echo >/dev/tcp/${PUBLIC_IP}/${p}" 2>/dev/null; then
+      echo "repair-vps-p2p-binds: probe ${PUBLIC_IP}:${p} OPEN"
+    else
+      echo "repair-vps-p2p-binds: probe ${PUBLIC_IP}:${p} FAILED" >&2
+      fail=1
+    fi
+  done
+  (( fail == 0 )) || exit 1
 fi
 
 echo "repair-vps-p2p-binds: OK"

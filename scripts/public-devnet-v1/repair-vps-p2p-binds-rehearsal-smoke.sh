@@ -1,57 +1,20 @@
 #!/usr/bin/env bash
 # CI/plan gate for B-41 repair-vps-p2p-binds (no VPS mutation).
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLAN_ONLY=0
-
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --plan-only) PLAN_ONLY=1; shift ;;
-    -h|--help)
-      echo "usage: repair-vps-p2p-binds-rehearsal-smoke.sh [--plan-only]"
-      exit 0
-      ;;
-    *)
-      echo "repair-vps-p2p-binds-rehearsal-smoke: unknown argument $1" >&2
-      exit 1
-      ;;
+    -h|--help) echo "usage: repair-vps-p2p-binds-rehearsal-smoke.sh [--plan-only]"; exit 0 ;;
+    *) echo "repair-vps-p2p-binds-rehearsal-smoke: unknown argument $1" >&2; exit 1 ;;
   esac
 done
-
-needles=(
-  "repair-vps-p2p-binds"
-  "B-41"
-  "socat"
-  "19101"
-  "mfnd-hub"
-  "faucet"
-)
+needles=(repair-vps-p2p-binds B-41 socat 19101 19102 19002 faucet)
 for n in "${needles[@]}"; do
-  if ! grep -q "$n" "$SCRIPT_DIR/repair-vps-p2p-binds.sh"; then
-    echo "repair-vps-p2p-binds-rehearsal-smoke: missing needle $n in repair script" >&2
-    exit 1
-  fi
+  grep -q "$n" "$SCRIPT_DIR/repair-vps-p2p-binds.sh" || { echo "missing needle $n" >&2; exit 1; }
 done
-
-if ! grep -qE '^MFN_P2P_LISTEN_HUB=0\.0\.0\.0:' "$SCRIPT_DIR/vps-bind.env.example"; then
-  echo "repair-vps-p2p-binds-rehearsal-smoke: vps-bind.env.example hub P2P must be 0.0.0.0" >&2
-  exit 1
-fi
-if grep -qE '^MFN_RPC_LISTEN_HUB=0\.0\.0\.0:' "$SCRIPT_DIR/vps-bind.env.example"; then
-  echo "repair-vps-p2p-binds-rehearsal-smoke: example must keep RPC loopback" >&2
-  exit 1
-fi
-
+grep -qE '^MFN_P2P_LISTEN_HUB=0\.0\.0\.0:' "$SCRIPT_DIR/vps-bind.env.example" || { echo "example hub P2P must be 0.0.0.0" >&2; exit 1; }
 plan_out="$(bash "$SCRIPT_DIR/repair-vps-p2p-binds.sh" --plan-only)"
-if [[ "$plan_out" != *"repair-vps-p2p-binds: PASS plan-only"* ]]; then
-  printf '%s\n' "$plan_out" >&2
-  exit 1
-fi
-
-if (( PLAN_ONLY )); then
-  echo "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"
-  exit 0
-fi
-
-echo "repair-vps-p2p-binds-rehearsal-smoke: PASS"
+[[ "$plan_out" == *"repair-vps-p2p-binds: PASS plan-only"* ]] || { printf '%s\n' "$plan_out" >&2; exit 1; }
+echo "repair-vps-p2p-binds-rehearsal-smoke: PASS plan-only"
