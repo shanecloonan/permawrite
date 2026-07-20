@@ -1,6 +1,7 @@
 # B-15 JOIN_TESTNET outside-in SUMMARY (DRAFT) - 2026-07-20
 
-**Status:** DRAFT — waves 6–36; zoe@4533 still latest proxy-prove PASS; ben F107 mempool sticky; seventeen proxy-proven wallets.
+**Status:** DRAFT — waves 6–37; cora@**4585** proxy-prove PASS (mempool gate); claims=15; eighteen proxy-proven wallets.
+| cora | faucet (3rd wipe + mempool gate) | n/a | yes | **4585** (wave37; proxy-prove PASS) |
 **Lane:** 3
 **Network:** public-devnet-v1 / genesis 454fa5d4...a005
 **Public endpoints:** seeds 5.161.201.73:19001-19003; RPC proxy http://5.161.201.73:8787/rpc; faucet http://5.161.201.73:8788; FE http://5.161.201.73:3000 (+ /testnet)
@@ -42,7 +43,7 @@
 | xena | faucet (+F102 race) | n/a | yes | **4496** (wave32; proxy verified) |
 | zoe | faucet (post-wipe) | n/a | yes | **4533** (wave34; proxy-prove PASS) |
 
-Seventeen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/**zoe**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Eighteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/uma/vera/wendy/xena/zoe/**cora**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
