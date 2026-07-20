@@ -134,7 +134,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `5dc3aa8` (B-29); B-16 `49d28f9`; B-30 `2f1b4e2`; planning this commit. **B-34:** restarting stalled CI `#29711375639` (all jobs queued, no runners — this push has **no** `[skip ci]`). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-13a** → **B-25**.
+**CI gate (2026-07-19):** code head = `5dc3aa8` (B-29); B-16 `49d28f9`; B-30 `2f1b4e2`; planning `76d4f04`. **B-34:** cancelled stall `#29711375639` → successor **CI `#29711500087`** on docs head (includes B-29). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
