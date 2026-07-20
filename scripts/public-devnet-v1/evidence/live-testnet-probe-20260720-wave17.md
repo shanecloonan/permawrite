@@ -88,3 +88,13 @@ Two successful new-wallet loops (heidi wave15, ivan wave17) with upload settleme
 | ivan | **1028997** | 3 |
 
 Proxy list shows frank 1ce26efa…@4218 and ivan 5f942d28…@4217 at tip ~4219.
+
+
+## Addendum - retrieve / challenge / claims
+
+| Probe | Result |
+| --- | --- |
+| uploads retrieve ivan 5f942d28… | **PASS** 64B |
+| operator challenge after index | **PASS** next_height **4220** |
+| list_recent_claims | **empty** total=0 (no authorship claims published this wave) |
+| Proxy get_status | tip **4218**, peer_count **3**, session_count **3**, proof_pool 0 |
