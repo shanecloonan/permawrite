@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | Prior `#29713542820` cancelled | **CI `#29715111633` ubuntu FAILED** (claim base: `69df8fa`) | Fix-forward or re-dispatch after lane 4 B-51/b3 fix; then Nightly/B-29 | githubstatus + CI/Nightly |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | B-15 wave11 eve receive PASS + F68 (this commit) | **B-15** JOIN archive (claim base: this head) | SUMMARY when F45/F68 cleared | L4 checklist |
+| **3** Onboarding | B-15 wave11 (0121b2) | **B-15** wave12 frontend+F45 near-tip (claim base: 0121b2) | JOIN archive if light-scan ckpt exits 0 | L4 checklist |
 | **4** Protocol | **B-48** (`69df8fa`); **B-45**/`711d98b` | **B-51** + fix `b3_legacy_challenge_rejected_when_enabled` (CI `#29715111633`) (claim base: `69df8fa`) | Land B-51 + b3 CI fix → lane 7 roll; live **B-32** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
