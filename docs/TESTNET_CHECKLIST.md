@@ -409,13 +409,13 @@ Strategic ordering: [`ROADMAP.md` § Phase 0 / L4 checklist](./ROADMAP.md#l4-exi
 
 - [ ] **B-15** — Outside-in JOIN_TESTNET VPS rehearsal archived (`join-testnet-rehearsal-linux-*.txt`) + `assert-join-testnet-rehearsal-evidence.*` PASS.
 - [x] **B-16** — Privacy-doc sync landed (`49d28f9`): JOIN/TESTNET/PRIVACY/INVITE/OPERATORS + wallet/WASM READMEs match light-scan / checkpoint-log / F7 faucet UX.
-- [ ] **B-22** — TL-8 checkpoint log VPS publish verified (`publish-checkpoint-log.sh --apply` if drifted). **Blocked:** signer seed not on VPS; log `max_tip_height=3` vs live tip ~4022.
+- [x] **B-22** — TL-8 checkpoint log republished (Path A signer-2; `max_tip_height=4028`; seed offline on VPS only).
 - [ ] **B-26** — R-4 faucet deployed on Hetzner (`vps-update-faucet.sh`) after B-15 evidence window.
 - [ ] **B-27** — Fresh participant + soak evidence on invite head (not only TL-5/TL-6 archives).
 - [ ] **B-29** — Nightly GREEN on `5dc3aa8` (code landed; close ≠ code land). Path = Nightly `fund-wallet.sh` — **not** JOIN. Last RED `#29701967243`.
 - [x] **B-30** — Residual-risk owner matrix + halt/rollback authority in OPERATORS + threat-model matrix (docs landed; fill human name cells at TL-9 sign-off).
 - [ ] **B-31** — Live RPC/faucet threat posture verify — probe in [`b31-threat-posture-20260720.md`](../scripts/public-devnet-v1/evidence/b31-threat-posture-20260720.md) (RPC PASS; P2P FAIL → **B-41**; close after bind repair + B-26).
-- [ ] **B-41** — Repair public P2P binds (`0.0.0.0:1900x`) on Hetzner (unblocks outside-in JOIN / B-15).
+- [x] **B-41** — Public P2P seeds reachable via socat forwards ([`b41-p2p-forward-20260720.md`](../scripts/public-devnet-v1/evidence/b41-p2p-forward-20260720.md); do not bind mfnd on `0.0.0.0`).
 - [ ] **B-42** — Invite-load smoke before TL-9 ([work package](./ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9)).
 - [ ] **L1 refresh** — Green CI + `release-evidence` **go** on B-29 stack (B-34 lineage: `#29711500087` on `76d4f04`; current watch `#29711605173` on `e10a8b3`).
 - [ ] **TL-9** — Named watchers + human sign-offs on `launch-go-no-go` + invite circulation ([`TESTNET_INVITE.md`](./TESTNET_INVITE.md)).

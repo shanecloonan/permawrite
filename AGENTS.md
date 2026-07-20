@@ -135,17 +135,17 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 
 > Update this section in the **same commit** as the work it describes. A board row that doesn't match `git log` is a bug; fix it at SYNC.
 
-**CI gate (2026-07-19):** code head = `e10a8b3` (B-29 ps1 parse on `5dc3aa8`); B-16 `49d28f9`; B-30 `2f1b4e2`; B-31 `6f637a4`. **B-34:** cancelling empty-step stall `#29711605173` (~9.5m queued) via this push (no skip-ci). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 -> **B-13a** -> **B-25**.
+**CI gate (2026-07-20):** code head = this commit (**B-41** socat P2P + **B-22** tip-4028 checkpoint) on `e10a8b3` stack. **CI `#29711867196` queued** (B-34 lineage). Prior **CI `#29700946945` GREEN** on `b4a3fa7`. **B-29 closes only on Nightly GREEN**. Strategic path: L4 → **B-40** → **B-13a** → **B-25**.
 
 | Lane | Done (last landed) | Doing | Next (owner → unit) | Checked by |
 | --- | --- | --- | --- | --- |
-| **1** RC core | **B-29** `5dc3aa8`+`e10a8b3` + **B-34** restart (this commit) | **Watch successor CI** (claim base: this head) | Nightly re-dispatch when GREEN -> close B-29 | CI/Nightly run IDs in §8 |
-| **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15; help **B-41** | Board + encoding guards |
-| **3** Onboarding | **B-15 wave1 outside-in probe** (`live-testnet-probe-20260720-wave1.md`) | **B-15** blocked on **B-41** P2P (claim base: `6f637a4`) | After B-41: full JOIN smoke + assert; then **B-42**; faucet lock until PASS archive | L4 checklist |
-| **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-44** ([PM3](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32)) → **B-24** | Lane 1 CI/Nightly |
+| **1** RC core | **B-29** `5dc3aa8`+`e10a8b3` | *Idle* | Watch CI `#29711867196`; Nightly → close B-29 | CI/Nightly run IDs in §8 |
+| **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
+| **3** Onboarding | **B-15 wave1** (`afca106`) | **B-15 full JOIN** (claim base: this head; B-41 unblocked) | Archive + assert; then **B-42**; keep faucet lock until PASS | L4 checklist |
+| **4** Protocol | F5 4b.1 (`6377812`) | *Idle* | After L4: **B-32** → **B-44** → **B-24** | Lane 1 CI/Nightly |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
-| **7** Testnet launch | **B-31 probe** + **B-30** | *Idle* | **B-41** P2P bind **now** (lane 3 unblocked mfnd-*); **B-42** invite-load; **B-22** human seed; TL-9; later **B-43** | `launch-go-no-go` |
+| **7** Testnet launch | **B-41** + **B-22** + B-31/B-30 | *Idle* | **B-42** invite-load after B-15 PASS; TL-9; later **B-43** | `launch-go-no-go` |
 
 ---
 
@@ -156,14 +156,14 @@ Rows are `Open` → `Blocked`/`Ack` → `Done`; move `Done` rows older than one 
 | From | To | Request | Status |
 | --- | --- | --- | --- |
 | 3 | all | **Do not** restart `faucet-http.service` or run parallel `join-testnet-rehearsal*` on Hetzner during B-15 (faucet lock). **B-41 mfnd P2P bind repair is explicitly allowed** — wave1 outside-in HTTP evidence is landed; full JOIN cannot proceed until seeds accept dials. | **Open** |
-| 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS (job done ~111s; IP+address cooldown confirmed). Evidence `live-testnet-probe-20260720-wave1.md` | **Blocked** |
+| 3 | 7 | **B-15 blocked on B-41:** outside-in local `mfnd` tip=0 / peer_count=0; faucet HTTP PASS. Evidence `live-testnet-probe-20260720-wave1.md` | **Done** (B-41 socat forwards live; seeds dialable) |
 | 2 | 1 | Green CI + Nightly on B-15 head before next release-evidence refresh | **Open** |
 | planning | 1+3 | **B-29 close:** code `5dc3aa8`; re-dispatch Nightly after CI GREEN — closes only on Nightly GREEN | **Ack** |
 | planning | 1 | **B-34:** watch CI `#29711605173` on `e10a8b3` (lineage `#29711500087` on `76d4f04`; escalate via GitHub Status if two restarts stay runner-starved) | **Ack** |
 | planning | 3+7 | **B-42:** invite-load smoke before TL-9 — [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9); after B-15/B-41 | **Open** |
 | planning | 2+7 | **B-31:** use ROADMAP work package before TL-9 (RPC/faucet/TLS verify) | **Done** (probe landed; P2P FAIL → B-41) |
-| 7 | 2+3+human | **B-41:** fix VPS `vps-bind.env` P2P to `0.0.0.0:1900x`, restart mfnd-* only (not faucet-http), confirm outside dial to seeds — **unblocked by lane 3** (wave1 done; JOIN waiting on this) | **Ack** |
-| 7 | human | **B-22:** provide `MFN_CHECKPOINT_LOG_SIGNER_SEED_HEX` (not on VPS); publish near-tip checkpoint (log max tip=3 vs live ~4022) | **Blocked** |
+| 7 | 2+3+human | **B-41:** public seed reachability | **Done** (socat forwards; do **not** bind mfnd on 0.0.0.0 — hangs) |
+| 7 | human | **B-22:** near-tip checkpoint | **Done** (Path A `permawrite-maintainer-path-a-2`; tip 4028; seed in `/root/.mfn/checkpoint-signer.env` only) |
 | planning | 1+7 | **B-27:** use ROADMAP work package — TL-5/6 archives insufficient | **Open** |
 | planning | 6 | **Arm B-40 + B-13a** the day TL-9/L4 closes — work packages in ROADMAP; do not stay idle | **Open** (fires on L4) |
 | TESTNET | all | Mirror completed release-gate units into [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md) | Ongoing |
@@ -188,7 +188,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-19 | F9: decoy-RNG entropy contract + tests | 5 | Phase 3 privacy; after L4 + B-25 unless waived |
 | B-20 | F6: producer↔treasury runway fee-shift policy | 6 | Phase 1 permanence; after B-13a |
 | B-21 | B7 Dandelion++ internet soak evidence | 1 | Unblocks P16; after L4 |
-| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Blocked:** maintainer signer seed absent on VPS; log tip=3 vs live ~4022 |
+| B-22 | TL-8 checkpoint log VPS publish verify | 7 | **Done** — tip 4028 Path A signer-2; seed offline on VPS only |
 | B-23 | F18: privacy/permanence regression gate in ci-check | 2 | Phase 1; after L4 |
 | B-24 | Multi-op consensus settlement audit + M5 proptests | 4 | Phase 1; after B3 multi-op internet evidence |
 | B-25 | Phase 1 permanence go/no-go (30d soak + treasury bounds) | 7+human | Closes Phase 1 before Tier 2 / Path B value |
@@ -207,7 +207,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 | B-38 | Repair/soak evidence + assert | 1+7 | Phase 1 permanence |
 | B-39 | Phase 2 light-client / FRAUD_PROOFS honesty gate | 4+7 | After F5 4b.2 stack |
 | B-40 | First permanence week (arm day-of L4) | 6 | Phase 1; [work package](docs/ROADMAP.md#b-40--first-permanence-week-lane-6--arm-day-of-l4); with **B-13a** |
-| B-41 | Repair public P2P binds (`0.0.0.0:1900x`) on Hetzner | 7+2 | Phase 0; **unblocked by lane 3 wave1**; seeds loopback-only (B-31 FAIL); do not restart faucet-http |
+| B-41 | Public P2P seed reachability (socat forwards) | 7+2 | **Done** — evidence `b41-p2p-forward-20260720.md`; hub `:19101` + socat `:19001` |
 | B-42 | Invite-load smoke before TL-9 | 3+7 | Phase 0; [work package](docs/ROADMAP.md#b-42--invite-load-smoke-lanes-37--before-tl-9); after B-15/B-41 |
 | B-43 | Path B genesis freeze inventory | 7+human | Phase 4 / before L5; [work package](docs/ROADMAP.md#b-43--path-b-genesis-freeze-inventory-lane-7--before-l5) |
 | B-44 | PM3 windowed SPoRA lottery work package | 4+6 | Phase 1; after **B-32**; [work package](docs/ROADMAP.md#b-44--pm3-work-package-lane-46--after-b-32) |
@@ -218,7 +218,8 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
-1. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe**: Proxy+faucet **PASS** (job `33bb1a52…` done 111s, F7 dual tx, 503 busy, 429 address + IP cooldown); P2P seeds **FAIL** (local mfnd tip=0); checkpoint tip=3; SPoRA last_proven ~1915; front-end ports unreachable; proxy allows `submit_tx` by design. Evidence `live-testnet-probe-20260720-wave1.md`. Unblocked lane-7 **B-41** for mfnd-* only. Full JOIN **Blocked** on B-41. Docs-only `[skip ci]`. *Observed local work (not staged):* `live-testnet-data/`, `user-wallet/`, `ci-docs-*.txt`, other-lane dirty files.
+1. **2026-07-20 — lane 7 — B-41 socat P2P + B-22 tip-4028 checkpoint** (this commit): Direct `mfnd` `0.0.0.0` hung; restored loopback + `socat` public forwards (hub `:19101`←`:19001`). Outside `:19001` OPEN; RPC private. Path A checkpoint signer-2 → `max_tip_height=4028`. Faucet not restarted. Evidence `b41-p2p-forward-20260720.md`. Unblocks lane-3 B-15 JOIN. Docs `[skip ci]`. *Observed local work (not staged):* `user-wallet/`, `ci-docs-*.txt`, `live-testnet-data/`, lane4 f64-lint WIP.
+2. **2026-07-20 — lane 3 — B-15 wave1 outside-in live probe** (`afca106`): Proxy+faucet **PASS**; P2P seeds were FAIL (now fixed by B-41). Docs-only `[skip ci]`.
 2. **2026-07-19 — planning — B-40/B-42/B-43/B-44 sync**: ROADMAP work packages + critical path; provisional P2P bind renumbered **B-40 → B-41** so **B-40** = first permanence week. Docs-only `[skip ci]`.
 3. **2026-07-19 — lane 1 — B-29 parse on main + CI watch claim**: Confirm `e10a8b3`; board tracks **CI `#29711605173`**. Docs-only `[skip ci]`.
 4. **2026-07-19 — lane 7 — B-31 threat posture probe**: Evidence `b31-threat-posture-20260720.md` — RPC **PASS**; public P2P **FAIL**. **B-41** + human **B-22**. Docs-only `[skip ci]`.
