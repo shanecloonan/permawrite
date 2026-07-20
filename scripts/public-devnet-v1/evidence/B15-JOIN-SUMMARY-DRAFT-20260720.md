@@ -36,8 +36,9 @@
 | rose | faucet | n/a | yes | **4412** (wave26; proxy verified) |
 | sam | peer (+faucet done) | n/a | yes | **4430** (wave27; proxy verified) |
 | tina | faucet | n/a | yes | **4452** (wave28; proxy verified) |
+| uma | faucet | n/a | yes | **4466** (wave29; proxy verified) |
 
-Twelve wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/**tina**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
+Thirteen wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/patricia/quinn/rose/sam/tina/**uma**. Lisa excluded (F88). Runbook: F88b tip_id wait, F89 /faucet, F90 re-scan after receive.
 
 ## Hard findings operators must know
 
@@ -61,6 +62,7 @@ Twelve wallets with public last_proven: heidi/ivan/judy/karl/mike/nina/oscar/pat
 19. **F97** - wallet balance can timeout (180s) after faucet/pin; retry or peer-fund.
 20. **F98** - peer dual-send #2 may fail input-count floor even when owned=2 after change settles.
 21. **F45 update (wave28)** - hard checkpoint-log **PASS** when Path A attestation exists at exact live tip; failure mode is attestation lag, not broken soft JOIN.
+22. **F99** - after faucet, low pins may timeout; near-tip/ckpt-max pin can still show owned=2 (wave29: 4173/4262 timeout, 4400 funded).
 18. **F45** - tip-4400 ckpt landed but hard scan still FAIL at tip 4404 (lag~4); pin@max insufficient.
 
 ## Still open before formal archive PASS

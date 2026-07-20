@@ -140,7 +140,7 @@ Every check below has exactly one owner. "Owner" = the lane on duty; the unit ow
 | --- | --- | --- | --- | --- |
 | **1** RC core | **B-75** production_dial + persistable local P2P (this commit) | *Idle* — watch full CI then sole Nightly | Nightly GREEN → close **B-29** | CI/Nightly run IDs |
 | **2** RC ops | R-1–R-4 (`2b655d2`…`dc05c40`) | *Idle* | Release evidence after CI+Nightly GREEN; **B-26** after B-15 | Board + encoding guards |
-| **3** Onboarding | **B-15 wave28** (tina last_proven=4452; F45 PASS exact-tip) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
+| **3** Onboarding | **B-15 wave29** (uma last_proven=4466; F99 pin@4400) | **B-15** formal JOIN archive assert (claim base: this head) | Human/assert SUMMARY; no Hetzner parallel JOIN | L4 checklist |
 | **4** Protocol | **B-74** (`62a9c02`, CI `#29739903305` GREEN); **B-67**/**B-71**/**B-66**/**B-64**/**B-63** | **B-76** dual-op empty-audit slash (early B-24d; this commit) | Live **B-32** (B-77 mfnd rolled) after B-15 → **B-44** → full **B-24** | Lane 1 CI |
 | **5** Privacy | **B-16** (`49d28f9`) | *Idle* | **B-50 follow-up:** Rust auto-bootstrap from checkpoint log; After B-25: **B-35** / **B-37** / **B-19** | Doc-accuracy duty |
 | **6** Permanence | F6 telemetry (`0d1b9ec`) | *Idle* | **Armed:** **B-40** + **B-13a** day-of L4; then **B-33** | Emission sims |
@@ -269,6 +269,7 @@ Claim a row by moving it into your §5 Doing cell. Completed backlog rows move t
 
 > One entry per landed unit or board correction: date, lane, unit, commits, verification verdicts. When this list exceeds 20, rotate the oldest entries verbatim into [`docs/AGENTS_LEDGER.md`](docs/AGENTS_LEDGER.md) § Rotated session-log entries.
 
+1. **2026-07-20 - lane 3 - B-15 wave29** (this commit): faucet done; bal timeout @4173/@4262 (**F97**); pin@4400 funded (**F99**); upload bound **last_proven=4466** proxy+claims=10. Evidence wave29.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
 1. **2026-07-20 — lane 7 — B-79 B-32 arm-ready + tip-4443** (this commit): `assert-b32-arm-ready.sh` + ci-check plan gate; VPS apply NOT READY (1 host) / synthetic 2-host READY; fixed `${2:-{}}` params bug + Path A bootstrap `RPC="${1:-}"` treating `--apply` as RPC; Path A tip-**4443** (entries=15). Evidence `b79-b32-arm-ready-20260720.md`. Full CI (no skip). *Observed (not staged):* lane-1 B-75 WIP (`p2p_fanout`/produce-smokes/`start-all`/`persistable-listen-lib`), JOIN `user-wallet/`, `live-testnet-data*`, wave temps.
 1. **2026-07-20 - lane 3 - B-15 wave28** (`d93ab7b`/`3c1f24d`): **F45 HARD PASS** at tip 4443 (exact-tip Path A attestation; now committed in B-79); sam retrieve OK; tina faucet ~139s; F96 pin-retry; upload bound **last_proven=4452** proxy+claims=9. Evidence wave28.md.
 1. **2026-07-20 - lane 3 - B-15 wave27** (this commit): faucet done then balance timeout **F97**; rose->sam #1 PASS / #2 **F98** input-count floor; sam fund_mode=peer; upload bound **last_proven=4430** proxy+claims=8. Evidence wave27.md. *Observed (not staged):* user-wallet/, live-testnet-data*, other-lane dirty files.
